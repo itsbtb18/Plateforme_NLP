@@ -1,0 +1,392 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load i18n %}
+{% block title %}{% trans "New User" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-form-container {
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease;
+    }
+    
+    .form-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .form-header {
+        background: linear-gradient(to right, #4b6cb7, #182848);
+        color: white;
+        padding: 20px;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 12px;
+        transition: all 0.3s;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.25);
+        border-color: #4b6cb7;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #444;
+        margin-bottom: 8px;
+    }
+    
+    .required-field {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    
+    .btn-create {
+        background: linear-gradient(to right, #4b6cb7, #182848);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-create:hover {
+        background: linear-gradient(to right, #3b5998, #192f65);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(59, 89, 152, 0.3);
+    }
+    
+    .btn-cancel {
+        border-radius: 8px;
+        padding: 12px 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+    }
+    
+    .custom-alert {
+        border-radius: 10px;
+        border-left: 4px solid;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .alert-success {
+        border-left-color: #2ecc71;
+    }
+    
+    .alert-danger {
+        border-left-color: #e74c3c;
+    }
+    
+    .form-floating label {
+        padding-left: 20px;
+    }
+    
+    .form-floating .form-control {
+        height: 58px;
+        padding-left: 20px;
+    }
+    
+    /* Effet de transition lors du chargement */
+    .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Amélioration responsive */
+    @media (max-width: 768px) {
+        .form-header {
+            text-align: center;
+        }
+        
+        .form-btn-group {
+            flex-direction: column-reverse;
+            gap: 15px;
+        }
+        
+        .btn-cancel, .btn-create {
+            width: 100%;
+        }
+    }
+
+    .email-domain-note {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5 fade-in">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="custom-alert alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                            <strong>{{ message }}</strong>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <div class="user-form-container p-3 p-md-4">
+                <div class="form-card">
+                    <div class="form-header">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <h2 class="m-0">
+                                <i class="bi bi-person-plus me-2"></i> {% trans "Create New User" %}
+                            </h2>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb m-0">
+                                    <li class="breadcrumb-item"><a href="{% url 'pages:admin_dashboard' %}" class="text-white">{% trans "Dashboard" %}</a></li>
+                                    <li class="breadcrumb-item"><a href="{% url 'pages:admin_users' %}" class="text-white">{% trans "Users" %}</a></li>
+                                    <li class="breadcrumb-item active text-white-50" aria-current="page">{% trans "New" %}</li>
+                                </ol>
+                            </nav>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body p-4">
+                        <form method="POST" action="{% url 'pages:admin_users_new' %}" id="newUserForm">
+                            {% csrf_token %}
+                            
+                            <div class="row g-4 mb-3">
+                                <div class="col-md-12">
+                                    <div class="form-floating">
+
+                                        <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Full Name" required>
+                                        <label for="full_name">{% trans "Full Name" %} <span class="required-field">*</span></label>
+
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-4 mb-3">
+                                <div class="col-md-12">
+                                    <div class="form-floating">
+                                        <input type="email" class="form-control" id="email" name="email" placeholder="{% trans "Email" %}" required>
+                                        <label for="email">{% trans "Email" %} <span class="required-field">*</span></label>
+                                    </div>
+                                    <div class="email-domain-note">
+                                        <i class="bi bi-info-circle me-1"></i> {% trans "Email must end with: usthb.dz" %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-12">
+                                    <div class="form-floating">
+                                        <input type="text" class="form-control" id="institution" name="institution" placeholder="{% trans "Institution" %}" required>
+                                        <label for="institution">{% trans "Institution" %} <span class="required-field">*</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <div class="form-floating password-container">
+                                        <input type="password" class="form-control" id="password1" name="password1" placeholder="{% trans "Password" %}" required>
+                                        <label for="password1">{% trans "Password" %} <span class="required-field">*</span></label>
+                                    </div>
+                                    <div class="password-strength mt-2 d-none">
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <small class="strength-text text-muted mt-1"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-floating password-container">
+
+                                        <input type="password" class="form-control" id="password2" name="password2" placeholder="Password Confirmation" required>
+                                        <label for="password2">{% trans "Password Confirmation" %} <span class="required-field">*</span></label>
+
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-4 form-btn-group">
+                                <a href="{% url 'pages:admin_users' %}" class="btn btn-outline-secondary btn-cancel">
+                                    <i class="bi bi-arrow-left me-2"></i>{% trans "Cancel" %}
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-create">
+                                    <i class="bi bi-person-plus-fill me-2"></i>{% trans "Create User" %}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animation au chargement
+        setTimeout(() => {
+            document.querySelector('.fade-in').classList.add('loaded');
+        }, 100);
+        
+        // Validation du formulaire
+        const form = document.getElementById('newUserForm');
+        const passwordInput = document.getElementById('password1');
+        const confirmPasswordInput = document.getElementById('password2');
+        const emailInput = document.getElementById('email');
+        const strengthProgress = document.querySelector('.progress-bar');
+        const strengthText = document.querySelector('.strength-text');
+        const strengthContainer = document.querySelector('.password-strength');
+        
+        // Afficher l'indicateur de force du mot de passe
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            strengthContainer.classList.remove('d-none');
+            
+            // Calcul de la force du mot de passe
+            let strength = 0;
+            let feedback = '';
+            
+            if (password.length > 0) {
+                // Longueur minimale
+                if (password.length >= 8) {
+                    strength += 25;
+                }
+                
+                // Présence de chiffres
+                if (/\d/.test(password)) {
+                    strength += 25;
+                }
+                
+                // Présence de lettres minuscules et majuscules
+                if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
+                    strength += 25;
+                }
+                
+                // Présence de caractères spéciaux
+                if (/[^A-Za-z0-9]/.test(password)) {
+                    strength += 25;
+                }
+                
+                // Feedback textuel
+                if (strength < 25) {
+                    feedback = 'Very Weak';
+                    strengthProgress.className = 'progress-bar bg-danger';
+                } else if (strength < 50) {
+                    feedback = 'Weak';
+                    strengthProgress.className = 'progress-bar bg-warning';
+                } else if (strength < 75) {
+                    feedback = 'Medium';
+                    strengthProgress.className = 'progress-bar bg-info';
+                } else {
+                    feedback = 'Strong';
+                    strengthProgress.className = 'progress-bar bg-success';
+                }
+            } else {
+                strengthContainer.classList.add('d-none');
+            }
+            
+            // Mise à jour de l'interface
+            strengthProgress.style.width = strength + '%';
+            strengthText.textContent = feedback;
+        });
+        
+        // Validation à la soumission
+        form.addEventListener('submit', function(event) {
+            let isValid = true;
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            // Validation du mot de passe
+            if (password.length < 8) {
+                isValid = false;
+                passwordInput.classList.add('is-invalid');
+                showError("Password must contain at least 8 characters.");
+            }
+            
+            // Validation de la confirmation du mot de passe
+            if (password !== confirmPassword) {
+                isValid = false;
+                confirmPasswordInput.classList.add('is-invalid');
+                showError("Passwords do not match.");
+            }
+            
+            // Validation du domaine email
+            if (email && !email.toLowerCase().endsWith('@usthb.dz')) {
+                isValid = false;
+                emailInput.classList.add('is-invalid');
+                showError("Email must end with @usthb.dz");
+            }
+            
+            if (!isValid) {
+                event.preventDefault();
+            }
+        });
+        
+        function showError(message) {
+            // Supprimer les alertes existantes
+            const existingAlerts = document.querySelectorAll('.custom-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Message d'erreur personnalisé
+            const alertHTML = `
+                <div class="custom-alert alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>${message}</strong>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            const alertContainer = document.createElement('div');
+            alertContainer.innerHTML = alertHTML;
+            form.prepend(alertContainer.firstChild);
+        }
+        
+        // Réinitialiser l'état d'invalidation lors de la saisie
+        document.querySelectorAll('.form-control').forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
+        
+        // Animation des champs de formulaire
+        const formInputs = document.querySelectorAll('.form-control, .form-select');
+        formInputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.classList.remove('focused');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,753 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}Gestion des Appels à Communications{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Variables */
+  :root {
+    --primary: #4f46e5; /* Indigo 600 */
+    --primary-dark: #4338ca; /* Indigo 700 */
+    --primary-light: #e0e7ff; /* Indigo 100 */
+    --primary-lighter: #f0f4ff; /* Custom very light indigo */
+    --success: #10b981; /* Green 500 */
+    --success-light: #d1fae5; /* Green 100 */
+    --danger: #ef4444; /* Red 500 */
+    --danger-light: #fee2e2; /* Red 100 */
+    --warning: #f59e0b; /* Amber 500 */
+    --warning-light: #fef3c7; /* Amber 100 */
+    --info: #3b82f6; /* Blue 500 */
+    --info-light: #dbeafe; /* Blue 100 */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --border-radius-sm: 0.375rem; /* 6px */
+    --border-radius: 0.5rem; /* 8px */
+    --border-radius-lg: 0.75rem; /* 12px */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 6px 10px -3px rgba(0, 0, 0, 0.1), 0 3px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition-fast: all 0.1s ease-out;
+    --transition: all 0.2s ease-in-out;
+    --transition-slow: all 0.3s ease-in-out;
+  }
+
+  /* Base layout and typography */
+  body {
+      font-family: 'Nunito', sans-serif; /* Exemple: Utiliser une police plus moderne */
+      background-color: var(--gray-100); /* Couleur de fond générale */
+      color: var(--gray-700);
+      line-height: 1.5;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem; /* Augmenter le padding */
+  }
+  
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem; /* Augmenter l'espace */
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  .page-title {
+    font-size: 1.75rem; /* Augmenter la taille du titre */
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 1rem; /* Augmenter l'espace entre les boutons */
+    align-items: center; /* Alignement vertical */
+  }
+
+  /* Filter Bar */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem; /* Augmenter l'espace entre les éléments de filtre */
+    margin-bottom: 2.5rem; /* Augmenter l'espace */
+    padding: 1.5rem; /* Augmenter le padding */
+    background-color: white; /* Fond blanc pour les filtres */
+    border-radius: var(--border-radius-lg); /* Coins plus arrondis */
+    box-shadow: var(--shadow-sm); /* Ombre légère */
+    align-items: flex-end; /* Alignement vertical pour les éléments */
+  }
+  
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .filter-label {
+    margin-bottom: 0.6rem; /* Ajuster l'espace */
+    font-size: 0.9rem; /* Ajuster la taille de police */
+    font-weight: 600; /* Rendre le label plus gras */
+    color: var(--gray-700); /* Couleur de texte plus foncée */
+  }
+  
+  .filter-input {
+    padding: 0.75rem 1rem; /* Augmenter le padding */
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius); /* Coins légèrement arrondis */
+    font-size: 0.9rem; /* Ajuster la taille de police */
+    transition: var(--transition);
+    background-color: var(--gray-50); /* Fond très léger */
+  }
+  
+  .filter-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary), 0.2); /* Ombre de focus */
+    background-color: white;
+  }
+  
+  .filter-actions {
+    display: flex;
+    align-items: flex-end; /* Alignement vertical */
+    margin-left: auto;
+  }
+
+  /* Button styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem; /* Augmenter le padding */
+    font-size: 0.9rem; /* Ajuster la taille de police */
+    font-weight: 600; /* Rendre le texte plus gras */
+    text-align: center;
+    border: none;
+    border-radius: var(--border-radius); /* Coins légèrement arrondis */
+    cursor: pointer;
+    box-shadow: var(--shadow-sm); /* Ombre légère */
+    transition: var(--transition);
+    text-decoration: none;
+    line-height: 1;
+  }
+  
+  .btn-primary {
+    background-color: var(--primary);
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--primary-dark);
+    box-shadow: var(--shadow); /* Ombre plus prononcée au survol */
+  }
+  
+  .btn-outline {
+    background-color: white;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-700);
+  }
+  
+  .btn-outline:hover {
+    border-color: var(--gray-400);
+    background-color: var(--gray-50);
+    color: var(--gray-800);
+  }
+
+    .btn-success {
+        background-color: var(--success);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background-color: #0b956b; /* Darker green */
+        box-shadow: var(--shadow);
+    }
+
+    .btn-danger {
+        background-color: var(--danger);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background-color: #c83333; /* Darker red */
+        box-shadow: var(--shadow);
+    }
+
+  /* Card container */
+  .card {
+    background-color: white;
+    border-radius: var(--border-radius-lg); /* Coins plus arrondis */
+    box-shadow: var(--shadow); /* Ombre standard */
+    overflow: hidden;
+    margin-bottom: 2rem; /* Espace sous la carte */
+  }
+
+  /* Table styles */
+  .table-responsive {
+    overflow-x: auto;
+    border-radius: var(--border-radius-lg); /* Coins plus arrondis */
+    box-shadow: var(--shadow-sm); /* Ombre légère */
+  }
+  
+  .calls-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem; /* Ajuster la taille de police */
+  }
+  
+  .calls-table th {
+    background-color: var(--primary-lighter); /* Fond léger */
+    color: var(--primary-dark); /* Couleur de texte */
+    font-weight: 700; /* Rendre plus gras */
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 1rem; /* Augmenter le padding */
+    text-align: left;
+    border-bottom: 1px solid var(--primary-light); /* Bordure */
+  }
+  
+  .calls-table td {
+    padding: 1rem; /* Augmenter le padding */
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-700);
+    vertical-align: middle; /* Alignement vertical */
+  }
+  
+  .calls-table tr:hover {
+    background-color: var(--gray-100); /* Couleur de survol plus contrastée */
+  }
+  
+  .calls-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* Type badges */
+  .type-badge {
+    display: inline-block;
+    padding: 0.3rem 0.9rem; /* Ajuster le padding */
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600; /* Rendre plus gras */
+    background-color: var(--gray-200); /* Fond plus visible */
+    color: var(--gray-800); /* Couleur de texte plus foncée */
+    text-transform: capitalize; /* Première lettre en majuscule */
+  }
+  
+  /* Status badges */
+  .status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.9rem; /* Ajuster le padding */
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600; /* Rendre plus gras */
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+  
+  .status-active {
+    background-color: var(--success-light);
+    color: var(--success);
+    border: 1px solid var(--success);
+  }
+  
+  .status-inactive {
+    background-color: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+
+  /* Topics tags */
+  .topics-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem; /* Espace entre les tags */
+    max-width: 300px; /* Augmenter la largeur maximale */
+  }
+  
+  .topic-tag {
+    display: inline-block;
+    padding: 0.2rem 0.6rem; /* Ajuster le padding */
+    background-color: var(--primary-light); /* Fond basé sur la couleur principale */
+    color: var(--primary-dark); /* Couleur de texte basée sur la couleur principale */
+    border-radius: var(--border-radius-sm); /* Coins légèrement arrondis */
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid var(--primary); /* Bordure fine */
+  }
+
+  /* Action buttons */
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem; /* Augmenter l'espace entre les boutons d'action */
+  }
+  
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.9rem; /* Augmenter le padding */
+    font-size: 0.8rem; /* Ajuster la taille de police */
+    border-radius: var(--border-radius);
+    transition: var(--transition-fast);
+    text-decoration: none;
+    font-weight: 600; /* Rendre le texte plus gras */
+    line-height: 1;
+  }
+  
+  .btn-edit {
+    color: var(--primary);
+    background-color: var(--primary-light);
+    border: 1px solid var(--primary);
+  }
+  
+  .btn-edit:hover {
+    background-color: var(--primary);
+    color: white;
+  }
+
+  .btn-success.btn-action {
+    color: var(--success);
+    background-color: var(--success-light);
+    border: 1px solid var(--success);
+  }
+
+    .btn-success.btn-action:hover {
+        background-color: var(--success);
+        color: white;
+    }
+  
+  .btn-delete {
+    color: var(--danger);
+    background-color: var(--danger-light);
+    border: 1px solid var(--danger);
+  }
+  
+  .btn-delete:hover {
+    background-color: var(--danger);
+    color: white;
+  }
+
+  .btn-action.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+  }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1rem; /* Augmenter le padding */
+    text-align: center;
+    background-color: white; /* Fond blanc */
+    border-radius: var(--border-radius-lg); /* Coins plus arrondis */
+    box-shadow: var(--shadow-sm); /* Ombre légère */
+    margin-bottom: 2rem; /* Espace */
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem; /* Augmenter la taille de l'icône */
+    margin-bottom: 1.5rem; /* Augmenter l'espace */
+    color: var(--gray-400);
+  }
+  
+  .empty-state-message {
+    font-size: 1.1rem; /* Ajuster la taille de police */
+    color: var(--gray-600); /* Couleur de texte */
+    margin-bottom: 2rem; /* Augmenter l'espace */
+    max-width: 500px; /* Limiter la largeur */
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2rem; /* Augmenter l'espace */
+    gap: 0.5rem; /* Augmenter l'espace entre les éléments */
+  }
+  
+  .pagination-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem; /* Ajuster la taille */
+    height: 2.2rem; /* Ajuster la taille */
+    border-radius: var(--border-radius); /* Coins légèrement arrondis */
+    font-size: 0.9rem; /* Ajuster la taille de police */
+    color: var(--gray-600);
+    background-color: white;
+    border: 1px solid var(--gray-300); /* Bordure plus visible */
+    text-decoration: none;
+    transition: var(--transition-fast);
+  }
+  
+  .pagination-item.active {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    font-weight: 600; /* Rendre plus gras */
+  }
+  
+  .pagination-item:hover:not(.active) {
+    background-color: var(--primary-light); /* Couleur de survol */
+    border-color: var(--primary);
+    color: var(--primary-dark);
+  }
+
+  /* Date styling */
+  .deadline-date {
+    font-weight: 600; /* Rendre plus gras */
+  }
+  
+  .deadline-soon {
+    color: var(--warning); /* Couleur d'avertissement */
+  }
+  
+  .deadline-past {
+    color: var(--danger); /* Couleur de danger */
+  }
+
+  /* Responsive card view for mobile */
+  .call-cards {
+      display: none; /* Cacher par défaut, sera affiché en mobile */
+  }
+
+  .call-card {
+    display: none; /* Cacher par défaut, sera affiché en mobile */
+    padding: 1.5rem; /* Augmenter le padding */
+    background-color: white;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm); /* Ombre légère */
+    margin-bottom: 1.5rem; /* Espace */
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.2rem; /* Ajuster l'espace */
+    border-bottom: 1px dashed var(--gray-200); /* Bordure pointillée */
+    padding-bottom: 1rem;
+  }
+  
+  .card-title {
+    font-weight: 700; /* Rendre plus gras */
+    color: var(--gray-800);
+    margin-right: 1rem; /* Augmenter l'espace */
+    font-size: 1.1rem; /* Ajuster la taille de police */
+  }
+  
+  .card-body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.8rem 1.5rem; /* Ajuster l'espace */
+    margin-bottom: 1.5rem; /* Espace */
+  }
+  
+  .card-label {
+    font-size: 0.8rem; /* Ajuster la taille de police */
+    font-weight: 600; /* Rendre plus gras */
+    color: var(--gray-600);
+    text-transform: uppercase;
+  }
+  
+  .card-value {
+    font-size: 0.9rem; /* Ajuster la taille de police */
+    color: var(--gray-700);
+  }
+  
+  .card-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem; /* Augmenter le padding */
+    border-top: 1px solid var(--gray-200);
+  }
+  
+  .mobile-topics {
+    margin-top: 0.5rem;
+  }
+
+  /* Responsive layout */
+  @media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    .header-actions {
+      width: 100%;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .header-actions .btn {
+      width: 100%;
+    }
+    
+    .filter-bar {
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .filter-group {
+      width: 100%;
+      min-width: auto;
+    }
+    
+    .filter-actions {
+      margin-left: 0;
+      width: 100%;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 0.75rem 1.25rem;
+    }
+
+    .topics-container {
+      max-width: 100%;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .table-responsive {
+      display: none; /* Cacher le tableau en mobile */
+    }
+    
+    .call-cards {
+        display: block; /* Afficher les cartes en mobile */
+    }
+
+    .call-card {
+        display: block; /* Afficher les cartes individuelles */
+    }
+    
+    .pagination {
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    .pagination-item {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.875rem;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">{% trans "Management of Calls for Papers" %}</h1>
+    <div class="header-actions">
+      <a href="{% url 'events:event_create' %}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        {% trans "New call" %}
+      </a>
+    </div>
+  </div>
+
+  <form method="get" action="{% url 'pages:admin_calls' %}" class="filter-bar"> {# Assurez-vous que l'action pointe vers la bonne URL de la page #}
+    <div class="filter-group">
+
+      <label class="filter-label" for="search">{% trans "Research" %}</label>
+      <input id="search" class="filter-input" type="text" name="search" placeholder="Title or organizer..." value="{{ search }}">
+
+    </div>
+    
+    <div class="filter-group">
+      <label class="filter-label" for="call_type">{% trans "Call type" %}</label>
+      <select id="call_type" class="filter-input" name="call_type">
+        <option value="">{% trans "All types" %}</option>
+        <option value="conference" {% if filter_call_type == 'conference' %}selected{% endif %}>{% trans "Conference" %}</option>
+        <option value="workshop" {% if filter_call_type == 'workshop' %}selected{% endif %}>{% trans "Workshop" %}</option>
+        <option value="journal" {% if filter_call_type == 'journal' %}selected{% endif %}>{% trans "Newspaper" %}</option>
+      </select>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <select name="is_approved" class="form-select">
+                    <option value="">{% trans "All statuses" %}</option>
+                    <option value="true" {% if filter_is_approved == 'true' %}selected{% endif %}>{% trans "Approved" %}</option>
+                    <option value="false" {% if filter_is_approved == 'false' %}selected{% endif %}>{% trans "On hold" %}</option>
+                </select>
+            </div>
+            <!-- ... existing filters ... -->
+        </form>
+    </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="btn btn-primary">{% trans "Apply filters" %}</button>
+    </div>
+  </form>
+
+  {% if calls %}
+    <!-- Table view (desktop) -->
+    <div class="card table-responsive">
+      <table class="calls-table">
+        <thead>
+          <tr>
+            <th>{% trans "Title" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Deadline" %}</th>
+            <th>{% trans "Organizer" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for call in calls %}
+          <tr>
+            <td>{{ call.title }}</td>
+            <td>
+              <span class="type-badge">{{ call.get_call_type_display }}</span>
+            </td>
+            <td>
+              <span class="deadline-date {% if call.submission_deadline|date:'Ymd' < now|date:'Ymd' %}deadline-past{% elif call.submission_deadline|date:'Ymd' < now|date:'Ymd'|add:'30' %}deadline-soon{% endif %}">
+                {{ call.submission_deadline|date:"d M Y" }}
+              </span>
+            </td>
+            <td>{{ call.organizer }}</td>
+            <td>
+              {% if call.is_approved %}
+                <span class="status-badge status-active">{% trans "Approved" %}</span>
+              {% else %}
+                <span class="status-badge status-inactive">{% trans "On hold" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="action-buttons">
+                <a href="{% url 'events:event_update' call.pk %}" class="btn-action btn-edit" title="Modifier cet appel à communication">{% trans "Edit" %}</a>
+                <a href="{% url 'events:event_delete' call.pk %}" class="btn-action btn-delete" onclick="return confirm('Are you sure you want to delete this call for papers??');" title="Supprimer cet appel à communication">{% trans "Delete" %}</a>
+                {% if not call.is_approved %}
+                  <form action="{% url 'events:event_validate' call.pk %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-action" title="Approuver cet événement">{% trans "Approve" %}</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Card view (mobile) -->
+    <div class="call-cards">
+      {% for call in calls %}
+
+        <div class="call-card">
+          <div class="card-header">
+            <div class="card-title">{{ call.title }}</div>
+            <div>
+              <span class="type-badge">{{ call.get_call_type_display }}</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-label">{% trans "Deadline" %}</div>
+            <div class="card-value">
+              <span class="deadline-date {% if call.submission_deadline|date:'Ymd' < now|date:'Ymd' %}deadline-past{% elif call.submission_deadline|date:'Ymd' < now|date:'Ymd'|add:'30' %}deadline-soon{% endif %}">
+                {{ call.submission_deadline|date:"d M Y" }}
+              </span>
+            </div>
+
+            <div class="card-label">{% trans "Organizer" %}</div>
+            <div class="card-value">{{ call.organizer }}</div>
+
+            <div class="card-label">{% trans "Status" %}</div>
+            <div class="card-value">
+              {% if call.is_approved %}
+                <span class="status-badge status-active">{% trans "Approved" %}</span>
+              {% else %}
+                <span class="status-badge status-inactive">{% trans "On hold" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="action-buttons">
+              {# Bouton Modifier l'appel #}
+              <a href="{% url 'events:event_update' call.pk %}" class="btn-action btn-edit" title="Modifier cet appel à communication">{% trans "Edit" %}</a>
+
+              {# Bouton Supprimer l'appel #}
+              <a href="{% url 'events:event_delete' call.pk %}" class="btn-action btn-delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet appel à communication ?');" title="Supprimer cet appel à communication">{% trans "Delete" %}</a>
+
+              {# Bouton Valider (visible si l'événement lié n'est pas approuvé) #}
+              {% if not call.is_approved %}
+                <form action="{% url 'events:event_validate' call.pk %}" method="post" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-success btn-action" title="Approuver cet événement">{% trans "Approve" %}</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      {# Previous Page #}
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-item">&laquo;</a>
+      {% else %}
+        <span class="pagination-item disabled">&laquo;</span>
+      {% endif %}
+
+      {# Page Numbers #}
+      {% for i in page_obj.paginator.page_range %}
+        {% if page_obj.number == i %}
+          <span class="pagination-item active">{{ i }}</span>
+        {% else %}
+          <a href="?page={{ i }}" class="pagination-item">{{ i }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {# Next Page #}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="pagination-item">&raquo;</a>
+      {% else %}
+        <span class="pagination-item disabled">&raquo;</span>
+      {% endif %}
+    </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📢</div> {# Peut-être changer l'icône #}
+      <p class="empty-state-message">{% trans "No calls for papers found. Please modify your filters or add a new call." %}</p>
+      <a href="{% url 'events:event_create' %}" class="btn btn-primary">{% trans "Create a call for papers" %}</a> {# Assurez-vous que l'URL est correcte #}
+    </div>
+  {% endif %}
+</div>
+
+{% endblock content %}

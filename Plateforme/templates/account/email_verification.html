@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<style>
+  .verification-container {
+    max-width: 400px;
+    margin: 60px auto;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    font-family: sans-serif;
+  }
+
+  .verification-container h2 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+    color: #333;
+  }
+
+  .verification-container p {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 25px;
+  }
+
+  .verification-container form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .verification-container input[type="text"] {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 15px;
+  }
+
+  .verification-container button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .verification-container button:hover {
+    background-color: #0056b3;
+  }
+</style>
+
+<div class="verification-container">
+  <h2>{% trans "Check your email" %} </h2>
+  <p>{% trans "A verification code has been sent to your email. Enter it below:" %}</p>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.code.label_tag }}
+    {{ form.code }}
+    {% if form.code.errors %}
+      <div style="color: red;">{{ form.code.errors }}</div>
+    {% endif %}
+    <button type="submit">{% trans "Check" %}</button>
+  </form>
+</div>
+{% endblock %}

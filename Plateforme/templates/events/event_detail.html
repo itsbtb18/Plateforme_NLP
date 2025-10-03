@@ -1,0 +1,546 @@
+{% extends "base.html" %} {% load i18n %} {% block title %}{{ event.title }} | {% trans "Events" %}{% endblock %} {% block extra_css %}
+<style>
+  /* Custom CSS for enhanced event detail page */
+  .event-hero {
+    background: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .event-hero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%232564eb' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    z-index: 0;
+  }
+
+  .event-hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .event-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .event-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .badge-pill {
+    border-radius: 9999px;
+    padding-left: 0.85em;
+    padding-right: 0.85em;
+  }
+
+  .badge-event-conference {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+  }
+
+  .badge-event-workshop {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #059669;
+  }
+
+  .badge-event-call_for_papers {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+  }
+
+  .badge-event-hackathon {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+  }
+
+  .badge-event-other {
+    background-color: rgba(107, 114, 128, 0.1);
+    color: #4b5563;
+  }
+
+  .icon-circle {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .bg-blue-soft {
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  .bg-green-soft {
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+
+  .bg-yellow-soft {
+    background-color: rgba(245, 158, 11, 0.1);
+  }
+
+  .bg-red-soft {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+
+  .bg-purple-soft {
+    background-color: rgba(124, 58, 237, 0.1);
+  }
+
+  .text-truncate-1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  .event-detail-info p {
+    margin-bottom: 0.5rem;
+  }
+
+  .event-domains span {
+    display: inline-block;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-outline-custom {
+    background-color: transparent;
+    transition: all 0.2s;
+  }
+
+  .btn-outline-custom:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-outline-primary {
+    border-color: #3b82f6;
+    color: #3b82f6;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  .btn-outline-danger {
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  .btn-outline-danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+
+  .btn-outline-success {
+    border-color: #10b981;
+    color: #10b981;
+  }
+
+  .btn-outline-success:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+
+  .btn-success {
+    background-color: #10b981;
+    border-color: #10b981;
+  }
+
+  .btn-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+  }
+
+  /* Animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .event-status-card {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .event-detail-card {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  /* Media queries */
+  @media (max-width: 767.98px) {
+    .event-hero h1 {
+      font-size: 1.5rem;
+    }
+
+    .event-badge-container {
+      flex-wrap: wrap;
+    }
+
+    .badge-pill {
+      margin-bottom: 0.5rem;
+    }
+
+    .event-action-buttons {
+      flex-direction: column;
+    }
+
+    .event-action-buttons .btn {
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  /* Improve accessibility */
+  .skip-to-content {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .skip-to-content:focus {
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    padding: 0.5rem 1rem;
+    background: #fff;
+    border: 1px solid #3b82f6;
+    border-radius: 4px;
+    top: 0.5rem;
+  }
+</style>
+{% endblock %} {% block content %}
+<!-- Hero section with event title and badge -->
+<div class="event-hero py-5 mb-4">
+  <div class="container">
+    <a href="#main-content" class="skip-to-content">{% trans "Skip to main content" %}</a>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'events:event_list' %}">{% trans "Events" %}</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+          {{ event.title }}
+        </li>
+      </ol>
+    </nav>
+
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h1 class="display-5 fw-bold mb-3">{{ event.title }}</h1>
+        <div class="d-flex flex-wrap event-badge-container gap-2 mb-3">
+          <span
+            class="badge badge-pill {% if event.event_type == 'conference' %}badge-event-conference{% elif event.event_type == 'workshop' %}badge-event-workshop{% elif event.event_type == 'call_for_papers' %}badge-event-call_for_papers{% elif event.event_type == 'hackathon' %}badge-event-hackathon{% else %}badge-event-other{% endif %}"
+          >
+            <i
+              class="fas {% if event.event_type == 'conference' %}fa-users{% elif event.event_type == 'workshop' %}fa-chalkboard-teacher{% elif event.event_type == 'call_for_papers' %}fa-file-alt{% elif event.event_type == 'hackathon' %}fa-laptop-code{% else %}fa-calendar-alt{% endif %} me-1"
+            ></i>
+            {{ event.get_event_type_display }}
+          </span>
+
+          <span class="badge badge-pill bg-light text-dark">
+            <i class="fas fa-calendar-alt me-1"></i>
+            {{ event.start_date|date:"M d, Y" }} {% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }} {% endif %}
+          </span>
+
+          <span
+            class="badge badge-pill {% if event.is_virtual %}bg-info text-dark{% else %}bg-secondary text-white{% endif %}"
+          >
+            <i
+              class="fas {% if event.is_virtual %}fa-video{% else %}fa-map-marker-alt{% endif %} me-1"
+            ></i>
+            {% if event.is_virtual %}{% trans "Virtual Event" %}{% else %}{{ event.location|truncatechars:20 }}{% endif %}
+          </span>
+
+          {% if event.is_ongoing %}
+          <span class="badge badge-pill bg-success">
+            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
+          </span>
+          {% elif event.is_upcoming %}
+          <span class="badge badge-pill bg-primary">
+            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
+          </span>
+          {% else %}
+          <span class="badge badge-pill bg-secondary">
+            <i class="fas fa-calendar-times me-1"></i> {% trans "Ended" %}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="main-content" class="container mb-5">
+  <div class="row g-4">
+    <!-- Main content -->
+    <div class="col-lg-8">
+      <div class="card event-detail-card rounded-3 border-0">
+        <div class="card-body p-4">
+          <h2 class="card-title h4 mb-4 pb-2 border-bottom">
+            {% trans "About This Event" %}
+          </h2>
+
+          <!-- Event description -->
+          <div class="event-description mb-4">
+            {{ event.description|linebreaks }}
+          </div>
+
+          <!-- Event details -->
+          <div class="row g-4 mb-4 event-detail-info">
+            <div class="col-md-6">
+              <div class="d-flex">
+                <div class="icon-circle bg-blue-soft me-3">
+                  <i class="fas fa-building text-primary"></i>
+                </div>
+                <div>
+                  <p class="text-muted mb-1 small">{% trans "Organizer" %}</p>
+                  <p class="fw-bold">{{ event.organizer }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="d-flex">
+                <div class="icon-circle bg-green-soft me-3">
+                  <i class="fas fa-envelope text-success"></i>
+                </div>
+                <div>
+                  <p class="text-muted mb-1 small">{% trans "Contact" %}</p>
+                  <p class="fw-bold text-truncate-1">
+                    {{ event.contact_email }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {% if event.submission_deadline %}
+            <div class="col-md-6">
+              <div class="d-flex">
+                <div class="icon-circle bg-red-soft me-3">
+                  <i class="fas fa-clock text-danger"></i>
+                </div>
+                <div>
+                  <p class="text-muted mb-1 small">
+                    {% trans "Submission Deadline" %}
+                  </p>
+                  <p class="fw-bold">
+                    {{ event.submission_deadline|date:"M d, Y" }} {% if event.days_until_deadline != None %}
+                    <span class="badge bg-warning text-dark ms-2"
+                      >{{ event.days_until_deadline }} {% trans "days left" %}</span
+                    >
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {% endif %} {% if event.website %}
+            <div class="col-md-6">
+              <div class="d-flex">
+                <div class="icon-circle bg-purple-soft me-3">
+                  <i class="fas fa-globe text-primary"></i>
+                </div>
+                <div>
+                  <p class="text-muted mb-1 small">{% trans "Website" %}</p>
+                  <p class="fw-bold">
+                    <a
+                      href="{{ event.website }}"
+                      target="_blank"
+                      class="text-truncate-1 d-block"
+                      style="max-width: 200px"
+                    >
+                      {{ event.website }}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Research domains -->
+          <div class="mb-4">
+            <h3 class="h6 mb-3">
+              <i class="fas fa-tags text-muted me-2"></i> {% trans "Research Domains" %}
+            </h3>
+            <div class="event-domains">
+              {% for domain in event.domain_list %}
+              <span class="badge bg-light text-dark">{{ domain }}</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Attachment -->
+          {% if event.attachment %}
+          <div class="border-top pt-4">
+            <a
+              href="{{ event.attachment.url }}"
+              class="btn btn-outline-secondary"
+              target="_blank"
+            >
+              <i class="fas fa-download me-2"></i> {% trans "Download Attachment" %}
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- User action buttons -->
+      {% if user.is_authenticated %}
+      <div class="card mt-4 border-0">
+        <div class="card-body p-4 bg-light rounded-3">
+          <div
+            class="d-flex flex-wrap justify-content-between event-action-buttons gap-2"
+          >
+            <div class="d-flex flex-wrap gap-2">
+              {% if user == event.created_by or user.is_staff %}
+              <a
+                href="{% url 'events:event_update' event.pk %}"
+                class="btn btn-outline-custom btn-outline-primary"
+              >
+                <i class="fas fa-edit me-2"></i> {% trans "Edit" %}
+              </a>
+              <a
+                href="{% url 'events:event_delete' event.pk %}"
+                class="btn btn-outline-custom btn-outline-danger"
+              >
+                <i class="fas fa-trash me-2"></i> {% trans "Delete" %}
+              </a>
+              {% endif %}
+            </div>
+
+            <div>
+              {% if event.is_upcoming or event.is_ongoing %} {% if is_registered %}
+              <a
+                href="{% url 'events:event_unregister' event.pk %}"
+                class="btn btn-outline-custom btn-outline-danger"
+              >
+                <i class="fas fa-user-minus me-2"></i> {% trans "Unregister" %}
+              </a>
+              {% endif %} {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <!-- Event status card -->
+      <div class="card rounded-3 mb-4 event-status-card border-0">
+        <div class="card-header bg-light py-3">
+          <h5 class="mb-0">{% trans "Event Status" %}</h5>
+        </div>
+        <div class="card-body p-4">
+          {% if event.is_ongoing %}
+          <div
+            class="alert alert-success d-flex align-items-center"
+            role="alert"
+          >
+            <i class="fas fa-calendar-check me-3 fs-4"></i>
+            <div>
+              <h6 class="mb-1">
+                {% trans "This event is currently ongoing" %}
+              </h6>
+              <p class="mb-0 small">{% trans "Event in progress" %}</p>
+            </div>
+          </div>
+          {% elif event.is_upcoming %}
+          <div
+            class="alert alert-primary d-flex align-items-center"
+            role="alert"
+          >
+            <i class="fas fa-calendar-alt me-3 fs-4"></i>
+            <div>
+              <h6 class="mb-1">{% trans "This is an upcoming event" %}</h6>
+              <p class="mb-0 small">{% trans "Mark your calendar" %}</p>
+            </div>
+          </div>
+          {% else %}
+          <div
+            class="alert alert-secondary d-flex align-items-center"
+            role="alert"
+          >
+            <i class="fas fa-calendar-times me-3 fs-4"></i>
+            <div>
+              <h6 class="mb-1">{% trans "This event has ended" %}</h6>
+              <p class="mb-0 small">{% trans "Event completed" %}</p>
+            </div>
+          </div>
+          {% endif %} {% if user.is_authenticated and is_registered %}
+          <div
+            class="alert alert-success d-flex align-items-center mt-3"
+            role="alert"
+          >
+            <i class="fas fa-check-circle me-3 fs-4"></i>
+            <div>
+              <h6 class="mb-0">
+                {% trans "You are registered for this event" %}
+              </h6>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Share card -->
+      <div class="card rounded-3 mb-4 border-0">
+        <div class="card-header bg-light py-3">
+          <h5 class="mb-0">{% trans "Share This Event" %}</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-grid gap-2">
+            <a
+              href="mailto:?subject={{ event.title }}&body={{ request.build_absolute_uri }}"
+              class="btn btn-outline-secondary"
+            >
+              <i class="fas fa-envelope me-2"></i> {% trans "Email" %}
+            </a>
+            <a
+              href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ event.title }}"
+              target="_blank"
+              class="btn btn-outline-primary"
+            >
+              <i class="fab fa-twitter me-2"></i> {% trans "Twitter" %}
+            </a>
+            <a
+              href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ event.title }}"
+              target="_blank"
+              class="btn btn-outline-primary"
+            >
+              <i class="fab fa-linkedin me-2"></i> {% trans "LinkedIn" %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin actions -->
+       
+{% if show_approval_status and not event.is_approved %}
+<div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">{% trans "Pending Approval" %}</h4>
+    <p>{% trans "This event is currently pending approval and is not visible to other users." %}</p>
+    {% if user.is_staff %}
+        <hr>
+        <p class="mb-0">
+            <a href="{% url 'events:event_validate' event.pk %}" class="btn btn-success btn-sm">
+                {% trans "Approve Event" %}
+            </a>
+        </p>
+    {% endif %}
+</div>
+{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

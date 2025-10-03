@@ -1,0 +1,1139 @@
+{% extends 'base_admin.html' %} {% load i18n %} {% block title %}{% trans "Tools Management" %}{% endblock %} {% block extra_css %}
+<style>
+  .tools-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .tools-header h1 {
+    margin: 0;
+    color: #2d3748;
+    font-weight: 700;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: 1rem;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+  }
+
+  .status-active {
+    background-color: #48bb78;
+  }
+  .status-draft {
+    background-color: #ecc94b;
+  }
+  .status-archived {
+    background-color: #a0aec0;
+  }
+
+  .status-label {
+    font-size: 0.85rem;
+  }
+
+  .tools-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+
+  .search-box {
+    flex: 1;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a0aec0;
+  }
+
+  .filter-dropdown {
+    margin-left: 1rem;
+  }
+
+  .filter-dropdown select {
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background-color: white;
+    min-width: 150px;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background-color: #4f46e5;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+  }
+
+  .btn-outline:hover {
+    background-color: #f7fafc;
+  }
+
+  .btn-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tools-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .tools-table th {
+    background-color: #4f46e5;
+    color: white;
+    padding: 1.25rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    position: relative;
+  }
+
+  .tools-table th:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .tools-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #edf2f7;
+    color: #4a5568;
+    vertical-align: middle;
+  }
+
+  .tools-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .tools-table tr:hover td {
+    background-color: #f7fafc;
+  }
+
+  .tool-title {
+    font-weight: 600;
+    color: #2d3748;
+    text-decoration: none;
+    transition: color 0.2s;
+    display: block;
+  }
+
+  .tool-title:hover {
+    color: #4f46e5;
+  }
+
+  .tool-type {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background-color: #e6f0fd;
+    color: #3182ce;
+  }
+
+  .tool-type-icon {
+    margin-right: 0.5rem;
+  }
+
+  .tool-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #718096;
+    font-size: 0.9rem;
+  }
+
+  .meta-icon {
+    color: #a0aec0;
+  }
+
+  .status-badge {
+    padding: 0.5rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .status-active-bg {
+    background-color: rgba(72, 187, 120, 0.15);
+    color: #2f855a;
+  }
+
+  .status-draft-bg {
+    background-color: rgba(236, 201, 75, 0.15);
+    color: #975a16;
+  }
+
+  .status-archived-bg {
+    background-color: rgba(160, 174, 192, 0.15);
+    color: #4a5568;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background-color: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    transition: all 0.2s;
+  }
+
+  .action-btn:hover {
+    background-color: #edf2f7;
+    transform: translateY(-1px);
+  }
+
+  .action-btn-edit:hover {
+    color: #4f46e5;
+    border-color: #4f46e5;
+  }
+
+  .action-btn-view:hover {
+    color: #3182ce;
+    border-color: #3182ce;
+  }
+
+  .action-btn-delete:hover {
+    color: #e53e3e;
+    border-color: #e53e3e;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+    gap: 0.25rem;
+  }
+
+  .pagination a {
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #4a5568;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .pagination a:hover {
+    background-color: #f7fafc;
+  }
+
+  .pagination .active {
+    background-color: #4f46e5;
+    color: white;
+    border-color: #4f46e5;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    background-color: #f7fafc;
+    border-radius: 10px;
+    color: #4a5568;
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #cbd5e0;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    margin-bottom: 0.75rem;
+    color: #2d3748;
+  }
+
+  .empty-state p {
+    color: #718096;
+    max-width: 400px;
+    margin-bottom: 1.5rem;
+  }
+
+  .tool-type-analysis {
+    background-color: #e6f0fd;
+    color: #3182ce;
+  }
+  .tool-type-extraction {
+    background-color: #feebc8;
+    color: #c05621;
+  }
+  .tool-type-visualization {
+    background-color: #e9d8fd;
+    color: #6b46c1;
+  }
+  .tool-type-transformation {
+    background-color: #d6ffdd;
+    color: #276749;
+  }
+
+  /* Styles améliorés pour la barre de recherche - identique au corpus management */
+  .filter-form {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    border: 1px solid #e9ecef;
+  }
+
+  .filter-form .form-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 0;
+  }
+
+  .filter-form .form-group {
+    flex: 1;
+    min-width: 280px;
+    position: relative;
+  }
+
+  .filter-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+  }
+
+  .filter-form .form-group input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background-color: #ffffff;
+    transition: all 0.3s ease;
+    color: #495057;
+  }
+
+  .filter-form .form-group input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  .filter-form .form-group input::placeholder {
+    color: #a0aec0;
+    font-style: italic;
+  }
+
+  .filter-form .buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .filter-form .btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    min-width: 100px;
+    white-space: nowrap;
+  }
+
+  .filter-form .btn-outline {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    color: #6c757d;
+  }
+
+  .filter-form .btn-outline:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+  }
+
+  .filter-form .btn-primary {
+    background-color: #4f46e5;
+    color: white;
+    border: 1px solid #4f46e5;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  }
+
+  .filter-form .btn-primary:hover {
+    background-color: #4338ca;
+    border-color: #4338ca;
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .tools-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .tools-actions {
+      width: 100%;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+    }
+
+    .filter-form .form-row {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .filter-form .form-group {
+      min-width: 100%;
+    }
+
+    .filter-form .buttons {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .filter-form .btn {
+      flex: 1;
+    }
+
+    .filter-dropdown {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .filter-dropdown select {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .filter-form {
+      padding: 1rem;
+    }
+
+    .filter-form .buttons {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .filter-form .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="tools-header">
+  <div style="display: flex; align-items: center">
+    <h1>{% trans "Tools Management" %}</h1>
+  </div>
+  <div class="tools-actions">
+    <a href="{% url 'resources:tool-create' %}" class="btn btn-primary">
+      <svg
+        class="btn-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v16m8-8H4"
+        />
+      </svg>
+      {% trans "New Tool" %}
+    </a>
+  </div>
+</div>
+
+<form method="get" class="filter-form">
+  <div class="form-row">
+    <div class="form-group">
+      <label for="search">{% trans "Search" %}</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{ request.GET.search }}"
+        placeholder="{% trans 'Search by title, author, description...' %}"
+      />
+    </div>
+    <div class="buttons">
+      <button type="button" class="btn btn-outline" onclick="resetFilters()">
+        {% trans "Reset" %}
+      </button>
+      <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+    </div>
+  </div>
+</form>
+
+<div class="filter-dropdown">
+  <select id="type-filter">
+    <option value="">{% trans "All Types" %}</option>
+    <option value="analysis">{% trans "Analysis" %}</option>
+    <option value="extraction">{% trans "Extraction" %}</option>
+    <option value="visualization">{% trans "Visualization" %}</option>
+    <option value="transformation">{% trans "Transformation" %}</option>
+  </select>
+</div>
+
+{% if tools %}
+<table class="tools-table" id="tools-table">
+  <thead>
+    <tr>
+      <th>{% trans "Title" %}</th>
+      <th>{% trans "Type" %}</th>
+      <th>{% trans "Date Added" %}</th>
+      <th>{% trans "Actions" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tool in tools %}
+    <tr>
+      <td>
+        <a
+          href="{% url 'resources:tool_detail' type='tool' pk=tool.id   %}"
+          class="tool-title"
+          >{{ tool.title }}</a
+        >
+      </td>
+      <td>
+        {% if tool.tool_type == 'analysis' %}
+        <span class="tool-type tool-type-analysis">
+          <svg
+            class="tool-type-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          </svg>
+          {% trans "Analysis" %}
+        </span>
+        {% elif tool.tool_type == 'extraction' %}
+        <span class="tool-type tool-type-extraction">
+          <svg
+            class="tool-type-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+            />
+          </svg>
+          {% trans "Extraction" %}
+        </span>
+        {% elif tool.tool_type == 'visualization' %}
+        <span class="tool-type tool-type-visualization">
+          <svg
+            class="tool-type-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
+            />
+          </svg>
+          {% trans "Visualization" %}
+        </span>
+        {% elif tool.tool_type == 'transformation' %}
+        <span class="tool-type tool-type-transformation">
+          <svg
+            class="tool-type-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
+          </svg>
+          {% trans "Transformation" %}
+        </span>
+        {% else %}
+        <span class="tool-type">{{ tool.tool_type }}</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="tool-meta">
+          <svg
+            class="meta-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          {{ tool.creation_date|date:"d/m/Y H:i" }}
+        </div>
+      </td>
+      <td>
+        <div class="action-buttons">
+          <a
+            href="{% url 'resources:tool_detail' type='tool' pk=tool.id   %}"
+            class="action-btn action-btn-view"
+            title="Use tool"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+          </a>
+          <a
+            href="{% url 'resources:resource-update' type='tool' pk=tool.id   %}"
+            class="action-btn action-btn-edit"
+            title="Edit tool"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </a>
+          <a
+            href="{% url 'resources:resource-delete' type='tool' pk=tool.id   %}"
+            class="action-btn action-btn-delete"
+            title="Delete tool"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </a>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if is_paginated %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page=1">&laquo; {% trans "First" %}</a>
+  <a href="?page={{ page_obj.previous_page_number }}"
+    >{% trans "Previous" %}</a
+  >
+  {% endif %} {% for num in page_obj.paginator.page_range %} {% if num == page_obj.number %}
+  <a class="active" href="#!">{{ num }}</a>
+  {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+  <a href="?page={{ num }}">{{ num }}</a>
+  {% endif %} {% endfor %} {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+  <a href="?page={{ page_obj.paginator.num_pages }}"
+    >{% trans "Last" %} &raquo;</a
+  >
+  {% endif %}
+</div>
+{% endif %} {% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+      />
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+    </svg>
+  </div>
+  <h3>{% trans "No tools available" %}</h3>
+  <p>
+    {% trans "You haven't created any tools yet or none match your search criteria." %}
+  </p>
+  <a href="{% url 'resources:tool-create' %}" class="btn btn-primary">
+    <svg
+      class="btn-icon"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M12 4v16m8-8H4"
+      />
+    </svg>
+    {% trans "Create a tool" %}
+  </a>
+</div>
+{% endif %}
+
+<script>
+  function resetFilters() {
+    document.getElementById('search').value = '';
+    document.querySelector('.filter-form').submit();
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("search");
+    const statusFilter = document.getElementById("status-filter");
+    const typeFilter = document.getElementById("type-filter");
+    const table = document.getElementById("tools-table");
+
+    // Animation au focus de l'input - identique au corpus management
+    searchInput.addEventListener('focus', function() {
+      this.style.borderColor = '#4f46e5';
+    });
+
+    searchInput.addEventListener('blur', function() {
+      this.style.borderColor = '#ced4da';
+    });
+
+    function filterTable() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const statusTerm = statusFilter ? statusFilter.value.toLowerCase() : '';
+      const typeTerm = typeFilter.value.toLowerCase();
+      const rows = table.querySelectorAll("tbody tr");
+
+      rows.forEach((row) => {
+        const title = row
+          .querySelector(".tool-title")
+          .textContent.toLowerCase();
+        const toolType = row
+          .querySelector(".tool-type")
+          .textContent.toLowerCase();
+        const statusText = row.querySelector(".status-badge")
+          ? row.querySelector(".status-badge").textContent.toLowerCase()
+          : "";const matchesSearch = title.includes(searchTerm);
+        const matchesStatus = statusTerm === '' || statusText.includes(statusTerm);
+        const matchesType = typeTerm === '' || toolType.includes(typeTerm);
+
+        if (matchesSearch && matchesStatus && matchesType) {
+          row.style.display = "";
+          // Animation d'apparition
+          row.style.opacity = "0";
+          setTimeout(() => {
+            row.style.transition = "opacity 0.3s ease";
+            row.style.opacity = "1";
+          }, 50);
+        } else {
+          row.style.display = "none";
+        }
+      });
+
+      // Vérifier s'il y a des résultats
+      const visibleRows = table.querySelectorAll("tbody tr[style=''], tbody tr:not([style])");
+      const emptyState = document.querySelector('.empty-state');
+      
+      if (visibleRows.length === 0 && !emptyState) {
+        showNoResultsMessage();
+      } else if (visibleRows.length > 0 && emptyState) {
+        hideNoResultsMessage();
+      }
+    }
+
+    function showNoResultsMessage() {
+      const tableContainer = table.parentElement;
+      const noResultsDiv = document.createElement('div');
+      noResultsDiv.className = 'empty-state';
+      noResultsDiv.id = 'no-results-message';
+      noResultsDiv.innerHTML = `
+        <div class="empty-state-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <h3>No results found</h3>
+        <p>No tools match your search criteria. Try changing your filters.</p>
+        <button type="button" class="btn btn-outline" onclick="clearAllFilters()">
+         Clear filters
+        </button>
+      `;
+      table.style.display = 'none';
+      tableContainer.appendChild(noResultsDiv);
+    }
+
+    function hideNoResultsMessage() {
+      const noResultsMessage = document.getElementById('no-results-message');
+      if (noResultsMessage) {
+        noResultsMessage.remove();
+        table.style.display = 'table';
+      }
+    }
+
+    function clearAllFilters() {
+      searchInput.value = '';
+      if (statusFilter) statusFilter.value = '';
+      if (typeFilter) typeFilter.value = '';
+      filterTable();
+      hideNoResultsMessage();
+    }
+
+    // Événements de filtrage
+    searchInput.addEventListener("input", filterTable);
+    if (statusFilter) statusFilter.addEventListener("change", filterTable);
+    if (typeFilter) typeFilter.addEventListener("change", filterTable);
+
+    // Animation des boutons d'action au survol
+    const actionButtons = document.querySelectorAll('.action-btn');
+    actionButtons.forEach(button => {
+      button.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px) scale(1.05)';
+        this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+      });
+      
+      button.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0) scale(1)';
+        this.style.boxShadow = 'none';
+      });
+    });
+
+    // Animation des lignes du tableau
+    const tableRows = document.querySelectorAll('.tools-table tbody tr');
+    tableRows.forEach((row, index) => {
+      row.style.animationDelay = `${index * 0.1}s`;
+      row.classList.add('fade-in-row');
+    });
+
+    // Confirmation de suppression
+    const deleteButtons = document.querySelectorAll('.action-btn-delete');
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        const toolTitle = this.closest('tr').querySelector('.tool-title').textContent;
+        if (!confirm(`Are you sure you want to delete the tool? "${toolTitle}" `)) {
+          e.preventDefault();
+        }
+      });
+    });
+
+    // Raccourcis clavier
+    document.addEventListener('keydown', function(e) {
+      // Ctrl/Cmd + K pour focus sur la recherche
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      
+      // Escape pour effacer la recherche
+      if (e.key === 'Escape' && document.activeElement === searchInput) {
+        searchInput.value = '';
+        searchInput.blur();
+        filterTable();
+      }
+    });
+
+    // Sauvegarde des filtres dans le localStorage (si disponible)
+    function saveFilters() {
+      if (typeof(Storage) !== "undefined") {
+        const filters = {
+          search: searchInput.value,
+          status: statusFilter ? statusFilter.value : '',
+          type: typeFilter.value
+        };
+        localStorage.setItem('toolsFilters', JSON.stringify(filters));
+      }
+    }
+
+    function loadFilters() {
+      if (typeof(Storage) !== "undefined") {
+        const savedFilters = localStorage.getItem('toolsFilters');
+        if (savedFilters) {
+          const filters = JSON.parse(savedFilters);
+          searchInput.value = filters.search || '';
+          if (statusFilter) statusFilter.value = filters.status || '';
+          typeFilter.value = filters.type || '';
+          filterTable();
+        }
+      }
+    }
+
+    // Charger les filtres sauvegardés au chargement de la page
+    loadFilters();
+
+    // Sauvegarder les filtres à chaque changement
+    searchInput.addEventListener('input', saveFilters);
+    if (statusFilter) statusFilter.addEventListener('change', saveFilters);
+    typeFilter.addEventListener('change', saveFilters);
+
+    // Compteur de résultats
+    function updateResultsCount() {
+      const visibleRows = table.querySelectorAll("tbody tr[style=''], tbody tr:not([style*='display: none'])");
+      const totalRows = table.querySelectorAll("tbody tr").length;
+      
+      let countDisplay = document.getElementById('results-count');
+      if (!countDisplay) {
+        countDisplay = document.createElement('div');
+        countDisplay.id = 'results-count';
+        countDisplay.style.cssText = `
+          color: #718096;
+          font-size: 0.9rem;
+          margin-top: 1rem;
+          text-align: center;
+        `;
+        table.parentElement.appendChild(countDisplay);
+      }
+      
+      if (visibleRows.length !== totalRows) {
+        countDisplay.textContent = `Display of ${visibleRows.length} on ${totalRows} tools`;
+      } else {
+        countDisplay.textContent = `${totalRows} tool${totalRows > 1 ? 's' : ''}`;
+      }
+    }
+
+    // Mettre à jour le compteur initialement et après chaque filtrage
+    updateResultsCount();
+    
+    const originalFilterTable = filterTable;
+    filterTable = function() {
+      originalFilterTable();
+      updateResultsCount();
+    };
+
+    // Tooltip pour les boutons d'action
+    const tooltipButtons = document.querySelectorAll('[title]');
+    tooltipButtons.forEach(button => {
+      button.addEventListener('mouseenter', function() {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'custom-tooltip';
+        tooltip.textContent = this.getAttribute('title');
+        tooltip.style.cssText = `
+          position: absolute;
+          background: #2d3748;
+          color: white;
+          padding: 0.5rem 0.75rem;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          z-index: 1000;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        `;
+        
+        document.body.appendChild(tooltip);
+        
+        const rect = this.getBoundingClientRect();
+        tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+        tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+        
+        setTimeout(() => tooltip.style.opacity = '1', 10);
+        
+        this.addEventListener('mouseleave', function() {
+          tooltip.remove();
+        }, { once: true });
+      });
+    });
+  });
+
+  // Fonction globale pour réinitialiser les filtres (appelée depuis le HTML)
+  function resetFilters() {
+    document.getElementById('search').value = '';
+    const statusFilter = document.getElementById('status-filter');
+    const typeFilter = document.getElementById('type-filter');
+    
+    if (statusFilter) statusFilter.value = '';
+    if (typeFilter) typeFilter.value = '';
+    
+    // Déclencher l'événement de filtrage
+    const event = new Event('input', { bubbles: true });
+    document.getElementById('search').dispatchEvent(event);
+    
+    // Effacer les filtres sauvegardés
+    if (typeof(Storage) !== "undefined") {
+      localStorage.removeItem('toolsFilters');
+    }
+  }
+
+  // Fonction pour exporter les outils (fonctionnalité bonus)
+  function exportTools() {
+    const visibleRows = document.querySelectorAll('.tools-table tbody tr[style=""], .tools-table tbody tr:not([style*="display: none"])');
+    const tools = [];
+    
+    visibleRows.forEach(row => {
+      const title = row.querySelector('.tool-title').textContent;
+      const type = row.querySelector('.tool-type').textContent.trim();
+      const date = row.querySelector('.tool-meta').textContent.trim();
+      
+      tools.push({
+        title: title,
+        type: type,
+        date: date
+      });
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "Title,Type,Date\n"
+      + tools.map(tool => `"${tool.title}","${tool.type}","${tool.date}"`).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "tools_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+</script>
+{%endblock%}

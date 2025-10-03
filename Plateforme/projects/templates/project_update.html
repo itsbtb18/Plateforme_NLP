@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Update Project - Arabic TAL Research{% endblock %}
+{% block content %}
+<div class="content">
+    <h1 class="page-title">Update Project</h1>
+    
+    <div class="form-container">
+        <form method="post" enctype="multipart/form-data" class="update-form">
+            {% csrf_token %}
+            <div class="form-fields">
+                {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="help-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="error-message">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn submit-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    Save Changes
+                </button>
+                <a href="javascript:history.back()" class="btn cancel-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* Global styles */
+  
+    
+    /* Page title */
+    .page-title {
+        color: var(--primary);
+        text-align: center;
+        font-size: 28px;
+        margin-bottom: 30px;
+        position: relative;
+        padding-bottom: 10px;
+    }
+    
+    .page-title:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background-color: var(--secondary);
+    }
+    
+    /* Form container */
+    .form-container {
+        background-color: white;
+        border-radius: 6px;
+        box-shadow: var(--card-shadow);
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+    }
+    
+    .update-form {
+        width: 100%;
+    }
+    
+    .form-fields {
+        margin-bottom: 25px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--primary);
+        font-weight: 500;
+        font-size: 16px;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 15px;
+        color: var(--text-dark);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(30, 78, 109, 0.1);
+    }
+    
+    .form-group textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .help-text {
+        margin-top: 5px;
+        color: var(--text-light);
+        font-size: 13px;
+        font-style: italic;
+    }
+    
+    .error-message {
+        color: var(--error-color);
+        margin-top: 5px;
+        font-size: 14px;
+    }
+    
+    /* Form actions */
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+    }
+    
+   
+    
+    .submit-btn {
+        background-color: var(--secondary);
+        color: white;
+    }
+    
+    .submit-btn:hover {
+        background-color: #3d9a40;
+    }
+    
+    .cancel-btn {
+        background-color: white;
+        color: var(--text-dark);
+        border: 1px solid var(--border-color);
+    }
+    
+    .cancel-btn:hover {
+        background-color: var(--bg-light);
+    }
+    
+    .btn svg {
+        margin-right: 8px;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1024px) {
+        .content {
+            margin-left: 0;
+            padding: 15px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 20px;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .btn {
+            width: 100%;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .content {
+            padding: 10px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+        }
+        
+        .form-container {
+            padding: 15px;
+        }
+        
+        .form-group label {
+            font-size: 15px;
+        }
+    }
+</style>
+{% endblock %}

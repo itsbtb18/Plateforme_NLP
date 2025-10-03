@@ -1,0 +1,414 @@
+{% extends 'base.html' %} {% load static %} {% load i18n %} {% block title %} 
+{{ institution.name }} | {% trans "Institution Directory" %}{% endblock %} 
+{% block content %}
+<div class="container my-5">
+  <!-- Header with main information -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">{{ institution.name }}</h2>
+        {% if institution.acronym %}
+        <span class="badge bg-light text-primary"
+          >{{ institution.acronym }}</span
+        >
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3 text-center">
+          {% if institution.logo %}
+          <img
+            src="{{ institution.logo.url }}"
+            alt="{{ institution.name }}"
+            class="img-fluid mb-3 institution-logo"
+            style="max-height: 150px"
+          />
+          {% else %}
+          <img
+            src="{% static 'images/institution-placeholder.png' %}"
+            alt="{{ institution.name }}"
+            class="img-fluid mb-3"
+            style="max-height: 150px"
+          />
+          {% endif %}
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-md-6">
+              <p>
+                <strong>{% trans "Country:" %}</strong> {{ institution.country.name }}
+              </p>
+              <p><strong>{% trans "City:" %}</strong> {{ institution.city }}</p>
+            </div>
+            <div class="col-md-6">
+              {% if institution.website %}
+              <p>
+                <strong>{% trans "Website:" %}</strong>
+                <a href="{{ institution.website }}" target="_blank"
+                  >{{ institution.website }}</a
+                >
+              </p>
+              {% endif %} {% if institution.email %}
+              <p>
+                <strong>{% trans "Email:" %}</strong>
+                <a href="mailto:{{ institution.email }}"
+                  >{{ institution.email }}</a
+                >
+              </p>
+              {% endif %} {% if institution.phone %}
+              <p>
+                <strong>{% trans "Phone:" %}</strong> {{ institution.phone }}
+              </p>
+              {% endif %}
+            </div>
+          </div>
+          {% if institution.address %}
+          <p>
+            <strong>{% trans "Address:" %}</strong> {{ institution.address }}
+          </p>
+          {% endif %}
+          <div class="mt-3">
+            <strong>{% trans "Specialties:" %}</strong>
+            {% for specialty in institution.specialties.all %}
+            <span class="badge bg-info text-dark me-2"
+              >{{ specialty.name }}</span
+            >
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% if institution.description %}
+      <div class="mt-4">
+        <h5>{% trans "About the Institution" %}</h5>
+        <p>{{ institution.description }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Researchers section -->
+  {% if institution.researchers.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+      <h4 class="mb-0">{% trans "Researchers" %}</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for researcher in institution.researchers.all %}
+        <div class="col-md-4 mb-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">{{ researcher.name }}</h5>
+              <p class="card-text">{{ researcher.role }}</p>
+              {% if researcher.email %}
+              <p class="card-text">
+                <i class="fas fa-envelope me-2"></i
+                ><a href="mailto:{{ researcher.email }}"
+                  >{{ researcher.email }}</a
+                >
+              </p>
+              {% endif %} {% if researcher.website %}
+              <p class="card-text">
+                <i class="fas fa-globe me-2"></i
+                ><a href="{{ researcher.website }}" target="_blank"
+                  >{% trans "Personal Website" %}</a
+                >
+              </p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Projects section -->
+  {% if institution.projects.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">
+      <h4 class="mb-0">{% trans "Projects" %}</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for project in institution.projects.all %}
+        <div class="col-md-6 mb-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">
+                <a href="{% url 'projects:project_detail' project.id %}"
+                  >{{ project.title }}</a
+                >
+              </h5>
+              {% if project.start_date %}
+              <p class="card-text">
+                <strong>{% trans "Start Date:" %}</strong> {{ project.start_date
+                }}
+              </p>
+              {% endif %} {% if project.end_date %}
+              <p class="card-text">
+                <strong>{% trans "End Date:" %}</strong> {{ project.end_date }}
+              </p>
+              {% endif %} {% if project.description %}
+              <p class="card-text">
+                {{ project.description|truncatewords:30 }}
+              </p>
+              {% endif %} {% if project.url %}
+              <a
+                href="{{ project.url }}"
+                class="btn btn-sm btn-outline-success"
+                target="_blank"
+                >{% trans "More Details" %}</a
+              >
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Publications section -->
+  {% if institution.publications.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h4 class="mb-0">{% trans "Publications" %}</h4>
+    </div>
+    <div class="card-body">
+      <ul class="list-group list-group-flush">
+        {% for publication in institution.publications.all %}
+        <li class="list-group-item">
+          <h5>{{ publication.title }}</h5>
+          <p class="mb-1">
+            <strong>{% trans "Authors:" %}</strong> {{ publication.authors }}
+          </p>
+          <p class="mb-1">
+            <strong>{% trans "Year of Publication:" %}</strong> {{
+            publication.year }}
+          </p>
+          {% if publication.journal %}
+          <p class="mb-1">
+            <strong>{% trans "Journal:" %}</strong> {{ publication.journal }}
+          </p>
+          {% endif %} {% if publication.doi %}
+          <p class="mb-0">
+            <strong>DOI:</strong>
+            <a href="https://doi.org/{{ publication.doi }}" target="_blank"
+              >{{ publication.doi }}</a
+            >
+          </p>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Events section -->
+  {% if institution.events.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-danger text-white">
+      <h4 class="mb-0">{% trans "Events" %}</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for event in institution.events.all %}
+        <div class="col-md-6 mb-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">
+                <a href="{% url 'events:event_detail' event.pk %}"
+                  >{{ event.title }}</a
+                >
+              </h5>
+              <p class="card-text">
+                <i class="fas fa-calendar-alt me-2"></i>{{ event.date }}
+              </p>
+              {% if event.location %}
+              <p class="card-text">
+                <i class="fas fa-map-marker-alt me-2"></i>{{ event.location }}
+              </p>
+              {% endif %} {% if event.description %}
+              <p class="card-text">{{ event.description|truncatewords:25 }}</p>
+              {% endif %} {% if event.registration_url %}
+              <a
+                href="{{ event.registration_url }}"
+                class="btn btn-sm btn-outline-danger"
+                target="_blank"
+                >{% trans "Register" %}</a
+              >
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Courses section -->
+  {% if institution.course_set.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">{% trans "Courses" %}</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for course in institution.course_set.all %}
+        <div class="col-md-6 mb-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">
+                <a href="{% url 'resources:course_detail' course.pk %}"
+                  >{{ course.title }}</a
+                >
+              </h5>
+              <p class="card-text">
+                <i class="fas fa-chalkboard-teacher me-2"></i>{{ course.teacher.get_full_name|default:course.teacher.email }}
+              </p>
+              <p class="card-text">
+                <i class="fas fa-book me-2"></i>{{ course.get_academic_level_display }}
+              </p>
+              <p class="card-text">
+                <i class="fas fa-calendar-alt me-2"></i>{{ course.academic_year }}
+              </p>
+              {% if course.description %}
+              <p class="card-text">{{ course.description|truncatewords:25 }}</p>
+              {% endif %} {% if course.access_link %}
+              <a
+                href="{{ course.access_link }}"
+                class="btn btn-sm btn-outline-primary"
+                target="_blank"
+                >{% trans "Access Course" %}</a
+              >
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Users section -->
+  {% if institution.customuser_set.exists %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-secondary text-white">
+      <h4 class="mb-0">{% trans "Users" %}</h4>
+    </div>
+    <div class="card-body">
+      <ul class="list-group list-group-flush">
+        {% for user in institution.customuser_set.all %}
+        <li
+          class="list-group-item d-flex justify-content-between align-items-center"
+        >
+          <div>
+            <h6 class="mb-0">
+              <a href="{% url 'accounts:profile' user.pk %}"
+                >{{ user.full_name|default:user.email }}</a
+              >
+            </h6>
+            <small class="text-muted"
+              >{{ user.speciality|default:"N/A" }}</small
+            >
+          </div>
+          <span
+            class="badge bg-{% if user.is_staff %}success{% else %}info{% endif %}"
+            >{% if user.is_staff %}{% trans "Staff" %}{% else %}{% trans "Member" %}{% endif %}</span
+          >
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Contact section -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-secondary text-white">
+      <h4 class="mb-0">{% trans "Contact" %}</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>{% trans "Contact Information" %}</h5>
+          <ul class="list-unstyled">
+            {% if institution.address %}
+            <li class="mb-2">
+              <i class="fas fa-map-marker-alt me-2"></i>{{ institution.address }}
+            </li>
+            {% endif %} {% if institution.phone %}
+            <li class="mb-2">
+              <i class="fas fa-phone me-2"></i>{{ institution.phone }}
+            </li>
+            {% endif %} {% if institution.email %}
+            <li class="mb-2">
+              <i class="fas fa-envelope me-2"></i
+              ><a href="mailto:{{ institution.email }}"
+                >{{ institution.email }}</a
+              >
+            </li>
+            {% endif %} {% if institution.website %}
+            <li class="mb-2">
+              <i class="fas fa-globe me-2"></i
+              ><a href="{{ institution.website }}" target="_blank"
+                >{{ institution.website }}</a
+              >
+            </li>
+            {% endif %}
+          </ul>
+
+          {% if institution.social_media %}
+          <h5 class="mt-4">{% trans "Social Media" %}</h5>
+          <div class="social-links">
+            {% if institution.social_media.facebook %}
+            <a
+              href="{{ institution.social_media.facebook }}"
+              class="me-3"
+              target="_blank"
+              ><i class="fab fa-facebook-square fa-2x"></i
+            ></a>
+            {% endif %} {% if institution.social_media.twitter %}
+            <a
+              href="{{ institution.social_media.twitter }}"
+              class="me-3"
+              target="_blank"
+              ><i class="fab fa-twitter-square fa-2x"></i
+            ></a>
+            {% endif %} {% if institution.social_media.linkedin %}
+            <a
+              href="{{ institution.social_media.linkedin }}"
+              class="me-3"
+              target="_blank"
+              ><i class="fab fa-linkedin fa-2x"></i
+            ></a>
+            {% endif %} {% if institution.social_media.youtube %}
+            <a
+              href="{{ institution.social_media.youtube }}"
+              class="me-3"
+              target="_blank"
+              ><i class="fab fa-youtube-square fa-2x"></i
+            ></a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          {% if institution.location_lat and institution.location_lng %}
+          <div id="map" style="height: 300px"></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+ {% endblock %}

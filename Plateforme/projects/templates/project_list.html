@@ -1,0 +1,466 @@
+{% extends 'base.html' %} 
+{% load i18n %}
+{% block title %}Projects - Arabic TAL Research
+
+{% endblock %} {% block content %}
+<div class="content">
+  <div class="projects-header">
+   
+    <div class="projects-actions">
+      <form method="get" class="search-form">
+        <div class="search-wrapper">
+          <input
+            type="text"
+            name="search"
+            placeholder="Search for a project..."
+            value="{{ request.GET.search }}"
+            class="search-input"
+          />
+          <button type="submit" class="search-btn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+        </div>
+        {% if request.GET.search %}
+        <a
+          href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}"
+          class="clear-search"
+        >
+        Clear search
+        </a>
+        {% endif %}
+      </form>
+      <a href="{% url 'projects:project_new' %}" class="btn create-btn">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        New Project
+      </a>
+      <a
+        href="{% if request.GET.my_projects %}{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% else %}?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% endif %}"
+        class="btn filter-btn {% if request.GET.my_projects %}active{% endif %}"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon
+            points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+          ></polygon>
+        </svg>
+        {% if request.GET.my_projects %}All projects{% else %}My projects{% endif %}
+      </a>
+
+      {# Filtre par statut #}
+      <div class="filter-status">
+        <form method="get" action="{% url 'projects:project_list' %}">
+          {% comment %} Conserver les autres paramètres de la requête GET {% endcomment %}
+          {% for key, value in request.GET.items %}
+            {% if key != 'status' %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+          
+          <select name="status" onchange="this.form.submit()" class="form-select">
+            <option value="">{% trans "All Statuses"  %}</option>
+            {% for status_value, status_label in project_statuses %}
+              <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="projects-grid">
+    {% for project in projects %}
+    <div class="project-card">
+      <div class="project-header">
+        <h2 class="project-title">
+          <a href="{% url 'projects:project_detail' project.pk %}"
+            >{{ project.title }}</a
+          >
+        </h2>
+        <span class="status-badge status-{{ project.status }}"
+          >{{ project.get_status_display }}</span
+        >
+      </div>
+      <p class="project-description">
+        {{ project.description|truncatechars:150 }}
+      </p>
+      <div class="project-meta">
+        <div class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"></path>
+            <path d="M1 21h22"></path>
+            <path d="M10 9h4"></path>
+            <path d="M10 13h4"></path>
+            <path d="M10 17h4"></path>
+          </svg>
+          {{ project.institution }}
+        </div>
+        <div class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          {{ project.coordinator }}
+        </div>
+        {% if project.date_start and project.date_end %}
+        <div class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          {{ project.date_start|date:"d/m/Y" }} - {{ project.date_end|date:"d/m/Y" }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-message">
+      {% if request.GET.search %} No projects match your search.
+      {% elif request.GET.my_projects %}You have not created a project yet.
+      {% else %} No projects are available at the moment. {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<style>
+  /* Global styles */
+  :root {
+    --primary: #1e4e6d;
+    --secondary: #4caf50;
+    --text-dark: #333;
+    --text-light: #666;
+    --border-color: #e0e0e0;
+    --bg-light: #f5f5f5;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Projects header */
+  .projects-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .page-title {
+    color: var(--primary);
+    font-size: 28px;
+    margin: 0;
+  }
+
+  .projects-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  }
+
+  /* Search form */
+  .search-form {
+    position: relative;
+    margin-right: 10px;
+  }
+
+  .search-wrapper {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .search-input {
+    padding: 8px 10px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    min-width: 200px;
+  }
+
+  .search-btn {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  }
+
+  .search-btn:hover {
+    background-color: #153a52;
+  }
+
+  .clear-search {
+    position: absolute;
+    right: 0;
+    bottom: -20px;
+    font-size: 12px;
+    color: var(--text-light);
+    text-decoration: none;
+  }
+
+  .clear-search:hover {
+    color: var(--primary);
+  }
+
+  /* Filter styles */
+  .filter-status select {
+    padding: 8px ;
+    padding-right: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .filter-status select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(30, 78, 109, 0.25); /* Adjust shadow color if needed */
+  }
+
+  /* Project cards grid */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .project-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s;
+  }
+
+  .project-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+  }
+
+  .project-title {
+    font-size: 18px;
+    margin: 0;
+    color: var(--primary);
+  }
+
+  .project-title a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .project-description {
+    color: var(--text-light);
+    margin-bottom: 15px;
+    line-height: 1.5;
+  }
+
+  .project-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    color: var(--text-light);
+    font-size: 14px;
+  }
+
+  .meta-item svg {
+    margin-right: 8px;
+    color: var(--primary);
+  }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .status-badge {
+    background-color: #ffca28; 
+    color: white;
+  }
+
+  .status-badge.status-Réalisé {
+    background-color: #4caf50; 
+    color: white;
+  }
+
+  .status-badge.status-Planifié {
+    background-color: #64b5f6; 
+    color: white;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 18px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s;
+  }
+
+  .btn svg {
+    margin-right: 8px;
+  }
+
+  .create-btn {
+    background-color: var(--secondary);
+    color: white;
+  }
+
+  .create-btn:hover {
+    background-color: #3d9a40;
+  }
+
+  .filter-btn {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+  }
+
+  .filter-btn:hover {
+    background-color: #e8e8e8;
+  }
+
+  .filter-btn.active {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .empty-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    background-color: var(--bg-light);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-style: italic;
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .projects-header {
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .projects-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .search-form {
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: 10px;
+    }
+
+    .search-wrapper {
+      width: 100%;
+    }
+
+    .search-input {
+      flex: 1;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}

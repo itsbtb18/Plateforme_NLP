@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Publication details" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- Post -->
+            <div class="card mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        {% if post.author.avatar %}
+                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-2x me-2 text-primary"></i>
+                        {% endif %}
+                        <div>
+                            <h6 class="mb-0">{{ post.author.full_name }}</h6>
+                            <small class="text-muted">{{ post.created_at|timesince }}</small>
+                        </div>
+                    </div>
+                    {% if post.author == request.user %}
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'QA:edit_post' post.id %}">
+                                    <i class="fas fa-edit me-2"></i>{% trans "Edit" %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'QA:delete_post' post.id %}" onclick="return confirm('{% trans "Are you sure you want to delete this post?" %}')">
+                                    <i class="fas fa-trash-alt me-2"></i>{% trans "Delete" %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ post.content }}</p>
+                    {% if post.image %}
+                    <img src="{{ post.image.url }}" alt="Post image" class="img-fluid rounded mb-3">
+                    {% endif %}
+                    
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-link text-muted like-button" data-post-id="{{ post.id }}">
+                                <i class="fas fa-heart {% if request.user in post.likes.all %}text-danger{% endif %}"></i>
+                                <span class="likes-count">{{ post.total_likes }}</span>
+                            </button>
+                            <button type="button" class="btn btn-link text-muted">
+                                <i class="fas fa-comment"></i>
+                                <span>{{ post.total_comments }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commentaires -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Comments" %}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Formulaire de commentaire -->
+                    <form method="post" action="{% url 'QA:add_comment' post.id %}" class="mb-4">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {{ comment_form.content }}
+                            {% if comment_form.content.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in comment_form.content.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>{% trans "Comment" %}
+                        </button>
+                    </form>
+
+                    <!-- Liste des commentaires -->
+                    <div class="comments-list">
+                        {% for comment in post.comments.all %}
+                            {% if not comment.parent %}
+                            <div class="comment mb-4" id="comment-{{ comment.id }}">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        {% if comment.author.avatar %}
+                                            <img src="{{ comment.author.avatar.url }}" alt="{{ comment.author.full_name }}" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                        {% else %}
+                                            <i class="fas fa-user-circle fa-2x text-primary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">{{ comment.author.full_name }}</h6>
+                                            <small class="text-muted">{{ comment.created_at|timesince }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ comment.content }}</p>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-link text-muted btn-sm like-comment-button" data-comment-id="{{ comment.id }}">
+                                                <i class="fas fa-heart {% if request.user in comment.likes.all %}text-danger{% endif %}"></i>
+                                                <span class="likes-count">{{ comment.total_likes }}</span>
+                                            </button>
+                                            <button type="button" class="btn btn-link text-muted btn-sm reply-button" data-comment-id="{{ comment.id }}">
+                                                <i class="fas fa-reply me-1"></i>{% trans "Answer" %}
+                                            </button>
+                                            {% if comment.author == request.user %}
+                                            <div class="dropdown">
+                                                <button class="btn btn-link text-muted btn-sm" type="button" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <button type="button" class="dropdown-item edit-comment-button" data-comment-id="{{ comment.id }}">
+                                                            <i class="fas fa-edit me-2"></i>{% trans "Edit" %}
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger" href="{% url 'QA:delete_comment' comment.id %}" onclick="return confirm('{% trans "Are you sure you want to delete this comment?" %}')">
+                                                            <i class="fas fa-trash-alt me-2"></i>{% trans "Delete" %}
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Formulaire de réponse -->
+                                        <div class="reply-form mt-2" id="reply-form-{{ comment.id }}" style="display: none;">
+                                            <form method="post" action="{% url 'QA:add_comment' post.id %}" class="reply-form-content">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                                <div class="mb-2">
+                                                    {{ comment_form.content.label_tag }}
+                                                    {{ comment_form.content }}
+                                                </div>
+                                                <div class="d-flex gap-2">
+                                                    <button type="submit" class="btn btn-primary btn-sm">
+                                                        <i class="fas fa-reply me-1"></i>{% trans "Send reply" %}
+                                                    </button>
+                                                    <button type="button" class="btn btn-secondary btn-sm cancel-reply" data-comment-id="{{ comment.id }}">
+                                                        {% trans "Cancel" %}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <!-- Formulaire de modification -->
+                                        <div class="edit-form mt-2" id="edit-form-{{ comment.id }}" style="display: none;">
+                                            <form method="post" action="{% url 'QA:edit_comment' comment.id %}" class="edit-form-content">
+                                                {% csrf_token %}
+                                                <div class="mb-2">
+                                                    {{ comment_form.content }}
+                                                </div>
+                                                <div class="d-flex gap-2">
+                                                    <button type="submit" class="btn btn-primary btn-sm">
+                                                        <i class="fas fa-save me-1"></i>{% trans "Save" %}
+                                                    </button>
+                                                    <button type="button" class="btn btn-secondary btn-sm cancel-edit" data-comment-id="{{ comment.id }}">
+                                                        {% trans "Cancel" %}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <!-- Réponses -->
+                                        <div class="replies ms-4 mt-3">
+                                            {% for reply in comment.replies.all %}
+                                            <div class="reply mb-3" id="comment-{{ reply.id }}">
+                                                <div class="d-flex">
+                                                    <div class="flex-shrink-0">
+                                                        {% if reply.author.avatar %}
+                                                            <img src="{{ reply.author.avatar.url }}" alt="{{ reply.author.full_name }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                                                        {% else %}
+                                                            <i class="fas fa-user-circle text-primary"></i>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="flex-grow-1 ms-2">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0">{{ reply.author.full_name }}</h6>
+                                                            <small class="text-muted">{{ reply.created_at|timesince }}</small>
+                                                        </div>
+                                                        <p class="mb-1">{{ reply.content }}</p>
+                                                        <div class="d-flex align-items-center">
+                                                            <button type="button" class="btn btn-link text-muted btn-sm like-comment-button" data-comment-id="{{ reply.id }}">
+                                                                <i class="fas fa-heart {% if request.user in reply.likes.all %}text-danger{% endif %}"></i>
+                                                                <span class="likes-count">{{ reply.total_likes }}</span>
+                                                            </button>
+                                                            {% if reply.author == request.user %}
+                                                            <a href="{% url 'QA:delete_comment' reply.id %}" class="btn btn-link text-danger btn-sm" onclick="return confirm('{% trans "Are you sure you want to delete this answer?" %}')">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </a>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                            <h5>{% trans "No comments yet" %}</h5>
+                            <p class="text-muted">{% trans "Be the first to comment!" %}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion des likes sur les posts
+    document.querySelectorAll('.like-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const postId = this.dataset.postId;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(`/QA/post/${postId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur réseau');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const icon = this.querySelector('i');
+                const count = this.querySelector('.likes-count');
+                if (data.liked) {
+                    icon.classList.add('text-danger');
+                } else {
+                    icon.classList.remove('text-danger');
+                }
+                count.textContent = data.total_likes;
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+            });
+        });
+    });
+
+    // Gestion des likes sur les commentaires
+    document.querySelectorAll('.like-comment-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const commentId = this.dataset.commentId;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(`/QA/comment/${commentId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur réseau');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const icon = this.querySelector('i');
+                const count = this.querySelector('.likes-count');
+                if (data.liked) {
+                    icon.classList.add('text-danger');
+                } else {
+                    icon.classList.remove('text-danger');
+                }
+                count.textContent = data.total_likes;
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+            });
+        });
+    });
+
+    // Gestion des réponses aux commentaires
+    document.querySelectorAll('.reply-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const replyForm = document.getElementById(`reply-form-${commentId}`);
+            replyForm.style.display = 'block';
+            replyForm.querySelector('textarea').focus();
+        });
+    });
+
+    // Annuler la réponse
+    document.querySelectorAll('.cancel-reply').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const replyForm = document.getElementById(`reply-form-${commentId}`);
+            replyForm.style.display = 'none';
+            replyForm.querySelector('textarea').value = '';
+        });
+    });
+
+    // Gestion des formulaires de réponse
+    document.querySelectorAll('.reply-form-content').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur réseau');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const commentId = formData.get('parent_id');
+                    const repliesContainer = document.querySelector(`#comment-${commentId} .replies`);
+                    const replyHtml = `
+                        <div class="reply mb-3" id="comment-${data.comment.id}">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    ${data.comment.author_avatar ? 
+                                        `<img src="${data.comment.author_avatar}" alt="${data.comment.author_name}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">` :
+                                        `<i class="fas fa-user-circle text-primary"></i>`
+                                    }
+                                </div>
+                                <div class="flex-grow-1 ms-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">${data.comment.author_name}</h6>
+                                        <small class="text-muted">${data.comment.created_at}</small>
+                                    </div>
+                                    <p class="mb-1">${data.comment.content}</p>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-link text-muted btn-sm like-comment-button" data-comment-id="${data.comment.id}">
+                                            <i class="fas fa-heart"></i>
+                                            <span class="likes-count">0</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    repliesContainer.insertAdjacentHTML('beforeend', replyHtml);
+                    this.reset();
+                    document.getElementById(`reply-form-${commentId}`).style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+            });
+        });
+    });
+
+    // Gestion de la modification des commentaires
+    document.querySelectorAll('.edit-comment-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const editForm = document.getElementById(`edit-form-${commentId}`);
+            const commentContent = document.querySelector(`#comment-${commentId} p.mb-1`).textContent;
+            editForm.style.display = 'block';
+            editForm.querySelector('textarea').value = commentContent;
+            editForm.querySelector('textarea').focus();
+        });
+    });
+
+    // Annuler la modification
+    document.querySelectorAll('.cancel-edit').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const editForm = document.getElementById(`edit-form-${commentId}`);
+            editForm.style.display = 'none';
+        });
+    });
+
+    // Gestion des formulaires de modification
+    document.querySelectorAll('.edit-form-content').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur réseau');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const commentId = data.comment.id;
+                    const commentElement = document.querySelector(`#comment-${commentId} p.mb-1`);
+                    commentElement.textContent = data.comment.content;
+                    document.getElementById(`edit-form-${commentId}`).style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

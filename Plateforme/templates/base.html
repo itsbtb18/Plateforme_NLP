@@ -1,0 +1,522 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %} {% trans "Arabic NLP Platform" %}  {% endblock %}</title>
+    <script src="https://unpkg.com/hyperscript.org@0.9.14"></script>
+<!-- Charge HTMX core -->
+<script src="https://unpkg.com/htmx.org"></script>
+
+<!-- Puis l'extension WebSocket de HTMX -->
+<script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
+    {# <link href="{% static 'css/navbar_notifications.css' %}" rel="stylesheet"> #} {% comment %} Ligne commentée car le fichier semble manquant {% endcomment %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_styles %}{% endblock %}
+    <style>
+      /* Assurez-vous que le badge est toujours là pour le JS, masqué par défaut s'il est vide */
+      .notification-badge {
+        display: none; /* Masqué par défaut */
+        /* Styles existants du badge... */
+        position: absolute;
+        top: 0px;
+        right: -5px;
+        padding: 2px;
+        padding-right: 6px;
+
+        border-radius: 50%;
+        background-color: #dc3545; /* Rouge */
+        color: white;
+        font-size: 0.7em;
+        font-weight: bold;
+        text-align: center;
+        min-width: 18px; 
+        height: 18px;
+        line-height: 14px;
+      }
+      /* Afficher le badge uniquement s'il contient du texte (c'est-à-dire si count > 0) */
+      .notification-badge:not(:empty) {
+        display: block; /* Affiché s'il n'est pas vide */
+      }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-container">
+            <div class="logo-container">
+                <a href="{% url 'pages:home' %}" class="logo-link d-flex align-items-center gap-2">
+                    <img src="{% static 'images/logo.jpg' %}" alt="Arabic NLP Platform" class="logo-img" style="height: 40px;">
+                    <span class="logo-text fw-bold fs-4 ">{% trans "Arabic NLP" %}  </span>
+                </a>
+            </div>
+            <div class="search-container">
+    <div class="search-bar">
+        <form id="global-search-form" action="{% url 'search:global_search' %}" method="get">
+            <div class="input-group">
+                <input type="text" name="q" placeholder=" {% trans "Search resources,tools,corpus..." %} " 
+                       id="search-input" class="form-control" />
+                <button type="submit" class="btn btn-primary ">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+</div>
+  <div id="search-results" class="search-results-dropdown"></div>
+           <style>
+  .lang-container {
+    display: inline-flex;
+    gap: 12px; /* espace entre les boutons */
+  }
+  .lang-button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border: 2px solid transparent;
+    display: inline-block;
+  }
+  .lang-en {
+    background-color: #2563eb; /* bleu */
+    color: white;
+    border-color: #2563eb;
+  }
+  .lang-en:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+    color : white
+  }
+  .lang-ar {
+    background-color: white;
+    color: #2563eb;
+    border-color: #2563eb;
+  }
+  .lang-ar:hover {
+    background-color: #ebf4ff; /* bleu clair */
+  }
+</style>
+
+<div class="lang-container">
+  <a href="{% url 'translate:switch_language' %}?language=en" class="lang-button lang-en">
+    {% trans "English" %}
+  </a>
+  <a href="{% url 'translate:switch_language' %}?language=ar" class="lang-button lang-ar">
+    {% trans "Arabic" %}
+  </a>
+</div>
+
+
+            <div class="auth-buttons">
+                {% if user.is_authenticated %}
+                    <!-- Notification Bell -->
+                    <div class="notification-dropdown-container">
+                        <button class="btn btn-icon notification-bell position-relative" 
+        id="notificationDropdownToggle" 
+        aria-label="Afficher les notifications">
+    <i class="fas fa-bell" aria-hidden="true"></i>
+    <span class="notification-badge">{% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+</button>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-header">
+                                <h6>{% trans "Notifications" %} </h6>
+                                {% if unread_notifications_count > 0 %}
+                                <a href="{% url 'notifications:mark_all_read' %}" class="mark-all-read">
+                                    {% trans "Mark all as read" %} 
+                                </a>
+                                {% endif %}
+                            </div>
+                            <div class="notification-body">
+                                {% if notifications %}
+                                    {% for notification in notifications %}
+                                    <div class="notification-item {% if not notification.read %}unread{% endif %}">
+                                        <div class="notification-icon">
+                                            {% if notification.notification_type == 'resource_update' %}
+                                                <i class="fas fa-file-alt"></i>
+                                            {% elif notification.notification_type == 'comment' %}
+                                                <i class="fas fa-comment"></i>
+                                            {% elif notification.notification_type == 'project_update' %}
+                                                <i class="fas fa-flask"></i>
+                                            {% elif notification.notification_type == 'event' %}
+                                                <i class="fas fa-calendar-alt"></i>
+                                            {% elif notification.notification_type == 'forum' %}
+                                                <i class="fas fa-users"></i>
+                                            {% else %}
+                                                <i class="fas fa-bell"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="notification-content">
+                                            <strong>{{ notification.title }}</strong>
+                                            <p>{{ notification.message }}</p>
+                                            <small>{{ notification.created_at }}</small>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="empty-notifications">
+                                        <p>{% trans " No notifications yet" %}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="notification-footer">
+                                <a href="{% url 'notifications:list' %}">{% trans "View all notifications" %} </a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End of Notification Bell -->
+                    
+                    <a href="{% url 'accounts:profile' user.id %}" class="">
+                        <i class="fas fa-user"></i>{% trans "Profile" %}  
+                    </a>
+                    <a href="{% url 'account_logout' %}" class="">
+                        <i class="fas fa-sign-out-alt"></i> {% trans "Logout" %} 
+                    </a>
+                    
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="">
+                        <i class="fas fa-sign-in-alt"></i>{% trans "Log in" %}  
+                    </a>
+                    <a href="{% url 'account_signup' %}" class="">
+                        <i class="fas fa-user-plus"></i> {% trans "Sign up" %} 
+                    </a>
+                {% endif %}
+            </div>
+            
+            <button class="mobile-menu-toggle" id="sidebarToggle" aria-label="Ouvrir/fermer le menu">
+    <i class="fas fa-bars" aria-hidden="true"></i>
+</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <ul class="sidebar-menu">
+                    <li><a href="{% url 'pages:home' %}" class="{% if page == 'home' %}active{% endif %}">
+                        <i class="fas fa-home"></i> {% trans "Home" %} 
+                    </a></li>
+                    <li><a href="{% url 'resources:corpus_list' %}" class="{% if page == 'corpus' %}active{% endif %}">
+                        <i class="fas fa-database"></i>{% trans "Corpus" %}  
+                    </a></li>
+                    <li><a href="{% url 'resources:tool_list' %}" class="{% if page == 'tools' %}active{% endif %}">
+                        <i class="fas fa-tools"></i> {% trans "Tools" %} 
+                    </a></li>
+                    <li><a class="{% if page == 'resources' %} active {% endif %}" href="{% url 'resources:list' %}">
+                        <i class="fas fa-archive"></i> {% trans "Resources" %} 
+                    </a></li>
+                    <li><a href="{% url 'projects:project_list' %}" class="{% if page == 'research_projects' %}active{% endif %}">
+                        <i class="fas fa-flask"></i> {% trans "Research Projects" %} 
+                    </a></li>
+                    <li><a class="{% if page == 'community' %} active {% endif %}" href="{% url 'forum:topic-list' %}">
+                        <i class="fas fa-users"></i> {% trans "Community" %} 
+                    </a></li>
+                    <li><a class="{% if page == 'feed' %}active{% endif %}" href="{% url 'QA:feed' %}">
+                        <i class="fas fa-newspaper"></i> {% trans "News" %} 
+                    </a></li>
+                    <li><a class="{% if page == 'events' %} active{% endif %}" href="{% url 'events:event_list' %}">
+                        <i class="fas fa-calendar-alt"></i> {% trans "Events" %} 
+                    </a></li>
+                    <li><a class="{% if page == 'course' %} active{% endif %}" href="{% url 'resources:course_list' %}">
+                        <i class="fas fa-graduation-cap"></i> {% trans "Courses" %} 
+                    </a></li>
+                    <li>
+                        <a class="{% if page == 'institutions' %} active{% endif %}" href="{% url 'institutions:institution_list' %}" aria-label="Institutions">
+                          <i class="fas fa-university"></i> {% trans "Institutions" %} 
+                        </a>
+                      </li>
+                                        {% if user.is_staff %}
+                    <li>
+                        <a {% if page == 'Admin' %}class="active"{% endif %}
+                        href="{% url 'pages:admin_dashboard' %}"
+                        aria-label="Admin">
+                        <i class="fas fa-tools"></i>{% trans "Admin" %}  
+                        </a>
+                    </li>
+                    {% endif %}
+
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <!-- Toast Container for Flash Messages -->
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="toast align-items-center border-0 {% if message.tags %}bg-{{ message.tags }} text-white{% else %}bg-dark text-white{% endif %}" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-top">
+            <div class="container">
+                <div class="footer-grid">
+                    <div class="footer-column">
+                        <h4>{% trans "Arabic NLP Platform" %} </h4>
+                        <p>A {% trans "platform dedicated to advancing Arabic natural language processing through shared resources, tools, and community collaboration." %} platform dedicated to advancing Arabic natural language processing through shared resources, tools, and community collaboration.</p>
+                        <div class="social-links">
+                            <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                        </div>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul class="footer-links">
+                            <li><a href="{% url 'resources:corpus_list' %}">{% trans "Corpus" %} </a></li>
+                            <li><a href="{% url 'resources:tool_list' %}">{% trans "Tools" %}</a></li>
+                            <li><a href="{% url 'resources:list' %}">{% trans "All Resources" %}</a></li>
+                            <li><a href="{% url 'resources:course_list' %}">{% trans "Courses" %}</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>{% trans "Community" %}</h4>
+                        <ul class="footer-links">
+                            <li><a href="{% url 'forum:topic-list' %}">{% trans "Forum" %}</a></li>
+                            <li><a href="{% url 'projects:project_list' %}">{% trans "Research Projects" %}</a></li>
+                            <li><a href="{% url 'events:event_list' %}">{% trans "Events" %}</a></li>
+                           
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>{% trans "Contact Us" %}</h4>
+                        <ul class="contact-info">
+                            <li><i class="fas fa-envelope"></i> contact@arabicnlp.org</li>
+                            <li><i class="fas fa-phone"></i> +1 234 567 8900</li>
+                            <li><i class="fas fa-map-marker-alt"></i> {% trans "Digital Campus, Tech University" %}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p class="copyright">© {% now "Y" %}{% trans "Arabic NLP Platform. All rights reserved." %} </p>
+               
+            </div>
+        </div>
+    </footer>
+
+
+
+    
+    <script>
+
+        
+        // Mobile menu toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 992 && 
+                sidebar.classList.contains('active') && 
+                !sidebar.contains(event.target) && 
+                !toggleBtn.contains(event.target)) {
+                sidebar.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+        
+        // Notification dropdown toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationToggle = document.getElementById('notificationDropdownToggle');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            
+            if (notificationToggle && notificationDropdown) {
+                notificationToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    notificationDropdown.classList.toggle('show');
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!notificationDropdown.contains(e.target) && !notificationToggle.contains(e.target)) {
+                        notificationDropdown.classList.remove('show');
+                    }
+                });
+            }
+            
+            // Initialize toasts
+            var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+            var toastList = toastElList.map(function(toastEl) {
+                var toast = new bootstrap.Toast(toastEl, {
+                    autohide: true,
+                    delay: 5000
+                });
+                toast.show();
+                return toast;
+            });
+        });
+    </script>
+      <!-- En bas de ton body -->
+<a href="{% url 'chatbot:chatbot_interface' %}" style="
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #007bff; /* bleu */
+    color: white;
+    padding: 15px 18px;
+    border-radius: 50%;
+    text-decoration: none;
+    font-size: 24px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    z-index: 1000;
+    transition: 0.3s;
+" title="Assistant intelligent">
+    💬
+</a>
+    {% block extra_scripts %}{% endblock %}
+</body>
+{% load static %}
+<script src="{% static 'js/notifications.js' %}"></script>
+    <script>
+        // Mobile menu toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 992 && 
+                sidebar.classList.contains('active') && 
+                !sidebar.contains(event.target) && 
+                !toggleBtn.contains(event.target)) {
+                sidebar.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+    </script>
+   
+    <script>
+   document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('global-search-form');
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    let searchTimeout;
+
+    // Définir les classes de couleur pour chaque type
+    const typeColors = {
+        'course': 'bg-primary',
+        'resource': 'bg-success',
+        'project': 'bg-info',
+        'event': 'bg-warning',
+        'tool': 'bg-secondary',
+        'corpus': 'bg-danger',
+        'user': 'bg-dark'
+    };
+
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`${searchForm.action}?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    const limitedResults = data.results.slice(0, 5);
+                    
+                    searchResults.innerHTML = limitedResults.map(result => `
+                        <a href="${result.link}" class="search-result-item">
+                            <div class="d-flex justify-content-between">
+                                <span class="badge ${typeColors[result.type] || 'bg-secondary'} text-white">
+                                    ${result.type}
+                                </span>
+                                ${result.language ? `
+                                    <span class="badge bg-info text-white">
+                                        ${result.language}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div class="fw-medium mt-2">${result.title}</div>
+                            ${result.description ? `
+                                <div class="text-muted small mt-1">
+                                    ${result.description.substring(0, 100)}...
+                                </div>
+                            ` : ''}
+                        </a>
+                    `).join('') + `
+                        <a href="${searchForm.action}?q=${encodeURIComponent(query)}" 
+                           class="search-result-item text-center">
+                            <small class="text-primary">View all results</small>
+                        </a>
+                    `;
+                    
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.innerHTML = `
+                        <div class="search-result-item text-center">
+                            <div class="text-muted">No results found</div>
+                        </div>
+                    `;
+                    searchResults.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+            });
+        }, 300);
+    });
+
+    // Gérer la soumission du formulaire
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (searchInput.value.trim()) {
+            window.location.href = `${searchForm.action}?q=${encodeURIComponent(searchInput.value.trim())}`;
+        }
+    });
+
+    // Fermer les résultats quand on clique ailleurs
+    document.addEventListener('click', function(e) {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.style.display = 'none';
+        }
+    });
+});
+</script>
+</html>

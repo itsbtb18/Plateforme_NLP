@@ -1,0 +1,619 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}Projects Management{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --success-color: #48bb78;
+    --warning-color: #ecc94b;
+    --danger-color: #e53e3e;
+    --gray-100: #f7fafc;
+    --gray-200: #edf2f7;
+    --gray-300: #e2e8f0;
+    --gray-400: #cbd5e0;
+    --gray-500: #a0aec0;
+    --gray-600: #718096;
+    --gray-700: #4a5568;
+    --gray-800: #2d3748;
+    --gray-900: #1a202c;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--gray-100);
+  }
+
+  .container {
+    padding: 1.5rem;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .projects-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .projects-header h1 {
+    margin: 0;
+    color: var(--gray-800);
+    font-weight: 700;
+    font-size: 1.875rem;
+  }
+
+  .status-legends {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+  }
+
+  .status-in-progress { background-color: var(--primary-color); }
+  .status-completed { background-color: var(--success-color); }
+  .status-pending { background-color: var(--warning-color); }
+  
+
+  .projects-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+  }
+
+  .btn-outline {
+    background-color: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+  }
+
+  .btn-outline:hover {
+    background-color: var(--gray-100);
+  }
+
+  .btn svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+  }
+
+  .dashboard-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .summary-card {
+    background-color: white;
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .summary-card-title {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  .summary-card-value {
+    color: var(--gray-900);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+  }
+
+  .summary-card-trend {
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .trend-up {
+    background-color: rgba(72, 187, 120, 0.1);
+    color: var(--success-color);
+  }
+
+  .trend-down {
+    background-color: rgba(229, 62, 62, 0.1);
+    color: var(--danger-color);
+  }
+
+  .trend-neutral {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+  }
+
+  .trend-up::before,
+  .trend-down::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 0.25rem;
+  }
+
+  .trend-up::before {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid var(--success-color);
+  }
+
+  .trend-down::before {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--danger-color);
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 0.5rem 1rem 0.5rem 2.5rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23A0AEC0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0.75rem center;
+    background-size: 1rem;
+  }
+
+  .filter-dropdown select {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background-color: white;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23A0AEC0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+
+  .projects-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: white;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .projects-table thead th {
+    background-color: var(--gray-100);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .projects-table tbody tr {
+    transition: background-color 0.15s ease;
+  }
+
+  .projects-table tbody tr:hover {
+    background-color: var(--gray-50);
+  }
+
+  .projects-table tbody tr:not(:last-child) {
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .projects-table td {
+    padding: 1rem;
+    vertical-align: top;
+    color: var(--gray-700);
+  }
+
+  .project-title {
+    color: var(--gray-900);
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .project-title:hover {
+    color: var(--primary-color);
+  }
+
+  .project-desc {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+  }
+
+  .project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+  }
+
+  .meta-item::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--gray-400);
+    margin-right: 0.5rem;
+  }
+
+  td .btn-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-badge-in-progress {
+    background-color: rgba(79, 70, 229, 0.1);
+    color: var(--primary-color);
+  }
+
+  .status-badge-completed {
+    background-color: rgba(72, 187, 120, 0.1);
+    color: var(--success-color);
+  }
+
+  .status-badge-pending {
+    background-color: rgba(236, 201, 75, 0.1);
+    color: var(--warning-color);
+  }
+
+ 
+
+  .team-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--gray-100);
+    color: var(--gray-700);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .empty-state {
+    padding: 3rem;
+    text-align: center;
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .empty-state-icon {
+    margin-bottom: 1.5rem;
+    color: var(--gray-400);
+    font-size: 3rem;
+  }
+
+  .empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state-text {
+    color: var(--gray-600);
+    margin-bottom: 1.5rem;
+  }
+
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .projects-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .status-legends {
+      margin-left: 0;
+      margin-top: 0.5rem;
+    }
+
+    .projects-actions {
+      margin-top: 1rem;
+      width: 100%;
+      justify-content: flex-end;
+    }
+
+    .filter-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-bar .btn {
+      width: 100%;
+    }
+
+    .projects-table {
+      display: block;
+      overflow-x: auto;
+    }
+
+    .projects-table thead th:nth-child(3),
+    .projects-table tbody td:nth-child(3) {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .projects-table thead th:not(:first-child):not(:last-child),
+    .projects-table tbody td:not(:first-child):not(:last-child) {
+      display: none;
+    }
+
+    .project-meta {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="container">
+  <div class="projects-header">
+    <div>
+      <h1>Projects Management</h1>
+      <div class="status-legends">
+        <div class="status-item">
+          <span class="status-dot status-in-progress"></span>
+          <span class="status-label">Ongoing</span>
+        </div>
+        <div class="status-item">
+          <span class="status-dot status-completed"></span>
+          <span class="status-label">Completed</span>
+        </div>
+        <div class="status-item">
+          <span class="status-dot status-pending"></span>
+          <span class="status-label">Pending</span>
+        </div>
+      </div>
+    </div>
+    <div class="projects-actions">
+      <a href="{% url 'projects:project_new' %}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        New Project
+      </a>
+    </div>
+  </div>
+
+  <!-- Dashboard Summary -->
+  <div class="dashboard-summary">
+    <div class="summary-card">
+      <div class="summary-card-title">Total Projects</div>
+      <div class="summary-card-value">{{ total_count }}</div>
+      <div class="summary-card-trend trend-up">
+        <span>{% if projects_growth > 0 %}+{% endif %}{{ projects_growth }}% this month</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">Ongoing</div>
+      <div class="summary-card-value">{{ in_progress_count }}</div>
+      <div class="summary-card-trend trend-neutral">
+        <span>Stable</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">Completed</div>
+      <div class="summary-card-value">{{ completed_count }}</div>
+      <div class="summary-card-trend trend-up">
+        <span>{% if completed_growth > 0 %}+{% endif %}{{ completed_growth }}% this month</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">Average Time</div>
+      <div class="summary-card-value">{{ average_duration_display_days }}d</div>
+      <div class="summary-card-trend {{ duration_trend_class }}">
+        <span>{{ duration_trend_text }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Form -->
+  <form method="get"  class="filter-bar">
+    <div class="search-box">
+      <input type="text" name="search" placeholder="Search for a project..." value="{{ search }}">
+    </div>
+    <div class="filter-dropdown">
+      <select name="status">
+        <option value="">All Statuses</option>
+        <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>Ongoing</option>
+        <option value="completed"   {% if filter_status == 'completed'   %}selected{% endif %}>Completed</option>
+        <option value="pending"     {% if filter_status == 'pending'     %}selected{% endif %}>Pending</option>
+       
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Filter
+    </button>
+  </form>
+
+  {% if projects %}
+  <div class="table-responsive">
+    <table class="projects-table" id="projects-table">
+      <thead>
+        <tr>
+          <th style="width:50%;">Project</th>
+          <th>Status</th>
+          <th>Team</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for project in projects %}
+        <tr>
+          <td>
+            <a href="{% url 'projects:project_detail' project.id %}" class="project-title">{{ project.title }}</a>
+            <div class="project-desc">{{ project.description|truncatechars:120 }}</div>
+            <div class="project-meta">
+              <div class="meta-item">Created: {{ project.created_at|date:"d M Y" }}</div>
+              <div class="meta-item">
+              Deadline:
+              {% if project.date_start and project.date_end %}
+                {{ project.date_start|date:"d/m/Y" }} – {{ project.date_end|date:"d/m/Y" }}
+              {% elif project.date_end %}
+                {{ project.date_end|date:"d/m/Y" }}
+              {% else %}
+                Not defined
+              {% endif %}
+</div>
+            </div>
+          </td>
+          <td>
+            {% if project.status == 'ongoing' %}
+              <span class="status-badge status-badge-in-progress">Ongoing</span>
+            {% elif project.status == 'completed' %}
+              <span class="status-badge status-badge-completed">Completed</span>
+            {% elif project.status == 'pending' %}
+              <span class="status-badge status-badge-pending">Pending</span>
+            {% else %}
+              {{ project.get_status_display }}
+            {% endif %}
+          </td>
+          <td>
+            <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
+                                    {{ pm.member.get_full_name|default:pm.member.full_name }}{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    <em>No participants</em>
+                                {% endfor %}</span>
+          </td>
+          <td>
+            <div class="btn-group">
+              <a href="{% url 'projects:project_update' project.id %}" class="btn btn-sm btn-outline">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+              </a>
+              <a href="{% url 'projects:project_delete' project.id %}" class="btn btn-sm btn-outline" onclick="return confirm('Delete this project?');">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    </div>
+    <h3 class="empty-state-title">No projects found</h3>
+    <p class="empty-state-text">Start by creating a new project or modify your search criteria.</p>
+    <a href="{% url 'projects:project_new' %}" class="btn btn-primary">Create a project</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock content %}

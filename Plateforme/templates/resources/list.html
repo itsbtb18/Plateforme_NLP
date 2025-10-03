@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "All Resources" %}{% endblock %}
+
+{% block extra_styles %}
+{% comment "Link to main.css managed in base.html" %}{% endcomment %}
+{% endblock %}
+
+{% block content %}
+<div class="resources-container container py-5">
+    <!-- Header Section -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-lg-8 col-md-7">
+            <h1 class="display-5 fw-bold mb-2">{% trans "Research Resources" %}</h1>
+            <p class="text-muted fs-5">{{ total_count }} {% trans "resources available" %}</p>
+        </div>
+        {% if user.is_authenticated %}
+        <div class="col-lg-4 col-md-5 d-flex justify-content-md-end justify-content-start mt-3 mt-md-0">
+            <a href="{% url 'resources:create' %}" class="btn btn-primary btn-lg shadow-sm">
+                <i class="bi bi-plus-lg me-2"></i> {% trans "Add Resource" %}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Search Box -->
+    <div class="global-searchbox">
+        <form method="get" action="" class="searchbox-form" id="globalSearchForm">
+            <div class="searchbox-group shadow-sm">
+                <!-- Query Input Section -->
+                <div class="query-container w-100 position-relative">
+                    <input type="text" 
+                           name="q" 
+                           id="globalQuery" 
+                           class="query-input" 
+
+                           placeholder="Search for resources..." 
+
+                           autocomplete="off"
+                           value="{{ request.GET.q|default:'' }}">
+                    
+                    <!-- Query Status Indicators -->
+                    <div class="status-indicator">
+                        <i class="bi bi-search status-icon"></i>
+                        <div class="spinner-border spinner-border-sm text-primary status-spinner" 
+                             role="status" 
+                             style="display: none;">
+                            <span class="visually-hidden">{% trans "Chargement..." %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdowns -->
+                    <div class="suggestions-panel" id="querySuggestions"></div>
+                    <div class="history-panel" id="queryHistory"></div>
+                </div>
+                
+               
+                
+                
+                <!-- Action Buttons -->
+                <button type="submit" class="action-button submit-action">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Category Filters -->
+    <div class="category-filters">
+        <div class="category-label">
+            <i class="bi bi-funnel me-2"></i> {% trans "Filter by:" %}
+        </div>
+        <div class="category-list">
+            <a href="?q={{ request.GET.q }}" 
+               class="category-item {% if not request.GET.type %}active{% endif %}">
+                {% trans "All" %}
+            </a>
+            <a href="?q={{ request.GET.q }}&type=article" 
+               class="category-item {% if request.GET.type == 'article' %}active{% endif %}">
+                <i class="bi bi-file-text me-1"></i> {% trans "Articles" %}
+            </a>
+            <a href="?q={{ request.GET.q }}&type=thesis" 
+               class="category-item {% if request.GET.type == 'thesis' %}active{% endif %}">
+                <i class="bi bi-journal-richtext me-1"></i>{% trans "Theses" %} 
+            </a>
+            <a href="?q={{ request.GET.q }}&type=memoir" 
+               class="category-item {% if request.GET.type == 'memoir' %}active{% endif %}">
+                <i class="bi bi-book me-1"></i> {% trans "Memoirs" %}
+            </a>
+            <a href="?q={{ request.GET.q }}&type=tool" 
+               class="category-item {% if request.GET.type == 'tool' %}active{% endif %}">
+                <i class="bi bi-tools me-1"></i>{% trans "Tools" %} 
+            </a>
+            <a href="?q={{ request.GET.q }}&type=course" 
+               class="category-item {% if request.GET.type == 'course' %}active{% endif %}">
+                <i class="bi bi-mortarboard me-1"></i> {% trans "Courses" %}
+            </a>
+            <a href="?q={{ request.GET.q }}&type=corpus" 
+               class="category-item {% if request.GET.type == 'corpus' %}active{% endif %}">
+                <i class="bi bi-archive me-1"></i> {% trans "Corpus" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Resources Grid -->
+    {% if resources %}
+    <div class="resource-grid">
+        {% for resource in resources %}
+        <div class="resource-card">
+            <div class="resource-type-indicator type-{{ resource.resource_type }}"></div>
+            <div class="card-body">
+                <div class="resource-badge type-{{ resource.resource_type }}">
+                    <i class="bi {% if resource.resource_type == 'article' %}bi-file-text
+                               {% elif resource.resource_type == 'thesis' %}bi-journal-richtext
+                               {% elif resource.resource_type == 'memoir' %}bi-book
+                               {% elif resource.resource_type == 'tool' %}bi-tools
+                               {% else %}bi-mortarboard{% endif %} me-2"></i>
+                    {{ resource.resource_type|title }}
+                </div>
+                <h5 class="card-title">{{ resource.title }}</h5>
+                <div class="card-text">
+                    {{ resource.description|truncatewords:20|default:"No description provided" }}
+                </div>
+                <div class="resource-meta">
+                    <div class="meta-item">
+                        <i class="bi bi-person-circle"></i>
+                        <span>{{ resource.author.full_name }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="bi bi-calendar-event"></i>
+                        <span>{{ resource.creation_date|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}" 
+                   class="btn-view">
+                    <span>{% trans "View Details" %}</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="pagination-container" aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page=1" aria-label="First">
+                    <i class="bi bi-chevron-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.next_page_number }}" aria-label="Next">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                    <i class="bi bi-chevron-double-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="bi bi-search"></i>
+        </div>
+        <h3>{% trans "No resources found" %}</h3>
+        <p class="text-muted">{% trans "Try adjusting your search criteria" %}</p>
+        {% if user.is_authenticated %}
+        <a href="{% url 'resources:create' %}" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plus-lg me-2"></i> {% trans "Add a resource" %}
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+/* Variables */
+:root {
+    --primary: #4361ee;
+    --primary-dark: #3a56d4;
+    --bg-light: #f8f9fa;
+    --text-dark: #212529;
+    --text-muted: #6c757d;
+    --border-color: #dee2e6;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+    --card-radius: 12px;
+    
+    /* Resource type colors */
+    --color-article: #4cc9f0;
+    --color-thesis: #4895ef;
+    --color-memoir: #f77f00;
+    --color-tool: #52b788;
+    --color-course: #7209b7;
+}
+
+/* Container */
+.resources-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+/* Global Searchbox */
+.global-searchbox {
+    margin-bottom: 2rem;
+}
+
+.searchbox-form {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.searchbox-group {
+    display: flex;
+    align-items: stretch;
+    border-radius: 12px;
+    background: white;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Query Container */
+.query-container {
+    position: relative;
+}
+
+.query-input {
+    width: 100%;
+    border: none;
+    padding: 1rem 2.5rem 1rem 1.2rem;
+    font-size: 1rem;
+}
+
+.query-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Status Indicators */
+.status-indicator {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.status-icon {
+    font-size: 1rem;
+}
+
+.status-spinner {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Type Selection */
+.type-select {
+    border: none;
+    border-left: 1px solid var(--border-color);
+    padding: 1rem 1.2rem;
+    min-width: 140px;
+}
+
+/* Action Buttons */
+.action-button {
+    padding: 0 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.submit-action {
+    background-color: var(--primary);
+    color: white;
+}
+
+/* Category Filters */
+.category-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    padding: 0.5rem 0;
+}
+
+.category-label {
+    font-weight: 500;
+    color: var(--text-dark);
+    margin-right: 0.5rem;
+}
+
+.category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-item {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.category-item:hover {
+    background-color: rgba(67, 97, 238, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.category-item.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+/* Resource Grid */
+.resource-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Resource Cards */
+.resource-card {
+    background-color: white;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.3s ease;
+    border: none;
+    height: 100%;
+}
+
+.resource-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+}
+
+.resource-type-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+}
+
+.resource-type-indicator.type-article { background-color: var(--color-article); }
+.resource-type-indicator.type-thesis { background-color: var(--color-thesis); }
+.resource-type-indicator.type-memoir { background-color: var(--color-memoir); }
+.resource-type-indicator.type-tool { background-color: var(--color-tool); }
+.resource-type-indicator.type-course { background-color: var(--color-course); }
+.resource-type-indicator.type-corpus { background-color: var(--color-tool); }
+
+/* Card Body */
+.card-body {
+    padding: 1.75rem;
+    padding-top: 2rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.resource-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.resource-badge.type-article { background-color: rgba(76, 201, 240, 0.1); color: var(--color-article); }
+.resource-badge.type-thesis { background-color: rgba(72, 149, 239, 0.1); color: var(--color-thesis); }
+.resource-badge.type-memoir { background-color: rgba(247, 127, 0, 0.1); color: var(--color-memoir); }
+.resource-badge.type-tool { background-color: rgba(82, 183, 136, 0.1); color: var(--color-tool); }
+.resource-badge.type-course { background-color: rgba(114, 9, 183, 0.1); color: var(--color-course); }
+.resource-badge.type-corpus { background-color: rgba(29, 171, 88, 0.1); color: var(--color-tool); }
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-dark);
+}
+
+.card-text {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    flex-grow: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* Resource Meta */
+.resource-meta {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.meta-item i {
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+/* Card Footer */
+.card-footer {
+    background-color: var(--bg-light);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 1.75rem;
+}
+
+.btn-view {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    text-decoration: none;
+    color: var(--text-dark);
+    font-weight: 600;
+    padding: 0.5rem 0;
+    transition: all 0.2s ease;
+}
+
+.btn-view i {
+    transition: transform 0.2s ease;
+}
+
+.btn-view:hover {
+    color: var(--primary);
+}
+
+.btn-view:hover i {
+    transform: translateX(4px);
+}
+
+/* Pagination */
+.pagination-container {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.page-item .page-link {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 0.5rem 0.8rem;
+    min-width: 2.5rem;
+    text-align: center;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.page-item .page-link:hover:not(.active) {
+    background-color: var(--bg-light);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    background-color: white;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: var(--primary);
+    opacity: 0.5;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+/* Dropdowns */
+.suggestions-panel,
+.history-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .searchbox-group {
+        flex-direction: column;
+    }
+    
+    .type-select {
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        min-width: 100%;
+    }
+    
+    .action-button {
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .category-filters {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .category-list {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        flex-wrap: nowrap;
+    }
+    
+    .resource-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-body {
+        padding: 1.25rem;
+    }
+    
+    .card-footer {
+        padding: 0.75rem 1.25rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .resource-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (min-width: 992px) {
+    .resource-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('globalSearchForm');
+    const searchInput = document.getElementById('globalQuery');
+    const typeSelect = document.getElementById('contentTypeSelect');
+    const searchSuggestions = document.getElementById('querySuggestions');
+    const searchHistory = document.getElementById('queryHistory');
+    
+    // ... Le reste de votre JavaScript existant avec les nouveaux IDs ...
+});
+</script>
+{% endblock %}

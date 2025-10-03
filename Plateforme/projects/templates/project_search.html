@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Discover Projects{% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Header & Search -->
+  <div class="row align-items-center header-section mb-5">
+    <div class="col-lg-8 col-md-7">
+      <h1 class="display-5 fw-bold mb-2">Discover Projects</h1>
+      <p class="text-muted fs-5">{{ projects|length }} projects available</p>
+    </div>
+    <div class="col-lg-4 col-md-5 mt-3 mt-md-0">
+      <form method="get" action="{% url 'projects:project_search' %}">
+        <div class="input-group input-group-lg shadow-sm search-group">
+          <input type="text"
+                 name="q"
+                 class="form-control border-0"
+                 placeholder="Search by project name or creator..."
+                 value="{{ request.GET.q }}">
+          <button class="btn btn-primary" type="submit">
+            <i class="fas fa-search me-2"></i>Search
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Projects Grid -->
+  {% if projects %}
+  <div class="projects-grid">
+    {% for project in projects %}
+    <div class="project-card">
+      <div class="project-body">
+        <h5 class="project-title">{{ project.title }}</h5>
+        <p class="project-meta text-muted"><i class="fas fa-user me-1"></i>{{ project.owner.username }}</p>
+        <p class="project-desc">{{ project.description|truncatechars:120 }}</p>
+      </div>
+      <div class="project-footer text-end">
+        <a href="{% url 'projects:project_detail' project.id %}" class="btn-view-details">
+          View Details <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state text-center py-5">
+    <i class="fas fa-folder-open empty-icon mb-3"></i>
+    <h3>No projects found</h3>
+    <p class="text-muted">Try a different search or browse all projects.</p>
+    <a href="{% url 'projects:project_list' %}" class="btn btn-primary mt-3">
+      <i class="fas fa-list me-2"></i>All Projects
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+:root {
+    --primary: #4361ee;
+    --primary-hover: #3a56d4;
+    --dark-color: #1e455e;
+    --light-bg: #f8f9fa;
+    --text-muted: #6c757d;
+    --border-color: #e9ecef;
+    --card-shadow: 0 8px 16px rgba(0,0,0,0.05);
+    --hover-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    --card-radius: 12px;
+}
+
+.container { max-width: 1200px; }
+.header-section { margin-bottom: 2rem; }
+.search-group { overflow: hidden; border-radius: var(--card-radius); }
+.search-group .form-control { background-color: white; }
+.search-group .btn { border-radius: 0 var(--card-radius) var(--card-radius) 0; }
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+}
+.project-card {
+    background: white;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.project-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--hover-shadow);
+}
+.project-body { padding: 1.5rem; flex-grow: 1; }
+.project-title { margin-bottom: 0.5rem; color: var(--dark-color); }
+.project-meta { font-size: 0.9rem; }
+.project-desc { margin-bottom: 1rem; color: var(--text-muted); }
+.project-footer { padding: 1rem 1.5rem; background: var(--light-bg); }
+.btn-view-details {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--primary);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--primary);
+    border-radius: var(--card-radius);
+    transition: all 0.2s ease;
+}
+.btn-view-details:hover {
+    background: var(--primary);
+    color: white;
+}
+.btn-view-details:hover i { transform: translateX(3px); }
+
+.empty-state {
+    background: white;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+}
+.empty-icon { font-size: 3rem; color: var(--primary); opacity: 0.4; }
+
+/* Responsive Breakpoints */
+@media (max-width: 767px) {
+    .projects-grid { grid-template-columns: 1fr; }
+    .header-section { text-align: center; }
+    .header-section .col-lg-4 { margin: 1.5rem 0 0; }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+    .projects-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 992px) {
+    .projects-grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+{% endblock content %}

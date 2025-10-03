@@ -1,0 +1,194 @@
+{% extends "base.html" %} {% load static %} {% load i18n %} 
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'css/main.css' %}" />
+{% endblock %} {% block content %}
+<div class="welcome-banner">
+  <div class="welcome-text">
+    <h1>{% trans "Welcome to Arabic NLP Platform" %}</h1>
+    <p>
+      {% trans "Explore resources, tools, and corpus for Arabic Natural Language Processing. Collaborate with researchers and developers on innovative projects." %}
+    </p>
+    <a href="{% url 'resources:list' %}" class="btn btn-primary">
+      {% trans "Explore Resources" %}
+    </a>
+  </div>
+  <img src="{% static 'images/logo.jpg' %}" alt="Arabic NLP illustration" />
+</div>
+
+<div class="quick-actions">
+  <a href="{% url 'resources:corpus_list' %}" class="action-card">
+    <div class="action-icon">📊</div>
+    <h3 class="action-title">{% trans "Browse Corpus" %}</h3>
+  </a>
+  <a href="{% url 'resources:tool_list' %}" class="action-card">
+    <div class="action-icon">🔧</div>
+    <h3 class="action-title">{% trans "Use Tools" %}</h3>
+  </a>
+  <a href="{% url 'projects:project_new' %}" class="action-card">
+    <div class="action-icon">📝</div>
+    <h3 class="action-title">{% trans "Submit Project" %}</h3>
+  </a>
+  <a href="{% url 'forum:topic-list' %}" class="action-card">
+    <div class="action-icon">👥</div>
+    <h3 class="action-title">{% trans "Join Community" %}</h3>
+  </a>
+</div>
+
+<div class="stats-container">
+  <div class="stat-card">
+    <div class="stat-number">{{ corpus_count }}</div>
+    <div class="stat-title">{% trans "Available Corpus" %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ tools_count }}</div>
+    <div class="stat-title">{% trans "NLP Tools" %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ projects_count }}</div>
+    <div class="stat-title">{% trans "Active Projects" %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ members_count }}+</div>
+    <div class="stat-title">{% trans "Community Members" %}</div>
+  </div>
+</div>
+
+<!-- Section Populaire -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2 class="section-title">{% trans "Popular News" %}</h2>
+    <a href="{% url 'QA:feed' %}" class="view-all">{% trans "View All" %}</a>
+  </div>
+  <div class="resources-grid">
+    {% for post in popular_posts %}
+    <div class="resource-card">
+      {% if post.image %}
+      <img
+        src="{{ post.image.url }}"
+        alt="{{ post.content|truncatechars:50 }}"
+      />
+      {% endif %}
+      <div class="resource-card-content">
+        <h3 class="resource-title">
+          <a href="{% url 'QA:post_detail' post.slug %}"
+            >{{ post.content|truncatechars:10 }}</a
+          >
+        </h3>
+        <p class="resource-content ">{{ post.content|truncatechars:100 }}</p>
+        <div class="resource-meta">
+          <div class="resource-meta-item">
+            <i class="fas fa-heart text-danger"></i> {{ post.total_likes }}
+          </div>
+          <div class="resource-meta-item">
+            <i class="fas fa-user"></i> {{ post.author.full_name }}
+          </div>
+          <div class="resource-meta-item">
+            <i class="fas fa-clock"></i> {{ post.created_at|timesince }}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-message">
+      <p>{% trans "No popular posts yet." %}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Nouvelle Section : Ressources les plus vues -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2 class="section-title">{% trans "Most viewed resources " %}</h2>
+    <a href="{% url 'resources:list' %}" class="view-all"
+      >{% trans "View All" %}</a
+    >
+  </div>
+  <div class="resources-grid">
+    {% for resource in most_viewed_resources %}
+    <div class="resource-card">
+      <div class="resource-type-badge">
+        <i
+          class="bi {% if resource.resource_type_display == 'Corpus' %}bi-database {% elif resource.resource_type_display == 'Outil NLP' %}bi-tools {% elif resource.resource_type_display == 'Article' %}bi-file-text {% elif resource.resource_type_display == 'Thèse' %}bi-journal-richtext {% elif resource.resource_type_display == 'Mémoire' %}bi-book {% else %}bi-mortarboard{% endif %} me-2"
+        ></i>
+        {{ resource.resource_type_display }}
+      </div>
+      <div class="viewed-resources">
+        <h3 class="resource-title">
+          <a href="{{ resource.get_absolute_url }}"
+            >{{ resource.title|truncatechars:50 }}</a
+          >
+        </h3>
+        <p class="resource-description">
+          {{ resource.description|truncatechars:100 }}
+        </p>
+        <div class="resource-meta">
+          <div class="meta-item">
+            <i class="bi bi-eye-fill"></i>
+            <span>{{ resource.views_count }} {% trans "views" %}</span>
+          </div>
+          <div class="meta-item">
+            <i class="bi bi-person-circle"></i>
+            <span>{{ resource.author.full_name }}</span>
+          </div>
+          <div class="meta-item">
+            <i class="bi bi-clock"></i>
+            <span>{{ resource.creation_date|timesince }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+      <i class="bi bi-archive empty-icon"></i>
+      <p>{% trans "No popular resources yet." %}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Section Événements -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2 class="section-title">{% trans "Upcoming Events" %}</h2>
+    <a href="{% url 'events:event_list' %}" class="view-all"
+      >{% trans "View All" %}</a
+    >
+  </div>
+  <div class="events-list">
+    {% for event in events|slice:":3" %}
+    <a href="{% url 'events:event_detail' event.id %}" class="event-card-link">
+      <div class="event-card">
+        <div class="event-date">
+          <div class="event-day">{{ event.start_date|date:"d" }}</div>
+          <div class="event-month">{{ event.start_date|date:"M"|upper }}</div>
+        </div>
+        <div class="event-details">
+          <h3 class="event-title">{{ event.title }}</h3>
+          <div class="event-location">
+            {% if event.is_online %}
+            <i class="fas fa-globe"></i> {% trans "Online" %} •
+            <i class="fas fa-clock"></i> {{ event.start_time|date:"H:i" }}-{{
+            event.end_time|date:"H:i" }} {{ event.timezone }} {% else %}
+            <i class="fas fa-map-marker-alt"></i> {{ event.location }} •
+            <i class="fas fa-calendar"></i> {{ event.start_date|date:"d M Y" }}
+            {% if event.end_date %} - {{ event.end_date|date:"d M Y" }}{% endif %} {% endif %}
+          </div>
+          <div class="resource-tags">
+            {% for tag in event.tags.all %}
+            <span class="tag">{{ tag.name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </a>
+    {% empty %}
+    <div class="empty-message">
+      <p>{% trans "No upcoming events." %}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+
+{% endblock %}

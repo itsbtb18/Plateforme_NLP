@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "News feed" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Colonne principale -->
+        <div class="col-md-8 mx-auto">
+            <!-- Formulaire de création de post -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="post" action="{% url 'QA:create_post' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ post_form.content.id_for_label }}" class="form-label">{% trans "Content" %}</label>
+                            {{ post_form.content }}
+                            {% if post_form.content.help_text %}
+                            <div class="form-text">{{ post_form.content.help_text }}</div>
+                            {% endif %}
+                            {% if post_form.content.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in post_form.content.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ post_form.image.id_for_label }}" class="form-label">{% trans "Image" %}</label>
+                            {{ post_form.image }}
+                            {% if post_form.image.help_text %}
+                            <div class="form-text">{{ post_form.image.help_text }}</div>
+                            {% endif %}
+                            {% if post_form.image.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in post_form.image.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ post_form.file.id_for_label }}" class="form-label">{% trans "Add a file" %}</label>
+                            {{ post_form.file }}
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>{% trans "Publish" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Liste des posts -->
+            {% for post in posts %}
+            <div class="card mb-4 post-card">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        {% if post.author.avatar %}
+                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-2x me-2 text-primary"></i>
+                        {% endif %}
+                        <div>
+                            <h6 class="mb-0">{{ post.author.full_name }}</h6>
+                            <small class="text-muted">{{ post.created_at|timesince }}</small>
+                        </div>
+                    </div>
+                    {% if post.author == request.user %}
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted dropdown-toggle" type="button" id="dropdownMenuButton{{ post.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton{{ post.id }}">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'QA:edit_post' post.id %}">
+                                    <i class="fas fa-edit me-2"></i>{% trans "Edit" %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'QA:delete_post' post.id %}">
+                                    <i class="fas fa-trash-alt me-2"></i>{% trans "Delete" %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if post.image %}
+                    <img src="{{ post.image.url }}" class="img-fluid mb-2" alt="Publication image">
+                    {% endif %}
+
+                    {% if post.file %}
+                    <div class="mb-2">
+                        <a href="{{ post.file.url }}" download class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download me-2"></i>{% trans "Download file" %}
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <p class="card-text">{{ post.content }}</p>
+                    
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-link text-muted like-button" data-post-id="{{ post.id }}">
+                                <i class="fas fa-heart {% if request.user in post.likes.all %}text-danger{% endif %}"></i>
+                                <span class="likes-count">{{ post.total_likes }}</span>
+                            </button>
+                            <a href="{% url 'QA:post_detail' post.slug %}" class="btn btn-link text-muted">
+                                <i class="fas fa-comment"></i>
+                                <span>{{ post.total_comments }}</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Commentaires -->
+                    <div class="comments-section mt-3">
+                        {% for comment in post.comments.all|slice:":3" %}
+                        <div class="comment mb-2">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    {% if comment.author.avatar %}
+                                        <img src="{{ comment.author.avatar.url }}" alt="{{ comment.author.full_name }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                                    {% else %}
+                                        <i class="fas fa-user-circle text-primary"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1 ms-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">{{ comment.author.full_name }}</h6>
+                                        <small class="text-muted">{{ comment.created_at|timesince }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ comment.content }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if post.total_comments > 3 %}
+                        <a href="{% url 'QA:post_detail' post.slug %}" class="text-muted">
+                            {% trans "See all comments" %} ({{ post.total_comments }})
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                <h4>{% trans "No publications yet" %}</h4>
+                <p class="text-muted">{% trans "Be the first to share something!" %}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <!-- Bootstrap Bundle with Popper for dropdowns -->
+    <script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gestion des likes
+        document.querySelectorAll('.like-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const postId = this.dataset.postId;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                fetch(`/QA/post/${postId}/like/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur réseau');
+                    return response.json();
+                })
+                .then(data => {
+                    const icon = this.querySelector('i');
+                    const count = this.querySelector('.likes-count');
+                    icon.classList.toggle('text-danger', data.liked);
+                    count.textContent = data.total_likes;
+                })
+                .catch(error => console.error('Erreur:', error));
+            });
+        });
+    });
+    </script>
+{% endblock %}

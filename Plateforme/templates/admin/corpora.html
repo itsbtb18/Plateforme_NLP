@@ -1,0 +1,752 @@
+{% extends 'base_admin.html' %} {% block title %}Gestion des Corpus{% endblock %} 
+{% load i18n %}
+{% block extra_css %}
+<style>
+  .corpus-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .corpus-header h1 {
+    margin: 0;
+    color: #2d3748;
+    font-weight: 700;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: 1rem;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+  }
+
+  .status-active {
+    background-color: #48bb78;
+  }
+  .status-draft {
+    background-color: #ecc94b;
+  }
+  .status-archived {
+    background-color: #a0aec0;
+  }
+
+  .status-label {
+    font-size: 0.85rem;
+  }
+
+  .corpus-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+
+  .search-box {
+    flex: 1;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a0aec0;
+  }
+
+  .filter-dropdown {
+    margin-left: 1rem;
+  }
+
+  .filter-dropdown select {
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background-color: white;
+    min-width: 150px;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background-color: #4f46e5;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+  }
+
+  .btn-outline:hover {
+    background-color: #f7fafc;
+  }
+
+  .btn-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .corpus-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .corpus-table th {
+    background-color: #4f46e5;
+    color: white;
+    padding: 1.25rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    position: relative;
+  }
+
+  .corpus-table th:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .corpus-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #edf2f7;
+    color: #4a5568;
+    vertical-align: middle;
+  }
+
+  .corpus-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .corpus-table tr:hover td {
+    background-color: #f7fafc;
+  }
+
+  .corpus-title {
+    font-weight: 600;
+    color: #2d3748;
+    text-decoration: none;
+    transition: color 0.2s;
+    display: block;
+  }
+
+  .corpus-title:hover {
+    color: #4f46e5;
+  }
+
+  .corpus-description {
+    color: #718096;
+    line-height: 1.5;
+  }
+
+  .corpus-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #718096;
+    font-size: 0.9rem;
+  }
+
+  .meta-icon {
+    color: #a0aec0;
+  }
+
+  .status-badge {
+    padding: 0.5rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .status-active-bg {
+    background-color: rgba(72, 187, 120, 0.15);
+    color: #2f855a;
+  }
+
+  .status-draft-bg {
+    background-color: rgba(236, 201, 75, 0.15);
+    color: #975a16;
+  }
+
+  .status-archived-bg {
+    background-color: rgba(160, 174, 192, 0.15);
+    color: #4a5568;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background-color: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    transition: all 0.2s;
+  }
+
+  .action-btn:hover {
+    background-color: #edf2f7;
+    transform: translateY(-1px);
+  }
+
+  .action-btn-edit:hover {
+    color: #4f46e5;
+    border-color: #4f46e5;
+  }
+
+  .action-btn-view:hover {
+    color: #3182ce;
+    border-color: #3182ce;
+  }
+
+  .action-btn-delete:hover {
+    color: #e53e3e;
+    border-color: #e53e3e;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+    gap: 0.25rem;
+  }
+
+  .pagination a {
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #4a5568;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .pagination a:hover {
+    background-color: #f7fafc;
+  }
+
+  .pagination .active {
+    background-color: #4f46e5;
+    color: white;
+    border-color: #4f46e5;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    background-color: #f7fafc;
+    border-radius: 10px;
+    color: #4a5568;
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #cbd5e0;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    margin-bottom: 0.75rem;
+    color: #2d3748;
+  }
+
+  .empty-state p {
+    color: #718096;
+    max-width: 400px;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Styles améliorés pour la barre de recherche */
+  .filter-form {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    border: 1px solid #e9ecef;
+  }
+
+
+
+  .filter-form .form-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 0;
+  }
+
+  .filter-form .form-group {
+    flex: 1;
+    min-width: 280px;
+    position: relative;
+  }
+
+  .filter-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+  }
+
+  .filter-form .form-group input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background-color: #ffffff;
+    transition: all 0.3s ease;
+    color: #495057;
+  }
+
+  .filter-form .form-group input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  .filter-form .form-group input::placeholder {
+    color: #a0aec0;
+    font-style: italic;
+  }
+
+  .filter-form .form-group::before {
+    position: absolute;
+    left: 0.875rem;
+    bottom: 0.875rem;
+    font-size: 1.1rem;
+    color: #6c757d;
+  }
+
+  .filter-form .buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .filter-form .btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    min-width: 100px;
+    white-space: nowrap;
+  }
+
+  .filter-form .btn-outline {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    color: #6c757d;
+  }
+
+  .filter-form .btn-outline:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+  }
+
+  .filter-form .btn-primary {
+    background-color: #4f46e5;
+    color: white;
+    border: 1px solid #4f46e5;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  }
+
+  .filter-form .btn-primary:hover {
+    background-color: #4338ca;
+    border-color: #4338ca;
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .corpus-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .corpus-actions {
+      width: 100%;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+    }
+
+    .filter-form .form-row {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .filter-form .form-group {
+      min-width: 100%;
+    }
+
+    .filter-form .buttons {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .filter-form .btn {
+      flex: 1;
+    }
+
+    .corpus-table th:nth-child(2),
+    .corpus-table td:nth-child(2) {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .filter-form {
+      padding: 1rem;
+    }
+
+    .filter-form .buttons {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .filter-form .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %} 
+
+{% block content %}
+<div class="corpus-header">
+  <div style="display: flex; align-items: center">
+    <h1>{% trans "Corpus Management" %}</h1>
+  </div>
+  <div class="corpus-actions">
+    <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary">
+      <svg
+        class="btn-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v16m8-8H4"
+        />
+      </svg>
+      {% trans "New corpus" %}
+    </a>
+  </div>
+</div>
+
+<form method="get" class="filter-form">
+  <div class="form-row">
+    <div class="form-group">
+      <label for="search">{% trans "Search" %}</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{ request.GET.search }}"
+        placeholder="{% trans 'Search by title, author, description...' %}"
+      />
+    </div>
+    <div class="buttons">
+      <button type="button" class="btn btn-outline" onclick="resetFilters()">
+        {% trans "Reset" %}
+      </button>
+      <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+    </div>
+  </div>
+</form>
+
+{% if corpora %}
+<table class="corpus-table" id="corpus-table">
+  <thead>
+    <tr>
+      <th>{% trans "Title" %}</th>
+      <th>{% trans "Description" %}</th>
+      <th>{% trans "Creation date" %}</th>
+      <th>{% trans "Actions" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for corpus in corpora %}
+    <tr>
+      <td>
+        <a
+          href="{% url 'resources:corpus_detail'  corpus.id  %}"
+          class="corpus-title"
+          >{{ corpus.title }}</a
+        >
+      </td>
+      <td>
+        <div class="corpus-description">
+          {{ corpus.description|truncatewords:10 }}
+        </div>
+      </td>
+      <td>
+        <div class="corpus-meta">
+          <svg
+            class="meta-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          {{ corpus.creation_date|date:"d/m/Y H:i" }}
+        </div>
+      </td>
+      <td>
+        <div class="action-buttons">
+          <a
+            href="{% url 'resources:corpus_detail'  corpus.id   %}"
+            class="action-btn action-btn-view"
+            title="Voir le corpus"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              />
+            </svg>
+          </a>
+          <a
+            href="{% url 'resources:resource-update' type='corpus' pk=corpus.id %}"
+            class="action-btn action-btn-edit"
+            title="Modifier le corpus"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </a>
+          <a
+            href="{% url 'resources:resource-delete' type='corpus' pk=corpus.id  %}"
+            class="action-btn action-btn-delete"
+            title="Supprimer le corpus"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </a>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if is_paginated %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page=1">&laquo; {% trans "First" %}</a>
+  <a href="?page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+  {% endif %} 
+  {% for num in page_obj.paginator.page_range %} 
+    {% if num == page_obj.number %}
+      <a class="active" href="#!">{{ num }}</a>
+    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+      <a href="?page={{ num }}">{{ num }}</a>
+    {% endif %} 
+  {% endfor %} 
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">{% trans "Following" %}</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}">{% trans "Last" %} &raquo;</a>
+  {% endif %}
+</div>
+{% endif %} 
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
+    </svg>
+  </div>
+  <h3>{% trans "No corpus available" %}</h3>
+  <p>
+    {% trans "You have not yet created a corpus or none match your search criteria." %}
+  </p>
+  <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary">
+    <svg
+      class="btn-icon"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M12 4v16m8-8H4"
+      />
+    </svg>
+    {% trans "Create a corpus" %}
+  </a>
+</div>
+{% endif %}
+
+<script>
+  function resetFilters() {
+    document.getElementById('search').value = '';
+    document.querySelector('.filter-form').submit();
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("search");
+    const table = document.getElementById("corpus-table");
+
+    // Animation au focus de l'input
+    searchInput.addEventListener('focus', function() {
+      this.style.borderColor = '#4f46e5';
+    });
+
+    searchInput.addEventListener('blur', function() {
+      this.style.borderColor = '#ced4da';
+    });
+
+    // Effet visuel sur survol des lignes
+    const tableRows = document.querySelectorAll(".corpus-table tbody tr");
+    tableRows.forEach((row) => {
+      row.addEventListener("mouseenter", () => {
+        row.style.transform = "translateY(-2px)";
+        row.style.transition = "transform 0.2s ease";
+      });
+
+      row.addEventListener("mouseleave", () => {
+        row.style.transform = "translateY(0)";
+      });
+    });
+  });
+</script>
+{% endblock %}

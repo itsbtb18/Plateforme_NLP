@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Résultats de recherche -->
+    <div class="search-results">
+        <h3 class="mb-4">{% trans "Results for" %} "{{ request.GET.q }}"</h3>
+        
+        <div class="row">
+            {% for result in results %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 search-result-card">
+                    <div class="card-body">
+                        <!-- En-tête avec type, langue et auteur -->
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <!-- Type et langue -->
+                            <div>
+                                <span class="badge bg-{{ result.type }}-subtle text-{{ result.type }}">
+                                    {{ result.type|title }}
+                                </span>
+                                {% if result.language %}
+                                <span class="badge bg-info-subtle text-info ms-2">
+                                    {{ result.language }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Auteur en haut à droite -->
+                            {% if result.author and result.author != 'Anonymous' %}
+                            <div class="d-flex align-items-center">
+                                <span class="small text-muted me-2">{{ result.author }}</span>
+                                {% if user.avatar %}
+                                    <img src="{{ user.avatar.url }}" alt="Avatar" class="avatar-img-small">
+                                {% else %}
+                                    <i class="fas fa-user-circle avatar-icon-small"></i>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Titre et contenu -->
+                        <h5 class="card-title mb-3">
+                            <a href="{{ result.link }}" class="text-decoration-none stretched-link">
+                                {{ result.title }}
+                            </a>
+                        </h5>
+
+                        {% if result.description %}
+                        <p class="card-text text-muted">
+                            {{ result.description|truncatewords:30 }}
+                        </p>
+                        {% endif %}
+
+                        <!-- Informations spécifiques par type -->
+                        {% if result.type == 'course' %}
+                        <div class="mb-2">
+                            {% if result.academic_level %}
+                            <span class="badge bg-primary-subtle text-primary me-2">
+                                <i class="fas fa-graduation-cap me-1"></i>{{ result.academic_level }}
+                            </span>
+                            {% endif %}
+                            {% if result.field %}
+                            <span class="badge bg-secondary-subtle text-secondary me-2">
+                                <i class="fas fa-book me-1"></i>{{ result.field }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'tool' %}
+                        <div class="mb-2">
+                            {% if result.tool_type %}
+                            <span class="badge bg-warning-subtle text-warning me-2">
+                                <i class="fas fa-tools me-1"></i>{{ result.tool_type }}
+                            </span>
+                            {% endif %}
+                            {% if result.supported_languages %}
+                            <div class="mt-1">
+                                <small class="text-muted">{% trans "Languages:" %} 
+                                    {% for lang in result.supported_languages %}
+                                        <span class="badge bg-light text-dark me-1">{{ lang }}</span>
+                                    {% endfor %}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'resource' %}
+                        <div class="mb-2">
+                            {% if result.document_type %}
+                            <span class="badge bg-success-subtle text-success me-2">
+                                <i class="fas fa-file-alt me-1"></i>{{ result.document_type }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'event' %}
+                        <div class="mb-2">
+                            {% if result.event_type %}
+                            <span class="badge bg-danger-subtle text-danger me-2">
+                                <i class="fas fa-calendar-check me-1"></i>{{ result.event_type }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'corpus' %}
+                        <div class="mb-2">
+                            {% if result.field %}
+                            <span class="badge bg-info-subtle text-info me-2">
+                                <i class="fas fa-database me-1"></i>{{ result.field }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'project' %}
+                        <div class="mb-2">
+                            {% if result.status %}
+                            <span class="badge bg-dark-subtle text-dark me-2">
+                                <i class="fas fa-project-diagram me-1"></i>{{ result.status }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% elif result.type == 'user' %}
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark me-2">
+                                <i class="fas fa-envelope me-1"></i>{{ result.email }}
+
+                            </span>
+                            
+                        </div>
+                        {% endif %}
+                        {% if result.type == 'institution' %}
+                <div class="mb-2">
+                    {% if result.acronym %}
+                        <span class="badge bg-primary-subtle text-primary me-2">
+                            <i class="fas fa-university me-1"></i>{{ result.acronym }}
+                        </span>
+                    {% endif %}
+                    {% if result.country %}
+                        <span class="badge bg-secondary-subtle text-secondary me-2">
+                            <i class="fas fa-globe me-1"></i>{{ result.country }}
+                        </span>
+                    {% endif %}
+                    {% if result.city %}
+                        <span class="badge bg-info-subtle text-info me-2">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ result.city }}
+                        </span>
+                    {% endif %}
+                    {% if result.type %}
+                        <span class="badge bg-warning-subtle text-warning me-2">
+                            <i class="fas fa-building me-1"></i>{{ result.type }}
+                        </span>
+                    {% endif %}
+                    {% if result.specialties %}
+                        <div class="mt-2">
+                            <small class="text-muted">{% trans "Specialties:" %}
+                                {% for specialty in result.specialties %}
+                                    <span class="badge bg-light text-dark me-1">{{ specialty }}</span>
+                                {% endfor %}
+                            </small>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h4>{% trans "No results found" %}</h4>
+        <p class="text-muted">{% trans "Try different keywords or check your spelling" %}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+/* Styles pour les cartes de résultats */
+.search-result-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.search-result-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Styles pour les badges de type */
+.bg-course-subtle { background-color: #e8f5e9; }
+.bg-corpus-subtle { background-color: #e3f2fd; }
+.bg-tool-subtle { background-color: #fff3e0; }
+.bg-resource-subtle { background-color: #f3e5f5; }
+.bg-project-subtle { background-color: #e8eaf6; }
+.bg-event-subtle { background-color: #fce4ec; }
+.bg-user-subtle { background-color: #f1f8e9; }
+.bg-institution-subtle { background-color: #ede7f6; } 
+
+.text-institution { color: #512da8; } 
+.text-course { color: #2e7d32; }
+.text-corpus { color: #1565c0; }
+.text-tool { color: #ef6c00; }
+.text-resource { color: #7b1fa2; }
+.text-project { color: #283593; }
+.text-event { color: #c2185b; }
+.text-user { color: #558b2f; }
+
+/* Styles pour les badges de métadonnées */
+.bg-primary-subtle { background-color: #cfe2ff; }
+.bg-secondary-subtle { background-color: #e2e3e5; }
+.bg-warning-subtle { background-color: #fff3cd; }
+.bg-success-subtle { background-color: #d1e7dd; }
+.bg-danger-subtle { background-color: #f8d7da; }
+.bg-info-subtle { background-color: #d1ecf1; }
+.bg-dark-subtle { background-color: #d3d3d4; }
+
+.text-primary { color: #0d6efd; }
+.text-secondary { color: #6c757d; }
+.text-warning { color: #fd7e14; }
+.text-success { color: #198754; }
+.text-danger { color: #dc3545; }
+.text-info { color: #0dcaf0; }
+.text-dark { color: #212529; }
+
+/* Styles pour les avatars */
+.avatar-img-small {
+    width: 60px;
+    height: 60px;
+    border-radius: 35%;
+    object-fit: cover;
+    border: 2px solid #e9ecef;
+}
+
+.avatar-icon-small {
+    font-size: 30px;
+    color: #6c757d;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+
+{% endblock %}

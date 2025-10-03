@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Scientific Events" %} | {% trans "Arabic NLP Platform" %}{% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Hero Header -->
+  <div class="row align-items-center mb-5 header-section">
+    <div class="col-lg-8 col-md-7">
+      <h1 class="display-4 fw-bold text-primary mb-2">{% trans "Scientific Events" %}</h1>
+      <p class="lead text-muted">{% trans "Discover conferences, workshops, and calls for papers in Arabic NLP, Speech Processing, and AI." %}</p>
+      <p class="fs-5 text-secondary">{{ events|length }} {% trans "events found" %}</p>
+    </div>
+    <div class="col-lg-4 col-md-5 text-md-end mt-4 mt-md-0">
+      {% if user.is_authenticated %}
+      <a href="{% url 'events:event_create' %}" class="btn btn-primary btn-lg shadow-sm">
+        <i class="fas fa-plus-circle me-2"></i> {% trans "Submit Event" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filters Card -->
+  <div class="card mb-5 shadow-sm filter-card">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-3">
+          <div class="form-floating">
+            {{ search_form.keyword }}
+            <label for="{{ search_form.keyword.id_for_label }}">{% trans "Keywords" %}</label>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-floating">
+            {{ search_form.event_type }}
+            <label for="{{ search_form.event_type.id_for_label }}">{% trans "Type" %}</label>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-floating">
+            {{ search_form.domain }}
+            <label for="{{ search_form.domain.id_for_label }}">{% trans "Domain" %}</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-floating">
+            {{ search_form.start_date }}
+            <label for="{{ search_form.start_date.id_for_label }}">{% trans "Start Date" %}</label>
+          </div>
+        </div>
+        <div class="col-md-2 d-flex align-items-center">
+          <div class="form-check form-switch">
+            {{ search_form.include_past }}
+            <label class="form-check-label" for="{{ search_form.include_past.id_for_label }}">{% trans "Include Past" %}</label>
+          </div>
+        </div>
+        <div class="col-12 text-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-filter me-1"></i> {% trans "Filter" %}
+          </button>
+          <a href="{% url 'events:event_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-undo me-1"></i> {% trans "Clear" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Events Grid -->
+  {% if events %}
+  <div class="row events-grid g-4">
+    {% for event in events %}
+    <div class="col-lg-6 col-md-12">
+      <div class="card h-100 shadow-sm hover-card">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center pt-3 px-4">
+          <span class="badge badge-type py-2 px-3">{{ event.get_event_type_display }}</span>
+          <span class="badge badge-status py-2 px-3">
+            {% if event.is_ongoing %}
+            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
+            {% elif event.is_upcoming %}
+            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
+            {% else %}
+            <i class="fas fa-calendar-times me-1"></i> {% trans "Past" %}
+            {% endif %}
+          </span>
+        </div>
+        <div class="card-body">
+          <h5 class="card-title">{{ event.title }}</h5>
+          <p class="text-muted mb-3">{{ event.description|truncatewords:25 }}</p>
+
+          <div class="mb-3 d-flex flex-wrap gap-2">
+            <span class="badge info-badge">
+              <i class="fas fa-globe me-1 text-primary"></i>
+              {% if event.is_ongoing or event.is_virtual %}
+              {% trans "Virtual" %}
+              {% else %}{{ event.location|truncatechars:20 }}{% endif %}
+            </span>
+            <span class="badge info-badge">
+              <i class="fas fa-calendar-day me-1 text-primary"></i>
+              {{ event.start_date|date:"M d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }}{% endif %}
+            </span>
+          </div>
+
+          {% if event.submission_deadline %}
+          <div class="alert alert-warning d-flex align-items-center mb-0">
+            <i class="fas fa-hourglass-half me-2"></i>
+            <div>
+              <strong>{% trans "Deadline:" %}</strong> {{ event.submission_deadline|date:"M d, Y" }}
+              <span class="badge bg-warning text-dark ms-2">{{ event.days_until_deadline }} {% trans "days left" %}</span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <div class="card-footer bg-light border-0 text-end">
+          <a href="{% url 'events:event_detail' event.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-arrow-right me-1"></i> {% trans "Details" %}
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <nav class="mt-5">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1">&laquo;&laquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;&raquo;</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+  {% else %}
+  <div class="empty-state text-center py-5 shadow-sm rounded">
+    <i class="fas fa-calendar-alt empty-icon mb-3"></i>
+    <h3 class="mb-3">{% trans "No events found" %}</h3>
+    <p class="text-muted mb-4">{% trans "Try changing filters or check back later." %}</p>
+    <a href="{% url 'events:event_list' %}" class="btn btn-primary">
+      <i class="fas fa-sync-alt me-1"></i> {% trans "Reset" %}
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+:root {
+  --primary: #4361ee;
+  --primary-hover: #3a56d4;
+  --success: #198754;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --light-bg: #f8f9fa;
+  --text-muted: #6c757d;
+  --card-radius: 12px;
+  --card-shadow: 0 8px 16px rgba(0,0,0,0.05);
+  --hover-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+
+.filter-card {
+  border: none;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+.header-section h1, .header-section p, .header-section .fs-5 {
+  line-height: 1.2;
+}
+.events-grid .card {
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--hover-shadow);
+}
+.badge-type {
+  background-color: var(--light-bg);
+  color: var(--primary);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.badge-status {
+  background-color: var(--primary);
+  color: white;
+}
+.info-badge {
+  background-color: var(--light-bg);
+  color: var(--text-muted);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--card-radius);
+  font-size: 0.9rem;
+}
+.empty-icon {
+  font-size: 3rem;
+  color: var(--primary);
+  opacity: 0.4;
+}
+@media (max-width: 767px) {
+  .header-section { text-align: center; }
+  .header-section .col-md-5 { margin-top: 1.5rem; }
+}
+</style>
+{% endblock content %}

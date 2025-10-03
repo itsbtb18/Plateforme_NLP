@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags i18n %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">
+        {% if form.initial.document_type == 'thesis' %}
+            {% trans "Update Thesis" %}
+        {% elif form.initial.document_type == 'article' %}
+            {% trans "Update Article" %}
+        {% elif form.initial.document_type == 'memoir' %}
+            {% trans "Update Memoir" %}
+        {% elif form.initial.resource_type == 'nlp_tool' %}
+            {% trans "Update NLP Tool" %}
+        {% elif form.initial.resource_type == 'course' %}
+            {% trans "Update Course" %}
+        {% elif form.initial.resource_type == 'corpus' %}
+            {% trans "Update Corpus" %}
+        {% else %}
+            {% trans "Update Resource" %}
+        {% endif %}
+    </h1>
+    
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <!-- Include resource_type as hidden input -->
+        {{ form.resource_type.as_hidden }}
+        
+        <!-- Include document_type as hidden if resource is document -->
+        {% if form.initial.resource_type == 'document' %}
+            {{ form.document_type.as_hidden }}
+        {% endif %}
+
+        <!-- Common fields -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {% trans "Basic Information" %}
+            </div>
+            <div class="card-body">
+                {{ form.title|as_crispy_field }}
+                {{ form.language|as_crispy_field }}
+                {{ form.description|as_crispy_field }}
+                {{ form.keywords|as_crispy_field }}
+                {{ form.access_link|as_crispy_field }}
+            </div>
+        </div>
+
+        <!-- Conditional fields based on resource type -->
+        {% if form.initial.resource_type == 'course' %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {% trans "Course Details" %}
+            </div>
+            <div class="card-body">
+                {{ form.course_field|as_crispy_field }}
+                {{ form.academic_level|as_crispy_field }}
+                {{ form.course_institution|as_crispy_field }}
+                {{ form.academic_year|as_crispy_field }}
+            </div>
+        </div>
+        {% elif form.initial.resource_type == 'nlp_tool' %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {% trans "Tool Details" %}
+            </div>
+            <div class="card-body">
+                {{ form.tool_type|as_crispy_field }}
+                {{ form.tool_version|as_crispy_field }}
+                {{ form.documentation|as_crispy_field }}
+                {{ form.supported_languages|as_crispy_field }} 
+            </div>
+        </div>
+        {% elif form.initial.resource_type == 'corpus' %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {% trans "Corpus Details" %}
+            </div>
+            <div class="card-body">
+                {{ form.corpus_size|as_crispy_field }}
+                {{ form.corpus_field|as_crispy_field }}
+                {{ form.corpus_format|as_crispy_field }}
+            </div>
+        </div>
+        {% elif form.initial.resource_type == 'document' %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {% trans "Document Details" %}
+            </div>
+            <div class="card-body">
+                {{ form.document_format|as_crispy_field }}
+                
+                {% if form.initial.document_type == 'article' %}
+                    {{ form.journal|as_crispy_field }}
+                    {{ form.publication_date|as_crispy_field }}
+                    {{ form.doi|as_crispy_field }}
+                {% elif form.initial.document_type == 'thesis' %}
+                    {{ form.supervisor|as_crispy_field }}
+                    {{ form.thesis_institution|as_crispy_field }}
+                    {{ form.defense_year|as_crispy_field }}
+                {% elif form.initial.document_type == 'memoir' %}
+                    {{ form.memoir_level|as_crispy_field }}
+                    {{ form.memoir_institution|as_crispy_field }}
+                    {{ form.memoir_defense_year|as_crispy_field }}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'resources:resource-detail' type=view.kwargs.type pk=view.kwargs.pk %}" 
+               class="btn btn-secondary">{% trans "Cancel" %}</a>
+            <button type="submit" class="btn btn-primary">
+                {% trans "Save Changes" %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

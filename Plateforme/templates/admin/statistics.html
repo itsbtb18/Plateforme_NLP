@@ -1,0 +1,375 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Statistics" %}{% endblock %}
+ {% block extra_css %}
+<style>
+  /* Container général */
+  .stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1.5rem;
+    background-color: #f8fafc;
+  }
+
+  /* Filtre dates */
+  .stats-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  .stats-filters input[type="date"] {
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+  }
+  .stats-filters input[type="date"]:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    outline: none;
+  }
+  .stats-filters button {
+    padding: 0.75rem 1.5rem;
+    background-color: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  .stats-filters button:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+  }
+
+  /* Cartes résumé */
+  .stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+  }
+  .stats-card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+  }
+  .stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  .stats-card h3 {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+  .stats-card p {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: #4f46e5;
+  }
+  .stats-card .trend {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+  .trend.positive {
+    color: #10b981;
+  }
+  .trend.negative {
+    color: #ef4444;
+  }
+
+  /* Grilles de charts */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+  @media (max-width: 1024px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .chart-card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+  }
+  .chart-card h4 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: #1e293b;
+    font-weight: 600;
+  }
+
+  /* Nouvelle section pour les statistiques avancées */
+  .advanced-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .advanced-stats-card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+  }
+  .advanced-stats-card h4 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: #1e293b;
+    font-weight: 600;
+  }
+  .stats-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .stats-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .stats-list li:last-child {
+    border-bottom: none;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid">
+  <!-- Filtres -->
+  <div class="filters mb-4">
+    <form method="get" class="row g-3">
+      <div class="col-md-4">
+        <label for="start_date" class="form-label">{% trans "Start date" %}</label>
+        <input
+          type="date"
+          class="form-control"
+          id="start_date"
+          name="start_date"
+          value="{{ start_date|date:'Y-m-d' }}"
+        />
+      </div>
+      <div class="col-md-4">
+        <label for="end_date" class="form-label">{% trans "End date" %}</label>
+        <input
+          type="date"
+          class="form-control"
+          id="end_date"
+          name="end_date"
+          value="{{ end_date|date:'Y-m-d' }}"
+        />
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Cartes de résumé -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "Users" %}</h5>
+          <h2 class="card-text">{{ current_stats.users_count }}</h2>
+          <p
+            class="trend {% if current_stats.users_growth > 0 %}trend-up{% else %}trend-down{% endif %}"
+          >
+            {{ current_stats.users_growth|floatformat:1 }}%
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "Resources" %}</h5>
+          <h2 class="card-text">{{ current_stats.resources_count }}</h2>
+          <p
+            class="trend {% if current_stats.resources_growth > 0 %}trend-up{% else %}trend-down{% endif %}"
+          >
+            {{ current_stats.resources_growth|floatformat:1 }}%
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      
+    </div>
+  </div>
+
+  <!-- Graphiques -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "User registrations" %}</h5>
+          <canvas id="usersChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "Resources by category" %}</h5>
+          <canvas id="resourcesChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistiques avancées -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "Top 5 most viewed resources" %}</h5>
+          <div class="list-group">
+            {% for resource in top_resources %}
+            <div class="list-group-item">
+              <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">{{ resource.title }}</h6>
+                <small>{{ resource.views }} {% trans "views" %}</small>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">{% trans "Activity by category" %}</h5>
+          <canvas id="activityChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Configuration globale de Chart.js
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.color = '#6c757d';
+  Chart.defaults.plugins.legend.position = 'bottom';
+
+  // Graphique des inscriptions utilisateurs
+  const usersCtx = document.getElementById('usersChart').getContext('2d');
+  new Chart(usersCtx, {
+      type: 'line',
+      data: {
+          labels: JSON.parse('{{ user_reg_dates|safe }}'),
+          datasets: [{
+              label: 'Registrations',
+              data: JSON.parse('{{ user_reg_counts|safe }}'),
+              borderColor: '#0d6efd',
+              tension: 0.4,
+              fill: true,
+              backgroundColor: 'rgba(13, 110, 253, 0.1)'
+          }]
+      },
+      options: {
+          responsive: true,
+          plugins: {
+              legend: {
+                  display: false
+              }
+          },
+          scales: {
+              y: {
+                  beginAtZero: true,
+                  ticks: {
+                      stepSize: 1
+                  }
+              }
+          }
+      }
+  });
+
+  // Graphique des ressources
+  const resourcesCtx = document.getElementById('resourcesChart').getContext('2d');
+  new Chart(resourcesCtx, {
+      type: 'doughnut',
+      data: {
+          labels: ['Publications', 'Corpora', 'Tools'],
+          datasets: [{
+              data: [
+                  {{ current_stats.publications_count }},
+                  {{ current_stats.corpora_count }},
+                  {{ current_stats.tools_count }}
+              ],
+              backgroundColor: [
+                  '#0d6efd',
+                  '#198754',
+                  '#dc3545'
+              ]
+          }]
+      },
+      options: {
+          responsive: true,
+          plugins: {
+              legend: {
+                  position: 'bottom'
+              }
+          }
+      }
+  });
+
+  // Graphique d'activité
+  const activityCtx = document.getElementById('activityChart').getContext('2d');
+  new Chart(activityCtx, {
+      type: 'bar',
+      data: {
+          labels: ['Publications', 'Corpora', 'Tools', 'Projects', 'Forum'],
+          datasets: [{
+              label: 'Activity',
+              data: [
+                  {{ current_stats.publications_count }},
+                  {{ current_stats.corpora_count }},
+                  {{ current_stats.tools_count }},
+                  {{ current_stats.projects_count }},
+                  {{ current_stats.forum_posts_count }}
+              ],
+              backgroundColor: '#0d6efd'
+          }]
+      },
+      options: {
+          responsive: true,
+          plugins: {
+              legend: {
+                  display: false
+              }
+          },
+          scales: {
+              y: {
+                  beginAtZero: true,
+                  ticks: {
+                      stepSize: 1
+                  }
+              }
+          }
+      }
+  });
+</script>
+{% endblock %} {% endblock %}
