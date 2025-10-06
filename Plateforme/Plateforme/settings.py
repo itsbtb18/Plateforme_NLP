@@ -216,8 +216,8 @@ ELASTICSEARCH_DSL = {
         "sniff_on_start": True,
     },
 }
-ELASTICSEARCH_DSL_AUTOSYNC = False
-ELASTICSEARCH_DSL_AUTO_REFRESH = False
+ELASTICSEARCH_DSL_AUTOSYNC = True
+ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # ----------------------------------------------------
 # Logging
