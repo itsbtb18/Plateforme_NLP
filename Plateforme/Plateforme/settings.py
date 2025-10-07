@@ -70,7 +70,8 @@ INSTALLED_APPS = [
     "widget_tweaks",
 
     # Elasticsearch
-    #"django_elasticsearch_dsl",
+    "django_elasticsearch_dsl",
+    "search",
 ]
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
@@ -211,11 +212,12 @@ else:
 # ----------------------------------------------------
 ELASTICSEARCH_DSL = {
     "default": {
-        "hosts": os.getenv("ELASTIC_URL", "http://localhost:9200"),
-        "timeout": 120,
-        "sniff_on_start": True,
-    },
+        "hosts": "https://localhost:9200",
+        "http_auth": ("elastic", "10082007"),
+        "verify_certs": False,  # mets True si tu utilises le CA d’ES
+    }
 }
+
 ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 

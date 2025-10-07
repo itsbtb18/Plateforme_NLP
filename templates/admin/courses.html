@@ -1,0 +1,629 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Course management" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius-sm: 0.25rem;
+    --radius: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--gray-50);
+    color: var(--gray-700);
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 1.5rem;
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--gray-800);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+  }
+
+  .btn-outline {
+    background-color: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+  }
+
+  .btn-outline:hover {
+    background-color: var(--gray-50);
+  }
+
+  .btn svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+  }
+
+  .filter-panel {
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    align-items: end;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-700);
+  }
+
+  .form-control {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    color: var(--gray-800);
+    width: 100%;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+  }
+
+  .search-input {
+    position: relative;
+    flex-grow: 1;
+  }
+
+  .search-input input {
+    padding-left: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0.75rem center;
+    background-size: 1rem;
+  }
+
+  .courses-table-container {
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .courses-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .courses-table th,
+  .courses-table td {
+    padding: 1rem;
+    text-align: left;
+  }
+
+  .courses-table th {
+    background-color: var(--gray-50);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    border-bottom: 1px solid var(--gray-200);
+    position: sticky;
+    top: 0;
+  }
+
+  .courses-table tbody tr {
+    transition: background-color 0.15s ease;
+  }
+
+  .courses-table tbody tr:hover {
+    background-color: var(--gray-50);
+  }
+
+  .courses-table tbody tr:not(:last-child) {
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .course-title {
+    font-weight: 500;
+    color: var(--gray-800);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .course-title a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .course-title a:hover {
+    text-decoration: underline;
+  }
+
+  .course-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .action-btn {
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    color: var(--gray-500);
+    transition: all 0.15s ease;
+    display: inline-flex;
+  }
+
+  .action-btn:hover {
+    background-color: var(--gray-100);
+    color: var(--gray-700);
+  }
+
+  .action-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .badge-success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+  }
+
+  .badge-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+  }
+
+  .badge-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+  }
+
+  .badge-info {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--info-color);
+  }
+
+  .badge-secondary {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem;
+  }
+
+  .empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    background-color: var(--gray-100);
+    color: var(--gray-500);
+    margin-bottom: 1rem;
+  }
+
+  .empty-state-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .empty-state-title {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state-description {
+    text-align: center;
+    color: var(--gray-500);
+    max-width: 24rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stats-card {
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .stats-title {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-bottom: 0.5rem;
+  }
+
+  .stats-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+
+  .stats-trend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .stats-trend.trend-up {
+    color: var(--success-color);
+  }
+
+  .stats-trend.trend-down {
+    color: var(--danger-color);
+  }
+
+  .stats-trend.trend-neutral {
+    color: var(--gray-500);
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    gap: 0.25rem;
+  }
+
+  .pagination-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    background-color: white;
+    border: 1px solid var(--gray-200);
+    transition: all 0.15s ease;
+  }
+
+  .pagination-item:hover {
+    background-color: var(--gray-50);
+    border-color: var(--gray-300);
+    color: var(--gray-800);
+  }
+
+  .pagination-item.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+  }
+
+  .pagination-item:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  }
+
+  .pagination-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+  }
+
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .header-actions {
+      justify-content: flex-start;
+    }
+
+    .form-group {
+      grid-column: span 2;
+    }
+
+    .filter-form {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-form .btn {
+      grid-column: span 1;
+    }
+
+    .courses-table-container {
+      overflow-x: auto;
+    }
+
+    .courses-table {
+      min-width: 800px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .courses-table {
+      min-width: 600px;
+    }
+
+    .header-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .header-actions .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>{% trans "Course management" %}</h1>
+    <div class="header-actions">
+      <a href="{%url 'resources:course-create'%}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        {% trans "New cours" %}
+      </a>
+    </div>
+  </div>
+
+  <div class="stats-summary">
+    <div class="stats-card">
+      <div class="stats-title">{% trans "Total courses" %}</div>
+      <div class="stats-value">{{ courses.count }}</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-title">{% trans "Created this month" %}</div>
+      <div class="stats-value">{{ courses_this_month_count }}</div>
+      <div class="stats-trend {{ courses_growth_class }}">
+        <span>{% if courses_growth > 0 %}+{% endif %}{{ courses_growth }}% {% trans "vs last month" %}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-panel">
+    <form method="get" action="" class="filter-form">
+      <div class="form-group search-input">
+
+        <label for="search">{% trans "Research" %}</label>
+        <input type="text" id="search" name="search" class="form-control" placeholder="Search by title, description or author..." value="{{ search }}">
+
+      </div>
+      <div class="form-group">
+        <label for="level">{% trans "Academic level" %}</label>
+        <select id="level" name="level" class="form-control">
+          <option value="">{% trans "All levels" %}</option>
+          <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
+          <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
+          <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advance" %}</option>
+          <option value="expert" {% if filter_level == 'expert' %}selected{% endif %}>{% trans "Expert" %}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          {% trans "Filter" %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="courses-table-container">
+    {% if courses %}
+    <table class="courses-table">
+      <thead>
+        <tr>
+          <th style="width: 40%;">{% trans "Title" %}</th>
+          <th>{% trans "Level" %}</th>
+          <th>{% trans "Creation date" %}</th>
+          <th>{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for course in courses %}
+        <tr>
+          <td>
+            <div class="course-title">
+              <a href="{%url 'resources:course_detail'  course.id%} ">{{ course.title }}</a>
+            </div>
+          </td>
+          <td>
+            {% if course.academic_level == 'beginner' %}
+              <span class="badge badge-info">{% trans "Beginner" %}</span>
+            {% elif course.academic_level == 'intermediate' %}
+              <span class="badge badge-secondary">{% trans "Intermediate" %}</span>
+            {% elif course.academic_level == 'advanced' %}
+              <span class="badge badge-warning">{% trans "Advance" %}</span>
+            {% elif course.academic_level == 'expert' %}
+              <span class="badge badge-danger">{% trans "Expert" %}</span>
+            {% else %}
+              {{ course.academic_level }}
+            {% endif %}
+          </td>
+          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
+          <td>
+            <div class="course-actions">
+              <a href="{%url 'resources:resource-update' type='course' pk=course.id%} " class="action-btn" title="Modifier">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </a>
+              <a href="{% url 'resources:course_detail'  course.id %}" class="action-btn" title="Aperçu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </a>
+              <a href="{%url 'resources:resource-delete' type='course' pk=course.id%}" class="action-btn" title="Supprimer">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      </div>
+      <h3 class="empty-state-title">{% trans "No courses found" %}</h3>
+      <p class="empty-state-description">
+        {% trans "There are no courses matching your search criteria. Try changing your filters or creating a new course." %}
+      </p>
+      <a href="{%url 'resources:course-create' %}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        {% trans "Create a course" %}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if courses %}
+  <div class="pagination">
+    <a href="#" class="pagination-item">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+      </svg>
+    </a>
+    <a href="#" class="pagination-item active">1</a>
+    <a href="#" class="pagination-item">2</a>
+    <a href="#" class="pagination-item">3</a>
+    <span class="pagination-dots">...</span>
+    <a href="#" class="pagination-item">10</a>
+    <a href="#" class="pagination-item">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+      </svg>
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

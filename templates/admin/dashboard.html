@@ -1,0 +1,982 @@
+{% extends "base_admin.html" %} {% load i18n %} {% block title %}
+{% trans "Admin Dashboard" %}{% endblock %} 
+{% block page_title %}{% trans "Dashboard" %}{% endblock %} {% block extra_css %}
+<style>
+  :root {
+    --primary-color: #667eea;
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-color: #10b981;
+    --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --info-color: #3b82f6;
+    --info-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    --warning-color: #f59e0b;
+    --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --border-radius: 12px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dashboard-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    overflow: hidden;
+    position: relative;
+    border: none !important;
+    height: 140px;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .stat-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--card-gradient);
+  }
+
+  .stat-card.primary::before {
+    background: var(--primary-gradient);
+  }
+  .stat-card.success::before {
+    background: var(--success-gradient);
+  }
+  .stat-card.info::before {
+    background: var(--info-gradient);
+  }
+  .stat-card.warning::before {
+    background: var(--warning-gradient);
+  }
+
+  .stat-card .card-body {
+    padding: 1.5rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    margin-left: auto;
+    opacity: 0.9;
+  }
+
+  .stat-icon.primary {
+    background: var(--primary-gradient);
+  }
+  .stat-icon.success {
+    background: var(--success-gradient);
+  }
+  .stat-icon.info {
+    background: var(--info-gradient);
+  }
+  .stat-icon.warning {
+    background: var(--warning-gradient);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700 !important;
+    margin: 0.5rem 0;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
+  }
+
+  .growth-indicator {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+  }
+
+  .growth-indicator i {
+    margin-right: 0.25rem;
+  }
+
+  .main-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    border: none;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+
+  .main-card:hover {
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .card-header-modern {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: between;
+  }
+
+  .card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  .table-modern {
+    font-size: 0.875rem;
+  }
+
+  .table-modern th {
+    background-color: #f9fafb;
+    color: #374151;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border: none;
+    padding: 1rem 1.25rem;
+  }
+
+  .table-modern td {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #f3f4f6;
+    vertical-align: middle;
+  }
+
+  .table-modern tbody tr {
+    transition: var(--transition);
+  }
+
+  .table-modern tbody tr:hover {
+    background-color: #f8fafc;
+  }
+
+  .badge-modern {
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 350px;
+    padding: 1.5rem;
+  }
+
+  .loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+  }
+
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .dropdown-modern .dropdown-menu {
+    border: none;
+    box-shadow: var(--card-shadow);
+    border-radius: 8px;
+    padding: 0.5rem 0;
+  }
+
+  .dropdown-modern .dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    transition: var(--transition);
+  }
+
+  .dropdown-modern .dropdown-item:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-right: 0.75rem;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .pulse-animation {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 1rem 0;
+    }
+
+    .stat-card {
+      height: auto;
+      margin-bottom: 1rem;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+    }
+
+    .table-responsive {
+      font-size: 0.8rem;
+    }
+
+    .chart-container {
+      height: 250px;
+      padding: 1rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .stat-card .card-body {
+      padding: 1rem;
+    }
+
+    .stat-number {
+      font-size: 1.75rem;
+    }
+
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      font-size: 1.25rem;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="dashboard-container">
+  <div class="container-fluid">
+    <!-- Statistiques générales -->
+    <div class="row mb-4">
+      <!-- Utilisateurs -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card primary fade-in">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center w-100">
+              <div class="col mr-2">
+                <div class="stat-label">{% trans "Users" %}</div>
+                <div class="stat-number">{{ users_count }}</div>
+                <div
+                  class="growth-indicator {% if user_growth >= 0 %}text-success{% else %}text-danger{% endif %}"
+                >
+                  <i
+                    class="fas fa-{% if user_growth >= 0 %}trend-up{% else %}trend-down{% endif %}"
+                  ></i>
+                  {{ user_growth|floatformat:1 }}% {% trans "/ month" %}
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="stat-icon primary">
+                  <i class="fas fa-users"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ressources -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div
+          class="card stat-card success fade-in"
+          style="animation-delay: 0.1s"
+        >
+          <div class="card-body">
+            <div class="row no-gutters align-items-center w-100">
+              <div class="col mr-2">
+                <div class="stat-label">{% trans "Resources" %}</div>
+                <div class="stat-number">{{ resources_count }}</div>
+                <div
+                  class="growth-indicator {% if pubs_growth >= 0 %}text-success{% else %}text-danger{% endif %}"
+                >
+                  <i
+                    class="fas fa-{% if pubs_growth >= 0 %}trend-up{% else %}trend-down{% endif %}"
+                  ></i>
+                  {{ pubs_growth|floatformat:1 }}% {% trans "/ month" %}
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="stat-icon success">
+                  <i class="fas fa-book-open"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projets -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card info fade-in" style="animation-delay: 0.2s">
+          <div class="card-body">
+            <div class="row no-gutters align-items-center w-100">
+              <div class="col mr-2">
+                <div class="stat-label">{% trans "Projects" %}</div>
+                <div class="stat-number">{{ projects_count }}</div>
+                <div
+                  class="growth-indicator {% if projects_growth >= 0 %}text-success{% else %}text-danger{% endif %}"
+                >
+                  <i
+                    class="fas fa-{% if projects_growth >= 0 %}trend-up{% else %}trend-down{% endif %}"
+                  ></i>
+                  {{ projects_growth|floatformat:1 }}%{% trans " / month" %}
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="stat-icon info">
+                  <i class="fas fa-project-diagram"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages forum -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div
+          class="card stat-card warning fade-in"
+          style="animation-delay: 0.3s"
+        >
+          <div class="card-body">
+            <div class="row no-gutters align-items-center w-100">
+              <div class="col mr-2">
+                <div class="stat-label">{% trans "forum" %}</div>
+                <div class="stat-number">{{ forum_posts_count }}</div>
+                <div
+                  class="growth-indicator {% if posts_growth >= 0 %}text-success{% else %}text-danger{% endif %}"
+                >
+                  <i
+                    class="fas fa-{% if posts_growth >= 0 %}trend-up{% else %}trend-down{% endif %}"
+                  ></i>
+                  {{ posts_growth|floatformat:1 }}% {% trans "/ month" %}
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="stat-icon warning">
+                  <i class="fas fa-comments"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphiques et informations -->
+    <div class="row mb-4">
+      <!-- Utilisateurs récents -->
+      <div class="col-lg-6 mb-4">
+        <div class="card main-card fade-in" style="animation-delay: 0.5s">
+          <div class="card-header-modern">
+            <h6 class="card-title">
+              <i class="fas fa-user-plus mr-2 text-success"></i>
+              {% trans "New users" %}
+            </h6>
+            <div class="dropdown dropdown-modern no-arrow">
+              <a
+                class="btn btn-link text-muted p-0"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+              >
+                <i class="fas fa-ellipsis-v"></i>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end">
+                <a class="dropdown-item" href="{% url 'pages:admin_users' %}">
+                  <i class="fas fa-users mr-2"></i>
+                  {% trans "View all users" %}
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-modern mb-0">
+                <thead>
+                  <tr>
+                    <th>{% trans "User" %}</th>
+                    <th>{% trans "Statut" %}</th>
+                    <th>{% trans "Date" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in recent_users %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="user-avatar">
+                          {% if user.get_full_name %} {{
+                          user.get_full_name.0|upper }} {% else %} {{
+                          user.full_name.0|upper }} {% endif %}
+                        </div>
+                        <a
+                          href="{% url 'pages:admin_user_edit' user.id %}"
+                          class="text-decoration-none"
+                        >
+                          <strong>
+                            {% if user.get_full_name %} {{ user.get_full_name }}
+                            {% else %} {{ user.full_name }} {% endif %}
+                          </strong>
+                        </a>
+                      </div>
+                    </td>
+                    <td>
+                      {% if user.status == 'active' %}
+                      <span class="badge badge-modern bg-success"
+                        >{% trans "Actif" %}</span
+                      >
+                      {% elif user.status == 'pending' %}
+                      <span class="badge badge-modern bg-warning"
+                        >{% trans "On hold" %}</span
+                      >
+                      {% elif user.status == 'inactive' %}
+                      <span class="badge badge-modern bg-secondary"
+                        >{% trans "Inactive" %}</span
+                      >
+                      {% elif user.status == 'blocked' %}
+                      <span class="badge badge-modern bg-danger"
+                        >{% trans "Blocked" %}</span
+                      >
+                      {% endif %}
+                    </td>
+                    <td class="text-muted">
+                      {{ user.date_joined|date:"d/m/Y" }}
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="3" class="text-center text-muted py-4">
+                      <i
+                        class="fas fa-users fa-2x mb-3 text-muted opacity-50"
+                      ></i>
+                      <br />{% trans "No recent users" %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endblock %} {% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Configuration du graphique amélioré
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('activityChart').getContext('2d');
+
+        // Gradient pour le dataset des utilisateurs
+        const userGradient = ctx.createLinearGradient(0, 0, 0, 400);
+        userGradient.addColorStop(0, 'rgba(102, 126, 234, 0.3)');
+        userGradient.addColorStop(1, 'rgba(102, 126, 234, 0.05)');
+
+        // Gradient pour le dataset des ressources
+        const resourceGradient = ctx.createLinearGradient(0, 0, 0, 400);
+        resourceGradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+        resourceGradient.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
+                datasets: [{
+                    label: 'Nouveaux utilisateurs',
+                    data: [12, 19, 15, 25, 22, 30, 28, 35, 32, 40, 38, 45],
+                    borderColor: '#667eea',
+                    backgroundColor: userGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Nouvelles ressources',
+                    data: [8, 12, 18, 15, 25, 20, 22, 28, 24, 32, 30, 35],
+                    borderColor: '#10b981',
+                    backgroundColor: resourceGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#10b981',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#6b7280',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                return 'Mois de ' + context[0].label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(243, 244, 246, 0.8)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: {
+                                size: 12
+                            },
+                            callback: function(value) {
+                                return value;
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: '#ffffff'
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                }
+            }
+        });
+
+        // Animation d'entrée pour les statistiques
+        animateCounters();
+
+        // Actualisation automatique toutes les 5 minutes
+        setInterval(loadDashboardData, 300000);
+    });
+
+    // Animation des compteurs
+    function animateCounters() {
+        const counters = document.querySelectorAll('.stat-number');
+        counters.forEach(counter => {
+            const target = parseInt(counter.textContent);
+            const increment = target / 50;
+            let current = 0;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    counter.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    counter.textContent = Math.floor(current);
+                }
+            }, 30);
+        });
+    }
+
+    // Fonction pour actualiser le graphique
+    function refreshChart() {
+        const chartContainer = document.querySelector('.chart-container');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Chargement...</span>
+                </div>
+                <span class="ml-3">Actualisation des données...</span>
+            </div>
+        `;
+
+        // Simuler un chargement
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    }
+
+    // Fonction pour charger les données du dashboard
+    function loadDashboardData() {
+        fetch('{% url "pages:admin_api_stats" %}')
+            .then(response => response.json())
+            .then(data => {
+                console.log("Stats data loaded", data);
+                // Mise à jour des statistiques si nécessaire
+                updateDashboardStats(data);
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des données:', error);
+            });
+    }
+
+    // Mise à jour des statistiques
+    function updateDashboardStats(data) {
+        if (data.users_count !== undefined) {
+            const userCounter = document.querySelector('.stat-card.primary .stat-number');
+            if (userCounter) {
+                animateCounter(userCounter, parseInt(userCounter.textContent), data.users_count);
+            }
+        }
+
+        if (data.resources_count !== undefined) {
+            const resourceCounter = document.querySelector('.stat-card.success .stat-number');
+            if (resourceCounter) {
+                animateCounter(resourceCounter, parseInt(resourceCounter.textContent), data.resources_count);
+            }
+        }
+
+        // Mise à jour des autres compteurs...
+    }
+
+    // Animation individuelle d'un compteur
+    function animateCounter(element, from, to) {
+        const duration = 1000;
+        const startTime = Date.now();
+
+        function update() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const current = Math.floor(from + (to - from) * progress);
+
+            element.textContent = current;
+
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+
+        requestAnimationFrame(update);
+    }
+
+    // Fonction pour les tooltips
+    function initTooltips() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    // Gestion responsive des tableaux
+    function handleResponsiveTables() {
+        const tables = document.querySelectorAll('.table-responsive');
+        tables.forEach(table => {
+            if (window.innerWidth < 768) {
+                table.style.fontSize = '0.8rem';
+            } else {
+                table.style.fontSize = '';
+            }
+        });
+    }
+
+    // Event listeners
+    window.addEventListener('resize', handleResponsiveTables);
+    document.addEventListener('DOMContentLoaded', function() {
+        initTooltips();
+        handleResponsiveTables();
+
+        // Animation au scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observer les éléments avec animation
+        document.querySelectorAll('.fade-in').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'all 0.6s ease-out';
+            observer.observe(el);
+        });
+    });
+
+    // Notification système (optionnel)
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.zIndex = '9999';
+        notification.style.minWidth = '300px';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // Initialisation au chargement
+    loadDashboardData();
+
+    // Graphique de répartition des ressources
+    const resourcesDistributionCtx = document.getElementById('resourcesDistributionChart').getContext('2d');
+    new Chart(resourcesDistributionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Publications', 'Corpus', 'Outils', 'Cours'],
+            datasets: [{
+                data: [
+                    {{ publications_count }},
+                    {{ corpora_count }},
+                    {{ tools_count }},
+                    {{ courses_count }}
+                ],
+                backgroundColor: [
+                    '#667eea',
+                    '#10b981',
+                    '#f59e0b',
+                    '#3b82f6'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 13,
+                            weight: '500'
+                        }
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+
+    // Graphique des statuts des projets
+    const projectsStatusCtx = document.getElementById('projectsStatusChart').getContext('2d');
+    new Chart(projectsStatusCtx, {
+        type: 'bar',
+        data: {
+            labels: ['En cours', 'Terminés', 'En attente', 'Annulés'],
+            datasets: [{
+                label: 'Nombre de projets',
+                data: [
+                    {{ projects_in_progress }},
+                    {{ projects_completed }},
+                    {{ projects_pending }},
+                    {{ projects_cancelled }}
+                ],
+                backgroundColor: [
+                    '#3b82f6',
+                    '#10b981',
+                    '#f59e0b',
+                    '#ef4444'
+                ],
+                borderWidth: 0,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        display: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Graphique d'activité du forum
+    const forumActivityCtx = document.getElementById('forumActivityChart').getContext('2d');
+    new Chart(forumActivityCtx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ chart_labels|safe }}'),
+            datasets: [{
+                label: 'Nouveaux sujets',
+                data: JSON.parse('{{ forum_topics_data|safe }}'),
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Nouveaux messages',
+                data: JSON.parse('{{ forum_messages_data|safe }}'),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 13,
+                            weight: '500'
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(243, 244, 246, 0.8)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+  </script>
+  {% endblock %}
+</div>

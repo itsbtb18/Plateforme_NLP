@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Corpus" %}{% endblock title %}
+{% block content %}
+<div class="container py-5">
+    <div class="row header-section">
+        <div class="col-lg-8 col-md-7">
+            <h1 class="display-5 fw-bold mb-2">{% trans "Corpus Collection :" %}</h1>
+            <p class="text-muted fs-5">{{ total_count }} {% trans "corpora available" %}</p>
+        </div>
+        <div class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start mt-3 mt-md-0">
+            {% if user.is_authenticated %}
+            <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary btn-lg shadow-sm">
+                <i class="bi bi-plus-lg me-2"></i> {% trans "Add New Corpus" %}
+            </a>
+            {% else %}
+            <div class="alert alert-info d-flex align-items-center mb-0 py-3 px-4 shadow-sm">
+                <i class="bi bi-info-circle fs-5 me-2"></i>
+                <span>{% trans "You need to be logged in to add a new corpus." %}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+     <div class="global-searchbox">
+        <form method="get" action="" class="searchbox-form" id="globalSearchForm">
+            <div class="searchbox-group shadow-sm">
+                <div class="query-container w-100 position-relative">
+                    <input type="text" 
+                           name="q" 
+                           id="globalQuery" 
+                           class="query-input" 
+
+                           placeholder="Search for resources..." 
+
+                           autocomplete="off"
+                           value="{{ request.GET.q|default:'' }}">
+                    
+                </div>
+                
+                <button type="submit" class="action-button submit-action">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+<br>
+    <div class="position-relative mb-5">
+        <hr class="my-4">
+        <div class="position-absolute top-0 start-50 translate-middle">
+            <div class="px-4 py-2 bg-white border rounded-pill shadow-sm">
+                <i class="bi bi-folder2-open me-2 text-primary"></i> <span class="fw-medium">{% trans "Explore Corpora" %}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Corpus Grid -->
+    {% if corpora %}
+    <div class="corpus-grid">
+        {% for corpus in corpora %}
+        <div class="corpus-card">
+            <div class="corpus-header d-flex align-items-center gap-3">
+                <div class="corpus-badge">
+                    <i class="bi bi-folder2-open"></i>
+                </div>
+                <h3 class="corpus-title m-0">{{ corpus.titre }}</h3>
+            </div>
+            <div class="corpus-content flex-grow-1">
+                <div class="info-row">
+                    <span class="info-label">{% trans "Title:" %}</span>
+                    <span class="info-value">{{ corpus.title }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">{% trans "Type:" %}</span>
+                    <span class="info-value">{{ corpus.get_field_display }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">{% trans "Created:" %}</span>
+                    <span class="info-value">{{ corpus.creation_date|date:"d/m/Y H:i" }}</span>
+                </div>
+                  <div class="info-row">
+                        <span class="info-label">{% trans "Author:" %}</span>
+                        <span class="info-value">
+        {% if corpus.author%}
+            {{ corpus.author.full_name }}
+        {% else %}
+            {% trans "Unknown" %}
+        {% endif %}
+    </span>
+</div>
+            </div>
+
+            <div class="corpus-footer">
+    <div class="corpus-stats d-flex gap-2 mb-3">
+        {% if corpus.file_format %}
+        <span class="stat-item">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>{{ corpus.file_format }}</span>
+        </span>
+        {% endif %}
+        
+        {% if corpus.language %}
+        <span class="stat-item">
+            <i class="bi bi-translate"></i>
+            {% if corpus.get_language_display %}
+                {{ corpus.get_language_display }}
+            {% else %}
+                {{ corpus.language }}
+            {% endif %}
+        </span>
+        {% endif %}
+
+        {% if corpus.keywords %}
+        <span class="stat-item">
+            <i class="bi bi-tags"></i>
+            {% if corpus.keywords %}
+                {{ corpus.get_keywords_list.0 }}
+            {% endif %}
+        </span>
+        {% endif %}
+    </div>
+
+     <div class="corpus-actions text-end">
+                    <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view-details">
+                        <span>{% trans "View Details" %}</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="bi bi-folder2-open"></i>
+        </div>
+        <h3>{% trans "No corpora available" %}</h3>
+        <p class="text-muted">{% trans "Corpora you add will appear here" %}</p>
+        {% if user.is_authenticated %}
+        <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plus-lg me-2"></i> {% trans "Add Your First Corpus" %}
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+:root {
+    --primary: #4361ee;
+    --primary-hover: #3a56d4;
+    --dark-color: #1e455e;
+    --light-bg: #f8f9fa;
+    --text-muted: #6c757d;
+    --border-color: #e9ecef;
+    --card-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    --hover-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    --card-radius: 16px;
+}
+
+.container { max-width: 1320px; margin: 0 auto; }
+
+/* Header styling */
+.header-section { margin-bottom: 2rem; }
+
+/* Corpus grid */
+.corpus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 2rem; padding: 0; }
+
+/* Corpus card */
+.corpus-card {
+    background-color: white;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    min-height: 350px;
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+}
+.corpus-card:hover { transform: translateY(-8px); box-shadow: var(--hover-shadow); }
+
+.corpus-header { padding: 1.5rem; padding-bottom: 0; }
+
+.corpus-title { margin: 0; font-weight: 700; font-size: 1.3rem; color: var(--dark-color); line-height: 1.4; }
+
+.corpus-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; }
+.info-row { display: flex; justify-content: space-between; }
+.info-label { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); }
+.info-value { font-size: 0.95rem; }
+
+.corpus-footer { padding: 1.5rem; background-color: var(--light-bg); border-top: 1px solid var(--border-color); }
+.corpus-stats .stat-item { display: flex; align-items: center; gap: 0.5rem; background-color: white; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.corpus-actions .btn-view-details { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.95rem; padding: 0.75rem 1.25rem; border: 2px solid var(--primary); border-radius: 8px; transition: all 0.2s ease; }
+.corpus-actions .btn-view-details:hover { background-color: var(--primary); color: white; }
+.corpus-actions .btn-view-details i { transition: transform 0.2s ease; }
+.corpus-actions .btn-view-details:hover i { transform: translateX(4px); }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 4rem 1rem; background-color: white; border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
+.empty-icon { font-size: 4rem; color: var(--primary); opacity: 0.5; margin-bottom: 1.5rem; }
+
+/* Button */
+.btn-primary { background-color: var(--primary); border-color: var(--primary); border-width: 2px; font-weight: 600; border-radius: 8px; padding: 0.75rem 1.5rem; transition: all 0.3s ease; }
+.btn-primary:hover { background-color: var(--primary-hover); border-color: var(--primary-hover); transform: translateY(-2px); }
+
+/* Alert */
+.alert-info { background-color: rgba(67, 97, 238, 0.1); border: none; color: var(--primary); border-radius: 8px; }
+
+/* Responsive */
+@media (max-width: 767px) {
+    .corpus-grid { grid-template-columns: 1fr; }
+    .corpus-header { flex-direction: column; align-items: flex-start; }
+    .corpus-footer { padding: 1.25rem; }
+    h1.display-5 { font-size: 1.8rem; }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+    .corpus-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 992px) {
+    .corpus-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.global-searchbox {
+    margin-bottom: 2rem;
+}
+
+.searchbox-form {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.searchbox-group {
+    display: flex;
+    align-items: stretch;
+    border-radius: 12px;
+    background: white;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Query Container */
+.query-container {
+    position: relative;
+}
+
+.query-input {
+    width: 100%;
+    border: none;
+    padding: 1rem 2.5rem 1rem 1.2rem;
+    font-size: 1rem;
+}
+
+.query-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Status Indicators */
+.status-indicator {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.status-icon {
+    font-size: 1rem;
+}
+
+.status-spinner {
+    width: 1rem;
+    height: 1rem;
+}
+
+
+/* Action Buttons */
+.action-button {
+    padding: 10px 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.submit-action {
+    background-color: var(--primary);
+    color: white;
+}
+
+/* Category Filters */
+.category-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    padding: 0.5rem 0;
+}
+
+.category-label {
+    font-weight: 500;
+    color: var(--text-dark);
+    margin-right: 0.5rem;
+}
+
+.category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-item {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.category-item:hover {
+    background-color: rgba(67, 97, 238, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.category-item.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('globalSearchForm');
+    const searchInput = document.getElementById('globalQuery');
+
+    // Gestionnaire de soumission du formulaire
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const query = searchInput.value.trim();
+        window.location.href = `?q=${encodeURIComponent(query)}`;
+    });
+
+    // Recherche en temps réel après un délai
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchForm.submit();
+        }, 500); // Délai de 500ms
+    });
+});
+</script>
+{% endblock content %}

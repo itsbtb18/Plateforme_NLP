@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Institution Directory" %} | {% trans "Arabic Language Technology Platform" %}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-5">
+        <div class="col-lg-10 col-md-12 mx-auto">
+            <h1 class="text-center fw-bold mb-4 display-5 position-relative">
+                {% trans "Directory of Research Institutions in Arabic Language Processing" %}
+                <div class="position-absolute bottom-0 start-50 translate-middle-x" style="width: 100px; height: 4px; background-color: #0d6efd;"></div>
+            </h1>
+            <p class="text-center text-muted lead mb-5">{% trans "Discover leading organizations in Arabic language technology research and development" %}</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-5 search-filter-card">
+        <div class="card-body search-filter-body">
+            <form method="get" action="{% url 'institutions:institution_list' %}" class="row g-3 filter-form">
+                <div class="col-lg-3 col-md-6">
+                    {{ filter_form.institution_type.label_tag }}
+                    {{ filter_form.institution_type }}
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    {{ filter_form.country.label_tag }}
+                    {{ filter_form.country }}
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    {{ filter_form.specialty.label_tag }}
+                    {{ filter_form.specialty }}
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    {{ filter_form.search_term.label_tag }}
+                    {{ filter_form.search_term }}
+                </div>
+                <div class="col-12 text-center text-md-end mt-3">
+                    <a href="{% url 'institutions:institution_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-undo me-1"></i> {% trans "Reset" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-search me-1"></i> {% trans "Search" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        {% if institutions %}
+            {% for institution in institutions %}
+                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm hover-shadow institution-card border-0 rounded-3 overflow-hidden transition-all">
+                        <div class="institution-logo text-center py-4 bg-light position-relative">
+                            {% if institution.logo %}
+                                <img src="{{ institution.logo.url }}" alt="{{ institution.name }}" class="img-fluid" style="max-height: 100px;">
+                            {% else %}
+                                <img src="{% static 'images/institution-placeholder.png' %}" alt="{{ institution.name }}" class="img-fluid" style="max-height: 100px;">
+                            {% endif %}
+                            <div class="position-absolute top-0 end-0 p-2">
+                                {% if institution.type.name %}
+                                    <span class="badge bg-primary rounded-pill px-3 py-2">{{ institution.type.name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title fw-bold">{{ institution.name }}
+                                {% if institution.acronym %}
+                                    <span class="badge bg-secondary ms-1">{{ institution.acronym }}</span>
+                                {% endif %}
+                            </h5>
+                            <div class="card-text text-muted small mb-3">
+                                <i class="fas fa-map-marker-alt me-2"></i> {{ institution.city }}, {{ institution.country.name }}
+                                {% if institution.website %}
+                                    <div class="mt-2">
+                                        <i class="fas fa-globe me-2"></i>
+                                        <a href="{{ institution.website }}" target="_blank" class="text-decoration-none">{{ institution.website }}</a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mt-auto">
+                                <a href="{% url 'institutions:institution_detail' institution.pk %}" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-info-circle me-1"></i> {% trans "View Details" %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info text-center p-4 rounded-3">
+                    <i class="fas fa-info-circle me-2 fa-lg"></i>
+                    {% trans "No institutions match your search criteria." %}
+                    <div class="mt-3">
+                        <a href="{% url 'institutions:institution_list' %}" class="btn btn-sm btn-outline-info">
+                            {% trans "View All Institutions" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="{% trans 'Page Navigation' %}" class="mt-5">
+        <ul class="pagination pagination-lg justify-content-center flex-wrap">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1" aria-label="First">
+                        <span aria-hidden="true">&laquo;</span> {% trans "First" %}
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                        {% trans "Previous" %}
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next">
+                        {% trans "Next" %}
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                        {% trans "Last" %} <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Script to enhance user experience
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add Bootstrap classes to form fields
+        const formInputs = document.querySelectorAll('form select, form input[type="text"]');
+        formInputs.forEach(function(input) {
+            input.classList.add('form-control');
+        });
+        
+        // Add animation effect for cards
+        const cards = document.querySelectorAll('.institution-card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+                this.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+            });
+        });
+        
+        // Make filter form responsive
+        const filterForm = document.querySelector('form');
+        function adjustFormLayout() {
+            if (window.innerWidth < 768) {
+                filterForm.classList.add('flex-column');
+            } else {
+                filterForm.classList.remove('flex-column');
+            }
+        }
+        
+        window.addEventListener('resize', adjustFormLayout);
+        adjustFormLayout();
+    });
+</script>
+
+<style>
+    .hover-shadow {
+        transition: all 0.3s ease;
+    }
+    
+    .transition-all {
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .institution-card:hover {
+        border-color: #0d6efd !important;
+    }
+    
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    @media (max-width: 767.98px) {
+        .pagination .page-link {
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+    }
+    
+    @media (max-width: 575.98px) {
+        h1.display-5 {
+            font-size: 1.75rem;
+        }
+        
+        .lead {
+            font-size: 1rem;
+        }
+    }
+    /* Style amélioré pour la barre Search and Filter */
+.search-filter-card {
+    border-radius: 15px !important;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: none !important;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.search-filter-card:hover {
+    box-shadow: 0 8px 25px rgba(13, 110, 253, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+.search-filter-header {
+    background: linear-gradient(45deg, #0d6efd, #0a58ca) !important;
+    padding: 1rem 1.5rem !important;
+    border: none;
+}
+
+.search-filter-header h5 {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+.search-filter-header h5 i {
+    margin-right: 10px;
+    font-size: 1.1rem;
+}
+
+.search-filter-body {
+    padding: 1.5rem !important;
+    background-color: #f8f9fa !important;
+}
+
+.filter-form .form-control, 
+.filter-form .form-select {
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.filter-form .form-control:focus, 
+.filter-form .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}
+
+.filter-form label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.filter-form .btn {
+    border-radius: 8px;
+    padding: 0.6rem 1.5rem;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.filter-form .btn-primary {
+    background: linear-gradient(45deg, #0d6efd, #0a58ca);
+    border: none;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
+}
+
+.filter-form .btn-primary:hover {
+    background: linear-gradient(45deg, #0a58ca, #084298);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(13, 110, 253, 0.3);
+}
+
+.filter-form .btn-outline-secondary {
+    border-color: #6c757d;
+}
+
+.filter-form .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .search-filter-body {
+        padding: 1rem !important;
+    }
+    
+    .filter-form .col-12 {
+        margin-top: 1rem;
+    }
+    
+    .filter-form .btn {
+        width: 100%;
+        margin-top: 0.5rem;
+    }.filter-form .btn-outline-secondary {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+.search-filter-header h5 {
+        font-size: 1rem;
+    }
+.filter-form label {
+        font-size: 0.9rem;
+    }
+}
+</style>
+{% endblock %}

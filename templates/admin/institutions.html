@@ -1,0 +1,702 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Institution Management" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        --card-gradient: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+
+    .institutions-page {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-primary);
+        min-height: 100vh;
+    }
+
+    .hero-header {
+        background: var(--bg-gradient);
+        border-radius: 24px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .hero-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1.5" fill="white" opacity="0.2"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 2.5rem;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: -1rem 0 2rem 0;
+        position: relative;
+        z-index: 10;
+    }
+
+    .stat-card {
+        background: var(--card-gradient);
+        border-radius: 20px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.institutions {
+        background: var(--primary-gradient);
+    }
+
+    .stat-icon.active {
+        background: var(--success-gradient);
+    }
+
+    .stat-icon.inactive {
+        background: var(--danger-gradient);
+    }
+
+    .stat-icon.countries {
+        background: var(--warning-gradient);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .filter-section {
+        background: var(--card-gradient);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .filter-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        align-items: end;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .form-control {
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
+    }
+
+    .btn-filter {
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .btn-add {
+        background: var(--success-gradient);
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-add:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .table-section {
+        background: var(--card-gradient);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-color);
+    }
+
+    .table-header {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 1.5rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .table-count {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .custom-table {
+        width: 100%;
+        margin: 0;
+    }
+
+    .custom-table thead th {
+        background: #f8fafc;
+        border: none;
+        padding: 1.25rem 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+    }
+
+    .custom-table tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .custom-table tbody tr:hover {
+        background: #f8fafc;
+        transform: scale(1.01);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .custom-table tbody td {
+        padding: 1.25rem 1.5rem;
+        vertical-align: middle;
+    }
+
+    .institution-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+  
+
+    .country-badge {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        color: #92400e;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .status-active {
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+        color: #166534;
+    }
+
+    .status-inactive {
+        background: linear-gradient(135deg, #fef2f2, #fecaca);
+        color: #991b1b;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
+        color: #6b21a8;
+    }
+
+    .btn-edit:hover {
+        background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #fecaca, #fca5a5);
+        color: #991b1b;
+    }
+
+    .btn-delete:hover {
+        background: linear-gradient(135deg, #fca5a5, #f87171);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .institution-card {
+        background: var(--card-gradient);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+
+    .institution-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .card-institution-name {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .card-details {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.75rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .detail-value {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--card-gradient);
+        border-radius: 20px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-message {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 0.5rem;
+        background: var(--card-gradient);
+        padding: 1rem;
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .page-item {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .page-item:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .page-item.active {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+    }
+
+    .page-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+
+        .stats-container {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+
+        .table-responsive {
+            display: none;
+        }
+
+        .mobile-cards {
+            display: block;
+        }
+
+        .hero-content {
+            padding: 1.5rem;
+        }
+
+        .filter-section {
+            padding: 1.5rem;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .mobile-cards {
+            display: none;
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-4 institutions-page">
+    <!-- Hero Header -->
+    <div class="hero-header animate-fade-in">
+        <div class="hero-content">
+            <div class="row align-items-center">
+                <div class="col-12 col-md-8">
+                    <h1 class="hero-title">
+                        <i class="fas fa-university me-3"></i>{% trans "Institution Management" %}
+                    </h1>
+                    <p class="hero-subtitle">
+                        {% trans "Easily manage all your academic institutions and partners" %}
+                    </p>
+                </div>
+                <div class="col-12 col-md-4 text-md-end">
+                    <a href="{% url 'institutions:institution_create' %}" class="btn btn-add">
+                        <i class="fas fa-plus me-2"></i>{% trans "New Institution" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    
+        
+
+    <!-- Filter Section -->
+    <div class="filter-section animate-fade-in">
+        <div class="filter-title">
+            <i class="fas fa-filter"></i>
+            {% trans "Search Filters" %}
+        </div>
+        <form class="filter-form" method="get">
+            <div class="form-group">
+                <label class="form-label">{% trans "Search" %}</label>
+                <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" placeholder="{% trans "Institution name or acronym…" %}">
+            </div>
+           
+            <div class="form-group">
+                <button type="submit" class="btn-filter">
+                    <i class="fas fa-search me-2"></i>{% trans "Search" %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table Section -->
+    <div class="table-section animate-fade-in">
+        <div class="table-header">
+            <h3 class="table-title">
+                <i class="fas fa-list me-2"></i>{% trans "List of Institutions" %}
+            </h3>
+            <div class="table-count">{{ institutions|length }} {% trans "institutions" %}</div>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="table-responsive" id="desktopTable">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "Institution" %}</th>
+                        <th>{% trans "Acronym" %}</th>
+                        <th>{% trans "Country" %}</th>
+                        
+                        <th class="text-center">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody id="institutionsTableBody">
+                    {% for institution in institutions %}
+                    <tr>
+                        <td class="institution-name">{{ institution.name }}</td>
+                        <td class="institution-acronym">{{ institution.acronym }}</td>
+                        <td>
+                            <span class="country-badge">
+                                <i class="fas fa-flag me-1"></i>{{ institution.country }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <div class="action-buttons">
+                                <a href="{% url 'institutions:institution_detail' institution.pk %}" class="action-btn btn-edit" title="{% trans "View" %}">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'institutions:institution_update' institution.pk %}" class="action-btn btn-edit" title="{% trans "Edit" %}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'institutions:institution_delete' institution.pk %}" class="action-btn btn-delete" title="{% trans "Delete" %}">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">{% trans "No institution found." %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Cards View -->
+        <div class="mobile-cards" id="mobileCards">
+            {% for institution in institutions %}
+            <div class="institution-card mb-3">
+                <div class="card-header">
+                    <span class="card-institution-name">{{ institution.name }}</span>
+                    <div class="action-buttons">
+                        <a href="{% url 'institutions:institution_detail' institution.pk %}" class="action-btn btn-edit" title="{% trans "View" %}">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{% url 'institutions:institution_update' institution.pk %}" class="action-btn btn-edit" title="{% trans "Edit" %}">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'institutions:institution_delete' institution.pk %}" class="action-btn btn-delete" title="{% trans "Delete" %}">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-details">
+                    <div class="detail-label">{% trans "Acronym:" %}</div>
+                    <div class="detail-value">{{ institution.acronym }}</div>
+                    <div class="detail-label">{% trans "Country:" %}</div>
+                    <div class="detail-value">{{ institution.country }}</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fas fa-university"></i></div>
+                <div class="empty-title">{% trans "No institutions found" %}</div>
+                <div class="empty-message">{% trans "Try adjusting your filters or adding a new institution." %}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="pagination-container">
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.country %}&country={{ request.GET.country }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="page-item">&laquo; {% trans "First" %}</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.country %}&country={{ request.GET.country }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="page-item">{% trans "Previous" %}</a>
+            {% endif %}
+
+            <span class="page-item active">{{ page_obj.number }}</span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.country %}&country={{ request.GET.country }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="page-item">{% trans "Next" %}</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.country %}&country={{ request.GET.country }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" class="page-item">{% trans "Last" %} &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

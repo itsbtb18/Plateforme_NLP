@@ -1,0 +1,292 @@
+{% extends 'base.html' %} {% block title %}Membership management - {{ project.title }}{% endblock %} {% block content %}
+<div class="content">
+  <h1 class="page-title">Membership management - {{ project.title }}</h1>
+
+  <!-- Membres en attente -->
+  <div class="card-section">
+    <h2 class="section-title">Pending requests</h2>
+    <div class="members-list">
+      {% for member in pending_members %}
+      <div class="member-item pending">
+        <div class="member-info">
+          <div class="member-avatar">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="member-details">
+            <div class="member-name">{{ member.member.full_name }}</div>
+            <div class="member-role">{{ member.role }}</div>
+          </div>
+        </div>
+        <div class="member-actions">
+          <form
+            action="{% url 'projects:accept_member' project.pk member.member.id %}"
+            method="post"
+            class="d-inline"
+          >
+            {% csrf_token %}
+            <button type="submit" class="btn accept-btn">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Accept
+            </button>
+          </form>
+          <form
+            action="{% url 'projects:reject_member' project.pk member.member.id %}"
+            method="post"
+            class="d-inline"
+          >
+            {% csrf_token %}
+            <button type="submit" class="btn reject-btn">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Refuse
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-message">No pending requests.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Membres acceptés -->
+  <div class="card-section">
+    <h2 class="section-title">Members accepted</h2>
+    <div class="members-list">
+      {% for member in accepted_members %}
+      <div class="member-item accepted">
+        <div class="member-info">
+          <div class="member-avatar">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="member-details">
+            <div class="member-name">{{ member.member.full_name }}</div>
+            <div class="member-role">{{ member.role }}</div>
+          </div>
+        </div>
+        <div class="member-actions">
+          <form
+            action="{% url 'projects:remove_member' project.pk member.member.id %}"
+            method="post"
+            style="display: inline"
+          >
+            {% csrf_token %}
+            <button type="submit" class="btn reject-btn">Withdraw</button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-message">No members accepted.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Membres refusés -->
+  <div class="card-section">
+    <h2 class="section-title">Requests denied</h2>
+    <div class="members-list">
+      {% for member in rejected_members %}
+      <div class="member-item rejected">
+        <div class="member-info">
+          <div class="member-avatar">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="member-details">
+            <div class="member-name">{{ member.member.full_name }}</div>
+            <div class="member-role">{{ member.role }}</div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-message">No requests refused.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .card-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .section-title {
+    font-size: 1.2em;
+    color: #333;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .members-list {
+    display: grid;
+    gap: 15px;
+  }
+
+  .member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+
+  .member-item:hover {
+    background: #f1f3f5;
+  }
+
+  .member-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .member-avatar {
+    width: 40px;
+    height: 40px;
+    background: #e9ecef;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #495057;
+  }
+
+  .member-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .member-name {
+    font-weight: 500;
+    color: #212529;
+  }
+
+  .member-role {
+    font-size: 0.9em;
+    color: #6c757d;
+  }
+
+  .member-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 8px 15px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+  }
+
+  .accept-btn {
+    background: #28a745;
+    color: white;
+  }
+
+  .accept-btn:hover {
+    background: #218838;
+  }
+
+  .reject-btn {
+    background: #dc3545;
+    color: white;
+  }
+
+  .reject-btn:hover {
+    background: #c82333;
+  }
+
+  .empty-message {
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .member-item.pending {
+    border-left: 4px solid #ffc107;
+  }
+
+  .member-item.accepted {
+    border-left: 4px solid #28a745;
+  }
+
+  .member-item.rejected {
+    border-left: 4px solid #dc3545;
+  }
+</style>
+{% endblock %}

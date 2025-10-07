@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags i18n %}
+
+{% block title %}{% trans "Create New Resource" %}{% endblock title%}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">{% trans "Create New Resource" %}</h1>
+    
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        
+        <!-- Champs communs -->
+        <div class="common-fields">
+            {{ form.resource_type|as_crispy_field }}
+            {{ form.language|as_crispy_field }}
+            {{ form.title|as_crispy_field }}
+            {{ form.description|as_crispy_field }}
+            {{ form.keywords|as_crispy_field }}
+            {{ form.access_link|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux cours -->
+        <div id="course-fields" class="specific-field">
+            <h3>{% trans "Course Details" %}</h3>
+            {{ form.course_field|as_crispy_field }}
+            {{ form.academic_level|as_crispy_field }}
+            {{ form.course_institution|as_crispy_field }}
+            {{ form.academic_year|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux outils NLP -->
+        <div id="nlp_tool-fields" class="specific-field">
+            <h3>{% trans "NLP Tool Details" %}</h3>
+            {{ form.tool_type|as_crispy_field }}
+            {{ form.tool_version|as_crispy_field }}
+            {{ form.documentation|as_crispy_field }}
+            {{ form.supported_languages|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux corpus -->
+        <div id="corpus-fields" class="specific-field">
+            <h3>{% trans "Corpus Details" %}</h3>
+            {{ form.corpus_size|as_crispy_field }}
+            {{ form.corpus_field|as_crispy_field }}
+            {{ form.corpus_format|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux documents -->
+        <div id="document-fields" class="specific-field">
+            <h3>{% trans "Document Details" %}</h3>
+            {{ form.document_type|as_crispy_field }}
+            {{ form.document_format|as_crispy_field }}
+            
+            <!-- Sous-types de documents -->
+            <div id="article-fields" class="specific-field sub-document-field">
+                <h4>{% trans "Article Details" %}</h4>
+                {{ form.doi|as_crispy_field }}
+                {{ form.journal|as_crispy_field }}
+                {{ form.publication_date|as_crispy_field }}
+            </div>
+            
+            <div id="thesis-fields" class="specific-field sub-document-field">
+                <h4>{% trans "Thesis Details" %}</h4>
+                {{ form.supervisor|as_crispy_field }}
+                {{ form.thesis_institution|as_crispy_field }}
+                {{ form.defense_year|as_crispy_field }}
+            </div>
+            
+            <div id="memoir-fields" class="specific-field sub-document-field">
+                <h4>{% trans "Memoir Details" %}</h4>
+                {{ form.memoir_level|as_crispy_field }}
+                {{ form.memoir_institution|as_crispy_field }}
+                {{ form.memoir_defense_year|as_crispy_field }}
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'resources:list' %}" class="btn btn-secondary py-2 px-4">{% trans "Cancel" %}</a>
+            <button type="submit" class="btn btn-primary py-2 px-4">{% trans "Create" %}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Correspondances entre les valeurs du select et les IDs des divs
+    const resourceTypeToId = {
+        'course': 'course-fields',
+        'nlp_tool': 'nlp_tool-fields',
+        'corpus': 'corpus-fields',
+        'document': 'document-fields'
+    };
+
+    const documentTypeToId = {
+        'article': 'article-fields',
+        'thesis': 'thesis-fields', 
+        'memoir': 'memoir-fields'
+    };
+
+    // Fonction pour mettre à jour les champs visibles
+    function updateFields() {
+        // Masquer tous les champs spécifiques
+        document.querySelectorAll('.specific-field').forEach(el => {
+            el.style.display = 'none';
+        });
+        
+        // Afficher les champs correspondant au type principal sélectionné
+        const mainType = document.getElementById('id_resource_type').value;
+        console.log("Type de ressource sélectionné:", mainType);
+        
+        if (resourceTypeToId[mainType]) {
+            document.getElementById(resourceTypeToId[mainType]).style.display = 'block';
+        }
+
+        // Si c'est un document, gérer les sous-types
+        if (mainType === 'document') {
+            const docTypeElement = document.getElementById('id_document_type');
+            if (docTypeElement) {
+                const docType = docTypeElement.value;
+                console.log("Type de document sélectionné:", docType);
+                
+                // Masquer tous les sous-champs de document
+                document.querySelectorAll('.sub-document-field').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // Afficher le sous-type sélectionné
+                if (documentTypeToId[docType]) {
+                    document.getElementById(documentTypeToId[docType]).style.display = 'block';
+                }
+                
+                // Ajout d'un écouteur d'événements pour le changement de type de document
+                docTypeElement.addEventListener('change', function() {
+                    updateFields();
+                });
+            }
+        }
+    }
+
+    // Écouteur d'événements pour le changement de type principal
+    const resourceTypeSelect = document.getElementById('id_resource_type');
+    if (resourceTypeSelect) {
+        resourceTypeSelect.addEventListener('change', updateFields);
+    }
+    
+    // Initialiser l'affichage au chargement
+    updateFields();
+});
+</script>
+{% endblock %}

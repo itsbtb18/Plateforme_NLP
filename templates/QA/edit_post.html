@@ -1,0 +1,98 @@
+{% extends "base.html" %} {% load static %} {% load i18n %} 
+{% block title %}
+{% trans "Edit post" %}
+{% endblock %}
+ {% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8 mx-auto">
+      <div class="card">
+        <div class="card-header">
+          <h3>{% trans "Edit post" %}</h3>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %} {{ form.non_field_errors }}
+
+            <div class="mb-3">
+              <label for="{{ form.content.id_for_label }}" class="form-label"
+                >{% trans "Content" %}</label
+              >
+              {{ form.content }} {% if form.content.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.content.errors %} {{ error }} {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.image.id_for_label }}" class="form-label"
+                >{% trans "Image" %}</label
+              >
+              {{ form.image }} {% if post.image %}
+              <div class="form-text mt-2">
+                <img src="{{ post.image.url }}" alt="{% trans "Current image"
+                %}" class="img-thumbnail" style="max-width: 200px" />
+                <div class="form-check">
+                  {{ form.remove_image }}
+                  <label
+                    class="form-check-label"
+                    for="{{ form.remove_image.id_for_label }}"
+                  >
+                    {% trans "Delete image" %}
+                  </label>
+                </div>
+              </div>
+              {% endif %} {% if form.image.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.image.errors %} {{ error }} {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.file.id_for_label }}" class="form-label"
+                >{% trans "File" %}</label
+              >
+              {{ form.file }} {% if post.file %}
+              <div class="form-text mt-2">
+                {% trans "Current file:" %}
+                <a href="{{ post.file.url }}" download
+                  >{{ post.file.name|slice:"70" }}{% if post.file.name|length > 70 %}...{% endif %}</a
+                >
+                <div class="form-check">
+                  {{ form.remove_file }}
+                  <label
+                    class="form-check-label"
+                    for="{{ form.remove_file.id_for_label }}"
+                  >
+                    {% trans "Delete file" %}
+                  </label>
+                </div>
+              </div>
+              {% endif %} 
+              {% if form.file.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.file.errors %} {{ error }} {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>{% trans "Save changes" %}
+              </button>
+              <a
+                href="{% url 'QA:post_detail' post.slug %}"
+                class="btn btn-secondary"
+              >
+                <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

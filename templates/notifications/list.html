@@ -1,0 +1,729 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Notifications" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+{% endblock %}
+
+{% block content %}
+<div class="notifications-page">
+  <div class="notifications-container animate__animated animate__fadeIn">
+    <div class="notifications-header">
+      <h1 class="page-title">{% trans "Notifications" %}</h1>
+      {% if notifications %}
+        <div class="header-actions">
+  <a href="{% url 'notifications:mark_all_read' %}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-check-double me-1"></i> {% trans "Mark all as read" %}
+  </a>
+  <a href="{% url 'notifications:delete_all' %}" class="btn btn-outline-danger btn-sm">
+    <i class="fas fa-trash-alt me-1"></i> {% trans "Delete all" %}
+  </a>
+</div>
+      {% endif %}
+    </div>
+
+    <div class="notifications-list">
+      {% for notification in notifications %}
+        <div class="notification-card animate__animated animate__fadeInUp {% if not notification.read %}unread{% endif %}" data-notification-id="{{ notification.id }}">
+          <div class="notification-wrapper">
+            <!-- Icône et indicateur de statut -->
+            <div class="notification-icon-container">
+              <div class="notification-icon">
+                {% if notification.type == 'PROJECT_INVITE' %}
+                  <i class="fas fa-user-plus"></i>
+                {% elif notification.type == 'PROJECT_JOIN_REQUEST' %}
+                  <i class="fas fa-hand-paper"></i>
+                {% elif notification.type == 'TASK_ASSIGNED' %}
+                  <i class="fas fa-tasks"></i>
+                {% elif notification.type == 'MESSAGE' %}
+                  <i class="fas fa-envelope"></i>
+                {% elif notification.type == 'SYSTEM' %}
+                  <i class="fas fa-bell"></i>
+                {% elif notification.type == 'LEAVE_REQUEST' %}
+                  <i class="fas fa-sign-out-alt"></i>
+                {% else %}
+                  <i class="fas fa-info-circle"></i>
+                {% endif %}
+              </div>
+              {% if not notification.read %}
+                <span class="unread-indicator"></span>
+              {% endif %}
+            </div>
+
+            <!-- Contenu principal -->
+            <div class="notification-content">
+              <div class="notification-header">
+                <h3 class="notification-title">{{ notification.title }}</h3>
+                <div class="notification-meta">
+                  <span class="notification-time" title="{{ notification.created_at|date:'j F Y, H:i' }}">
+                    <i class="far fa-clock me-1"></i>{{ notification.created_at|date:"j M Y, H:i" }}
+                  </span>
+                  
+                  <span class="notification-badge" data-type="{{ notification.type|default:'undefined'|lower }}">
+                    {% if notification.type == 'PROJECT_INVITE' %}
+                      {% trans "Invitation" %}
+                    {% elif notification.type == 'PROJECT_JOIN_REQUEST' %}
+                      {% trans "Membership application" %}
+                    {% elif notification.type == 'TASK_ASSIGNED' %}
+                      {% trans "Assigned task" %}
+                    {% elif notification.type == 'MESSAGE' %}
+                      {% trans "Message" %}
+                    {% elif notification.type == 'SYSTEM' %}
+                      {% trans "System" %}
+                    {% elif notification.type == 'LEAVE_REQUEST' %}
+                      {% trans "Leave request" %}
+                    {% else %}
+                      {{ notification.type|default:"undefined" }}
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="notification-message">
+                {{ notification.message }}
+              </div>
+
+              
+              <!-- Actions -->
+              <div class="notification-actions">
+                <div class="primary-actions">
+                  {% if notification.type == 'PROJECT_INVITE' and notification.project_id %}
+                    {% if not notification.response_given %}
+                      <form method="post" action="{% url 'accounts:respond_project_invite' notification.project_id %}" class="action-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
+                        <button type="submit" name="response" value="accept" class="btn btn-success btn-sm">
+                          <i class="fas fa-check me-1"></i>{% trans "Accept" %}
+                        </button>
+                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
+                          <i class="fas fa-times me-1"></i>{% trans "Refuse" %}
+                        </button>
+                      </form>
+                    {% else %}
+                      <!-- Afficher le statut de la réponse -->
+                      {% if notification.response == 'accept' %}
+                        <span class="text-success">
+                          <i class="fas fa-check me-1"></i>{% trans "Invitation accepted" %}
+                        </span>
+                      {% elif notification.response == 'reject' %}
+                        <span class="text-danger">
+                          <i class="fas fa-times me-1"></i>{% trans "Invitation refused" %}
+                        </span>
+                      {% endif %}
+                    {% endif %}
+                  
+                  {% elif notification.type == 'PROJECT_JOIN_REQUEST' and notification.project_id and notification.sender_id %}
+                    {% if not notification.response_given %}
+                      <form method="post" action="{% url 'projects:accept_member' notification.project_id notification.sender_id %}" class="action-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
+                        <button type="submit" name="response" value="accept" class="btn btn-success btn-sm">
+                          <i class="fas fa-check me-1"></i>{% trans "Accept" %}
+                        </button>
+                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
+                          <i class="fas fa-times me-1"></i>{% trans "Refuse" %}
+                        </button>
+                      </form>
+                    {% else %}
+                      <!-- Afficher le statut de la réponse -->
+                      {% if notification.response == 'accept' %}
+                        <span class="text-success">
+                          <i class="fas fa-check me-1"></i>{% trans "Request accepted" %}
+                        </span>
+                      {% elif notification.response == 'reject' %}
+                        <span class="text-danger">
+                          <i class="fas fa-times me-1"></i>{% trans "Request refused" %}
+                        </span>
+                      {% endif %}
+                    {% endif %}
+                  
+                  {% elif notification.type == 'LEAVE_REQUEST' and notification.project_id and notification.sender_id %}
+                    {% if not notification.response_given %}
+                      <form method="post" action="{% url 'projects:respond_leave_request' notification.project_id notification.sender_id %}" class="action-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
+                        <button type="submit" name="response" value="approve" class="btn btn-success btn-sm">
+                          <i class="fas fa-check me-1"></i>{% trans "Approve" %}
+                        </button>
+                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
+                          <i class="fas fa-times me-1"></i>{% trans "Reject" %}
+                        </button>
+                      </form>
+                    {% else %}
+                      <!-- Afficher le statut de la réponse -->
+                      {% if notification.response == 'approve' %}
+                        <span class="text-success">
+                          <i class="fas fa-check me-1"></i>{% trans "Leave request approved" %}
+                        </span>
+                      {% elif notification.response == 'reject' %}
+                        <span class="text-danger">
+                          <i class="fas fa-times me-1"></i>{% trans "Leave request rejected" %}
+                        </span>
+                      {% endif %}
+                    {% endif %}
+                  {% endif %}
+                </div>
+                
+                <div class="secondary-actions">
+                  {% if notification.read %}
+                    <span class="text-muted read-status">
+                      <i class="fas fa-check me-1"></i>{% trans "Read" %}
+                    </span>
+                  {% else %}
+                    <a href="{% url 'notifications:mark_read' notification.id %}" class="mark-read-link">
+                      <i class="far fa-check-circle me-1"></i>{% trans "Mark as read" %}
+                    </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="empty-state animate__animated animate__fadeIn">
+          <div class="empty-icon">
+            <i class="fas fa-bell-slash"></i>
+          </div>
+          <h3>{% trans "No notifications" %}</h3>
+          <p>{% trans "You have no notifications at the moment." %}</p>
+        </div>
+      {% endfor %}
+    </div>
+    
+    {% if notifications and notifications.has_other_pages %}
+    <div class="pagination-container">
+      <nav aria-label="Pagination des notifications">
+        <ul class="pagination justify-content-center">
+          {% if notifications.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page=1" aria-label="Première page">
+                <i class="fas fa-angle-double-left"></i>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?page={{ notifications.previous_page_number }}" aria-label="Page précédente">
+                <i class="fas fa-angle-left"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link"><i class="fas fa-angle-left"></i></span>
+            </li>
+          {% endif %}
+          
+          {% for i in notifications.paginator.page_range %}
+            {% if notifications.number == i %}
+              <li class="page-item active">
+                <span class="page-link">{{ i }}</span>
+              </li>
+            {% elif i > notifications.number|add:'-3' and i < notifications.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          
+          {% if notifications.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ notifications.next_page_number }}" aria-label="Page suivante">
+                <i class="fas fa-angle-right"></i>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?page={{ notifications.paginator.num_pages }}" aria-label="Dernière page">
+                <i class="fas fa-angle-double-right"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link"><i class="fas fa-angle-right"></i></span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  :root {
+    --primary: #4361ee;
+    --primary-hover: #3a56d4;
+    --primary-light: rgba(67, 97, 238, 0.1);
+    --secondary: #3f37c9;
+    --success: #28a745;
+    --success-hover: #218838;
+    --danger: #dc3545;
+    --danger-hover: #c82333;
+    --warning: #ffc107;
+    --info: #17a2b8;
+    --light: #f8f9fa;
+    --dark: #343a40;
+    --gray: #6c757d;
+    --gray-light: #e9ecef;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #888888;
+    --card-bg: #ffffff;
+    --card-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+    --border-radius: 16px;
+    --border-radius-sm: 8px;
+    --transition: all 0.3s ease;
+  }
+
+  /* Layout */
+  .notifications-page {
+    padding: 2rem 1rem;
+  }
+
+  .notifications-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .notifications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .page-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  /* Notification Card */
+  .notification-card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    position: relative;
+  }
+
+  .notification-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .notification-wrapper {
+    display: flex;
+    padding: 1.25rem;
+  }
+
+  .notification-card.unread {
+    border-left: 4px solid var(--primary);
+    background-color: rgba(67, 97, 238, 0.03);
+  }
+
+  /* Notification Icon */
+  .notification-icon-container {
+    position: relative;
+    margin-right: 1rem;
+  }
+
+  .notification-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  .unread-indicator {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: var(--primary);
+    border-radius: 50%;
+    top: 0;
+    right: 0;
+    border: 2px solid white;
+  }
+
+  /* Notification Content */
+  .notification-content {
+    flex: 1;
+    min-width: 0; /* Fix for flex text overflow */
+  }
+
+  .notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .notification-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .notification-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .notification-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .notification-message {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+
+  /* Badge styles */
+  .notification-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    background-color: var(--gray-light);
+    color: var(--gray);
+  }
+
+  /* Badge types */
+  .notification-badge[data-type="project_invite"] {
+    background-color: rgba(67, 97, 238, 0.15);
+    color: var(--primary);
+  }
+
+  .notification-badge[data-type="project_join_request"] {
+    background-color: rgba(23, 162, 184, 0.15);
+    color: var(--info);
+  }
+
+  .notification-badge[data-type="task_assigned"] {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: var(--success);
+  }
+
+  .notification-badge[data-type="message"] {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #d9a400;
+  }
+
+  .notification-badge[data-type="system"] {
+    background-color: rgba(108, 117, 125, 0.15);
+    color: var(--gray);
+  }
+
+  .notification-badge[data-type="leave_request"] {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: var(--danger);
+  }
+
+  /* Actions */
+  .notification-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .primary-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .secondary-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .action-form {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-sm {
+    border-radius: 50px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition);
+  }
+
+  .btn-success {
+    background-color: var(--success);
+    border-color: var(--success);
+    color: white;
+  }
+
+  .btn-success:hover {
+    background-color: var(--success-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  }
+
+  .btn-outline-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+    background-color: transparent;
+  }
+
+  .btn-outline-danger:hover {
+    background-color: var(--danger);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+  }
+
+  .btn-outline-primary {
+    border-color: var(--primary);
+    color: var(--primary);
+    background-color: transparent;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: var(--primary);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+  }
+
+  .mark-read-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: var(--transition);
+  }
+
+  .mark-read-link:hover {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+
+  .read-status {
+    font-size: 0.85rem;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    color: var(--gray-light);
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    color: var(--text-muted);
+  }
+
+  /* Pagination */
+  .pagination-container {
+    margin-top: 2rem;
+  }
+
+  .pagination {
+    gap: 0.25rem;
+  }
+
+  .page-link {
+    color: var(--primary);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition);
+  }
+
+  .page-link:hover {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  .page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  /* Animation delays for staggered entrance */
+  .notifications-list .notification-card:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  .notifications-list .notification-card:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .notifications-list .notification-card:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .notifications-list .notification-card:nth-child(4) {
+    animation-delay: 0.4s;
+  }
+  .notifications-list .notification-card:nth-child(5) {
+    animation-delay: 0.5s;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 767px) {
+    .notifications-page {
+      padding: 1rem 0.5rem;
+    }
+
+    .notifications-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .notification-wrapper {
+      padding: 1rem;
+    }
+
+    .notification-actions {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .secondary-actions {
+      width: 100%;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .notification-wrapper {
+      flex-direction: column;
+    }
+
+    .notification-icon-container {
+      margin-bottom: 1rem;
+      margin-right: 0;
+    }
+
+    .notification-header {
+      flex-direction: column;
+    }
+
+    .notification-meta {
+      width: 100%;
+    }
+
+    .action-form {
+      width: 100%;
+    }
+
+    .action-form button {
+      flex: 1;
+      justify-content: center;
+    }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Animation sur hover des notifications
+  const notificationCards = document.querySelectorAll('.notification-card');
+  notificationCards.forEach(card => {
+    const icon = card.querySelector('.notification-icon i');
+    
+    card.addEventListener('mouseenter', function() {
+      icon.classList.add('animate__animated', 'animate__heartBeat');
+    });
+    
+    card.addEventListener('mouseleave', function() {
+      icon.classList.remove('animate__animated', 'animate__heartBeat');
+    });
+  });
+  
+  // Marquer comme lu avec AJAX
+  const markReadLinks = document.querySelectorAll('.mark-read-link');
+  markReadLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const url = this.getAttribute('href');
+      const card = this.closest('.notification-card');
+      const notificationId = card.dataset.notificationId;
+      
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+      })
+      .then(response => {
+        if (response.ok) {
+          // Mise à jour visuelle
+          card.classList.remove('unread');
+          
+          // Remplacer le lien par "Lu"
+          const secondaryActions = card.querySelector('.secondary-actions');
+          secondaryActions.innerHTML = '<span class="text-muted read-status"><i class="fas fa-check me-1"></i>Lu</span>';
+          
+          // Supprimer l'indicateur non lu
+          const unreadIndicator = card.querySelector('.unread-indicator');
+          if (unreadIndicator) {
+            unreadIndicator.remove();
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erreur:', error);
+      });
+    });
+  });
+  
+  // Fonction pour récupérer le token CSRF
+  function getCsrfToken() {
+    const csrfCookie = document.cookie
+      .split(';')
+      .map(cookie => cookie.trim())
+      .find(cookie => cookie.startsWith('csrftoken='));
+      
+    return csrfCookie ? csrfCookie.split('=')[1] : '';
+  }
+});
+</script>
+{% endblock %}

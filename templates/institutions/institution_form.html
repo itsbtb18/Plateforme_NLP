@@ -1,0 +1,551 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %} 
+{% if mode == 'create' %}
+    Create New Institution
+  {% else %}
+    Edit Institution
+  {% endif %}
+{% endblock %} 
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+  .select2-container {
+    width: 100% !important;
+  }
+  
+  .select2-selection--multiple {
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 0.5rem !important;
+    min-height: 50px !important;
+    font-size: 0.95rem !important;
+  }
+  
+  .select2-selection--multiple:focus-within {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+  }
+  
+  .select2-selection__choice {
+    background-color: #6366f1 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.25rem 0.5rem !important;
+    margin: 0.25rem !important;
+  }
+  
+  .select2-selection__choice__remove {
+    color: white !important;
+    margin-right: 0.5rem !important;
+  }
+  
+  .select2-dropdown {
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+  }
+  
+  .select2-search__field {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 0.5rem !important;
+  }
+  
+  .specialty-help {
+    background: #f0f9ff;
+    border: 1px solid #0ea5e9;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+  }
+  
+  .specialty-help-title {
+    font-weight: 600;
+    color: #0369a1;
+    margin-bottom: 0.5rem;
+  }
+  
+  .specialty-help-text {
+    color: #0369a1;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .specialty-help-example {
+    background: white;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: #1e293b;
+  }
+
+  .institution-form-page {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+  }
+
+  .form-container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .form-header {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .form-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-subtitle {
+    color: #64748b;
+    font-size: 1rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+  }
+
+  .form-control:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    outline: none;
+  }
+
+  .form-text {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+  }
+
+  .btn-submit {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  }
+
+  .btn-cancel {
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-left: 1rem;
+  }
+
+  .btn-cancel:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .error-message {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  .form-section {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .form-section-title i {
+    color: #6366f1;
+  }
+
+  .alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .alert-success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+  }
+
+  .alert-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+  }
+
+  .alert-info {
+    background-color: #e0f2fe;
+    color: #0c4a6e;
+    border: 1px solid #67e8f9;
+  }
+</style>
+{% endblock %} 
+
+{% block content %}
+<div class="institution-form-page">
+  <div class="form-container">
+    <div class="form-header">
+      <h1 class="form-title">
+        <i class="fas fa-plus me-2"></i>
+        {% if mode == 'create' %}
+          {% trans "Create a new institution" %}
+        {% else %}
+          {% trans "Edit institution" %}
+        {% endif %}
+      </h1>
+      <p class="form-subtitle">
+        {% if mode == 'create' %} 
+          {% trans "Add a new institution to the platform" %} 
+        {% else %} 
+          {% trans "Edit institution information" %} 
+        {% endif %}
+      </p>
+    </div>
+
+    {% if messages %}
+    <div class="messages mb-4">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" class="institution-form" enctype="multipart/form-data">
+      {% csrf_token %} 
+      
+      {% if form.non_field_errors %}
+      <div class="alert alert-error mb-4">
+        {% for error in form.non_field_errors %}
+        <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="form-section">
+        <h2 class="form-section-title">
+          <i class="fas fa-info-circle"></i>
+          {% trans "General information" %}
+        </h2>
+
+        <div class="form-group">
+          <label for="{{ form.name.id_for_label }}" class="form-label">
+            {% trans "Name of the institution" %} *
+          </label>
+          {{ form.name }} 
+          {% if form.name.errors %}
+          <div class="error-message">{{ form.name.errors }}</div>
+          {% endif %}
+          <div class="form-text">{% trans "The full name of the institution" %}</div>
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.acronym.id_for_label }}" class="form-label">
+            {% trans "Sigle" %}
+          </label>
+          {{ form.acronym }} 
+          {% if form.acronym.errors %}
+          <div class="error-message">{{ form.acronym.errors }}</div>
+          {% endif %}
+          <div class="form-text">
+            {% trans "The institution's acronym or abbreviation" %}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.type.id_for_label }}" class="form-label">
+            {% trans "Type of institution" %} *
+          </label>
+          {{ form.type }} 
+          {% if form.type.errors %}
+          <div class="error-message">{{ form.type.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.description.id_for_label }}" class="form-label">
+            {% trans "Description" %}
+          </label>
+          {{ form.description }} 
+          {% if form.description.errors %}
+          <div class="error-message">{{ form.description.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.specialties.id_for_label }}" class="form-label">
+            {% trans "Specialties" %}
+          </label>
+          {{ form.specialties }} 
+          {% if form.specialties.errors %}
+          <div class="error-message">{{ form.specialties.errors }}</div>
+          {% endif %}
+          
+          
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.logo.id_for_label }}" class="form-label">
+            {% trans "Logo" %}
+          </label>
+          {{ form.logo }} 
+          {% if form.logo.errors %}
+          <div class="error-message">{{ form.logo.errors }}</div>
+          {% endif %}
+          <div class="form-text">
+            {% trans "Upload the institution logo (recommended format: PNG or JPG)" %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="form-section-title">
+          <i class="fas fa-map-marker-alt"></i>
+          {% trans "Localisation" %}
+        </h2>
+
+        <div class="form-group">
+          <label for="{{ form.country.id_for_label }}" class="form-label">
+            {% trans "Country" %} *
+          </label>
+          {{ form.country }} 
+          {% if form.country.errors %}
+          <div class="error-message">{{ form.country.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.city.id_for_label }}" class="form-label">
+            {% trans "City" %} *
+          </label>
+          {{ form.city }} 
+          {% if form.city.errors %}
+          <div class="error-message">{{ form.city.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.address.id_for_label }}" class="form-label">
+            {% trans "Adresse" %}
+          </label>
+          {{ form.address }} 
+          {% if form.address.errors %}
+          <div class="error-message">{{ form.address.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="form-section-title">
+          <i class="fas fa-globe"></i>
+          {% trans "Contact" %}
+        </h2>
+
+        <div class="form-group">
+          <label for="{{ form.website.id_for_label }}" class="form-label">
+            {% trans "web Site" %}
+          </label>
+          {{ form.website }} 
+          {% if form.website.errors %}
+          <div class="error-message">{{ form.website.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.email.id_for_label }}" class="form-label">
+            {% trans "Email" %}
+          </label>
+          {{ form.email }} 
+          {% if form.email.errors %}
+          <div class="error-message">{{ form.email.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.phone.id_for_label }}" class="form-label">
+            {% trans "Phone" %}
+          </label>
+          {{ form.phone }} 
+          {% if form.phone.errors %}
+          <div class="error-message">{{ form.phone.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">
+          {% if mode == 'create' %}
+            <i class="fas fa-save me-2"></i>{% trans "Create the institution" %} 
+          {% else %} 
+            <i class="fas fa-plus me-2"></i>{% trans "Save changes" %} 
+          {% endif %}
+        </button>
+        <a href="{% url 'pages:admin_institutions' %}" class="btn-cancel">
+          <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('#id_specialties').select2({
+    tags: true,
+    tokenSeparators: [',', ' '],
+    placeholder: "{% trans 'Select or add specialties...' %}",
+    allowClear: true,
+    width: '100%',
+    createTag: function (params) {
+      var term = $.trim(params.term);
+      
+      if (term === '') {
+        return null;
+      }
+      
+      // Validation côté client
+      if (term.length < 2) {
+        return null;
+      }
+      
+      if (term.length > 100) {
+        return null;
+      }
+      
+      return {
+        id: term,
+        text: term,
+        newTag: true
+      };
+    },
+    templateResult: function(data) {
+      if (data.newTag) {
+        return $('<span><i class="fas fa-plus text-success"></i> {% trans "Créer" %}: ' + data.text + '</span>');
+      }
+      return data.text;
+    },
+    templateSelection: function(data) {
+      return data.text;
+    },
+    language: {
+      noResults: function() {
+        return "{% trans 'Aucune spécialité trouvée. Tapez pour en créer une nouvelle.' %}";
+      },
+      searching: function() {
+        return "{% trans 'Recherche en cours...' %}";
+      },
+      inputTooShort: function(args) {
+        return "{% trans 'Tapez au moins 2 caractères' %}";
+      },
+      inputTooLong: function(args) {
+        return "{% trans 'Nom trop long (max 100 caractères)' %}";
+      }
+    }
+  });
+
+  // Validation en temps réel
+  $('#id_specialties').on('select2:select', function(e) {
+    var data = e.params.data;
+    if (data.newTag) {
+      // Afficher un feedback visuel pour la nouvelle spécialité
+      $(this).next('.select2-container').find('.select2-selection__choice').last().addClass('new-specialty');
+    }
+  });
+
+  // Gestion de la soumission du formulaire
+  $('.institution-form').on('submit', function(e) {
+    // Récupérer toutes les valeurs sélectionnées
+    var selectedValues = $('#id_specialties').val();
+    
+    // S'assurer que toutes les valeurs sont préservées
+    if (selectedValues && selectedValues.length > 0) {
+      // Créer des champs cachés pour toutes les valeurs
+      selectedValues.forEach(function(value) {
+        // Supprimer les anciens champs cachés pour éviter les doublons
+        $('input[name="specialties"][value="' + value + '"]').remove();
+        
+        // Créer un nouveau champ caché
+        $('<input>')
+          .attr('type', 'hidden')
+          .attr('name', 'specialties')
+          .attr('value', value)
+          .appendTo(this);
+      }.bind(this));
+    }
+  });
+
+  // Ajouter du CSS pour les nouvelles spécialités
+  $('<style>')
+    .prop('type', 'text/css')
+    .html('.new-specialty { background-color: #10b981 !important; animation: pulse 1s ease-in-out; }')
+    .appendTo('head');
+});
+</script>
+{% endblock %}
+{% endblock %}

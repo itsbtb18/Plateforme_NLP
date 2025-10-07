@@ -1,0 +1,508 @@
+{% extends "base.html" %} {% load i18n %} {% block title %}{% trans "Courses"
+%}{% endblock title %} {% block extra_styles %} 
+{% comment "Link to main.css managed in base.html" %}{% endcomment %} {% endblock %} {% block content %}
+<div class="container py-5">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-lg-8 col-md-7">
+      <h1 class="display-5 fw-bold mb-2">{% trans "Course Collection" %}</h1>
+      <p class="text-muted fs-5">
+        {{ total_count }} {% trans "courses available" %}
+      </p>
+    </div>
+    <div
+      class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start mt-3 mt-md-0"
+    >
+      {% if user.is_authenticated %}
+      <a
+        href="{% url 'resources:course-create' %}"
+        class="btn btn-primary btn-lg shadow-sm"
+      >
+        <i class="bi bi-plus-lg me-2"></i> {% trans "Add New Course" %}
+      </a>
+      {% else %}
+      <div
+        class="alert alert-info d-flex align-items-center mb-0 py-3 px-4 shadow-sm"
+      >
+        <i class="bi bi-info-circle fs-5 me-2"></i>
+        <span>{% trans "You need to be logged in to add new courses" %}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="global-searchbox">
+    <form method="get" action="" class="searchbox-form" id="globalSearchForm">
+      <div class="searchbox-group shadow-sm">
+        <div class="query-container w-100 position-relative">
+          <input
+            type="text"
+            name="q"
+            id="globalQuery"
+            class="query-input"
+
+            placeholder="Search for resources..."
+
+            autocomplete="off"
+            value="{{ request.GET.q|default:'' }}"
+          />
+        </div>
+
+        <button type="submit" class="action-button submit-action">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+  <br />
+  <div class="position-relative mb-5">
+    <hr class="my-4" />
+    <div class="position-absolute top-0 start-50 translate-middle">
+      <div class="px-4 py-2 bg-white border rounded-pill shadow-sm">
+        <i class="bi bi-book me-2 text-primary"></i>
+        <span class="fw-medium">{% trans "Explore Courses" %}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Grid -->
+  {% if courses %}
+  <div class="course-grid">
+    {% for course in courses %}
+    <div class="course-card">
+      
+      <div class="card-body d-flex flex-column">
+        <h5 class="card-title">{{ course.title }}</h5>
+        {% if course.titre and course.titre != course.title %}
+        <h6 class="text-muted mb-2 fst-italic">{{ course.titre }}</h6>
+        {% endif %}
+        <div class="card-text text-muted mb-3 flex-grow-1">
+          {{ course.description|truncatewords:20|default:"No description provided" }}
+        </div>
+        <div class="course-meta mt-auto">
+          <div class="d-flex align-items-center mb-2">
+            <div class="author-icon me-2">
+              <i class="bi bi-person-circle"></i>
+            </div>
+            <span class="fw-medium">{{ course.author.full_name }}</span>
+          </div>
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-calendar-event me-2 text-secondary"></i>
+            <span class="text-muted"
+              >{{ course.creation_date|date:"M d, Y" }}</span
+            >
+          </div>
+          {% if course.language %}
+          <div class="course-stats">
+            <span class="stat-item">
+              <i class="bi bi-translate"></i> {{ course.get_language_display }}
+            </span>
+            {% endif %} {% if course.keywords %}
+            <span class="stat-item">
+              <i class="bi bi-tags"></i>
+              {{ course.get_keywords_list.0 }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <a
+          href="{% url 'resources:course_detail' course.id %}"
+          class="btn btn-outline-primary btn-hover-effect w-100"
+        >
+          <i class="bi bi-eye me-2"></i> {% trans "View Details" %}
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">
+      <i class="bi bi-journals"></i>
+    </div>
+    <h3>{% trans "No courses available" %}</h3>
+    <p class="text-muted">{% trans "Courses you add will appear here" %}</p>
+    {% if user.is_authenticated %}
+    <a
+      href="{% url 'resources:course-create' %}"
+      class="btn btn-primary btn-lg mt-3"
+    >
+      <i class="bi bi-plus-lg me-2"></i> {% trans "Add Your First Course" %}
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  /* Base styles */
+  :root {
+    --primary-color: #4361ee;
+    --primary-hover: #3a56d4;
+    --secondary-color: #e9ecef;
+    --accent-color: #4cc9f0;
+    --dark-color: #212529;
+    --text-muted: #6c757d;
+    --light-bg: #f8f9fa;
+    --border-color: #dee2e6;
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    --hover-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  }
+
+  .container {
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  /* Course grid */
+  .course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+  }
+
+  /* Course cards */
+  .course-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: white;
+    box-shadow: var(--card-shadow);
+    position: relative;
+  }
+
+  .course-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--hover-shadow);
+  }
+
+
+  .course-card .card-body {
+    padding: 2rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .course-card .card-footer {
+    padding: 1.5rem 2rem;
+    background-color: var(--light-bg);
+    border-top: 1px solid var(--border-color);
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin-bottom: 0.75rem;
+    position: relative;
+    padding-bottom: 0.75rem;
+  }
+
+  .card-title:after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background-color: var(--primary-color);
+    border-radius: 10px;
+  }
+
+  .card-text {
+    min-height: 75px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  /* Author icon */
+  .author-icon {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+  }
+
+  /* Stats */
+  .course-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .stat-item {
+    font-size: 0.75rem;
+    background-color: var(--secondary-color);
+    padding: 6px 12px;
+    border-radius: 20px;
+    color: var(--dark-color);
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+  }
+
+  .stat-item i {
+    margin-right: 6px;
+    color: var(--primary-color);
+  }
+
+  /* Buttons */
+  .btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    border-width: 2px;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    border-width: 2px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-2px);
+  }
+
+  .btn-hover-effect {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .btn-hover-effect:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: all 0.6s;
+    z-index: -1;
+  }
+
+  .btn-hover-effect:hover:before {
+    left: 100%;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    background-color: white;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    color: var(--primary-color);
+    opacity: 0.5;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 767px) {
+    .course-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .ribbon-wrapper {
+      width: 100px;
+      height: 100px;
+    }
+
+    .ribbon {
+      top: 15px;
+      right: -35px;
+      padding: 3px 35px;
+      font-size: 0.7rem;
+    }
+
+    .course-card .card-body {
+      padding: 1.5rem;
+    }
+
+    .course-card .card-footer {
+      padding: 1rem 1.5rem;
+    }
+
+    h1.display-5 {
+      font-size: 2rem;
+    }
+  }
+
+  /* Medium screens */
+  @media (min-width: 768px) and (max-width: 991px) {
+    .course-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* Large screens */
+  @media (min-width: 1200px) {
+    .course-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .global-searchbox {
+    margin-bottom: 2rem;
+  }
+
+  .searchbox-form {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .searchbox-group {
+    display: flex;
+    align-items: stretch;
+    border-radius: 12px;
+    background: white;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Query Container */
+  .query-container {
+    position: relative;
+  }
+
+  .query-input {
+    width: 100%;
+    border: none;
+    padding: 1rem 2.5rem 1rem 1.2rem;
+    font-size: 1rem;
+  }
+
+  .query-input:focus {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Status Indicators */
+  .status-indicator {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .status-icon {
+    font-size: 1rem;
+  }
+
+  .status-spinner {
+    width: 1rem;
+    height: 1rem;
+  }
+  * Type Selection */ .type-select {
+    border: none;
+    border-left: 1px solid var(--border-color);
+    padding: 1rem 1.2rem;
+    min-width: 140px;
+  }
+
+  /* Action Buttons */
+  .action-button {
+    padding: 0 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+
+  .submit-action {
+    background-color: var(--primary);
+    color: white;
+  }
+
+  /* Category Filters */
+  .category-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    padding: 0.5rem 0;
+  }
+
+  .category-label {
+    font-weight: 500;
+    color: var(--text-dark);
+    margin-right: 0.5rem;
+  }
+
+  .category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .category-item {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .category-item:hover {
+    background-color: rgba(67, 97, 238, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .category-item.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  
+</style>
+{% endblock content %}

@@ -1,0 +1,57 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Block user" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% trans "Block user" %}
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-4">
+            <div class="user-avatar mx-auto" style="width: 80px; height: 80px; border-radius: 50%; background-color: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: #495057;">
+              {{ user_obj.username|slice:":1"|upper }}
+            </div>
+            <h3 class="h4 mt-3">{{ user_obj.username }}</h3>
+            <p class="text-muted">{{ user_obj.email }}</p>
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-circle me-2"></i>
+           {% trans "You are about to" %}  <strong>{% trans "block this user" %}</strong>{% trans ". He will no longer be able to log in or use the site's features until it is reactivated." %}
+          </div>
+          
+          <form method="post" action="{% url 'pages:admin_user_block' user_obj.id %}">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+
+              <label for="reason" class="form-label">{% trans "Reason for blocking" %}</label>
+              <textarea name="reason" id="reason" class="form-control" rows="4" placeholder="Please indicate the reason why you are blocking this user..."></textarea>
+              <small class="text-muted">{% trans "This information will be recorded in the user's history." %}</small>
+
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+              <a href="{% url 'pages:admin_users' %}" class="btn btn-light">
+                <i class="fas fa-times me-1"></i> 
+                {% trans "Cancel" %}
+              </a>
+              <button type="submit" class="btn btn-danger">
+                <i class="fas fa-ban me-1"></i> 
+                {% trans "Confirm blocking" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

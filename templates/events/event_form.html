@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        {% trans "Edit Event" %}: {{ form.instance.title }}
+    {% else %}
+        {% trans "Submit New Event" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'events:event_list' %}" class="text-decoration-none">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if form.instance.pk %}{% trans "Edit Event" %}{% else %}{% trans "New Event" %}{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Main Form Card -->
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-primary text-white py-3">
+            <h1 class="h2 mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>
+                {% if form.instance.pk %}
+                    {% trans "Edit Event" %}
+                {% else %}
+                    {% trans "Submit New Event" %}
+                {% endif %}
+            </h1>
+        </div>
+        
+        <div class="card-body p-4">
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+
+                <!-- Form Errors -->
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-3 fa-2x"></i>
+                    <div>
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Required Fields Note -->
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% trans "Fields marked with * are required" %}
+                </div>
+
+                <!-- Form Fields -->
+                <div class="row g-4">
+                    <!-- Title & Description -->
+                    <div class="col-12">
+                        <div class="form-floating">
+                            {{ form.title }}
+                            <label for="{{ form.title.id_for_label }}">{{ form.title.label }}*</label>
+                            {% if form.title.errors %}
+                            <div class="invalid-feedback">{{ form.title.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            {{ form.description }}
+                            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}*</label>
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback">{{ form.description.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Event Type & Domains -->
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.event_type }}
+                            <label for="{{ form.event_type.id_for_label }}">{{ form.event_type.label }}*</label>
+                            {% if form.event_type.errors %}
+                            <div class="invalid-feedback">{{ form.event_type.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.domains }}
+                            <label for="{{ form.domains.id_for_label }}">{{ form.domains.label }}*</label>
+                            <small class="form-text text-muted mt-2 d-block">
+                                <i class="fas fa-tags me-1"></i>
+                                {% trans "Comma-separated domains (e.g., NLP, Speech Processing)" %}
+                            </small>
+                            {% if form.domains.errors %}
+                            <div class="invalid-feedback">{{ form.domains.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Location & Organizer -->
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.location }}
+                            <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+                            
+                            {% if form.location.errors %}
+                            <div class="invalid-feedback">{{ form.location.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.organizer }}
+                            <label for="{{ form.organizer.id_for_label }}">{{ form.organizer.label }}*</label>
+                            {% if form.organizer.errors %}
+                            <div class="invalid-feedback">{{ form.organizer.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Dates Section -->
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            {{ form.start_date }}
+                            <label for="{{ form.start_date.id_for_label }}">{{ form.start_date.label }}*</label>
+                            {% if form.start_date.errors %}
+                            <div class="invalid-feedback">{{ form.start_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            {{ form.end_date }}
+                            <label for="{{ form.end_date.id_for_label }}">{{ form.end_date.label }}*</label>
+                            {% if form.end_date.errors %}
+                            <div class="invalid-feedback">{{ form.end_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            {{ form.submission_deadline }}
+                            <label for="{{ form.submission_deadline.id_for_label }}">{{ form.submission_deadline.label }}</label>
+                            {% if form.submission_deadline.errors %}
+                            <div class="invalid-feedback">{{ form.submission_deadline.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Contact & Website -->
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.website }}
+                            <label for="{{ form.website.id_for_label }}">{{ form.website.label }}</label>
+                            {% if form.website.errors %}
+                            <div class="invalid-feedback">{{ form.website.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            {{ form.contact_email }}
+                            <label for="{{ form.contact_email.id_for_label }}">{{ form.contact_email.label }}*</label>
+                            {% if form.contact_email.errors %}
+                            <div class="invalid-feedback">{{ form.contact_email.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Attachment -->
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.attachment.label }}</label>
+                            {% if form.instance.attachment %}
+                            <div class="alert alert-light d-flex align-items-center mb-3">
+                                <i class="fas fa-paperclip me-3 fa-lg"></i>
+                                <div>
+                                    <span class="d-block">{% trans "Current file:" %}</span>
+                                    <a href="{{ form.instance.attachment.url }}" target="_blank" class="text-decoration-none">
+                                        {{ form.instance.attachment.name|truncatechars:40 }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {{ form.attachment }}
+                            <small class="form-text text-muted mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% trans "Supported formats: PDF, DOC/DOCX, PPT/PPTX (Max 5MB)" %}
+                            </small>
+                            {% if form.attachment.errors %}
+                            <div class="invalid-feedback">{{ form.attachment.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submission Notice -->
+                <div class="alert alert-warning mt-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% if user.is_staff %}
+                        {% trans "Your event will be published immediately upon submission." %}
+                    {% else %}
+                        {% trans "Your event submission will be reviewed by our team before publication." %}
+                    {% endif %}
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between align-items-center mt-5">
+                    <a href="{% if form.instance.pk %}{% url 'events:event_detail' form.instance.pk %}{% else %}{% url 'events:event_list' %}{% endif %}" 
+                       class="btn btn-outline-secondary px-4">
+                        <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-save me-2"></i>{% trans "Save Event" %}
+                        {% else %}
+                            <i class="fas fa-check-circle me-2"></i>{% trans "Submit Event" %}
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-floating textarea.form-control {
+        height: 120px;
+        resize: vertical;
+    }
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+    }
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+
+
+{% endblock %}

@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+
+
+<style>
+/* General Page & Container */
+body {
+    background-color: #ffffff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.chat-container {
+    max-width: 800px;
+    width: 95%;
+    margin: 2rem auto; /* S'assure qu'il y a de l'espace en haut, potentiellement pour la navbar globale */
+    padding: 1.5rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    /* Hauteur max pour que le conteneur de chat ne devienne pas trop grand.
+       Ajustez 'YOUR_NAVBAR_HEIGHT' avec la hauteur réelle de votre navbar si elle est fixe,
+       sinon, une valeur comme 85vh ou 90vh peut fonctionner. */
+    max-height: calc(90vh - 2rem); /* Exemple: 90% de la hauteur visible moins les marges verticales */
+    min-height: 450px; /* Hauteur minimale pour une bonne expérience */
+}
+
+.chat-header h2 {
+    color: #2c3e50;
+    font-size: 1.6rem;
+    margin-top: 0;
+    margin-bottom: 1.2rem;
+    text-align: center;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn-mode {
+    padding: 0.7rem 1.3rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-weight: 500;
+    font-size: 0.9rem;
+    background-color: #007bff;
+    color: white !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    line-height: 1.2;
+}
+
+.btn-mode:hover:not(:disabled) {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.btn-mode.active {
+    background-color: #0056b3;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15) inset;
+    transform: translateY(0px);
+}
+
+.btn-mode:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #6c757d;
+    transform: none !important;
+}
+
+.chat-box {
+    flex-grow: 1;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.2rem;
+    overflow-y: auto; /* Assure la scrollabilité interne */
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    border: 1px solid #dee2e6;
+    min-height: 300px; /* Hauteur minimale de la zone de messages */
+    max-height: 60vh; /* Hauteur maximale pour la zone de messages avant scroll interne marqué */
+                      /* Ajustez cette valeur selon vos préférences */
+}
+
+.message {
+    max-width: 85%; padding: 0.8rem 1.2rem; border-radius: 15px;
+    line-height: 1.5; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    opacity: 0; transform: translateY(10px); animation: fadeInMessage 0.3s ease forwards;
+}
+
+@keyframes fadeInMessage { to { opacity: 1; transform: translateY(0); } }
+
+.message.user {
+    background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 5px;
+}
+.message.bot, .message.system-message, .message.error-message {
+    background-color: #ffffff; color: #212529; align-self: flex-start;
+    border: 1px solid #e9ecef; border-bottom-left-radius: 5px;
+}
+.message.system-message {
+    font-style: italic; color: #495057; background-color: #e9ecef;
+    width: 100%; text-align: center; max-width: 100%; box-shadow: none;
+}
+.message.error-message {
+    color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb;
+    width: 100%; text-align: center; max-width: 100%;
+}
+
+.message strong { color: inherit; } .message em { color: inherit; font-style: italic; }
+.message a { color: inherit; text-decoration: underline; font-weight: 500; }
+.message code { background-color: rgba(0,0,0,0.06); padding: 0.2em 0.4em; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.9em; color: inherit; }
+.message pre { background-color: rgba(0,0,0,0.06); padding: 0.8em; border-radius: 6px; overflow-x: auto; margin: 0.5em 0; }
+.message pre code { background-color: transparent; padding: 0; font-size: 0.85em; }
+
+.chat-input-area { display: flex; gap: 0.8rem; align-items: stretch; }
+
+#user-input {
+    flex-grow: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid #ced4da;
+    font-size: 1rem; color: #212529; /* MODIFIÉ: Texte de saisie en noir/gris foncé */
+    resize: none; line-height: 1.4; font-family: inherit;
+}
+#user-input:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+
+#send-button, #upload-pdf-visual-button {
+    padding: 0.8rem 1.2rem; border-radius: 8px; border: none; background-color: #007bff;
+    color: white; cursor: pointer; font-size: 0.9rem; display: flex;
+    align-items: center; justify-content: center; transition: background-color 0.2s ease;
+}
+#send-button:hover, #upload-pdf-visual-button:hover { background-color: #0056b3; }
+#send-button:disabled, #upload-pdf-visual-button:disabled { background-color: #6c757d; cursor: not-allowed; }
+
+#pdf-upload-input { display: none; }
+
+.spinner { border: 4px solid rgba(0,0,0,0.1); width: 28px; height: 28px; border-radius: 50%; border-left-color: #007bff; animation: spin 0.8s linear infinite; margin: 10px auto; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.message.loading .spinner { margin: 0; }
+.message.loading { padding: 0.8rem; display: flex; justify-content: center; align-items: center; background-color: #f8f9fa; border: 1px solid #e0e0e0; box-shadow: none; }
+</style>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>{% translate "AI Chatbot" %}</h2>
+    </div>
+
+    <div class="mode-buttons">
+        <button id="mode-conversation-btn" class="btn-mode active">{% translate "Conversation" %}</button>
+        <button id="mode-pdf-btn" class="btn-mode">{% translate "Import PDF" %}</button>
+        <button id="mode-quick-btn" class="btn-mode">{% translate "Quick Question" %}</button>
+        <button id="mode-delete-btn" class="btn-mode">{% translate "Delete PDF & New Chat" %}</button>
+    </div>
+
+    <div class="chat-box" id="chat-box">
+        </div>
+
+    <div class="chat-input-area">
+        <input type="file" id="pdf-upload-input" accept=".pdf" />
+        <button id="upload-pdf-visual-button" title="{% translate 'Select PDF to import' %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                <path d="M4.603 14.087a.8.8 0 0 1-1.03-.002l-1.162-1.004a.8.8 0 0 1-.002-1.03L3.5 10.5a.8.8 0 0 1 1.03.002l1.163 1.003a.8.8 0 0 1 .002 1.03l-1.162 1.005zm3.114-2.399a.8.8 0 0 0 .002-1.06l-1.06-1.06a.8.8 0 0 0-1.062.002l-1.06 1.06a.8.8 0 0 0 .002 1.061l1.06 1.06a.8.8 0 0 0 1.062-.003l1.06-1.06zM12 9.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5m-2.5 2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5m-2.5 2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5"/>
+            </svg>
+        </button>
+        <textarea id="user-input" placeholder="{% translate 'Type your message...' %}" rows="1"></textarea>
+        <button id="send-button">{% translate "Send" %}</button>
+    </div>
+    {% csrf_token %}
+    <input type="hidden" id="session-id-input-value" value="{{ session_id }}">
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatBox = document.getElementById('chat-box');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const sessionIdInput = document.getElementById('session-id-input-value');
+    
+    const pdfUploadInput = document.getElementById('pdf-upload-input');
+    const uploadPdfVisualButton = document.getElementById('upload-pdf-visual-button');
+
+    const modeButtons = {
+        conversation: document.getElementById('mode-conversation-btn'),
+        upload: document.getElementById('mode-pdf-btn'),
+        quick: document.getElementById('mode-quick-btn'),
+        delete: document.getElementById('mode-delete-btn')
+    };
+    
+    let currentMode = 'conversation';
+    let sessionId = sessionIdInput.value;
+    let isLoading = false;
+    let loadingMessageDiv = null;
+    let pdfContextActive = false;
+
+    function setActiveModeButton(mode) {
+        for (const key in modeButtons) {
+            modeButtons[key].classList.remove('active');
+        }
+        if (modeButtons[mode]) {
+            modeButtons[mode].classList.add('active');
+        }
+    }
+
+    function updatePlaceholderAndUI(mode) {
+        uploadPdfVisualButton.style.display = (mode === 'upload') ? 'inline-flex' : 'none';
+        if (pdfContextActive && mode !== 'delete' && (mode === 'upload' || mode === 'conversation') ) {
+             userInput.placeholder = "{% translate 'Ask about the uploaded PDF...' %}";
+        } else {
+            switch (mode) {
+                case 'conversation':
+                    userInput.placeholder = "{% translate 'Type your message...' %}";
+                    break;
+                case 'upload':
+                    userInput.placeholder = "{% translate 'Select PDF then ask an optional question...' %}";
+                    break;
+                case 'quick':
+                    userInput.placeholder = "{% translate 'Ask a quick question...' %}";
+                    break;
+                case 'delete':
+                    userInput.placeholder = "{% translate 'Optional: Start new chat with this question...' %}";
+                    break;
+            }
+        }
+    }
+    
+    setActiveModeButton(currentMode);
+    updatePlaceholderAndUI(currentMode);
+
+    for (const modeKey in modeButtons) {
+        modeButtons[modeKey].addEventListener('click', () => {
+            if (modeKey !== currentMode) { // MODIFIÉ: Action seulement si le mode change réellement
+                chatBox.innerHTML = ''; // Effacer les messages précédents
+                
+                if (currentMode === 'upload' && modeKey !== 'delete') {
+                    // Si on quitte le mode 'upload' (et qu'un PDF était actif)
+                    // pour un mode autre que 'delete', on garde pdfContextActive
+                    // pour pouvoir y revenir. Si on va vers 'delete', pdfContextActive sera géré là.
+                    // Si on va vers 'conversation', le placeholder changera pour refléter qu'on n'est plus *activement* en mode upload.
+                } else if (modeKey !== 'upload') { // Si on passe à un mode qui n'est pas 'upload'
+                     pdfContextActive = false; // Réinitialiser le contexte PDF si on ne va pas vers le mode upload
+                }
+
+
+                currentMode = modeKey;
+                setActiveModeButton(modeKey);
+                updatePlaceholderAndUI(modeKey); // Mettre à jour le placeholder après avoir changé de mode
+
+                if (modeKey === 'delete') {
+                    displayMessage("{% translate 'Current PDF context (if any) will be cleared. Send a message to start a new chat.' %}", 'system-message');
+                    pdfContextActive = false;
+                    updatePlaceholderAndUI(currentMode); // S'assurer que le placeholder est correct pour 'delete'
+                } else {
+                     displayMessage(`{% translate "Mode changed to:" %} ${modeButtons[modeKey].textContent}. {% translate "Type your message." %}`, 'system-message');
+                }
+            }
+        });
+    }
+
+    uploadPdfVisualButton.addEventListener('click', () => pdfUploadInput.click());
+    
+    // MODIFIÉ: Ne plus changer le placeholder avec le nom du fichier ici.
+    // Le message système après upload s'en chargera.
+    pdfUploadInput.addEventListener('change', () => {
+        if (pdfUploadInput.files.length > 0) {
+            // Optionnel: donner un feedback visuel que le fichier est prêt, mais pas dans le placeholder principal.
+            console.log(`File selected: ${pdfUploadInput.files[0].name}`);
+        }
+    });
+
+
+    sendButton.addEventListener('click', handleSendMessage);
+    userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    });
+    userInput.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    function getCSRFToken() {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        return csrfInput ? csrfInput.value : '';
+    }
+
+    function displayMessage(text, type = 'bot', source = 'bot', lang = 'en') {
+        const messageDiv = document.createElement('div');
+        const validTypes = ['user', 'bot', 'system-message', 'error-message'];
+        messageDiv.classList.add('message', validTypes.includes(type) ? type : 'bot');
+        
+        let htmlText = text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        htmlText = htmlText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')
+                           .replace(/\[(.*?)\]\((.*?)\)/g, (match, p1, p2) => {
+                               try { const url = new URL(p2); if (['http:', 'https:'].includes(url.protocol)) return `<a href="${p2.replace(/"/g, "&quot;")}" target="_blank">${p1}</a>`;} catch (_) {} return match;
+                           })
+                           .replace(/```([\s\S]*?)```/gs, '<pre><code>$1</code></pre>').replace(/`(.*?)`/g, '<code>$1</code>').replace(/\n/g, '<br>');
+        messageDiv.innerHTML = htmlText;
+        messageDiv.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    
+    function showLoadingIndicator() { /* ... (inchangé) ... */ }
+    function hideLoadingIndicator() { /* ... (inchangé) ... */ }
+    // Copier les fonctions showLoadingIndicator et hideLoadingIndicator de la réponse précédente ici
+    // Elles sont nécessaires pour désactiver/réactiver les boutons et afficher le spinner.
+    // Pour la concision, je ne les répète pas, mais elles doivent être présentes.
+    function showLoadingIndicator() {
+        if (loadingMessageDiv) return; isLoading = true; sendButton.disabled = true; userInput.disabled = true; Object.values(modeButtons).forEach(btn => btn.disabled = true);
+        loadingMessageDiv = document.createElement('div'); loadingMessageDiv.classList.add('message', 'bot', 'loading');
+        const spinner = document.createElement('div'); spinner.classList.add('spinner');
+        loadingMessageDiv.appendChild(spinner); chatBox.appendChild(loadingMessageDiv); chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function hideLoadingIndicator() {
+        isLoading = false; sendButton.disabled = false; userInput.disabled = false; Object.values(modeButtons).forEach(btn => btn.disabled = false);
+        if (loadingMessageDiv) { loadingMessageDiv.remove(); loadingMessageDiv = null; }
+    }
+
+
+    async function handleSendMessage() {
+        if (isLoading) return;
+        const question = userInput.value.trim();
+        const pdfFile = pdfUploadInput.files[0];
+
+        if (currentMode === 'upload' && !pdfFile && !pdfContextActive && !question) {
+            displayMessage("{% translate 'Please select a PDF file to import, or type a question if a PDF is already active.' %}", 'error-message');
+            return;
+        }
+        if (currentMode === 'upload' && !pdfFile && !pdfContextActive && question) {
+            displayMessage("{% translate 'Please select a PDF file first when in Import PDF mode and no PDF is active, or switch to Conversation mode.' %}", 'error-message');
+            return;
+        }
+        if (!question && currentMode !== 'upload' && currentMode !== 'delete') {
+            displayMessage("{% translate 'Please type a message.' %}", 'error-message');
+            return;
+        }
+
+        if (question) { displayMessage(question, 'user'); }
+        userInput.value = ''; userInput.style.height = 'auto';
+        showLoadingIndicator();
+
+        const formData = new FormData();
+        formData.append('mode', currentMode);
+        formData.append('question', question);
+        formData.append('session_id', sessionId);
+        if (currentMode === 'upload' && pdfFile) {
+            formData.append('pdf', pdfFile);
+        }
+
+        try {
+            const response = await fetch("{% url 'chatbot:ask' %}", { method: 'POST', headers: { 'X-CSRFToken': getCSRFToken() }, body: formData });
+            hideLoadingIndicator();
+            const responseData = await response.json();
+
+            if (!response.ok) { throw new Error(responseData.error || `Server error: ${response.status}`); }
+
+            if (responseData.session_id && responseData.session_id !== sessionId) {
+                sessionId = responseData.session_id; sessionIdInput.value = sessionId;
+                if (currentMode === 'delete') { displayMessage("{% translate 'Previous context cleared. New chat session started.' %}", 'system-message'); }
+            }
+            
+            if (responseData.system_message_after_upload) {
+                displayMessage(responseData.system_message_after_upload, 'system-message');
+            }
+
+            let botResponseText = responseData.answer || responseData.message || "";
+            let responseSource = responseData.source || 'bot';
+            let responseLang = responseData.lang || 'en';
+
+            if (responseSource === 'database' && responseData.title) {
+                botResponseText = `{% translate "Found in database" %} (${responseData.type || 'N/A'}): <strong>${responseData.title}</strong>`;
+                if(responseData.description) botResponseText += `<br>${responseData.description}`;
+                if(responseData.link) botResponseText += `<br><a href="${responseData.link}" target="_blank">{% translate "Access here" %}</a>`;
+            } else if (!botResponseText && !responseData.system_message_after_upload) {
+                 botResponseText = "{% translate 'Received an empty response from the assistant.' %}"; responseSource = 'system-message';
+            }
+            
+            if (botResponseText) {
+                displayMessage(botResponseText, responseSource === 'system' ? 'system-message' : (responseSource === 'error' ? 'error-message' : 'bot'), responseSource, responseLang);
+            }
+            
+            if (currentMode === 'upload' && pdfFile && response.ok) {
+                pdfUploadInput.value = ""; 
+                pdfContextActive = true; 
+                updatePlaceholderAndUI(currentMode); 
+            }
+            if (currentMode === 'delete') {
+                pdfContextActive = false;
+                updatePlaceholderAndUI(currentMode);
+            }
+
+        } catch (error) {
+            hideLoadingIndicator(); console.error('Error during handleSendMessage:', error);
+            displayMessage(`Error: ${error.message || 'An unknown error occurred.'}`, 'error-message');
+        }
+    }
+    displayMessage("{% translate 'Welcome! Select a mode or type your message.' %}", 'system-message');
+});
+</script>
+{% endblock %}

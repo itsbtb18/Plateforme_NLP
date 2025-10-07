@@ -1,0 +1,118 @@
+{% extends 'base.html' %} 
+{% load i18n %}
+{% block content %}
+<!-- CSS personnalisé -->
+<style>
+  .form-container {
+    max-width: 650px;
+    margin: 0 auto;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  }
+  .form-header {
+    border-bottom: 1px solid #e9ecef;
+    position: relative;
+  }
+  .form-header:after {
+    content: "";
+    position: absolute;
+    width: 60px;
+    height: 3px;
+    background-color: #0d6efd;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #495057;
+  }
+  .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+  .submit-btn {
+    border-radius: 50px;
+    padding: 10px 25px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  .submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  .error-feedback {
+    color: #dc3545;
+    font-size: 80%;
+    margin-top: 0.25rem;
+  }
+</style>
+
+<div class="container py-5">
+  <div class="form-container bg-white p-4 p-md-5">
+    <div class="form-header pb-3 mb-4 text-center">
+      <h2 class="h3 fw-bold text-primary">{% trans "Poser une question" %}</h2>
+    </div>
+
+    <form method="post" class="needs-validation">
+      {% csrf_token %} {% if form.non_field_errors %}
+      <div class="alert alert-danger mb-4">
+        {% for error in form.non_field_errors %}
+        <p class="mb-0">{{ error }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="mb-4">
+        <label for="{{ form.title.id_for_label }}" class="form-label">
+          {% trans "Titre de votre question" %}
+        </label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-type-h1"></i>
+          </span>
+          {{ form.title }}
+        </div>
+        {% if form.title.errors %}
+        <div class="error-feedback">
+          {% for error in form.title.errors %} {{ error }} {% endfor %}
+        </div>
+        {% endif %}
+        <small class="form-text text-muted"
+          >{% trans "Soyez clair et précis pour obtenir les meilleures réponses" %}</small
+        >
+      </div>
+
+      <div class="mb-4">
+        <label for="{{ form.description.id_for_label }}" class="form-label">
+          {% trans "Détails de votre question" %}
+        </label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-file-text"></i>
+          </span>
+          {{ form.description }}
+        </div>
+        {% if form.description.errors %}
+        <div class="error-feedback">
+          {% for error in form.description.errors %} {{ error }} {% endfor %}
+        </div>
+        {% endif %}
+        <small class="form-text text-muted"
+          >{% trans "Ajoutez tous les détails nécessaires pour comprendre votre question" %}</small
+        >
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-4 pt-2">
+        <a href="{% url 'QA:qa_list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-1"></i> {% trans "Retour" %}
+        </a>
+        <button type="submit" class="btn btn-primary submit-btn">
+          <i class="bi bi-send me-1"></i>{% trans "Publier la question" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

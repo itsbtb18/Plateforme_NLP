@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% block content %}
+<!-- CSS personnalisé -->
+<style>
+  .question-card {
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+  }
+  .question-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid #0d6efd;
+  }
+  .search-input {
+    border-radius: 50px;
+    padding-left: 45px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  }
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+  }
+  .btn-ask {
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-weight: 500;
+  }
+  .section-header {
+    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+  }
+  .author-info {
+    font-size: 0.85rem;
+  }
+  .empty-state-container {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 40px 20px;
+  }
+  .page-title {
+    position: relative;
+    display: inline-block;
+  }
+  .page-title:after {
+    content: '';
+    position: absolute;
+    width: 40%;
+    height: 3px;
+    background-color: #0d6efd;
+    bottom: -8px;
+    left: 0;
+  }
+</style>
+
+<div class="container py-5">
+  <!-- En-tête de la page -->
+  <div class="section-header mb-4 p-4 d-flex flex-column flex-md-row justify-content-between align-items-center">
+    <h2 class="page-title fs-2 fw-bold mb-3 mb-md-0">{% trans "Toutes les questions" %}</h2>
+    <a href="{% url 'QA:ask_question' %}" class="btn btn-primary btn-ask d-flex align-items-center">
+      <i class="bi bi-plus-circle me-2"></i> {% trans "Poser une question" %}
+    </a>
+  </div>
+
+  <!-- Barre de recherche -->
+  <div class="mb-4 position-relative">
+    <form method="get" class="d-flex">
+      <div class="position-relative flex-grow-1">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" 
+               name="q" 
+               value="{{ query }}" 
+
+               placeholder="Search for a question..." 
+
+               class="form-control search-input py-2"
+               aria-label="Recherche">
+      </div>
+    </form>
+  </div>
+
+  <!-- Liste des questions -->
+  {% if questions %}
+    <div class="row">
+      <div class="col-12">
+        {% for question in questions %}
+          <div class="card question-card mb-3">
+            <div class="card-body">
+              <div class="d-flex flex-column flex-md-row justify-content-between">
+                <div>
+                  <a href="{% url 'QA:question_detail' question.pk %}" class="text-decoration-none">
+                    <h3 class="card-title h5 fw-bold text-primary">{{ question.title }}</h3>
+                  </a>
+                  <div class="author-info text-muted d-flex align-items-center">
+                    <i class="bi bi-person me-1"></i>
+                    <span>{{ question.author }}</span>
+                    <span class="mx-2">•</span>
+                    <i class="bi bi-clock me-1"></i>
+                    <span>{{ question.created_at|date:"d/m/Y H:i" }}</span>
+                  </div>
+                </div>
+                <div class="mt-2 mt-md-0">
+                  <a href="{% url 'QA:question_detail' question.pk %}" class="btn btn-sm btn-outline-primary">
+                    {% trans "Voir les réponses" %} <i class="bi bi-arrow-right ms-1"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if questions.has_other_pages %}
+      <nav aria-label="Pagination des questions" class="mt-4">
+        <ul class="pagination justify-content-center">
+          {% if questions.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ questions.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" aria-label="Précédent">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">&laquo;</span>
+            </li>
+          {% endif %}
+          
+          {% for i in questions.paginator.page_range %}
+            {% if questions.number == i %}
+              <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+            {% else %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          
+          {% if questions.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ questions.next_page_number }}{% if query %}&q={{ query }}{% endif %}" aria-label="Suivant">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">&raquo;</span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <!-- État vide -->
+    <div class="empty-state-container text-center">
+      <i class="bi bi-question-circle display-1 text-muted mb-3"></i>
+      <h3 class="h4 mb-4">{% trans "Aucune question trouvée" %}</h3>
+      <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+        <a href="{% url 'QA:qa_list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-2"></i>{% trans "Afficher toutes les questions" %}
+        </a>
+        <a href="{% url 'QA:ask_question' %}" class="btn btn-primary">
+          <i class="bi bi-plus-circle me-2"></i>{% trans "Poser une question" %}
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

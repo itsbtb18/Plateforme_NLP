@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h3 mb-0"><i class="fas fa-plus-circle me-2"></i>{% trans "Create a new chat room" %}</h2>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <span class="badge bg-info text-white p-2 mb-3">{% trans "Subject:" %} {{ topic.title }}</span>
+                        <p class="text-muted">{% trans "Please fill out the information below to create your chat room." %}</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label for="{{ form.name.id_for_label }}" class="form-label fw-bold">{% trans "Room name" %}</label>
+                            <input 
+                                type="text" 
+                                name="{{ form.name.name }}" 
+                                class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                                id="{{ form.name.id_for_label }}" 
+                                {% if form.name.value %}value="{{ form.name.value }}"{% endif %}
+
+                                placeholder="Enter your chat room name"
+
+                            >
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.name.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">{% trans "Description" %}</label>
+                            <textarea 
+                                name="{{ form.description.name }}" 
+                                class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                id="{{ form.description.id_for_label }}" 
+                                rows="4" 
+
+                               placeholder="{% trans 'Briefly describe the topic of discussion in this room' %}"
+
+                            >{% if form.description.value %}{{ form.description.value }}{% endif %}</textarea>
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'forum:topic-list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>{% trans "Cancel" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check-circle me-1"></i>{% trans "Create the room" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add simple animation to form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function() {
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Création en cours...';
+            submitButton.disabled = true;
+        });
+        
+        // Focus on the first input field when the page loads
+        document.getElementById('{{ form.name.id_for_label }}').focus();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Chat rooms | Arabic NLP Platform" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="forum-header">
+        <h1 class="forum-title">{% trans "Chat rooms" %}</h1>
+        <a href="{% url 'forum:topic-list' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> {% trans "View topics" %}
+        </a>
+    </div>
+    
+    {% if chatrooms %}
+    <div class="chatroom-list">
+        {% for chatroom in chatrooms %}
+        <div class="chatroom-card">
+            <div class="chatroom-card-header">
+                <div class="chatroom-info">
+                    <h3 class="chatroom-name">{{ chatroom.name }}</h3>
+                    <div class="chatroom-meta">
+                        <span class="chatroom-topic">
+                            <i class="fas fa-folder"></i> {{ chatroom.topic.title }}
+                        </span>
+                        <span class="chatroom-author">
+                            <i class="fas fa-user"></i> {{ chatroom.creator.full_name }}
+                        </span>
+                        <span class="chatroom-date">
+                            <i class="far fa-calendar-alt"></i> {{ chatroom.created_at|date:"d/m/Y" }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chatroom-card-body">
+                <p class="chatroom-description">{{ chatroom.description }}</p>
+            </div>
+            
+            <div class="chatroom-card-footer">
+    <a href="{% url 'forum:chatroom-detail' chatroom.id %}" class="btn btn-primary">
+        <i class="fas fa-sign-in-alt"></i> {% trans "Join the discussion" %}
+    </a>
+
+   {% if request.user.is_authenticated and request.user == chatroom.creator or request.user.is_staff %}
+        <a href="{% url 'forum:chatroom-update' chatroom.pk %}" class="btn btn-outline ms-2">
+            <i class="fas fa-edit"></i> {% trans "Edit" %}
+        </a>
+        <a href="{% url 'forum:chatroom-delete' chatroom.pk %}" class="btn btn-outline-danger ms-2">
+            <i class="fas fa-trash-alt"></i> {% trans "Delete" %}
+        </a>
+    {% endif %}
+</div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="fas fa-comments"></i>
+        </div>
+        <h3>{% trans "No chat room is available" %}</h3>
+        <p>{% trans "Return to topics to create a new chat room" %}</p>
+        <a href="{% url 'forum:topic-list' %}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> {% trans "Back to topics" %}
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Forum specific styles */
+    .forum-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .forum-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: var(--primary-dark, #0d47a1);
+        margin: 0;
+    }
+    
+    .chatroom-list {
+        display: grid;
+        gap: 1.25rem;
+    }
+    
+    .chatroom-card {
+        background-color: var(--bg-light, #ffffff);
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--border-color, #e0e0e0);
+    }
+    
+    .chatroom-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.08);
+    }
+    
+    .chatroom-card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color, #e0e0e0);
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    
+    .chatroom-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chatroom-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+        line-height: 1.3;
+        color: var(--primary-color, #1a73e8);
+    }
+    
+    .chatroom-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: var(--text-muted, #999);
+    }
+    
+    .chatroom-meta i {
+        margin-right: 0.4rem;
+    }
+    
+    .chatroom-card-body {
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .chatroom-description {
+        margin: 0;
+        color: var(--text-color, #333);
+        line-height: 1.6;
+    }
+    
+    .chatroom-card-footer {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.01);
+        border-top: 1px solid var(--border-color, #e0e0e0);
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn i {
+        margin-right: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .btn-outline {
+        color: var(--primary-color, #1a73e8);
+        background-color: transparent;
+        border: 1px solid var(--primary-color, #1a73e8);
+    }
+    
+    .btn-outline:hover {
+        background-color: var(--primary-light, #e8f0fe);
+        color: var(--primary-dark, #0d47a1);
+    }
+    
+    .btn-primary {
+        background-color: var(--primary-color, #1a73e8);
+        color: white;
+        border: 1px solid var(--primary-color, #1a73e8);
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--primary-dark, #0d47a1);
+        border-color: var(--primary-dark, #0d47a1);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        background-color: var(--bg-light, #ffffff);
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted, #999);
+        margin-bottom: 1.5rem;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--text-color, #333);
+    }
+    
+    .empty-state p {
+        color: var(--text-muted, #999);
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .forum-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .chatroom-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+    
+    @media (min-width: 768px) {
+        .chatroom-list {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (min-width: 992px) {
+        .chatroom-list {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}

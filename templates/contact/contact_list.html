@@ -1,0 +1,298 @@
+<!-- templates/admin/contact_list.html -->
+{% extends 'admin/base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block page_title %}{% trans "Contact Messages" %}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'admin:admin_contact_list' %}" class="btn btn-outline-primary">
+    <i class="fas fa-sync-alt"></i> {% trans "Refresh" %}
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{% trans "Total" %}</h5>
+                        <h3>{{ stats.total }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-envelope fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{% trans "Pending" %}</h5>
+                        <h3>{{ stats.pending }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{% trans "Read" %}</h5>
+                        <h3>{{ stats.read }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-eye fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>{% trans "Replied" %}</h5>
+                        <h3>{{ stats.replied }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-reply fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">{% trans "Status" %}</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">{% trans "All statuses" %}</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="subject" class="form-label">{% trans "Subject" %}</label>
+                <select name="subject" id="subject" class="form-select">
+                    <option value="">{% trans "All subjects" %}</option>
+                    {% for value, label in subject_choices %}
+                        <option value="{{ value }}" {% if subject_filter == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="search" class="form-label">{% trans "Search" %}</label>
+                <input type="text" name="search" id="search" class="form-control" 
+                       value="{{ search_query }}" placeholder="{% trans 'Search by name, email, or message...' %}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block w-100">
+                    <i class="fas fa-search"></i> {% trans "Filter" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des messages -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{% trans "Messages" %}</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{% trans "Date" %}</th>
+                        <th>{% trans "From" %}</th>
+                        <th>{% trans "Subject" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for message in messages %}
+                    <tr class="{% if message.status == 'pending' %}table-warning{% endif %}">
+                        <td>{{ message.created_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <strong>{{ message.name }}</strong><br>
+                            <small class="text-muted">{{ message.email }}</small>
+                            {% if message.user %}
+                                <br><small class="text-info">{% trans "User account" %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ message.get_subject_display }}</span>
+                            <br>
+                            <small class="text-muted">{{ message.message|truncatewords:10 }}</small>
+                        </td>
+                        <td>
+                            {% if message.status == 'pending' %}
+                                <span class="badge bg-warning">{% trans "Pending" %}</span>
+                            {% elif message.status == 'read' %}
+                                <span class="badge bg-info">{% trans "Read" %}</span>
+                            {% elif message.status == 'replied' %}
+                                <span class="badge bg-success">{% trans "Replied" %}</span>
+                            {% elif message.status == 'closed' %}
+                                <span class="badge bg-secondary">{% trans "Closed" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'admin:admin_contact_detail' message.pk %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> {% trans "View" %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            {% trans "No messages found." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if messages.has_other_pages %}
+<nav aria-label="Messages pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if messages.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ messages.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if subject_filter %}&subject={{ subject_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    {% trans "Previous" %}
+                </a>
+            </li>
+        {% endif %}
+        
+        {% for num in messages.paginator.page_range %}
+            {% if messages.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+            {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if subject_filter %}&subject={{ subject_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if messages.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ messages.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if subject_filter %}&subject={{ subject_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    {% trans "Next" %}
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+<!-- Template pour la page de détail d'un message -->
+<!-- templates/admin/contact_detail.html -->
+{% extends 'admin/base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block page_title %}{% trans "Contact Message Details" %}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'admin:admin_contact_list' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> {% trans "Back to List" %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Message original -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% trans "Original Message" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>{% trans "From:" %}</strong> {{ contact_message.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{% trans "Email:" %}</strong> {{ contact_message.email }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>{% trans "Subject:" %}</strong> 
+                        <span class="badge bg-secondary">{{ contact_message.get_subject_display }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{% trans "Date:" %}</strong> {{ contact_message.created_at|date:"M d, Y H:i" }}
+                    </div>
+                </div>
+                {% if contact_message.user %}
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <strong>{% trans "User Account:" %}</strong> 
+                        <a href="{% url 'accounts:profile' contact_message.user.id %}" target="_blank">
+                            {{ contact_message.user.username }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    <strong>{% trans "Message:" %}</strong>
+                    <div class="bg-light p-3 rounded mt-2">
+                        {{ contact_message.message|linebreaks }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Formulaire de réponse -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{% trans "Admin Response" %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.status.id_for_label }}" class="form-label">
+                            {{ form.status.label }}
+                        </label>
+                        {{ form.status }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.admin_response.id_for_label }}" class="form-

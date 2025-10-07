@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load account socialaccount %}
+{% load i18n %}
+
+{% block title %}{% trans "Log In" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="text-center mb-0">{% trans "Welcome Back" %}</h2>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Regular Login Form -->
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            {{ form|crispy }}
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-sign-in-alt me-2"></i>{% trans "Log In" %}
+                        </button>
+                    </form>
+
+                    <!-- Social Login (Conditional) -->
+                    {% get_providers as socialaccount_providers %}
+                    {% if socialaccount_providers %}
+                    <div class="text-center mt-4 mb-3">
+                        <span class="text-muted">{% trans "Or continue with" %}</span>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {% for provider in socialaccount_providers %}
+                        <a href="{% provider_login_url provider.id process='login' %}" 
+                           class="btn btn-outline-secondary btn-lg">
+                            <i class="fab fa-{{ provider.name|lower }} me-2"></i>
+                            {{ provider.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Links Section -->
+                    <div class="text-center mt-4">
+                        <p class="mb-1">
+                            <a href="{% url 'account_reset_password' %}" class="text-decoration-none">
+                                {% trans "Forgot Password?" %}
+                            </a>
+                        </p>
+                        <p class="mb-0">
+                            {% trans "Don't have an account? " %}
+                            <a href="{% url 'account_signup' %}" class="text-decoration-none fw-bold">
+                                <i class="fas fa-user-plus me-1"></i>{% trans "Sign Up" %}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

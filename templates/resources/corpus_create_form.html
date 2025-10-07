@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags i18n %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">{% trans "Create New Corpus" %}</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <input type="hidden" name="resource_type" value="corpus">
+                
+                <!-- Basic Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        {% trans "Basic Information" %}
+                    </div>
+                    <div class="card-body">
+                        {{ form.title|as_crispy_field }}
+                        {{ form.language|as_crispy_field }}
+                        {{ form.description|as_crispy_field }}
+                        {{ form.keywords|as_crispy_field }}
+                        {{ form.access_link|as_crispy_field }}
+                    </div>
+                </div>
+                
+                <!-- Corpus Specific Fields -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        {% trans "Corpus Details" %}
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.corpus_size|as_crispy_field }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.corpus_field|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.corpus_format|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-end">
+                    <a href="{% url 'resources:list' %}" class="btn btn-secondary me-2">{% trans "Cancel" %}</a>
+                    <button type="submit" class="btn btn-primary">{% trans "Save Corpus" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const nonCorpusFields = [
+            'document_type', 'document_format', 'tool_type', 'tool_version', 
+            'documentation', 'languages', 'course_field', 'academic_level', 
+            'course_institution', 'academic_year', 'doi', 'journal', 
+            'publication_date', 'supervisor', 'thesis_institution', 
+            'defense_year', 'memoir_level', 'memoir_institution', 
+            'memoir_defense_year'
+        ];
+        
+        nonCorpusFields.forEach(field => {
+            const fieldElement = document.querySelector(`[name="${field}"]`);
+            if (fieldElement) {
+                const formGroup = fieldElement.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
