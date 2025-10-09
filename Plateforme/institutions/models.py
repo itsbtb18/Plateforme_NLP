@@ -38,10 +38,10 @@ class Institution(models.Model):
         editable=False
     )
     TYPE = [
-        ('School', 'School'),
-        ('University', 'University'),
-        ('Research Center', 'Research Center'),
-        ('Other', 'Other'),
+        ('School', _('School')),
+        ('University', _('University')),
+        ('Research Center', _('Research Center')),
+        ('Other', _('Other')),
     ]
     name = models.CharField(_("Institution Name"), max_length=255)
     acronym = models.CharField(_("Acronym"), max_length=20, blank=True)
