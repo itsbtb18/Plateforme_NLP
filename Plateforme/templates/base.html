@@ -55,7 +55,7 @@
         <div class="container header-container">
             <div class="logo-container">
                 <a href="{% url 'pages:home' %}" class="logo-link d-flex align-items-center gap-2">
-                    <img src="{% static 'images/logo.jpg' %}" alt="Arabic NLP Platform" class="logo-img" style="height: 40px;">
+                    <img src="{% static 'images/logo.png' %}" alt="Arabic NLP Platform" class="logo-img" style="height: 40px;">
                     <span class="logo-text fw-bold fs-4 ">{% trans "Arabic NLP" %}  </span>
                 </a>
             </div>
@@ -228,7 +228,7 @@
                     <li><a class="{% if page == 'events' %} active{% endif %}" href="{% url 'events:event_list' %}">
                         <i class="fas fa-calendar-alt"></i> {% trans "Events" %} 
                     </a></li>
-                    <li><a class="{% if page == 'course' %} active{% endif %}" href="{% url 'resources:course_list' %}">
+                    <li><a href="{% url 'resources:course_list' %}" class="{% if page == 'course' %}active{% endif %}">
                         <i class="fas fa-graduation-cap"></i> {% trans "Courses" %} 
                     </a></li>
                     <li>
@@ -380,11 +380,17 @@
         });
     </script>
       <!-- En bas de ton body -->
-<a href="{% url 'chatbot:chatbot_interface' %}" style="
+ 
+<a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
+    💬
+</a>
+
+<style>
+/* Chatbot button positioning based on language direction */
+.chatbot-button {
     position: fixed;
     bottom: 30px;
-    right: 30px;
-    background-color: #007bff; /* bleu */
+    background-color: #007bff;
     color: white;
     padding: 15px 18px;
     border-radius: 50%;
@@ -393,9 +399,25 @@
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
     z-index: 1000;
     transition: 0.3s;
-" title="Assistant intelligent">
-    💬
-</a>
+}
+
+.chatbot-button:hover {
+    transform: scale(1.1);
+    background-color: #0056b3;
+}
+
+/* Position based on language direction */
+html[dir="ltr"] .chatbot-button {
+    right: 30px;
+    left: auto;
+}
+
+html[dir="rtl"] .chatbot-button {
+    left: 30px;
+    right: auto;
+}
+</style>
+
     {% block extra_scripts %}{% endblock %}
 </body>
 {% load static %}
