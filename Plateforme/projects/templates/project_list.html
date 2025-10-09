@@ -1,8 +1,7 @@
 {% extends 'base.html' %} 
 {% load i18n %}
-{% block title %}Projects - Arabic TAL Research
-
-{% endblock %} {% block content %}
+{% block title %} {% trans "Projects - Arabic TAL Research" %} {% endblock title %}
+ {% block content %}
 <div class="content">
   <div class="projects-header">
    
@@ -12,7 +11,7 @@
           <input
             type="text"
             name="search"
-            placeholder="Search for a project..."
+            placeholder={% trans "Search for a project..." %}
             value="{{ request.GET.search }}"
             class="search-input"
           />
@@ -57,8 +56,7 @@
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        New Project
-      </a>
+         {% trans "New Project" %}      </a>
       <a
         href="{% if request.GET.my_projects %}{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% else %}?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% endif %}"
         class="btn filter-btn {% if request.GET.my_projects %}active{% endif %}"
@@ -78,7 +76,7 @@
             points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
           ></polygon>
         </svg>
-        {% if request.GET.my_projects %}All projects{% else %}My projects{% endif %}
+        {% if request.GET.my_projects %} {% trans "All projects" %}{% else %} {% trans "My projects" %} {% endif %}
       </a>
 
       {# Filtre par statut #}
@@ -184,7 +182,7 @@
     <div class="empty-message">
       {% if request.GET.search %} No projects match your search.
       {% elif request.GET.my_projects %}You have not created a project yet.
-      {% else %} No projects are available at the moment. {% endif %}
+      {% else %} {% trans "No projects are available at the moment." %} {% endif %}
     </div>
     {% endfor %}
   </div>
