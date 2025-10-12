@@ -16,15 +16,16 @@ class InstitutionAdmin(admin.ModelAdmin):
     list_filter = ('type', 'country', 'specialties')
     search_fields = ('name', 'acronym', 'description')
     filter_horizontal = ('specialties',)
-    
-
-
-
-
+     
 @admin.register(Country)
 class CountryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code')
-    search_fields = ('name', 'code')
+    list_display = ['name_en', 'name_ar', 'code']
+    search_fields = ['name_en', 'name_ar', 'code']
+    list_filter = ['code']
+
+
+
+
 
 
 @admin.register(Specialty)
