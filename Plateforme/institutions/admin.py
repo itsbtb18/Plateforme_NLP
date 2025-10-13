@@ -30,5 +30,5 @@ class CountryAdmin(admin.ModelAdmin):
 
 @admin.register(Specialty)
 class SpecialtyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code')
-    search_fields = ('name', 'code')
+    list_display = ('name_en', 'name_ar', 'code')
+    search_fields = ('name_en', 'name_ar', 'code')

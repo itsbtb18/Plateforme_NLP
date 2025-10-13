@@ -23,18 +23,20 @@ class Country(models.Model):
 
 
 class Specialty(models.Model):
-    name = models.CharField(_("Specialty Name"), max_length=100 ,unique=True)
-    code = models.CharField(_("Specialty Code"), max_length=20)
+    name_en = models.CharField(_("Specialty Name (English)"), max_length=100, unique=True, default='')
+    name_ar = models.CharField(_("Specialty Name (Arabic)"), max_length=100, blank=True, default='')
+    code = models.CharField(_("Specialty Code"), max_length=20, unique=True)
 
     class Meta:
         verbose_name = _("Specialty")
         verbose_name_plural = _("Specialties")
-        ordering = ['name']
+        ordering = ['name_en']
 
     def __str__(self):
-        return self.name
-
-
+        from django.utils.translation import get_language
+        current_lang = get_language()
+        return self.name_ar if current_lang == 'ar' else self.name_en
+    
 class Institution(models.Model):
     id = models.UUIDField(
         primary_key=True,

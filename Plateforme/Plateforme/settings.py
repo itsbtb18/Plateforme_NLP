@@ -4,6 +4,8 @@ Django settings for Plateforme project.
 
 from pathlib import Path
 import os
+from decouple import config
+import dj_database_url
 
 # --- Charger les variables d'environnement (.env) ---
 # Assure-toi d'avoir "python-dotenv" dans requirements.txt (c'est le cas)
@@ -18,11 +20,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ----------------------------------------------------
 # Sécurité & Debug
 # ----------------------------------------------------
-SECRET_KEY = os.getenv("SECRET_KEY", "insecure-dev-key")  # à remplacer en prod
-DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
-
-# ALLOWED_HOSTS géré via .env (séparés par des virgules)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-default-key')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 # Optionnel si tu utilises un nom de domaine ou 127.0.0.1 en HTTPS derrière un proxy
 # CSRF_TRUSTED_ORIGINS = [ "https://ton-domaine.tld" ]
@@ -126,15 +126,9 @@ CHANNEL_LAYERS = {
 # ----------------------------------------------------
 # Base de données (PostgreSQL via .env)
 # ----------------------------------------------------
+DATABASE_URL = config('DATABASE_URL')
 DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("DB_NAME", "plateforme"),
-        "USER": os.getenv("DB_USER", "btb"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "2004"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-    }
+    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 }
 
 # ----------------------------------------------------
@@ -148,10 +142,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_FORMS = {
     "signup": "accounts.forms.CustomUserCreationForm",
 }
