@@ -177,13 +177,23 @@
                     </div>
                     <!-- End of Notification Bell -->
                     
-                    <a href="{% url 'accounts:profile' user.id %}" class="">
-                        <i class="fas fa-user"></i>{% trans "Profile" %}  
-                    </a>
-                    <a href="{% url 'account_logout' %}" class="">
-                        <i class="fas fa-sign-out-alt"></i> {% trans "Logout" %} 
-                    </a>
-                    
+    <!-- Profile Icon Dropdown -->
+    <div class="profile-icon-container">
+        <button class="profile-icon-btn" id="profileIconBtn" title="{% trans 'Profile' %}">
+            <i class="fas fa-user-circle"></i>
+        </button>
+        
+        <div class="profile-dropdown" id="profileDropdown">
+            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item">
+                <i class="fas fa-user"></i>
+                <span>{% trans "Profile" %}</span>
+            </a>
+            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>{% trans "Logout" %}</span>
+            </a>
+        </div>
+    </div>
                 {% else %}
                     <a href="{% url 'account_login' %}" class="">
                         <i class="fas fa-sign-in-alt"></i>{% trans "Log in" %}  
@@ -378,6 +388,50 @@
                 return toast;
             });
         });
+       // Profile icon dropdown toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const profileIconBtn = document.getElementById('profileIconBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    if (profileIconBtn && profileDropdown) {
+        console.log('Profile dropdown initialized'); // Pour déboguer
+        
+        // Toggle dropdown
+        profileIconBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Fermer le dropdown des notifications s'il est ouvert
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            if (notificationDropdown) {
+                notificationDropdown.classList.remove('show');
+            }
+            
+            // Toggle le dropdown du profil
+            const isShown = profileDropdown.classList.contains('show');
+            profileDropdown.classList.toggle('show');
+            
+            console.log('Dropdown toggled:', !isShown); // Pour déboguer
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!profileIconBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('show');
+            }
+        });
+
+        // Prevent dropdown from closing when clicking links inside
+        profileDropdown.addEventListener('click', function(e) {
+            // Ne pas empêcher la navigation vers les liens
+            if (e.target.tagName !== 'A') {
+                e.stopPropagation();
+            }
+        });
+    } else {
+        console.error('Profile button or dropdown not found');
+    }
+});
     </script>
       <!-- En bas de ton body -->
 <a href="{% url 'chatbot:chatbot_interface' %}" style="
