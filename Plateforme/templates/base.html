@@ -100,14 +100,25 @@
                 }
             </style>
 
-            <div class="lang-container">
-                <a href="{% url 'translate:switch_language' %}?language=en" class="lang-button lang-en">
-                    {% trans "English" %}
-                </a>
-                <a href="{% url 'translate:switch_language' %}?language=ar" class="lang-button lang-ar">
-                    {% trans "Arabic" %}
-                </a>
-            </div>
+            <!-- Language Switcher Dropdown -->
+   <div class="language-dropdown-container">
+      <button class="language-icon-btn" id="languageIconBtn" title="{% trans 'Language' %}">
+        <i class="fas fa-globe"></i>
+        <span class="language-text">{% if LANGUAGE_CODE == 'ar' %}اللغة{% else %}Language{% endif %}</span>
+      </button>
+    
+     <div class="language-dropdown" id="languageDropdown">
+        <a href="{% url 'translate:switch_language' %}?language=en" class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
+            <i class="fas fa-check-circle"></i>
+            <span>English</span>
+        </a>
+        <a href="{% url 'translate:switch_language' %}?language=ar" class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}">
+            <i class="fas fa-check-circle"></i>
+            <span>العربية</span>
+        </a>
+     </div>
+    </div>
+    
 
             <div class="auth-buttons">
                 {% if user.is_authenticated %}
@@ -544,7 +555,63 @@
                     }
                 });
             }
-        });
+        }); 
+        // Language dropdown toggle
+const languageIconBtn = document.getElementById('languageIconBtn');
+const languageDropdown = document.getElementById('languageDropdown');
+
+if (languageIconBtn && languageDropdown) {
+    languageIconBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Close notification dropdown if open
+        if (notificationDropdown && notificationDropdown.classList.contains('show')) {
+            notificationDropdown.classList.remove('show');
+        }
+        
+        // Close profile dropdown if open
+        if (profileDropdown && profileDropdown.classList.contains('show')) {
+            profileDropdown.classList.remove('show');
+        }
+        
+        // Toggle language dropdown
+        languageDropdown.classList.toggle('show');
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    languageDropdown.addEventListener('click', function(e) {
+        if (e.target.tagName !== 'A' && !e.target.closest('a')) {
+            e.stopPropagation();
+        }
+    });
+}
+
+// Update the existing document click listener to include language dropdown
+document.addEventListener('click', function(e) {
+    if (notificationDropdown && 
+        !notificationDropdown.contains(e.target) && 
+        notificationToggle && 
+        !notificationToggle.contains(e.target)) {
+        notificationDropdown.classList.remove('show');
+    }
+    
+    if (profileDropdown && 
+        !profileDropdown.contains(e.target) && 
+        profileIconBtn && 
+        !profileIconBtn.contains(e.target)) {
+        profileDropdown.classList.remove('show');
+    }
+    
+    // Add language dropdown closing
+    if (languageDropdown && 
+        !languageDropdown.contains(e.target) && 
+        languageIconBtn && 
+        !languageIconBtn.contains(e.target)) {
+        languageDropdown.classList.remove('show');
+    }
+});
+
     </script>
 
     {% block extra_scripts %}{% endblock %}
