@@ -8,34 +8,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %} {% trans "Arabic NLP Platform" %}  {% endblock %}</title>
     <script src="https://unpkg.com/hyperscript.org@0.9.14"></script>
-<!-- Charge HTMX core -->
-<script src="https://unpkg.com/htmx.org"></script>
-
-<!-- Puis l'extension WebSocket de HTMX -->
-<script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
-     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
+    <script src="https://unpkg.com/htmx.org"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+    <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
-    {# <link href="{% static 'css/navbar_notifications.css' %}" rel="stylesheet"> #} {% comment %} Ligne commentée car le fichier semble manquant {% endcomment %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     {% block extra_styles %}{% endblock %}
     <style>
-      /* Assurez-vous que le badge est toujours là pour le JS, masqué par défaut s'il est vide */
       .notification-badge {
-        display: none; /* Masqué par défaut */
-        /* Styles existants du badge... */
+        display: none;
         position: absolute;
         top: 0px;
         right: -5px;
         padding: 2px;
         padding-right: 6px;
-
         border-radius: 50%;
-        background-color: #dc3545; /* Rouge */
+        background-color: #dc3545;
         color: white;
         font-size: 0.7em;
         font-weight: bold;
@@ -44,9 +36,8 @@
         height: 18px;
         line-height: 14px;
       }
-      /* Afficher le badge uniquement s'il contient du texte (c'est-à-dire si count > 0) */
       .notification-badge:not(:empty) {
-        display: block; /* Affiché s'il n'est pas vide */
+        display: block;
       }
     </style>
 </head>
@@ -60,75 +51,74 @@
                 </a>
             </div>
             <div class="search-container">
-    <div class="search-bar">
-        <form id="global-search-form" action="{% url 'search:global_search' %}" method="get">
-            <div class="input-group">
-                <input type="text" name="q" placeholder=" {% trans "Search resources,tools,corpus..." %} " 
-                       id="search-input" class="form-control" />
-                <button type="submit" class="btn btn-primary ">
-                    <i class="fas fa-search"></i>
-                </button>
+                <div class="search-bar">
+                    <form id="global-search-form" action="{% url 'search:global_search' %}" method="get">
+                        <div class="input-group">
+                            <input type="text" name="q" placeholder=" {% trans "Search resources,tools,corpus..." %} " 
+                                   id="search-input" class="form-control" />
+                            <button type="submit" class="btn btn-primary ">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </form>
-    </div>
-    
-</div>
-  <div id="search-results" class="search-results-dropdown"></div>
-           <style>
-  .lang-container {
-    display: inline-flex;
-    gap: 12px; /* espace entre les boutons */
-  }
-  .lang-button {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    border: 2px solid transparent;
-    display: inline-block;
-  }
-  .lang-en {
-    background-color: #2563eb; /* bleu */
-    color: white;
-    border-color: #2563eb;
-  }
-  .lang-en:hover {
-    background-color: #1d4ed8;
-    border-color: #1d4ed8;
-    color : white
-  }
-  .lang-ar {
-    background-color: white;
-    color: #2563eb;
-    border-color: #2563eb;
-  }
-  .lang-ar:hover {
-    background-color: #ebf4ff; /* bleu clair */
-  }
-</style>
+            <div id="search-results" class="search-results-dropdown"></div>
+           
+            <style>
+                .lang-container {
+                    display: inline-flex;
+                    gap: 12px;
+                }
+                .lang-button {
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                    border: 2px solid transparent;
+                    display: inline-block;
+                }
+                .lang-en {
+                    background-color: #2563eb;
+                    color: white;
+                    border-color: #2563eb;
+                }
+                .lang-en:hover {
+                    background-color: #1d4ed8;
+                    border-color: #1d4ed8;
+                    color: white;
+                }
+                .lang-ar {
+                    background-color: white;
+                    color: #2563eb;
+                    border-color: #2563eb;
+                }
+                .lang-ar:hover {
+                    background-color: #ebf4ff;
+                }
+            </style>
 
-<div class="lang-container">
-  <a href="{% url 'translate:switch_language' %}?language=en" class="lang-button lang-en">
-    {% trans "English" %}
-  </a>
-  <a href="{% url 'translate:switch_language' %}?language=ar" class="lang-button lang-ar">
-    {% trans "Arabic" %}
-  </a>
-</div>
-
+            <div class="lang-container">
+                <a href="{% url 'translate:switch_language' %}?language=en" class="lang-button lang-en">
+                    {% trans "English" %}
+                </a>
+                <a href="{% url 'translate:switch_language' %}?language=ar" class="lang-button lang-ar">
+                    {% trans "Arabic" %}
+                </a>
+            </div>
 
             <div class="auth-buttons">
                 {% if user.is_authenticated %}
                     <!-- Notification Bell -->
                     <div class="notification-dropdown-container">
                         <button class="btn btn-icon notification-bell position-relative" 
-        id="notificationDropdownToggle" 
-        aria-label="Afficher les notifications">
-    <i class="fas fa-bell" aria-hidden="true"></i>
-    <span class="notification-badge">{% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
-</button>
+                                id="notificationDropdownToggle" 
+                                aria-label="Afficher les notifications">
+                            <i class="fas fa-bell" aria-hidden="true"></i>
+                            <span class="notification-badge">{% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+                        </button>
                         <div class="notification-dropdown" id="notificationDropdown">
                             <div class="notification-header">
                                 <h6>{% trans "Notifications" %} </h6>
@@ -177,36 +167,36 @@
                     </div>
                     <!-- End of Notification Bell -->
                     
-    <!-- Profile Icon Dropdown -->
-    <div class="profile-icon-container">
-        <button class="profile-icon-btn" id="profileIconBtn" title="{% trans 'Profile' %}">
-            <i class="fas fa-user-circle"></i>
-        </button>
-        
-        <div class="profile-dropdown" id="profileDropdown">
-            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item">
-                <i class="fas fa-user"></i>
-                <span>{% trans "Profile" %}</span>
-            </a>
-            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>{% trans "Logout" %}</span>
-            </a>
-        </div>
-    </div>
+                    <!-- Profile Icon Dropdown -->
+                    <div class="profile-icon-container">
+                        <button class="profile-icon-btn" id="profileIconBtn" title="{% trans 'Profile' %}">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item">
+                                <i class="fas fa-user"></i>
+                                <span>{% trans "Profile" %}</span>
+                            </a>
+                            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>{% trans "Logout" %}</span>
+                            </a>
+                        </div>
+                    </div>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="">
+                    <a href="{% url 'account_login' %}" class="btn btn-outline">
                         <i class="fas fa-sign-in-alt"></i>{% trans "Log in" %}  
                     </a>
-                    <a href="{% url 'account_signup' %}" class="">
+                    <a href="{% url 'account_signup' %}" class="btn btn-primary">
                         <i class="fas fa-user-plus"></i> {% trans "Sign up" %} 
                     </a>
                 {% endif %}
             </div>
             
             <button class="mobile-menu-toggle" id="sidebarToggle" aria-label="Ouvrir/fermer le menu">
-    <i class="fas fa-bars" aria-hidden="true"></i>
-</button>
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
         </div>
     </header>
 
@@ -245,8 +235,8 @@
                         <a class="{% if page == 'institutions' %} active{% endif %}" href="{% url 'institutions:institution_list' %}" aria-label="Institutions">
                           <i class="fas fa-university"></i> {% trans "Institutions" %} 
                         </a>
-                      </li>
-                                        {% if user.is_staff %}
+                    </li>
+                    {% if user.is_staff %}
                     <li>
                         <a {% if page == 'Admin' %}class="active"{% endif %}
                         href="{% url 'pages:admin_dashboard' %}"
@@ -255,7 +245,6 @@
                         </a>
                     </li>
                     {% endif %}
-
                 </ul>
             </nav>
         </aside>
@@ -310,7 +299,6 @@
                             <li><a href="{% url 'forum:topic-list' %}">{% trans "Forum" %}</a></li>
                             <li><a href="{% url 'projects:project_list' %}">{% trans "Research Projects" %}</a></li>
                             <li><a href="{% url 'events:event_list' %}">{% trans "Events" %}</a></li>
-                           
                         </ul>
                     </div>
                     <div class="footer-column">
@@ -327,39 +315,69 @@
         <div class="footer-bottom">
             <div class="container">
                 <p class="copyright">© {% now "Y" %}{% trans "Arabic NLP Platform. All rights reserved." %} </p>
-               
             </div>
         </div>
     </footer>
 
+    <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
+        💬
+    </a>
 
+    <style>
+    .chatbot-button {
+        position: fixed;
+        bottom: 30px;
+        background-color: #007bff;
+        color: white;
+        padding: 15px 18px;
+        border-radius: 50%;
+        text-decoration: none;
+        font-size: 24px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        transition: 0.3s;
+    }
+    .chatbot-button:hover {
+        transform: scale(1.1);
+        background-color: #0056b3;
+    }
+    html[dir="ltr"] .chatbot-button {
+        right: 30px;
+        left: auto;
+    }
+    html[dir="rtl"] .chatbot-button {
+        left: 30px;
+        right: auto;
+    }
+    </style>
 
+    <script src="{% static 'js/notifications.js' %}"></script>
     
     <script>
-
-        
-        // Mobile menu toggle
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.body.classList.toggle('sidebar-open');
-        });
-        
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            
-            if (window.innerWidth <= 992 && 
-                sidebar.classList.contains('active') && 
-                !sidebar.contains(event.target) && 
-                !toggleBtn.contains(event.target)) {
-                sidebar.classList.remove('active');
-                document.body.classList.remove('sidebar-open');
-            }
-        });
-        
-        // Notification dropdown toggle
         document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('active');
+                    document.body.classList.toggle('sidebar-open');
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 992 && 
+                        sidebar.classList.contains('active') && 
+                        !sidebar.contains(event.target) && 
+                        !sidebarToggle.contains(event.target)) {
+                        sidebar.classList.remove('active');
+                        document.body.classList.remove('sidebar-open');
+                    }
+                });
+            }
+            
+            // Notification dropdown toggle
             const notificationToggle = document.getElementById('notificationDropdownToggle');
             const notificationDropdown = document.getElementById('notificationDropdown');
             
@@ -367,15 +385,58 @@
                 notificationToggle.addEventListener('click', function(e) {
                     e.stopPropagation();
                     notificationDropdown.classList.toggle('show');
-                });
-                
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function(e) {
-                    if (!notificationDropdown.contains(e.target) && !notificationToggle.contains(e.target)) {
-                        notificationDropdown.classList.remove('show');
+                    
+                    // Close profile dropdown if open
+                    const profileDropdown = document.getElementById('profileDropdown');
+                    if (profileDropdown && profileDropdown.classList.contains('show')) {
+                        profileDropdown.classList.remove('show');
                     }
                 });
             }
+            
+            // Profile icon dropdown toggle
+            const profileIconBtn = document.getElementById('profileIconBtn');
+            const profileDropdown = document.getElementById('profileDropdown');
+
+            if (profileIconBtn && profileDropdown) {
+                profileIconBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Close notification dropdown if open
+                    if (notificationDropdown && notificationDropdown.classList.contains('show')) {
+                        notificationDropdown.classList.remove('show');
+                    }
+                    
+                    // Toggle profile dropdown
+                    profileDropdown.classList.toggle('show');
+                });
+
+                // Prevent dropdown from closing when clicking links inside
+                profileDropdown.addEventListener('click', function(e) {
+                    // Don't prevent navigation for links
+                    if (e.target.tagName !== 'A' && !e.target.closest('a')) {
+                        e.stopPropagation();
+                    }
+                });
+            }
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (notificationDropdown && 
+                    !notificationDropdown.contains(e.target) && 
+                    notificationToggle && 
+                    !notificationToggle.contains(e.target)) {
+                    notificationDropdown.classList.remove('show');
+                }
+                
+                if (profileDropdown && 
+                    !profileDropdown.contains(e.target) && 
+                    profileIconBtn && 
+                    !profileIconBtn.contains(e.target)) {
+                    profileDropdown.classList.remove('show');
+                }
+            });
             
             // Initialize toasts
             var toastElList = [].slice.call(document.querySelectorAll('.toast'));
@@ -388,211 +449,104 @@
                 return toast;
             });
         });
-       // Profile icon dropdown toggle
-document.addEventListener('DOMContentLoaded', function() {
-    const profileIconBtn = document.getElementById('profileIconBtn');
-    const profileDropdown = document.getElementById('profileDropdown');
-
-    if (profileIconBtn && profileDropdown) {
-        console.log('Profile dropdown initialized'); // Pour déboguer
         
-        // Toggle dropdown
-        profileIconBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Fermer le dropdown des notifications s'il est ouvert
-            const notificationDropdown = document.getElementById('notificationDropdown');
-            if (notificationDropdown) {
-                notificationDropdown.classList.remove('show');
-            }
-            
-            // Toggle le dropdown du profil
-            const isShown = profileDropdown.classList.contains('show');
-            profileDropdown.classList.toggle('show');
-            
-            console.log('Dropdown toggled:', !isShown); // Pour déboguer
-        });
+        // Search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('global-search-form');
+            const searchInput = document.getElementById('search-input');
+            const searchResults = document.getElementById('search-results');
+            let searchTimeout;
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!profileIconBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
-                profileDropdown.classList.remove('show');
-            }
-        });
+            const typeColors = {
+                'course': 'bg-primary',
+                'resource': 'bg-success',
+                'project': 'bg-info',
+                'event': 'bg-warning',
+                'tool': 'bg-secondary',
+                'corpus': 'bg-danger',
+                'user': 'bg-dark'
+            };
 
-        // Prevent dropdown from closing when clicking links inside
-        profileDropdown.addEventListener('click', function(e) {
-            // Ne pas empêcher la navigation vers les liens
-            if (e.target.tagName !== 'A') {
-                e.stopPropagation();
+            if (searchInput && searchResults && searchForm) {
+                searchInput.addEventListener('input', function(e) {
+                    const query = e.target.value.trim();
+                    
+                    clearTimeout(searchTimeout);
+                    
+                    if (query.length < 2) {
+                        searchResults.style.display = 'none';
+                        return;
+                    }
+
+                    searchTimeout = setTimeout(() => {
+                        fetch(`${searchForm.action}?q=${encodeURIComponent(query)}`, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.results && data.results.length > 0) {
+                                const limitedResults = data.results.slice(0, 5);
+                                
+                                searchResults.innerHTML = limitedResults.map(result => `
+                                    <a href="${result.link}" class="search-result-item">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="badge ${typeColors[result.type] || 'bg-secondary'} text-white">
+                                                ${result.type}
+                                            </span>
+                                            ${result.language ? `
+                                                <span class="badge bg-info text-white">
+                                                    ${result.language}
+                                                </span>
+                                            ` : ''}
+                                        </div>
+                                        <div class="fw-medium mt-2">${result.title}</div>
+                                        ${result.description ? `
+                                            <div class="text-muted small mt-1">
+                                                ${result.description.substring(0, 100)}...
+                                            </div>
+                                        ` : ''}
+                                    </a>
+                                `).join('') + `
+                                    <a href="${searchForm.action}?q=${encodeURIComponent(query)}" 
+                                       class="search-result-item text-center">
+                                        <small class="text-primary">View all results</small>
+                                    </a>
+                                `;
+                                
+                                searchResults.style.display = 'block';
+                            } else {
+                                searchResults.innerHTML = `
+                                    <div class="search-result-item text-center">
+                                        <div class="text-muted">No results found</div>
+                                    </div>
+                                `;
+                                searchResults.style.display = 'block';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Search error:', error);
+                        });
+                    }, 300);
+                });
+
+                searchForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    if (searchInput.value.trim()) {
+                        window.location.href = `${searchForm.action}?q=${encodeURIComponent(searchInput.value.trim())}`;
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!searchResults.contains(e.target) && e.target !== searchInput) {
+                        searchResults.style.display = 'none';
+                    }
+                });
             }
         });
-    } else {
-        console.error('Profile button or dropdown not found');
-    }
-});
     </script>
-      <!-- En bas de ton body -->
- 
-<a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
-    💬
-</a>
-
-<style>
-/* Chatbot button positioning based on language direction */
-.chatbot-button {
-    position: fixed;
-    bottom: 30px;
-    background-color: #007bff;
-    color: white;
-    padding: 15px 18px;
-    border-radius: 50%;
-    text-decoration: none;
-    font-size: 24px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    z-index: 1000;
-    transition: 0.3s;
-}
-
-.chatbot-button:hover {
-    transform: scale(1.1);
-    background-color: #0056b3;
-}
-
-/* Position based on language direction */
-html[dir="ltr"] .chatbot-button {
-    right: 30px;
-    left: auto;
-}
-
-html[dir="rtl"] .chatbot-button {
-    left: 30px;
-    right: auto;
-}
-</style>
 
     {% block extra_scripts %}{% endblock %}
 </body>
-{% load static %}
-<script src="{% static 'js/notifications.js' %}"></script>
-    <script>
-        // Mobile menu toggle
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.body.classList.toggle('sidebar-open');
-        });
-        
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('sidebarToggle');
-            
-            if (window.innerWidth <= 992 && 
-                sidebar.classList.contains('active') && 
-                !sidebar.contains(event.target) && 
-                !toggleBtn.contains(event.target)) {
-                sidebar.classList.remove('active');
-                document.body.classList.remove('sidebar-open');
-            }
-        });
-    </script>
-   
-    <script>
-   document.addEventListener('DOMContentLoaded', function() {
-    const searchForm = document.getElementById('global-search-form');
-    const searchInput = document.getElementById('search-input');
-    const searchResults = document.getElementById('search-results');
-    let searchTimeout;
-
-    // Définir les classes de couleur pour chaque type
-    const typeColors = {
-        'course': 'bg-primary',
-        'resource': 'bg-success',
-        'project': 'bg-info',
-        'event': 'bg-warning',
-        'tool': 'bg-secondary',
-        'corpus': 'bg-danger',
-        'user': 'bg-dark'
-    };
-
-    searchInput.addEventListener('input', function(e) {
-        const query = e.target.value.trim();
-        
-        clearTimeout(searchTimeout);
-        
-        if (query.length < 2) {
-            searchResults.style.display = 'none';
-            return;
-        }
-
-        searchTimeout = setTimeout(() => {
-            fetch(`${searchForm.action}?q=${encodeURIComponent(query)}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.results && data.results.length > 0) {
-                    const limitedResults = data.results.slice(0, 5);
-                    
-                    searchResults.innerHTML = limitedResults.map(result => `
-                        <a href="${result.link}" class="search-result-item">
-                            <div class="d-flex justify-content-between">
-                                <span class="badge ${typeColors[result.type] || 'bg-secondary'} text-white">
-                                    ${result.type}
-                                </span>
-                                ${result.language ? `
-                                    <span class="badge bg-info text-white">
-                                        ${result.language}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="fw-medium mt-2">${result.title}</div>
-                            ${result.description ? `
-                                <div class="text-muted small mt-1">
-                                    ${result.description.substring(0, 100)}...
-                                </div>
-                            ` : ''}
-                        </a>
-                    `).join('') + `
-                        <a href="${searchForm.action}?q=${encodeURIComponent(query)}" 
-                           class="search-result-item text-center">
-                            <small class="text-primary">View all results</small>
-                        </a>
-                    `;
-                    
-                    searchResults.style.display = 'block';
-                } else {
-                    searchResults.innerHTML = `
-                        <div class="search-result-item text-center">
-                            <div class="text-muted">No results found</div>
-                        </div>
-                    `;
-                    searchResults.style.display = 'block';
-                }
-            })
-            .catch(error => {
-                console.error('Search error:', error);
-            });
-        }, 300);
-    });
-
-    // Gérer la soumission du formulaire
-    searchForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        if (searchInput.value.trim()) {
-            window.location.href = `${searchForm.action}?q=${encodeURIComponent(searchInput.value.trim())}`;
-        }
-    });
-
-    // Fermer les résultats quand on clique ailleurs
-    document.addEventListener('click', function(e) {
-        if (!searchResults.contains(e.target) && e.target !== searchInput) {
-            searchResults.style.display = 'none';
-        }
-    });
-});
-</script>
 </html>
