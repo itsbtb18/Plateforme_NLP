@@ -11,19 +11,50 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/admin.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="admin-header-container">
+            <div class="admin-logo">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" class="admin-logo-img">
+                <h5 class="admin-title">{% trans "Admin Panel" %}</h5>
+            </div>
+            
+            <!-- Admin Profile Dropdown -->
+            <div class="admin-profile-container">
+                <button class="admin-profile-btn" id="adminProfileBtn" title="Admin">
+                    <div class="admin-avatar-icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <span class="admin-name">
+                        {% firstof user.get_full_name user.username "Admin" %}
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                
+                <div class="admin-profile-dropdown" id="adminProfileDropdown">
+                    <a href="{% url 'pages:home' %}" class="admin-profile-dropdown-item">
+                        <i class="fas fa-home"></i>
+                        <span>{% trans "Return to site" %}</span>
+                    </a>
+                    <a href="{% url 'account_logout' %}" class="admin-profile-dropdown-item logout-item">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>{% trans "Disconnect" %}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
                 <div class="position-sticky pt-3">
-                    <div class="text-center mb-4">
-                        <img src="{% static 'images/admin (2).png' %}" alt="Logo" class="img-fluid" style="max-width: 150px;">
-                        <h5 class="text-white mt-2">{% trans "Admin Panel" %}</h5>
-                    </div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
@@ -91,26 +122,11 @@
                             </a>
                         </li>
                     </ul>
-                    
-                    <div class="border-top mt-4 pt-4">
-                        <ul class="nav flex-column">
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'pages:home' %}">
-                                    <i class="fas fa-home me-2"></i> {% trans "Return to site" %}
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'account_logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i> {% trans "Disconnect" %}
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
             </nav>
 
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">{% block page_title %}{% trans "Administration" %}{% endblock %}</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
@@ -142,8 +158,29 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Custom JS -->
-    <script src="{% static 'js/admin.js' %}"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const adminProfileBtn = document.getElementById('adminProfileBtn');
+            const adminProfileDropdown = document.getElementById('adminProfileDropdown');
+
+            if (adminProfileBtn && adminProfileDropdown) {
+                adminProfileBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adminProfileDropdown.classList.toggle('show');
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!adminProfileDropdown.contains(e.target) && !adminProfileBtn.contains(e.target)) {
+                        adminProfileDropdown.classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
