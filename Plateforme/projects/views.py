@@ -14,6 +14,12 @@ from django.contrib import messages
 from notifications.services import NotificationService
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils.translation import gettext_lazy as _
+from typing import TYPE_CHECKING, Any
+from django.db.models.query import QuerySet
+from django.http import HttpRequest, HttpResponse
+
+if TYPE_CHECKING:
+    from django.forms import BaseModelForm
 
 
 class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -21,7 +27,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'project_list.html'
     context_object_name = 'projects'
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
         
         membership = ProjectMember.objects.filter(
@@ -50,11 +56,9 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             
         return qs.annotate(is_member=Exists(membership))
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        from .models import Project # Importer ici pour éviter les problèmes de dépendance circulaire si Project utilise cette vue
         context['project_statuses'] = Project.STATUS_CHOICES
-
         context['page'] = 'research_projects'
         return context
 
@@ -64,9 +68,9 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     template_name = 'project_detail.html'
     context_object_name = 'project'
     
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        project = self.get_object()
+        project: Project = self.get_object()  # type: ignore[assignment]
         
         # Récupérer les membres de l'équipe (exclure les rejetés)
         team_members = project.members.filter(
@@ -107,14 +111,13 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return context
 
 
-
 class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = Project
-    form_class = ProjectForm  # Utilisez votre formulaire au lieu de fields
+    form_class = ProjectForm
     template_name = 'project_new.html'
     success_url = reverse_lazy('projects:project_list')
 
-    def form_valid(self, form):
+    def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         form.instance.coordinator = self.request.user
         response = super().form_valid(form)
         # NOTIFICATION à tous les utilisateurs actifs via le service
@@ -122,13 +125,14 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         for user in User.objects.filter(is_active=True):
             NotificationService.create_notification(
                 recipient=user,
-                notification_type='SYSTEM', # Ou un type spécifique si tu en crées un pour les nouveaux projets
+                notification_type='SYSTEM',
                 title="New research project",
                 message=f"The project « {form.instance.title} » has just been published."
             )
            
         return response
-    def get_context_data(self, **kwargs):
+    
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context['page'] = 'research_projects'  
         return context
@@ -140,18 +144,18 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
     template_name = 'project_update.html'
     success_url = reverse_lazy('projects:project_list')
     
-    def test_func(self):
-        obj = self.get_object()
+    def test_func(self) -> bool:
+        obj: Project = self.get_object()  # type: ignore[assignment]
         return (
-        self.request.user.is_staff
-        or self.request.user.is_superuser
-        or obj.coordinator == self.request.user
-    )
-    def get_context_data(self, **kwargs):
+            self.request.user.is_staff
+            or self.request.user.is_superuser
+            or obj.coordinator == self.request.user
+        )
+    
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context['page'] = 'research_projects'  
         return context
-      
 
 
 class ProjectDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -159,26 +163,27 @@ class ProjectDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Dele
     template_name = 'project_delete.html'
     success_url = reverse_lazy('projects:project_list')
 
-    def test_func(self):
-        obj = self.get_object()
+    def test_func(self) -> bool:
+        obj: Project = self.get_object()  # type: ignore[assignment]
         return (
-        self.request.user.is_staff
-        or self.request.user.is_superuser
-        or obj.coordinator == self.request.user
-    )
-    def get_context_data(self, **kwargs):
+            self.request.user.is_staff
+            or self.request.user.is_superuser
+            or obj.coordinator == self.request.user
+        )
+    
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context['page'] = 'research_projects'  
         return context
 
 
 class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
-    def post(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         
         # Vérifier si le projet est terminé
         if project.status == 'completed':
-            messages.error(request, "This project is closed and is no longer accepting new members..")
+            messages.error(request, "This project is closed and is no longer accepting new members.")
             return redirect('projects:project_detail', pk=pk)
 
         # Vérifie si l'utilisateur n'est pas déjà membre
@@ -201,12 +206,12 @@ class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
 
 
 class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+    def test_func(self) -> bool:
+        project: Project = get_object_or_404(Project, pk=self.kwargs['pk'])  # type: ignore[assignment]
         return self.request.user == project.coordinator
 
-    def post(self, request, pk, member_id):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str, member_id: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         member = get_object_or_404(ProjectMember, project=project, member_id=member_id)
         
         if member.status == 'pending':
@@ -216,22 +221,22 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             # Notification au membre accepté via le service
             NotificationService.create_notification(
                 recipient=member.member,
-                notification_type='SYSTEM', # Ou un type spécifique
+                notification_type='SYSTEM',
                 title="Membership application accepted",
                 message=f"Your request to join the project « {project.title} » was accepted."
             )
-            messages.success(request, f"{member.member.full_name} was accepted into the project.")
+            messages.success(request, f"{member.member.full_name} was accepted into the project.")  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 
 
 class RejectMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+    def test_func(self) -> bool:
+        project: Project = get_object_or_404(Project, pk=self.kwargs['pk'])  # type: ignore[assignment]
         return self.request.user == project.coordinator
 
-    def post(self, request, pk, member_id):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str, member_id: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         member = get_object_or_404(ProjectMember, project=project, member_id=member_id)
         
         if member.status == 'pending':
@@ -241,11 +246,11 @@ class RejectMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             # Notification au membre refusé via le service
             NotificationService.create_notification(
                 recipient=member.member,
-                notification_type='SYSTEM', # Ou un type spécifique
+                notification_type='SYSTEM',
                 title="Membership application refused",
                 message=f"Your request to join the project « {project.title} » was refused."
             )
-            messages.success(request, f"The request for {member.member.full_name} was refused.")
+            messages.success(request, f"The request for {member.member.full_name} was refused.")  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 
@@ -255,13 +260,13 @@ class ProjectMembersView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Det
     template_name = 'project_members.html'
     context_object_name = 'project'
     
-    def test_func(self):
-        project = self.get_object()
+    def test_func(self) -> bool:
+        project: Project = self.get_object()  # type: ignore[assignment]
         return self.request.user == project.coordinator
     
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        project = self.object
+        project: Project = self.object  # type: ignore[assignment]
         context['pending_members'] = project.members.filter(status='pending')
         context['accepted_members'] = project.members.filter(status='accepted')
         context['rejected_members'] = project.members.filter(status='rejected')
@@ -273,10 +278,9 @@ class ProjectMembersView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Det
         return context
 
 
-# Modification de la vue LeaveProjectView
 class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
-    def post(self, request, pk):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         
         # Trouver le membre
         member = ProjectMember.objects.filter(
@@ -302,12 +306,12 @@ class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
                 notification_type='LEAVE_REQUEST',
                 title=_('Leave request'),
                 message=_('{} wants to leave your project « {} ».').format(
-                    request.user.full_name, 
+                    request.user.full_name,  # type: ignore[attr-defined]
                     project.title
                 ),
                 related_object=project,
-                project_id=project.id,
-                sender_id=request.user.id
+                project_id=project.id,  # type: ignore[attr-defined]
+                sender_id=request.user.id  # type: ignore[attr-defined]
             )
             
             messages.success(request, _('Your leave request has been sent to the project coordinator.'))
@@ -317,14 +321,13 @@ class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
         return redirect('projects:project_detail', pk=pk)
 
 
-# Nouvelle vue pour approuver/refuser les demandes de départ
 class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+    def test_func(self) -> bool:
+        project: Project = get_object_or_404(Project, pk=self.kwargs['pk'])  # type: ignore[assignment]
         return project.coordinator == self.request.user
 
-    def post(self, request, pk, member_id):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str, member_id: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         member = get_object_or_404(ProjectMember, project=project, member_id=member_id)
         
         response = request.POST.get('response')
@@ -360,7 +363,7 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     notification.read = True
                     notification.save()
                 
-                messages.success(request, _('Leave request approved. {} has been removed from the project.').format(leaving_user.full_name))
+                messages.success(request, _('Leave request approved. {} has been removed from the project.').format(leaving_user.full_name))  # type: ignore[attr-defined]
                 
             elif response == 'reject':
                 # Refuser le départ - réinitialiser le statut
@@ -391,12 +394,13 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
         
         return redirect('projects:project_members', pk=pk)
 
+
 class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     model = Project
     template_name = 'project_search.html'
     context_object_name = 'projects'
     
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Project]:
         query = self.request.GET.get('q')
         if query:
             return Project.objects.filter(
@@ -409,12 +413,12 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
 
 
 class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+    def test_func(self) -> bool:
+        project: Project = get_object_or_404(Project, pk=self.kwargs['pk'])  # type: ignore[assignment]
         return project.coordinator == self.request.user
 
-    def post(self, request, pk, member_id):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str, member_id: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         member = get_object_or_404(ProjectMember, project=project, member_id=member_id)
         
         # Récupérer l'utilisateur membre avant la suppression
@@ -435,13 +439,14 @@ class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
         messages.success(request, _('Member removed successfully.'))
         return redirect('projects:project_members', pk=pk)
 
+
 class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
-    def test_func(self):
-        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+    def test_func(self) -> bool:
+        project: Project = get_object_or_404(Project, pk=self.kwargs['pk'])  # type: ignore[assignment]
         return project.coordinator == self.request.user
 
-    def post(self, request, pk, request_id):
-        project = get_object_or_404(Project, pk=pk)
+    def post(self, request: HttpRequest, pk: str, request_id: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         join_request = get_object_or_404(ProjectMember, pk=request_id, project=project)
         
         response = request.POST.get('response')

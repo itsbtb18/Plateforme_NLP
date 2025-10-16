@@ -1,22 +1,72 @@
-{% extends 'base.html' %} {% block title %}New Project - Arabic TAL Research
-{% endblock %} {% block content %}
+{% extends 'base.html' %} 
+{% load i18n %}
+{% block title %}مشروع جديد - المنصة الوطنية للبحث في معالجة اللغة العربية الطبيعية{% endblock %} 
+
+{% block content %}
 <div class="content">
-  <h1 class="page-title">New Project</h1>
+  <h1 class="page-title">مشروع جديد</h1>
 
   <div class="form-container">
     <form method="post" class="project-form" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="form-fields">
-        {% for field in form %}
+        
         <div class="form-group">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }} {% if field.help_text %}
-          <div class="help-text">{{ field.help_text }}</div>
-          {% endif %} {% if field.errors %}
-          <div class="error-message">{{ field.errors }}</div>
+          <label for="{{ form.title.id_for_label }}">العنوان</label>
+          {{ form.title }}
+          {% if form.title.errors %}
+          <div class="error-message">{{ form.title.errors }}</div>
           {% endif %}
         </div>
-        {% endfor %}
+
+        <div class="form-group">
+          <label for="{{ form.institution.id_for_label }}">المؤسسة</label>
+          {{ form.institution }}
+          {% if form.institution.errors %}
+          <div class="error-message">{{ form.institution.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.description.id_for_label }}">الوصف</label>
+          {{ form.description }}
+          {% if form.description.errors %}
+          <div class="error-message">{{ form.description.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.status.id_for_label }}">الحالة</label>
+          {{ form.status }}
+          {% if form.status.errors %}
+          <div class="error-message">{{ form.status.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.date_start.id_for_label }}">تاريخ البداية</label>
+          {{ form.date_start }}
+          {% if form.date_start.errors %}
+          <div class="error-message">{{ form.date_start.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.date_end.id_for_label }}">تاريخ النهاية</label>
+          {{ form.date_end }}
+          {% if form.date_end.errors %}
+          <div class="error-message">{{ form.date_end.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label for="{{ form.attachment.id_for_label }}">المرفق</label>
+          {{ form.attachment }}
+          {% if form.attachment.errors %}
+          <div class="error-message">{{ form.attachment.errors }}</div>
+          {% endif %}
+        </div>
+
       </div>
 
       <div class="form-actions">
@@ -38,7 +88,7 @@
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
             <polyline points="7 3 7 8 15 8"></polyline>
           </svg>
-          Create Project
+          إنشاء المشروع
         </button>
         <a href="javascript:history.back()" class="btn cancel-btn">
           <svg
@@ -55,7 +105,7 @@
             <path d="M19 12H5"></path>
             <path d="M12 19l-7-7 7-7"></path>
           </svg>
-          Cancel
+          إلغاء
         </a>
       </div>
     </form>
@@ -114,6 +164,7 @@
     color: var(--primary);
     font-weight: 500;
     font-size: 16px;
+    text-align: right;
   }
 
   .form-group input,
@@ -126,6 +177,8 @@
     font-size: 15px;
     color: var(--text-dark);
     transition: border-color 0.2s, box-shadow 0.2s;
+    direction: rtl;
+    text-align: right;
   }
 
   .form-group input:focus,
@@ -146,12 +199,14 @@
     color: var(--text-light);
     font-size: 13px;
     font-style: italic;
+    text-align: right;
   }
 
   .error-message {
     color: var(--error-color);
     margin-top: 5px;
     font-size: 14px;
+    text-align: right;
   }
 
   /* Form actions */

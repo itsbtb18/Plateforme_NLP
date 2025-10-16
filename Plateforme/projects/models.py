@@ -3,13 +3,35 @@ from django.urls import reverse
 from django.conf import settings
 from institutions.models import Institution
 import uuid
+from django.utils.translation import gettext_lazy as _
+from django.db.models import Manager, QuerySet
+from typing import Any
+from datetime import datetime, date
 
+class User(models.Model):
+    id: int
+    full_name: str
+    is_staff: bool
+    is_superuser: bool
+    is_active: bool
+
+class ProjectMemberQuerySet(QuerySet["ProjectMember"]): ...
+
+class ProjectMemberManager(Manager["ProjectMember"]):
+    def filter(self, *args: Any, **kwargs: Any) -> ProjectMemberQuerySet: ...
+    def get(self, *args: Any, **kwargs: Any) -> "ProjectMember": ...
+
+class ProjectQuerySet(QuerySet["Project"]): ...
+
+class ProjectManager(Manager["Project"]):
+    def filter(self, *args: Any, **kwargs: Any) -> ProjectQuerySet: ...
+    def get(self, *args: Any, **kwargs: Any) -> "Project": ...
 
 class Project(models.Model):
     STATUS_CHOICES = (
-        ( 'En cours' , 'ongoing'  ),
-        ( 'Réalisé' , 'completed' ),
-        ( 'Planifié' , 'planned' ),
+        ('ongoing', _('قيد الإنجاز')),
+        ('completed', _('منجز')),          
+        ('planned', _('مخطط له')),    
     )
     id = models.UUIDField(
         primary_key=True,
@@ -22,9 +44,11 @@ class Project(models.Model):
         on_delete=models.CASCADE,
         related_name='projects'
     )
-    status = models.CharField(max_length=20, 
-    choices=STATUS_CHOICES, 
-    default='ongoing')
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES, 
+        default='ongoing'
+    )
     coordinator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -91,7 +115,6 @@ class ProjectMember(models.Model):
     )
     leave_request_date = models.DateTimeField(null=True, blank=True)
     
-
     class Meta:
         unique_together = ('project', 'member')
         ordering = ['project', 'member']
