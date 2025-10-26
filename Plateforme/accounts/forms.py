@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils.translation import gettext_lazy as _
 from .models import CustomUser
 
-ALLOWED_EMAIL_DOMAINS = ["usthb.dz", "gmail.com"]
+ALLOWED_EMAIL_DOMAINS = ["yahoo.fr", "gmail.com"]
 
 
 class CustomUserCreationForm(UserCreationForm):
