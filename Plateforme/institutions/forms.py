@@ -1,5 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
+from typing import List
 from .models import Institution, Country, Specialty
 
 
@@ -42,14 +43,13 @@ class InstitutionFilterForm(forms.Form):
         })
     )
 
-
 class CustomSpecialtyField(forms.ModelMultipleChoiceField):
     """
     Champ personnalisé pour permettre la création de nouvelles spécialités
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.created_specialties = []
+        self.created_specialties: List[str] = []
 
     def validate(self, value):
         """
@@ -57,9 +57,6 @@ class CustomSpecialtyField(forms.ModelMultipleChoiceField):
         """
         if self.required and not value:
             raise forms.ValidationError(self.error_messages['required'], code='required')
-        
-        # On ne fait pas la validation normale pour permettre les nouvelles spécialités
-        # La validation se fera dans clean_specialties()
 
     def clean(self, value):
         """
@@ -89,7 +86,7 @@ class CustomSpecialtyField(forms.ModelMultipleChoiceField):
                 # Nouvelle spécialité (nom)
                 # Vérifier si la spécialité existe déjà (insensible à la casse)
                 existing_specialty = Specialty.objects.filter(
-                    name__iexact=item_str.lower()
+                    name_en__iexact=item_str.lower()
                 ).first()
                 
                 if existing_specialty:
@@ -107,24 +104,32 @@ class CustomSpecialtyField(forms.ModelMultipleChoiceField):
                         )
                     
                     # Créer la nouvelle spécialité
+                    # Générer un code automatique basé sur le nom
+                    code = item_str[:10].upper().replace(' ', '_')
                     specialty, created = Specialty.objects.get_or_create(
-                        name=item_str.strip().title()  # Capitaliser le nom
+                        name_en=item_str.strip().title(),
+                        defaults={
+                            'name_ar': item_str.strip().title(),  # Par défaut, même valeur
+                            'code': code
+                        }
                     )
                     final_specialties.append(specialty)
                     
                     if created:
-                        self.created_specialties.append(specialty.name)
+                        self.created_specialties.append(specialty.name_en)
 
         return final_specialties
 
-    def get_created_specialties(self):
+    def get_created_specialties(self) -> List[str]:
         """
         Retourne la liste des spécialités créées
         """
         return self.created_specialties
 
-
 class InstitutionForm(forms.ModelForm):
+    # Stocker les spécialités créées au niveau du formulaire
+    _created_specialties: List[str] = []
+    
     # Définir explicitement les champs pour avoir plus de contrôle
     name = forms.CharField(
         label=_('Nom de l\'institution'), 
@@ -214,6 +219,11 @@ class InstitutionForm(forms.ModelForm):
                 _("Veuillez fournir au moins un moyen de contact (site web, email ou téléphone).")
             )
 
+        # Capturer les spécialités créées depuis le champ personnalisé
+        specialties_field = self.fields.get('specialties')
+        if isinstance(specialties_field, CustomSpecialtyField):
+            self._created_specialties = specialties_field.get_created_specialties()
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -234,8 +244,8 @@ class InstitutionForm(forms.ModelForm):
             
         return instance
 
-    def get_created_specialties(self):
+    def get_created_specialties(self) -> List[str]:
         """
         Retourne la liste des spécialités créées lors de la validation.
         """
-        return self.fields['specialties'].get_created_specialties()
+        return self._created_specialties

@@ -1,5 +1,6 @@
 from django import forms
 from .models import Event
+from django.utils.translation import gettext_lazy as _
 
 class EventForm(forms.ModelForm):
     """Form for creating and updating events."""
@@ -41,12 +42,12 @@ class EventSearchForm(forms.Form):
         })
     )
     event_type = forms.ChoiceField(
-        choices=[('', ('All Types'))] + list(Event.TYPE_CHOICES),
+        choices=[('', _('All Types'))] + list(Event.TYPE_CHOICES),
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     domain = forms.ChoiceField(
-        choices=[('', ('All Domains'))] + list(Event.DOMAIN_CHOICES),
+        choices=[('', _('All Domains'))] + list(Event.DOMAIN_CHOICES),
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )

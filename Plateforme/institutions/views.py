@@ -6,7 +6,8 @@ from django.db.models import Q
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.contrib.auth import get_user_model
-from notifications.services import NotificationService
+from django.http import HttpResponse
+from typing import Any, cast
 import logging
 
 from .models import Institution
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class InstitutionListView(ListView):
     model = Institution
-    template_name = 'institution_list.html'
+    template_name = 'institutions/institution_list.html'
     context_object_name = 'institutions'
     paginate_by = 9
 
@@ -61,10 +62,11 @@ class InstitutionDetailView(DetailView):
     model = Institution
     template_name = 'institutions/institution_detail.html'
     context_object_name = 'institution'
+    
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'institutions'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'institutions'
+        return context
 
 
 class InstitutionCreateView(LoginRequiredMixin, CreateView):
@@ -77,26 +79,28 @@ class InstitutionCreateView(LoginRequiredMixin, CreateView):
         context['mode'] = 'create'
         return context
     
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         try:
             logger.info("Form is valid")
-            form.instance.created_by = self.request.user
+            
+            # Cast to InstitutionForm for type checking
+            institution_form = cast(InstitutionForm, form)
+            
+            # Type assertion to satisfy type checker
+            instance = institution_form.save(commit=False)
+            instance.created_by = self.request.user  # type: ignore[assignment]
             
             # Sauvegarder l'institution
-            self.object = form.save()
+            self.object = institution_form.save()
 
             # Afficher un message pour les spécialités créées
-            created_specialties = form.get_created_specialties()
+            created_specialties = institution_form.get_created_specialties()
             if created_specialties:
                 specialty_names = ', '.join(created_specialties)
                 messages.info(
                     self.request, 
                     _("New specialties created : {}").format(specialty_names)
                 )
-
-            # Notifications aux modérateurs
-           
-
             
             messages.success(
                 self.request, 
@@ -120,30 +124,34 @@ class InstitutionCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse_lazy('institutions:institution_list')
 
-    
-
 
 class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
     
-    def test_func(self):
+    def test_func(self) -> bool:
         institution = self.get_object()
-        return self.request.user == institution.created_by or self.request.user.is_staff
+        # Type assertion for created_by
+        created_by = getattr(institution, 'created_by', None)
+        return (self.request.user == created_by or 
+                self.request.user.is_staff)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['mode'] = 'update'
         return context
     
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         try:
+            # Cast to InstitutionForm for type checking
+            institution_form = cast(InstitutionForm, form)
+            
             # Sauvegarder l'institution
-            self.object = form.save()
+            self.object = institution_form.save()
             
             # Afficher un message pour les spécialités créées
-            created_specialties = form.get_created_specialties()
+            created_specialties = institution_form.get_created_specialties()
             if created_specialties:
                 specialty_names = ', '.join(created_specialties)
                 messages.info(
@@ -171,16 +179,21 @@ class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
     def get_success_url(self):
         return reverse_lazy('institutions:institution_detail', kwargs={'pk': self.object.pk})
 
+
 class InstitutionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Institution
     template_name = 'institutions/institution_confirm_delete.html'
     success_url = reverse_lazy('institutions:institution_list')
     
-    def test_func(self):
+    def test_func(self) -> bool:
         institution = self.get_object()
-        return self.request.user == institution.created_by or self.request.user.is_staff
+        # Type assertion for created_by
+        created_by = getattr(institution, 'created_by', None)
+        return (self.request.user == created_by or 
+                self.request.user.is_staff)
         
     def delete(self, request, *args, **kwargs):
-        logger.info(f"Institution Deletion - ID: {self.get_object().id}")
+        institution = self.get_object()
+        logger.info(f"Institution Deletion - ID: {institution.pk}")
         messages.success(self.request, "The institution has been successfully abolished.")
         return super().delete(request, *args, **kwargs)

@@ -6,31 +6,37 @@ from django.contrib.auth.models import User
 from django.conf import settings
 
 class Country(models.Model):
-    name = models.CharField(_("Country Name"), max_length=100)
-    code = models.CharField(_("Country Code"), max_length=10)
+    name_en = models.CharField(_("Country Name (English)"), max_length=100)
+    name_ar = models.CharField(_("Country Name (Arabic)"), max_length=100)
+    code = models.CharField(_("Country Code"), max_length=2, unique=True)
 
     class Meta:
         verbose_name = _("Country")
         verbose_name_plural = _("Countries")
-        ordering = ['name']
+        ordering = ['name_en']
 
     def __str__(self):
-        return self.name
+        from django.utils.translation import get_language
+        current_lang = get_language()
+        return self.name_ar if current_lang == 'ar' else self.name_en
+
 
 
 class Specialty(models.Model):
-    name = models.CharField(_("Specialty Name"), max_length=100 ,unique=True)
-    code = models.CharField(_("Specialty Code"), max_length=20)
+    name_en = models.CharField(_("Specialty Name (English)"), max_length=100, unique=True, default='')
+    name_ar = models.CharField(_("Specialty Name (Arabic)"), max_length=100, blank=True, default='')
+    code = models.CharField(_("Specialty Code"), max_length=20, unique=True)
 
     class Meta:
         verbose_name = _("Specialty")
         verbose_name_plural = _("Specialties")
-        ordering = ['name']
+        ordering = ['name_en']
 
     def __str__(self):
-        return self.name
-
-
+        from django.utils.translation import get_language
+        current_lang = get_language()
+        return self.name_ar if current_lang == 'ar' else self.name_en
+    
 class Institution(models.Model):
     id = models.UUIDField(
         primary_key=True,
@@ -38,10 +44,10 @@ class Institution(models.Model):
         editable=False
     )
     TYPE = [
-        ('School', 'School'),
-        ('University', 'University'),
-        ('Research Center', 'Research Center'),
-        ('Other', 'Other'),
+        ('School', _('School')),
+        ('University', _('University')),
+        ('Research Center', _('Research Center')),
+        ('Other', _('Other')),
     ]
     name = models.CharField(_("Institution Name"), max_length=255)
     acronym = models.CharField(_("Acronym"), max_length=20, blank=True)

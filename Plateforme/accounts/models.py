@@ -6,65 +6,126 @@ from django.utils.translation import gettext_lazy as _
 from .managers import CustomUserManager
 from institutions.models import Institution
 
+
 class CustomUser(AbstractUser):
     STATUS_CHOICES = [
-        ('pending', 'En attente'),
-        ('active', 'Actif'),
-        ('blocked', 'Bloqué'),
+        ('pending', _('Pending')),
+        ('active', _('Active')),
+        ('blocked', _('Blocked')),
     ]
+    
     SPECIALITY_CHOICES = [
-        ('machine_learning', 'Machine Learning'),
-        ('deep_learning', 'Deep Learning'),
-        ('nlp', 'Traitement du Langage Naturel (NLP)'),
-        ('computer_vision', 'Vision par Ordinateur'),
-        ('reinforcement_learning', 'Apprentissage par Renforcement'),
-        ('ai_ethics', 'Éthique de l\'IA'),
-        ('robotics', 'Robotique et IA'),
-        ('neural_networks', 'Réseaux de Neurones'),
-        ('ai_security', 'Sécurité de l\'IA'),
-        ('ai_healthcare', 'IA en Santé'),
-        ('ai_finance', 'IA en Finance'),
-        ('ai_education', 'IA en Éducation'),
-        ('ai_transport', 'IA dans les Transports'),
-        ('ai_agriculture', 'IA en Agriculture'),
-        ('ai_energy', 'IA dans l\'Énergie'),
-        ('ai_manufacturing', 'IA dans la Production'),
-        ('ai_research', 'Recherche Fondamentale en IA'),
-        ('autre', 'Autre Domaine de l\'IA'),
+        ('machine_learning', _('Machine Learning')),
+        ('deep_learning', _('Deep Learning')),
+        ('nlp', _('Natural Language Processing (NLP)')),
+        ('computer_vision', _('Computer Vision')),
+        ('reinforcement_learning', _('Reinforcement Learning')),
+        ('ai_ethics', _('AI Ethics')),
+        ('robotics', _('Robotics and AI')),
+        ('neural_networks', _('Neural Networks')),
+        ('ai_security', _('AI Security')),
+        ('ai_healthcare', _('AI in Healthcare')),
+        ('ai_finance', _('AI in Finance')),
+        ('ai_education', _('AI in Education')),
+        ('ai_transport', _('AI in Transportation')),
+        ('ai_agriculture', _('AI in Agriculture')),
+        ('ai_energy', _('AI in Energy')),
+        ('ai_manufacturing', _('AI in Manufacturing')),
+        ('ai_research', _('Fundamental AI Research')),
+        ('autre', _('Other AI Field')),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = None
     email = models.EmailField(_('email address'), unique=True)
-    full_name = models.CharField(max_length=255, null=True, blank=True)
-    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, null=True, blank=True)
-    bio = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    avatar = models.ImageField(upload_to='avatars/%Y/%m/%d/', null=True, blank=True)
-    is_email_verified = models.BooleanField(default=False)
-    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
-    speciality = models.CharField(max_length=100, choices=SPECIALITY_CHOICES, null=True, blank=True)
-    linkedin_url = models.URLField(max_length=200, blank=True, null=True)
-    twitter_url = models.URLField(max_length=200, blank=True, null=True)
-    facebook_url = models.URLField(max_length=200, blank=True, null=True)
-    is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    full_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_('full name')
+    )
+    institution = models.ForeignKey(
+        Institution,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_('institution')
+    )
+    bio = models.TextField(
+        blank=True,
+        verbose_name=_('biography')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name=_('status')
+    )
+    avatar = models.ImageField(
+        upload_to='avatars/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        verbose_name=_('profile picture')
+    )
+    is_email_verified = models.BooleanField(
+        default=False,
+        verbose_name=_('email verified')
+    )
+    email_verification_code = models.CharField(
+        max_length=6,
+        blank=True,
+        null=True,
+        verbose_name=_('email verification code')
+    )
+    speciality = models.CharField(
+        max_length=100,
+        choices=SPECIALITY_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name=_('field of specialization in AI')
+    )
+    linkedin_url = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name=_('LinkedIn URL')
+    )
+    twitter_url = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name=_('Twitter URL')
+    )
+    facebook_url = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name=_('Facebook URL')
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        verbose_name=_('verified')
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('active')
+    )
 
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
+    class Meta:
+        verbose_name = _('user')
+        verbose_name_plural = _('users')
+
     def generate_verification_code(self):
-        self.email_verification_code = get_random_string(length=6, allowed_chars='0123456789')
+        self.email_verification_code = get_random_string(
+            length=6,
+            allowed_chars='0123456789'
+        )
         self.save()
 
     def __str__(self):
         return self.email
-
-
-
-
-
-
-
