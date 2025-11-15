@@ -2,7 +2,7 @@ from django.http import Http404
 from django.utils.timezone import now
 from django.shortcuts import redirect, render, get_object_or_404
 from django.views.generic import ListView, DetailView
-from django.views.generic.edit import CreateView, FormView ,UpdateView ,DeleteView
+from django.views.generic.edit import CreateView, FormView, UpdateView, DeleteView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -12,16 +12,13 @@ from django.contrib import messages
 from .forms import ResourceForm
 from django.conf import settings
 from accounts.views import LoginAndVerifiedRequiredMixin
-
-# Import the correct model names from your models.py
-from .models import Document, NLPTool, Article, Thesis, Memoir, Course, Corpus, ResourceBase        
+from .models import Document, NLPTool, Article, Thesis, Memoir, Course, Corpus, ResourceBase
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
-
-from django.db.models import Q
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'resources/list.html'
@@ -32,14 +29,14 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         search_query = self.request.GET.get('q', '')
         resource_type = self.request.GET.get('type', '')
         field_filter = self.request.GET.get('field', '')
-        language_filter = self.request.GET.get('language', '') 
+        language_filter = self.request.GET.get('language', '')
         
         querysets = []
         
         if resource_type in ['', 'article', 'thesis', 'memoir']:
             docs = Document.objects.all()
             if language_filter:
-                 docs = docs.filter(language=language_filter)
+                docs = docs.filter(language=language_filter)
             if resource_type in ['article', 'thesis', 'memoir']:
                 docs = docs.filter(document_type=resource_type)
             if search_query:
@@ -116,6 +113,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         context['page'] = 'resources'
         return context
 
+
 class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     model = NLPTool
     template_name = 'resources/tool_list.html'
@@ -127,7 +125,6 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
         search_query = self.request.GET.get('q', '').strip()
         
         if search_query:
-            # Recherche dans plusieurs champs
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
@@ -153,8 +150,8 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
             context['is_search'] = False
         
         context['page'] = 'tools'
-            
         return context
+
 
 class CourseListView(ListView):
     model = Course
@@ -167,7 +164,6 @@ class CourseListView(ListView):
         search_query = self.request.GET.get('q', '').strip()
         
         if search_query:
-            # Recherche dans plusieurs champs
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
@@ -192,14 +188,10 @@ class CourseListView(ListView):
         else:
             context['total_count'] = Course.objects.count()
             context['is_search'] = False
-            
-        return context
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['total_count'] = Course.objects.count()
+        
         context['page'] = 'course'
         return context
+
 
 class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Article
@@ -211,6 +203,7 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
         context['total_count'] = Article.objects.count()
         return context
 
+
 class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Thesis
     template_name = 'resources/thesis_list.html'
@@ -221,6 +214,7 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
         context['total_count'] = Thesis.objects.count()
         return context
 
+
 class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Memoir
     template_name = 'resources/memoir_list.html'
@@ -230,7 +224,8 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['total_count'] = Memoir.objects.count()
         return context
-    
+
+
 class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Corpus
     template_name = 'resources/corpus_list.html'
@@ -242,7 +237,6 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
         search_query = self.request.GET.get('q', '').strip()
         
         if search_query:
-            # Recherche dans plusieurs champs
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
@@ -268,8 +262,8 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
             context['is_search'] = False
 
         context['page'] = 'corpus'
-            
         return context
+
 
 class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     template_name = 'resources/resource_detail.html'
@@ -311,7 +305,6 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         if not model:
             raise Http404("Type de ressource invalide")
 
-        # Gérer les sous-types de Document
         if resource_type in ['article', 'thesis', 'memoir']:
             try:
                 obj = get_object_or_404(model, pk=pk)
@@ -331,20 +324,16 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return obj
 
     def get(self, request, *args, **kwargs):
-        """Override get method to handle view increment after object is retrieved"""
         self.object = self.get_object()
         
-        # Incrémentation du compteur de vues avec gestion spéciale pour les documents
         resource_type = self.kwargs.get('type')
         
         if resource_type in ['article', 'thesis', 'memoir']:
-            # Pour les sous-types de Document, incrémenter les vues du document parent
             if hasattr(self.object, 'document') and self.object.document:
                 self.object.document.increment_views()
             else:
                 logger.warning(f"Object {self.object.pk} has no associated document")
         elif hasattr(self.object, 'increment_views'):
-            # Pour les autres types (Course, NLPTool, Corpus)
             self.object.increment_views()
         else:
             logger.warning(f"Object {self.object.pk} has no increment_views method")
@@ -367,10 +356,9 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         context['page'] = 'resources'
 
         if hasattr(self.object, 'document'):
-            context['specific_object'] = self.object  # Article, Thesis, Memoir...
-            context['object'] = self.object.document  # Document parent
+            context['specific_object'] = self.object
+            context['object'] = self.object.document
 
-        # Section "Related Corpora"
         if resource_type in ['article', 'thesis', 'memoir', 'course']:
             if hasattr(self.object, 'field'):
                 field = self.object.field
@@ -384,41 +372,35 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             else:
                 context['related_corpora'] = Corpus.objects.all()[:3]
 
-    
-
         return context
+
 
 class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     form_class = ResourceForm
     template_name = 'resources/resource_update_form.html'
     
+    # Updated TYPE_MODELS to treat article, thesis, memoir as top-level types
     TYPE_MODELS = {
         'tool': NLPTool,
-        'nlp_tool': NLPTool,  # Ajout pour la cohérence des types
+        'nlp_tool': NLPTool,
         'course': Course,
-        'document': Document,
         'corpus': Corpus,
-        'article': Article,
-        'thesis': Thesis,
-        'memoir': Memoir,
+        'article': Document,  # Changed: Article is accessed via Document
+        'thesis': Document,   # Changed: Thesis is accessed via Document
+        'memoir': Document,   # Changed: Memoir is accessed via Document
     }
 
     def get_object(self):
         resource_type = self.kwargs['type']
         pk = self.kwargs['pk']
         
-        # Pour les sous-types de Document
+        # Get the Document for article, thesis, memoir
         if resource_type in ['article', 'thesis', 'memoir']:
-            try:
-                # Essayer d'abord de récupérer directement le sous-type
-                model = self.TYPE_MODELS.get(resource_type)
-                return get_object_or_404(model, pk=pk)
-            except Http404:
-                # Si ça échoue, essayer via le Document parent
-                document = get_object_or_404(Document, pk=pk)
-                if hasattr(document, resource_type):
-                    return getattr(document, resource_type)
+            document = get_object_or_404(Document, pk=pk)
+            # Verify the document has the correct subtype
+            if not hasattr(document, resource_type):
                 raise Http404(f"{resource_type.capitalize()} not found for document ID {pk}")
+            return document
         else:
             model = self.TYPE_MODELS.get(resource_type)
             if not model:
@@ -426,45 +408,11 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             return get_object_or_404(model, pk=pk)
 
     def get_initial(self):
-      resource = self.get_object()
-      initial = {}
-    
-    # Pour les sous-types de Document (Article, Thesis, Memoir)
-      if hasattr(resource, 'document'):
-        # Récupérer les champs du Document parent
-        document = resource.document
-        initial.update({
-            'title': document.title,
-            'description': document.description,
-            'keywords': document.keywords,
-            'access_link': document.access_link or '',
-            'document_type': document.document_type,
-            'document_format': document.file_format,
-        })
+        resource = self.get_object()
+        resource_type = self.kwargs['type']
+        initial = {}
         
-        # Ajouter les champs spécifiques au sous-type
-        if isinstance(resource, Article):
-            initial.update({
-                'doi': resource.doi,
-                'journal': resource.journal,
-                'publication_date': resource.publication_date,
-            })
-        elif isinstance(resource, Thesis):
-            initial.update({
-                'supervisor': resource.supervisor,
-                'thesis_institution': resource.institution.id if resource.institution else None,
-                'defense_year': resource.defense_year,
-            })
-        elif isinstance(resource, Memoir):
-            initial.update({
-                'memoir_level': resource.academic_level,
-                'memoir_institution': resource.institution.id if resource.institution else None,
-                'memoir_defense_year': resource.defense_year,
-            })
-        
-        initial['resource_type'] = 'document'
-      else:
-        # Pour les autres types de ressources (Course, NLPTool, Corpus, Document de base)
+        # Common fields
         initial.update({
             'title': resource.title,
             'description': resource.description,
@@ -473,75 +421,73 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             'language': resource.language,
         })
         
-        """if isinstance(resource, Document):
-            initial.update({
-                'document_type': resource.document_type,
-                'document_format': resource.file_format,
-            })
-            initial['resource_type'] = 'document'"""
-        if isinstance(resource, Course):
+        # Type-specific fields
+        if resource_type == 'course':
             initial.update({
                 'course_field': resource.field,
                 'academic_level': resource.academic_level,
                 'course_institution': resource.institution.id if resource.institution else None,
                 'academic_year': resource.academic_year,
+                'resource_type': 'course'
             })
-            initial['resource_type'] = 'course'
-        elif isinstance(resource, NLPTool):
+        elif resource_type == 'nlp_tool' or isinstance(resource, NLPTool):
             initial.update({
                 'tool_type': resource.tool_type,
                 'tool_version': resource.version,
                 'documentation': resource.documentation_link or '',
-                'supported_languages': resource.supported_languages,  # Changed from 'languages'
+                'supported_languages': resource.get_supported_languages_list() if hasattr(resource, 'get_supported_languages_list') else [],
+                'resource_type': 'nlp_tool'
             })
-            initial['resource_type'] = 'nlp_tool'
-        elif isinstance(resource, Corpus):
+        elif resource_type == 'corpus':
             initial.update({
                 'corpus_size': resource.size,
                 'corpus_field': resource.field,
                 'corpus_format': resource.file_format,
+                'resource_type': 'corpus'
             })
-            initial['resource_type'] = 'corpus'
-
+        elif resource_type == 'article':
+            article = resource.article
+            initial.update({
+                'document_format': resource.file_format,
+                'journal': article.journal,
+                'publication_date': article.publication_date,
+                'doi': article.doi or '',
+                'resource_type': 'article'
+            })
+        elif resource_type == 'thesis':
+            thesis = resource.thesis
+            initial.update({
+                'document_format': resource.file_format,
+                'supervisor': thesis.supervisor,
+                'thesis_institution': thesis.institution.id if thesis.institution else None,
+                'defense_year': thesis.defense_year,
+                'resource_type': 'thesis'
+            })
+        elif resource_type == 'memoir':
+            memoir = resource.memoir
+            initial.update({
+                'document_format': resource.file_format,
+                'memoir_level': memoir.academic_level,
+                'memoir_institution': memoir.institution.id if memoir.institution else None,
+                'memoir_defense_year': memoir.defense_year,
+                'resource_type': 'memoir'
+            })
         
-
-      return initial
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
-        return context
+        return initial
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
-        kwargs['is_update'] = True  # Important pour désactiver les champs de type
+        kwargs['is_update'] = True
+        kwargs['instance'] = self.get_object()
         return kwargs
-
-    def _get_resource_type(self, resource):
-        """Retourne le type de base"""
-        if isinstance(resource, Article) or hasattr(resource, 'article'):
-            return 'document'
-        elif isinstance(resource, Thesis) or hasattr(resource, 'thesis'):
-            return 'document'
-        elif isinstance(resource, Memoir) or hasattr(resource, 'memoir'):
-            return 'document'
-        elif isinstance(resource, NLPTool):
-            return 'nlp_tool'
-        elif isinstance(resource, Course):
-            return 'course'
-        elif isinstance(resource, Corpus):
-            return 'corpus'
-        elif isinstance(resource, Document):
-            return 'document'
-        return resource._meta.model_name
 
     def form_valid(self, form):
         resource = self.get_object()
-        resource_type = self._get_resource_type(resource)
-
+        resource_type = self.kwargs['type']
         current_time = now()
-        # Mise à jour des champs communs
+        
+        # Common data update
         common_data = {
             'title': form.cleaned_data['title'],
             'description': form.cleaned_data['description'],
@@ -550,34 +496,11 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             'language': form.cleaned_data['language'],
             'update_date': current_time
         }
-
-        # Pour les sous-types de Document
-        document = None
-        if hasattr(resource, 'document'):
-              # Si c'est un sous-type de Document
-              document = resource.document
-              for attr, value in common_data.items():
-                setattr(document, attr, value)
-              document.file_format = form.cleaned_data['document_format']
-              document.update_date = current_time
-              document.save()
-
-        elif resource_type == 'document':
-            # Si c'est un Document de base
-                for attr, value in common_data.items():
-                    setattr(document, attr, value)
-                resource.file_format = form.cleaned_data['document_format']
-                resource.update_date = current_time 
-                resource.save()
-                document = resource
-        else:
-            # Pour les autres types de ressources
-            for attr, value in common_data.items():
-                setattr(resource, attr, value)
-            resource.update_date = current_time
-            resource.save()
-
-        # Mise à jour des champs spécifiques
+        
+        for attr, value in common_data.items():
+            setattr(resource, attr, value)
+        
+        # Type-specific updates
         if resource_type == 'course':
             resource.field = form.cleaned_data['course_field']
             resource.academic_level = form.cleaned_data['academic_level']
@@ -595,68 +518,48 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             resource.field = form.cleaned_data['corpus_field']
             resource.file_format = form.cleaned_data['corpus_format']
             resource.save()
+        elif resource_type == 'article':
+            resource.file_format = form.cleaned_data['document_format']
+            resource.save()
+            article = resource.article
+            article.doi = form.cleaned_data.get('doi', '')
+            article.journal = form.cleaned_data['journal']
+            article.publication_date = form.cleaned_data['publication_date']
+            article.save()
+        elif resource_type == 'thesis':
+            resource.file_format = form.cleaned_data['document_format']
+            resource.save()
+            thesis = resource.thesis
+            thesis.supervisor = form.cleaned_data['supervisor']
+            thesis.institution = form.cleaned_data['thesis_institution']
+            thesis.defense_year = form.cleaned_data['defense_year']
+            thesis.save()
+        elif resource_type == 'memoir':
+            resource.file_format = form.cleaned_data['document_format']
+            resource.save()
+            memoir = resource.memoir
+            memoir.academic_level = form.cleaned_data['memoir_level']
+            memoir.institution = form.cleaned_data['memoir_institution']
+            memoir.defense_year = form.cleaned_data['memoir_defense_year']
+            memoir.save()
         
-        # Traitement des sous-types de Document
-        if document:
-            doc_type = document.document_type
-            if doc_type == 'article':
-             if hasattr(document, 'article'):
-                    article = document.article
-             else:
-                article, _ = Article.objects.get_or_create(document=document)
-                article.doi = form.cleaned_data['doi']
-                article.journal = form.cleaned_data['journal']
-                article.publication_date = form.cleaned_data['publication_date']
-                article.save()
-            elif doc_type == 'thesis':
-                if hasattr(document, 'thesis'):
-                    thesis = document.thesis
-                else:
-                    thesis = Thesis(document=document)
-                thesis.supervisor = form.cleaned_data['supervisor']
-                thesis.institution = form.cleaned_data['thesis_institution']
-                thesis.defense_year = form.cleaned_data['defense_year']
-                thesis.save()
-            elif doc_type == 'memoir':
-                if hasattr(document, 'memoir'):
-                    memoir = document.memoir
-                else:
-                    memoir = Memoir(document=document)
-                memoir.academic_level = form.cleaned_data['memoir_level']
-                memoir.institution = form.cleaned_data['memoir_institution']
-                memoir.defense_year = form.cleaned_data['memoir_defense_year']
-                memoir.save()
-
-        if hasattr(resource, 'document'):
-         messages.success(self.request, f"Ressource '{resource.document.title}' updated successfully !")
-        else:
-         messages.success(self.request, f"Resource '{resource.title}' updated successfully !")
+        messages.success(self.request, f"Resource '{resource.title}' updated successfully!")
         return super().form_valid(form)
 
     def get_success_url(self):
-        resource = self.get_object()
         resource_type = self.kwargs['type']
         pk = self.kwargs['pk']
-        
-        # Redirection vers la vue détaillée appropriée
-        return reverse('resources:resource-detail', kwargs={
-            'type': resource_type,
-            'pk': pk
-        })
+        return reverse('resources:resource-detail', kwargs={'type': resource_type, 'pk': pk})
 
     def test_func(self):
-         
         if self.request.user.is_staff or self.request.user.is_superuser:
             return True
-
         resource = self.get_object()
-       
-        if hasattr(resource, 'document'):
-            return resource.document.author == self.request.user
-        return resource.author == self.request.user 
+        return resource.author == self.request.user
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context
 
 
@@ -667,11 +570,10 @@ class ResourceDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Del
     TYPE_MODELS = {
         'tool': NLPTool,
         'course': Course,
-        'document': Document,
         'corpus': Corpus,
         'article': Document,
-        'memoir': Document,
-        'thesis': Document
+        'thesis': Document,
+        'memoir': Document
     }
     
     def get_object(self):
@@ -684,14 +586,8 @@ class ResourceDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Del
         resource = self.get_object()
         resource_title = resource.title
         
-        if isinstance(resource, Document):
-            if hasattr(resource, 'article'):
-                resource.article.delete()
-            elif hasattr(resource, 'thesis'):
-                resource.thesis.delete()
-            elif hasattr(resource, 'memoir'):
-                resource.memoir.delete()
-                
+        # For Document types, the related Article/Thesis/Memoir will be deleted automatically
+        # due to OneToOneField cascade
         response = super().delete(request, *args, **kwargs)
         
         messages.success(self.request, f"Resource '{resource_title}' deleted successfully!")
@@ -702,10 +598,12 @@ class ResourceDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Del
         if self.request.user.is_staff or self.request.user.is_superuser:
             return True
         return resource.author == self.request.user
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context
+
 
 class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
     template_name = 'resources/resource_form.html'
@@ -726,7 +624,7 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
                 Notification.objects.create(
                     recipient=user,
                     title="New resource",
-                    message=f"The resource« {resource.title} » has been added to the platform."
+                    message=f"The resource « {resource.title} » has been added to the platform."
                 )
             return super().form_valid(form)
         except Exception as e:
@@ -736,9 +634,10 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context
-    
+
+
 class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
     template_name = 'resources/course_create_form.html'
     form_class = ResourceForm
@@ -756,14 +655,14 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
     
     def form_valid(self, form):
         resource = form.save()
-        messages.success(self.request, f"Cours '{resource.title}' created successfully!")
+        messages.success(self.request, f"Course '{resource.title}' created successfully!")
         return super().form_valid(form)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context
-    
-         
+
 
 class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
     template_name = 'resources/corpus_create_form.html'
@@ -784,10 +683,12 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
         resource = form.save()
         messages.success(self.request, f"Corpus '{resource.title}' created successfully!")
         return super().form_valid(form)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context
+
 
 class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
     template_name = 'resources/tool_create_form.html'
@@ -808,7 +709,8 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
         resource = form.save()
         messages.success(self.request, f"Tool '{resource.title}' created successfully!")
         return super().form_valid(form)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'resources'  
+        context['page'] = 'resources'
         return context

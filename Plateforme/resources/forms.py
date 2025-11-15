@@ -2,18 +2,15 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, Row, Column, HTML
-from .models import Course, NLPTool, Corpus, Document, Article, Thesis, Memoir, ResourceBase ,FieldChoices
+from .models import Course, NLPTool, Corpus, Document, Article, Thesis, Memoir, ResourceBase, FieldChoices
 from accounts.models import Institution
+
 
 class ResourceForm(forms.Form):
     RESOURCE_TYPES = [
         ('course', _('Course')),
         ('nlp_tool', _('NLP Tool')),
         ('corpus', _('Corpus')),
-        ('document', _('Document')),
-    ]
-
-    DOCUMENT_TYPES = [
         ('article', _('Article')),
         ('thesis', _('Thesis')),
         ('memoir', _('Memoir')),
@@ -34,7 +31,6 @@ class ResourceForm(forms.Form):
         label=_("Description *"),
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
     )
-
     keywords = forms.CharField(
         label=_("Keywords"),
         required=False,
@@ -48,20 +44,19 @@ class ResourceForm(forms.Form):
         widget=forms.URLInput(attrs={'class': 'form-control'})
     )
     language = forms.ChoiceField(
-    choices=ResourceBase.LanguageChoices.choices,
-    label=_("Language *"),
-    initial=ResourceBase.LanguageChoices.ARABIC,
-    widget=forms.Select(attrs={'class': 'form-select'})
+        choices=ResourceBase.LanguageChoices.choices,
+        label=_("Language *"),
+        initial=ResourceBase.LanguageChoices.ARABIC,
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
-    # ==================== SPECIFIC FIELDS ====================
-    # Course
+    # ==================== COURSE FIELDS ====================
     course_field = forms.ChoiceField(
-    choices=FieldChoices.choices,
-    label=_("Field of Study *"),
-    required=False,
-    widget=forms.Select(attrs={'class': 'form-select'})
-)
+        choices=FieldChoices.choices,
+        label=_("Field of Study *"),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     academic_level = forms.ChoiceField(
         choices=Course.Level.choices,
         label=_("Academic Level *"),
@@ -82,7 +77,7 @@ class ResourceForm(forms.Form):
         help_text=_("Format: 2023-2024")
     )
 
-    # NLP Tool
+    # ==================== NLP TOOL FIELDS ====================
     tool_type = forms.ChoiceField(
         choices=NLPTool.ToolType.choices,
         label=_("Tool Type *"),
@@ -106,7 +101,6 @@ class ResourceForm(forms.Form):
             ('en', _('English')),
             ('fr', _('French')),
             ('es', _('Spanish')),
-            # Ajoutez d'autres langues selon vos besoins
         ],
         label=_("Supported Languages *"),
         required=False,
@@ -114,18 +108,18 @@ class ResourceForm(forms.Form):
         help_text=_("Select all languages that this tool can process")
     )
 
-    # Corpus
+    # ==================== CORPUS FIELDS ====================
     corpus_size = forms.IntegerField(
         label=_("Size * (words/documents)"),
         required=False,
         widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
     corpus_field = forms.ChoiceField(
-    choices=FieldChoices.choices,
-    label=_("Field of Study *"),
-    required=False,
-    widget=forms.Select(attrs={'class': 'form-select'})
-)
+        choices=FieldChoices.choices,
+        label=_("Field of Study *"),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     corpus_format = forms.CharField(
         label=_("Format * (TXT/CSV/JSON)"),
         max_length=10,
@@ -133,19 +127,7 @@ class ResourceForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
-    # Document
-    document_type = forms.ChoiceField(
-        choices=DOCUMENT_TYPES,
-        label=_("Document Type *"),
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-    authors = forms.CharField(
-        required=False,
-        label=_("Authors"),
-        max_length=100,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
+    # ==================== DOCUMENT COMMON FIELDS ====================
     document_format = forms.CharField(
         label=_("Format * (PDF/DOCX)"),
         max_length=10,
@@ -153,7 +135,7 @@ class ResourceForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
-    # Article
+    # ==================== ARTICLE FIELDS ====================
     doi = forms.CharField(
         label=_("DOI"),
         max_length=100,
@@ -176,7 +158,7 @@ class ResourceForm(forms.Form):
         )
     )
 
-    # Thesis
+    # ==================== THESIS FIELDS ====================
     supervisor = forms.CharField(
         label=_("Supervisor *"),
         max_length=100,
@@ -195,7 +177,7 @@ class ResourceForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
 
-    # Memoir
+    # ==================== MEMOIR FIELDS ====================
     memoir_level = forms.ChoiceField(
         choices=Memoir._meta.get_field('academic_level').choices,
         label=_("Academic Level *"),
@@ -216,14 +198,14 @@ class ResourceForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
-        self.is_update = kwargs.pop('is_update', False) 
+        self.is_update = kwargs.pop('is_update', False)
         instance = kwargs.get('instance', None)
-    
-    # Si nous avons une instance et des langues supportées
+
         if instance and hasattr(instance, 'supported_languages'):
-         if 'initial' not in kwargs:
-            kwargs['initial'] = {}
-         kwargs['initial']['supported_languages'] = self.prepare_supported_languages(instance.supported_languages)
+            if 'initial' not in kwargs:
+                kwargs['initial'] = {}
+            kwargs['initial']['supported_languages'] = self.prepare_supported_languages(instance.supported_languages)
+        
         super().__init__(*args, **kwargs)
         
         self.helper = FormHelper()
@@ -235,24 +217,22 @@ class ResourceForm(forms.Form):
             self.fields['resource_type'].disabled = True
         
         resource_type = self.initial.get('resource_type', 'course')
-        document_type = self.initial.get('document_type', 'article')
+        
         if 'supported_languages' in self.fields:
-         self.fields['supported_languages'].widget.attrs.update({
-            'class': 'checkbox-grid'
-        })
+            self.fields['supported_languages'].widget.attrs.update({
+                'class': 'checkbox-grid'
+            })
 
-        # Build dynamic layout
-        self.helper.layout = self._build_layout(resource_type, document_type)
+        self.helper.layout = self._build_layout(resource_type)
 
-    def _build_layout(self, resource_type, document_type):
+    def _build_layout(self, resource_type):
         layout = Layout(
             Fieldset(
                 _('Basic Information'),
                 Row(
                     Column('resource_type', css_class='col-md-6'),
                     Column('language', css_class='col-md-6'),
-                    ),
-                
+                ),
                 'title',
                 'description',
                 Row(Column('keywords', css_class='col-md-12')),
@@ -267,8 +247,12 @@ class ResourceForm(forms.Form):
             layout.append(self._create_tool_fields())
         elif resource_type == 'corpus':
             layout.append(self._create_corpus_fields())
-        elif resource_type == 'document':
-            layout.append(self._create_document_fields(document_type))
+        elif resource_type == 'article':
+            layout.append(self._create_article_fields())
+        elif resource_type == 'thesis':
+            layout.append(self._create_thesis_fields())
+        elif resource_type == 'memoir':
+            layout.append(self._create_memoir_fields())
 
         layout.append(Submit('submit', _('Save'), css_class='btn-primary w-100 py-2 mt-3'))
         return layout
@@ -295,11 +279,11 @@ class ResourceForm(forms.Form):
             ),
             Row(
                 Column('documentation', css_class='col-md-6'),
-                 Fieldset(
-                _('Supported Languages'),
-                'supported_languages',
-                css_class='border p-3 mt-3'
-             )
+                Fieldset(
+                    _('Supported Languages'),
+                    'supported_languages',
+                    css_class='border p-3 mt-3'
+                )
             )
         )
 
@@ -307,37 +291,18 @@ class ResourceForm(forms.Form):
         return Fieldset(
             _('Corpus Details'),
             Row(
-                Column('corpus_size', css_class='col-md-6')
+                Column('corpus_size', css_class='col-md-6'),
+                Column('corpus_format', css_class='col-md-6')
             ),
             Row(
-                Column('corpus_field', css_class='col-md-6'),
-                Column('corpus_format', css_class='col-md-6')
+                Column('corpus_field', css_class='col-md-12')
             )
         )
-
-    def _create_document_fields(self, doc_type):
-        fields = [
-            Fieldset(
-                _('Document Type'),
-                Row(
-                    Column('document_type', css_class='col-md-6'),
-                    Column('document_format', css_class='col-md-6')
-                )
-            )
-        ]
-        
-        if doc_type == 'article':
-            fields.append(self._create_article_fields())
-        elif doc_type == 'thesis':
-            fields.append(self._create_thesis_fields())
-        elif doc_type == 'memoir':
-            fields.append(self._create_memoir_fields())
-            
-        return fields
 
     def _create_article_fields(self):
         return Fieldset(
             _('Article Details'),
+            'document_format',
             Row(
                 Column('journal', css_class='col-md-6'),
                 Column('publication_date', css_class='col-md-6')
@@ -348,6 +313,7 @@ class ResourceForm(forms.Form):
     def _create_thesis_fields(self):
         return Fieldset(
             _('Thesis Details'),
+            'document_format',
             Row(
                 Column('supervisor', css_class='col-md-6'),
                 Column('thesis_institution', css_class='col-md-6')
@@ -358,13 +324,14 @@ class ResourceForm(forms.Form):
     def _create_memoir_fields(self):
         return Fieldset(
             _('Memoir Details'),
+            'document_format',
             Row(
                 Column('memoir_level', css_class='col-md-6'),
                 Column('memoir_institution', css_class='col-md-6')
             ),
             'memoir_defense_year'
         )
-    
+
     def clean_supported_languages(self):
         languages = self.cleaned_data.get('supported_languages')
         if not languages and self.cleaned_data.get('resource_type') == 'nlp_tool':
@@ -372,82 +339,57 @@ class ResourceForm(forms.Form):
         return ','.join(languages) if languages else ''
 
     def prepare_supported_languages(self, value):
-        """Convertit une chaîne de langues en liste pour l'affichage initial"""
         if value:
             return value.split(',')
         return []
 
-    #
-    # ... (votre logique existante de validation et sauvegarde)
     def clean(self):
-      cleaned_data = super().clean()
-      resource_type = cleaned_data.get('resource_type')
-    
-    # Validation principale
-      required_fields = []
-      if resource_type == 'course':
-        required_fields = ['course_field', 'academic_level', 'course_institution', 'academic_year']
-      elif resource_type == 'nlp_tool':
-        required_fields = ['tool_type', 'tool_version']
-      elif resource_type == 'corpus':
-        required_fields = ['corpus_size', 'corpus_field', 'corpus_format']
-      elif resource_type == 'document':
-        required_fields = ['document_type', 'document_format']
+        cleaned_data = super().clean()
+        resource_type = cleaned_data.get('resource_type')
+
+        required_fields = []
+        if resource_type == 'course':
+            required_fields = ['course_field', 'academic_level', 'course_institution', 'academic_year']
+        elif resource_type == 'nlp_tool':
+            required_fields = ['tool_type', 'tool_version']
+        elif resource_type == 'corpus':
+            required_fields = ['corpus_size', 'corpus_field', 'corpus_format']
+        elif resource_type == 'article':
+            required_fields = ['document_format', 'journal', 'publication_date']
+        elif resource_type == 'thesis':
+            required_fields = ['document_format', 'supervisor', 'thesis_institution', 'defense_year']
+        elif resource_type == 'memoir':
+            required_fields = ['document_format', 'memoir_level', 'memoir_institution', 'memoir_defense_year']
+
         for field in required_fields:
-         if not cleaned_data.get(field):
-          print(field, "This field is required for this document type")
-
-    # Validation des champs obligatoires
-      for field in required_fields:
-        if not cleaned_data.get(field):
-            self.add_error(field, _("This field is required for this resource type"))
-
-    # Validation des sous-types de document
-      if resource_type == 'document':
-        doc_type = cleaned_data.get('document_type')
-        required = []  # Initialisation par défaut
-        
-        if doc_type == 'article':
-            required = ['journal', 'publication_date']
-        elif doc_type == 'thesis':
-            required = ['supervisor', 'thesis_institution', 'defense_year']
-        elif doc_type == 'memoir':
-            required = ['memoir_level', 'memoir_institution', 'memoir_defense_year']
-        else:
-            # Si le type de document n'est pas reconnu, on considère qu'aucun champ supplémentaire n'est requis
-            required = []
-            
-        for field in required:
             if not cleaned_data.get(field):
-                self.add_error(field, _("This field is required for this document type"))
+                self.add_error(field, _("This field is required for this resource type"))
 
-    # Validation de l'année académique
-      if resource_type == 'course' and cleaned_data.get('academic_year'):
-        try:
-            start, end = map(int, cleaned_data['academic_year'].split('-'))
-            if end != start + 1:
-                self.add_error('academic_year', _("End year must be start year + 1"))
-        except (ValueError, AttributeError):
-            self.add_error('academic_year', _("Invalid format (ex: 2023-2024)"))
+        if resource_type == 'course' and cleaned_data.get('academic_year'):
+            try:
+                start, end = map(int, cleaned_data['academic_year'].split('-'))
+                if end != start + 1:
+                    self.add_error('academic_year', _("End year must be start year + 1"))
+            except (ValueError, AttributeError):
+                self.add_error('academic_year', _("Invalid format (ex: 2023-2024)"))
 
-      if resource_type == 'course':
-        field_value = cleaned_data.get('course_field')
-        if field_value and field_value not in dict(FieldChoices.choices):
-            self.add_error('course_field', _("Invalid field choice"))
+        if resource_type == 'course':
+            field_value = cleaned_data.get('course_field')
+            if field_value and field_value not in dict(FieldChoices.choices):
+                self.add_error('course_field', _("Invalid field choice"))
+        elif resource_type == 'corpus':
+            field_value = cleaned_data.get('corpus_field')
+            if field_value and field_value not in dict(FieldChoices.choices):
+                self.add_error('corpus_field', _("Invalid field choice"))
 
-      elif resource_type == 'corpus':
-        field_value = cleaned_data.get('corpus_field')
-        if field_value and field_value not in dict(FieldChoices.choices):
-            self.add_error('corpus_field', _("Invalid field choice"))
+        language_value = cleaned_data.get('language')
+        if not language_value:
+            self.add_error('language', _("Language is required"))
+        elif language_value not in dict(ResourceBase.LanguageChoices.choices):
+            self.add_error('language', _("Invalid language choice"))
 
-      language_value = cleaned_data.get('language')
-      if not language_value:
-        self.add_error('language', _("Language is required"))
-      elif language_value not in dict(ResourceBase.LanguageChoices.choices):
-        self.add_error('language', _("Invalid language choice"))
+        return cleaned_data
 
-      return cleaned_data
-    
     def save(self, instance=None):
         resource_type = self.cleaned_data['resource_type']
         common_data = {
@@ -456,17 +398,16 @@ class ResourceForm(forms.Form):
             'author': self.user,
             'keywords': self.cleaned_data['keywords'],
             'access_link': self.cleaned_data['access_link'] or None,
-            'language': self.cleaned_data['language'] ,
+            'language': self.cleaned_data['language'],
         }
 
         if self.is_update and instance:
-            # Mise à jour de l'instance existante
             for field, value in common_data.items():
                 setattr(instance, field, value)
             instance.save()
-            
+
             if resource_type == 'course':
-                instance.field = self.cleaned_data['course_field'] 
+                instance.field = self.cleaned_data['course_field']
                 instance.academic_level = self.cleaned_data['academic_level']
                 instance.institution = self.cleaned_data['course_institution']
                 instance.academic_year = self.cleaned_data['academic_year']
@@ -479,36 +420,42 @@ class ResourceForm(forms.Form):
                 instance.save()
             elif resource_type == 'corpus':
                 instance.size = self.cleaned_data['corpus_size']
-                instance.field = self.cleaned_data['corpus_field'] 
+                instance.field = self.cleaned_data['corpus_field']
                 instance.file_format = self.cleaned_data['corpus_format']
                 instance.save()
-            elif resource_type == 'document':
-                instance.document_type = self.cleaned_data['document_type']
+            elif resource_type == 'article':
+                instance.document_type = Document.DocumentType.ARTICLE
                 instance.file_format = self.cleaned_data['document_format']
                 instance.save()
                 
-                if hasattr(instance, 'article'):
-                    article = instance.article
-                    article.doi = self.cleaned_data['doi']
-                    article.journal = self.cleaned_data['journal']
-                    article.publication_date = self.cleaned_data['publication_date']
-                    article.save()
-                elif hasattr(instance, 'thesis'):
-                    thesis = instance.thesis
-                    thesis.supervisor = self.cleaned_data['supervisor']
-                    thesis.institution = self.cleaned_data['thesis_institution']
-                    thesis.defense_year = self.cleaned_data['defense_year']
-                    thesis.save()
-                elif hasattr(instance, 'memoir'):
-                    memoir = instance.memoir
-                    memoir.academic_level = self.cleaned_data['memoir_level']
-                    memoir.institution = self.cleaned_data['memoir_institution']
-                    memoir.defense_year = self.cleaned_data['memoir_defense_year']
-                    memoir.save()
-            
+                article = instance.article
+                article.doi = self.cleaned_data.get('doi', '')
+                article.journal = self.cleaned_data['journal']
+                article.publication_date = self.cleaned_data['publication_date']
+                article.save()
+            elif resource_type == 'thesis':
+                instance.document_type = Document.DocumentType.THESIS
+                instance.file_format = self.cleaned_data['document_format']
+                instance.save()
+                
+                thesis = instance.thesis
+                thesis.supervisor = self.cleaned_data['supervisor']
+                thesis.institution = self.cleaned_data['thesis_institution']
+                thesis.defense_year = self.cleaned_data['defense_year']
+                thesis.save()
+            elif resource_type == 'memoir':
+                instance.document_type = Document.DocumentType.MEMOIR
+                instance.file_format = self.cleaned_data['document_format']
+                instance.save()
+                
+                memoir = instance.memoir
+                memoir.academic_level = self.cleaned_data['memoir_level']
+                memoir.institution = self.cleaned_data['memoir_institution']
+                memoir.defense_year = self.cleaned_data['memoir_defense_year']
+                memoir.save()
+
             return instance
         else:
-            # Création d'une nouvelle instance
             if resource_type == 'course':
                 return Course.objects.create(
                     **common_data,
@@ -533,35 +480,42 @@ class ResourceForm(forms.Form):
                     field=self.cleaned_data['corpus_field'],
                     file_format=self.cleaned_data['corpus_format']
                 )
-            elif resource_type == 'document':
+            elif resource_type == 'article':
                 doc = Document.objects.create(
                     **common_data,
-                    document_type=self.cleaned_data['document_type'],
+                    document_type=Document.DocumentType.ARTICLE,
                     file_format=self.cleaned_data['document_format']
                 )
-            if doc.document_type == 'article':
-                 Article.objects.create(
-                     document= doc,
-                     doi = self.cleaned_data['doi'],
-                     journal = self.cleaned_data['journal'],
-                     publication_date = self.cleaned_data['publication_date']
-                     )
-                 
-                 
-            elif doc.document_type == 'thesis':
-                 Thesis.objects.create(
-                     document=doc,
-                     supervisor=self.cleaned_data['supervisor'],
-                     institution=self.cleaned_data['thesis_institution'],
-                     defense_year=self.cleaned_data['defense_year']
-            )
-            elif doc.document_type == 'memoir':
-                  Memoir.objects.create(
-                document=doc,
-                academic_level=self.cleaned_data['memoir_level'],
-                institution=self.cleaned_data['memoir_institution'],
-                defense_year=self.cleaned_data['memoir_defense_year']
-            )
-                
-                
-            return doc
+                Article.objects.create(
+                    document=doc,
+                    doi=self.cleaned_data.get('doi', ''),
+                    journal=self.cleaned_data['journal'],
+                    publication_date=self.cleaned_data['publication_date']
+                )
+                return doc
+            elif resource_type == 'thesis':
+                doc = Document.objects.create(
+                    **common_data,
+                    document_type=Document.DocumentType.THESIS,
+                    file_format=self.cleaned_data['document_format']
+                )
+                Thesis.objects.create(
+                    document=doc,
+                    supervisor=self.cleaned_data['supervisor'],
+                    institution=self.cleaned_data['thesis_institution'],
+                    defense_year=self.cleaned_data['defense_year']
+                )
+                return doc
+            elif resource_type == 'memoir':
+                doc = Document.objects.create(
+                    **common_data,
+                    document_type=Document.DocumentType.MEMOIR,
+                    file_format=self.cleaned_data['document_format']
+                )
+                Memoir.objects.create(
+                    document=doc,
+                    academic_level=self.cleaned_data['memoir_level'],
+                    institution=self.cleaned_data['memoir_institution'],
+                    defense_year=self.cleaned_data['memoir_defense_year']
+                )
+                return doc
