@@ -116,49 +116,47 @@
                             </a>
                         </div>
                     </div>
-
-                    <!-- Commentaires -->
-                    <div class="comments-section mt-3">
-                        {% for comment in post.comments.all|slice:":3" %}
-                        <div class="comment mb-2">
-                            <div class="d-flex">
-                                <div class="flex-shrink-0">
-                                    {% if comment.author.avatar %}
-                                        <img src="{{ comment.author.avatar.url }}" alt="{{ comment.author.full_name }}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
-                                    {% else %}
-                                        <i class="fas fa-user-circle text-primary"></i>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1 ms-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0">{{ comment.author.full_name }}</h6>
-                                        <small class="text-muted">{{ comment.created_at|timesince }}</small>
-                                    </div>
-                                    <p class="mb-1">{{ comment.content }}</p>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% if post.total_comments > 3 %}
-                        <a href="{% url 'QA:post_detail' post.slug %}" class="text-muted">
-                            {% trans "See all comments" %} ({{ post.total_comments }})
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
+<!-- Commentaires -->
+<div class="comments-section mt-3">
+    {% for comment in post.comments.all|slice:":3" %}
+    <div class="comment mb-3 d-flex align-items-start">
+        <!-- Avatar -->
+        {% if reply.author.avatar %}
+    <img src="{{ reply.author.avatar.url }}"
+         alt="{{ reply.author.full_name }}"
+         class="rounded-circle"
+         style="width: 32px; height: 32px; object-fit: cover;"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <div class="bg-info text-white rounded-circle d-none align-items-center justify-content-center"
+         style="width: 32px; height: 32px; font-size: 0.8rem;">
+        <span></span>
+    </div>
+{% else %}
+    <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center"
+         style="width: 32px; height: 32px; font-size: 0.8rem;">
+        <span></span>
+    </div>
+{% endif %}
+        
+        <!-- Contenu -->
+        <div class="flex-grow">
+            <div>
+                <strong>{{ comment.author.full_name }}</strong>
+                <span></span>
             </div>
-            {% empty %}
-            <div class="text-center py-5">
-                <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
-                <h4>{% trans "No publications yet" %}</h4>
-                <p class="text-muted">{% trans "Be the first to share something!" %}</p>
-            </div>
-            {% endfor %}
+            <p class="mb-0 ">{{ comment.content }}</p>
         </div>
     </div>
+    {% endfor %}
+    {% if post.total_comments > 3 %}
+    <a href="{% url 'QA:post_detail' post.slug %}" class="text-muted">
+        {% trans "See all comments" %} ({{ post.total_comments }})
+    </a>
+    {% endif %}
 </div>
-{% endblock %}
 
+{% endfor %}
+{% endblock %}
 {% block extra_scripts %}
     <!-- Bootstrap Bundle with Popper for dropdowns -->
     <script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
@@ -193,4 +191,29 @@
         });
     });
     </script>
+{% endblock %}
+{% block extra_css %}
+<style>
+ /* Supprimer toute numérotation dans les commentaires */
+.comments-section,
+.comments-section * {
+    counter-reset: none !important;
+    counter-increment: none !important;
+}
+
+.comment,
+.comment * {
+    list-style: none !important;
+    content: none !important;
+}
+
+/* Supprimer tout ::before et ::after généré par Bootstrap ou autre */
+.comment::before,
+.comment::after,
+.comment *::before,
+.comment *::after {
+    content: none !important;
+    display: none !important;
+}
+</style>
 {% endblock %}
