@@ -108,27 +108,35 @@
             <div class="resource-type-indicator type-{{ resource.resource_type }}"></div>
             <div class="card-body">
                 <div class="resource-badge type-{{ resource.resource_type }}">
-                    <i class="bi {% if resource.resource_type == 'article' %}bi-file-text
-                               {% elif resource.resource_type == 'thesis' %}bi-journal-richtext
-                               {% elif resource.resource_type == 'memoir' %}bi-book
-                               {% elif resource.resource_type == 'tool' %}bi-tools
-                               {% else %}bi-mortarboard{% endif %} me-2"></i>
-                    {{ resource.resource_type|title }}
-                </div>
+    <i class="bi {% if resource.resource_type == 'article' %}bi-file-text
+               {% elif resource.resource_type == 'thesis' %}bi-journal-richtext
+               {% elif resource.resource_type == 'memoir' %}bi-book
+               {% elif resource.resource_type == 'tool' %}bi-tools
+               {% elif resource.resource_type == 'course' %}bi-mortarboard
+               {% elif resource.resource_type == 'corpus' %}bi-archive
+               {% else %}bi-file-earmark{% endif %} me-2"></i>
+    {% if resource.resource_type == 'course' %}{% trans "Course" %}
+    {% elif resource.resource_type == 'tool' %}{% trans "Tool" %}
+    {% elif resource.resource_type == 'corpus' %}{% trans "Corpus" %}
+    {% elif resource.resource_type == 'article' %}{% trans "Article" %}
+    {% elif resource.resource_type == 'thesis' %}{% trans "Thesis" %}
+    {% elif resource.resource_type == 'memoir' %}{% trans "Memoir" %}
+    {% else %}{{ resource.resource_type|title }}{% endif %}
+</div>
                 <h5 class="card-title">{{ resource.title }}</h5>
                 <div class="card-text">
-                    {{ resource.description|truncatewords:20|default:"No description provided" }}
-                </div>
+    {{ resource.description|truncatewords:20|default:_("No description provided") }}
+</div>
                 <div class="resource-meta">
-                    <div class="meta-item">
-                        <i class="bi bi-person-circle"></i>
-                        <span>{{ resource.author.full_name }}</span>
-                    </div>
-                    <div class="meta-item">
-                        <i class="bi bi-calendar-event"></i>
-                        <span>{{ resource.creation_date|date:"M d, Y" }}</span>
-                    </div>
-                </div>
+    <div class="meta-item">
+        <i class="bi bi-person-circle"></i>
+        <span>{{ resource.author.full_name|default:_("Unknown") }}</span>
+    </div>
+    <div class="meta-item">
+        <i class="bi bi-calendar-event"></i>
+        <span>{{ resource.creation_date|date:"M d, Y"|default:_("Not specified") }}</span>
+    </div>
+</div>
             </div>
             <div class="card-footer">
                 <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}" 

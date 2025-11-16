@@ -6,6 +6,9 @@ from pathlib import Path
 import os
 from decouple import config
 import dj_database_url
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # --- Charger les variables d'environnement (.env) ---
 # Assure-toi d'avoir "python-dotenv" dans requirements.txt (c'est le cas)
@@ -22,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ----------------------------------------------------
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-default-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Optionnel si tu utilises un nom de domaine ou 127.0.0.1 en HTTPS derrière un proxy
 # CSRF_TRUSTED_ORIGINS = [ "https://ton-domaine.tld" ]
@@ -34,6 +37,19 @@ INSTALLED_APPS = [
     # ASGI / Channels
     "daphne",
     "channels",
+
+    # Django core
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.sites",
+
+    # Cloudinary AVANT staticfiles
+    'cloudinary_storage',
+    'cloudinary',
+    'django.contrib.staticfiles',
 
     # Apps projet
     "resources",
@@ -49,22 +65,13 @@ INSTALLED_APPS = [
     "chatbot",
     "translate",
 
-    # Django/Allauth
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.sites",
-    "django.contrib.staticfiles",
-
+    # Allauth
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
 
     # UI
-    
     "crispy_forms",
     "crispy_bootstrap5",
     "widget_tweaks",
@@ -76,6 +83,12 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 SITE_ID = 1
 
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': config('CLOUDINARY_API_KEY'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET')
+}
 # ----------------------------------------------------
 # Middleware
 # ----------------------------------------------------
@@ -126,11 +139,13 @@ CHANNEL_LAYERS = {
 # ----------------------------------------------------
 # Base de données (PostgreSQL via .env)
 # ----------------------------------------------------
-DATABASE_URL = config('DATABASE_URL')
-DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-}
+DATABASE_URL = config('DATABASE_URL', default='', cast=str)
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL must be set in .env file")
 
+DATABASES = {
+    'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600)
+}
 # ----------------------------------------------------
 # Auth & Allauth
 # ----------------------------------------------------
@@ -177,7 +192,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = str(BASE_DIR / "staticfiles")
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

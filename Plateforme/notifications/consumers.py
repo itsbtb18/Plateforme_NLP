@@ -5,8 +5,8 @@ from .models import Notification
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
+        self.user = self.scope.get("user")
+        if self.user and self.user.is_authenticated:
             self.group_name = f"user_{self.user.id}_notifications"
             await self.channel_layer.group_add(self.group_name, self.channel_name)
             await self.accept()
@@ -14,21 +14,27 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         else:
             await self.close()
 
-    async def disconnect(self, close_code):
-        if self.user.is_authenticated:
+    async def disconnect(self, code):
+        if hasattr(self, 'user') and self.user and self.user.is_authenticated:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
-    async def receive(self, text_data):
-        data = json.loads(text_data)
-        if data.get('action') == 'mark_as_read':
-            await self.mark_as_read(data.get('notification_id'))
-        elif data.get('action') == 'mark_all_as_read':
-            await self.mark_all_as_read()
+    async def receive(self, text_data=None, bytes_data=None):
+        if text_data:
+            data = json.loads(text_data)
+            if data.get('action') == 'mark_as_read':
+                await self.mark_as_read(data.get('notification_id'))
+            elif data.get('action') == 'mark_all_as_read':
+                await self.mark_all_as_read()
 
     async def notification_message(self, event):
+        notification = event['notification']
+        # S'assurer que l'ID est une string
+        if 'id' in notification and not isinstance(notification['id'], str):
+            notification['id'] = str(notification['id'])
+        
         await self.send(text_data=json.dumps({
             'type': 'new_notification',
-            'notification': event['notification']
+            'notification': notification
         }))
 
     async def send_unread_notifications(self):
@@ -42,7 +48,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     def get_unread_notifications(self):
         return [
             {
-                'id': n.id,
+                'id': str(n.id),  # Convertir UUID en string
                 'title': n.title,
                 'message': n.message,
                 'created_at': n.created_at.isoformat(),
