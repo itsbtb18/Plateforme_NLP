@@ -4,6 +4,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.conf import settings
+from cloudinary_storage.storage import MediaCloudinaryStorage  # ADD THIS
+
 
 class Country(models.Model):
     name_en = models.CharField(_("Country Name (English)"), max_length=100)
@@ -21,7 +23,6 @@ class Country(models.Model):
         return self.name_ar if current_lang == 'ar' else self.name_en
 
 
-
 class Specialty(models.Model):
     name_en = models.CharField(_("Specialty Name (English)"), max_length=100, unique=True, default='')
     name_ar = models.CharField(_("Specialty Name (Arabic)"), max_length=100, blank=True, default='')
@@ -36,6 +37,7 @@ class Specialty(models.Model):
         from django.utils.translation import get_language
         current_lang = get_language()
         return self.name_ar if current_lang == 'ar' else self.name_en
+
     
 class Institution(models.Model):
     id = models.UUIDField(
@@ -55,16 +57,33 @@ class Institution(models.Model):
     country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name=_("Country"))
     city = models.CharField(_("City"), max_length=100)
     specialties = models.ManyToManyField(Specialty, verbose_name=_("Specialties"))
-    logo = models.ImageField(_("Logo"), upload_to='institutions/logos/', blank=True, null=True)
+    
+    # FIXED: Add Cloudinary storage
+    logo = models.ImageField(
+        _("Logo"),
+        upload_to='institutions/logos/',
+        storage=MediaCloudinaryStorage(),
+        blank=True,
+        null=True
+    )
+    
     website = models.URLField(_("Website"), blank=True)
     email = models.EmailField(_("Email"), blank=True)
     phone = models.CharField(_("Phone"), max_length=50, blank=True)
     address = models.TextField(_("Address"), blank=True)
     description = models.TextField(_("Description"), blank=True)
-    image = models.ImageField(default='default.jpg', upload_to='institution_pics')
+    
+    # FIXED: Add Cloudinary storage
+    image = models.ImageField(
+        default='default.jpg',
+        upload_to='institution_pics',
+        storage=MediaCloudinaryStorage()
+    )
+    
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
-     # Use AUTH_USER_MODEL here:
+    
+    # Use AUTH_USER_MODEL here:
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

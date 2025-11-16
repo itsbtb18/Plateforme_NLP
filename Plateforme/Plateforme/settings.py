@@ -6,33 +6,20 @@ from pathlib import Path
 import os
 from decouple import config
 import dj_database_url
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 
-# --- Charger les variables d'environnement (.env) ---
-# Assure-toi d'avoir "python-dotenv" dans requirements.txt (c'est le cas)
+# Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
-# ----------------------------------------------------
-# Chemins de base
-# ----------------------------------------------------
+# Base Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ----------------------------------------------------
-# Sécurité & Debug
-# ----------------------------------------------------
+# Security & Debug
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-default-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
-# Optionnel si tu utilises un nom de domaine ou 127.0.0.1 en HTTPS derrière un proxy
-# CSRF_TRUSTED_ORIGINS = [ "https://ton-domaine.tld" ]
-
-# ----------------------------------------------------
 # Applications
-# ----------------------------------------------------
 INSTALLED_APPS = [
     # ASGI / Channels
     "daphne",
@@ -46,7 +33,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sites",
 
-    # Cloudinary AVANT staticfiles
+    # Cloudinary - IMPORTANT: Order matters!
     'cloudinary_storage',
     'cloudinary',
     'django.contrib.staticfiles',
@@ -75,23 +62,13 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "widget_tweaks",
-
-    # Elasticsearch
-    #"django_elasticsearch_dsl",
 ]
+
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 SITE_ID = 1
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': config('CLOUDINARY_API_KEY'),
-    'API_SECRET': config('CLOUDINARY_API_SECRET')
-}
-# ----------------------------------------------------
 # Middleware
-# ----------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -103,9 +80,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-# ----------------------------------------------------
 # URLs / Templates
-# ----------------------------------------------------
 ROOT_URLCONF = "Plateforme.urls"
 
 TEMPLATES = [
@@ -116,7 +91,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.debug",
-                "django.template.context_processors.request",  # requis par Allauth
+                "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "notifications.context_processors.notification_processor",
@@ -125,9 +100,7 @@ TEMPLATES = [
     },
 ]
 
-# ----------------------------------------------------
 # ASGI / Channels
-# ----------------------------------------------------
 ASGI_APPLICATION = "Plateforme.asgi.application"
 
 CHANNEL_LAYERS = {
@@ -136,9 +109,7 @@ CHANNEL_LAYERS = {
     }
 }
 
-# ----------------------------------------------------
-# Base de données (PostgreSQL via .env)
-# ----------------------------------------------------
+# Database
 DATABASE_URL = config('DATABASE_URL', default='', cast=str)
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL must be set in .env file")
@@ -146,9 +117,8 @@ if not DATABASE_URL:
 DATABASES = {
     'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600)
 }
-# ----------------------------------------------------
+
 # Auth & Allauth
-# ----------------------------------------------------
 AUTH_USER_MODEL = "accounts.CustomUser"
 
 AUTHENTICATION_BACKENDS = [
@@ -166,16 +136,13 @@ ACCOUNT_FORMS = {
 LOGIN_REDIRECT_URL = "pages:home"
 ACCOUNT_LOGOUT_REDIRECT = "pages:home"
 
-# ----------------------------------------------------
-# i18n / l10n / tz (une seule section, pas de doublons)
-# ----------------------------------------------------
+# i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
 
-LANGUAGE_CODE = "en"   # ou "ar" si tu veux l'arabe par défaut
+LANGUAGE_CODE = "en"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-# USE_L10N a été supprimé dans Django 5 -> ne pas l'utiliser
 
 LANGUAGES = [
     ("en", _("English")),
@@ -184,28 +151,58 @@ LANGUAGES = [
 
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
-# ----------------------------------------------------
-# Fichiers statiques & médias
-# ----------------------------------------------------
+# ============================================
+# CLOUDINARY CONFIGURATION - CRITICAL FIX
+# ============================================
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+# Configure Cloudinary FIRST
+cloudinary.config(
+    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
+    api_key=config('CLOUDINARY_API_KEY'),
+    api_secret=config('CLOUDINARY_API_SECRET'),
+    secure=True
+)
+
+# CRITICAL: Set BEFORE importing storage classes
+os.environ['CLOUDINARY_CLOUD_NAME'] = config('CLOUDINARY_CLOUD_NAME')
+os.environ['CLOUDINARY_API_KEY'] = config('CLOUDINARY_API_KEY')
+os.environ['CLOUDINARY_API_SECRET'] = config('CLOUDINARY_API_SECRET')
+
+# Media files - Use Cloudinary for ALL uploads
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Cloudinary Storage Settings
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': config('CLOUDINARY_API_KEY'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET')
+}
+
+# Static files
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = str(BASE_DIR / "staticfiles")
 
+# Media settings - these are used as fallback but Cloudinary takes precedence
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ============================================
+# END CLOUDINARY CONFIGURATION
+# ============================================
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ----------------------------------------------------
-# Email (via .env) - SMTP Gmail (app password recommandé)
-# ----------------------------------------------------
+# Email Configuration
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
-# Si aucune config n'est fournie, basculer sur la console pour dev
 if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
@@ -213,9 +210,7 @@ else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "webmaster@localhost"
 
-# ----------------------------------------------------
-# Elasticsearch (via .env)
-# ----------------------------------------------------
+# Elasticsearch
 ELASTICSEARCH_DSL = {
     "default": {
         "hosts": os.getenv("ELASTIC_URL", "http://localhost:9200"),
@@ -226,9 +221,7 @@ ELASTICSEARCH_DSL = {
 ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
-# ----------------------------------------------------
 # Logging
-# ----------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -247,4 +240,3 @@ LOGGING = {
         },
     },
 }
-
