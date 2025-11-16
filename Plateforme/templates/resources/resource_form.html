@@ -21,7 +21,7 @@
         </div>
         
         <!-- Champs spécifiques aux cours -->
-        <div id="course-fields" class="specific-field">
+        <div id="course-fields" class="specific-field" style="display: none;">
             <h3>{% trans "Course Details" %}</h3>
             {{ form.course_field|as_crispy_field }}
             {{ form.academic_level|as_crispy_field }}
@@ -30,7 +30,7 @@
         </div>
         
         <!-- Champs spécifiques aux outils NLP -->
-        <div id="nlp_tool-fields" class="specific-field">
+        <div id="nlp_tool-fields" class="specific-field" style="display: none;">
             <h3>{% trans "NLP Tool Details" %}</h3>
             {{ form.tool_type|as_crispy_field }}
             {{ form.tool_version|as_crispy_field }}
@@ -39,40 +39,38 @@
         </div>
         
         <!-- Champs spécifiques aux corpus -->
-        <div id="corpus-fields" class="specific-field">
+        <div id="corpus-fields" class="specific-field" style="display: none;">
             <h3>{% trans "Corpus Details" %}</h3>
             {{ form.corpus_size|as_crispy_field }}
             {{ form.corpus_field|as_crispy_field }}
             {{ form.corpus_format|as_crispy_field }}
         </div>
         
-        <!-- Champs spécifiques aux documents -->
-        <div id="document-fields" class="specific-field">
-            <h3>{% trans "Document Details" %}</h3>
-            {{ form.document_type|as_crispy_field }}
+        <!-- Champs spécifiques aux articles -->
+        <div id="article-fields" class="specific-field" style="display: none;">
+            <h3>{% trans "Article Details" %}</h3>
             {{ form.document_format|as_crispy_field }}
-            
-            <!-- Sous-types de documents -->
-            <div id="article-fields" class="specific-field sub-document-field">
-                <h4>{% trans "Article Details" %}</h4>
-                {{ form.doi|as_crispy_field }}
-                {{ form.journal|as_crispy_field }}
-                {{ form.publication_date|as_crispy_field }}
-            </div>
-            
-            <div id="thesis-fields" class="specific-field sub-document-field">
-                <h4>{% trans "Thesis Details" %}</h4>
-                {{ form.supervisor|as_crispy_field }}
-                {{ form.thesis_institution|as_crispy_field }}
-                {{ form.defense_year|as_crispy_field }}
-            </div>
-            
-            <div id="memoir-fields" class="specific-field sub-document-field">
-                <h4>{% trans "Memoir Details" %}</h4>
-                {{ form.memoir_level|as_crispy_field }}
-                {{ form.memoir_institution|as_crispy_field }}
-                {{ form.memoir_defense_year|as_crispy_field }}
-            </div>
+            {{ form.journal|as_crispy_field }}
+            {{ form.publication_date|as_crispy_field }}
+            {{ form.doi|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux thèses -->
+        <div id="thesis-fields" class="specific-field" style="display: none;">
+            <h3>{% trans "Thesis Details" %}</h3>
+            {{ form.document_format|as_crispy_field }}
+            {{ form.supervisor|as_crispy_field }}
+            {{ form.thesis_institution|as_crispy_field }}
+            {{ form.defense_year|as_crispy_field }}
+        </div>
+        
+        <!-- Champs spécifiques aux mémoires -->
+        <div id="memoir-fields" class="specific-field" style="display: none;">
+            <h3>{% trans "Memoir Details" %}</h3>
+            {{ form.document_format|as_crispy_field }}
+            {{ form.memoir_level|as_crispy_field }}
+            {{ form.memoir_institution|as_crispy_field }}
+            {{ form.memoir_defense_year|as_crispy_field }}
         </div>
         
         <div class="d-flex justify-content-between mt-4">
@@ -84,68 +82,53 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Correspondances entre les valeurs du select et les IDs des divs
     const resourceTypeToId = {
         'course': 'course-fields',
         'nlp_tool': 'nlp_tool-fields',
         'corpus': 'corpus-fields',
-        'document': 'document-fields'
-    };
-
-    const documentTypeToId = {
         'article': 'article-fields',
-        'thesis': 'thesis-fields', 
+        'thesis': 'thesis-fields',
         'memoir': 'memoir-fields'
     };
 
-    // Fonction pour mettre à jour les champs visibles
     function updateFields() {
-        // Masquer tous les champs spécifiques
         document.querySelectorAll('.specific-field').forEach(el => {
             el.style.display = 'none';
         });
         
-        // Afficher les champs correspondant au type principal sélectionné
-        const mainType = document.getElementById('id_resource_type').value;
-        console.log("Type de ressource sélectionné:", mainType);
+        const selectedType = document.getElementById('id_resource_type').value;
+        console.log("Selected resource type:", selectedType);
         
-        if (resourceTypeToId[mainType]) {
-            document.getElementById(resourceTypeToId[mainType]).style.display = 'block';
-        }
-
-        // Si c'est un document, gérer les sous-types
-        if (mainType === 'document') {
-            const docTypeElement = document.getElementById('id_document_type');
-            if (docTypeElement) {
-                const docType = docTypeElement.value;
-                console.log("Type de document sélectionné:", docType);
-                
-                // Masquer tous les sous-champs de document
-                document.querySelectorAll('.sub-document-field').forEach(el => {
-                    el.style.display = 'none';
-                });
-                
-                // Afficher le sous-type sélectionné
-                if (documentTypeToId[docType]) {
-                    document.getElementById(documentTypeToId[docType]).style.display = 'block';
-                }
-                
-                // Ajout d'un écouteur d'événements pour le changement de type de document
-                docTypeElement.addEventListener('change', function() {
-                    updateFields();
-                });
+        if (resourceTypeToId[selectedType]) {
+            const targetDiv = document.getElementById(resourceTypeToId[selectedType]);
+            if (targetDiv) {
+                targetDiv.style.display = 'block';
             }
         }
     }
 
-    // Écouteur d'événements pour le changement de type principal
     const resourceTypeSelect = document.getElementById('id_resource_type');
     if (resourceTypeSelect) {
         resourceTypeSelect.addEventListener('change', updateFields);
     }
     
-    // Initialiser l'affichage au chargement
     updateFields();
 });
 </script>
+
+<style>
+.specific-field {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    border-left: 4px solid #007bff;
+}
+
+.specific-field h3 {
+    color: #007bff;
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+}
+</style>
 {% endblock %}
