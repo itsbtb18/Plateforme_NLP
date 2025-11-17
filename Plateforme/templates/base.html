@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 {% load i18n %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
@@ -65,78 +65,67 @@
                 </div>
             </div>
             <div id="search-results" class="search-results-dropdown"></div>
-           
-            <style>
-                .lang-container {
-                    display: inline-flex;
-                    gap: 12px;
-                }
-                .lang-button {
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    text-decoration: none;
-                    cursor: pointer;
-                    transition: background-color 0.3s ease;
-                    border: 2px solid transparent;
-                    display: inline-block;
-                }
-                .lang-en {
-                    background-color: #2563eb;
-                    color: white;
-                    border-color: #2563eb;
-                }
-                .lang-en:hover {
-                    background-color: #1d4ed8;
-                    border-color: #1d4ed8;
-                    color: white;
-                }
-                .lang-ar {
-                    background-color: white;
-                    color: #2563eb;
-                    border-color: #2563eb;
-                }
-                .lang-ar:hover {
-                    background-color: #ebf4ff;
-                }
-            </style>
 
-            <!-- Language Switcher Dropdown -->
-   <div class="language-dropdown-container">
-      <button class="language-icon-btn" id="languageIconBtn" title="{% trans 'Language' %}">
-        <i class="fas fa-globe"></i>
-        <span class="language-text">{% if LANGUAGE_CODE == 'ar' %}اللغة{% else %}Language{% endif %}</span>
-      </button>
-    
-     <div class="language-dropdown" id="languageDropdown">
-        <a href="{% url 'translate:switch_language' %}?language=en" class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
-            <i class="fas fa-check-circle"></i>
-            <span>English</span>
-        </a>
-        <a href="{% url 'translate:switch_language' %}?language=ar" class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}">
-            <i class="fas fa-check-circle"></i>
-            <span>العربية</span>
-        </a>
-     </div>
-    </div>
-    
+            <div class="header-actions">
+                <div class="language-dropdown-container action-dropdown-container">
+                    <button class="action-btn icon-btn language-icon-btn"
+                            id="languageIconBtn"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="{% trans 'Language' %}">
+                        <i class="fas fa-globe"></i>
+                        <span class="btn-label">{% trans "Language" %}</span>
+                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
+                        <a href="{% url 'translate:switch_language' %}?language=en"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                           role="menuitem">
+                            <span>English</span>
+                            {% if LANGUAGE_CODE == 'en' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'translate:switch_language' %}?language=ar"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                           role="menuitem">
+                            <span>العربية</span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
 
-            <div class="auth-buttons">
                 {% if user.is_authenticated %}
-                    <!-- Notification Bell -->
-                    <div class="notification-dropdown-container">
-                        <button class="btn btn-icon notification-bell position-relative" 
-                                id="notificationDropdownToggle" 
-                                aria-label="Afficher les notifications">
+                <div class="authenticated-actions">
+                    <div class="notification-dropdown-container action-dropdown-container">
+                        <button class="action-btn icon-btn notification-bell"
+                                id="notificationDropdownToggle"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                title="{% trans 'Notifications' %}">
                             <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span class="notification-badge">{% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+                            <span class="action-badge notification-badge">
+                                {% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}
+                            </span>
                         </button>
-                        <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="dropdown-panel notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationDropdownToggle">
                             <div class="notification-header">
-                                <h6>{% trans "Notifications" %} </h6>
+                                <div>
+                                    <p class="notification-title">{% trans "Notifications" %}</p>
+                                    <span class="notification-subtitle">
+                                        {% if unread_notifications_count > 0 %}
+                                            {% blocktrans %}{{ unread_notifications_count }} unread{% endblocktrans %}
+                                        {% else %}
+                                            {% trans "All caught up" %}
+                                        {% endif %}
+                                    </span>
+                                </div>
                                 {% if unread_notifications_count > 0 %}
                                 <a href="{% url 'notifications:mark_all_read' %}" class="mark-all-read">
-                                    {% trans "Mark all as read" %} 
+                                    <i class="fas fa-check-double"></i> {% trans "Mark all as read" %}
                                 </a>
                                 {% endif %}
                             </div>
@@ -168,44 +157,52 @@
                                     {% endfor %}
                                 {% else %}
                                     <div class="empty-notifications">
-                                        <p>{% trans " No notifications yet" %}</p>
+                                        <p>{% trans "No notifications yet" %}</p>
                                     </div>
                                 {% endif %}
                             </div>
                             <div class="notification-footer">
-                                <a href="{% url 'notifications:list' %}">{% trans "View all notifications" %} </a>
+                                <a href="{% url 'notifications:list' %}">{% trans "View all notifications" %}</a>
                             </div>
                         </div>
                     </div>
-                    <!-- End of Notification Bell -->
-                    
-                    <!-- Profile Icon Dropdown -->
-                    <div class="profile-icon-container">
-                        <button class="profile-icon-btn" id="profileIconBtn" title="{% trans 'Profile' %}">
+
+                    <div class="profile-icon-container action-dropdown-container">
+                        <button class="action-btn icon-btn profile-icon-btn"
+                                id="profileIconBtn"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                title="{% trans 'Profile' %}">
                             <i class="fas fa-user-circle"></i>
+                            <span class="btn-label d-none d-xl-inline"></span>
+                            <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                         </button>
-                        
-                        <div class="profile-dropdown" id="profileDropdown">
-                            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item">
+                        <div class="dropdown-panel profile-dropdown" id="profileDropdown" role="menu" aria-labelledby="profileIconBtn">
+                            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-user"></i>
                                 <span>{% trans "Profile" %}</span>
                             </a>
-                            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item">
+                            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span>{% trans "Logout" %}</span>
                             </a>
                         </div>
                     </div>
+                </div>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="btn btn-outline">
-                        <i class="fas fa-sign-in-alt"></i>{% trans "Log in" %}  
+                <div class="guest-actions">
+                    <a href="{% url 'account_login' %}" class="action-btn ghost-btn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>{% trans "Log in" %}</span>
                     </a>
-                    <a href="{% url 'account_signup' %}" class="btn btn-primary">
-                        <i class="fas fa-user-plus"></i> {% trans "Sign up" %} 
+                    <a href="{% url 'account_signup' %}" class="action-btn primary-btn">
+                        <i class="fas fa-user-plus"></i>
+                        <span>{% trans "Sign up" %}</span>
                     </a>
+                </div>
                 {% endif %}
             </div>
-            
+
             <button class="mobile-menu-toggle" id="sidebarToggle" aria-label="Ouvrir/fermer le menu">
                 <i class="fas fa-bars" aria-hidden="true"></i>
             </button>
@@ -330,7 +327,7 @@
     </footer>
 
     <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
-        💬
+        <i class="fas fa-robot"></i>
     </a>
 
     <style>
