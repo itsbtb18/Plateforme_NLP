@@ -18,6 +18,8 @@ class Question(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
+    if TYPE_CHECKING:
+        answers: 'RelatedManager[Answer]'
     def __str__(self):
         return self.title
 
@@ -43,7 +45,6 @@ class Post(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     likes = models.ManyToManyField(get_user_model(), related_name='liked_posts', blank=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
-
     if TYPE_CHECKING:
         comments: 'RelatedManager[Comment]'
 
