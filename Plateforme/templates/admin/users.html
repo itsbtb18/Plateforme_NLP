@@ -4,295 +4,714 @@
 
 {% block extra_css %}
 <style>
-  .card {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+  :root {
+    --primary-color: #4361ee;
+    --primary-dark: #3730a3;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  }
+
+  /* Modern Card Styling */
+  .modern-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+  }
+
+  .modern-card:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Header Section */
+  .header-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .header-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .stats-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  /* Modern Button Styling */
+  .btn-modern {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .btn-primary-modern {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+  }
+
+  .btn-primary-modern:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(67, 97, 238, 0.4);
+    color: white;
+  }
+
+  /* Search and Filter Section */
+  .filter-section {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
     margin-bottom: 2rem;
   }
-  .card-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-    padding: 1rem 1.25rem;
-  }
-  .badge-pending {
-    background-color: #ffc107;
-    color: #212529;
-  }
-  .badge-active {
-    background-color: #28a745;
-  }
-  .badge-blocked {
-    background-color: #dc3545;
-  }
-  .search-container {
+
+  .search-wrapper {
     position: relative;
   }
-  .search-container .form-control {
-    padding-right: 35px;
+
+  .search-input {
+    width: 100%;
+    padding: 0.875rem 1.25rem 0.875rem 3rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
   }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+  }
+
   .search-icon {
     position: absolute;
-    right: 10px;
-    top: 10px;
-    color: #6c757d;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-600);
+    font-size: 1.125rem;
   }
+
+  .filter-select {
+    padding: 0.875rem 1.25rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background: white;
+    cursor: pointer;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+  }
+
+  /* Active Filters */
+  .active-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
+  }
+
+  .filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--gray-100);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .filter-tag-remove {
+    cursor: pointer;
+    color: var(--gray-600);
+    transition: color 0.2s ease;
+    text-decoration: none;
+  }
+
+  .filter-tag-remove:hover {
+    color: var(--danger-color);
+  }
+
+  /* Table Styling */
+  .users-table-wrapper {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  .users-table {
+    width: 100%;
+    margin: 0;
+  }
+
+  .users-table thead {
+    background: var(--gray-50);
+  }
+
+  .users-table th {
+    padding: 1rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-700);
+    border: none;
+  }
+
+  .users-table td {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: middle;
+  }
+
+  .users-table tbody tr {
+    transition: all 0.2s ease;
+  }
+
+  .users-table tbody tr:hover {
+    background: var(--gray-50);
+  }
+
+  /* User Avatar */
   .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #e9ecef;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    color: #495057;
+    font-weight: 700;
+    color: white;
+    font-size: 1.125rem;
+    flex-shrink: 0;
   }
-  .table th {
-    border-top: none;
-    border-bottom: 2px solid #dee2e6;
+
+  /* Profile Image Styling */
+  .user-avatar-image {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--gray-200);
+    transition: all 0.2s ease;
   }
-  .actions-column {
-    width: 150px;
+
+  .user-avatar-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
-  .user-info {
+
+  .user-info-wrapper {
     display: flex;
     align-items: center;
+    gap: 1rem;
   }
-  .user-details {
-    margin-left: 10px;
+
+  .user-details h6 {
+    margin: 0;
+    font-weight: 600;
+    color: var(--gray-900);
+    font-size: 0.95rem;
   }
-  .pagination {
-    margin-top: 1rem;
+
+  .user-details p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--gray-600);
   }
-  .filter-badge {
-    font-size: 0.75rem;
-    margin-left: 5px;
+
+  /* Status Badges */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .status-active {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+  }
+
+  .status-pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+  }
+
+  .status-blocked {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--gray-300);
+    background: white;
+    color: var(--gray-700);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .btn-action:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  .btn-action-danger:hover {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+  }
+
+  /* Dropdown Menu */
+  .dropdown-menu-modern {
+    border-radius: 12px;
+    border: none;
+    box-shadow: var(--shadow-xl);
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .dropdown-item-modern {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .dropdown-item-modern:hover {
+    background: var(--gray-100);
+  }
+
+  .dropdown-item-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+  }
+
+  /* Pagination */
+  .pagination-modern {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding: 1.5rem 0;
+  }
+
+  .page-link-modern {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--gray-300);
+    background: white;
+    color: var(--gray-700);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .page-link-modern:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-400);
+  }
+
+  .page-link-modern.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .empty-icon {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 2rem;
+    background: var(--gray-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: var(--gray-600);
+  }
+
+  .empty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-description {
+    font-size: 1rem;
+    color: var(--gray-600);
+    margin-bottom: 2rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header-section {
+      padding: 1.5rem;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+    }
+
+    .users-table-wrapper {
+      overflow-x: auto;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-  <!-- Header Section with Stats -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <h1 class="h3 mb-0">{% trans "User Management" %}</h1>
-            <div class="d-flex align-items-center">
-              {% if pending_users_count > 0 %}
-              <div class="badge badge-pending py-2 px-3 me-3">
-                <i class="fas fa-clock me-1"></i> {{ pending_users_count }}{% trans " pending user(s)" %} 
-              </div>
-              {% endif %}
-              <a href="{% url 'pages:admin_users_new' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i> {% trans "New User" %}
-              </a>
-            </div>
-          </div>
+  <!-- Header Section -->
+  <div class="header-section">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <h1 class="header-title mb-0">
+          <i class="fas fa-users-cog"></i>
+          {% trans "User Management" %}
+        </h1>
+        {% if pending_users_count > 0 %}
+        <div class="stats-badge">
+          <i class="fas fa-clock"></i>
+          <span>{{ pending_users_count }} {% trans "Pending" %}</span>
         </div>
+        {% endif %}
       </div>
+      <a href="{% url 'pages:admin_users_new' %}" class="btn-modern" style="background: white; color: var(--primary-color); box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);">
+        <i class="fas fa-user-plus"></i>
+        {% trans "New User" %}
+      </a>
     </div>
   </div>
 
   <!-- Filters Section -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-body">
-          <form method="get" class="row g-3">
-            <div class="col-md-5">
-              <div class="search-container">
-                <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="{% trans "Search by name or email..." %}">
-                <span class="search-icon">
-                  <i class="fas fa-search"></i>
-                </span>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <select name="status" class="form-select">
-                <option value="">{% trans "All statuses" %}</option>
-                <option value="active" {% if filter_status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
-                <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
-                <option value="blocked" {% if filter_status == 'blocked' %}selected{% endif %}>{% trans "Blocked" %}</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <button type="submit" class="btn btn-secondary w-100">
-                <i class="fas fa-filter me-1"></i> {% trans "Filter" %}
-              </button>
-            </div>
-            <div class="col-md-2">
-              <a href="{% url 'pages:admin_users' %}" class="btn btn-outline-secondary w-100">
-                <i class="fas fa-times me-1"></i> {% trans "Reset" %}
-              </a>
-            </div>
-          </form>
-          
-          {% if search or filter_status %}
-          <div class="mt-3">
-            <span class="text-muted">{% trans "Active filters:" %}</span>
-            {% if search %}
-            <span class="badge bg-light text-dark me-2 filter-badge">
-              {% trans "Search:" %} "{{ search }}" <a href="?{% if filter_status %}status={{ filter_status }}{% endif %}" class="text-dark"><i class="fas fa-times-circle"></i></a>
-            </span>
-            {% endif %}
-            
-            {% if filter_status %}
-            <span class="badge bg-light text-dark me-2 filter-badge">
-              {% trans "Status:" %} {{ filter_status|title }} <a href="?{% if search %}search={{ search }}{% endif %}" class="text-dark"><i class="fas fa-times-circle"></i></a>
-            </span>
-            {% endif %}
-          </div>
-          {% endif %}
+  <div class="filter-section">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label text-muted mb-2">{% trans "Search" %}</label>
+        <div class="search-wrapper">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" name="search" value="{{ search }}" placeholder="{% trans "Search by name or email..." %}">
         </div>
       </div>
+      <div class="col-md-3">
+        <label class="form-label text-muted mb-2">{% trans "Status" %}</label>
+        <select name="status" class="filter-select form-control">
+          <option value="">{% trans "All statuses" %}</option>
+          <option value="active" {% if filter_status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+          <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
+          <option value="blocked" {% if filter_status == 'blocked' %}selected{% endif %}>{% trans "Blocked" %}</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn-modern btn-primary-modern w-100">
+          <i class="fas fa-filter"></i>
+          {% trans "Filter" %}
+        </button>
+      </div>
+      <div class="col-md-3">
+        <a href="{% url 'pages:admin_users' %}" class="btn-modern w-100" style="background: var(--gray-100); color: var(--gray-700);">
+          <i class="fas fa-redo"></i>
+          {% trans "Reset" %}
+        </a>
+      </div>
+    </form>
+    
+    {% if search or filter_status %}
+    <div class="active-filters">
+      <span class="text-muted fw-semibold">{% trans "Active filters:" %}</span>
+      {% if search %}
+      <div class="filter-tag">
+        <span>{% trans "Search:" %} "{{ search }}"</span>
+        <a href="?{% if filter_status %}status={{ filter_status }}{% endif %}" class="filter-tag-remove">
+          <i class="fas fa-times"></i>
+        </a>
+      </div>
+      {% endif %}
+      {% if filter_status %}
+      <div class="filter-tag">
+        <span>{% trans "Status:" %} {{ filter_status|title }}</span>
+        <a href="?{% if search %}search={{ search }}{% endif %}" class="filter-tag-remove">
+          <i class="fas fa-times"></i>
+        </a>
+      </div>
+      {% endif %}
     </div>
+    {% endif %}
   </div>
 
   <!-- Users Table -->
-  <div class="row">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-body">
-          {% if users %}
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead>
-                <tr>
-                  <th>{% trans "User" %}</th>
-                  <th>{% trans "Email" %}</th>
-                  <th>{% trans "Status" %}</th>
-                  <th>{% trans "Registration Date" %}</th>
-                  <th class="actions-column">{% trans "Actions" %}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for user in users %}
-                <tr>
-                  <td>
-                    <div class="user-info">
-                      <div class="user-avatar">
-                        {{ user.full_name|slice:":1"|upper }}
-                      </div>
-                      <div class="user-details">
-                        <div class="fw-bold">{{ user.full_name }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{{ user.email }}</td>
-                  <td>
-                    {% if user.status == 'active' %}
-                    <span class="badge badge-active">{% trans "Active" %}</span>
-                    {% elif user.status == 'pending' %}
-                    <span class="badge badge-pending">{% trans "Pending" %}</span>
-                    {% elif user.status == 'blocked' %}
-                    <span class="badge badge-blocked">{% trans "Blocked" %}</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ user.date_joined|date:"d/m/Y" }}</td>
-                  <td>
-                    <div class="d-flex">
-                      <a href="{% url 'pages:admin_user_edit' user.id %}" class="btn btn-sm btn-outline-primary me-2">
-                        <i class="fas fa-edit"></i> {% trans "Edit" %}
-                      </a>
-                      <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenu{{ user.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                          <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="dropdownMenu{{ user.id }}">
-                          {% if user.status != 'active' %}
-                          <li><a class="dropdown-item" href="{% url 'pages:admin_user_activate' user.id %}">{% trans "Activate" %}</a></li>
-                          {% endif %}
-                          {% if user.status != 'blocked' %}
-                          <li><a class="dropdown-item text-danger" href="{% url 'pages:admin_user_block' user.id %}">{% trans "Block" %}</a></li>
-                          {% endif %}
-                          <li><hr class="dropdown-divider"></li>
-                          <li><a class="dropdown-item" href="{% url 'pages:admin_user_history' user.id %}">{% trans "History" %}</a></li>
-                          <li>
-                          <a class="dropdown-item text-danger" href="{% url 'pages:admin_user_delete' user.id %}">
-                            {% trans "Delete" %}
-                          </a>
-                        </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Pagination -->
-          {% if is_paginated %}
-          <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center">
-              {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="First">
-                  <span aria-hidden="true">&laquo;&laquo;</span>
-                </a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="Previous">
-                  <span aria-hidden="true">&laquo;</span>
-                </a>
-              </li>
+  {% if users %}
+  <div class="users-table-wrapper">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>{% trans "User" %}</th>
+          <th>{% trans "Email" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Registration Date" %}</th>
+          <th style="text-align: center;">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>
+            <div class="user-info-wrapper">
+              {% if user.profile_picture %}
+              <img src="{{ user.profile_picture.url }}" alt="{{ user.full_name }}" class="user-avatar-image">
+              {% else %}
+              <div class="user-avatar">
+                {{ user.full_name|slice:":1"|upper }}
+              </div>
               {% endif %}
-              
-              {% for i in paginator.page_range %}
-                {% if page_obj.number == i %}
-                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
-                {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a>
-                </li>
-                {% endif %}
-              {% endfor %}
-              
-              {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="Next">
-                  <span aria-hidden="true">&raquo;</span>
-                </a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="Last">
-                  <span aria-hidden="true">&raquo;&raquo;</span>
-                </a>
-              </li>
-              {% endif %}
-            </ul>
-          </nav>
-          {% endif %}
-          
-          {% else %}
-          <div class="text-center py-5">
-            <i class="fas fa-users fa-4x text-muted mb-3"></i>
-            <h4>{% trans "No users found" %}</h4>
-            <p class="text-muted">{% trans "No users match your search criteria." %}</p>
-            <a href="{% url 'pages:admin_users' %}" class="btn btn-outline-secondary mt-2">
-              <i class="fas fa-sync-alt me-1"></i> {% trans "Reset filters" %}
-            </a>
-          </div>
-          {% endif %}
-        </div>
+              <div class="user-details">
+                <h6>{{ user.full_name }}</h6>
+                <p>{{ user.institution|default:"No institution" }}</p>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="text-muted">{{ user.email }}</span>
+          </td>
+          <td>
+            {% if user.status == 'active' %}
+            <span class="status-badge status-active">
+              <span class="status-dot"></span>
+              {% trans "Active" %}
+            </span>
+            {% elif user.status == 'pending' %}
+            <span class="status-badge status-pending">
+              <span class="status-dot"></span>
+              {% trans "Pending" %}
+            </span>
+            {% elif user.status == 'blocked' %}
+            <span class="status-badge status-blocked">
+              <span class="status-dot"></span>
+              {% trans "Blocked" %}
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="text-muted">{{ user.date_joined|date:"M d, Y" }}</span>
+          </td>
+          <td>
+            <div class="action-buttons justify-content-center">
+              <a href="{% url 'pages:admin_user_edit' user.id %}" class="btn-action" title="Edit">
+                <i class="fas fa-edit"></i>
+              </a>
+              <div class="dropdown">
+                <button class="btn-action" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-modern dropdown-menu-end">
+                  {% if user.status != 'active' %}
+                  <li>
+                    <a class="dropdown-item dropdown-item-modern" href="{% url 'pages:admin_user_activate' user.id %}">
+                      <i class="fas fa-check-circle"></i>
+                      {% trans "Activate" %}
+                    </a>
+                  </li>
+                  {% endif %}
+                  {% if user.status != 'blocked' %}
+                  <li>
+                    <a class="dropdown-item dropdown-item-modern dropdown-item-danger" href="{% url 'pages:admin_user_block' user.id %}">
+                      <i class="fas fa-ban"></i>
+                      {% trans "Block" %}
+                    </a>
+                  </li>
+                  {% endif %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <a class="dropdown-item dropdown-item-modern" href="{% url 'pages:admin_user_history' user.id %}">
+                      <i class="fas fa-history"></i>
+                      {% trans "History" %}
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item dropdown-item-modern dropdown-item-danger" href="{% url 'pages:admin_user_delete' user.id %}">
+                      <i class="fas fa-trash-alt"></i>
+                      {% trans "Delete" %}
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="pagination-modern" aria-label="Page navigation">
+      {% if page_obj.has_previous %}
+      <a class="page-link-modern" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
+        <i class="fas fa-angle-double-left"></i>
+      </a>
+      <a class="page-link-modern" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
+        <i class="fas fa-angle-left"></i>
+      </a>
+      {% endif %}
+      
+      {% for i in paginator.page_range %}
+        {% if page_obj.number == i %}
+        <span class="page-link-modern active">{{ i }}</span>
+        {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+        <a class="page-link-modern" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a>
+        {% endif %}
+      {% endfor %}
+      
+      {% if page_obj.has_next %}
+      <a class="page-link-modern" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
+        <i class="fas fa-angle-right"></i>
+      </a>
+      <a class="page-link-modern" href="?page={{ paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
+        <i class="fas fa-angle-double-right"></i>
+      </a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </div>
+  {% else %}
+  <!-- Empty State -->
+  <div class="modern-card">
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-users"></i>
       </div>
+      <h3 class="empty-title">{% trans "No users found" %}</h3>
+      <p class="empty-description">{% trans "No users match your search criteria. Try adjusting your filters." %}</p>
+      <a href="{% url 'pages:admin_users' %}" class="btn-modern btn-primary-modern">
+        <i class="fas fa-redo"></i>
+        {% trans "Reset filters" %}
+      </a>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  // Pour initialiser les tooltips Bootstrap si nécessaire
-  document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl)
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize Bootstrap tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+  
+  // Smooth animations for action buttons
+  const actionButtons = document.querySelectorAll('.btn-action');
+  actionButtons.forEach(button => {
+    button.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-2px) scale(1.05)';
+    });
+    button.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
     });
   });
+});
 </script>
 {% endblock %}

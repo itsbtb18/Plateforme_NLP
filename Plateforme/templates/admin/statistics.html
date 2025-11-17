@@ -1,375 +1,664 @@
 {% extends 'base_admin.html' %}
 {% load i18n %}
 {% block title %}{% trans "Statistics" %}{% endblock %}
- {% block extra_css %}
+
+{% block extra_css %}
 <style>
-  /* Container général */
-  .stats-container {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    padding: 1.5rem;
-    background-color: #f8fafc;
+  :root {
+    --primary-color: #4361ee;
+    --primary-dark: #3730a3;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   }
 
-  /* Filtre dates */
-  .stats-filters {
+  /* Header Section */
+  .stats-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .stats-header h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
     align-items: center;
-    background: white;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-  .stats-filters input[type="date"] {
-    padding: 0.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-  }
-  .stats-filters input[type="date"]:focus {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    outline: none;
-  }
-  .stats-filters button {
-    padding: 0.75rem 1.5rem;
-    background-color: #4f46e5;
-    color: #fff;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-  }
-  .stats-filters button:hover {
-    background-color: #4338ca;
-    transform: translateY(-1px);
+    gap: 0.75rem;
   }
 
-  /* Cartes résumé */
-  .stats-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-  }
-  .stats-card {
-    background: #fff;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    text-align: center;
-    transition: all 0.3s ease;
-    border: 1px solid #e2e8f0;
-  }
-  .stats-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  .stats-card h3 {
-    margin: 0.5rem 0;
-    font-size: 1.1rem;
-    color: #64748b;
-    font-weight: 500;
-  }
-  .stats-card p {
+  .stats-header p {
     margin: 0;
-    font-size: 1.75rem;
-    font-weight: bold;
-    color: #4f46e5;
+    opacity: 0.9;
   }
-  .stats-card .trend {
+
+  /* Date Filter Section */
+  .filter-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 2rem;
+  }
+
+  .filter-form {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  .form-group {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .form-label {
+    display: block;
     font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+  }
+
+  .btn-filter {
+    padding: 0.75rem 2rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-filter:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+  }
+
+  /* Stats Cards Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    border-left: 4px solid;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: currentColor;
+    opacity: 0.05;
+    border-radius: 50%;
+    transform: translate(30%, -30%);
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .stat-card.users { border-left-color: var(--primary-color); }
+  .stat-card.resources { border-left-color: var(--success-color); }
+  .stat-card.publications { border-left-color: var(--info-color); }
+  .stat-card.tools { border-left-color: var(--warning-color); }
+
+  .stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+  }
+
+  .stat-card.users .stat-icon { background: var(--primary-color); }
+  .stat-card.resources .stat-icon { background: var(--success-color); }
+  .stat-card.publications .stat-icon { background: var(--info-color); }
+  .stat-card.tools .stat-icon { background: var(--warning-color); }
+
+  .stat-title {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+  }
+
+  .stat-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     margin-top: 0.5rem;
-  }
-  .trend.positive {
-    color: #10b981;
-  }
-  .trend.negative {
-    color: #ef4444;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
   }
 
-  /* Grilles de charts */
-  .charts-grid {
+  .stat-trend.positive {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+  }
+
+  .stat-trend.negative {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+  }
+
+  /* Charts Grid */
+  .charts-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
   }
-  @media (max-width: 1024px) {
-    .charts-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+
   .chart-card {
-    background: #fff;
+    background: white;
+    border-radius: 16px;
     padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e2e8f0;
-  }
-  .chart-card h4 {
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    color: #1e293b;
-    font-weight: 600;
+    box-shadow: var(--shadow-md);
   }
 
-  /* Nouvelle section pour les statistiques avancées */
-  .advanced-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
-    margin-top: 2rem;
+  .chart-card.full-width {
+    grid-column: 1 / -1;
   }
-  .advanced-stats-card {
-    background: #fff;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e2e8f0;
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
   }
-  .advanced-stats-card h4 {
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    color: #1e293b;
-    font-weight: 600;
+
+  .chart-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
   }
-  .stats-list {
+
+  .chart-canvas {
+    height: 300px !important;
+  }
+
+  .chart-canvas.small {
+    height: 250px !important;
+  }
+
+  /* Top Resources List */
+  .resources-list {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  .stats-list li {
+
+  .resource-item {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
   }
-  .stats-list li:last-child {
+
+  .resource-item:last-child {
     border-bottom: none;
   }
+
+  .resource-item:hover {
+    background: var(--gray-50);
+    padding-left: 0.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 8px;
+  }
+
+  .resource-info {
+    flex: 1;
+  }
+
+  .resource-title {
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+  }
+
+  .resource-views {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--gray-100);
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .charts-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-form {
+      flex-direction: column;
+    }
+
+    .form-group {
+      width: 100%;
+    }
+
+    .btn-filter {
+      width: 100%;
+    }
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--gray-600);
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
 </style>
-{% endblock %} {% block content %}
-<div class="container-fluid">
-  <!-- Filtres -->
-  <div class="filters mb-4">
-    <form method="get" class="row g-3">
-      <div class="col-md-4">
-        <label for="start_date" class="form-label">{% trans "Start date" %}</label>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="stats-header">
+    <h1>
+      <i class="fas fa-chart-line"></i>
+      {% trans "Statistics Dashboard" %}
+    </h1>
+    <p>{% trans "Overview of your platform's performance and activity" %}</p>
+  </div>
+
+  <!-- Date Filter -->
+  <div class="filter-card">
+    <form method="get" class="filter-form">
+      <div class="form-group">
+        <label for="start_date" class="form-label">
+          <i class="fas fa-calendar-alt me-1"></i>
+          {% trans "Start date" %}
+        </label>
         <input
           type="date"
-          class="form-control"
+          class="form-input"
           id="start_date"
           name="start_date"
           value="{{ start_date|date:'Y-m-d' }}"
         />
       </div>
-      <div class="col-md-4">
-        <label for="end_date" class="form-label">{% trans "End date" %}</label>
+      <div class="form-group">
+        <label for="end_date" class="form-label">
+          <i class="fas fa-calendar-alt me-1"></i>
+          {% trans "End date" %}
+        </label>
         <input
           type="date"
-          class="form-control"
+          class="form-input"
           id="end_date"
           name="end_date"
           value="{{ end_date|date:'Y-m-d' }}"
         />
       </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
-      </div>
+      <button type="submit" class="btn-filter">
+        <i class="fas fa-filter me-2"></i>
+        {% trans "Apply Filter" %}
+      </button>
     </form>
   </div>
 
-  <!-- Cartes de résumé -->
-  <div class="row mb-4">
-    <div class="col-md-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "Users" %}</h5>
-          <h2 class="card-text">{{ current_stats.users_count }}</h2>
-          <p
-            class="trend {% if current_stats.users_growth > 0 %}trend-up{% else %}trend-down{% endif %}"
-          >
-            {{ current_stats.users_growth|floatformat:1 }}%
-          </p>
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <!-- Users Card -->
+    <div class="stat-card users">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="fas fa-users"></i>
         </div>
       </div>
+      <h3 class="stat-title">{% trans "Total Users" %}</h3>
+      <p class="stat-value">{{ current_stats.users_count|default:0 }}</p>
+      <span class="stat-trend {% if current_stats.users_growth >= 0 %}positive{% else %}negative{% endif %}">
+        <i class="fas fa-arrow-{% if current_stats.users_growth >= 0 %}up{% else %}down{% endif %}"></i>
+        {{ current_stats.users_growth|default:0|floatformat:1 }}%
+      </span>
     </div>
-    <div class="col-md-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "Resources" %}</h5>
-          <h2 class="card-text">{{ current_stats.resources_count }}</h2>
-          <p
-            class="trend {% if current_stats.resources_growth > 0 %}trend-up{% else %}trend-down{% endif %}"
-          >
-            {{ current_stats.resources_growth|floatformat:1 }}%
-          </p>
+
+    <!-- Resources Card -->
+    <div class="stat-card resources">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="fas fa-folder-open"></i>
         </div>
       </div>
+      <h3 class="stat-title">{% trans "Total Resources" %}</h3>
+      <p class="stat-value">{{ current_stats.resources_count|default:0 }}</p>
+      <span class="stat-trend {% if current_stats.resources_growth >= 0 %}positive{% else %}negative{% endif %}">
+        <i class="fas fa-arrow-{% if current_stats.resources_growth >= 0 %}up{% else %}down{% endif %}"></i>
+        {{ current_stats.resources_growth|default:0|floatformat:1 }}%
+      </span>
     </div>
-    <div class="col-md-3">
-      
+
+    <!-- Publications Card -->
+    <div class="stat-card publications">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="fas fa-file-alt"></i>
+        </div>
+      </div>
+      <h3 class="stat-title">{% trans "Publications" %}</h3>
+      <p class="stat-value">{{ current_stats.publications_count|default:0 }}</p>
+      <span class="stat-trend positive">
+        <i class="fas fa-check"></i>
+        {% trans "Active" %}
+      </span>
+    </div>
+
+    <!-- Tools Card -->
+    <div class="stat-card tools">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="fas fa-tools"></i>
+        </div>
+      </div>
+      <h3 class="stat-title">{% trans "NLP Tools" %}</h3>
+      <p class="stat-value">{{ current_stats.tools_count|default:0 }}</p>
+      <span class="stat-trend positive">
+        <i class="fas fa-check"></i>
+        {% trans "Available" %}
+      </span>
     </div>
   </div>
 
-  <!-- Graphiques -->
-  <div class="row mb-4">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "User registrations" %}</h5>
-          <canvas id="usersChart"></canvas>
-        </div>
+  <!-- Charts Grid -->
+  <div class="charts-container">
+    <!-- User Registrations Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h4 class="chart-title">
+          <i class="fas fa-user-plus me-2"></i>
+          {% trans "User Registrations" %}
+        </h4>
       </div>
+      <canvas id="usersChart" class="chart-canvas small"></canvas>
     </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "Resources by category" %}</h5>
-          <canvas id="resourcesChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Statistiques avancées -->
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "Top 5 most viewed resources" %}</h5>
-          <div class="list-group">
-            {% for resource in top_resources %}
-            <div class="list-group-item">
-              <div class="d-flex w-100 justify-content-between">
-                <h6 class="mb-1">{{ resource.title }}</h6>
-                <small>{{ resource.views }} {% trans "views" %}</small>
-              </div>
-            </div>
-            {% endfor %}
+    <!-- Resources by Category -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h4 class="chart-title">
+          <i class="fas fa-chart-pie me-2"></i>
+          {% trans "Resources by Category" %}
+        </h4>
+      </div>
+      <canvas id="resourcesChart" class="chart-canvas small"></canvas>
+    </div>
+
+    <!-- Top 5 Resources -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h4 class="chart-title">
+          <i class="fas fa-fire me-2"></i>
+          {% trans "Top 5 Most Viewed Resources" %}
+        </h4>
+      </div>
+      <ul class="resources-list">
+        {% for resource in top_resources %}
+        <li class="resource-item">
+          <div class="resource-info">
+            <h6 class="resource-title">{{ resource.title|truncatechars:50 }}</h6>
           </div>
-        </div>
-      </div>
+          <span class="resource-views">
+            <i class="fas fa-eye"></i>
+            {{ resource.views }}
+          </span>
+        </li>
+        {% empty %}
+        <li class="empty-state">
+          <div class="empty-icon">
+            <i class="fas fa-inbox"></i>
+          </div>
+          <p>{% trans "No data available" %}</p>
+        </li>
+        {% endfor %}
+      </ul>
     </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{% trans "Activity by category" %}</h5>
-          <canvas id="activityChart"></canvas>
-        </div>
+
+    <!-- Activity by Category -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h4 class="chart-title">
+          <i class="fas fa-chart-bar me-2"></i>
+          {% trans "Activity by Category" %}
+        </h4>
       </div>
+      <canvas id="activityChart" class="chart-canvas small"></canvas>
     </div>
   </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Configuration globale de Chart.js
-  Chart.defaults.font.family = "'Inter', sans-serif";
-  Chart.defaults.color = '#6c757d';
+  // Chart.js Configuration
+  Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  Chart.defaults.color = '#6b7280';
   Chart.defaults.plugins.legend.position = 'bottom';
+  Chart.defaults.plugins.legend.labels.padding = 15;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
 
-  // Graphique des inscriptions utilisateurs
-  const usersCtx = document.getElementById('usersChart').getContext('2d');
-  new Chart(usersCtx, {
+  // User Registrations Chart
+  const usersCtx = document.getElementById('usersChart');
+  if (usersCtx) {
+    new Chart(usersCtx.getContext('2d'), {
       type: 'line',
       data: {
-          labels: JSON.parse('{{ user_reg_dates|safe }}'),
-          datasets: [{
-              label: 'Registrations',
-              data: JSON.parse('{{ user_reg_counts|safe }}'),
-              borderColor: '#0d6efd',
-              tension: 0.4,
-              fill: true,
-              backgroundColor: 'rgba(13, 110, 253, 0.1)'
-          }]
+        labels: {{ user_reg_dates|safe|default:"[]" }},
+        datasets: [{
+          label: '{% trans "Registrations" %}',
+          data: {{ user_reg_counts|safe|default:"[]" }},
+          borderColor: '#4361ee',
+          backgroundColor: 'rgba(67, 97, 238, 0.1)',
+          tension: 0.4,
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#4361ee',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
       },
       options: {
-          responsive: true,
-          plugins: {
-              legend: {
-                  display: false
-              }
-          },
-          scales: {
-              y: {
-                  beginAtZero: true,
-                  ticks: {
-                      stepSize: 1
-                  }
-              }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            padding: 12,
+            cornerRadius: 8,
+            titleColor: '#fff',
+            bodyColor: '#e2e8f0'
           }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: '#f1f5f9' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
       }
-  });
+    });
+  }
 
-  // Graphique des ressources
-  const resourcesCtx = document.getElementById('resourcesChart').getContext('2d');
-  new Chart(resourcesCtx, {
+  // Resources by Category Chart
+  const resourcesCtx = document.getElementById('resourcesChart');
+  if (resourcesCtx) {
+    new Chart(resourcesCtx.getContext('2d'), {
       type: 'doughnut',
       data: {
-          labels: ['Publications', 'Corpora', 'Tools'],
-          datasets: [{
-              data: [
-                  {{ current_stats.publications_count }},
-                  {{ current_stats.corpora_count }},
-                  {{ current_stats.tools_count }}
-              ],
-              backgroundColor: [
-                  '#0d6efd',
-                  '#198754',
-                  '#dc3545'
-              ]
-          }]
+        labels: ['{% trans "Publications" %}', '{% trans "Corpus" %}', '{% trans "Tools" %}'],
+        datasets: [{
+          data: [
+            {{ current_stats.publications_count|default:0 }},
+            {{ current_stats.corpus_count|default:0 }},
+            {{ current_stats.tools_count|default:0 }}
+          ],
+          backgroundColor: ['#4361ee', '#10b981', '#f59e0b'],
+          borderWidth: 3,
+          borderColor: '#fff',
+          hoverOffset: 8
+        }]
       },
       options: {
-          responsive: true,
-          plugins: {
-              legend: {
-                  position: 'bottom'
-              }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 15, font: { size: 12 } }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            padding: 12,
+            cornerRadius: 8
           }
+        }
       }
-  });
+    });
+  }
 
-  // Graphique d'activité
-  const activityCtx = document.getElementById('activityChart').getContext('2d');
-  new Chart(activityCtx, {
+  // Activity by Category Chart
+  const activityCtx = document.getElementById('activityChart');
+  if (activityCtx) {
+    new Chart(activityCtx.getContext('2d'), {
       type: 'bar',
       data: {
-          labels: ['Publications', 'Corpora', 'Tools', 'Projects', 'Forum'],
-          datasets: [{
-              label: 'Activity',
-              data: [
-                  {{ current_stats.publications_count }},
-                  {{ current_stats.corpora_count }},
-                  {{ current_stats.tools_count }},
-                  {{ current_stats.projects_count }},
-                  {{ current_stats.forum_posts_count }}
-              ],
-              backgroundColor: '#0d6efd'
-          }]
+        labels: ['{% trans "Publications" %}', '{% trans "Corpus" %}', '{% trans "Tools" %}', '{% trans "Projects" %}', '{% trans "Forum" %}'],
+        datasets: [{
+          label: '{% trans "Activity" %}',
+          data: [
+            {{ current_stats.publications_count|default:0 }},
+            {{ current_stats.corpus_count|default:0 }},
+            {{ current_stats.tools_count|default:0 }},
+            {{ current_stats.projects_count|default:0 }},
+            {{ current_stats.forum_posts_count|default:0 }}
+          ],
+          backgroundColor: '#4361ee',
+          borderRadius: 8,
+          borderSkipped: false
+        }]
       },
       options: {
-          responsive: true,
-          plugins: {
-              legend: {
-                  display: false
-              }
-          },
-          scales: {
-              y: {
-                  beginAtZero: true,
-                  ticks: {
-                      stepSize: 1
-                  }
-              }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            padding: 12,
+            cornerRadius: 8
           }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: '#f1f5f9' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
       }
-  });
+    });
+  }
 </script>
-{% endblock %} {% endblock %}
+{% endblock %}
