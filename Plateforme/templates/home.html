@@ -1,194 +1,317 @@
-{% extends "base.html" %} {% load static %} {% load i18n %} 
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
 {% block extra_styles %}
-<link rel="stylesheet" href="{% static 'css/main.css' %}" />
-{% endblock %} {% block content %}
-<div class="welcome-banner">
-  <div class="welcome-text">
-    <h1>{% trans "Welcome to Arabic NLP Platform" %}</h1>
-    <p>
-      {% trans "Explore resources, tools, and corpus for Arabic Natural Language Processing. Collaborate with researchers and developers on innovative projects." %}
-    </p>
-    <a href="{% url 'resources:list' %}" class="btn btn-primary">
-      {% trans "Explore Resources" %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="hero-content">
+    <div class="hero-text">
+      <span class="hero-badge">{% trans "Advancing Arabic NLP" %}</span>
+      <h1 class="hero-title">{% trans "Empowering Arabic Language Technology" %}</h1>
+      <p class="hero-description">
+        {% trans "A comprehensive platform connecting researchers, developers, and institutions to advance Natural Language Processing for Arabic" %}
+      </p>
+      <div class="hero-actions">
+        <a href="{% url 'resources:list' %}" class="btn-primary">
+          <span>{% trans "Explore Resources" %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+        <a href="{% url 'projects:project_new' %}" class="btn-secondary">
+          <span>{% trans "Start a Project" %}</span>
+        </a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="floating-card card-1">
+        <i class="fas fa-language"></i>
+        <span>400M+ Speakers</span>
+      </div>
+      <div class="floating-card card-2">
+        <i class="fas fa-database"></i>
+        <span>Rich Datasets</span>
+      </div>
+      <div class="floating-card card-3">
+        <i class="fas fa-brain"></i>
+        <span>AI-Powered Tools</span>
+      </div>
+      <img src="{% static 'images/logo.png' %}" alt="Arabic NLP" class="hero-image" />
+    </div>
+  </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats-section">
+  <div class="stat-item">
+    <div class="stat-icon">
+      <i class="fas fa-database"></i>
+    </div>
+    <div class="stat-content">
+      <div class="stat-number">{{ corpus_count }}</div>
+      <div class="stat-label">{% trans "Available Corpus" %}</div>
+    </div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">
+      <i class="fas fa-tools"></i>
+    </div>
+    <div class="stat-content">
+      <div class="stat-number">{{ tools_count }}</div>
+      <div class="stat-label">{% trans "NLP Tools" %}</div>
+    </div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">
+      <i class="fas fa-project-diagram"></i>
+    </div>
+    <div class="stat-content">
+      <div class="stat-number">{{ projects_count }}</div>
+      <div class="stat-label">{% trans "Active Projects" %}</div>
+    </div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-icon">
+      <i class="fas fa-users"></i>
+    </div>
+    <div class="stat-content">
+      <div class="stat-number">{{ members_count }}+</div>
+      <div class="stat-label">{% trans "Community Members" %}</div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Grid -->
+<section class="features-section">
+  <div class="section-header-center">
+    <h2 class="section-title">{% trans "What We Offer" %}</h2>
+    <p class="section-subtitle">{% trans "Comprehensive tools and resources for Arabic NLP" %}</p>
+  </div>
+  
+  <div class="features-grid">
+    <a href="{% url 'resources:corpus_list' %}" class="feature-card">
+      <div class="feature-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <i class="fas fa-database"></i>
+      </div>
+      <h3 class="feature-title">{% trans "Browse Corpus" %}</h3>
+      <p class="feature-description">{% trans "Access curated Arabic datasets across multiple domains and dialects" %}</p>
+      <span class="feature-link">{% trans "Explore" %} <i class="fas fa-arrow-right"></i></span>
+    </a>
+
+    <a href="{% url 'resources:tool_list' %}" class="feature-card">
+      <div class="feature-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <i class="fas fa-wrench"></i>
+      </div>
+      <h3 class="feature-title">{% trans "NLP Tools" %}</h3>
+      <p class="feature-description">{% trans "State-of-the-art text processing, analysis, and translation tools" %}</p>
+      <span class="feature-link">{% trans "Discover" %} <i class="fas fa-arrow-right"></i></span>
+    </a>
+
+    <a href="{% url 'projects:project_new' %}" class="feature-card">
+      <div class="feature-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <i class="fas fa-rocket"></i>
+      </div>
+      <h3 class="feature-title">{% trans "Research Projects" %}</h3>
+      <p class="feature-description">{% trans "Collaborate on cutting-edge research and innovation projects" %}</p>
+      <span class="feature-link">{% trans "Start Project" %} <i class="fas fa-arrow-right"></i></span>
+    </a>
+
+    <a href="{% url 'forum:topic-list' %}" class="feature-card">
+      <div class="feature-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <i class="fas fa-comments"></i>
+      </div>
+      <h3 class="feature-title">{% trans "Community Forum" %}</h3>
+      <p class="feature-description">{% trans "Connect with experts and enthusiasts in Arabic NLP" %}</p>
+      <span class="feature-link">{% trans "Join Discussion" %} <i class="fas fa-arrow-right"></i></span>
     </a>
   </div>
-  <img src="{% static 'images/logo.png' %}" alt="Arabic NLP illustration" />
-</div>
+</section>
 
-<div class="quick-actions">
-  <a href="{% url 'resources:corpus_list' %}" class="action-card">
-    <div class="action-icon">📊</div>
-    <h3 class="action-title">{% trans "Browse Corpus" %}</h3>
-  </a>
-  <a href="{% url 'resources:tool_list' %}" class="action-card">
-    <div class="action-icon">🔧</div>
-    <h3 class="action-title">{% trans "Use Tools" %}</h3>
-  </a>
-  <a href="{% url 'projects:project_new' %}" class="action-card">
-    <div class="action-icon">📝</div>
-    <h3 class="action-title">{% trans "Submit Project" %}</h3>
-  </a>
-  <a href="{% url 'forum:topic-list' %}" class="action-card">
-    <div class="action-icon">👥</div>
-    <h3 class="action-title">{% trans "Join Community" %}</h3>
-  </a>
-</div>
+<!-- Popular News Section -->
+<section class="content-section">
+  <div class="section-header-flex">
+    <div>
+      <h2 class="section-title">{% trans "Popular News" %}</h2>
+      <p class="section-subtitle">{% trans "Latest updates from the community" %}</p>
+    </div>
+    <a href="{% url 'QA:feed' %}" class="view-all-link">
+      {% trans "View All" %} <i class="fas fa-arrow-right"></i>
+    </a>
+  </div>
 
-<div class="stats-container">
-  <div class="stat-card">
-    <div class="stat-number">{{ corpus_count }}</div>
-    <div class="stat-title">{% trans "Available Corpus" %}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-number">{{ tools_count }}</div>
-    <div class="stat-title">{% trans "NLP Tools" %}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-number">{{ projects_count }}</div>
-    <div class="stat-title">{% trans "Active Projects" %}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-number">{{ members_count }}+</div>
-    <div class="stat-title">{% trans "Community Members" %}</div>
-  </div>
-</div>
-
-<!-- Section Populaire -->
-<div class="dashboard-section">
-  <div class="section-header">
-    <h2 class="section-title">{% trans "Popular News" %}</h2>
-    <a href="{% url 'QA:feed' %}" class="view-all">{% trans "View All" %}</a>
-  </div>
-  <div class="resources-grid">
+  <div class="news-grid">
     {% for post in popular_posts %}
-    <div class="resource-card">
+    <article class="news-card">
       {% if post.image %}
-      <img
-        src="{{ post.image.url }}"
-        alt="{{ post.content|truncatechars:50 }}"
-      />
+      <div class="news-image">
+        <img src="{{ post.image.url }}" alt="{{ post.content|truncatechars:50 }}" />
+        <div class="news-overlay"></div>
+      </div>
       {% endif %}
-      <div class="resource-card-content">
-        <h3 class="resource-title">
-          <a href="{% url 'QA:post_detail' post.slug %}"
-            >{{ post.content|truncatechars:10 }}</a
-          >
+      <div class="news-content">
+        <h3 class="news-title">
+          <a href="{% url 'QA:post_detail' post.slug %}">{{ post.content|truncatechars:60 }}</a>
         </h3>
-        <p class="resource-content ">{{ post.content|truncatechars:100 }}</p>
-        <div class="resource-meta">
-          <div class="resource-meta-item">
-            <i class="fas fa-heart text-danger"></i> {{ post.total_likes }}
+        <p class="news-excerpt">{{ post.content|truncatechars:120 }}</p>
+        <div class="news-meta">
+          <div class="meta-item">
+            <i class="fas fa-heart"></i>
+            <span>{{ post.total_likes }}</span>
           </div>
-          <div class="resource-meta-item">
-            <i class="fas fa-user"></i> {{ post.author.full_name }}
+          <div class="meta-item">
+            <i class="fas fa-user"></i>
+            <span>{{ post.author.full_name }}</span>
           </div>
-          <div class="resource-meta-item">
-            <i class="fas fa-clock"></i> {{ post.created_at|timesince }}
+          <div class="meta-item">
+            <i class="fas fa-clock"></i>
+            <span>{{ post.created_at|timesince }}</span>
           </div>
         </div>
       </div>
-    </div>
+    </article>
     {% empty %}
-    <div class="empty-message">
+    <div class="empty-state">
+      <i class="fas fa-inbox"></i>
       <p>{% trans "No popular posts yet." %}</p>
     </div>
     {% endfor %}
   </div>
-</div>
+</section>
 
-<!-- Nouvelle Section : Ressources les plus vues -->
-<div class="dashboard-section">
-  <div class="section-header">
-    <h2 class="section-title">{% trans "Most viewed resources" %}</h2>
-    <a href="{% url 'resources:list' %}" class="view-all"
-      >{% trans "View All" %}</a
-    >
+<!-- Most Viewed Resources -->
+<section class="content-section">
+  <div class="section-header-flex">
+    <div>
+      <h2 class="section-title">{% trans "Most Viewed Resources" %}</h2>
+      <p class="section-subtitle">{% trans "Trending academic and research materials" %}</p>
+    </div>
+    <a href="{% url 'resources:list' %}" class="view-all-link">
+      {% trans "View All" %} <i class="fas fa-arrow-right"></i>
+    </a>
   </div>
+
   <div class="resources-grid">
     {% for resource in most_viewed_resources %}
-    <div class="resource-card">
-      <div class="resource-type-badge">
-        <i
-          class="bi {% if resource.resource_type_display == 'Corpus' %}bi-database {% elif resource.resource_type_display == 'Outil NLP' %}bi-tools {% elif resource.resource_type_display == 'Article' %}bi-file-text {% elif resource.resource_type_display == 'Thèse' %}bi-journal-richtext {% elif resource.resource_type_display == 'Mémoire' %}bi-book {% else %}bi-mortarboard{% endif %} me-2"
-        ></i>
-        {{ resource.resource_type_display }}
+    <article class="resource-card">
+      <div class="resource-badge">
+        <i class="bi {% if resource.resource_type_display == 'Corpus' %}bi-database{% elif resource.resource_type_display == 'Outil NLP' %}bi-tools{% elif resource.resource_type_display == 'Article' %}bi-file-text{% elif resource.resource_type_display == 'Thèse' %}bi-journal-richtext{% elif resource.resource_type_display == 'Mémoire' %}bi-book{% else %}bi-mortarboard{% endif %}"></i>
+        <span>{{ resource.resource_type_display }}</span>
       </div>
-      <div class="viewed-resources">
-        <h3 class="resource-title">
-          <a href="{{ resource.get_absolute_url }}"
-            >{{ resource.title|truncatechars:50 }}</a
-          >
-        </h3>
-        <p class="resource-description">
-          {{ resource.description|truncatechars:100 }}
-        </p>
+      
+      <h3 class="resource-title">
+        <a href="{{ resource.get_absolute_url }}">{{ resource.title|truncatechars:70 }}</a>
+      </h3>
+      
+      <p class="resource-description">{{ resource.description|truncatechars:120 }}</p>
+      
+      <div class="resource-footer">
         <div class="resource-meta">
           <div class="meta-item">
             <i class="bi bi-eye-fill"></i>
-            <span>{{ resource.views_count }} {% trans "views" %}</span>
+            <span>{{ resource.views_count }}</span>
           </div>
           <div class="meta-item">
             <i class="bi bi-person-circle"></i>
-            <span>{{ resource.author.full_name }}</span>
-          </div>
-          <div class="meta-item">
-            <i class="bi bi-clock"></i>
-            <span>{{ resource.creation_date|timesince }}</span>
+            <span>{{ resource.author.full_name|truncatechars:20 }}</span>
           </div>
         </div>
+        <div class="resource-time">
+          <i class="bi bi-clock"></i>
+          <span>{{ resource.creation_date|timesince }}</span>
+        </div>
       </div>
-    </div>
+    </article>
     {% empty %}
     <div class="empty-state">
-      <i class="bi bi-archive empty-icon"></i>
+      <i class="bi bi-archive"></i>
       <p>{% trans "No popular resources yet." %}</p>
     </div>
     {% endfor %}
   </div>
-</div>
+</section>
 
-<!-- Section Événements -->
-<div class="dashboard-section">
-  <div class="section-header">
-    <h2 class="section-title">{% trans "Upcoming Events" %}</h2>
-    <a href="{% url 'events:event_list' %}" class="view-all"
-      >{% trans "View All" %}</a
-    >
+<!-- Upcoming Events -->
+<section class="content-section">
+  <div class="section-header-flex">
+    <div>
+      <h2 class="section-title">{% trans "Upcoming Events" %}</h2>
+      <p class="section-subtitle">{% trans "Workshops, conferences, and community meetups" %}</p>
+    </div>
+    <a href="{% url 'events:event_list' %}" class="view-all-link">
+      {% trans "View All" %} <i class="fas fa-arrow-right"></i>
+    </a>
   </div>
-  <div class="events-list">
+
+  <div class="events-grid">
     {% for event in events|slice:":3" %}
-    <a href="{% url 'events:event_detail' event.id %}" class="event-card-link">
-      <div class="event-card">
-        <div class="event-date">
-          <div class="event-day">{{ event.start_date|date:"d" }}</div>
-          <div class="event-month">{{ event.start_date|date:"M"|upper }}</div>
-        </div>
-        <div class="event-details">
-          <h3 class="event-title">{{ event.title }}</h3>
+    <a href="{% url 'events:event_detail' event.id %}" class="event-card">
+      <div class="event-date-badge">
+        <div class="event-day">{{ event.start_date|date:"d" }}</div>
+        <div class="event-month">{{ event.start_date|date:"M"|upper }}</div>
+      </div>
+      
+      <div class="event-content">
+        <h3 class="event-title">{{ event.title }}</h3>
+        
+        <div class="event-info">
+          {% if event.is_online %}
           <div class="event-location">
-            {% if event.is_online %}
-            <i class="fas fa-globe"></i> {% trans "Online" %} •
-            <i class="fas fa-clock"></i> {{ event.start_time|date:"H:i" }}-{{
-            event.end_time|date:"H:i" }} {{ event.timezone }} {% else %}
-            <i class="fas fa-map-marker-alt"></i> {{ event.location }} •
-            <i class="fas fa-calendar"></i> {{ event.start_date|date:"d M Y" }}
-            {% if event.end_date %} - {{ event.end_date|date:"d M Y" }}{% endif %} {% endif %}
+            <i class="fas fa-globe"></i>
+            <span>{% trans "Online" %}</span>
           </div>
-          <div class="resource-tags">
-            {% for tag in event.tags.all %}
-            <span class="tag">{{ tag.name }}</span>
-            {% endfor %}
+          <div class="event-time">
+            <i class="fas fa-clock"></i>
+            <span>{{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }} {{ event.timezone }}</span>
           </div>
+          {% else %}
+          <div class="event-location">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>{{ event.location }}</span>
+          </div>
+          <div class="event-time">
+            <i class="fas fa-calendar"></i>
+            <span>{{ event.start_date|date:"d M Y" }}{% if event.end_date %} - {{ event.end_date|date:"d M Y" }}{% endif %}</span>
+          </div>
+          {% endif %}
         </div>
+        
+        {% if event.tags.all %}
+        <div class="event-tags">
+          {% for tag in event.tags.all|slice:":3" %}
+          <span class="tag">{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
     </a>
     {% empty %}
-    <div class="empty-message">
+    <div class="empty-state">
+      <i class="fas fa-calendar-times"></i>
       <p>{% trans "No upcoming events." %}</p>
     </div>
     {% endfor %}
   </div>
-</div>
+</section>
 
+<!-- CTA Section -->
+<section class="cta-section">
+  <div class="cta-content">
+    <h2 class="cta-title">{% trans "Join Our Growing Community" %}</h2>
+    <p class="cta-description">{% trans "Connect with researchers, access cutting-edge tools, and contribute to advancing Arabic NLP" %}</p>
+    <div class="cta-actions">
+      <a href="{% url 'forum:topic-list' %}" class="btn-primary">
+        <span>{% trans "Get Started" %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+      <a href="{% url 'resources:list' %}" class="btn-outline">
+        <span>{% trans "Learn More" %}</span>
+      </a>
+    </div>
+  </div>
+</section>
 
 {% endblock %}

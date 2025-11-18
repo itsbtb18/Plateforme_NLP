@@ -167,9 +167,9 @@ cloudinary.config(
 )
 
 # CRITICAL: Set BEFORE importing storage classes
-os.environ['CLOUDINARY_CLOUD_NAME'] = config('CLOUDINARY_CLOUD_NAME')
-os.environ['CLOUDINARY_API_KEY'] = config('CLOUDINARY_API_KEY')
-os.environ['CLOUDINARY_API_SECRET'] = config('CLOUDINARY_API_SECRET')
+os.environ['CLOUDINARY_CLOUD_NAME'] = str(config('CLOUDINARY_CLOUD_NAME'))
+os.environ['CLOUDINARY_API_KEY'] = str(config('CLOUDINARY_API_KEY'))
+os.environ['CLOUDINARY_API_SECRET'] = str(config('CLOUDINARY_API_SECRET'))
 
 # Media files - Use Cloudinary for ALL uploads
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

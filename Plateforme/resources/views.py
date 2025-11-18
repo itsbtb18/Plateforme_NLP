@@ -12,12 +12,16 @@ from django.contrib import messages
 from .forms import ResourceForm
 from django.conf import settings
 from accounts.views import LoginAndVerifiedRequiredMixin
+from django.db import models
 from .models import Document, NLPTool, Article, Thesis, Memoir, Course, Corpus, ResourceBase
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
 import logging
+from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
 
 logger = logging.getLogger(__name__)
+
+ResourceVariant = Union[Document, NLPTool, Course, Corpus]
 
 
 class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -25,7 +29,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = 'resources'
     paginate_by = 9
 
-    def get_queryset(self):
+    def get_queryset(self) -> List[ResourceVariant]:
         search_query = self.request.GET.get('q', '')
         resource_type = self.request.GET.get('type', '')
         field_filter = self.request.GET.get('field', '')
@@ -83,7 +87,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
                 )
             querysets.append(corpora)
 
-        combined = []
+        combined: List[ResourceVariant] = []
         for qs in querysets:
             for obj in qs:
                 obj.resource_type = self.get_resource_type(obj)
@@ -105,7 +109,8 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['current_query'] = self.request.GET.urlencode()
-        context['total_count'] = len(self.object_list)
+        resources = cast(Sequence[ResourceVariant], self.object_list)
+        context['total_count'] = len(resources)
         from .models import FieldChoices
         context['field_choices'] = FieldChoices.choices
         context['current_field'] = self.request.GET.get('field', '')
@@ -269,7 +274,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     template_name = 'resources/resource_detail.html'
     context_object_name = 'object'
 
-    TYPE_MODELS = {
+    TYPE_MODELS: Dict[str, Type[models.Model]] = {
         'tool': NLPTool,
         'course': Course,
         'article': Article,
@@ -278,7 +283,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         'corpus': Corpus,
     }
 
-    MODEL_VIEW_NAMES = {
+    MODEL_VIEW_NAMES: Dict[str, str] = {
         'nlptool': 'tool',
         'course': 'course',
         'article': 'article',
@@ -287,7 +292,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         'corpus': 'corpus',
     }
 
-    URL_NAMES = {
+    URL_NAMES: Dict[str, str] = {
         'tool': 'tool_list',
         'course': 'course_list',
         'article': 'article_list',
@@ -349,23 +354,21 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        model_name = self.object._meta.model_name
-        resource_type = self.MODEL_VIEW_NAMES.get(model_name, model_name)
+        model_name = str(self.object._meta.model_name)
+        resource_type = self.MODEL_VIEW_NAMES.get(model_name, model_name) or model_name
         context['resource_type'] = resource_type
         context['list_url_name'] = self.URL_NAMES.get(resource_type, 'list')
         context['page'] = 'resources'
 
-        if hasattr(self.object, 'document'):
+        document_obj = getattr(self.object, 'document', None)
+        if document_obj is not None:
             context['specific_object'] = self.object
-            context['object'] = self.object.document
+            context['object'] = document_obj
 
         if resource_type in ['article', 'thesis', 'memoir', 'course']:
-            if hasattr(self.object, 'field'):
-                field = self.object.field
-            elif hasattr(self.object, 'document') and hasattr(self.object.document, 'field'):
-                field = self.object.document.field
-            else:
-                field = None
+            field = getattr(self.object, 'field', None)
+            if field is None and document_obj is not None:
+                field = getattr(document_obj, 'field', None)
 
             if field:
                 context['related_corpora'] = Corpus.objects.filter(field__icontains=field)[:3]
@@ -380,7 +383,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     template_name = 'resources/resource_update_form.html'
     
     # Updated TYPE_MODELS to treat article, thesis, memoir as top-level types
-    TYPE_MODELS = {
+    TYPE_MODELS: Dict[str, Type[ResourceBase]] = {
         'tool': NLPTool,
         'nlp_tool': NLPTool,
         'course': Course,
@@ -390,7 +393,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         'memoir': Document,   # Changed: Memoir is accessed via Document
     }
 
-    def get_object(self):
+    def get_object(self) -> ResourceBase:
         resource_type = self.kwargs['type']
         pk = self.kwargs['pk']
         
@@ -408,7 +411,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             return get_object_or_404(model, pk=pk)
 
     def get_initial(self):
-        resource = self.get_object()
+        resource = cast(ResourceBase, self.get_object())
         resource_type = self.kwargs['type']
         initial = {}
         
@@ -422,7 +425,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         })
         
         # Type-specific fields
-        if resource_type == 'course':
+        if resource_type == 'course' and isinstance(resource, Course):
             initial.update({
                 'course_field': resource.field,
                 'academic_level': resource.academic_level,
@@ -430,7 +433,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 'academic_year': resource.academic_year,
                 'resource_type': 'course'
             })
-        elif resource_type == 'nlp_tool' or isinstance(resource, NLPTool):
+        elif resource_type in ['nlp_tool', 'tool'] and isinstance(resource, NLPTool):
             initial.update({
                 'tool_type': resource.tool_type,
                 'tool_version': resource.version,
@@ -438,7 +441,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 'supported_languages': resource.get_supported_languages_list() if hasattr(resource, 'get_supported_languages_list') else [],
                 'resource_type': 'nlp_tool'
             })
-        elif resource_type == 'corpus':
+        elif resource_type == 'corpus' and isinstance(resource, Corpus):
             initial.update({
                 'corpus_size': resource.size,
                 'corpus_field': resource.field,
@@ -446,32 +449,35 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 'resource_type': 'corpus'
             })
         elif resource_type == 'article':
-            article = resource.article
-            initial.update({
-                'document_format': resource.file_format,
-                'journal': article.journal,
-                'publication_date': article.publication_date,
-                'doi': article.doi or '',
-                'resource_type': 'article'
-            })
+            article = getattr(resource, 'article', None)
+            if article:
+                initial.update({
+                    'document_format': resource.file_format,
+                    'journal': article.journal,
+                    'publication_date': article.publication_date,
+                    'doi': article.doi or '',
+                    'resource_type': 'article'
+                })
         elif resource_type == 'thesis':
-            thesis = resource.thesis
-            initial.update({
-                'document_format': resource.file_format,
-                'supervisor': thesis.supervisor,
-                'thesis_institution': thesis.institution.id if thesis.institution else None,
-                'defense_year': thesis.defense_year,
-                'resource_type': 'thesis'
-            })
+            thesis = getattr(resource, 'thesis', None)
+            if thesis:
+                initial.update({
+                    'document_format': resource.file_format,
+                    'supervisor': thesis.supervisor,
+                    'thesis_institution': thesis.institution.id if thesis.institution else None,
+                    'defense_year': thesis.defense_year,
+                    'resource_type': 'thesis'
+                })
         elif resource_type == 'memoir':
-            memoir = resource.memoir
-            initial.update({
-                'document_format': resource.file_format,
-                'memoir_level': memoir.academic_level,
-                'memoir_institution': memoir.institution.id if memoir.institution else None,
-                'memoir_defense_year': memoir.defense_year,
-                'resource_type': 'memoir'
-            })
+            memoir = getattr(resource, 'memoir', None)
+            if memoir:
+                initial.update({
+                    'document_format': resource.file_format,
+                    'memoir_level': memoir.academic_level,
+                    'memoir_institution': memoir.institution.id if memoir.institution else None,
+                    'memoir_defense_year': memoir.defense_year,
+                    'resource_type': 'memoir'
+                })
         
         return initial
 
@@ -483,7 +489,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
-        resource = self.get_object()
+        resource = cast(ResourceBase, self.get_object())
         resource_type = self.kwargs['type']
         current_time = now()
         
@@ -501,47 +507,50 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             setattr(resource, attr, value)
         
         # Type-specific updates
-        if resource_type == 'course':
+        if resource_type == 'course' and isinstance(resource, Course):
             resource.field = form.cleaned_data['course_field']
             resource.academic_level = form.cleaned_data['academic_level']
             resource.institution = form.cleaned_data['course_institution']
             resource.academic_year = form.cleaned_data['academic_year']
             resource.save()
-        elif resource_type == 'nlp_tool':
+        elif resource_type in ['nlp_tool', 'tool'] and isinstance(resource, NLPTool):
             resource.tool_type = form.cleaned_data['tool_type']
             resource.version = form.cleaned_data['tool_version']
             resource.documentation_link = form.cleaned_data['documentation']
             resource.supported_languages = form.cleaned_data['supported_languages']
             resource.save()
-        elif resource_type == 'corpus':
+        elif resource_type == 'corpus' and isinstance(resource, Corpus):
             resource.size = form.cleaned_data['corpus_size']
             resource.field = form.cleaned_data['corpus_field']
             resource.file_format = form.cleaned_data['corpus_format']
             resource.save()
-        elif resource_type == 'article':
+        elif resource_type == 'article' and isinstance(resource, Document):
             resource.file_format = form.cleaned_data['document_format']
             resource.save()
-            article = resource.article
-            article.doi = form.cleaned_data.get('doi', '')
-            article.journal = form.cleaned_data['journal']
-            article.publication_date = form.cleaned_data['publication_date']
-            article.save()
-        elif resource_type == 'thesis':
+            article = getattr(resource, 'article', None)
+            if article:
+                article.doi = form.cleaned_data.get('doi', '')
+                article.journal = form.cleaned_data['journal']
+                article.publication_date = form.cleaned_data['publication_date']
+                article.save()
+        elif resource_type == 'thesis' and isinstance(resource, Document):
             resource.file_format = form.cleaned_data['document_format']
             resource.save()
-            thesis = resource.thesis
-            thesis.supervisor = form.cleaned_data['supervisor']
-            thesis.institution = form.cleaned_data['thesis_institution']
-            thesis.defense_year = form.cleaned_data['defense_year']
-            thesis.save()
-        elif resource_type == 'memoir':
+            thesis = getattr(resource, 'thesis', None)
+            if thesis:
+                thesis.supervisor = form.cleaned_data['supervisor']
+                thesis.institution = form.cleaned_data['thesis_institution']
+                thesis.defense_year = form.cleaned_data['defense_year']
+                thesis.save()
+        elif resource_type == 'memoir' and isinstance(resource, Document):
             resource.file_format = form.cleaned_data['document_format']
             resource.save()
-            memoir = resource.memoir
-            memoir.academic_level = form.cleaned_data['memoir_level']
-            memoir.institution = form.cleaned_data['memoir_institution']
-            memoir.defense_year = form.cleaned_data['memoir_defense_year']
-            memoir.save()
+            memoir = getattr(resource, 'memoir', None)
+            if memoir:
+                memoir.academic_level = form.cleaned_data['memoir_level']
+                memoir.institution = form.cleaned_data['memoir_institution']
+                memoir.defense_year = form.cleaned_data['memoir_defense_year']
+                memoir.save()
         
         messages.success(self.request, f"Resource '{resource.title}' updated successfully!")
         return super().form_valid(form)

@@ -8,8 +8,10 @@ from institutions.models import Institution
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db.models import F
 from django_elasticsearch_dsl.registries import registry
 import logging
+from typing import Iterable, Tuple, cast
 
 logger = logging.getLogger(__name__)
 
@@ -78,21 +80,22 @@ class ResourceBase(models.Model):
     
     def get_supported_languages_list(self):
         """Return supported languages as a list"""
-        if hasattr(self, 'supported_languages') and self.supported_languages:
-            return [lang.strip() for lang in self.supported_languages.split(',')]
+        supported_langs = getattr(self, 'supported_languages', None)
+        if supported_langs:
+            return [lang.strip() for lang in str(supported_langs).split(',') if lang.strip()]
         return []
-    
+
     def get_keywords_list(self):
-    
-     if not self.keywords:
+        """Return keywords as list regardless of storage format"""
+        if not self.keywords:
+            return []
+
+        if isinstance(self.keywords, str):
+            keywords = self.keywords.replace('OO', ',')
+            return [kw.strip() for kw in keywords.split(',') if kw.strip()]
+        if isinstance(self.keywords, (list, tuple)):
+            return list(self.keywords)
         return []
-        
-     if isinstance(self.keywords, str):
-        keywords = self.keywords.replace('،', ',')
-        return [kw.strip() for kw in keywords.split(',') if kw.strip()]
-     elif isinstance(self.keywords, (list, tuple)):
-        return list(self.keywords)
-     return []
 
     def get_author_full_name(self):
         if self.author:
@@ -106,8 +109,8 @@ class ResourceBase(models.Model):
         return self.title
 
     def increment_views(self):
-        self.views_count += 1
-        self.save(update_fields=['views_count'])
+        type(self).objects.filter(pk=self.pk).update(views_count=F('views_count') + 1)
+        self.refresh_from_db(fields=['views_count'])
 
     def save(self, *args, **kwargs):
         try:
@@ -132,7 +135,7 @@ def validate_academic_year(value):
         raise ValidationError(
             _("The ending year must be the starting year + 1")
         )
-    return validate_academic_year(value)
+    return value
 
 class FieldChoices(models.TextChoices):
         
@@ -226,6 +229,13 @@ class Course(ResourceBase):
     def __str__(self):
         return f"{self.title} ({self.get_academic_level_display()}) - {self.teacher}"
 
+    def get_academic_level_display(self) -> str:
+        """Return readable academic level while remaining type-checker friendly."""
+        try:
+            return self.Level(self.academic_level).label
+        except ValueError:
+            return self.academic_level
+
     def publish(self):
         """Publish the course."""
         self.is_public = True
@@ -267,26 +277,30 @@ class Document(ResourceBase):
 
     def get_citation(self):
         """Generate a standardized citation based on the type."""
-        if hasattr(self, 'article'):
-            return self.article.get_citation()
-        elif hasattr(self, 'thesis'):
-            return self.thesis.get_citation()
-        elif hasattr(self, 'memoir'):
-            return self.memoir.get_citation()
-        return f"{self.title} ({self.author}, {self.creation_date.year})"
+        article = getattr(self, 'article', None)
+        if article:
+            return article.get_citation()
+        thesis = getattr(self, 'thesis', None)
+        if thesis:
+            return thesis.get_citation()
+        memoir = getattr(self, 'memoir', None)
+        if memoir:
+            return memoir.get_citation()
+        author_name = self.author.get_full_name() if self.author else ''
+        return f"{self.title} ({author_name}, {self.creation_date.year})"
 
     def get_detail_url(self):
         """Get detail URL based on document type."""
-        if hasattr(self, 'article'):
-            return reverse('resources:article_detail', kwargs={'pk': self.article.pk})
-        elif hasattr(self, 'thesis'):
-            return reverse('resources:thesis_detail', kwargs={'pk': self.thesis.pk})
-        elif hasattr(self, 'memoir'):
-            return reverse('resources:memoir_detail', kwargs={'pk': self.memoir.pk})
+        article = getattr(self, 'article', None)
+        if article:
+            return reverse('resources:article_detail', kwargs={'pk': article.pk})
+        thesis = getattr(self, 'thesis', None)
+        if thesis:
+            return reverse('resources:thesis_detail', kwargs={'pk': thesis.pk})
+        memoir = getattr(self, 'memoir', None)
+        if memoir:
+            return reverse('resources:memoir_detail', kwargs={'pk': memoir.pk})
         return reverse('resources:document_detail', kwargs={'pk': self.pk})
-    def increment_views(self):
-        self.views_count += 1
-        self.save(update_fields=['views_count'])
 
 class Thesis(models.Model):
     document = models.OneToOneField(
@@ -355,7 +369,10 @@ class Memoir(models.Model):
     )
 
     def get_citation(self):
-        level_display = dict(self._meta.get_field('academic_level').choices).get(self.academic_level)
+        field = self._meta.get_field('academic_level')
+        choices_iter: Iterable[Tuple[str, str]] = cast(Iterable[Tuple[str, str]], field.choices or [])
+        levels = {key: label for key, label in choices_iter}
+        level_display = levels.get(self.academic_level, self.academic_level)
         return f"{self.document.author} ({self.defense_year}). {self.document.title}. Dissertation for {level_display}, {self.institution}."
 
     def get_absolute_url(self):
@@ -395,7 +412,9 @@ class Article(models.Model):
     )
 
     def get_citation(self):
-        return f"{self.document.author} ({self.publication_date.year}). {self.document.title}. {self.journal}. DOI: {self.doi}"
+        year = self.publication_date.year if self.publication_date else _("Unknown year")
+        doi = self.doi or _("N/A")
+        return f"{self.document.author} ({year}). {self.document.title}. {self.journal}. DOI: {doi}"
 
     def get_absolute_url(self):
         return reverse('resources:article_detail', kwargs={'pk': self.pk})
@@ -456,7 +475,7 @@ class NLPTool(ResourceBase):
 
     def clean(self):
         """Specific validation for NLP tools."""
-        if self.tool_type == self.ToolType.MACHINE_TRANSLATION and not self.languages:
+        if self.tool_type == self.ToolType.MACHINE_TRANSLATION and not (self.supported_languages or '').strip():
             raise ValidationError(
                 _("A machine translation tool must specify supported languages.")
             )
@@ -467,22 +486,29 @@ class NLPTool(ResourceBase):
     def get_supported_languages_list(self):
         """Return supported languages as a list"""
         if self.supported_languages:
-            return [lang.strip() for lang in self.supported_languages.split(',')]
+            return [lang.strip() for lang in str(self.supported_languages).split(',') if lang.strip()]
         return []
 
     def get_supported_languages_display(self):
         """Return human-readable supported languages"""
-        languages = self.get_supported_languages_list()
-        choices_dict = dict(self.SupportedLanguages.choices)
-        return [choices_dict.get(lang, lang) for lang in languages]
+        display_values = []
+        for lang in self.get_supported_languages_list():
+            try:
+                display_values.append(self.SupportedLanguages(lang).label)
+            except ValueError:
+                display_values.append(lang)
+        return display_values
     
-    def get_absolute_url(self):
-        model_name = self.__class__.__name__.lower()
-        return reverse(f'resources:tool_detail', kwargs={'pk': self.pk})
-
     def get_absolute_url(self):
         """Override to use the correct URL name for tools"""
         return reverse('resources:tool_detail', kwargs={'pk': self.pk})
+
+    def get_tool_type_display(self) -> str:
+        """Explicit helper for static analyzers."""
+        try:
+            return self.ToolType(self.tool_type).label
+        except ValueError:
+            return self.tool_type
 
 class Corpus(ResourceBase):
     """
@@ -516,6 +542,10 @@ def index_resource(sender, instance, **kwargs):
     try:
         registry.update(instance)
         logger.info(f"Resource {instance.title} indexed successfully")
-    except Exception as e:
-        logger.error(f"Error indexing resource {instance.title}: {str(e)}")
-        raise 
+    except KeyError as exc:
+        logger.warning(
+            "Elasticsearch connection missing while indexing %s: %s. "
+            "Skipping search indexing for this resource.", instance.title, exc
+        )
+    except Exception as exc:
+        logger.error(f"Error indexing resource {instance.title}: {exc}")
