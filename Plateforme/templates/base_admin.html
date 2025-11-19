@@ -14,17 +14,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/admin.css' %}">
+    <link rel="stylesheet" href="{% static 'css/admin.css' %}?v=5">
     {% if LANGUAGE_CODE == 'ar' %}
-    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}">
+    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}?v=5">
     {% endif %}
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- Admin Header -->
-            <header class="admin-header">
+    <header class="admin-header">
         <div class="admin-header-container">
-            <!-- Admin Actions Buttons -->
+            <!-- LEFT: Logo + Admin Panel Title -->
+            <div class="admin-logo">
+                <img src="{% static 'images/logo.png' %}" alt="Logo" class="admin-logo-img">
+                <h5 class="admin-title">{% trans "Admin Panel" %}</h5>
+            </div>
+            
+            <!-- RIGHT: Action Buttons -->
             <div class="admin-actions">
                 <a href="{% url 'pages:home' %}" class="btn-admin btn-admin-secondary">
                     <i class="fas fa-home"></i>
@@ -34,13 +41,6 @@
                     <i class="fas fa-sign-out-alt"></i>
                     <span>{% trans "Logout" %}</span>
                 </a>
-            </div>
-            
-            <div class="admin-logo">
-                <div class="admin-logo">
-                        <h5 class="admin-title">{% trans "Admin Panel" %}</h5>
-                        <img src="{% static 'images/logo.png' %}" alt="Logo" class="admin-logo-img">
-                </div>
             </div>
         </div>
     </header>
@@ -63,7 +63,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_publications' %}active{% endif %}" href="{% url 'pages:admin_publications' %}">
-                                <i class="fas fa-book"></i>{% trans "Publications" %} 
+                                <i class="fas fa-book"></i> {% trans "Publications" %}
                             </a>
                         </li>
                         <li class="nav-item">
@@ -73,12 +73,12 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_tools' %}active{% endif %}" href="{% url 'pages:admin_tools' %}">
-                                <i class="fas fa-tools"></i>{% trans "tools" %} 
+                                <i class="fas fa-tools"></i> {% trans "tools" %}
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_projects' %}active{% endif %}" href="{% url 'pages:admin_projects' %}">
-                                <i class="fas fa-project-diagram"></i>{% trans "Projects" %} 
+                                <i class="fas fa-project-diagram"></i> {% trans "Projects" %}
                             </a>
                         </li>
                         <li class="nav-item">
@@ -122,15 +122,6 @@
 
             <!-- Main content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">{% block page_title %}{% trans "Administration" %}{% endblock %}</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-                            {% block page_actions %}{% endblock %}
-                        </div>
-                    </div>
-                </div>
-
                 {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
@@ -153,28 +144,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const adminProfileBtn = document.getElementById('adminProfileBtn');
-            const adminProfileDropdown = document.getElementById('adminProfileDropdown');
-
-            if (adminProfileBtn && adminProfileDropdown) {
-                adminProfileBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    adminProfileDropdown.classList.toggle('show');
-                });
-
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function(e) {
-                    if (!adminProfileDropdown.contains(e.target) && !adminProfileBtn.contains(e.target)) {
-                        adminProfileDropdown.classList.remove('show');
-                    }
-                });
-            }
-        });
-    </script>
     
     {% block extra_js %}{% endblock %}
 </body>
