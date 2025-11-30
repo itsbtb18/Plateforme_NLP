@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
+    <link href="{% static 'css/notifications-modern.css' %}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     {% block extra_styles %}{% endblock %}
@@ -103,66 +104,77 @@
                     <div class="notification-dropdown-container action-dropdown-container">
                         <button class="action-btn icon-btn notification-bell"
                                 id="notificationDropdownToggle"
-                                aria-haspopup="true"
+                                aria-haspopup="menu"
                                 aria-expanded="false"
+                                aria-label="{% trans 'View notifications' %}"
                                 title="{% trans 'Notifications' %}">
                             <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span class="action-badge notification-badge">
+                            <span class="action-badge notification-badge" id="notificationBadge" aria-live="polite">
                                 {% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}
                             </span>
                         </button>
                         <div class="dropdown-panel notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationDropdownToggle">
                             <div class="notification-header">
-                                <div>
+                                <div class="notification-header-left">
                                     <p class="notification-title">{% trans "Notifications" %}</p>
                                     <span class="notification-subtitle">
                                         {% if unread_notifications_count > 0 %}
-                                            {% blocktrans %}{{ unread_notifications_count }} unread{% endblocktrans %}
+                                            <span id="unreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
                                         {% else %}
                                             {% trans "All caught up" %}
                                         {% endif %}
                                     </span>
                                 </div>
                                 {% if unread_notifications_count > 0 %}
-                                <a href="{% url 'notifications:mark_all_read' %}" class="mark-all-read">
-                                    <i class="fas fa-check-double"></i> {% trans "Mark all as read" %}
-                                </a>
+                                <button type="button" class="mark-all-read" onclick="handleMarkAllRead(event)" aria-label="{% trans 'Mark all as read' %}">
+                                    <i class="fas fa-check-double"></i> {% trans "Mark all" %}
+                                </button>
                                 {% endif %}
                             </div>
-                            <div class="notification-body">
+                            <div class="notification-body" id="notificationDropdownBody" role="list">
                                 {% if notifications %}
                                     {% for notification in notifications %}
-                                    <div class="notification-item {% if not notification.read %}unread{% endif %}">
-                                        <div class="notification-icon">
-                                            {% if notification.notification_type == 'resource_update' %}
-                                                <i class="fas fa-file-alt"></i>
-                                            {% elif notification.notification_type == 'comment' %}
-                                                <i class="fas fa-comment"></i>
-                                            {% elif notification.notification_type == 'project_update' %}
-                                                <i class="fas fa-flask"></i>
-                                            {% elif notification.notification_type == 'event' %}
-                                                <i class="fas fa-calendar-alt"></i>
-                                            {% elif notification.notification_type == 'forum' %}
-                                                <i class="fas fa-users"></i>
-                                            {% else %}
-                                                <i class="fas fa-bell"></i>
-                                            {% endif %}
+                                    <a href="{% if notification.target_url %}{{ notification.target_url }}{% else %}{% url 'notifications:mark_read' notification.id %}{% endif %}" 
+                                       class="notification-item {% if not notification.read %}unread{% endif %}"
+                                       data-notification-id="{{ notification.id }}"
+                                       role="listitem"
+                                       aria-label="{{ notification.title }}"
+                                       onclick="handleNotificationClick(event, {{ notification.id }}, {% if notification.read %}true{% else %}false{% endif %}); return true;">
+                                        <div class="notification-item-wrapper">
+                                            <div class="notification-icon">
+                                                {% if notification.notification_type == 'resource_update' %}
+                                                    <i class="fas fa-file-alt"></i>
+                                                {% elif notification.notification_type == 'comment' %}
+                                                    <i class="fas fa-comment"></i>
+                                                {% elif notification.notification_type == 'project_update' %}
+                                                    <i class="fas fa-flask"></i>
+                                                {% elif notification.notification_type == 'event' %}
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                {% elif notification.notification_type == 'forum' %}
+                                                    <i class="fas fa-users"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="notification-content">
+                                                <strong>{{ notification.title }}</strong>
+                                                <p>{{ notification.message|truncatewords:15 }}</p>
+                                                <small><i class="far fa-clock"></i> {{ notification.created_at|timesince }} {% trans "ago" %}</small>
+                                            </div>
                                         </div>
-                                        <div class="notification-content">
-                                            <strong>{{ notification.title }}</strong>
-                                            <p>{{ notification.message }}</p>
-                                            <small>{{ notification.created_at }}</small>
-                                        </div>
-                                    </div>
+                                    </a>
                                     {% endfor %}
                                 {% else %}
                                     <div class="empty-notifications">
+                                        <i class="far fa-bell-slash"></i>
                                         <p>{% trans "No notifications yet" %}</p>
                                     </div>
                                 {% endif %}
                             </div>
                             <div class="notification-footer">
-                                <a href="{% url 'notifications:list' %}">{% trans "View all notifications" %}</a>
+                                <a href="{% url 'notifications:list' %}">
+                                    {% trans "View all notifications" %} <i class="fas fa-arrow-right"></i>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -359,6 +371,7 @@
     </style>
 
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/notifications-handlers.js' %}"></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -390,19 +403,37 @@
             
             if (notificationToggle && notificationDropdown) {
                 notificationToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    notificationDropdown.classList.toggle('show');
+                    
+                    const isOpen = notificationDropdown.classList.toggle('show');
+                    
+                    // Update aria-expanded attribute
+                    notificationToggle.setAttribute('aria-expanded', isOpen);
                     
                     // Close profile dropdown if open
                     const profileDropdown = document.getElementById('profileDropdown');
                     if (profileDropdown && profileDropdown.classList.contains('show')) {
                         profileDropdown.classList.remove('show');
+                        const profileBtn = document.getElementById('profileIconBtn');
+                        if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
                     }
                     
                     // Close language dropdown if open
                     const languageDropdown = document.getElementById('languageDropdown');
                     if (languageDropdown && languageDropdown.classList.contains('show')) {
                         languageDropdown.classList.remove('show');
+                        const langBtn = document.getElementById('languageIconBtn');
+                        if (langBtn) langBtn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Handle Escape key to close dropdown
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && notificationDropdown.classList.contains('show')) {
+                        notificationDropdown.classList.remove('show');
+                        notificationToggle.setAttribute('aria-expanded', 'false');
+                        notificationToggle.focus();
                     }
                 });
             }
@@ -478,6 +509,7 @@
                     notificationToggle && 
                     !notificationToggle.contains(e.target)) {
                     notificationDropdown.classList.remove('show');
+                    if (notificationToggle) notificationToggle.setAttribute('aria-expanded', 'false');
                 }
                 
                 if (profileDropdown && 
@@ -485,6 +517,7 @@
                     profileIconBtn && 
                     !profileIconBtn.contains(e.target)) {
                     profileDropdown.classList.remove('show');
+                    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
                 }
                 
                 // Add language dropdown closing
@@ -493,6 +526,7 @@
                     languageIconBtn && 
                     !languageIconBtn.contains(e.target)) {
                     languageDropdown.classList.remove('show');
+                    if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
                 }
             });
             

@@ -115,7 +115,7 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL must be set in .env file")
 
 DATABASES = {
-    'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600)
+    'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600, conn_health_checks=True)
 }
 
 # Auth & Allauth
@@ -220,6 +220,14 @@ ELASTICSEARCH_DSL = {
 }
 ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
+
+# Chatbot / FastAPI Configuration
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8001")
+FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
+CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
+CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "24000"))
+CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
+CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "10485760"))  # 10MB
 
 # Logging
 LOGGING = {
