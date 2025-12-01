@@ -1,6 +1,7 @@
 from django import forms
 from .models import Event
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language
 
 class EventForm(forms.ModelForm):
     """Form for creating and updating events."""
@@ -19,9 +20,9 @@ class EventForm(forms.ModelForm):
             'event_type': forms.Select(attrs={'class': 'form-select'}),
             'domains': forms.TextInput(attrs={'class': 'form-control', 'placeholder': ('e.g., NLP, Speech Processing, Arabic Language')}),
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': ('Leave blank for virtual events')}),
-            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'submission_deadline': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_date': forms.DateInput(attrs={'type': 'text', 'class': 'form-control', 'placeholder': ''}),
+            'end_date': forms.DateInput(attrs={'type': 'text', 'class': 'form-control', 'placeholder': ''}),
+            'submission_deadline': forms.DateInput(attrs={'type': 'text', 'class': 'form-control', 'placeholder': ''}),
             'website': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://'}),
             'organizer': forms.Select(attrs={'class': 'form-select'}),
             'contact_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contact@example.com'}),
@@ -54,8 +55,9 @@ class EventSearchForm(forms.Form):
     start_date = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
+            'type': 'text',
+            'class': 'form-control',
+            'placeholder': 'dd/mm/yyyy'
         })
     )
     include_past = forms.BooleanField(

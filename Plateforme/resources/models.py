@@ -35,6 +35,20 @@ class ResourceBase(models.Model):
         verbose_name=_("Title"),
         help_text=_("Descriptive title of the resource")
     )
+    title_ar = models.CharField(
+        max_length=200,
+        verbose_name=_("Title (Arabic)"),
+        blank=True,
+        default='',
+        help_text=_("Arabic title of the resource")
+    )
+    title_en = models.CharField(
+        max_length=200,
+        verbose_name=_("Title (English)"),
+        blank=True,
+        default='',
+        help_text=_("English title of the resource")
+    )
     description = models.TextField(
         verbose_name=_("Description"),
         help_text=_("Detailed description of the resource")
@@ -106,6 +120,12 @@ class ResourceBase(models.Model):
         return reverse(f'resources:{model_name}_detail', kwargs={'pk': self.pk})
 
     def __str__(self):
+        from django.utils.translation import get_language
+        current_lang = get_language()
+        if current_lang == 'ar' and self.title_ar:
+            return self.title_ar
+        elif self.title_en:
+            return self.title_en
         return self.title
 
     def increment_views(self):

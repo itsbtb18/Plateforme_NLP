@@ -16,26 +16,56 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
+    <link href="{% static 'css/custom-file-input.css' %}?v=3" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+    <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
     <style>
+      /* Date input with calendar icon */
+      input[type="text"][id*="date"],
+      input[type="text"][id*="Date"],
+      input[type="text"][id*="deadline"] {
+        padding-right: 50px !important;
+      }
+      
+      html[dir="rtl"] input[type="text"][id*="date"],
+      html[dir="rtl"] input[type="text"][id*="Date"],
+      html[dir="rtl"] input[type="text"][id*="deadline"] {
+        padding-left: 15px !important;
+        padding-right: 80px !important;
+      }
+      
+      /* Fix form-floating height for date inputs */
+      .form-floating > input[type="text"][id*="date"],
+      .form-floating > input[type="text"][id*="Date"],
+      .form-floating > input[type="text"][id*="deadline"] {
+        min-height: calc(3.5rem + 2px);
+        height: calc(3.5rem + 2px);
+        line-height: 1.25;
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+      }
+      
       .notification-badge {
         display: none;
         position: absolute;
-        top: 0px;
+        top: -5px;
         right: -5px;
-        padding: 2px;
-        padding-right: 6px;
-        border-radius: 50%;
+        padding: 1px 4px;
+        border-radius: 10px;
         background-color: #dc3545;
         color: white;
-        font-size: 0.7em;
-        font-weight: bold;
+        font-size: 0.65em;
+        font-weight: 700;
         text-align: center;
         min-width: 18px; 
         height: 18px;
-        line-height: 14px;
+        line-height: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       }
       .notification-badge:not(:empty) {
         display: block;
@@ -603,6 +633,175 @@
                 });
             }
         }); 
+    </script>
+
+    <script>
+        // Initialize Flatpickr date pickers with calendar icon
+        document.addEventListener('DOMContentLoaded', function() {
+            const lang = document.documentElement.lang;
+            
+            const dateFormat = lang === 'ar' ? 'Y/m/d' : 'd/m/Y';
+            
+            // Force English locale for non-Arabic, disable locale inference
+            let locale = undefined;  // Don't use any locale by default
+            if (lang === 'ar' && typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.ar) {
+                locale = flatpickr.l10ns.ar;  // Use Arabic locale only for Arabic
+            }
+            
+            const isRTL = lang === 'ar';
+            
+            // IMMEDIATE replacement of placeholders BEFORE finding inputs
+            if (lang === 'ar') {
+                // Function to replace all dd/mm/yyyy placeholders
+                const replaceAllPlaceholders = () => {
+                    const allTextInputs = document.querySelectorAll('input[type="text"]');
+                    let replacedCount = 0;
+                    allTextInputs.forEach(input => {
+                        const currentPlaceholder = input.getAttribute('placeholder');
+                        if (currentPlaceholder === 'dd/mm/yyyy') {
+                            input.setAttribute('placeholder', 'اليوم/الشهر/السنة');
+                            replacedCount++;
+                        }
+                    });
+                    if (replacedCount > 0) {
+                        console.log('Replaced', replacedCount, 'placeholders to Arabic');
+                    }
+                };
+                
+                // Run immediately
+                replaceAllPlaceholders();
+                
+                // Run after delays
+                setTimeout(replaceAllPlaceholders, 10);
+                setTimeout(replaceAllPlaceholders, 100);
+                setTimeout(replaceAllPlaceholders, 300);
+                setTimeout(replaceAllPlaceholders, 500);
+                setTimeout(replaceAllPlaceholders, 1000);
+                setTimeout(replaceAllPlaceholders, 2000);
+                
+                // Run continuously every 500ms for the first 5 seconds
+                let intervalCount = 0;
+                const replacementInterval = setInterval(() => {
+                    replaceAllPlaceholders();
+                    intervalCount++;
+                    if (intervalCount >= 10) {
+                        clearInterval(replacementInterval);
+                    }
+                }, 500);
+            }
+            
+            // Find all date input fields - more comprehensive selector including form-input class
+            const dateInputs = document.querySelectorAll('input[type="text"][id*="date"], input[type="text"][id*="Date"], input[type="text"][id*="deadline"], input[type="text"][name*="date"], input[type="text"][name*="Date"], input.form-input[type="text"], input[type="text"][placeholder*="dd/mm/yyyy"]');
+            
+            console.log('Found date inputs:', dateInputs.length);
+            
+            // First pass: replace all dd/mm/yyyy placeholders immediately if Arabic
+            if (lang === 'ar') {
+                document.querySelectorAll('input[type="text"][placeholder="dd/mm/yyyy"]').forEach(input => {
+                    input.setAttribute('placeholder', 'اليوم/الشهر/السنة');
+                    console.log('Pre-replaced placeholder for input:', input.id || input.name);
+                });
+            }
+            
+            dateInputs.forEach(input => {
+                // Get placeholder from input or generate based on language
+                let originalPlaceholder = input.getAttribute('placeholder');
+                
+                // If it's the English format, translate to Arabic if needed
+                if (lang === 'ar' && originalPlaceholder === 'dd/mm/yyyy') {
+                    originalPlaceholder = 'اليوم/الشهر/السنة';
+                    input.setAttribute('placeholder', originalPlaceholder);
+                }
+                
+                console.log('Input placeholder:', originalPlaceholder);
+                
+                // Add inline styles to the input
+                if (isRTL) {
+                    input.style.paddingLeft = '15px';
+                    input.style.paddingRight = '80px';
+                } else {
+                    input.style.paddingRight = '50px';
+                }
+                
+                // Add height styles for form-floating
+                if (input.closest('.form-floating')) {
+                    input.style.minHeight = 'calc(3.5rem + 2px)';
+                    input.style.height = 'calc(3.5rem + 2px)';
+                    input.style.paddingTop = '1.625rem';
+                    input.style.paddingBottom = '0.625rem';
+                }
+                
+                // Wrap input in a container for icon positioning
+                if (!input.parentElement.classList.contains('date-input-wrapper')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'position-relative date-input-wrapper';
+                    wrapper.style.display = 'contents';
+                    input.parentNode.insertBefore(wrapper, input);
+                    wrapper.appendChild(input);
+                    
+                    // Add calendar icon
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-calendar-alt position-absolute';
+                    icon.style.cssText = isRTL ? 
+                        'right: 40px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d; font-size: 0.85rem; z-index: 10;' :
+                        'right: 25px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d; font-size: 0.85rem; z-index: 10;';
+                    
+                    // Insert icon after input
+                    input.parentNode.insertBefore(icon, input.nextSibling);
+                }
+                
+                // Store original placeholder before Flatpickr init
+                const placeholderToUse = originalPlaceholder;
+                
+                // Configure Flatpickr options
+                const fpOptions = {
+                    dateFormat: dateFormat,
+                    allowInput: true,
+                    disableMobile: true,
+                    wrap: false,
+                    defaultDate: null,
+                    clickOpens: true  // Ensure calendar opens on click
+                };
+                
+                // Only add locale if Arabic, otherwise let it use default English
+                if (locale) {
+                    fpOptions.locale = locale;
+                }
+                
+                const fp = flatpickr(input, fpOptions);
+                
+                // Aggressive placeholder forcing - runs continuously
+                const forcePlaceholder = () => {
+                    const current = input.getAttribute('placeholder');
+                    if (current !== placeholderToUse) {
+                        console.log('Forcing placeholder from', current, 'to', placeholderToUse);
+                        input.setAttribute('placeholder', placeholderToUse);
+                    }
+                };
+                
+                // Set immediately
+                forcePlaceholder();
+                
+                // Set multiple times with delays
+                setTimeout(forcePlaceholder, 10);
+                setTimeout(forcePlaceholder, 50);
+                setTimeout(forcePlaceholder, 100);
+                setTimeout(forcePlaceholder, 200);
+                setTimeout(forcePlaceholder, 500);
+                setTimeout(forcePlaceholder, 1000);
+                
+                // Also set on focus and blur events
+                input.addEventListener('focus', forcePlaceholder);
+                input.addEventListener('blur', forcePlaceholder);
+                
+                // Make sure clicking on the input opens the calendar
+                input.addEventListener('click', function() {
+                    if (fp && fp.open) {
+                        fp.open();
+                    }
+                });
+            });
+        });
     </script>
 
     {% block extra_scripts %}{% endblock %}
