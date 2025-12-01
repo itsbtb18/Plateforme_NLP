@@ -206,12 +206,14 @@
     color: var(--gray-700);
     text-align: left;
     border: none;
+    vertical-align: middle;
   }
 
   .publications-table td {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--gray-200);
     vertical-align: middle;
+    text-align: left;
   }
 
   .publications-table tbody tr {
@@ -456,10 +458,11 @@
           {% trans "Start date" %}
         </label>
         <input
-          type="date"
+          type="text"
           id="date_from"
           name="date_from"
           class="form-input"
+          placeholder="dd/mm/yyyy"
           value="{{ request.GET.date_from }}"
         />
       </div>
@@ -469,10 +472,11 @@
           {% trans "End date" %}
         </label>
         <input
-          type="date"
+          type="text"
           id="date_to"
           name="date_to"
           class="form-input"
+          placeholder="dd/mm/yyyy"
           value="{{ request.GET.date_to }}"
         />
       </div>
@@ -506,7 +510,13 @@
         <tr>
           <td>
             <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" class="publication-link">
-              {{ publication.title }}
+              {% if LANGUAGE_CODE == 'ar' and publication.title_ar %}
+                {{ publication.title_ar }}
+              {% elif publication.title_en %}
+                {{ publication.title_en }}
+              {% else %}
+                {{ publication.title }}
+              {% endif %}
             </a>
           </td>
           <td>
@@ -600,5 +610,18 @@ function resetFilters() {
   document.getElementById('date_to').value = '';
   window.location.href = '{% url "pages:admin_publications" %}';
 }
+
+// Set placeholder based on language
+document.addEventListener('DOMContentLoaded', function() {
+  {% get_current_language as LANGUAGE_CODE %}
+  const placeholder = '{% if LANGUAGE_CODE == "ar" %}اليوم/الشهر/السنة{% else %}dd/mm/yyyy{% endif %}';
+  
+  // Set placeholder for date inputs
+  const dateFrom = document.getElementById('date_from');
+  const dateTo = document.getElementById('date_to');
+  
+  if (dateFrom) dateFrom.setAttribute('placeholder', placeholder);
+  if (dateTo) dateTo.setAttribute('placeholder', placeholder);
+});
 </script>
 {% endblock %}

@@ -151,6 +151,14 @@ LANGUAGES = [
 
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
+# Format de date personnalisé par langue
+USE_L10N = False  # Désactiver pour utiliser nos formats personnalisés
+
+# Formats de date pour chaque langue
+FORMAT_MODULE_PATH = [
+    'Plateforme.formats',
+]
+
 # ============================================
 # CLOUDINARY CONFIGURATION - CRITICAL FIX
 # ============================================

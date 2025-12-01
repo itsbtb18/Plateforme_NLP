@@ -271,10 +271,12 @@
     padding: 1rem;
     text-align: left;
     border-bottom: 1px solid var(--gray-200);
+    vertical-align: middle;
   }
 
   .projects-table tbody tr {
     transition: background-color 0.15s ease;
+    height: 100px;
   }
 
   .projects-table tbody tr:hover {
@@ -287,7 +289,7 @@
 
   .projects-table td {
     padding: 1rem;
-    vertical-align: top;
+    vertical-align: middle;
     color: var(--gray-700);
   }
 
@@ -458,19 +460,19 @@
 <div class="container">
   <div class="projects-header">
     <div>
-      <h1>Projects Management</h1>
+      <h1>{% trans "Projects Management" %}</h1>
       <div class="status-legends">
         <div class="status-item">
           <span class="status-dot status-in-progress"></span>
-          <span class="status-label">Ongoing</span>
+          <span class="status-label">{% trans "Ongoing" %}</span>
         </div>
         <div class="status-item">
           <span class="status-dot status-completed"></span>
-          <span class="status-label">Completed</span>
+          <span class="status-label">{% trans "Completed" %}</span>
         </div>
         <div class="status-item">
           <span class="status-dot status-pending"></span>
-          <span class="status-label">Pending</span>
+          <span class="status-label">{% trans "Pending" %}</span>
         </div>
       </div>
     </div>
@@ -479,7 +481,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
           <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
         </svg>
-        New Project
+        {% trans "New Project" %}
       </a>
     </div>
   </div>
@@ -487,28 +489,28 @@
   <!-- Dashboard Summary -->
   <div class="dashboard-summary">
     <div class="summary-card">
-      <div class="summary-card-title">Total Projects</div>
+      <div class="summary-card-title">{% trans "Total Projects" %}</div>
       <div class="summary-card-value">{{ total_count }}</div>
       <div class="summary-card-trend trend-up">
-        <span>{% if projects_growth > 0 %}+{% endif %}{{ projects_growth }}% this month</span>
+        <span>{% if projects_growth > 0 %}+{% endif %}{{ projects_growth }}% {% trans "this month" %}</span>
       </div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">Ongoing</div>
+      <div class="summary-card-title">{% trans "Ongoing" %}</div>
       <div class="summary-card-value">{{ in_progress_count }}</div>
       <div class="summary-card-trend trend-neutral">
-        <span>Stable</span>
+        <span>{% trans "Stable" %}</span>
       </div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">Completed</div>
+      <div class="summary-card-title">{% trans "Completed" %}</div>
       <div class="summary-card-value">{{ completed_count }}</div>
       <div class="summary-card-trend trend-up">
-        <span>{% if completed_growth > 0 %}+{% endif %}{{ completed_growth }}% this month</span>
+        <span>{% if completed_growth > 0 %}+{% endif %}{{ completed_growth }}% {% trans "this month" %}</span>
       </div>
     </div>
     <div class="summary-card">
-      <div class="summary-card-title">Average Time</div>
+      <div class="summary-card-title">{% trans "Average Time" %}</div>
       <div class="summary-card-value">{{ average_duration_display_days }}d</div>
       <div class="summary-card-trend {{ duration_trend_class }}">
         <span>{{ duration_trend_text }}</span>
@@ -519,19 +521,19 @@
   <!-- Filters Form -->
   <form method="get"  class="filter-bar">
     <div class="search-box">
-      <input type="text" name="search" placeholder="Search for a project..." value="{{ search }}">
+      <input type="text" name="search" placeholder="{% trans 'Search for a project...' %}" value="{{ search }}">
     </div>
     <div class="filter-dropdown">
       <select name="status">
-        <option value="">All Statuses</option>
-        <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>Ongoing</option>
-        <option value="completed"   {% if filter_status == 'completed'   %}selected{% endif %}>Completed</option>
-        <option value="pending"     {% if filter_status == 'pending'     %}selected{% endif %}>Pending</option>
+        <option value="">{% trans "All Statuses" %}</option>
+        <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>{% trans "Ongoing" %}</option>
+        <option value="completed"   {% if filter_status == 'completed'   %}selected{% endif %}>{% trans "Completed" %}</option>
+        <option value="pending"     {% if filter_status == 'pending'     %}selected{% endif %}>{% trans "Pending" %}</option>
        
       </select>
     </div>
     <button type="submit" class="btn btn-primary">
-      Filter
+      {% trans "Filter" %}
     </button>
   </form>
 
@@ -540,10 +542,10 @@
     <table class="projects-table" id="projects-table">
       <thead>
         <tr>
-          <th style="width:50%;">Project</th>
-          <th>Status</th>
-          <th>Team</th>
-          <th>Actions</th>
+          <th style="width:50%;">{% trans "Project" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Team" %}</th>
+          <th>{% trans "Actions" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -553,9 +555,9 @@
             <a href="{% url 'projects:project_detail' project.id %}" class="project-title">{{ project.title }}</a>
             <div class="project-desc">{{ project.description|truncatechars:120 }}</div>
             <div class="project-meta">
-              <div class="meta-item">Created: {{ project.created_at|date:"d M Y" }}</div>
+              <div class="meta-item">{% trans "Created" %}: {{ project.created_at|date:"d M Y" }}</div>
               <div class="meta-item">
-              Deadline:
+              {% trans "Deadline" %}:
               {% if project.date_start and project.date_end %}
                 {{ project.date_start|date:"d/m/Y" }} – {{ project.date_end|date:"d/m/Y" }}
               {% elif project.date_end %}
@@ -568,11 +570,11 @@
           </td>
           <td>
             {% if project.status == 'ongoing' %}
-              <span class="status-badge status-badge-in-progress">Ongoing</span>
+              <span class="status-badge status-badge-in-progress">{% trans "Ongoing" %}</span>
             {% elif project.status == 'completed' %}
-              <span class="status-badge status-badge-completed">Completed</span>
+              <span class="status-badge status-badge-completed">{% trans "Completed" %}</span>
             {% elif project.status == 'pending' %}
-              <span class="status-badge status-badge-pending">Pending</span>
+              <span class="status-badge status-badge-pending">{% trans "Pending" %}</span>
             {% else %}
               {{ project.get_status_display }}
             {% endif %}
@@ -581,7 +583,7 @@
             <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
                                     {{ pm.member.get_full_name|default:pm.member.full_name }}{% if not forloop.last %}, {% endif %}
                                 {% empty %}
-                                    <em>No participants</em>
+                                    <em>{% trans "No participants" %}</em>
                                 {% endfor %}</span>
           </td>
           <td>

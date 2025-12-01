@@ -767,10 +767,10 @@ def admin_projects(request):
     duration_diff_days = (avg_duration_current - avg_duration_previous).days
 
     if duration_diff_days > 0:
-        duration_trend_text = f"+{duration_diff_days}j vs previous period"
+        duration_trend_text = f"+{duration_diff_days}j {_('vs previous period')}"
         duration_trend_class = 'trend-down'
     elif duration_diff_days < 0:
-        duration_trend_text = f"{duration_diff_days}j vs previous period"
+        duration_trend_text = f"{duration_diff_days}j {_('vs previous period')}"
         duration_trend_class = 'trend-up'
     else:
         duration_trend_text = "Stable"
@@ -1096,11 +1096,11 @@ def admin_statistics(request):
 
     top_resources = []
     for resource in Document.objects.order_by('-views_count')[:2]:
-        top_resources.append({'title': resource.title, 'views': resource.views_count})
+        top_resources.append({'title': str(resource), 'views': resource.views_count})
     for resource in Corpus.objects.order_by('-views_count')[:2]:
-        top_resources.append({'title': resource.title, 'views': resource.views_count})
+        top_resources.append({'title': str(resource), 'views': resource.views_count})
     for resource in NLPTool.objects.order_by('-views_count')[:1]:
-        top_resources.append({'title': resource.title, 'views': resource.views_count})
+        top_resources.append({'title': str(resource), 'views': resource.views_count})
     top_resources.sort(key=lambda item: item['views'], reverse=True)
     top_resources = top_resources[:5]
 
