@@ -192,38 +192,65 @@ class RetrievalService:
         user_city: Optional[str] = None
     ) -> Tuple[List[Dict], str]:
         """
-        Perform hybrid search across all sources
+        Perform intelligent hybrid search across all sources with weighted scoring
         Returns: (combined_results, primary_source)
         """
-        # Search all sources in parallel
-        platform_docs = await self.search_platform_docs(query, db, top_k=3)
-        nlp_knowledge = await self.search_nlp_knowledge(query, db, top_k=3)
-        resources = await self.search_resources(
-            query, db, top_k=3,
-            user_country=user_country,
-            user_city=user_city
-        )
-        
-        # Determine primary source based on highest similarity
-        all_results = []
-        if platform_docs:
-            all_results.extend(platform_docs)
-        if nlp_knowledge:
-            all_results.extend(nlp_knowledge)
-        if resources:
-            all_results.extend(resources)
-        
-        if not all_results:
+        try:
+            # Search all sources with strategic top_k values
+            platform_docs = await self.search_platform_docs(query, db, top_k=4)
+            nlp_knowledge = await self.search_nlp_knowledge(query, db, top_k=4)
+            resources = await self.search_resources(
+                query, db, top_k=4,
+                user_country=user_country,
+                user_city=user_city
+            )
+            
+            # Apply strategic weighting based on source relevance
+            weighted_results = []
+            
+            # Platform docs get slight boost (users often ask about platform features)
+            for doc in platform_docs:
+                doc['weighted_score'] = doc['similarity'] * 1.1
+                weighted_results.append(doc)
+            
+            # NLP knowledge gets standard weight
+            for doc in nlp_knowledge:
+                doc['weighted_score'] = doc['similarity'] * 1.0
+                weighted_results.append(doc)
+            
+            # Resources get slight boost if local
+            for doc in resources:
+                boost = 1.0
+                if user_country and doc.get('country') == user_country:
+                    boost += 0.05
+                if user_city and doc.get('city') == user_city:
+                    boost += 0.05
+                doc['weighted_score'] = doc['similarity'] * boost
+                weighted_results.append(doc)
+            
+            if not weighted_results:
+                logger.info(f"No results found for query: {query[:50]}...")
+                return [], "none"
+            
+            # Sort by weighted score
+            weighted_results.sort(key=lambda x: x['weighted_score'], reverse=True)
+            
+            # Determine primary source from top result
+            primary_source = weighted_results[0]['source'] if weighted_results else "none"
+            
+            # Log search results for monitoring
+            logger.info(f"✅ Hybrid search: {len(weighted_results)} results, primary: {primary_source}")
+            
+            # Return top K overall (remove weighted_score from output)
+            top_results = weighted_results[:settings.TOP_K_RESULTS]
+            for result in top_results:
+                result.pop('weighted_score', None)
+            
+            return top_results, primary_source
+            
+        except Exception as e:
+            logger.error(f"❌ Hybrid search error: {str(e)}")
             return [], "none"
-        
-        # Sort by similarity
-        all_results.sort(key=lambda x: x['similarity'], reverse=True)
-        
-        # Determine primary source from top result
-        primary_source = all_results[0]['source'] if all_results else "none"
-        
-        # Return top K overall
-        return all_results[:settings.TOP_K_RESULTS], primary_source
 
 # Singleton instance
 _retrieval_service = None

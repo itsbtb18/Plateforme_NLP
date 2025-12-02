@@ -143,7 +143,7 @@ async def upload_pdf(
     """Upload and process PDF file"""
     try:
         # Validate PDF
-        if not file.filename.lower().endswith('.pdf'):
+        if not file.filename or not file.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Only PDF files are allowed")
         
         # Read PDF content
@@ -168,8 +168,9 @@ async def upload_pdf(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        session.pdf_context = full_text[:50000]  # Limit to 50k chars
-        session.pdf_filename = file.filename
+        # Update session with PDF context using setattr
+        setattr(session, 'pdf_context', full_text[:50000])  # Limit to 50k chars
+        setattr(session, 'pdf_filename', file.filename)
         await db.commit()
         
         logger.info(f"✅ PDF uploaded: {file.filename} ({num_pages} pages)")

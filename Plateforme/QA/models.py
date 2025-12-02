@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.urls import reverse
 import uuid
-from cloudinary.models import CloudinaryField
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -38,9 +37,8 @@ class Post(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     author = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='posts')
     content = models.TextField(verbose_name="Contenu")
-    # FIX: CloudinaryField prend le verbose_name comme premier argument
-    image = CloudinaryField('Image', null=True, blank=True)
-    file = CloudinaryField('Fichier', resource_type='raw', null=True, blank=True)
+    image = models.ImageField('Image', upload_to='posts/images/', null=True, blank=True)
+    file = models.FileField('Fichier', upload_to='posts/files/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     likes = models.ManyToManyField(get_user_model(), related_name='liked_posts', blank=True)

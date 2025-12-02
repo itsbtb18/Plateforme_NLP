@@ -5,7 +5,6 @@ from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 from .managers import CustomUserManager
 from institutions.models import Institution
-from cloudinary_storage.storage import MediaCloudinaryStorage
 
 
 class CustomUser(AbstractUser):
@@ -64,7 +63,6 @@ class CustomUser(AbstractUser):
     )
     avatar = models.ImageField(
         upload_to='avatars/%Y/%m/%d/',
-        storage=MediaCloudinaryStorage(),
         null=True,
         blank=True,
         verbose_name=_('profile picture')

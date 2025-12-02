@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
 from app.config import get_settings
+from typing import AsyncGenerator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ async def init_db():
         logger.error(f"❌ Database initialization failed: {str(e)}")
         raise
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting async database session"""
     async with AsyncSessionLocal() as session:
         try:

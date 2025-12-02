@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     # Database
-    DATABASE_URL: str
+    DATABASE_URL: str = ""
     
     # Groq API - NEVER log or hardcode this value
-    GROQ_API_KEY: str
-    GROQ_MODEL: str = "llama-3.1-70b-versatile"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     
     # Embeddings
     EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
