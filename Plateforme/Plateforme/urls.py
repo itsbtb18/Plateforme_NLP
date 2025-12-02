@@ -24,12 +24,7 @@ urlpatterns = [
     path('', include('translate.urls')),
 ]
 
-# Serve static files in development
+# Serve static and media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    
-    # Only serve media files locally if NOT using Cloudinary
-    if settings.DEFAULT_FILE_STORAGE != 'cloudinary_storage.storage.MediaCloudinaryStorage':
-        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    # When using Cloudinary, media files are served directly from Cloudinary's CDN
-    # No local URL pattern needed - the avatar.url will return a Cloudinary URL
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

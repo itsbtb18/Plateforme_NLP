@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security & Debug
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-default-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Applications
 INSTALLED_APPS = [
@@ -32,10 +32,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.sites",
-
-    # Cloudinary - IMPORTANT: Order matters!
-    'cloudinary_storage',
-    'cloudinary',
     'django.contrib.staticfiles',
 
     # Apps projet
@@ -111,12 +107,24 @@ CHANNEL_LAYERS = {
 
 # Database
 DATABASE_URL = config('DATABASE_URL', default='', cast=str)
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL must be set in .env file")
 
-DATABASES = {
-    'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600, conn_health_checks=True)
-}
+# Only parse DATABASE_URL if it's provided (allows Docker build to succeed)
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600, conn_health_checks=True)
+    }
+else:
+    # Fallback for Docker build (will be overridden by env vars at runtime)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'nlp_platform',
+            'USER': 'nlp_admin',
+            'PASSWORD': '1008',
+            'HOST': 'db',
+            'PORT': '5432',
+        }
+    }
 
 # Auth & Allauth
 AUTH_USER_MODEL = "accounts.CustomUser"
@@ -160,47 +168,38 @@ FORMAT_MODULE_PATH = [
 ]
 
 # ============================================
-# CLOUDINARY CONFIGURATION - CRITICAL FIX
+# FILE STORAGE CONFIGURATION
 # ============================================
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 
-# Configure Cloudinary FIRST
-cloudinary.config(
-    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
-    api_key=config('CLOUDINARY_API_KEY'),
-    api_secret=config('CLOUDINARY_API_SECRET'),
-    secure=True
-)
-
-# CRITICAL: Set BEFORE importing storage classes
-os.environ['CLOUDINARY_CLOUD_NAME'] = str(config('CLOUDINARY_CLOUD_NAME'))
-os.environ['CLOUDINARY_API_KEY'] = str(config('CLOUDINARY_API_KEY'))
-os.environ['CLOUDINARY_API_SECRET'] = str(config('CLOUDINARY_API_SECRET'))
-
-# Media files - Use Cloudinary for ALL uploads
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-
-# Cloudinary Storage Settings
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': config('CLOUDINARY_API_KEY'),
-    'API_SECRET': config('CLOUDINARY_API_SECRET')
-}
-
-# Static files
+# Static files configuration
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = str(BASE_DIR / "staticfiles")
 
-# Media settings - these are used as fallback but Cloudinary takes precedence
+# Media files configuration - Local storage
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Django 5.1+ STORAGES configuration
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 # ============================================
-# END CLOUDINARY CONFIGURATION
+# END FILE STORAGE CONFIGURATION
 # ============================================
+
+# Dummy Cloudinary config for old migrations compatibility
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dummy',
+    'API_KEY': 'dummy',
+    'API_SECRET': 'dummy',
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -230,7 +229,7 @@ ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8001")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://host.docker.internal:8000")
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "24000"))

@@ -20,17 +20,27 @@ class ChatLogic:
         self.retrieval_service = get_retrieval_service()
     
     def detect_language(self, text: str) -> str:
-        """Detect language of text (ar, en, fr)"""
+        """Detect language of text (ar, en, fr) with improved accuracy"""
         try:
+            if not text or len(text.strip()) < 3:
+                return 'en'
+            
             lang = detect(text)
+            
             # Map to our supported languages
-            if lang in ['ar', 'en', 'fr']:
-                return lang
-            # Default fallbacks
-            if lang in ['es', 'it', 'pt']:
+            if lang == 'ar':
+                return 'ar'
+            elif lang == 'en':
+                return 'en'
+            elif lang == 'fr':
                 return 'fr'
-            return 'en'
-        except LangDetectException:
+            # Fallbacks for similar languages
+            elif lang in ['es', 'it', 'pt', 'ro']:
+                return 'fr'
+            else:
+                return 'en'
+        except (LangDetectException, Exception) as e:
+            logger.warning(f"Language detection failed: {str(e)}, defaulting to English")
             return 'en'
     
     async def handle_conversation(
@@ -218,19 +228,22 @@ class ChatLogic:
             logger.info(f"✅ Ended session: {session_id}")
     
     def _build_context(self, docs: List[Dict]) -> str:
-        """Build context string from retrieved documents"""
+        """Build context string from retrieved documents with better formatting"""
         if not docs:
             return ""
         
         context_parts = []
         for i, doc in enumerate(docs[:5], 1):  # Top 5
-            source_type = doc['source']
-            title = doc.get('title', 'N/A')
-            content = doc['content'][:500]  # Limit each doc
+            source_type = doc.get('source', 'unknown')
+            title = doc.get('title', 'بدون عنوان' if source_type else 'Untitled')
+            content = doc.get('content', '')[:600]  # Increased limit for better context
+            similarity = doc.get('similarity', 0.0)
             
-            context_parts.append(f"[Document {i} from {source_type}]\nTitle: {title}\nContent: {content}\n")
+            # Format the document nicely
+            header = f"[مستند {i} - المصدر: {source_type} - التطابق: {similarity:.2f}]" if source_type else f"[Document {i} - Source: {source_type} - Match: {similarity:.2f}]"
+            context_parts.append(f"{header}\nالعنوان: {title}\nالمحتوى: {content}\n")
         
-        return "\n---\n".join(context_parts)
+        return "\n" + "="*50 + "\n".join(context_parts) + "\n" + "="*50
     
     async def _get_chat_history(
         self,
