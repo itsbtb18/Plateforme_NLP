@@ -223,7 +223,7 @@ ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://host.docker.internal:8000")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://nlp_fastapi:8000")
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "24000"))
