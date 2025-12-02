@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.conf import settings
 from institutions.models import Institution
 import uuid
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from django.db.models import Manager, QuerySet
 from typing import Any
 from datetime import datetime, date
@@ -29,9 +29,9 @@ class ProjectManager(Manager["Project"]):
 
 class Project(models.Model):
     STATUS_CHOICES = (
-        ('ongoing', _('قيد الإنجاز')),
-        ('completed', _('منجز')),          
-        ('planned', _('مخطط له')),    
+        ('ongoing', pgettext_lazy('project_status', 'Ongoing')),
+        ('completed', pgettext_lazy('project_status', 'Completed')),          
+        ('planned', pgettext_lazy('project_status', 'Planned')),    
     )
     id = models.UUIDField(
         primary_key=True,
@@ -75,14 +75,14 @@ class Project(models.Model):
 
 class ProjectMember(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'En attente'),
-        ('accepted', 'Accepté'),
-        ('rejected', 'Refusé'),
+        ('pending', pgettext_lazy('member_status', 'Pending')),
+        ('accepted', pgettext_lazy('member_status', 'Accepted')),
+        ('rejected', pgettext_lazy('member_status', 'Rejected')),
     )
     LEAVE_REQUEST_STATUS_CHOICES = [
-        ('none', 'None'),
-        ('pending', 'Pending'),
-        ('rejected', 'Rejected'),
+        ('none', pgettext_lazy('leave_status', 'None')),
+        ('pending', pgettext_lazy('leave_status', 'Pending')),
+        ('rejected', pgettext_lazy('leave_status', 'Rejected')),
     ]
     
     id = models.UUIDField(

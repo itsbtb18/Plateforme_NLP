@@ -28,7 +28,7 @@ A professional AI-powered chatbot optimized for Arabic NLP research questions, i
 1. **Django Frontend**: User interface and session management
 2. **FastAPI Backend**: AI processing and NLP operations
 3. **PostgreSQL Database**: Chat history, sessions, and feedback
-4. **Cloudinary**: Media storage for uploaded files
+4. **Local File Storage**: Media storage for uploaded files
 
 ### Database Models
 

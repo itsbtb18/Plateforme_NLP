@@ -83,8 +83,7 @@
 ### Required Credentials
 
 1. **Groq API Key** - Get from [https://console.groq.com](https://console.groq.com)
-2. **Cloudinary Account** - Get from [https://cloudinary.com](https://cloudinary.com)
-3. (Optional) **Google OAuth** credentials
+2. (Optional) **Google OAuth** credentials for social authentication
 
 ---
 
@@ -113,9 +112,6 @@ notepad .env
 ```bash
 # Change these values:
 GROQ_API_KEY=gsk_your_actual_groq_api_key_here
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
 
 # Optional: Change default passwords
 POSTGRES_PASSWORD=your_secure_password
@@ -213,9 +209,9 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 
 # Update with production credentials:
 GROQ_API_KEY=<production-key>
-CLOUDINARY_CLOUD_NAME=<production-cloud>
-CLOUDINARY_API_KEY=<production-key>
-CLOUDINARY_API_SECRET=<production-secret>
+
+# Media storage (ensure volume is properly mounted)
+MEDIA_ROOT=/app/media
 ```
 
 **Generate Django Secret Key:**
@@ -820,8 +816,8 @@ location / {
 - [ ] Docker & Docker Compose installed
 - [ ] All environment variables configured in `.env`
 - [ ] Groq API key obtained and set
-- [ ] Cloudinary credentials configured
 - [ ] Firewall rules configured
+- [ ] Media volume properly mounted
 
 ### Initial Deployment
 - [ ] Images built successfully
@@ -838,7 +834,7 @@ location / {
 - [ ] Chatbot responding correctly
 - [ ] WebSockets functional
 - [ ] Search working (Elasticsearch)
-- [ ] File uploads working (Cloudinary)
+- [ ] File uploads working (local storage)
 - [ ] SSL/TLS configured (production)
 - [ ] Backup system in place
 - [ ] Monitoring configured

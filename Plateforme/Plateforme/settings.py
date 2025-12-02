@@ -68,6 +68,7 @@ SITE_ID = 1
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -193,13 +194,6 @@ STORAGES = {
 # ============================================
 # END FILE STORAGE CONFIGURATION
 # ============================================
-
-# Dummy Cloudinary config for old migrations compatibility
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dummy',
-    'API_KEY': 'dummy',
-    'API_SECRET': 'dummy',
-}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
