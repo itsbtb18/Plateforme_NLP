@@ -104,6 +104,12 @@ services:
       - ./Plateforme/media:/app/media
     ports:
       - "8888:8000"
+    command: >
+      sh -c "
+        python manage.py compilemessages --ignore=.venv &&
+        python manage.py migrate &&
+        daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
+      "
     depends_on:
       db:
         condition: service_healthy
@@ -111,12 +117,6 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: >
-      sh -c "
-        python manage.py compilemessages --ignore=.venv &&
-        python manage.py migrate &&
-        daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
-      "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s

@@ -56,7 +56,10 @@ class EmbeddingService:
     
     def get_dimension(self) -> int:
         """Get embedding dimension"""
-        return self.model.get_sentence_embedding_dimension()
+        dimension = self.model.get_sentence_embedding_dimension()
+        if dimension is None:
+            raise ValueError("Unable to determine embedding dimension")
+        return dimension
 
 # Singleton instance
 _embedding_service = None

@@ -153,13 +153,19 @@ class ChatLogic:
         result = await db.execute(stmt)
         session = result.scalar_one_or_none()
         
-        if not session or not session.pdf_context:
+        if not session:
+            raise ValueError("No PDF context found for this session")
+        
+        # Check if pdf_context exists and is not None
+        pdf_context_value = session.pdf_context
+        if pdf_context_value is None:
             raise ValueError("No PDF context found for this session")
         
         # Generate answer with PDF context
+        pdf_context_str = str(pdf_context_value)[:10000]
         answer = await self.groq_client.generate_answer_with_context(
             question=question,
-            context=session.pdf_context[:10000],  # Limit context size
+            context=pdf_context_str,  # Ensure it's a string
             language=language,
             chat_history=None
         )
@@ -217,13 +223,20 @@ class ChatLogic:
     
     async def end_session(self, session_id: str, db: AsyncSession):
         """End chat session (soft delete)"""
+        from sqlalchemy import update
+        
         stmt = select(ChatSession).where(ChatSession.session_id == session_id)
         result = await db.execute(stmt)
         session = result.scalar_one_or_none()
         
         if session:
             # We don't delete, just mark as ended
-            session.last_activity = datetime.utcnow()
+            update_stmt = (
+                update(ChatSession)
+                .where(ChatSession.session_id == session_id)
+                .values(last_activity=datetime.utcnow())
+            )
+            await db.execute(update_stmt)
             await db.commit()
             logger.info(f"✅ Ended session: {session_id}")
     
