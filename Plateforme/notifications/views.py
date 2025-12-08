@@ -1,32 +1,65 @@
-from django.shortcuts import render, get_object_or_404, redirect
+﻿from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 from .models import Notification
 from .services import NotificationService
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.paginator import Paginator
 from django.contrib import messages
 
 @login_required
 def notification_list(request):
     
     """Vue pour afficher la liste des notifications"""
-    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+    base_queryset = Notification.objects.filter(recipient=request.user)
+    notifications = base_queryset.order_by('-created_at')
 
-    paginator = Paginator(notifications, 10)  
+    paginator = Paginator(notifications, 10)
     page = request.GET.get('page')
-    try:
-        notifications = paginator.page(page)
-    except PageNotAnInteger:
-        notifications = paginator.page(1)
-    except EmptyPage:
-        notifications = paginator.page(paginator.num_pages)
+    notifications = paginator.get_page(page)
     
-    
+    action_required_types = {
+        'PROJECT_INVITE',
+        'PROJECT_INVITATION',
+        'PROJECT_JOIN_REQUEST',
+        'MEMBERSHIP_REQUEST',
+        'LEAVE_REQUEST',
+    }
+    project_invite_types = {'PROJECT_INVITE', 'PROJECT_INVITATION'}
+    join_request_types = {'PROJECT_JOIN_REQUEST', 'MEMBERSHIP_REQUEST'}
+
+    notification_list = (
+        notifications.object_list
+        if hasattr(notifications, 'object_list')
+        else notifications
+    )
+    for notification in notification_list:
+        notification.requires_action = (
+            notification.type in action_required_types and not notification.response_given
+        )
+        notification.is_project_invite = bool(
+            notification.project_id and notification.type in project_invite_types
+        )
+        notification.is_join_request = bool(
+            notification.project_id
+            and notification.sender_id
+            and notification.type in join_request_types
+        )
+        notification.is_leave_request = bool(
+            notification.project_id
+            and notification.sender_id
+            and notification.type == 'LEAVE_REQUEST'
+        )
     
     return render(request, 'notifications/list.html', {
         'notifications': notifications,
-        'user': request.user,  # Assurez-vous que l'utilisateur est explicitement passé
+        'user': request.user,  # Assurez-vous que l'utilisateur est explicitement passAc
+        'total_notifications': base_queryset.count(),
+        'unread_notifications': base_queryset.filter(read=False).count(),
+        'action_required_count': base_queryset.filter(
+            type__in=action_required_types,
+            response_given=False
+        ).count(),
     })
 @login_required
 def api_notification_list(request):
@@ -68,8 +101,8 @@ def api_notification_count(request):
 
 @login_required
 def api_notification_list_filtered(request):
-    """API pour obtenir une liste filtrée de notifications"""
-    # Paramètres de filtrage
+    """API pour obtenir une liste filtrÃ©e de notifications"""
+    # ParamÃ¨tres de filtrage
     read = request.GET.get('read')
     if read is not None:
         read = read.lower() == 'true'
@@ -81,12 +114,12 @@ def api_notification_list_filtered(request):
         except ValueError:
             limit = None
     
-    # Récupérer les notifications
+    # RÃ©cupÃ©rer les notifications
     notifications = NotificationService.get_user_notifications(
         request.user, read=read, limit=limit
     )
     
-    # Formater les données
+    # Formater les donnÃ©es
     data = [{
         'id': n.id,
         'type': n.get_type_display(),
@@ -109,13 +142,13 @@ def mark_all_read(request):
 
 @login_required
 def mark_read(request, notification_id):
-    """Marque une notification spécifique comme lue et redirige vers la liste."""
+    """Marque une notification spÃ©cifique comme lue et redirige vers la liste."""
     notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
     notification.read = True
     notification.read_at = timezone.now()
     notification.save()
     messages.success(request, "Notification marked as read.")
-    # Rediriger vers la page d'où la requête provenait, ou par défaut la liste
+    # Rediriger vers la page d'oÃ¹ la requÃªte provenait, ou par dÃ©faut la liste
     next_url = request.GET.get('next', request.META.get('HTTP_REFERER', redirect('notifications:list').url))
     return redirect(next_url)
 
@@ -123,4 +156,6 @@ def delete_all_notifications(request):
     Notification.objects.filter(recipient=request.user).delete()
     messages.success(request, "All your notifications have been deleted.")
     return redirect('notifications:list') 
+
+
 

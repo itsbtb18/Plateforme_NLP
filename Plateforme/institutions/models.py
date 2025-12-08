@@ -4,7 +4,6 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.conf import settings
-from cloudinary_storage.storage import MediaCloudinaryStorage  # ADD THIS
 
 
 class Country(models.Model):
@@ -52,17 +51,17 @@ class Institution(models.Model):
         ('Other', _('Other')),
     ]
     name = models.CharField(_("Institution Name"), max_length=255)
+    name_ar = models.CharField(_("Institution Name (Arabic)"), max_length=255, blank=True, default='')
+    name_en = models.CharField(_("Institution Name (English)"), max_length=255, blank=True, default='')
     acronym = models.CharField(_("Acronym"), max_length=20, blank=True)
     type = models.CharField(max_length=255, choices=TYPE)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name=_("Country"))
     city = models.CharField(_("City"), max_length=100)
     specialties = models.ManyToManyField(Specialty, verbose_name=_("Specialties"))
     
-    # FIXED: Add Cloudinary storage
     logo = models.ImageField(
         _("Logo"),
         upload_to='institutions/logos/',
-        storage=MediaCloudinaryStorage(),
         blank=True,
         null=True
     )
@@ -73,11 +72,9 @@ class Institution(models.Model):
     address = models.TextField(_("Address"), blank=True)
     description = models.TextField(_("Description"), blank=True)
     
-    # FIXED: Add Cloudinary storage
     image = models.ImageField(
         default='default.jpg',
-        upload_to='institution_pics',
-        storage=MediaCloudinaryStorage()
+        upload_to='institution_pics'
     )
     
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
@@ -99,6 +96,12 @@ class Institution(models.Model):
         ordering = ['name']
 
     def __str__(self):
+        from django.utils.translation import get_language
+        current_lang = get_language()
+        if current_lang == 'ar' and self.name_ar:
+            return self.name_ar
+        elif self.name_en:
+            return self.name_en
         return self.name
 
     def get_absolute_url(self):

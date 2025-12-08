@@ -242,7 +242,7 @@ def like_post(request, post_id):
     
     response_data = {
         'liked': liked,
-        'total_likes': post.total_likes()
+        'total_likes': post.total_likes
     }
     print(f"Response sent: {response_data}")
     return JsonResponse(response_data)
@@ -271,7 +271,7 @@ def like_comment(request, comment_id):
     
     return JsonResponse({
         'liked': liked,
-        'total_likes': comment.total_likes()
+        'total_likes': comment.total_likes
     })
 
 @login_required

@@ -1,30 +1,32 @@
-from django_elasticsearch_dsl import Document, fields
-from elasticsearch_dsl import analysis, analyzer
+from django_elasticsearch_dsl import fields
+from django_elasticsearch_dsl.documents import Document
+from elasticsearch_dsl import analyzer
+from elasticsearch_dsl.analysis import token_filter
 from django_elasticsearch_dsl.registries import registry
 from resources.models import Course, Document as DocModel, NLPTool, Corpus, Institution
 from projects.models import Project
 from events.models import Event
 from accounts.models import CustomUser
 
-phonetic_filter = analysis.token_filter(
+phonetic_filter = token_filter(
     'phonetic_filter',
     type='phonetic',
     encoder='double_metaphone'
 )
 
-arabic_stop = analysis.token_filter(
+arabic_stop = token_filter(
     'arabic_stop',
     type='stop',
     stopwords='_arabic_'
 )
 
-arabic_stemmer = analysis.token_filter(
+arabic_stemmer = token_filter(
     'arabic_stemmer',
     type='stemmer',
     language='arabic'
 )
 
-english_stemmer = analysis.token_filter(
+english_stemmer = token_filter(
     'english_stemmer',
     type='stemmer',
     language='english'

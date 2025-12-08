@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 {% load i18n %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
@@ -16,26 +16,56 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
+    <link href="{% static 'css/notifications-modern.css' %}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+    <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
     <style>
+      /* Date input with calendar icon */
+      input[type="text"][id*="date"],
+      input[type="text"][id*="Date"],
+      input[type="text"][id*="deadline"] {
+        padding-right: 50px !important;
+      }
+      
+      html[dir="rtl"] input[type="text"][id*="date"],
+      html[dir="rtl"] input[type="text"][id*="Date"],
+      html[dir="rtl"] input[type="text"][id*="deadline"] {
+        padding-left: 15px !important;
+        padding-right: 80px !important;
+      }
+      
+      /* Fix form-floating height for date inputs */
+      .form-floating > input[type="text"][id*="date"],
+      .form-floating > input[type="text"][id*="Date"],
+      .form-floating > input[type="text"][id*="deadline"] {
+        min-height: calc(3.5rem + 2px);
+        height: calc(3.5rem + 2px);
+        line-height: 1.25;
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+      }
+      
       .notification-badge {
         display: none;
         position: absolute;
-        top: 0px;
+        top: -5px;
         right: -5px;
-        padding: 2px;
-        padding-right: 6px;
-        border-radius: 50%;
+        padding: 1px 4px;
+        border-radius: 10px;
         background-color: #dc3545;
         color: white;
-        font-size: 0.7em;
-        font-weight: bold;
+        font-size: 0.65em;
+        font-weight: 700;
         text-align: center;
         min-width: 18px; 
         height: 18px;
-        line-height: 14px;
+        line-height: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       }
       .notification-badge:not(:empty) {
         display: block;
@@ -65,147 +95,155 @@
                 </div>
             </div>
             <div id="search-results" class="search-results-dropdown"></div>
-           
-            <style>
-                .lang-container {
-                    display: inline-flex;
-                    gap: 12px;
-                }
-                .lang-button {
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    text-decoration: none;
-                    cursor: pointer;
-                    transition: background-color 0.3s ease;
-                    border: 2px solid transparent;
-                    display: inline-block;
-                }
-                .lang-en {
-                    background-color: #2563eb;
-                    color: white;
-                    border-color: #2563eb;
-                }
-                .lang-en:hover {
-                    background-color: #1d4ed8;
-                    border-color: #1d4ed8;
-                    color: white;
-                }
-                .lang-ar {
-                    background-color: white;
-                    color: #2563eb;
-                    border-color: #2563eb;
-                }
-                .lang-ar:hover {
-                    background-color: #ebf4ff;
-                }
-            </style>
 
-            <!-- Language Switcher Dropdown -->
-   <div class="language-dropdown-container">
-      <button class="language-icon-btn" id="languageIconBtn" title="{% trans 'Language' %}">
-        <i class="fas fa-globe"></i>
-        <span class="language-text">{% if LANGUAGE_CODE == 'ar' %}اللغة{% else %}Language{% endif %}</span>
-      </button>
-    
-     <div class="language-dropdown" id="languageDropdown">
-        <a href="{% url 'translate:switch_language' %}?language=en" class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
-            <i class="fas fa-check-circle"></i>
-            <span>English</span>
-        </a>
-        <a href="{% url 'translate:switch_language' %}?language=ar" class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}">
-            <i class="fas fa-check-circle"></i>
-            <span>العربية</span>
-        </a>
-     </div>
-    </div>
-    
+            <div class="header-actions">
+                <div class="language-dropdown-container action-dropdown-container">
+                    <button class="action-btn icon-btn language-icon-btn"
+                            id="languageIconBtn"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="{% trans 'Language' %}">
+                        <i class="fas fa-globe"></i>
+                        <span class="btn-label">{% trans "Language" %}</span>
+                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
+                        <a href="{% url 'translate:switch_language' %}?language=en"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                           role="menuitem">
+                            <span>English</span>
+                            {% if LANGUAGE_CODE == 'en' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'translate:switch_language' %}?language=ar"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                           role="menuitem">
+                            <span>العربية</span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
 
-            <div class="auth-buttons">
                 {% if user.is_authenticated %}
-                    <!-- Notification Bell -->
-                    <div class="notification-dropdown-container">
-                        <button class="btn btn-icon notification-bell position-relative" 
-                                id="notificationDropdownToggle" 
-                                aria-label="Afficher les notifications">
+                <div class="authenticated-actions">
+                    <div class="notification-dropdown-container action-dropdown-container">
+                        <button class="action-btn icon-btn notification-bell"
+                                id="notificationDropdownToggle"
+                                aria-haspopup="menu"
+                                aria-expanded="false"
+                                aria-label="{% trans 'View notifications' %}"
+                                title="{% trans 'Notifications' %}">
                             <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span class="notification-badge">{% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+                            <span class="action-badge notification-badge" id="notificationBadge" aria-live="polite">
+                                {% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}
+                            </span>
                         </button>
-                        <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="dropdown-panel notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationDropdownToggle">
                             <div class="notification-header">
-                                <h6>{% trans "Notifications" %} </h6>
+                                <div class="notification-header-left">
+                                    <p class="notification-title">{% trans "Notifications" %}</p>
+                                    <span class="notification-subtitle">
+                                        {% if unread_notifications_count > 0 %}
+                                            <span id="unreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
+                                        {% else %}
+                                            {% trans "All caught up" %}
+                                        {% endif %}
+                                    </span>
+                                </div>
                                 {% if unread_notifications_count > 0 %}
-                                <a href="{% url 'notifications:mark_all_read' %}" class="mark-all-read">
-                                    {% trans "Mark all as read" %} 
-                                </a>
+                                <button type="button" class="mark-all-read" onclick="handleMarkAllRead(event)" aria-label="{% trans 'Mark all as read' %}">
+                                    <i class="fas fa-check-double"></i> {% trans "Mark all" %}
+                                </button>
                                 {% endif %}
                             </div>
-                            <div class="notification-body">
+                            <div class="notification-body" id="notificationDropdownBody" role="list">
                                 {% if notifications %}
                                     {% for notification in notifications %}
-                                    <div class="notification-item {% if not notification.read %}unread{% endif %}">
-                                        <div class="notification-icon">
-                                            {% if notification.notification_type == 'resource_update' %}
-                                                <i class="fas fa-file-alt"></i>
-                                            {% elif notification.notification_type == 'comment' %}
-                                                <i class="fas fa-comment"></i>
-                                            {% elif notification.notification_type == 'project_update' %}
-                                                <i class="fas fa-flask"></i>
-                                            {% elif notification.notification_type == 'event' %}
-                                                <i class="fas fa-calendar-alt"></i>
-                                            {% elif notification.notification_type == 'forum' %}
-                                                <i class="fas fa-users"></i>
-                                            {% else %}
-                                                <i class="fas fa-bell"></i>
-                                            {% endif %}
+                                    <a href="{% if notification.target_url %}{{ notification.target_url }}{% else %}{% url 'notifications:mark_read' notification.id %}{% endif %}" 
+                                       class="notification-item {% if not notification.read %}unread{% endif %}"
+                                       data-notification-id="{{ notification.id }}"
+                                       role="listitem"
+                                       aria-label="{{ notification.title }}"
+                                       onclick="handleNotificationClick(event, {{ notification.id }}, {% if notification.read %}true{% else %}false{% endif %}); return true;">
+                                        <div class="notification-item-wrapper">
+                                            <div class="notification-icon">
+                                                {% if notification.notification_type == 'resource_update' %}
+                                                    <i class="fas fa-file-alt"></i>
+                                                {% elif notification.notification_type == 'comment' %}
+                                                    <i class="fas fa-comment"></i>
+                                                {% elif notification.notification_type == 'project_update' %}
+                                                    <i class="fas fa-flask"></i>
+                                                {% elif notification.notification_type == 'event' %}
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                {% elif notification.notification_type == 'forum' %}
+                                                    <i class="fas fa-users"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="notification-content">
+                                                <strong>{{ notification.title }}</strong>
+                                                <p>{{ notification.message|truncatewords:15 }}</p>
+                                                <small><i class="far fa-clock"></i> {{ notification.created_at|timesince }} {% trans "ago" %}</small>
+                                            </div>
                                         </div>
-                                        <div class="notification-content">
-                                            <strong>{{ notification.title }}</strong>
-                                            <p>{{ notification.message }}</p>
-                                            <small>{{ notification.created_at }}</small>
-                                        </div>
-                                    </div>
+                                    </a>
                                     {% endfor %}
                                 {% else %}
                                     <div class="empty-notifications">
-                                        <p>{% trans " No notifications yet" %}</p>
+                                        <i class="far fa-bell-slash"></i>
+                                        <p>{% trans "No notifications yet" %}</p>
                                     </div>
                                 {% endif %}
                             </div>
                             <div class="notification-footer">
-                                <a href="{% url 'notifications:list' %}">{% trans "View all notifications" %} </a>
+                                <a href="{% url 'notifications:list' %}">
+                                    {% trans "View all notifications" %} <i class="fas fa-arrow-right"></i>
+                                </a>
                             </div>
                         </div>
                     </div>
-                    <!-- End of Notification Bell -->
-                    
-                    <!-- Profile Icon Dropdown -->
-                    <div class="profile-icon-container">
-                        <button class="profile-icon-btn" id="profileIconBtn" title="{% trans 'Profile' %}">
+
+                    <div class="profile-icon-container action-dropdown-container">
+                        <button class="action-btn icon-btn profile-icon-btn"
+                                id="profileIconBtn"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                title="{% trans 'Profile' %}">
                             <i class="fas fa-user-circle"></i>
+                            <span class="btn-label d-none d-xl-inline"></span>
+                            <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                         </button>
-                        
-                        <div class="profile-dropdown" id="profileDropdown">
-                            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item">
+                        <div class="dropdown-panel profile-dropdown" id="profileDropdown" role="menu" aria-labelledby="profileIconBtn">
+                            <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-user"></i>
                                 <span>{% trans "Profile" %}</span>
                             </a>
-                            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item">
+                            <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span>{% trans "Logout" %}</span>
                             </a>
                         </div>
                     </div>
+                </div>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="btn btn-outline">
-                        <i class="fas fa-sign-in-alt"></i>{% trans "Log in" %}  
+                <div class="guest-actions">
+                    <a href="{% url 'account_login' %}" class="action-btn ghost-btn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>{% trans "Log in" %}</span>
                     </a>
-                    <a href="{% url 'account_signup' %}" class="btn btn-primary">
-                        <i class="fas fa-user-plus"></i> {% trans "Sign up" %} 
+                    <a href="{% url 'account_signup' %}" class="action-btn primary-btn">
+                        <i class="fas fa-user-plus"></i>
+                        <span>{% trans "Sign up" %}</span>
                     </a>
+                </div>
                 {% endif %}
             </div>
-            
+
             <button class="mobile-menu-toggle" id="sidebarToggle" aria-label="Ouvrir/fermer le menu">
                 <i class="fas fa-bars" aria-hidden="true"></i>
             </button>
@@ -330,7 +368,7 @@
     </footer>
 
     <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
-        💬
+        <i class="fas fa-robot"></i>
     </a>
 
     <style>
@@ -362,6 +400,7 @@
     </style>
 
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/notifications-handlers.js' %}"></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -393,19 +432,37 @@
             
             if (notificationToggle && notificationDropdown) {
                 notificationToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    notificationDropdown.classList.toggle('show');
+                    
+                    const isOpen = notificationDropdown.classList.toggle('show');
+                    
+                    // Update aria-expanded attribute
+                    notificationToggle.setAttribute('aria-expanded', isOpen);
                     
                     // Close profile dropdown if open
                     const profileDropdown = document.getElementById('profileDropdown');
                     if (profileDropdown && profileDropdown.classList.contains('show')) {
                         profileDropdown.classList.remove('show');
+                        const profileBtn = document.getElementById('profileIconBtn');
+                        if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
                     }
                     
                     // Close language dropdown if open
                     const languageDropdown = document.getElementById('languageDropdown');
                     if (languageDropdown && languageDropdown.classList.contains('show')) {
                         languageDropdown.classList.remove('show');
+                        const langBtn = document.getElementById('languageIconBtn');
+                        if (langBtn) langBtn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Handle Escape key to close dropdown
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && notificationDropdown.classList.contains('show')) {
+                        notificationDropdown.classList.remove('show');
+                        notificationToggle.setAttribute('aria-expanded', 'false');
+                        notificationToggle.focus();
                     }
                 });
             }
@@ -481,6 +538,7 @@
                     notificationToggle && 
                     !notificationToggle.contains(e.target)) {
                     notificationDropdown.classList.remove('show');
+                    if (notificationToggle) notificationToggle.setAttribute('aria-expanded', 'false');
                 }
                 
                 if (profileDropdown && 
@@ -488,6 +546,7 @@
                     profileIconBtn && 
                     !profileIconBtn.contains(e.target)) {
                     profileDropdown.classList.remove('show');
+                    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
                 }
                 
                 // Add language dropdown closing
@@ -496,6 +555,7 @@
                     languageIconBtn && 
                     !languageIconBtn.contains(e.target)) {
                     languageDropdown.classList.remove('show');
+                    if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
                 }
             });
             
@@ -606,6 +666,175 @@
                 });
             }
         }); 
+    </script>
+
+    <script>
+        // Initialize Flatpickr date pickers with calendar icon
+        document.addEventListener('DOMContentLoaded', function() {
+            const lang = document.documentElement.lang;
+            
+            const dateFormat = lang === 'ar' ? 'Y/m/d' : 'd/m/Y';
+            
+            // Force English locale for non-Arabic, disable locale inference
+            let locale = undefined;  // Don't use any locale by default
+            if (lang === 'ar' && typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.ar) {
+                locale = flatpickr.l10ns.ar;  // Use Arabic locale only for Arabic
+            }
+            
+            const isRTL = lang === 'ar';
+            
+            // IMMEDIATE replacement of placeholders BEFORE finding inputs
+            if (lang === 'ar') {
+                // Function to replace all dd/mm/yyyy placeholders
+                const replaceAllPlaceholders = () => {
+                    const allTextInputs = document.querySelectorAll('input[type="text"]');
+                    let replacedCount = 0;
+                    allTextInputs.forEach(input => {
+                        const currentPlaceholder = input.getAttribute('placeholder');
+                        if (currentPlaceholder === 'dd/mm/yyyy') {
+                            input.setAttribute('placeholder', 'اليوم/الشهر/السنة');
+                            replacedCount++;
+                        }
+                    });
+                    if (replacedCount > 0) {
+                        console.log('Replaced', replacedCount, 'placeholders to Arabic');
+                    }
+                };
+                
+                // Run immediately
+                replaceAllPlaceholders();
+                
+                // Run after delays
+                setTimeout(replaceAllPlaceholders, 10);
+                setTimeout(replaceAllPlaceholders, 100);
+                setTimeout(replaceAllPlaceholders, 300);
+                setTimeout(replaceAllPlaceholders, 500);
+                setTimeout(replaceAllPlaceholders, 1000);
+                setTimeout(replaceAllPlaceholders, 2000);
+                
+                // Run continuously every 500ms for the first 5 seconds
+                let intervalCount = 0;
+                const replacementInterval = setInterval(() => {
+                    replaceAllPlaceholders();
+                    intervalCount++;
+                    if (intervalCount >= 10) {
+                        clearInterval(replacementInterval);
+                    }
+                }, 500);
+            }
+            
+            // Find all date input fields - more comprehensive selector including form-input class
+            const dateInputs = document.querySelectorAll('input[type="text"][id*="date"], input[type="text"][id*="Date"], input[type="text"][id*="deadline"], input[type="text"][name*="date"], input[type="text"][name*="Date"], input.form-input[type="text"], input[type="text"][placeholder*="dd/mm/yyyy"]');
+            
+            console.log('Found date inputs:', dateInputs.length);
+            
+            // First pass: replace all dd/mm/yyyy placeholders immediately if Arabic
+            if (lang === 'ar') {
+                document.querySelectorAll('input[type="text"][placeholder="dd/mm/yyyy"]').forEach(input => {
+                    input.setAttribute('placeholder', 'اليوم/الشهر/السنة');
+                    console.log('Pre-replaced placeholder for input:', input.id || input.name);
+                });
+            }
+            
+            dateInputs.forEach(input => {
+                // Get placeholder from input or generate based on language
+                let originalPlaceholder = input.getAttribute('placeholder');
+                
+                // If it's the English format, translate to Arabic if needed
+                if (lang === 'ar' && originalPlaceholder === 'dd/mm/yyyy') {
+                    originalPlaceholder = 'اليوم/الشهر/السنة';
+                    input.setAttribute('placeholder', originalPlaceholder);
+                }
+                
+                console.log('Input placeholder:', originalPlaceholder);
+                
+                // Add inline styles to the input
+                if (isRTL) {
+                    input.style.paddingLeft = '15px';
+                    input.style.paddingRight = '80px';
+                } else {
+                    input.style.paddingRight = '50px';
+                }
+                
+                // Add height styles for form-floating
+                if (input.closest('.form-floating')) {
+                    input.style.minHeight = 'calc(3.5rem + 2px)';
+                    input.style.height = 'calc(3.5rem + 2px)';
+                    input.style.paddingTop = '1.625rem';
+                    input.style.paddingBottom = '0.625rem';
+                }
+                
+                // Wrap input in a container for icon positioning
+                if (!input.parentElement.classList.contains('date-input-wrapper')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'position-relative date-input-wrapper';
+                    wrapper.style.display = 'contents';
+                    input.parentNode.insertBefore(wrapper, input);
+                    wrapper.appendChild(input);
+                    
+                    // Add calendar icon
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-calendar-alt position-absolute';
+                    icon.style.cssText = isRTL ? 
+                        'right: 40px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d; font-size: 0.85rem; z-index: 10;' :
+                        'right: 25px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d; font-size: 0.85rem; z-index: 10;';
+                    
+                    // Insert icon after input
+                    input.parentNode.insertBefore(icon, input.nextSibling);
+                }
+                
+                // Store original placeholder before Flatpickr init
+                const placeholderToUse = originalPlaceholder;
+                
+                // Configure Flatpickr options
+                const fpOptions = {
+                    dateFormat: dateFormat,
+                    allowInput: true,
+                    disableMobile: true,
+                    wrap: false,
+                    defaultDate: null,
+                    clickOpens: true  // Ensure calendar opens on click
+                };
+                
+                // Only add locale if Arabic, otherwise let it use default English
+                if (locale) {
+                    fpOptions.locale = locale;
+                }
+                
+                const fp = flatpickr(input, fpOptions);
+                
+                // Aggressive placeholder forcing - runs continuously
+                const forcePlaceholder = () => {
+                    const current = input.getAttribute('placeholder');
+                    if (current !== placeholderToUse) {
+                        console.log('Forcing placeholder from', current, 'to', placeholderToUse);
+                        input.setAttribute('placeholder', placeholderToUse);
+                    }
+                };
+                
+                // Set immediately
+                forcePlaceholder();
+                
+                // Set multiple times with delays
+                setTimeout(forcePlaceholder, 10);
+                setTimeout(forcePlaceholder, 50);
+                setTimeout(forcePlaceholder, 100);
+                setTimeout(forcePlaceholder, 200);
+                setTimeout(forcePlaceholder, 500);
+                setTimeout(forcePlaceholder, 1000);
+                
+                // Also set on focus and blur events
+                input.addEventListener('focus', forcePlaceholder);
+                input.addEventListener('blur', forcePlaceholder);
+                
+                // Make sure clicking on the input opens the calendar
+                input.addEventListener('click', function() {
+                    if (fp && fp.open) {
+                        fp.open();
+                    }
+                });
+            });
+        });
     </script>
 
     {% block extra_scripts %}{% endblock %}

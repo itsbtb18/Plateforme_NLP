@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with pgvector extension
+  db:
+    image: ankane/pgvector:latest
+    container_name: nlp_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Redis for Django Channels
+  redis:
+    image: redis:7-alpine
+    container_name: nlp_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Elasticsearch for search functionality
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: nlp_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Django Application (Plateforme)
+  django:
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      
+      # Django
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      
+      # Email (optional)
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      
+      # Elasticsearch
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      
+      # FastAPI Chatbot
+      FASTAPI_URL: http://host.docker.internal:8000
+    volumes:
+      - ./Plateforme:/app
+      - static_volume:/app/staticfiles
+      - ./Plateforme/media:/app/media
+    ports:
+      - "8888:8000"
+    command: >
+      sh -c "
+        python manage.py compilemessages --ignore=.venv &&
+        python manage.py collectstatic --noinput &&
+        python manage.py migrate &&
+        daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # FastAPI Chatbot
+  fastapi:
+    build:
+      context: ./fastapi_chatbot
+      dockerfile: Dockerfile
+    container_name: nlp_fastapi
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      
+      # Groq API
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      
+      # Embedding Model
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      
+      # Elasticsearch
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+    volumes:
+      - ./fastapi_chatbot:/app
+      - fastapi_cache:/app/.cache
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nlp_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/static:ro
+      - ./Plateforme/media:/media:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - django
+      - fastapi
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+networks:
+  nlp_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+  fastapi_cache:
+    driver: local

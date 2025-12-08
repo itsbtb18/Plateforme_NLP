@@ -153,7 +153,7 @@ class ResourceForm(forms.Form):
         label=_("Publication Date *"),
         required=False,
         widget=forms.DateInput(
-            attrs={'class': 'form-control', 'type': 'date'},
+            attrs={'class': 'form-control', 'type': 'text', 'placeholder': 'dd/mm/yyyy'},
             format='%Y-%m-%d'
         )
     )

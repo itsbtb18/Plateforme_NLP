@@ -43,6 +43,8 @@ document.addEventListener("DOMContentLoaded", function () {
   } else {
     console.log("No notification elements found on page");
   }
+
+  initNotificationCenterPage();
 });
 
 // Connect to the WebSocket for real-time notifications
@@ -360,10 +362,10 @@ function loadNotifications(url) {
                 </div>
             `;
     });
-}
+  }
 
-// Display notifications in the notification list
-function displayNotifications(notifications) {
+  // Display notifications in the notification list
+  function displayNotifications(notifications) {
   const notificationList = document.getElementById("notificationList");
   if (!notificationList) return;
 
@@ -441,6 +443,237 @@ function handleNewNotification(notification) {
         "Could not play notification sound due to browser restrictions"
       );
     });
+  }
+
+  // Enhanced UI for the full notifications page
+  function initNotificationCenterPage() {
+    const page = document.querySelector(".notifications-page");
+    if (!page) {
+      return;
+    }
+
+    const notificationCards = Array.from(
+      page.querySelectorAll(".notification-card")
+    );
+    const filterButtons = page.querySelectorAll(".filter-chip[data-filter]");
+    const searchInput = page.querySelector("[data-notification-search]");
+    const emptyState = page.querySelector("[data-filter-empty-state]");
+    const markAllButton = page.querySelector(
+      ".js-mark-all-read[data-api-endpoint]"
+    );
+    const readLabel = page.dataset.readLabel || "Read";
+
+    if (markAllButton) {
+      markAllButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        handleMarkAllFromList(this);
+      });
+    }
+
+    if (!notificationCards.length) {
+      return;
+    }
+
+    const statsTargets = {
+      total: Array.from(page.querySelectorAll('[data-stat="total"]')),
+      unread: Array.from(page.querySelectorAll('[data-stat="unread"]')),
+      action: Array.from(page.querySelectorAll('[data-stat="action"]')),
+    };
+
+    notificationCards.forEach((card) => {
+      const content = card.querySelector(".notification-content");
+      const text = content ? content.textContent : card.textContent;
+      card.dataset.searchText = text ? text.toLowerCase() : "";
+    });
+
+    let activeFilter = "all";
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        if (this.classList.contains("active")) {
+          return;
+        }
+        filterButtons.forEach((btn) => btn.classList.remove("active"));
+        this.classList.add("active");
+        activeFilter = this.getAttribute("data-filter");
+        applyFilters();
+      });
+    });
+
+    if (searchInput) {
+      const searchHandler = debounce(applyFilters, 200);
+      searchInput.addEventListener("input", searchHandler);
+    }
+
+    const markReadLinks = page.querySelectorAll(
+      ".mark-read-link[data-api-endpoint]"
+    );
+    markReadLinks.forEach((link) => {
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        handleCardMarkAsRead(this);
+      });
+    });
+
+    updateStats();
+    applyFilters();
+
+    function applyFilters() {
+      const query = searchInput
+        ? searchInput.value.trim().toLowerCase()
+        : "";
+      let visibleCount = 0;
+
+      notificationCards.forEach((card) => {
+        const matchesFilter = checkFilter(card);
+        const matchesQuery =
+          !query || card.dataset.searchText.includes(query);
+
+        if (matchesFilter && matchesQuery) {
+          card.classList.remove("is-hidden");
+          visibleCount += 1;
+        } else {
+          card.classList.add("is-hidden");
+        }
+      });
+
+      if (emptyState) {
+        emptyState.classList.toggle("d-none", visibleCount > 0);
+      }
+    }
+
+    function checkFilter(card) {
+      if (activeFilter === "unread") {
+        return card.dataset.readState === "unread";
+      }
+      if (activeFilter === "action-required") {
+        return card.dataset.actionRequired === "true";
+      }
+      return true;
+    }
+
+    function updateStats() {
+      const total = notificationCards.length;
+      const unread = notificationCards.filter(
+        (card) => card.dataset.readState === "unread"
+      ).length;
+      const actionable = notificationCards.filter(
+        (card) => card.dataset.actionRequired === "true"
+      ).length;
+
+      updateStatElements(statsTargets.total, total);
+      updateStatElements(statsTargets.unread, unread);
+      updateStatElements(statsTargets.action, actionable);
+    }
+
+    function updateStatElements(targets, value) {
+      if (!targets || !targets.length) {
+        return;
+      }
+      targets.forEach((element) => {
+        element.textContent = value;
+      });
+    }
+
+    function handleCardMarkAsRead(link) {
+      const card = link.closest(".notification-card");
+      if (!card || card.dataset.readState === "read") {
+        return;
+      }
+
+      const endpoint = link.getAttribute("data-api-endpoint");
+      if (!endpoint) {
+        window.location.href = link.getAttribute("href");
+        return;
+      }
+
+      link.classList.add("is-loading");
+
+      fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCsrfToken(),
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to mark notification as read");
+          }
+          return response.json().catch(() => ({}));
+        })
+        .then(() => {
+          markCardAsRead(card);
+          updateStats();
+          applyFilters();
+        })
+        .catch((error) => {
+          console.error("Error marking notification as read:", error);
+          window.location.href = link.getAttribute("href");
+        })
+        .finally(() => {
+          link.classList.remove("is-loading");
+        });
+    }
+
+    function handleMarkAllFromList(button) {
+      const endpoint = button.getAttribute("data-api-endpoint");
+      if (!endpoint) {
+        window.location.href = button.getAttribute("href");
+        return;
+      }
+
+      button.classList.add("is-loading");
+
+      fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCsrfToken(),
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to mark notifications as read");
+          }
+          return response.json().catch(() => ({}));
+        })
+        .then(() => {
+          notificationCards.forEach((card) => {
+            if (card.dataset.readState === "unread") {
+              markCardAsRead(card);
+            }
+          });
+          updateStats();
+          applyFilters();
+        })
+        .catch((error) => {
+          console.error("Error marking all notifications as read:", error);
+          window.location.href = button.getAttribute("href");
+        })
+        .finally(() => {
+          button.classList.remove("is-loading");
+        });
+    }
+
+    function markCardAsRead(card) {
+      card.dataset.readState = "read";
+      card.classList.remove("unread");
+
+      const unreadChip = card.querySelector(".status-chip.status-unread");
+      if (unreadChip) {
+        unreadChip.classList.remove("status-unread");
+        unreadChip.classList.add("status-read");
+        unreadChip.textContent = readLabel;
+      }
+
+      const secondaryActions = card.querySelector(".secondary-actions");
+      if (secondaryActions) {
+        secondaryActions.innerHTML = `<span class="text-muted read-status"><i class="fas fa-check me-1"></i>${readLabel}</span>`;
+      }
+    }
   }
 
   // Show toast notification
@@ -758,6 +991,15 @@ function truncateText(text, maxLength) {
     return text;
   }
   return text.substring(0, maxLength - 3) + "...";
+}
+
+// Simple debounce helper
+function debounce(fn, wait = 200) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), wait);
+  };
 }
 
 // Helper function to get CSRF token

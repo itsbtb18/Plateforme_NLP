@@ -1,11 +1,20 @@
-from django.http import HttpResponse
-from django.shortcuts import redirect, render
+from typing import Any, Dict, Optional, cast
+
+from django.db.models import QuerySet
+from django.http import HttpResponse, HttpRequest
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
+from django.views.generic import (
+    ListView,
+    DetailView,
+    CreateView,
+    UpdateView,
+    DeleteView,
+    View,
+)
 from .models import Topic, ChatRoom, Message, BannedUser
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.template.loader import render_to_string
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from notifications.services import NotificationService
 from accounts.views import LoginAndVerifiedRequiredMixin
@@ -14,17 +23,18 @@ from django.http import HttpResponseForbidden, JsonResponse
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         model = Topic
-        template_name = 'forum/topic_list.html'  # Ajout du préfixe 'forum/'
+        template_name = 'forum/topic_list.html'  # Ajout du prefixe 'forum/'
         context_object_name = 'topics'
-        ordering = ['-created_at']  # Tri par date de création décroissante
+        ordering = ['-created_at']  # Tri par date de creation decroissante
+
+        def get_queryset(self) -> QuerySet[Topic]:
+            return cast(QuerySet[Topic], super().get_queryset())
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
+            context['page'] = 'community'
             return context
 
-       
-        
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = Topic
@@ -61,9 +71,10 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
     success_url = reverse_lazy('forum:topic-list')
     context_object_name = 'topic'
     
-    def test_func(self):
-        topic = self.get_object()
+    def test_func(self) -> bool:
+        topic: Topic = cast(Topic, self.get_object())
         return topic.creator == self.request.user or self.request.user.is_staff or self.request.user.is_superuser
+
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  
@@ -75,9 +86,10 @@ class TopicDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Delete
     template_name = 'forum/topic_delete.html'  # Ajout du préfixe 'forum/'
     context_object_name = 'topic'
     
-    def test_func(self):
-        topic = self.get_object()
+    def test_func(self) -> bool:
+        topic: Topic = cast(Topic, self.get_object())
         return topic.creator == self.request.user or self.request.user.is_staff or self.request.user.is_superuser
+
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  
@@ -90,7 +102,8 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['chatrooms'] = self.object.chatrooms.all()
+        topic: Topic = cast(Topic, self.object)
+        context['chatrooms'] = topic.chatrooms.all()
         context['page'] = 'community'  
         return context
 
@@ -99,17 +112,15 @@ class ChatRoomListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'forum/chatroom_list.html'  # Ajout du préfixe 'forum/'
     context_object_name = 'chatrooms'
     ordering = ['-created_at']  # Tri par date de création décroissante
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ChatRoom]:
         topic_id = self.kwargs.get('topic_id')  # récupérer l'id du topic depuis l'URL
         return ChatRoom.objects.filter(topic_id=topic_id).order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['topic_id'] = Topic.objects.get(id=self.kwargs.get('topic_id'))  # pour afficher le nom du topic si besoin
-
+        topic = get_object_or_404(Topic, id=self.kwargs.get('topic_id'))
+        context['topic'] = topic
         context['page'] = 'community'
-
-        
         return context
 
 class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
@@ -119,48 +130,41 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['messages'] = Message.objects.filter(chatroom=self.object).order_by('timestamp')
-        context['banned_users'] = BannedUser.objects.filter(chatroom=self.object)
+        chatroom: ChatRoom = cast(ChatRoom, self.object)
+        context['messages'] = Message.objects.filter(chatroom=chatroom).order_by('timestamp')
+        context['banned_users'] = BannedUser.objects.filter(chatroom=chatroom)
         context['page'] = 'community'
         return context
     
-    def dispatch(self, request, *args, **kwargs):
-        chatroom = self.get_object()
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        chatroom: ChatRoom = cast(ChatRoom, self.get_object())
         # Vérifier si l'utilisateur est banni
         if BannedUser.objects.filter(chatroom=chatroom, user=request.user).exists():
             return HttpResponseForbidden("Vous avez été banni de cette salle de discussion.")
         return super().dispatch(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
-        # on récupère la salle et on crée le message
-        self.object = self.get_object()
+    def post(self, request: HttpRequest, *args, **kwargs):
+        chatroom: ChatRoom = cast(ChatRoom, self.get_object())
+        self.object = chatroom
         content = request.POST.get('message', '').strip()
-        if content:
-            message = Message.objects.create(
-                chatroom=self.object,
-                user=request.user,
-                content=content
-            )
-            # Utiliser NotificationService pour les notifications de nouveau message dans une chatroom
-            if self.object.topic: # S'assurer que la chatroom est liée à un topic
-                # Notifier le créateur du topic si ce n'est pas l'utilisateur actuel
-                if self.object.topic.creator and self.object.topic.creator != request.user:
-                    NotificationService.create_notification(
-                        recipient=self.object.topic.creator,
-                        notification_type='FORUM_REPLY', # Utiliser un type spécifique si possible
-                        title=f"Nouvelle réponse dans le sujet « {self.object.topic.title} »",
-                        message=f"{request.user.username} a répondu dans la salle de discussion « {self.object.name} » liée à votre sujet.",
-                        related_object=self.object.topic,
-                        action_url=self.object.get_absolute_url() # Lien vers la chatroom/le message si possible
-                    )
-                # Tu pourrais aussi vouloir notifier d'autres participants de la chatroom si nécessaire
-                # for participant in self.object.participants.exclude(id=request.user.id).exclude(id=self.object.topic.creator.id):
-                #     NotificationService.create_notification(...)
+        if not content:
+            return HttpResponse(status=204)
 
-        else:
-            return HttpResponse(status=204)  # pas de contenu à créer
-        
-        # si c'est une requête HTMX, on renvoie juste le fragment du nouveau message
+        message = Message.objects.create(
+            chatroom=chatroom,
+            user=request.user,
+            content=content
+        )
+        if chatroom.topic and chatroom.topic.creator and chatroom.topic.creator != request.user:
+            NotificationService.create_notification(
+                recipient=chatroom.topic.creator,
+                notification_type='FORUM_REPLY',
+                title=f"Nouvelle reponse dans le sujet {chatroom.topic.title}",
+                message=f"{request.user.username} a repondu dans la salle de discussion {chatroom.name} liee a votre sujet.",
+                related_object=chatroom.topic,
+                action_url=chatroom.get_absolute_url()
+            )
+
         if request.headers.get('HX-Request'):
             html = render_to_string(
                 'forum/partials/message_item.html',
@@ -171,9 +175,8 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                 request=request
             )
             return HttpResponse(html)
-        
-        # sinon on redirige normalement
-        return redirect('forum:chatroom-detail', pk=self.object.pk)
+
+        return redirect('forum:chatroom-detail', pk=chatroom.pk)
 
 class ChatRoomCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = ChatRoom
@@ -188,7 +191,8 @@ class ChatRoomCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         return super().form_valid(form)
     
     def get_success_url(self):
-        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': self.object.pk})
+        chatroom: ChatRoom = cast(ChatRoom, self.object)
+        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  
@@ -200,12 +204,13 @@ class ChatRoomUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upd
     template_name = 'forum/chatroom_update.html'
     context_object_name = 'chatroom'
     
-    def test_func(self):
-        chatroom = self.get_object()
+    def test_func(self) -> bool:
+        chatroom: ChatRoom = cast(ChatRoom, self.get_object())
         return self.request.user.is_staff or chatroom.creator == self.request.user
     
     def get_success_url(self):
-        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': self.object.pk})
+        chatroom: ChatRoom = cast(ChatRoom, self.object)
+        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  
@@ -216,13 +221,13 @@ class ChatRoomDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Del
     template_name = 'forum/chatroom_delete.html'
     context_object_name = 'chatroom'
     
-    def test_func(self):
-        chatroom = self.get_object()
+    def test_func(self) -> bool:
+        chatroom: ChatRoom = cast(ChatRoom, self.get_object())
         return self.request.user.is_staff or chatroom.creator == self.request.user
     
     def get_success_url(self):
-        # Rediriger vers la liste des chatrooms du topic parent
-        return reverse_lazy('forum:chatroom-list', kwargs={'topic_id': self.object.topic.pk})
+        chatroom: ChatRoom = cast(ChatRoom, self.object)
+        return reverse_lazy('forum:chatroom-list', kwargs={'topic_id': chatroom.topic.pk})
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -234,19 +239,22 @@ class MessageDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Dele
     template_name = 'forum/message_delete.html'  # Ajout du template manquant
     context_object_name = 'message'
     
-    def test_func(self):
-        return self.get_object().user == self.request.user
+    def test_func(self) -> bool:
+        message: Message = cast(Message, self.get_object())
+        return message.user == self.request.user
     
     def get_success_url(self):
-        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': self.object.chatroom.pk})
+        message: Message = cast(Message, self.object)
+        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': message.chatroom.pk})
 
 class MessageUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Message
     template_name = 'forum/message_update.html'
     fields = ['content']
     
-    def test_func(self):
-        return self.get_object().user == self.request.user
+    def test_func(self) -> bool:
+        message: Message = cast(Message, self.get_object())
+        return message.user == self.request.user
     
     def form_valid(self, form):
         form.instance.is_edited = True
@@ -254,7 +262,8 @@ class MessageUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
         return super().form_valid(form)
     
     def get_success_url(self):
-        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': self.object.chatroom.pk})
+        message: Message = cast(Message, self.object)
+        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': message.chatroom.pk})
 
 class BanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView):
     model = BannedUser
@@ -296,12 +305,13 @@ class UnbanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteVi
     model = BannedUser
     template_name = 'forum/unban_user.html'
     
-    def test_func(self):
-        banned_user = self.get_object()
+    def test_func(self) -> bool:
+        banned_user: BannedUser = cast(BannedUser, self.get_object())
         return self.request.user.is_staff or banned_user.chatroom.creator == self.request.user
     
     def get_success_url(self):
-        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': self.object.chatroom.pk})
+        banned_user: BannedUser = cast(BannedUser, self.object)
+        return reverse_lazy('forum:chatroom-detail', kwargs={'pk': banned_user.chatroom.pk})
 
 class TopicToggleStatusView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
     """Vue pour basculer le statut d'un sujet (ouvert/fermé)"""

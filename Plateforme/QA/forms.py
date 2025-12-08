@@ -1,6 +1,7 @@
 from django import forms
 from .models import Question, Answer, Post, Comment
 from django.core.validators import FileExtensionValidator
+from django.utils.translation import gettext_lazy as _
 
 class QuestionForm(forms.ModelForm):
     class Meta:
@@ -30,7 +31,7 @@ class PostForm(forms.ModelForm):
             'content': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Share something...'
+                'placeholder': _('Share something...')
             }),
             'image': forms.FileInput(attrs={
                 'class': 'form-control',
