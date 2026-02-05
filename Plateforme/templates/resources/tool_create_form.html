@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'css/tool-form-modern.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
     <h1 class="mb-4">{% trans "Create New Tool" %}</h1>
@@ -64,6 +68,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Hide non-tool fields
         const nonToolFields = [
             'course_field', 'academic_level', 'course_institution', 'academic_year',
             'document_type', 'document_format',
@@ -80,6 +85,29 @@
                 if (formGroup) formGroup.style.display = 'none';
             }
         });
+        
+        // Add character counter for description field
+        const descriptionField = document.getElementById('id_description');
+        if (descriptionField) {
+            const maxLength = descriptionField.maxLength || 500;
+            const counterDiv = document.createElement('div');
+            counterDiv.className = 'char-counter';
+            counterDiv.textContent = `0/${maxLength}`;
+            
+            descriptionField.parentElement.style.position = 'relative';
+            descriptionField.parentElement.appendChild(counterDiv);
+            
+            descriptionField.addEventListener('input', function() {
+                const currentLength = this.value.length;
+                counterDiv.textContent = `${currentLength}/${maxLength}`;
+                
+                if (currentLength > maxLength * 0.9) {
+                    counterDiv.style.color = '#ef4444';
+                } else {
+                    counterDiv.style.color = '#9ca3af';
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

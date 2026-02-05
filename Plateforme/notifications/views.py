@@ -142,15 +142,35 @@ def mark_all_read(request):
 
 @login_required
 def mark_read(request, notification_id):
-    """Marque une notification spÃ©cifique comme lue et redirige vers la liste."""
+    """Marque une notification spécifique comme lue et redirige vers le contenu associé."""
     notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
-    notification.read = True
-    notification.read_at = timezone.now()
-    notification.save()
-    messages.success(request, "Notification marked as read.")
-    # Rediriger vers la page d'oÃ¹ la requÃªte provenait, ou par dÃ©faut la liste
-    next_url = request.GET.get('next', request.META.get('HTTP_REFERER', redirect('notifications:list').url))
-    return redirect(next_url)
+    
+    # Marquer comme lue
+    if not notification.read:
+        notification.read = True
+        notification.read_at = timezone.now()
+        notification.save()
+    
+    # Rediriger vers le contenu associé selon le type
+    if notification.project_id:
+        # Si la notification est liée à un projet
+        messages.success(request, "Notification marquée comme lue.")
+        return redirect('projects:project_detail', project_id=notification.project_id)
+    elif notification.content_object:
+        # Si la notification a un objet lié via ContentType
+        try:
+            # Essayer de rediriger vers la vue de détail de l'objet
+            messages.success(request, "Notification marquée comme lue.")
+            return redirect(notification.content_object.get_absolute_url())
+        except:
+            pass
+    
+    # Par défaut, rediriger vers la page précédente ou la liste des notifications
+    messages.success(request, "Notification marquée comme lue.")
+    next_url = request.GET.get('next', request.META.get('HTTP_REFERER'))
+    if next_url:
+        return redirect(next_url)
+    return redirect('notifications:list')
 
 def delete_all_notifications(request):
     Notification.objects.filter(recipient=request.user).delete()

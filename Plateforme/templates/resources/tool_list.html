@@ -1,9 +1,20 @@
-{% extends "base.html" %} {% load i18n %} {% block title %} {% trans "NLPTools" %} {% endblock title %} {% block extra_styles %} 
-{% comment "Link to main.css managed in base.html" %} {% endcomment %} {% endblock %} 
+{% extends "base.html" %} 
+{% load i18n %} 
+{% load static %}
+{% block title %} {% trans "NLP Tools" %} {% endblock title %} 
+
+{% block extra_styles %} 
+<link rel="stylesheet" href="{% static 'css/tools-modern.css' %}?v=24">
+<style>
+.tool-badge i {
+    color: #ffffff !important;
+}
+</style>
+{% endblock %} 
+
 {% block content %}
 <div class="container py-5">
-  <link rel="stylesheet" href="static css\main.css" />
-  <div class="row header-section">
+  <div class="row header-section align-items-center">
     <div class="col-lg-8 col-md-7">
       <h1 class="display-5 fw-bold mb-2">{% trans "NLP Tools" %}</h1>
       <p class="text-muted fs-5">
@@ -11,7 +22,7 @@
       </p>
     </div>
     <div
-    class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start mt-3 mt-md-0"
+    class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start gap-3 mt-3 mt-md-0"
     >
       {% if user.is_authenticated %}
       <a
@@ -71,18 +82,14 @@
   <div class="tools-grid">
     {% for tool in tools %}
     <div class="tool-card">
-      <div class="tool-header d-flex align-items-center gap-3">
+      <div class="tool-header">
+        <h3 class="tool-title">{{ tool.title }}</h3>
         <div class="tool-badge">
-          <i class="bi bi-code-square"></i>
+          <i class="bi bi-cpu"></i>
         </div>
-        <h3 class="tool-title m-0">{{ tool.titre }}</h3>
       </div>
 
-      <div class="tool-content flex-grow-1">
-        <div class="info-row">
-          <span class="info-label">{% trans "Title:" %}</span>
-          <span class="info-value">{{ tool.title }}</span>
-        </div>
+      <div class="tool-content">
         <div class="info-row">
           <span class="info-label">{% trans "Type:" %}</span>
           <span class="info-value">{{ tool.get_tool_type_display }}</span>
@@ -98,37 +105,27 @@
       </div>
 
       <div class="tool-footer">
-        <div class="tool-stats d-flex gap-2 mb-3">
+        <div class="tool-actions">
+          <a
+            href="{% url 'resources:tool_detail' tool.id %}"
+            class="btn-view-details"
+          >
+            <i class="bi bi-arrow-right-circle"></i>
+            <span>{% trans "View Details" %}</span>
+          </a>
+        </div>
+
+        <div class="tool-stats d-flex gap-2">
           {% if tool.language %}
           <span class="stat-item">
             <i class="bi bi-translate"></i> {{ tool.get_language_display }}
-          </span>
-          {% endif %} {% if tool.keywords %}
-          <span class="stat-item">
-            <i class="bi bi-tags"></i>
-            {% if tool.keywords %} {{ tool.get_keywords_list.0 }} {% endif %}
           </span>
           {% endif %} {% if tool.version %}
           <span class="stat-item">
             <i class="bi bi-tag"></i>
             <span>v{{ tool.version }}</span>
           </span>
-          {% endif %} {% if corpus.file_format %}
-          <span class="stat-item">
-            <i class="bi bi-file-earmark-code"></i>
-            <span>{{ corpus.file_format }}</span>
-          </span>
           {% endif %}
-        </div>
-
-        <div class="tool-actions text-end">
-          <a
-            href="{% url 'resources:tool_detail' tool.id %}"
-            class="btn-view-details"
-          >
-            <span>{% trans "View Details" %}</span>
-            <i class="bi bi-arrow-right"></i>
-          </a>
         </div>
       </div>
     </div>
