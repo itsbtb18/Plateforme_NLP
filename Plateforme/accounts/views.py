@@ -18,6 +18,9 @@ from django.contrib.auth.decorators import login_required
 from typing import TYPE_CHECKING, Any
 import logging
 
+# Import allauth LoginView
+from allauth.account.views import LoginView as AllauthLoginView
+
 if TYPE_CHECKING:
     from .models import CustomUser
 
@@ -118,6 +121,38 @@ class SignUp(CreateView):
     def form_invalid(self, form: Any) -> Any:
         messages.error(self.request, _("Please correct the errors below."))
         return super().form_invalid(form)
+
+
+# --------------------------
+# Custom Login View with Remember Me
+# --------------------------
+class LoginView(AllauthLoginView):
+    """
+    Custom login view that handles the "Remember Me" checkbox.
+    Extends allauth's LoginView to add session expiry control.
+    """
+    
+    def form_valid(self, form: Any) -> Any:
+        """
+        Handle successful login and set session expiry based on "Remember Me" checkbox.
+        """
+        # Call parent's form_valid to perform the login
+        response = super().form_valid(form)
+        
+        # Check if "Remember Me" checkbox was checked
+        remember = self.request.POST.get('remember')
+        
+        if remember:
+            # User wants to be remembered - use default session age from settings
+            # SESSION_COOKIE_AGE = 1209600 (2 weeks)
+            self.request.session.set_expiry(None)  # Use settings default
+            logger.debug(f"User {self.request.user.email} logged in with 'Remember Me' enabled")
+        else:
+            # User doesn't want to be remembered - expire session when browser closes
+            self.request.session.set_expiry(0)
+            logger.debug(f"User {self.request.user.email} logged in without 'Remember Me'")
+        
+        return response
 
 
 # --------------------------

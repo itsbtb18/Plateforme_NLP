@@ -1,5 +1,5 @@
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -13,10 +13,15 @@ import logging
 from .models import Institution
 from .forms import InstitutionFilterForm, InstitutionForm
 
+# CRITICAL: Import your custom Mixin
+from accounts.views import LoginAndVerifiedRequiredMixin
+
 logger = logging.getLogger(__name__)
 
+# 
 
-class InstitutionListView(ListView):
+class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
+    """Restricted: Only logged-in and verified users can see the institution list."""
     model = Institution
     template_name = 'institutions/institution_list.html'
     context_object_name = 'institutions'
@@ -58,7 +63,8 @@ class InstitutionListView(ListView):
         return context
 
 
-class InstitutionDetailView(DetailView):
+class InstitutionDetailView(LoginAndVerifiedRequiredMixin, DetailView):
+    """Restricted: Only logged-in and verified users can see institution details."""
     model = Institution
     template_name = 'institutions/institution_detail.html'
     context_object_name = 'institution'
@@ -69,7 +75,8 @@ class InstitutionDetailView(DetailView):
         return context
 
 
-class InstitutionCreateView(LoginRequiredMixin, CreateView):
+class InstitutionCreateView(LoginAndVerifiedRequiredMixin, CreateView):
+    """Restricted: Replaced LoginRequiredMixin with LoginAndVerifiedRequiredMixin."""
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
@@ -82,18 +89,11 @@ class InstitutionCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form) -> HttpResponse:
         try:
             logger.info("Form is valid")
-            
-            # Cast to InstitutionForm for type checking
             institution_form = cast(InstitutionForm, form)
-            
-            # Type assertion to satisfy type checker
             instance = institution_form.save(commit=False)
             instance.created_by = self.request.user  # type: ignore[assignment]
-            
-            # Sauvegarder l'institution
             self.object = institution_form.save()
 
-            # Afficher un message pour les spécialités créées
             created_specialties = institution_form.get_created_specialties()
             if created_specialties:
                 specialty_names = ', '.join(created_specialties)
@@ -125,14 +125,14 @@ class InstitutionCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy('institutions:institution_list')
 
 
-class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class InstitutionUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Restricted: Only owner/staff who are verified can update."""
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
     
     def test_func(self) -> bool:
         institution = self.get_object()
-        # Type assertion for created_by
         created_by = getattr(institution, 'created_by', None)
         return (self.request.user == created_by or 
                 self.request.user.is_staff)
@@ -144,13 +144,9 @@ class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
     
     def form_valid(self, form) -> HttpResponse:
         try:
-            # Cast to InstitutionForm for type checking
             institution_form = cast(InstitutionForm, form)
-            
-            # Sauvegarder l'institution
             self.object = institution_form.save()
             
-            # Afficher un message pour les spécialités créées
             created_specialties = institution_form.get_created_specialties()
             if created_specialties:
                 specialty_names = ', '.join(created_specialties)
@@ -180,14 +176,14 @@ class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
         return reverse_lazy('institutions:institution_detail', kwargs={'pk': self.object.pk})
 
 
-class InstitutionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+class InstitutionDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Restricted: Only owner/staff who are verified can delete."""
     model = Institution
     template_name = 'institutions/institution_confirm_delete.html'
     success_url = reverse_lazy('institutions:institution_list')
     
     def test_func(self) -> bool:
         institution = self.get_object()
-        # Type assertion for created_by
         created_by = getattr(institution, 'created_by', None)
         return (self.request.user == created_by or 
                 self.request.user.is_staff)
@@ -197,3 +193,4 @@ class InstitutionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
         logger.info(f"Institution Deletion - ID: {institution.pk}")
         messages.success(self.request, "The institution has been successfully abolished.")
         return super().delete(request, *args, **kwargs)
+    
