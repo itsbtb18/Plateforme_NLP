@@ -162,6 +162,53 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     flex-wrap: wrap;
 }
 
+/* Filter Pills */
+.ft-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ft-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--ft-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1.5px solid var(--ft-border);
+    background: var(--ft-white);
+    color: var(--ft-text-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ft-filter-pill:hover {
+    background: var(--ft-muted);
+    border-color: var(--ft-subtle);
+    color: var(--ft-text);
+    transform: translateY(-1px);
+}
+
+.ft-filter-pill.active {
+    background: linear-gradient(135deg, var(--ft-primary) 0%, var(--ft-primary-dark) 100%);
+    color: var(--ft-white);
+    border-color: var(--ft-primary);
+    box-shadow: 0 4px 12px var(--ft-primary-glow);
+}
+
+.ft-filter-pill.active:hover {
+    background: linear-gradient(135deg, var(--ft-primary-dark) 0%, #1d4ed8 100%);
+}
+
+.ft-filter-pill i {
+    font-size: 0.8rem;
+}
+
 .ft-search-box {
     flex: 1;
     max-width: 400px;
@@ -515,7 +562,49 @@ html[dir="rtl"] .ft-user-info { text-align: left; }
     <main class="ft-content">
         
         <div class="ft-toolbar">
+            <!-- Filter Pills -->
+            <div class="ft-filter-pills">
+                <!-- All Topics -->
+                <a href="{% url 'forum:topic-list' %}{% if search_query %}?q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if not my_topics and not current_sort %}active{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    {% translate "All" %}
+                </a>
+                
+                {% if user.is_authenticated %}
+                <!-- My Topics -->
+                <a href="?my_topics=1{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if my_topics %}active{% endif %}">
+                    <i class="bi bi-person"></i>
+                    {% translate "My Topics" %}
+                </a>
+                {% endif %}
+                
+                <!-- Newest -->
+                <a href="?sort=newest{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if current_sort == 'newest' %}active{% endif %}">
+                    <i class="bi bi-clock"></i>
+                    {% translate "Newest" %}
+                </a>
+                
+                <!-- Most Active -->
+                <a href="?sort=active{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if current_sort == 'active' %}active{% endif %}">
+                    <i class="bi bi-fire"></i>
+                    {% translate "Most Active" %}
+                </a>
+                
+                <!-- Popular -->
+                <a href="?sort=popular{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if current_sort == 'popular' %}active{% endif %}">
+                    <i class="bi bi-star"></i>
+                    {% translate "Popular" %}
+                </a>
+            </div>
+            
             <form method="get" action="" class="ft-search-box">
+                {% if my_topics %}<input type="hidden" name="my_topics" value="1">{% endif %}
+                {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
                 <i class="bi bi-search ft-search-icon"></i>
                 <input type="text" name="q" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch" value="{{ search_query|default:'' }}">
             </form>

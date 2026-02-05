@@ -40,6 +40,10 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
                     Q(creator=self.request.user)
                 )
             
+            # Filter: My Topics only
+            if self.request.GET.get('my_topics'):
+                qs = qs.filter(creator=self.request.user)
+            
             # Backend search filtering
             search_query = self.request.GET.get('q', '').strip()
             if search_query:
@@ -54,6 +58,18 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
                     Q(creator__full_name__icontains=search_query)
                 )
             
+            # Sort options
+            sort = self.request.GET.get('sort', '')
+            if sort == 'newest':
+                qs = qs.order_by('-created_at')
+            elif sort == 'active':
+                # Sort by most chatrooms/activity
+                from django.db.models import Count
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
+            elif sort == 'popular':
+                # Sort by views
+                qs = qs.order_by('-views', '-created_at')
+            
             return qs
 
         def get_context_data(self, **kwargs):
@@ -61,6 +77,9 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
             context['page'] = 'community'
             context['search_query'] = self.request.GET.get('q', '')
             context['total_chatrooms'] = ChatRoom.objects.count()
+            # Category filter context
+            context['current_sort'] = self.request.GET.get('sort', '')
+            context['my_topics'] = self.request.GET.get('my_topics', '')
             return context
 
 
