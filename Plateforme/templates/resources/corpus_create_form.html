@@ -1,80 +1,138 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'css/corpus-form-modern.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">{% trans "Create New Corpus" %}</h1>
+<div class="container corpus-form-container py-5">
+    <h1 class="corpus-form-title">{% trans "Create New Corpus" %}</h1>
     
-    <div class="card">
-        <div class="card-body">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                
-                <input type="hidden" name="resource_type" value="corpus">
-                
-                <!-- Basic Information -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Basic Information" %}
-                    </div>
-                    <div class="card-body">
-                        {{ form.title|as_crispy_field }}
-                        {{ form.language|as_crispy_field }}
-                        {{ form.description|as_crispy_field }}
-                        {{ form.keywords|as_crispy_field }}
-                        {{ form.access_link|as_crispy_field }}
-                    </div>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="resource_type" value="corpus">
+        
+        <!-- Basic Information -->
+        <div class="section-card">
+            <div class="section-header">
+                {% trans "Basic Information" %}
+            </div>
+            <div class="section-body">
+                <div class="form-group">
+                    <label for="id_title">
+                        {% trans "Title" %}
+                        <span class="required-badge">{% trans "Required" %}</span>
+                    </label>
+                    {{ form.title }}
                 </div>
                 
-                <!-- Corpus Specific Fields -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Corpus Details" %}
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.corpus_size|as_crispy_field }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.corpus_field|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.corpus_format|as_crispy_field }}
-                            </div>
-                        </div>
-                    </div>
+                <div class="form-group">
+                    <label for="id_language">
+                        {% trans "Language" %}
+                        <span class="required-badge">{% trans "Required" %}</span>
+                    </label>
+                    {{ form.language }}
                 </div>
                 
-                <div class="text-end">
-                    <a href="{% url 'resources:list' %}" class="btn btn-secondary me-2">{% trans "Cancel" %}</a>
-                    <button type="submit" class="btn btn-primary">{% trans "Save Corpus" %}</button>
+                <div class="form-group">
+                    <label for="id_description">
+                        {% trans "Description" %}
+                    </label>
+                    {{ form.description }}
+                    <small class="char-counter">0/500</small>
                 </div>
-            </form>
+                
+                <div class="form-group">
+                    <label for="id_keywords">{% trans "Keywords" %}</label>
+                    {{ form.keywords }}
+                    <div class="keyword-container" id="keywords-display"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_access_link">{% trans "Access Link (Optional)" %}</label>
+                    {{ form.access_link }}
+                </div>
+            </div>
         </div>
-    </div>
+        
+        <!-- Corpus Details -->
+        <div class="section-card">
+            <div class="section-header">
+                {% trans "Corpus Details" %}
+            </div>
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_corpus_size">
+                                {% trans "Size" %}
+                                <span class="required-badge">{% trans "Required" %}</span>
+                            </label>
+                            {{ form.corpus_size }}
+                            <small class="form-text">{% trans "Size * (words/documents)" %}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_corpus_field">
+                                {% trans "Field of Study" %}
+                                <span class="required-badge">{% trans "Required" %}</span>
+                            </label>
+                            {{ form.corpus_field }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_corpus_format">
+                                {% trans "Format" %}
+                                <span class="required-badge">{% trans "Required" %}</span>
+                            </label>
+                            {{ form.corpus_format }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'resources:corpus_list' %}" class="btn btn-cancel">{% trans "Cancel" %}</a>
+            <button type="submit" class="btn btn-save">{% trans "Save Corpus" %}</button>
+        </div>
+    </form>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const nonCorpusFields = [
-            'document_type', 'document_format', 'tool_type', 'tool_version', 
-            'documentation', 'languages', 'course_field', 'academic_level', 
-            'course_institution', 'academic_year', 'doi', 'journal', 
-            'publication_date', 'supervisor', 'thesis_institution', 
-            'defense_year', 'memoir_level', 'memoir_institution', 
-            'memoir_defense_year'
-        ];
-        
-        nonCorpusFields.forEach(field => {
-            const fieldElement = document.querySelector(`[name="${field}"]`);
-            if (fieldElement) {
-                const formGroup = fieldElement.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    // Character counter for description
+    const descField = document.querySelector('[name="description"]');
+    const charCounter = document.querySelector('.char-counter');
+    if (descField && charCounter) {
+        descField.addEventListener('input', function() {
+            charCounter.textContent = `${this.value.length}/500`;
         });
+    }
+    
+    // Hide non-corpus fields
+    const nonCorpusFields = [
+        'document_type', 'document_format', 'tool_type', 'tool_version', 
+        'documentation', 'languages', 'course_field', 'academic_level', 
+        'course_institution', 'academic_year', 'doi', 'journal', 
+        'publication_date', 'supervisor', 'thesis_institution', 
+        'defense_year', 'memoir_level', 'memoir_institution', 
+        'memoir_defense_year'
+    ];
+    
+    nonCorpusFields.forEach(field => {
+        const fieldElement = document.querySelector(`[name="${field}"]`);
+        if (fieldElement) {
+            const formGroup = fieldElement.closest('.form-group');
+            if (formGroup) formGroup.style.display = 'none';
+        }
     });
+});
 </script>
 {% endblock %}
