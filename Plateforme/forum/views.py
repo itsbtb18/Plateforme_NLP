@@ -32,17 +32,35 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
         def get_queryset(self) -> QuerySet[Topic]:
             qs = cast(QuerySet[Topic], super().get_queryset())
+            
             # Only show approved topics (unless staff or creator)
             if not self.request.user.is_staff:
                 qs = qs.filter(
                     Q(approval_status='approved') | 
                     Q(creator=self.request.user)
                 )
+            
+            # Backend search filtering
+            search_query = self.request.GET.get('q', '').strip()
+            if search_query:
+                qs = qs.filter(
+                    Q(title__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query) |
+                    Q(description__icontains=search_query) |
+                    Q(description_ar__icontains=search_query) |
+                    Q(description_en__icontains=search_query) |
+                    Q(creator__username__icontains=search_query) |
+                    Q(creator__full_name__icontains=search_query)
+                )
+            
             return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'
+            context['search_query'] = self.request.GET.get('q', '')
+            context['total_chatrooms'] = ChatRoom.objects.count()
             return context
 
 

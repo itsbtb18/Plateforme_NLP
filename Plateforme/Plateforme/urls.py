@@ -10,8 +10,8 @@ from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
     path('i18n/', include('django.conf.urls.i18n')),
-    path('accounts/', include('accounts.urls', namespace='accounts')),
-    path('accounts/', include('allauth.urls')),
+    path('accounts/', include('accounts.urls', namespace='accounts')),  # Custom account views (includes custom login)
+    path('accounts/', include('allauth.urls')),  # Other allauth views (password reset, etc.)
     path('', include('pages.urls')),
     path('projects/', include('projects.urls', namespace='projects')),
     path('forum/', include('forum.urls', namespace='forum')),

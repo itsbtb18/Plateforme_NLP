@@ -178,7 +178,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
         return context
 
 
-class CourseListView(ListView):
+class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Course
     template_name = 'resources/course_list.html'
     context_object_name = 'courses'
