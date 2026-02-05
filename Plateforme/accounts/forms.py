@@ -3,8 +3,6 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils.translation import gettext_lazy as _
 from .models import CustomUser
 
-ALLOWED_EMAIL_DOMAINS = ["yahoo.fr", "gmail.com"]
-
 
 class CustomUserCreationForm(UserCreationForm):
     speciality = forms.ChoiceField(
@@ -31,20 +29,20 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['password1'].help_text = _("Password must contain at least 8 characters")
         self.fields['password2'].help_text = _("Enter the same password for verification")
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email', '').lower()
-        domain = email.split('@')[-1]
-        if domain not in ALLOWED_EMAIL_DOMAINS:
+    def clean_password1(self):
+        password1 = self.cleaned_data.get('password1')
+        if password1 and len(password1) < 8:
             raise forms.ValidationError(
-                _("Your email must end with %(domain)s") % {'domain': ALLOWED_EMAIL_DOMAINS[0]}
+                _("Password must be at least 8 characters long.")
             )
-        return email
+        return password1
 
     def try_save(self, request):
         """
         Custom method expected by the modified SignupView
         """
         user = super().save(commit=False)
+        user.email = self.cleaned_data.get('email', '').lower()
         user.full_name = self.cleaned_data.get('full_name')
         user.institution = self.cleaned_data.get('institution')
         user.speciality = self.cleaned_data.get('speciality')
