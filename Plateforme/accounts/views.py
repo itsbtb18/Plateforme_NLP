@@ -44,7 +44,7 @@ def login_and_verified_required(view_func):
 class SignUp(CreateView):
     form_class = CustomUserCreationForm
     template_name = 'account/signup.html'
-    success_url = reverse_lazy('account_login')  # Redirige vers la page de connexion après succès
+    success_url = reverse_lazy('pages:home')  # Redirige vers la page d'accueil après succès
 
     def form_valid(self, form):
         # Vérifier si l'email existe déjà
@@ -57,11 +57,15 @@ class SignUp(CreateView):
         # Créer l'utilisateur
         user = form.save(commit=False)
         user.is_active = True  # Activer le compte directement
+        user.is_verified = True  # Marquer comme vérifié pour éviter les redirections
         if hasattr(user, 'is_email_verified'):
             user.is_email_verified = True
         user.save()
 
-        messages.success(self.request, "Registration successful! You can now log in.")
+        # Connecter automatiquement l'utilisateur après l'inscription avec le backend allauth
+        login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
+        
+        messages.success(self.request, _("Welcome! Your account has been created successfully."))
         return redirect(self.success_url)
 
 

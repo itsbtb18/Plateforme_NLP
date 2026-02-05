@@ -3,8 +3,6 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils.translation import gettext_lazy as _, get_language
 from .models import CustomUser
 
-ALLOWED_EMAIL_DOMAINS = ["yahoo.fr", "gmail.com"]
-
 
 def get_bilingual_labels():
     """Return language-appropriate labels for bilingual fields."""
@@ -79,20 +77,20 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['full_name_ar'].help_text = _("Required - Your name as it appears in Arabic")
         self.fields['full_name_en'].help_text = _("Required - Your name as it appears in English")
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email', '').lower()
-        domain = email.split('@')[-1]
-        if domain not in ALLOWED_EMAIL_DOMAINS:
+    def clean_password1(self):
+        password1 = self.cleaned_data.get('password1')
+        if password1 and len(password1) < 8:
             raise forms.ValidationError(
-                _("Your email must end with %(domain)s") % {'domain': ALLOWED_EMAIL_DOMAINS[0]}
+                _("Password must be at least 8 characters long.")
             )
-        return email
+        return password1
 
     def try_save(self, request):
         """
         Custom method expected by the modified SignupView
         """
         user = super().save(commit=False)
+        user.email = self.cleaned_data.get('email', '').lower()
         user.full_name = self.cleaned_data.get('full_name') or self.cleaned_data.get('full_name_en')
         user.full_name_ar = self.cleaned_data.get('full_name_ar', '')
         user.full_name_en = self.cleaned_data.get('full_name_en', '')
