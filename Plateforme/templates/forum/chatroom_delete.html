@@ -1,39 +1,314 @@
-{% extends 'base.html' %} 
-{% load i18n %}
-{% block title %}{% trans "Delete chat room" %}
-{% endblock %} {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-      <div class="card shadow-sm">
-        <div class="card-header bg-danger text-white">
-          <h4 class="mb-0">
-            <i class="fas fa-trash me-2"></i>{% trans "Delete chat room" %}
-          </h4>
-        </div>
-        <div class="card-body">
-          <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>{% trans "Attention !" %}</strong>{% trans "You are about to delete the chat room" %}  "{{ chatroom.name }}"{% trans ". This action is" %}
-           {% trans "ireversible and will also delete all associated messages." %} 
-          </div>
-          <form method="post">
-            {% csrf_token %}
-            <div class="d-flex justify-content-between">
-              <a
-                href="{% url 'forum:chatroom-detail' pk=chatroom.pk %}"
-                class="btn btn-secondary"
-              >
-                <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
-              </a>
-              <button type="submit" class="btn btn-danger">
-                <i class="fas fa-trash me-2"></i>{% trans "Confirm deletion" %}
-              </button>
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% translate "Delete Chat Room" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CHATROOM DELETE CSS ===== */
+:root {
+    --crd-primary: #3B82F6;
+    --crd-primary-dark: #2563eb;
+    
+    --crd-deep: #0f172a;
+    --crd-white: #ffffff;
+    --crd-bg: #f8fafc;
+    --crd-muted: #f1f5f9;
+    --crd-subtle: #e2e8f0;
+    
+    --crd-text: #0f172a;
+    --crd-text-secondary: #475569;
+    --crd-text-muted: #94a3b8;
+    
+    --crd-border: #e2e8f0;
+    --crd-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --crd-danger: #ef4444;
+    --crd-danger-dark: #dc2626;
+    --crd-danger-bg: rgba(239, 68, 68, 0.08);
+    --crd-danger-glow: rgba(239, 68, 68, 0.15);
+    
+    --crd-radius-sm: 6px;
+    --crd-radius-md: 10px;
+    --crd-radius-lg: 14px;
+    --crd-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.crd-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--crd-bg) 0%, var(--crd-muted) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+.crd-container {
+    max-width: 500px;
+    width: 100%;
+}
+
+/* Danger Card */
+.crd-card {
+    background: var(--crd-white);
+    border: 2px solid var(--crd-danger);
+    border-radius: var(--crd-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--crd-shadow-lg);
+}
+
+.crd-card-header {
+    background: var(--crd-danger-bg);
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.crd-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--crd-danger-glow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.crd-icon i { font-size: 2rem; color: var(--crd-danger); }
+
+.crd-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--crd-danger);
+    margin: 0 0 0.5rem;
+}
+
+.crd-subtitle {
+    font-size: 0.95rem;
+    color: var(--crd-text-secondary);
+    margin: 0;
+}
+
+.crd-card-body { padding: 2rem; }
+
+/* Room Info */
+.crd-room-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--crd-muted);
+    border-radius: var(--crd-radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.crd-room-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--crd-white);
+    border-radius: var(--crd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--crd-primary);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.crd-room-details { flex: 1; min-width: 0; }
+
+.crd-room-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--crd-text);
+    margin: 0 0 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.crd-room-topic {
+    font-size: 0.8rem;
+    color: var(--crd-text-muted);
+    margin: 0;
+}
+
+/* Warning List */
+.crd-warning-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--crd-text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.crd-warning-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+}
+
+.crd-warning-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--crd-border);
+}
+
+.crd-warning-item:last-child { border-bottom: none; }
+
+.crd-warning-item i {
+    font-size: 0.875rem;
+    color: var(--crd-danger);
+    margin-top: 0.125rem;
+}
+
+.crd-warning-item span {
+    font-size: 0.9rem;
+    color: var(--crd-text-secondary);
+    line-height: 1.5;
+}
+
+/* Actions */
+.crd-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.crd-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--crd-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.crd-btn-secondary {
+    background: var(--crd-muted);
+    color: var(--crd-text-secondary);
+    border-color: var(--crd-border);
+}
+
+.crd-btn-secondary:hover { background: var(--crd-subtle); color: var(--crd-text); }
+
+.crd-btn-danger {
+    background: var(--crd-danger);
+    color: var(--crd-white);
+}
+
+.crd-btn-danger:hover {
+    background: var(--crd-danger-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--crd-danger-glow);
+}
+
+/* Footer Note */
+.crd-footer {
+    padding: 1rem 2rem 1.5rem;
+    text-align: center;
+}
+
+.crd-footer-text {
+    font-size: 0.8rem;
+    color: var(--crd-text-muted);
+    margin: 0;
+}
+
+.crd-footer-text a {
+    color: var(--crd-primary);
+    text-decoration: none;
+}
+
+.crd-footer-text a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crd-page">
+    <div class="crd-container">
+        
+        <div class="crd-card">
+            <div class="crd-card-header">
+                <div class="crd-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <h1 class="crd-title">{% translate "Danger Zone" %}</h1>
+                <p class="crd-subtitle">{% translate "You are about to permanently delete this chat room" %}</p>
             </div>
-          </form>
+            
+            <div class="crd-card-body">
+                <div class="crd-room-info">
+                    <div class="crd-room-icon">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <div class="crd-room-details">
+                        <h3 class="crd-room-name">{{ chatroom.get_localized_name }}</h3>
+                        <p class="crd-room-topic">{{ chatroom.topic.get_localized_title }}</p>
+                    </div>
+                </div>
+                
+                <h4 class="crd-warning-title">{% translate "This action will:" %}</h4>
+                <ul class="crd-warning-list">
+                    <li class="crd-warning-item">
+                        <i class="bi bi-x-circle"></i>
+                        <span>{% translate "Permanently delete the chat room and all its settings" %}</span>
+                    </li>
+                    <li class="crd-warning-item">
+                        <i class="bi bi-chat-left-text"></i>
+                        <span>{% translate "Remove all messages in this room" %}</span>
+                    </li>
+                    <li class="crd-warning-item">
+                        <i class="bi bi-people"></i>
+                        <span>{% translate "Remove all participants and ban history" %}</span>
+                    </li>
+                    <li class="crd-warning-item">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        <span>{% translate "Cannot be undone or recovered" %}</span>
+                    </li>
+                </ul>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="crd-actions">
+                        <a href="{% url 'forum:chatroom-detail' chatroom.pk %}" class="crd-btn crd-btn-secondary">
+                            <i class="bi bi-x-lg"></i>
+                            {% translate "Cancel" %}
+                        </a>
+                        <button type="submit" class="crd-btn crd-btn-danger">
+                            <i class="bi bi-trash3"></i>
+                            {% translate "Delete Room" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="crd-footer">
+                <p class="crd-footer-text">
+                    {% translate "Changed your mind?" %} 
+                    <a href="{% url 'forum:chatroom-list' chatroom.topic.pk %}">{% translate "Return to room list" %}</a>
+                </p>
+            </div>
         </div>
-      </div>
+        
     </div>
-  </div>
 </div>
 {% endblock %}

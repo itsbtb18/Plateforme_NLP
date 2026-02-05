@@ -17,7 +17,23 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
     <link href="{% static 'css/notifications-modern.css' %}" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS for modern components -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: { preflight: false },
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                        'tajawal': ['Tajawal', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -69,6 +85,386 @@
       }
       .notification-badge:not(:empty) {
         display: block;
+      }
+
+      /* ══════════════════════════════════════════════════════════════════════ */
+      /* MODERN NOTIFICATION DROPDOWN STYLES                                    */
+      /* ══════════════════════════════════════════════════════════════════════ */
+      
+      /* Dropdown Container */
+      .ntf-dropdown-container {
+        position: relative;
+      }
+      
+      /* Bell Button */
+      .ntf-bell-btn {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .ntf-bell-btn:hover {
+        background: #f3f4f6;
+      }
+      
+      .ntf-bell-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+      
+      .ntf-bell-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #4b5563;
+      }
+      
+      /* Badge */
+      .ntf-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        font-size: 11px;
+        font-weight: 600;
+        color: white;
+        background: #ef4444;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        animation: ntf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      @keyframes ntf-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+      }
+      
+      /* Dropdown Panel */
+      .ntf-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 384px;
+        max-width: calc(100vw - 2rem);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e5e7eb;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        transition: all 0.2s ease;
+      }
+      
+      .ntf-dropdown.ntf-open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      
+      /* Header */
+      .ntf-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      
+      .ntf-header h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      .ntf-subtitle {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      
+      .ntf-mark-all {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #2563eb;
+        background: #eff6ff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      
+      .ntf-mark-all:hover {
+        background: #dbeafe;
+      }
+      
+      /* Body */
+      .ntf-body {
+        max-height: 384px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+      
+      .ntf-body::-webkit-scrollbar {
+        width: 6px;
+      }
+      
+      .ntf-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .ntf-body::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+      }
+      
+      .ntf-body::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+      
+      /* Notification Items */
+      .ntf-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f9fafb;
+        text-decoration: none;
+        transition: background 0.15s ease;
+      }
+      
+      .ntf-item:hover {
+        background: #f9fafb;
+      }
+      
+      .ntf-item.ntf-unread {
+        background: rgba(239, 246, 255, 0.5);
+      }
+      
+      .ntf-item.ntf-unread:hover {
+        background: rgba(239, 246, 255, 0.8);
+      }
+      
+      /* Icon */
+      .ntf-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .ntf-icon i {
+        font-size: 14px;
+      }
+      
+      /* Content */
+      .ntf-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .ntf-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .ntf-message {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 2px 0 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      
+      .ntf-time {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      
+      .ntf-time svg {
+        width: 12px;
+        height: 12px;
+      }
+      
+      /* Unread Dot */
+      .ntf-dot {
+        flex-shrink: 0;
+        width: 8px;
+        height: 8px;
+        background: #3b82f6;
+        border-radius: 50%;
+        margin-top: 6px;
+      }
+      
+      /* Empty State */
+      .ntf-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 16px;
+      }
+      
+      .ntf-empty svg {
+        width: 48px;
+        height: 48px;
+        color: #9ca3af;
+        margin-bottom: 16px;
+      }
+      
+      .ntf-empty p {
+        margin: 0;
+        text-align: center;
+      }
+      
+      .ntf-empty p:first-of-type {
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+      }
+      
+      .ntf-empty p:last-of-type {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      
+      /* Footer */
+      .ntf-footer {
+        padding: 12px 16px;
+        border-top: 1px solid #f3f4f6;
+        background: rgba(249, 250, 251, 0.5);
+        border-radius: 0 0 12px 12px;
+      }
+      
+      .ntf-footer a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #2563eb;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+      
+      .ntf-footer a:hover {
+        color: #1d4ed8;
+      }
+      
+      .ntf-footer svg {
+        width: 16px;
+        height: 16px;
+      }
+      
+      /* Loading State */
+      .ntf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
+      
+      .ntf-loading svg {
+        width: 24px;
+        height: 24px;
+        color: #3b82f6;
+        animation: ntf-spin 1s linear infinite;
+      }
+      
+      @keyframes ntf-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      /* ══════════════════════════════════════════════════════════════════════ */
+      /* RTL SUPPORT FOR ARABIC                                                 */
+      /* ══════════════════════════════════════════════════════════════════════ */
+      
+      html[dir="rtl"] .ntf-dropdown {
+        right: auto;
+        left: 0;
+      }
+      
+      html[dir="rtl"] .ntf-badge {
+        right: auto;
+        left: -4px;
+      }
+      
+      html[dir="rtl"] .ntf-item {
+        flex-direction: row-reverse;
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-content {
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-time {
+        flex-direction: row-reverse;
+      }
+      
+      html[dir="rtl"] .ntf-footer svg {
+        transform: rotate(180deg);
+      }
+      
+      html[dir="rtl"] .ntf-header {
+        flex-direction: row-reverse;
+      }
+      
+      html[dir="rtl"] .ntf-header > div:first-child {
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-mark-all {
+        flex-direction: row-reverse;
+      }
+      
+      /* Mobile Responsive */
+      @media (max-width: 480px) {
+        .ntf-dropdown {
+          width: calc(100vw - 1rem);
+          right: -0.5rem;
+        }
+        
+        html[dir="rtl"] .ntf-dropdown {
+          right: auto;
+          left: -0.5rem;
+        }
       }
     </style>
 </head>
@@ -130,83 +526,171 @@
 
                 {% if user.is_authenticated %}
                 <div class="authenticated-actions">
-                    <div class="notification-dropdown-container action-dropdown-container">
-                        <button class="action-btn icon-btn notification-bell"
-                                id="notificationDropdownToggle"
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- MODERN NOTIFICATION DROPDOWN - Premium Academic Portal Style           -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <div class="ntf-dropdown-container tw-relative">
+                        <!-- Notification Bell Button -->
+                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent hover:tw-bg-gray-100 tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
+                                id="ntfDropdownToggle"
                                 aria-haspopup="menu"
                                 aria-expanded="false"
                                 aria-label="{% trans 'View notifications' %}"
                                 title="{% trans 'Notifications' %}">
-                            <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span class="action-badge notification-badge" id="notificationBadge" aria-live="polite">
-                                {% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}
-                            </span>
+                            <svg class="tw-w-5 tw-h-5 tw-text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <!-- Unread Badge -->
+                            <span class="ntf-badge tw-absolute tw--top-1 tw--right-1 tw-min-w-[18px] tw-h-[18px] tw-flex tw-items-center tw-justify-center tw-text-xs tw-font-semibold tw-text-white tw-bg-red-500 tw-rounded-full tw-shadow-sm {% if unread_notifications_count == 0 %}tw-hidden{% endif %}" 
+                                  id="ntfBadge">{{ unread_notifications_count }}</span>
                         </button>
-                        <div class="dropdown-panel notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationDropdownToggle">
-                            <div class="notification-header">
-                                <div class="notification-header-left">
-                                    <p class="notification-title">{% trans "Notifications" %}</p>
-                                    <span class="notification-subtitle">
+
+                        <!-- Notification Dropdown Panel -->
+                        <div class="ntf-dropdown tw-absolute tw-top-full tw-mt-2 tw-w-96 tw-max-w-[calc(100vw-2rem)] tw-bg-white tw-rounded-xl tw-shadow-2xl tw-border tw-border-gray-100 tw-z-50 tw-opacity-0 tw-invisible tw-transform tw-translate-y-2 tw-transition-all tw-duration-200"
+                             id="ntfDropdown"
+                             role="menu"
+                             aria-labelledby="ntfDropdownToggle">
+                            
+                            <!-- Dropdown Header -->
+                            <div class="ntf-header tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-3 tw-border-b tw-border-gray-100">
+                                <div class="tw-flex tw-flex-col">
+                                    <h3 class="tw-text-base tw-font-semibold tw-text-gray-900 tw-m-0 tw-font-inter">{% trans "Notifications" %}</h3>
+                                    <span class="ntf-subtitle tw-text-xs tw-text-gray-500 tw-mt-0.5" id="ntfSubtitle">
                                         {% if unread_notifications_count > 0 %}
-                                            <span id="unreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
+                                            <span id="ntfUnreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
                                         {% else %}
                                             {% trans "All caught up" %}
                                         {% endif %}
                                     </span>
                                 </div>
-                                {% if unread_notifications_count > 0 %}
-                                <button type="button" class="mark-all-read" onclick="handleMarkAllRead(event)" aria-label="{% trans 'Mark all as read' %}">
-                                    <i class="fas fa-check-double"></i> {% trans "Mark all" %}
+                                <button type="button" 
+                                        class="ntf-mark-all tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-blue-600 tw-bg-blue-50 tw-rounded-lg tw-border-0 tw-cursor-pointer hover:tw-bg-blue-100 tw-transition-colors {% if unread_notifications_count == 0 %}tw-hidden{% endif %}"
+                                        id="ntfMarkAllBtn"
+                                        onclick="ntfMarkAllRead(event)">
+                                    <svg class="tw-w-3.5 tw-h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {% trans "Mark all read" %}
                                 </button>
-                                {% endif %}
                             </div>
-                            <div class="notification-body" id="notificationDropdownBody" role="list">
-                                {% if notifications %}
-                                    {% for notification in notifications %}
-                                    <a href="{% if notification.target_url %}{{ notification.target_url }}{% else %}{% url 'notifications:mark_read' notification.id %}{% endif %}" 
-                                       class="notification-item {% if not notification.read %}unread{% endif %}"
-                                       data-notification-id="{{ notification.id }}"
-                                       role="listitem"
-                                       aria-label="{{ notification.title }}"
-                                       onclick="handleNotificationClick(event, {{ notification.id }}, {% if notification.read %}true{% else %}false{% endif %}); return true;">
-                                        <div class="notification-item-wrapper">
-                                            <div class="notification-icon">
-                                                {% if notification.notification_type == 'resource_update' %}
-                                                    <i class="fas fa-file-alt"></i>
-                                                {% elif notification.notification_type == 'comment' %}
-                                                    <i class="fas fa-comment"></i>
-                                                {% elif notification.notification_type == 'project_update' %}
-                                                    <i class="fas fa-flask"></i>
-                                                {% elif notification.notification_type == 'event' %}
-                                                    <i class="fas fa-calendar-alt"></i>
-                                                {% elif notification.notification_type == 'forum' %}
-                                                    <i class="fas fa-users"></i>
+
+                            <!-- Dropdown Body (Scrollable List) -->
+                            <div class="ntf-body tw-max-h-96 tw-overflow-y-auto tw-overscroll-contain" id="ntfBody">
+                                <!-- Loading State -->
+                                <div class="ntf-loading tw-hidden tw-flex tw-items-center tw-justify-center tw-py-8" id="ntfLoading">
+                                    <svg class="tw-animate-spin tw-w-6 tw-h-6 tw-text-blue-500" fill="none" viewBox="0 0 24 24">
+                                        <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+
+                                <!-- Notification Items Container -->
+                                <div class="ntf-items" id="ntfItems">
+                                    {% if notifications %}
+                                        {% for notification in notifications %}
+                                        <a href="{% url 'notifications:go_to_notification' notification.id %}" 
+                                           class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 {% if not notification.read %}ntf-unread tw-bg-blue-50/50{% endif %}"
+                                           data-notification-id="{{ notification.id }}">
+                                            <!-- Type Icon -->
+                                            <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center
+                                                {% if notification.type == 'PROJECT_INVITATION' or notification.type == 'MEMBERSHIP_REQUEST' %}
+                                                    tw-bg-purple-100 tw-text-purple-600
+                                                {% elif notification.type == 'PROJECT_UPDATE' or notification.type == 'TASK_ASSIGNED' %}
+                                                    tw-bg-blue-100 tw-text-blue-600
+                                                {% elif notification.type == 'COMMENT' or notification.type == 'QA_COMMENT' %}
+                                                    tw-bg-green-100 tw-text-green-600
+                                                {% elif notification.type == 'EVENT_CREATED' or notification.type == 'EVENT_APPROVED' %}
+                                                    tw-bg-pink-100 tw-text-pink-600
+                                                {% elif notification.type == 'RESOURCE_ADDED' or notification.type == 'CORPUS_UPDATE' %}
+                                                    tw-bg-cyan-100 tw-text-cyan-600
+                                                {% elif notification.type == 'TOOL_ADDED' %}
+                                                    tw-bg-amber-100 tw-text-amber-600
+                                                {% elif notification.type == 'FORUM_TOPIC' or notification.type == 'QA_ANSWER' %}
+                                                    tw-bg-violet-100 tw-text-violet-600
+                                                {% elif notification.type == 'POST_APPROVED' %}
+                                                    tw-bg-emerald-100 tw-text-emerald-600
                                                 {% else %}
-                                                    <i class="fas fa-bell"></i>
+                                                    tw-bg-gray-100 tw-text-gray-600
+                                                {% endif %}">
+                                                {% if notification.type == 'PROJECT_INVITATION' %}
+                                                    <i class="fas fa-user-plus tw-text-sm"></i>
+                                                {% elif notification.type == 'MEMBERSHIP_REQUEST' %}
+                                                    <i class="fas fa-user-clock tw-text-sm"></i>
+                                                {% elif notification.type == 'PROJECT_UPDATE' %}
+                                                    <i class="fas fa-flask tw-text-sm"></i>
+                                                {% elif notification.type == 'TASK_ASSIGNED' %}
+                                                    <i class="fas fa-tasks tw-text-sm"></i>
+                                                {% elif notification.type == 'COMMENT' or notification.type == 'QA_COMMENT' %}
+                                                    <i class="fas fa-comment tw-text-sm"></i>
+                                                {% elif notification.type == 'EVENT_CREATED' %}
+                                                    <i class="fas fa-calendar-plus tw-text-sm"></i>
+                                                {% elif notification.type == 'EVENT_APPROVED' %}
+                                                    <i class="fas fa-calendar-check tw-text-sm"></i>
+                                                {% elif notification.type == 'RESOURCE_ADDED' %}
+                                                    <i class="fas fa-file-alt tw-text-sm"></i>
+                                                {% elif notification.type == 'TOOL_ADDED' %}
+                                                    <i class="fas fa-tools tw-text-sm"></i>
+                                                {% elif notification.type == 'CORPUS_UPDATE' %}
+                                                    <i class="fas fa-database tw-text-sm"></i>
+                                                {% elif notification.type == 'FORUM_TOPIC' %}
+                                                    <i class="fas fa-comments tw-text-sm"></i>
+                                                {% elif notification.type == 'QA_ANSWER' %}
+                                                    <i class="fas fa-reply tw-text-sm"></i>
+                                                {% elif notification.type == 'POST_APPROVED' %}
+                                                    <i class="fas fa-check-circle tw-text-sm"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell tw-text-sm"></i>
                                                 {% endif %}
                                             </div>
-                                            <div class="notification-content">
-                                                <strong>{{ notification.title }}</strong>
-                                                <p>{{ notification.message|truncatewords:15 }}</p>
-                                                <small><i class="far fa-clock"></i> {{ notification.created_at|timesince }} {% trans "ago" %}</small>
+
+                                            <!-- Content -->
+                                            <div class="ntf-content tw-flex-1 tw-min-w-0">
+                                                <div class="tw-flex tw-items-start tw-justify-between tw-gap-2">
+                                                    <p class="ntf-title tw-text-sm tw-font-medium tw-text-gray-900 tw-m-0 tw-line-clamp-1">{{ notification.title }}</p>
+                                                    {% if not notification.read %}
+                                                    <span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full tw-mt-1.5"></span>
+                                                    {% endif %}
+                                                </div>
+                                                <p class="ntf-message tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-0.5 tw-line-clamp-2">{{ notification.message|truncatewords:12 }}</p>
+                                                <span class="ntf-time tw-text-xs tw-text-gray-400 tw-mt-1 tw-flex tw-items-center tw-gap-1">
+                                                    <svg class="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                    {{ notification.created_at|timesince }} {% trans "ago" %}
+                                                </span>
                                             </div>
+                                        </a>
+                                        {% endfor %}
+                                    {% else %}
+                                        <!-- Empty State -->
+                                        <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
+                                            <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                                                <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                                </svg>
+                                            </div>
+                                            <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                                            <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
                                         </div>
-                                    </a>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="empty-notifications">
-                                        <i class="far fa-bell-slash"></i>
-                                        <p>{% trans "No notifications yet" %}</p>
-                                    </div>
-                                {% endif %}
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="notification-footer">
-                                <a href="{% url 'notifications:list' %}">
-                                    {% trans "View all notifications" %} <i class="fas fa-arrow-right"></i>
+
+                            <!-- Dropdown Footer -->
+                            <div class="ntf-footer tw-px-4 tw-py-3 tw-border-t tw-border-gray-100 tw-bg-gray-50/50 tw-rounded-b-xl">
+                                <a href="{% url 'notifications:list' %}" 
+                                   class="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-sm tw-font-medium tw-text-blue-600 tw-no-underline hover:tw-text-blue-700 tw-transition-colors">
+                                    {% trans "View all notifications" %}
+                                    <svg class="tw-w-4 tw-h-4 rtl:tw-rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                    </svg>
                                 </a>
                             </div>
                         </div>
                     </div>
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- END NOTIFICATION DROPDOWN                                              -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
                     <div class="profile-icon-container action-dropdown-container">
                         <button class="action-btn icon-btn profile-icon-btn"
@@ -836,6 +1320,259 @@
             });
         });
     </script>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- MODERN NOTIFICATION DROPDOWN JAVASCRIPT                                -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // DOM Elements
+        const ntfToggle = document.getElementById('ntfDropdownToggle');
+        const ntfDropdown = document.getElementById('ntfDropdown');
+        const ntfBadge = document.getElementById('ntfBadge');
+        const ntfBody = document.getElementById('ntfBody');
+        const ntfItems = document.getElementById('ntfItems');
+        const ntfLoading = document.getElementById('ntfLoading');
+        const ntfMarkAllBtn = document.getElementById('ntfMarkAllBtn');
+        const ntfSubtitle = document.getElementById('ntfSubtitle');
+        const ntfUnreadCount = document.getElementById('ntfUnreadCount');
+        
+        // State
+        let isOpen = false;
+        let isLoading = false;
+        
+        // Toggle dropdown
+        function toggleDropdown(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            isOpen = !isOpen;
+            
+            if (isOpen) {
+                ntfDropdown.classList.add('ntf-open');
+                ntfToggle.setAttribute('aria-expanded', 'true');
+                
+                // Load fresh notifications via AJAX
+                loadNotifications();
+                
+                // Close other dropdowns
+                closeOtherDropdowns();
+            } else {
+                closeDropdown();
+            }
+        }
+        
+        // Close dropdown
+        function closeDropdown() {
+            isOpen = false;
+            ntfDropdown.classList.remove('ntf-open');
+            ntfToggle.setAttribute('aria-expanded', 'false');
+        }
+        
+        // Close other dropdowns (profile, language)
+        function closeOtherDropdowns() {
+            const profileDropdown = document.getElementById('profileDropdown');
+            const languageDropdown = document.getElementById('languageDropdown');
+            
+            if (profileDropdown) profileDropdown.classList.remove('show');
+            if (languageDropdown) languageDropdown.classList.remove('show');
+        }
+        
+        // Load notifications via AJAX
+        async function loadNotifications() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            ntfLoading.classList.remove('tw-hidden');
+            ntfItems.style.opacity = '0.5';
+            
+            try {
+                const response = await fetch('{% url "notifications:api_list" %}', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch notifications');
+                
+                const data = await response.json();
+                
+                // Update badge
+                updateBadge(data.unread_count);
+                
+                // Render notifications
+                renderNotifications(data.notifications);
+                
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            } finally {
+                isLoading = false;
+                ntfLoading.classList.add('tw-hidden');
+                ntfItems.style.opacity = '1';
+            }
+        }
+        
+        // Render notifications
+        function renderNotifications(notifications) {
+            if (!notifications || notifications.length === 0) {
+                ntfItems.innerHTML = `
+                    <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
+                        <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                            <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                        </div>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                        <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = notifications.map(n => {
+                const unreadClass = n.read ? '' : 'ntf-unread tw-bg-blue-50/50';
+                const dotHtml = n.read ? '' : '<span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full tw-mt-1.5"></span>';
+                
+                return `
+                    <a href="${n.url}" 
+                       class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 ${unreadClass}"
+                       data-notification-id="${n.id}">
+                        <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center ${n.color_class}">
+                            <i class="fas ${n.icon} tw-text-sm"></i>
+                        </div>
+                        <div class="ntf-content tw-flex-1 tw-min-w-0">
+                            <div class="tw-flex tw-items-start tw-justify-between tw-gap-2">
+                                <p class="ntf-title tw-text-sm tw-font-medium tw-text-gray-900 tw-m-0 tw-line-clamp-1">${escapeHtml(n.title)}</p>
+                                ${dotHtml}
+                            </div>
+                            <p class="ntf-message tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-0.5 tw-line-clamp-2">${escapeHtml(n.message)}</p>
+                            <span class="ntf-time tw-text-xs tw-text-gray-400 tw-mt-1 tw-flex tw-items-center tw-gap-1">
+                                <svg class="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                ${n.time_since}
+                            </span>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+            
+            ntfItems.innerHTML = html;
+        }
+        
+        // Update badge count
+        function updateBadge(count) {
+            if (count > 0) {
+                ntfBadge.textContent = count > 99 ? '99+' : count;
+                ntfBadge.classList.remove('tw-hidden');
+                ntfMarkAllBtn.classList.remove('tw-hidden');
+                ntfSubtitle.innerHTML = `<span id="ntfUnreadCount">${count}</span> {% trans "unread" %}`;
+            } else {
+                ntfBadge.classList.add('tw-hidden');
+                ntfMarkAllBtn.classList.add('tw-hidden');
+                ntfSubtitle.textContent = '{% trans "All caught up" %}';
+            }
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize event listeners
+        if (ntfToggle) {
+            ntfToggle.addEventListener('click', toggleDropdown);
+        }
+        
+        // Close on click outside
+        document.addEventListener('click', function(e) {
+            if (isOpen && 
+                ntfDropdown && 
+                !ntfDropdown.contains(e.target) && 
+                ntfToggle && 
+                !ntfToggle.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+        
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isOpen) {
+                closeDropdown();
+                ntfToggle.focus();
+            }
+        });
+        
+        // Periodic badge update (every 60 seconds)
+        setInterval(async function() {
+            if (document.hidden) return;
+            
+            try {
+                const response = await fetch('{% url "notifications:api_notification_count" %}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    updateBadge(data.count);
+                }
+            } catch (error) {
+                // Silently fail
+            }
+        }, 60000);
+        
+        // Make mark all read function global
+        window.ntfMarkAllRead = async function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            try {
+                const response = await fetch('{% url "notifications:api_mark_all_as_read" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                
+                if (response.ok) {
+                    // Update UI
+                    updateBadge(0);
+                    
+                    // Remove unread styling from all items
+                    document.querySelectorAll('.ntf-item.ntf-unread').forEach(item => {
+                        item.classList.remove('ntf-unread', 'tw-bg-blue-50/50');
+                    });
+                    
+                    // Remove all unread dots
+                    document.querySelectorAll('.ntf-dot').forEach(dot => {
+                        dot.remove();
+                    });
+                }
+            } catch (error) {
+                console.error('Error marking all as read:', error);
+            }
+        };
+        
+        // Get CSRF token
+        function getCsrfToken() {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            return cookieValue ? cookieValue.split('=')[1] : '';
+        }
+    })();
+    </script>
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
     {% block extra_scripts %}{% endblock %}
 </body>

@@ -2,357 +2,851 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{% trans "Notifications" %}{% endblock %}
+{% block title %}{% translate "Notifications" %}{% endblock %}
 
 {% block extra_styles %}
-  {{ block.super }}
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+{{ block.super }}
+<style>
+  /* ============================================
+     Premium Academic Dashboard - Notifications
+     ============================================ */
+  
+  :root {
+    --notif-primary: #2563eb;
+    --notif-primary-light: #3b82f6;
+    --notif-secondary: #64748b;
+    --notif-success: #10b981;
+    --notif-warning: #f59e0b;
+    --notif-danger: #ef4444;
+    --notif-academic: #8b5cf6;
+    --notif-resource: #0ea5e9;
+    --notif-tool: #f97316;
+    --notif-community: #ec4899;
+    --notif-bg: #f8fafc;
+    --notif-card-bg: #ffffff;
+    --notif-border: #e2e8f0;
+    --notif-text: #1e293b;
+    --notif-text-muted: #64748b;
+    --notif-unread-border: #2563eb;
+    --notif-radius: 12px;
+    --notif-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --notif-shadow-hover: 0 4px 12px rgba(0,0,0,0.12);
+  }
+
+  /* RTL Support */
+  [dir="rtl"] .notif-page,
+  html[lang="ar"] .notif-page {
+    direction: rtl;
+    text-align: right;
+  }
+
+  [dir="rtl"] .notif-card-indicator,
+  html[lang="ar"] .notif-card-indicator {
+    left: auto;
+    right: 0;
+    border-radius: 0 var(--notif-radius) var(--notif-radius) 0;
+  }
+
+  [dir="rtl"] .notif-icon-wrap,
+  html[lang="ar"] .notif-icon-wrap {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+
+  [dir="rtl"] .notif-delete-btn,
+  html[lang="ar"] .notif-delete-btn {
+    right: auto;
+    left: 1rem;
+  }
+
+  [dir="rtl"] .notif-time i,
+  html[lang="ar"] .notif-time i {
+    margin-right: 0;
+    margin-left: 0.25rem;
+  }
+
+  [dir="rtl"] .notif-header-actions,
+  html[lang="ar"] .notif-header-actions {
+    flex-direction: row-reverse;
+  }
+
+  /* Page Container */
+  .notif-page {
+    background: var(--notif-bg);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .notif-container {
+    max-width: 56rem;
+    margin: 0 auto;
+  }
+
+  /* Header Section */
+  .notif-header {
+    margin-bottom: 2rem;
+  }
+
+  .notif-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .notif-title-section h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--notif-text);
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .notif-title-section h1 i {
+    color: var(--notif-primary);
+  }
+
+  .notif-subtitle {
+    color: var(--notif-text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .notif-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .notif-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+  }
+
+  .notif-btn-primary {
+    background: var(--notif-primary);
+    color: white;
+  }
+
+  .notif-btn-primary:hover {
+    background: var(--notif-primary-light);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .notif-btn-outline {
+    background: white;
+    color: var(--notif-text);
+    border: 1px solid var(--notif-border);
+  }
+
+  .notif-btn-outline:hover {
+    background: var(--notif-bg);
+    border-color: var(--notif-secondary);
+  }
+
+  .notif-btn-danger {
+    background: white;
+    color: var(--notif-danger);
+    border: 1px solid var(--notif-danger);
+  }
+
+  .notif-btn-danger:hover {
+    background: var(--notif-danger);
+    color: white;
+  }
+
+  /* Stats Cards */
+  .notif-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .notif-stat-card {
+    background: var(--notif-card-bg);
+    border: 1px solid var(--notif-border);
+    border-radius: var(--notif-radius);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--notif-shadow);
+  }
+
+  .notif-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
+
+  .notif-stat-icon.total {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--notif-primary);
+  }
+
+  .notif-stat-icon.unread {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--notif-success);
+  }
+
+  .notif-stat-icon.action {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--notif-warning);
+  }
+
+  .notif-stat-content {
+    flex: 1;
+  }
+
+  .notif-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--notif-text);
+    line-height: 1.2;
+  }
+
+  .notif-stat-label {
+    font-size: 0.8125rem;
+    color: var(--notif-text-muted);
+    margin-top: 0.25rem;
+  }
+
+  /* Date Group Sections */
+  .notif-date-group {
+    margin-bottom: 2rem;
+  }
+
+  .notif-date-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+  }
+
+  .notif-date-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--notif-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .notif-date-line {
+    flex: 1;
+    height: 1px;
+    background: var(--notif-border);
+  }
+
+  .notif-date-count {
+    font-size: 0.75rem;
+    color: var(--notif-text-muted);
+    background: var(--notif-bg);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid var(--notif-border);
+  }
+
+  /* Notification Cards */
+  .notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .notif-card {
+    background: var(--notif-card-bg);
+    border: 1px solid var(--notif-border);
+    border-radius: var(--notif-radius);
+    box-shadow: var(--notif-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .notif-card:hover {
+    box-shadow: var(--notif-shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .notif-card.unread {
+    border-color: var(--notif-unread-border);
+  }
+
+  .notif-card-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: transparent;
+    border-radius: var(--notif-radius) 0 0 var(--notif-radius);
+    transition: background 0.2s ease;
+  }
+
+  .notif-card.unread .notif-card-indicator {
+    background: var(--notif-unread-border);
+  }
+
+  .notif-card-inner {
+    display: flex;
+    padding: 1.25rem;
+    padding-left: 1.5rem;
+    gap: 1rem;
+  }
+
+  [dir="rtl"] .notif-card-inner,
+  html[lang="ar"] .notif-card-inner {
+    padding-left: 1.25rem;
+    padding-right: 1.5rem;
+  }
+
+  /* Icon Styles */
+  .notif-icon-wrap {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+  }
+
+  /* Type-specific icon colors */
+  .notif-icon-wrap.icon-resource {
+    background: rgba(14, 165, 233, 0.1);
+    color: var(--notif-resource);
+  }
+
+  .notif-icon-wrap.icon-tool {
+    background: rgba(249, 115, 22, 0.1);
+    color: var(--notif-tool);
+  }
+
+  .notif-icon-wrap.icon-community {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--notif-community);
+  }
+
+  .notif-icon-wrap.icon-academic {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--notif-academic);
+  }
+
+  .notif-icon-wrap.icon-project {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--notif-success);
+  }
+
+  .notif-icon-wrap.icon-system {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--notif-secondary);
+  }
+
+  .notif-icon-wrap.icon-event {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--notif-primary);
+  }
+
+  /* Content Area */
+  .notif-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notif-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .notif-title-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notif-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--notif-text);
+    margin: 0 0 0.25rem 0;
+    line-height: 1.4;
+  }
+
+  .notif-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    background: var(--notif-bg);
+    color: var(--notif-text-muted);
+    border: 1px solid var(--notif-border);
+  }
+
+  .notif-time {
+    font-size: 0.8125rem;
+    color: var(--notif-text-muted);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .notif-time i {
+    margin-right: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .notif-message {
+    font-size: 0.875rem;
+    color: var(--notif-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Status Tags */
+  .notif-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .notif-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+  }
+
+  .notif-tag-new {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--notif-primary);
+  }
+
+  .notif-tag-read {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--notif-secondary);
+  }
+
+  .notif-tag-action {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--notif-warning);
+  }
+
+  .notif-tag-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--notif-success);
+  }
+
+  .notif-tag-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--notif-danger);
+  }
+
+  /* Delete Button */
+  .notif-delete-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--notif-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 10;
+  }
+
+  .notif-card:hover .notif-delete-btn {
+    opacity: 1;
+  }
+
+  .notif-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--notif-danger);
+  }
+
+  /* Action Buttons (for notifications requiring response) */
+  .notif-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--notif-border);
+  }
+
+  .notif-action-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .notif-action-btn.accept {
+    background: var(--notif-success);
+    color: white;
+  }
+
+  .notif-action-btn.accept:hover {
+    background: #059669;
+  }
+
+  .notif-action-btn.reject {
+    background: white;
+    color: var(--notif-danger);
+    border: 1px solid var(--notif-danger);
+  }
+
+  .notif-action-btn.reject:hover {
+    background: var(--notif-danger);
+    color: white;
+  }
+
+  /* Empty State */
+  .notif-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--notif-card-bg);
+    border: 1px solid var(--notif-border);
+    border-radius: var(--notif-radius);
+  }
+
+  .notif-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--notif-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem auto;
+    font-size: 2rem;
+    color: var(--notif-text-muted);
+  }
+
+  .notif-empty h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--notif-text);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .notif-empty p {
+    color: var(--notif-text-muted);
+    margin: 0;
+  }
+
+  /* Pagination */
+  .notif-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .notif-page-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--notif-border);
+    background: var(--notif-card-bg);
+    color: var(--notif-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .notif-page-btn:hover:not(.disabled):not(.active) {
+    background: var(--notif-bg);
+    border-color: var(--notif-primary);
+    color: var(--notif-primary);
+  }
+
+  .notif-page-btn.active {
+    background: var(--notif-primary);
+    border-color: var(--notif-primary);
+    color: white;
+  }
+
+  .notif-page-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .notif-header-top {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .notif-header-actions {
+      justify-content: center;
+    }
+
+    .notif-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .notif-card-inner {
+      flex-direction: column;
+      padding: 1rem;
+    }
+
+    .notif-icon-wrap {
+      margin: 0 0 0.75rem 0;
+    }
+
+    .notif-content-header {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .notif-delete-btn {
+      opacity: 1;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="notifications-page" data-read-label="{% trans 'Read' %}" data-new-label="{% trans 'New' %}">
-  <div class="notifications-container animate__animated animate__fadeIn">
-    <div class="notifications-hero">
-      <div class="hero-text">
-        <p class="eyebrow">{% trans "Inbox" %}</p>
-        <h1 class="page-title">{% trans "Notifications" %}</h1>
-        <p class="hero-subtitle">
-          {% trans "Review invitations, assignments and platform announcements from a single professional workspace." %}
-        </p>
-      </div>
-      {% if total_notifications %}
-      <div class="hero-actions">
-        <a href="{% url 'notifications:mark_all_read' %}"
-           data-api-endpoint="{% url 'notifications:api_mark_all_as_read' %}"
-           class="btn btn-outline-primary btn-pill js-mark-all-read">
-          <i class="fas fa-check-double me-1"></i>{% trans "Mark all as read" %}
-        </a>
-        <a href="{% url 'notifications:delete_all' %}" class="btn btn-outline-danger btn-pill">
-          <i class="fas fa-trash-alt me-1"></i>{% trans "Delete all" %}
-        </a>
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="notifications-stats-grid">
-      <div class="stats-card total-card">
-        <div class="stats-icon">
-          <i class="fas fa-bell"></i>
-        </div>
-        <div>
-          <p class="stats-label">{% trans "All notifications" %}</p>
-          <p class="stats-value" data-stat="total">
-            {{ total_notifications|default:notifications.paginator.count }}
+<div class="notif-page">
+  <div class="notif-container">
+    
+    <!-- Header Section -->
+    <header class="notif-header">
+      <div class="notif-header-top">
+        <div class="notif-title-section">
+          <h1>
+            <i class="fas fa-bell"></i>
+            {% translate "Notifications" %}
+          </h1>
+          <p class="notif-subtitle">
+            {% translate "Stay updated with invitations, assignments, and platform announcements." %}
           </p>
         </div>
-        <span class="stats-pill">
-          {% blocktrans %}Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}{% endblocktrans %}
-        </span>
-      </div>
-      <div class="stats-card unread-card">
-        <div class="stats-icon">
-          <i class="fas fa-envelope-open-text"></i>
+        
+        {% if total_notifications %}
+        <div class="notif-header-actions">
+          <a href="{% url 'notifications:mark_all_read' %}" class="notif-btn notif-btn-primary">
+            <i class="fas fa-check-double"></i>
+            {% translate "Mark all as read" %}
+          </a>
+          <a href="{% url 'notifications:delete_all' %}" class="notif-btn notif-btn-danger"
+             onclick="return confirm('{% translate "Are you sure you want to delete all notifications?" %}');">
+            <i class="fas fa-trash-alt"></i>
+            {% translate "Delete all" %}
+          </a>
         </div>
-        <div>
-          <p class="stats-label">{% trans "Unread" %}</p>
-          <p class="stats-value" data-stat="unread">{{ unread_notifications|default:0 }}</p>
-        </div>
-        <span class="stats-pill">{% trans "Stay up to date" %}</span>
+        {% endif %}
       </div>
-      <div class="stats-card action-card">
-        <div class="stats-icon">
-          <i class="fas fa-user-check"></i>
-        </div>
-        <div>
-          <p class="stats-label">{% trans "Action required" %}</p>
-          <p class="stats-value" data-stat="action">{{ action_required_count|default:0 }}</p>
-        </div>
-        <span class="stats-pill">{% trans "Requests awaiting review" %}</span>
-      </div>
-    </div>
 
-    {% if notifications|length %}
-    <div class="notifications-toolbar">
-      <div class="filter-group" role="group" aria-label="{% trans 'Notification filters' %}">
-        <button type="button" class="filter-chip active" data-filter="all">
-          <i class="fas fa-layer-group me-1"></i>{% trans "All" %}
-        </button>
-        <button type="button" class="filter-chip" data-filter="unread">
-          <i class="fas fa-circle-dot me-1"></i>{% trans "Unread" %}
-          <span class="chip-count" data-stat="unread">{{ unread_notifications|default:0 }}</span>
-        </button>
-        <button type="button" class="filter-chip" data-filter="action-required">
-          <i class="fas fa-clipboard-list me-1"></i>{% trans "Action required" %}
-          <span class="chip-count" data-stat="action">{{ action_required_count|default:0 }}</span>
-        </button>
-      </div>
-      <div class="search-field">
-        <i class="fas fa-search"></i>
-        <input type="search"
-               placeholder="{% trans 'Search notifications' %}"
-               aria-label="{% trans 'Search notifications' %}"
-               data-notification-search>
-      </div>
-    </div>
-
-    <div class="notifications-list" data-notification-list>
-      {% for notification in notifications %}
-        <article class="notification-card {% if not notification.read %}unread{% endif %}"
-                 data-notification-id="{{ notification.id }}"
-                 data-read-state="{% if notification.read %}read{% else %}unread{% endif %}"
-                 data-type="{{ notification.type|default:'undefined'|lower }}"
-                 data-action-required="{% if notification.requires_action %}true{% else %}false{% endif %}"
-                 style="cursor: pointer;"
-                 onclick="window.location.href='{% url 'notifications:mark_read' notification.id %}'">
-          <div class="notification-wrapper">
-            <div class="notification-icon-container">
-              <div class="notification-icon">
-                {% if notification.type == 'PROJECT_INVITE' or notification.type == 'PROJECT_INVITATION' %}
-                  <i class="fas fa-user-plus"></i>
-                {% elif notification.type == 'PROJECT_JOIN_REQUEST' or notification.type == 'MEMBERSHIP_REQUEST' %}
-                  <i class="fas fa-hand-paper"></i>
-                {% elif notification.type == 'TASK_ASSIGNED' %}
-                  <i class="fas fa-tasks"></i>
-                {% elif notification.type == 'MESSAGE' %}
-                  <i class="fas fa-envelope"></i>
-                {% elif notification.type == 'SYSTEM' %}
-                  <i class="fas fa-bell"></i>
-                {% elif notification.type == 'LEAVE_REQUEST' %}
-                  <i class="fas fa-sign-out-alt"></i>
-                {% else %}
-                  <i class="fas fa-info-circle"></i>
-                {% endif %}
-              </div>
-              <span class="status-dot" aria-hidden="true"></span>
-            </div>
-            <div class="notification-content">
-              <div class="notification-header">
-                <div class="title-group">
-                  <h3 class="notification-title">{{ notification.title }}</h3>
-                  <span class="notification-badge" data-type="{{ notification.type|default:'undefined'|lower }}">
-                    {% if notification.type == 'PROJECT_INVITE' or notification.type == 'PROJECT_INVITATION' %}
-                      {% trans "Invitation" %}
-                    {% elif notification.type == 'PROJECT_JOIN_REQUEST' or notification.type == 'MEMBERSHIP_REQUEST' %}
-                      {% trans "Membership application" %}
-                    {% elif notification.type == 'TASK_ASSIGNED' %}
-                      {% trans "Assigned task" %}
-                    {% elif notification.type == 'MESSAGE' %}
-                      {% trans "Message" %}
-                    {% elif notification.type == 'SYSTEM' %}
-                      {% trans "System" %}
-                    {% elif notification.type == 'LEAVE_REQUEST' %}
-                      {% trans "Leave request" %}
-                    {% else %}
-                      {{ notification.type|default:"undefined" }}
-                    {% endif %}
-                  </span>
-                </div>
-                <div class="notification-time" title="{{ notification.created_at|date:'j F Y, H:i' }}">
-                  <i class="far fa-clock me-1"></i>{{ notification.created_at|date:"j M Y, H:i" }}
-                </div>
-              </div>
-
-              <div class="notification-message">
-                {{ notification.message }}
-              </div>
-
-              <div class="notification-tags">
-                {% if not notification.read %}
-                  <span class="status-chip status-unread" data-label-read="{% trans 'Read' %}">
-                    {% trans "New" %}
-                  </span>
-                {% else %}
-                  <span class="status-chip status-read">{% trans "Read" %}</span>
-                {% endif %}
-                {% if notification.requires_action %}
-                  <span class="status-chip status-action">{% trans "Requires response" %}</span>
-                {% endif %}
-                {% if notification.response_given %}
-                  {% if notification.response == 'accept' or notification.response == 'approve' %}
-                    <span class="status-chip status-success">
-                      <i class="fas fa-check-circle me-1"></i>{% trans "Completed" %}
-                    </span>
-                  {% elif notification.response == 'reject' %}
-                    <span class="status-chip status-danger">
-                      <i class="fas fa-times-circle me-1"></i>{% trans "Rejected" %}
-                    </span>
-                  {% endif %}
-                {% endif %}
-              </div>
-
-              <div class="notification-actions">
-                <div class="primary-actions">
-                  {% if notification.is_project_invite %}
-                    {% if not notification.response_given %}
-                      <form method="post" action="{% url 'accounts:respond_project_invite' notification.project_id %}" class="action-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
-                        <button type="submit" name="response" value="accept" class="btn btn-success btn-sm">
-                          <i class="fas fa-check me-1"></i>{% trans "Accept" %}
-                        </button>
-                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
-                          <i class="fas fa-times me-1"></i>{% trans "Refuse" %}
-                        </button>
-                      </form>
-                    {% else %}
-                      {% if notification.response == 'accept' %}
-                        <span class="text-success">
-                          <i class="fas fa-check me-1"></i>{% trans "Invitation accepted" %}
-                        </span>
-                      {% elif notification.response == 'reject' %}
-                        <span class="text-danger">
-                          <i class="fas fa-times me-1"></i>{% trans "Invitation refused" %}
-                        </span>
-                      {% endif %}
-                    {% endif %}
-
-                  {% elif notification.is_join_request %}
-                    {% if not notification.response_given %}
-                      <form method="post" action="{% url 'projects:accept_member' notification.project_id notification.sender_id %}" class="action-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
-                        <button type="submit" name="response" value="accept" class="btn btn-success btn-sm">
-                          <i class="fas fa-check me-1"></i>{% trans "Accept" %}
-                        </button>
-                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
-                          <i class="fas fa-times me-1"></i>{% trans "Refuse" %}
-                        </button>
-                      </form>
-                    {% else %}
-                      {% if notification.response == 'accept' %}
-                        <span class="text-success">
-                          <i class="fas fa-check me-1"></i>{% trans "Request accepted" %}
-                        </span>
-                      {% elif notification.response == 'reject' %}
-                        <span class="text-danger">
-                          <i class="fas fa-times me-1"></i>{% trans "Request refused" %}
-                        </span>
-                      {% endif %}
-                    {% endif %}
-
-                  {% elif notification.is_leave_request %}
-                    {% if not notification.response_given %}
-                      <form method="post" action="{% url 'projects:respond_leave_request' notification.project_id notification.sender_id %}" class="action-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="notification_id" value="{{ notification.id }}">
-                        <button type="submit" name="response" value="approve" class="btn btn-success btn-sm">
-                          <i class="fas fa-check me-1"></i>{% trans "Approve" %}
-                        </button>
-                        <button type="submit" name="response" value="reject" class="btn btn-outline-danger btn-sm">
-                          <i class="fas fa-times me-1"></i>{% trans "Reject" %}
-                        </button>
-                      </form>
-                    {% else %}
-                      {% if notification.response == 'approve' %}
-                        <span class="text-success">
-                          <i class="fas fa-check me-1"></i>{% trans "Leave request approved" %}
-                        </span>
-                      {% elif notification.response == 'reject' %}
-                        <span class="text-danger">
-                          <i class="fas fa-times me-1"></i>{% trans "Leave request rejected" %}
-                        </span>
-                      {% endif %}
-                    {% endif %}
-                  {% endif %}
-                </div>
-
-                <div class="secondary-actions">
-                  {% if notification.read %}
-                    <span class="text-muted read-status">
-                      <i class="fas fa-check me-1"></i>{% trans "Read" %}
-                    </span>
-                  {% else %}
-                    <a href="{% url 'notifications:mark_read' notification.id %}"
-                       data-api-endpoint="{% url 'notifications:api_mark_as_read' notification.id %}"
-                       class="mark-read-link">
-                      <i class="far fa-check-circle me-1"></i>{% trans "Mark as read" %}
-                    </a>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
+      <!-- Stats Cards -->
+      <div class="notif-stats">
+        <div class="notif-stat-card">
+          <div class="notif-stat-icon total">
+            <i class="fas fa-inbox"></i>
           </div>
-        </article>
-      {% endfor %}
-    </div>
-
-    <div class="empty-state filter-empty-state d-none" data-filter-empty-state>
-      <div class="empty-icon">
-        <i class="fas fa-search"></i>
+          <div class="notif-stat-content">
+            <div class="notif-stat-value">{{ total_notifications|default:0 }}</div>
+            <div class="notif-stat-label">{% translate "Total Notifications" %}</div>
+          </div>
+        </div>
+        
+        <div class="notif-stat-card">
+          <div class="notif-stat-icon unread">
+            <i class="fas fa-envelope"></i>
+          </div>
+          <div class="notif-stat-content">
+            <div class="notif-stat-value">{{ unread_notifications|default:0 }}</div>
+            <div class="notif-stat-label">{% translate "Unread" %}</div>
+          </div>
+        </div>
+        
+        <div class="notif-stat-card">
+          <div class="notif-stat-icon action">
+            <i class="fas fa-exclamation-circle"></i>
+          </div>
+          <div class="notif-stat-content">
+            <div class="notif-stat-value">{{ action_required_count|default:0 }}</div>
+            <div class="notif-stat-label">{% translate "Action Required" %}</div>
+          </div>
+        </div>
       </div>
-      <h3>{% trans "No notifications match your filters" %}</h3>
-      <p>{% trans "Adjust the filters or clear the search query to see more updates." %}</p>
-    </div>
+    </header>
+
+    <!-- Main Content -->
+    {% if notifications|length %}
+    
+      <!-- Today's Notifications -->
+      {% if grouped_notifications.today %}
+      <section class="notif-date-group">
+        <div class="notif-date-header">
+          <span class="notif-date-title">{% translate "Today" %}</span>
+          <div class="notif-date-line"></div>
+          <span class="notif-date-count">{{ grouped_notifications.today|length }}</span>
+        </div>
+        <div class="notif-list">
+          {% for notification in grouped_notifications.today %}
+            {% include "notifications/partials/_notification_card.html" %}
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Yesterday's Notifications -->
+      {% if grouped_notifications.yesterday %}
+      <section class="notif-date-group">
+        <div class="notif-date-header">
+          <span class="notif-date-title">{% translate "Yesterday" %}</span>
+          <div class="notif-date-line"></div>
+          <span class="notif-date-count">{{ grouped_notifications.yesterday|length }}</span>
+        </div>
+        <div class="notif-list">
+          {% for notification in grouped_notifications.yesterday %}
+            {% include "notifications/partials/_notification_card.html" %}
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Earlier Notifications -->
+      {% if grouped_notifications.earlier %}
+      <section class="notif-date-group">
+        <div class="notif-date-header">
+          <span class="notif-date-title">{% translate "Earlier" %}</span>
+          <div class="notif-date-line"></div>
+          <span class="notif-date-count">{{ grouped_notifications.earlier|length }}</span>
+        </div>
+        <div class="notif-list">
+          {% for notification in grouped_notifications.earlier %}
+            {% include "notifications/partials/_notification_card.html" %}
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Pagination -->
+      {% if notifications.has_other_pages %}
+      <nav class="notif-pagination" aria-label="{% translate 'Notifications pagination' %}">
+        {% if notifications.has_previous %}
+          <a href="?page=1" class="notif-page-btn" aria-label="{% translate 'First page' %}">
+            <i class="fas fa-angle-double-left"></i>
+          </a>
+          <a href="?page={{ notifications.previous_page_number }}" class="notif-page-btn" aria-label="{% translate 'Previous page' %}">
+            <i class="fas fa-angle-left"></i>
+          </a>
+        {% else %}
+          <span class="notif-page-btn disabled"><i class="fas fa-angle-double-left"></i></span>
+          <span class="notif-page-btn disabled"><i class="fas fa-angle-left"></i></span>
+        {% endif %}
+
+        {% for i in notifications.paginator.page_range %}
+          {% if notifications.number == i %}
+            <span class="notif-page-btn active">{{ i }}</span>
+          {% elif i > notifications.number|add:'-3' and i < notifications.number|add:'3' %}
+            <a href="?page={{ i }}" class="notif-page-btn">{{ i }}</a>
+          {% endif %}
+        {% endfor %}
+
+        {% if notifications.has_next %}
+          <a href="?page={{ notifications.next_page_number }}" class="notif-page-btn" aria-label="{% translate 'Next page' %}">
+            <i class="fas fa-angle-right"></i>
+          </a>
+          <a href="?page={{ notifications.paginator.num_pages }}" class="notif-page-btn" aria-label="{% translate 'Last page' %}">
+            <i class="fas fa-angle-double-right"></i>
+          </a>
+        {% else %}
+          <span class="notif-page-btn disabled"><i class="fas fa-angle-right"></i></span>
+          <span class="notif-page-btn disabled"><i class="fas fa-angle-double-right"></i></span>
+        {% endif %}
+      </nav>
+      {% endif %}
 
     {% else %}
-    <div class="empty-state animate__animated animate__fadeIn">
-      <div class="empty-icon">
+    <!-- Empty State -->
+    <div class="notif-empty">
+      <div class="notif-empty-icon">
         <i class="fas fa-bell-slash"></i>
       </div>
-      <h3>{% trans "No notifications" %}</h3>
-      <p>{% trans "You have no notifications at the moment." %}</p>
+      <h3>{% translate "No notifications" %}</h3>
+      <p>{% translate "You're all caught up! Check back later for new updates." %}</p>
     </div>
     {% endif %}
 
-    {% if notifications and notifications.has_other_pages %}
-    <div class="pagination-container">
-      <nav aria-label="{% trans 'Notifications pagination' %}">
-        <ul class="pagination justify-content-center">
-          {% if notifications.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page=1" aria-label="{% trans 'First page' %}">
-                <i class="fas fa-angle-double-left"></i>
-              </a>
-            </li>
-            <li class="page-item">
-              <a class="page-link" href="?page={{ notifications.previous_page_number }}" aria-label="{% trans 'Previous page' %}">
-                <i class="fas fa-angle-left"></i>
-              </a>
-            </li>
-          {% else %}
-            <li class="page-item disabled">
-              <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
-            </li>
-            <li class="page-item disabled">
-              <span class="page-link"><i class="fas fa-angle-left"></i></span>
-            </li>
-          {% endif %}
-
-          {% for i in notifications.paginator.page_range %}
-            {% if notifications.number == i %}
-              <li class="page-item active">
-                <span class="page-link">{{ i }}</span>
-              </li>
-            {% elif i > notifications.number|add:'-3' and i < notifications.number|add:'3' %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ i }}">{{ i }}</a>
-              </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if notifications.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ notifications.next_page_number }}" aria-label="{% trans 'Next page' %}">
-                <i class="fas fa-angle-right"></i>
-              </a>
-            </li>
-            <li class="page-item">
-              <a class="page-link" href="?page={{ notifications.paginator.num_pages }}" aria-label="{% trans 'Last page' %}">
-                <i class="fas fa-angle-double-right"></i>
-              </a>
-            </li>
-          {% else %}
-            <li class="page-item disabled">
-              <span class="page-link"><i class="fas fa-angle-right"></i></span>
-            </li>
-            <li class="page-item disabled">
-              <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
-            </li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Handle delete button clicks - prevent card navigation
+  document.querySelectorAll('.notif-delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (confirm('{% translate "Delete this notification?" %}')) {
+        window.location.href = this.getAttribute('href');
+      }
+    });
+  });
+
+  // Handle action form submissions - prevent card navigation
+  document.querySelectorAll('.notif-action-form').forEach(function(form) {
+    form.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+  });
+});
+</script>
 {% endblock %}

@@ -1,178 +1,825 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
-{% block content %}
-<div class="container py-5">
-    {% if review_mode and is_pending %}
-    <div class="alert alert-info mb-4">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>{% trans "Admin Review Mode" %}</strong> - 
-        {% trans "Please review and complete all bilingual fields (Arabic & English) before approving." %}
-    </div>
-    {% endif %}
+{% block title %}
+{% trans "Update Resource" %} - {{ object.get_localized_title|truncatechars:30 }}
+{% endblock %}
 
-    <h1 class="mb-4">
-        {% if review_mode and is_pending %}
-            {% trans "Review & Edit" %} - 
-        {% endif %}
-        {% if form.initial.document_type == 'thesis' %}
-            {% trans "Update Thesis" %}
-        {% elif form.initial.document_type == 'article' %}
-            {% trans "Update Article" %}
-        {% elif form.initial.document_type == 'memoir' %}
-            {% trans "Update Memoir" %}
-        {% elif form.initial.resource_type == 'nlp_tool' %}
-            {% trans "Update NLP Tool" %}
-        {% elif form.initial.resource_type == 'course' %}
-            {% trans "Update Course" %}
-        {% elif form.initial.resource_type == 'corpus' %}
-            {% trans "Update Corpus" %}
-        {% else %}
-            {% trans "Update Resource" %}
-        {% endif %}
-    </h1>
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Engineering Grade Theme ===== */
+:root {
+    --eng-primary: #1e3a5f;
+    --eng-accent: #2563eb;
+    --eng-accent-light: #3b82f6;
+    --eng-teal: #0d9488;
+    --eng-surface: #ffffff;
+    --eng-background: #f8fafc;
+    --eng-muted: #f1f5f9;
+    --eng-border: #e2e8f0;
+    --eng-border-dark: #cbd5e1;
+    --eng-text: #0f172a;
+    --eng-text-secondary: #475569;
+    --eng-text-muted: #94a3b8;
+    --eng-success: #059669;
+    --eng-success-bg: #ecfdf5;
+    --eng-warning: #d97706;
+    --eng-warning-bg: #fffbeb;
+    --eng-danger: #dc2626;
+    --eng-danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.resource-form-page {
+    min-height: calc(100vh - 200px);
+    background: var(--eng-background);
+    padding: 2rem 0 4rem;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--eng-text);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.page-header h1 i {
+    color: var(--eng-accent);
+}
+
+.page-header p {
+    color: var(--eng-text-secondary);
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ===== REVIEW MODE ALERT ===== */
+.review-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--eng-warning-bg);
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+}
+
+.review-alert i {
+    font-size: 1.5rem;
+    color: var(--eng-warning);
+    flex-shrink: 0;
+}
+
+.review-alert-content h4 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.review-alert-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--eng-text-secondary);
+}
+
+/* ===== SECTION CARDS ===== */
+.section-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    animation: slideUp 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+.section-card:nth-child(1) { animation-delay: 0.1s; }
+.section-card:nth-child(2) { animation-delay: 0.2s; }
+.section-card:nth-child(3) { animation-delay: 0.3s; }
+.section-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--eng-muted) 0%, #e2e8f0 100%);
+    border-bottom: 1px solid var(--eng-border);
+}
+
+.section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.section-icon.core { background: #dbeafe; color: #1e40af; }
+.section-icon.bilingual { background: #ccfbf1; color: #0d9488; }
+.section-icon.specific { background: #fef3c7; color: #92400e; }
+
+.section-header-text h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.section-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--eng-text-muted);
+}
+
+.section-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--eng-text);
+    margin-bottom: 0.5rem;
+}
+
+.required-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: var(--eng-danger-bg);
+    color: var(--eng-danger);
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+}
+
+.form-control,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    background: var(--eng-surface);
+    transition: all 0.3s ease;
+    color: var(--eng-text);
+}
+
+.form-control:focus,
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--eng-accent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.form-group textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.form-group .form-text,
+.form-group .help-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--eng-text-muted);
+}
+
+/* Field Grid */
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== BILINGUAL SECTION ===== */
+.bilingual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .bilingual-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bilingual-column {
+    padding: 1.5rem;
+    background: var(--eng-muted);
+    border-radius: var(--radius-md);
+}
+
+.bilingual-column.english {
+    border-left: 4px solid var(--eng-accent);
+}
+
+.bilingual-column.arabic {
+    border-left: 4px solid var(--eng-teal);
+}
+
+.bilingual-column h5 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.bilingual-column.english h5 {
+    color: var(--eng-accent);
+}
+
+.bilingual-column.arabic h5 {
+    color: var(--eng-teal);
+}
+
+/* ===== SPECIFIC FIELDS SECTIONS ===== */
+.specific-fields {
+    display: none;
+}
+
+.specific-fields.visible {
+    display: block;
+    animation: slideUp 0.4s ease-out forwards;
+}
+
+/* ===== FORM ACTIONS ===== */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--eng-border);
+    margin-top: 1rem;
+}
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: transparent;
+    color: var(--eng-text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-cancel:hover {
+    border-color: var(--eng-text-secondary);
+    color: var(--eng-text);
+}
+
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-submit .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-submit.loading .spinner {
+    display: block;
+}
+
+.btn-submit.loading .btn-text {
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .section-header {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .form-group label {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+html[dir="rtl"] .form-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .bilingual-column.english,
+html[dir="rtl"] .bilingual-column.arabic {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+html[dir="rtl"] .bilingual-column.english {
+    border-right-color: var(--eng-accent);
+}
+
+html[dir="rtl"] .bilingual-column.arabic {
+    border-right-color: var(--eng-teal);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
     
-    <form method="post" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
+    .btn-cancel, .btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
 
-        <!-- Include resource_type as hidden input -->
-        {{ form.resource_type.as_hidden }}
+{% block content %}
+<div class="resource-form-page">
+    <div class="form-container">
         
-        <!-- Include document_type as hidden if resource is document -->
-        {% if form.initial.resource_type == 'document' %}
-            {{ form.document_type.as_hidden }}
-        {% endif %}
-
-        <!-- Common fields -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Basic Information" %}
-            </div>
-            <div class="card-body">
-                {{ form.title|as_crispy_field }}
-                {{ form.language|as_crispy_field }}
-                {{ form.description|as_crispy_field }}
-                {{ form.keywords|as_crispy_field }}
-                {{ form.access_link|as_crispy_field }}
+        <!-- Page Header -->
+        <header class="page-header">
+            <h1>
+                <i class="bi bi-pencil-square"></i>
+                {% if review_mode and is_pending %}
+                    {% trans "Review & Edit Resource" %}
+                {% else %}
+                    {% trans "Update Resource" %}
+                {% endif %}
+            </h1>
+            <p>
+                {% if form.initial.document_type == 'thesis' %}{% trans "Editing Thesis" %}
+                {% elif form.initial.document_type == 'article' %}{% trans "Editing Article" %}
+                {% elif form.initial.document_type == 'memoir' %}{% trans "Editing Memoir" %}
+                {% elif form.initial.resource_type == 'nlp_tool' %}{% trans "Editing NLP Tool" %}
+                {% elif form.initial.resource_type == 'course' %}{% trans "Editing Course" %}
+                {% elif form.initial.resource_type == 'corpus' %}{% trans "Editing Corpus" %}
+                {% else %}{% trans "Editing Resource" %}{% endif %}
+            </p>
+        </header>
+        
+        <!-- Review Mode Alert -->
+        {% if review_mode and is_pending %}
+        <div class="review-alert">
+            <i class="bi bi-info-circle-fill"></i>
+            <div class="review-alert-content">
+                <h4>{% trans "Admin Review Mode" %}</h4>
+                <p>{% trans "Please review and complete all bilingual fields (Arabic & English) before approving." %}</p>
             </div>
         </div>
-
-        <!-- Bilingual Fields Section - Show in review mode or for admins -->
-        {% if review_mode or request.user.is_staff %}
-        <div class="card mb-4 border-warning">
-            <div class="card-header bg-warning text-dark">
-                <i class="fas fa-language me-2"></i>{% trans "Bilingual Content (Required for Approval)" %}
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5 class="text-primary mb-3"><i class="fas fa-globe me-1"></i> {% trans "English" %}</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{% trans "Title (English)" %} <span class="text-danger">*</span></label>
-                            <input type="text" name="title_en" class="form-control" 
-                                   value="{{ resource.title_en|default:'' }}" 
-                                   placeholder="{% trans 'Enter title in English' %}">
+        {% endif %}
+        
+        <form method="post" enctype="multipart/form-data" id="resource-form" novalidate>
+            {% csrf_token %}
+            
+            <!-- Hidden fields -->
+            {{ form.resource_type.as_hidden }}
+            {% if form.initial.resource_type == 'document' %}
+                {{ form.document_type.as_hidden }}
+            {% endif %}
+            
+            <!-- Section 1: Basic Information -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon core">
+                        <i class="bi bi-card-heading"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Basic Information" %}</h2>
+                        <p>{% trans "Core details about your resource" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    
+                    <!-- Title -->
+                    <div class="form-group">
+                        <label for="id_title">
+                            {% trans "Title" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.title }}
+                    </div>
+                    
+                    <!-- Language -->
+                    <div class="form-group">
+                        <label for="id_language">{% trans "Content Language" %}</label>
+                        {{ form.language }}
+                    </div>
+                    
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="id_description">
+                            {% trans "Description" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.description }}
+                    </div>
+                    
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% trans "Comma-separated keywords" %}</span>
+                    </div>
+                    
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        {{ form.access_link }}
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <!-- Section 2: Bilingual Content (Admin/Review Mode) -->
+            {% if review_mode or request.user.is_staff %}
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon bilingual">
+                        <i class="bi bi-translate"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Bilingual Content" %}</h2>
+                        <p>{% trans "Required for approval - provide content in both languages" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="bilingual-grid">
+                        
+                        <!-- English Column -->
+                        <div class="bilingual-column english">
+                            <h5><i class="bi bi-globe"></i> {% trans "English" %}</h5>
+                            
+                            <div class="form-group">
+                                <label for="id_title_en">
+                                    {% trans "Title (English)" %}
+                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
+                                </label>
+                                <input type="text" 
+                                       name="title_en" 
+                                       id="id_title_en"
+                                       class="form-control" 
+                                       value="{{ resource.title_en|default:'' }}" 
+                                       placeholder="{% trans 'Enter title in English' %}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_description_en">
+                                    {% trans "Description (English)" %}
+                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
+                                </label>
+                                <textarea name="description_en" 
+                                          id="id_description_en"
+                                          class="form-control" 
+                                          rows="5" 
+                                          placeholder="{% trans 'Enter description in English' %}">{{ resource.description_en|default:'' }}</textarea>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{% trans "Description (English)" %} <span class="text-danger">*</span></label>
-                            <textarea name="description_en" class="form-control" rows="4" 
-                                      placeholder="{% trans 'Enter description in English' %}">{{ resource.description_en|default:'' }}</textarea>
+                        
+                        <!-- Arabic Column -->
+                        <div class="bilingual-column arabic">
+                            <h5><i class="bi bi-globe"></i> {% trans "Arabic" %}</h5>
+                            
+                            <div class="form-group">
+                                <label for="id_title_ar">
+                                    {% trans "Title (Arabic)" %}
+                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
+                                </label>
+                                <input type="text" 
+                                       name="title_ar" 
+                                       id="id_title_ar"
+                                       class="form-control" 
+                                       dir="rtl" 
+                                       value="{{ resource.title_ar|default:'' }}" 
+                                       placeholder="{% trans 'Enter title in Arabic' %}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_description_ar">
+                                    {% trans "Description (Arabic)" %}
+                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
+                                </label>
+                                <textarea name="description_ar" 
+                                          id="id_description_ar"
+                                          class="form-control" 
+                                          rows="5" 
+                                          dir="rtl" 
+                                          placeholder="{% trans 'Enter description in Arabic' %}">{{ resource.description_ar|default:'' }}</textarea>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Course-specific fields -->
+            {% if form.initial.resource_type == 'course' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-mortarboard"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Course Details" %}</h2>
+                        <p>{% trans "Specific information about the course" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_course_field">{% trans "Field" %}</label>
+                            {{ form.course_field }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_academic_level">{% trans "Academic Level" %}</label>
+                            {{ form.academic_level }}
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <h5 class="text-success mb-3"><i class="fas fa-globe me-1"></i> {% trans "Arabic" %}</h5>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{% trans "Title (Arabic)" %} <span class="text-danger">*</span></label>
-                            <input type="text" name="title_ar" class="form-control" dir="rtl" 
-                                   value="{{ resource.title_ar|default:'' }}" 
-                                   placeholder="{% trans 'Enter title in Arabic' %}">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_course_institution">{% trans "Institution" %}</label>
+                            {{ form.course_institution }}
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{% trans "Description (Arabic)" %} <span class="text-danger">*</span></label>
-                            <textarea name="description_ar" class="form-control" rows="4" dir="rtl" 
-                                      placeholder="{% trans 'Enter description in Arabic' %}">{{ resource.description_ar|default:'' }}</textarea>
+                        <div class="form-group">
+                            <label for="id_academic_year">{% trans "Academic Year" %}</label>
+                            {{ form.academic_year }}
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Conditional fields based on resource type -->
-        {% if form.initial.resource_type == 'course' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Course Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.course_field|as_crispy_field }}
-                {{ form.academic_level|as_crispy_field }}
-                {{ form.course_institution|as_crispy_field }}
-                {{ form.academic_year|as_crispy_field }}
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'nlp_tool' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Tool Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.tool_type|as_crispy_field }}
-                {{ form.tool_version|as_crispy_field }}
-                {{ form.documentation|as_crispy_field }}
-                {{ form.supported_languages|as_crispy_field }} 
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'corpus' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Corpus Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.corpus_size|as_crispy_field }}
-                {{ form.corpus_field|as_crispy_field }}
-                {{ form.corpus_format|as_crispy_field }}
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'document' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Document Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.document_format|as_crispy_field }}
-                
-                {% if form.initial.document_type == 'article' %}
-                    {{ form.journal|as_crispy_field }}
-                    {{ form.publication_date|as_crispy_field }}
-                    {{ form.doi|as_crispy_field }}
-                {% elif form.initial.document_type == 'thesis' %}
-                    {{ form.supervisor|as_crispy_field }}
-                    {{ form.thesis_institution|as_crispy_field }}
-                    {{ form.defense_year|as_crispy_field }}
-                {% elif form.initial.document_type == 'memoir' %}
-                    {{ form.memoir_level|as_crispy_field }}
-                    {{ form.memoir_institution|as_crispy_field }}
-                    {{ form.memoir_defense_year|as_crispy_field }}
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="d-flex justify-content-between mt-4">
-            <a href="{% url 'resources:resource-detail' type=view.kwargs.type pk=view.kwargs.pk %}" 
-               class="btn btn-secondary">{% trans "Cancel" %}</a>
-            <div>
-                <button type="submit" class="btn btn-primary me-2">
-                    {% trans "Save Changes" %}
+            </section>
+            {% endif %}
+            
+            <!-- NLP Tool-specific fields -->
+            {% if form.initial.resource_type == 'nlp_tool' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Tool Details" %}</h2>
+                        <p>{% trans "Technical specifications of the tool" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_tool_type">{% trans "Tool Type" %}</label>
+                            {{ form.tool_type }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_tool_version">{% trans "Version" %}</label>
+                            {{ form.tool_version }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_documentation">{% trans "Documentation URL" %}</label>
+                        {{ form.documentation }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_supported_languages">{% trans "Supported Languages" %}</label>
+                        {{ form.supported_languages }}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Corpus-specific fields -->
+            {% if form.initial.resource_type == 'corpus' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-database"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Corpus Details" %}</h2>
+                        <p>{% trans "Information about the corpus" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_corpus_size">{% trans "Corpus Size" %}</label>
+                            {{ form.corpus_size }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_corpus_field">{% trans "Field" %}</label>
+                            {{ form.corpus_field }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_corpus_format">{% trans "Format" %}</label>
+                        {{ form.corpus_format }}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Document-specific fields (Article, Thesis, Memoir) -->
+            {% if form.initial.resource_type == 'document' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Document Details" %}</h2>
+                        <p>{% trans "Specific document information" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-group">
+                        <label for="id_document_format">{% trans "Format" %}</label>
+                        {{ form.document_format }}
+                    </div>
+                    
+                    {% if form.initial.document_type == 'article' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_journal">{% trans "Journal" %}</label>
+                            {{ form.journal }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_publication_date">{% trans "Publication Date" %}</label>
+                            {{ form.publication_date }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_doi">{% trans "DOI" %}</label>
+                        {{ form.doi }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if form.initial.document_type == 'thesis' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_supervisor">{% trans "Supervisor" %}</label>
+                            {{ form.supervisor }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_thesis_institution">{% trans "Institution" %}</label>
+                            {{ form.thesis_institution }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.defense_year }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if form.initial.document_type == 'memoir' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_memoir_level">{% trans "Level" %}</label>
+                            {{ form.memoir_level }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_memoir_institution">{% trans "Institution" %}</label>
+                            {{ form.memoir_institution }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_memoir_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.memoir_defense_year }}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'resources:list' %}" class="btn-cancel">
+                    <i class="bi bi-x"></i>
+                    {% trans "Cancel" %}
+                </a>
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="spinner"></span>
+                    <i class="bi bi-check2"></i>
+                    <span class="btn-text">{% trans "Save Changes" %}</span>
                 </button>
-                {% if review_mode and is_pending and request.user.is_staff %}
-                <button type="submit" name="approve_and_publish" value="1" class="btn btn-success">
-                    <i class="fas fa-check me-1"></i> {% trans "Approve & Publish" %}
-                </button>
-                {% endif %}
             </div>
-        </div>
-    </form>
+            
+        </form>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Submit Loading =====
+    const form = document.getElementById('resource-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
+    
+    // ===== Add form-control class to all inputs =====
+    document.querySelectorAll('.section-body input, .section-body select, .section-body textarea').forEach(el => {
+        if (!el.classList.contains('form-control')) {
+            el.classList.add('form-control');
+        }
+    });
+});
+</script>
 {% endblock %}

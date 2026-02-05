@@ -1,243 +1,641 @@
 {% extends 'base.html' %}
-{% load static %}
-{% load i18n %}
+{% load i18n static %}
 
-{% block title %}{% trans "Discussion topics | Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% translate "Discussion Hub" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== FORUM TOPIC LIST CSS ===== */
+:root {
+    --ft-primary: #3B82F6;
+    --ft-primary-dark: #2563eb;
+    --ft-primary-light: #60a5fa;
+    --ft-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --ft-deep: #0f172a;
+    --ft-navy: #1e3a5f;
+    --ft-white: #ffffff;
+    --ft-bg: #f8fafc;
+    --ft-muted: #f1f5f9;
+    --ft-subtle: #e2e8f0;
+    
+    --ft-text: #0f172a;
+    --ft-text-secondary: #475569;
+    --ft-text-muted: #94a3b8;
+    
+    --ft-border: #e2e8f0;
+    --ft-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ft-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ft-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    
+    --ft-success: #10b981;
+    --ft-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --ft-warning: #f59e0b;
+    --ft-warning-bg: rgba(245, 158, 11, 0.1);
+    --ft-warning-border: rgba(245, 158, 11, 0.3);
+    
+    --ft-danger: #ef4444;
+    --ft-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --ft-purple: #8b5cf6;
+    --ft-purple-bg: rgba(139, 92, 246, 0.1);
+    
+    --ft-radius-sm: 6px;
+    --ft-radius-md: 10px;
+    --ft-radius-lg: 14px;
+    --ft-radius-xl: 20px;
+    --ft-radius-full: 9999px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.ft-page { min-height: 100vh; background: var(--ft-bg); }
+
+/* Hero Section */
+.ft-hero {
+    background: linear-gradient(145deg, var(--ft-deep) 0%, var(--ft-navy) 100%);
+    padding: 3rem 0 5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.ft-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent);
+    pointer-events: none;
+}
+
+.ft-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ft-hero-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.ft-hero-content { display: flex; align-items: center; gap: 1.5rem; }
+
+.ft-hero-icon {
+    width: 72px;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--ft-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ft-hero-icon i { font-size: 2rem; color: var(--ft-white); }
+
+.ft-hero-text h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 900;
+    color: var(--ft-white);
+    margin: 0 0 0.5rem;
+}
+
+.ft-hero-text p { font-size: 1.1rem; color: rgba(255, 255, 255, 0.7); margin: 0; }
+
+.ft-hero-stats {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.ft-stat {
+    text-align: center;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--ft-radius-md);
+    min-width: 90px;
+}
+
+.ft-stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--ft-white);
+    line-height: 1;
+}
+
+.ft-stat-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+/* Content Section */
+.ft-content {
+    max-width: 1200px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+}
+
+/* Toolbar */
+.ft-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ft-search-box {
+    flex: 1;
+    max-width: 400px;
+    position: relative;
+}
+
+.ft-search-input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 3rem;
+    background: var(--ft-white);
+    border: 1px solid var(--ft-border);
+    border-radius: var(--ft-radius-lg);
+    font-size: 0.95rem;
+    color: var(--ft-text);
+    box-shadow: var(--ft-shadow-sm);
+    transition: all 0.2s;
+}
+
+html[dir="rtl"] .ft-search-input { padding: 0.875rem 3rem 0.875rem 1rem; }
+
+.ft-search-input:focus {
+    outline: none;
+    border-color: var(--ft-primary);
+    box-shadow: 0 0 0 4px var(--ft-primary-glow);
+}
+
+.ft-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ft-text-muted);
+    font-size: 1.1rem;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .ft-search-icon { left: auto; right: 1rem; }
+
+.ft-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: var(--ft-radius-md);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ft-btn-primary { background: var(--ft-primary); color: var(--ft-white); }
+.ft-btn-primary:hover { background: var(--ft-primary-dark); color: var(--ft-white); transform: translateY(-1px); }
+
+/* Topic Cards */
+.ft-topic-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.ft-topic-card {
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
+    gap: 1.5rem;
+    background: var(--ft-white);
+    border: 1px solid var(--ft-border);
+    border-radius: var(--ft-radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--ft-shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.ft-topic-card:hover {
+    border-color: var(--ft-primary);
+    box-shadow: var(--ft-shadow-md);
+    transform: translateY(-2px);
+}
+
+.ft-topic-card.is-pending {
+    border-color: var(--ft-warning-border);
+    background: linear-gradient(to right, var(--ft-warning-bg), var(--ft-white) 30%);
+}
+
+html[dir="rtl"] .ft-topic-card.is-pending {
+    background: linear-gradient(to left, var(--ft-warning-bg), var(--ft-white) 30%);
+}
+
+/* Stats Column */
+.ft-stats-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: var(--ft-muted);
+    border-radius: var(--ft-radius-md);
+}
+
+.ft-stat-item {
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.ft-stat-num {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--ft-text);
+    line-height: 1;
+}
+
+.ft-stat-num.votes { color: var(--ft-primary); }
+.ft-stat-num.replies { color: var(--ft-success); }
+.ft-stat-num.views { color: var(--ft-text-muted); }
+
+.ft-stat-txt {
+    font-size: 0.65rem;
+    color: var(--ft-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.125rem;
+}
+
+/* Content Column */
+.ft-content-col { flex: 1; min-width: 0; }
+
+.ft-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--ft-warning-bg);
+    color: #b45309;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: var(--ft-radius-full);
+    margin-bottom: 0.75rem;
+}
+
+.ft-topic-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ft-text);
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+}
+
+.ft-topic-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ft-topic-title a:hover { color: var(--ft-primary); }
+
+.ft-topic-excerpt {
+    font-size: 0.9rem;
+    color: var(--ft-text-secondary);
+    line-height: 1.6;
+    margin: 0 0 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ft-topic-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ft-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--ft-purple-bg);
+    color: var(--ft-purple);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--ft-radius-full);
+}
+
+/* User Meta Column */
+.ft-meta-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    min-width: 140px;
+}
+
+html[dir="rtl"] .ft-meta-col { align-items: flex-start; }
+
+.ft-user-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ft-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--ft-primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.ft-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ft-user-avatar i { font-size: 1rem; color: var(--ft-primary); }
+
+.ft-user-info { text-align: right; }
+html[dir="rtl"] .ft-user-info { text-align: left; }
+
+.ft-user-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ft-text);
+    margin: 0;
+}
+
+.ft-user-time {
+    font-size: 0.75rem;
+    color: var(--ft-text-muted);
+    margin: 0;
+}
+
+.ft-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ft-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--ft-radius-sm);
+    border: 1px solid var(--ft-border);
+    background: var(--ft-white);
+    color: var(--ft-text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.ft-action-btn:hover {
+    background: var(--ft-muted);
+    color: var(--ft-text);
+    border-color: var(--ft-subtle);
+}
+
+.ft-action-btn.primary:hover { background: var(--ft-primary-glow); color: var(--ft-primary); border-color: var(--ft-primary); }
+.ft-action-btn.danger:hover { background: var(--ft-danger-bg); color: var(--ft-danger); border-color: var(--ft-danger); }
+.ft-action-btn.success:hover { background: var(--ft-success-bg); color: var(--ft-success); border-color: var(--ft-success); }
+
+/* Empty State */
+.ft-empty {
+    background: var(--ft-white);
+    border: 1px solid var(--ft-border);
+    border-radius: var(--ft-radius-xl);
+    padding: 4rem 2rem;
+    text-align: center;
+    box-shadow: var(--ft-shadow-sm);
+}
+
+.ft-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--ft-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--ft-text-muted);
+    font-size: 2rem;
+}
+
+.ft-empty-title { font-size: 1.25rem; font-weight: 700; color: var(--ft-text); margin: 0 0 0.5rem; }
+.ft-empty-text { font-size: 0.95rem; color: var(--ft-text-secondary); margin: 0 0 1.5rem; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .ft-topic-card {
+        grid-template-columns: 80px 1fr;
+        grid-template-rows: auto auto;
+    }
+    .ft-meta-col {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 1rem;
+        border-top: 1px solid var(--ft-border);
+    }
+    html[dir="rtl"] .ft-meta-col { flex-direction: row-reverse; }
+    .ft-user-info { text-align: left; }
+    html[dir="rtl"] .ft-user-info { text-align: right; }
+}
+
+@media (max-width: 640px) {
+    .ft-hero { padding: 2rem 0 4rem; }
+    .ft-hero-row { flex-direction: column; align-items: flex-start; }
+    .ft-hero-stats { width: 100%; justify-content: space-around; }
+    .ft-content { padding: 0 1rem 3rem; }
+    .ft-toolbar { flex-direction: column; align-items: stretch; }
+    .ft-search-box { max-width: none; }
+    .ft-topic-card { grid-template-columns: 1fr; gap: 1rem; }
+    .ft-stats-col { flex-direction: row; justify-content: space-around; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="forum-header">
-        <h1 class="forum-title">{% trans "Discussion topics" %}</h1>
-        <a href="{% url 'forum:topic-new' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> {% trans "New topic" %}
-        </a>
-    </div>
+<div class="ft-page">
     
-    {% if topics %}
-    <div class="topic-list">
-        {% for topic in topics %}
-        <div class="topic-card {% if topic.approval_status == 'pending' %}border-warning{% endif %}">
-            {% if topic.approval_status == 'pending' and topic.creator == user %}
-            <div class="alert alert-warning mb-0 rounded-0 rounded-top py-2">
-                <i class="fas fa-clock me-2"></i>{% trans "This topic is pending admin approval" %}
-            </div>
-            {% endif %}
-            <div class="topic-card-header">
-                <div class="topic-info">
-                    <a href="{% url 'forum:chatroom-list' topic.id %}" class="topic-title">
-                        <h3>{{ topic.get_localized_title }}</h3>
-                    </a>
-                    <div class="topic-meta">
-                        <span class="topic-author">
-                            <i class="fas fa-user"></i> {{ topic.creator.get_full_name_display }}
-                        </span>
-                        <span class="topic-date">
-                            <i class="far fa-calendar-alt"></i> {{ topic.created_at|date:"d/m/Y" }}
-                        </span>
+    <header class="ft-hero">
+        <div class="ft-hero-container">
+            <div class="ft-hero-row">
+                <div class="ft-hero-content">
+                    <div class="ft-hero-icon">
+                        <i class="bi bi-chat-square-quote"></i>
+                    </div>
+                    <div class="ft-hero-text">
+                        <h1>{% translate "Discussion Hub" %}</h1>
+                        <p>{% translate "Connect, share knowledge, and collaborate with Arabic NLP researchers." %}</p>
+                    </div>
+                </div>
+                
+                <div class="ft-hero-stats">
+                    <div class="ft-stat">
+                        <div class="ft-stat-value">{{ topics|length }}</div>
+                        <div class="ft-stat-label">{% translate "Topics" %}</div>
+                    </div>
+                    <div class="ft-stat">
+                        <div class="ft-stat-value">{{ total_chatrooms|default:"0" }}</div>
+                        <div class="ft-stat-label">{% translate "Rooms" %}</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="topic-card-body">
-                <p class="topic-description">{{ topic.get_localized_description }}</p>
-            </div>
-            
-            <div class="topic-card-footer">
-                <a href="{% url 'forum:chatroom-new' topic.id %}" class="btn btn-outline btn-sm">
-                    <i class="fas fa-comments"></i> {% trans "Create a chat room" %}
-                </a>
-                
-                {% if topic.creator == user %}
-                <div class="topic-actions">
-                    <a href="{% url 'forum:topic-update' topic.id %}" class="btn btn-outline btn-sm">
-                        <i class="fas fa-edit"></i> {% trans "Edite" %}
-                    </a>
-                    <a href="{% url 'forum:topic-delete' topic.id %}" class="btn btn-danger btn-sm">
-                        <i class="fas fa-trash"></i>{% trans "Delete" %} 
-                    </a>
-                </div>
-                {% endif %}
-            </div>
         </div>
-        {% endfor %}
-    </div>
+    </header>
     
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-comments-alt"></i>
+    <main class="ft-content">
+        
+        <div class="ft-toolbar">
+            <div class="ft-search-box">
+                <i class="bi bi-search ft-search-icon"></i>
+                <input type="text" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch">
+            </div>
+            <a href="{% url 'forum:topic-new' %}" class="ft-btn ft-btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                {% translate "New Discussion" %}
+            </a>
         </div>
-        <h3>{% trans "No topics have been created" %}</h3>
-        <p>{% trans "Be the first to start a discussion!" %}</p>
-        <a href="{% url 'forum:topic-new' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> {% trans "Create a topic" %}
-        </a>
-    </div>
-    {% endif %}
+        
+        {% if topics %}
+        <div class="ft-topic-list" id="topicList">
+            {% for topic in topics %}
+            <article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
+                
+                <div class="ft-stats-col">
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Votes" %}</div>
+                    </div>
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
+                        <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+                    </div>
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Views" %}</div>
+                    </div>
+                </div>
+                
+                <div class="ft-content-col">
+                    {% if topic.approval_status == 'pending' and topic.creator == user %}
+                    <span class="ft-pending-badge">
+                        <i class="bi bi-hourglass-split"></i>
+                        {% translate "Pending Approval" %}
+                    </span>
+                    {% endif %}
+                    
+                    <h3 class="ft-topic-title">
+                        <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
+                    </h3>
+                    <p class="ft-topic-excerpt">{{ topic.get_localized_description|truncatechars:150 }}</p>
+                    
+                    <div class="ft-topic-tags">
+                        <span class="ft-tag">
+                            <i class="bi bi-tag"></i>
+                            {% translate "NLP" %}
+                        </span>
+                        <span class="ft-tag">
+                            <i class="bi bi-globe2"></i>
+                            {% translate "Arabic" %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="ft-meta-col">
+                    <div class="ft-user-meta">
+                        <div class="ft-user-info">
+                            <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                            <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                        </div>
+                        <div class="ft-user-avatar">
+                            {% if topic.creator.avatar %}
+                            <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+                            {% else %}
+                            <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="ft-card-actions">
+                        <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+                            <i class="bi bi-chat-dots"></i>
+                        </a>
+                        {% if topic.creator == user or user.is_staff %}
+                        <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+                            <i class="bi bi-trash3"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        {% else %}
+        <div class="ft-empty">
+            <div class="ft-empty-icon">
+                <i class="bi bi-chat-square-quote"></i>
+            </div>
+            <h2 class="ft-empty-title">{% translate "No discussions yet" %}</h2>
+            <p class="ft-empty-text">{% translate "Be the first to start a conversation in our community!" %}</p>
+            <a href="{% url 'forum:topic-new' %}" class="ft-btn ft-btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                {% translate "Start a Discussion" %}
+            </a>
+        </div>
+        {% endif %}
+        
+    </main>
 </div>
 
-<style>
-    /* Forum specific styles */
-    .forum-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('topicSearch');
+    const topicList = document.getElementById('topicList');
     
-    .forum-title {
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: var(--primary-dark);
-        margin: 0;
+    if (searchInput && topicList) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const cards = topicList.querySelectorAll('.ft-topic-card');
+            
+            cards.forEach(card => {
+                const title = card.dataset.title || '';
+                card.style.display = title.includes(query) ? '' : 'none';
+            });
+        });
     }
-    
-    .topic-list {
-        display: grid;
-        gap: 1.25rem;
-    }
-    
-    .topic-card {
-        background-color: var(--bg-light);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-        overflow: hidden;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: 1px solid var(--border-color);
-    }
-    
-    .topic-card:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .topic-card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-        background-color: rgba(0, 0, 0, 0.02);
-    }
-    
-    .topic-info {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .topic-title {
-        text-decoration: none;
-        color: var(--primary-color);
-    }
-    
-    .topic-title h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem;
-        line-height: 1.3;
-    }
-    
-    .topic-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        font-size: 0.875rem;
-        color: var(--text-muted);
-    }
-    
-    .topic-meta i {
-        margin-right: 0.4rem;
-    }
-    
-    .topic-card-body {
-        padding: 1.25rem 1.5rem;
-    }
-    
-    .topic-description {
-        margin: 0;
-        color: var(--text-color);
-        line-height: 1.6;
-    }
-    
-    .topic-card-footer {
-        padding: 1rem 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        background-color: rgba(0, 0, 0, 0.01);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .topic-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        border: 1px solid #dc3545;
-    }
-    
-    .btn-danger:hover {
-        background-color: #bb2d3b;
-        border-color: #bb2d3b;
-    }
-    
-    .btn-sm {
-        padding: 0.4rem 0.75rem;
-        font-size: 0.875rem;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        background-color: var(--bg-light);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .empty-state-icon {
-        font-size: 3rem;
-        color: var(--text-muted);
-        margin-bottom: 1.5rem;
-    }
-    
-    .empty-state h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.75rem;
-        color: var(--text-color);
-    }
-    
-    .empty-state p {
-        color: var(--text-muted);
-        margin-bottom: 1.5rem;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .forum-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .topic-card-footer {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .topic-actions {
-            margin-top: 0.75rem;
-            width: 100%;
-            justify-content: flex-start;
-        }
-    }
-    
-    @media (min-width: 768px) {
-        .topic-list {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
+});
+</script>
 {% endblock %}

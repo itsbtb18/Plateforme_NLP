@@ -1,866 +1,966 @@
-{% extends "base.html" %} {% block content %}
-<div class="content">
-  <div class="project-header">
-    <a href="{% url 'projects:project_list' %}" class="back-link">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M19 12H5"></path>
-        <path d="M12 19l-7-7 7-7"></path>
-      </svg>
-      Back to Projects
-    </a>
-    <h1 class="project-title">{{ project.get_localized_title }}</h1>
-  </div>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-  <div class="project-details-card">
-    <div class="card-section">
-      <h2 class="section-title">Description</h2>
-      <p class="project-description">{{ project.get_localized_description }}</p>
-    </div>
+{% block title %}{{ project.get_localized_title }} | {% translate "Research Projects" %}{% endblock %}
 
-    <div class="card-section">
-      <h2 class="section-title">Project Information</h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"></path>
-              <path d="M1 21h22"></path>
-              <path d="M10 9h4"></path>
-              <path d="M10 13h4"></path>
-              <path d="M10 17h4"></path>
-            </svg>
-            Institution
-          </div>
-          <div class="info-value">{{ project.institution }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            Period
-          </div>
-          <div class="info-value">
-            {{ project.date_start }} - {{ project.date_end }}
-          </div>
-        </div>
-        {% if project.attachment and project.coordinator == user or is_member %}
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
-              ></path>
-            </svg>
-            Attachment
-          </div>
-          <div class="info-value">
-            <a
-              href="{{ project.attachment.url }}"
-              target="_blank"
-              class="attachment-link"
-            >
-              {{ project.attachment.name|slice:"19:" }}
-            </a>
-          </div>
-        </div>
-        {% endif %}
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Coordinator
-          </div>
-          <div class="info-value">{{ project.coordinator }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            Status
-          </div>
-          <div class="info-value">
-            <span class="status-badge status-{{ project.status }}"
-              >{{ project.get_status_display }}</span
-            >
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card-section">
-      <h2 class="section-title">Team Members</h2>
-      <div class="members-list">
-        {% for member in team_members %}
-        <div class="member-item">
-          <div class="member-avatar">
-            {% if member.avatar %}
-            <img
-              src="{{ member.avatar.url }}"
-              alt="{{ member.full_name }}"
-              class="avatar-img"
-            />
-            {% else %}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            {% endif %}
-          </div>
-          <div class="member-info">
-            <div class="member-name">{{ member.full_name }}</div>
-            {% if member.speciality %}
-            <div class="member-title">{{ member.get_speciality_display }}</div>
-            {% endif %}
-          </div>
-        </div>
-        {% empty %}
-        <div class="empty-message">
-          No members have joined this project yet.
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="card-section actions-section">
-      {% if project.coordinator == user %}
-      <div class="button-container">
-        <a
-          href="{% url 'projects:project_members' project.pk %}"
-          class="btn btn-outline-primary btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 010 7.75"></path>
-          </svg>
-          Manage project members
-        </a>
-        <a
-          href="{% url 'projects:project_update' project.pk %}"
-          class="btn btn-primary btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
-            ></path>
-          </svg>
-          Edit Project
-        </a>
-        <a
-          href="{% url 'projects:project_delete' project.pk %}"
-          class="btn btn-danger btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 6h18"></path>
-            <path
-              d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
-            ></path>
-          </svg>
-          Delete Project
-        </a>
-      </div>
-      {% else %} {% if project.status != 'completed' %} {% if is_member %}
-      <div class="button-container">
-        <form
-          action="{% url 'projects:leave_project' project.pk %}"
-          method="post"
-          class="w-100"
-        >
-          {% csrf_token %}
-          <button type="submit" class="btn btn-warning btn-action w-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Leave Project
-          </button>
-        </form>
-      </div>
-      {% else %} {% if not has_pending_request %}
-      <div class="button-container">
-        <form
-          action="{% url 'projects:join_project' project.pk %}"
-          method="post"
-          class="w-100"
-        >
-          {% csrf_token %}
-          <button type="submit" class="btn btn-success btn-action w-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"></path>
-              <polyline points="10 17 15 12 10 7"></polyline>
-              <line x1="15" y1="12" x2="3" y2="12"></line>
-            </svg>
-            Join Project
-          </button>
-        </form>
-      </div>
-      {% else %}
-      <div class="button-container">
-        <button
-          type="button"
-          class="btn btn-secondary btn-action w-100"
-          disabled
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="12" y1="1" x2="12" y2="23"></line>
-            <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path>
-          </svg>
-          Pending request
-        </button>
-      </div>
-      {% endif %} {% endif %} {% else %}
-      <div class="project-completed-message">
-        This project is completed and no longer accepting new members.
-      </div>
-      {% endif %} {% endif %}
-    </div>
-
-    {% if is_coordinator and pending_requests %}
-    <div class="card-section">
-      <h2 class="section-title">Demandes en attente</h2>
-      <div class="pending-requests-list">
-        {% for request in pending_requests %}
-        <div class="request-item">
-          <div class="request-user">
-            <div class="user-avatar">
-              {% if request.member.avatar %}
-              <img
-                src="{{ request.member.avatar.url }}"
-                alt="{{ request.member.full_name }}"
-                class="avatar-img"
-              />
-              {% else %}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              {% endif %}
-            </div>
-            <div class="user-info">
-              <a
-                href="{% url 'accounts:profile' request.member.pk %}"
-                class="user-name"
-                >{{ request.member.full_name }}</a
-              >
-              {% if request.member.speciality %}
-              <div class="user-speciality">
-                {{ request.member.get_speciality_display }}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-          <div class="request-actions">
-            <form
-              action="{% url 'projects:respond_to_request' project.pk request.pk %}"
-              method="post"
-              class="d-inline"
-            >
-              {% csrf_token %}
-              <input type="hidden" name="response" value="accept" />
-              <button type="submit" class="accept-btn">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M20 6L9 17l-5-5"></path>
-                </svg>
-                Accept
-              </button>
-            </form>
-            <form
-              action="{% url 'projects:respond_to_request' project.pk request.pk %}"
-              method="post"
-              class="d-inline"
-            >
-              {% csrf_token %}
-              <input type="hidden" name="response" value="reject" />
-              <button type="submit" class="reject-btn">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M18 6L6 18"></path>
-                  <path d="M6 6l12 12"></path>
-                </svg>
-                Refuse
-              </button>
-            </form>
-          </div>
-        </div>
-        {% empty %}
-        <div class="empty-message">No pending requests.</div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  /* Global styles */
-  :root {
-    --primary: #1A73E8;
-    --secondary: #4caf50;
-    --danger: #f44336;
-    --text-dark: #333;
-    --text-light: #666;
-    --border-color: #e0e0e0;
-    --bg-light: #f5f5f5;
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  /* Main content area */
+/* ===== PROJECT DETAIL CSS ===== */
+:root {
+    --pd-primary: #3B82F6;
+    --pd-primary-dark: #2563eb;
+    --pd-primary-light: #60a5fa;
+    --pd-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    /* Status Colors */
+    --pd-ongoing: #10b981;
+    --pd-ongoing-bg: rgba(16, 185, 129, 0.1);
+    --pd-completed: #6366f1;
+    --pd-completed-bg: rgba(99, 102, 241, 0.1);
+    --pd-planned: #f59e0b;
+    --pd-planned-bg: rgba(245, 158, 11, 0.1);
+    
+    /* Surfaces */
+    --pd-deep: #0f172a;
+    --pd-navy: #1e3a5f;
+    --pd-white: #ffffff;
+    --pd-bg: #f8fafc;
+    --pd-muted: #f1f5f9;
+    --pd-subtle: #e2e8f0;
+    
+    /* Typography */
+    --pd-text: #0f172a;
+    --pd-text-secondary: #475569;
+    --pd-text-muted: #94a3b8;
+    
+    /* Effects */
+    --pd-border: #e2e8f0;
+    --pd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --pd-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    --pd-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    --pd-shadow-card: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
+    
+    /* Danger */
+    --pd-danger: #ef4444;
+    --pd-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    /* Radii */
+    --pd-radius-sm: 6px;
+    --pd-radius-md: 10px;
+    --pd-radius-lg: 14px;
+    --pd-radius-xl: 20px;
+    --pd-radius-full: 9999px;
+}
 
-  /* Project header */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-  .back-link:hover {
-    color: var(--secondary);
-  }
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
 
-  .project-title {
-    color: #1e4e6d;
-    font-size: 28px;
-    margin: 0;
+/* ===== PAGE LAYOUT ===== */
+.pd-page {
+    min-height: 100vh;
+    background: var(--pd-bg);
+}
+
+/* ===== HERO HEADER ===== */
+.pd-hero {
+    background: linear-gradient(145deg, var(--pd-deep) 0%, var(--pd-navy) 100%);
+    padding: 2rem 0 4rem;
     position: relative;
-    padding-bottom: 15px;
-  }
+    overflow: hidden;
+}
 
-  .project-title:after {
-    content: "";
+.pd-hero::before {
+    content: '';
     position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 80px;
-    height: 3px;
-    background-color: var(--secondary);
-  }
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
 
-  /* Project details card */
-  .project-details-card {
-    background-color: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--card-shadow);
-  }
+.pd-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
 
-  .card-section {
-    padding: 25px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .card-section:last-child {
-    border-bottom: none;
-  }
-
-  .section-title {
-    color: #1e4e6d;
-    font-size: 18px;
-    margin: 0 0 15px 0;
-    font-weight: 600;
-  }
-
-  .project-description {
-    color: var(--text-dark);
-    line-height: 1.6;
-    margin: 0;
-  }
-
-  /* Project info grid */
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-  }
-
-  .info-item {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .info-label {
-    color: var(--text-light);
-    font-size: 14px;
+/* Breadcrumb */
+.pd-breadcrumb {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
-  }
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
 
-  .info-label svg {
-    margin-right: 8px;
-    color: #1e4e6d;
-  }
-
-  .info-value {
-    color: var(--text-dark);
-    font-weight: 500;
-  }
-
-  /* Members list */
-  .members-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-  }
-
-  .member-item {
-    display: flex;
-    align-items: center;
-    background-color: var(--bg-light);
-    padding: 12px 15px;
-    border-radius: 6px;
-    transition: transform 0.2s, background-color 0.2s;
-  }
-
-  .member-item:hover {
-    transform: translateY(-2px);
-    background-color: #edf7ff;
-  }
-
-  .member-avatar {
-    background-color: #1e4e6d;
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-  }
-
-  .member-name {
-    font-weight: 500;
-    color: var(--text-dark);
-  }
-
-  .empty-message {
-    color: var(--text-light);
-    font-style: italic;
-    grid-column: 1 / -1;
-  }
-
-  .project-completed-message {
-    color: var(--text-light);
-    text-align: center;
-    font-style: italic;
-    padding: 10px;
-    background-color: var(--bg-light);
-    border-radius: 4px;
-  }
-
-  /* Status badges */
-  .status-badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .status-ongoing {
-    background-color: #ffca28;
-    color: #8d6e00;
-  }
-
-  .status-completed {
-    background-color: #4caf50;
-    color: white;
-  }
-
-  .status-planned {
-    background-color: #64b5f6;
-    color: white;
-  }
-
-  /* Action buttons */
-  .actions-section {
-    background-color: var(--bg-light);
-    padding: 20px 25px;
-  }
-
-  .button-container {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center; /* Center buttons */
-  }
-
-  .btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 18px;
-    border-radius: 4px;
-    font-weight: 500;
-    font-size: 14px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
-    border: none;
-    min-width: 140px; /* Ensure minimum width */
-    text-align: center;
-  }
-
-  .btn-action:hover:not(:disabled) {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  .btn-action:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  .btn-action svg {
-    margin-right: 8px;
-  }
-
-  /* Specific button styles */
-  .btn-primary {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background-color: #3a9ee6; /* Darker shade of primary */
-  }
-
-  .btn-outline-primary {
-    background-color: white;
-    color: var(--primary);
-    border: 1px solid var(--primary);
-  }
-
-  .btn-outline-primary:hover:not(:disabled) {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  .btn-danger {
-    background-color: var(--danger);
-    color: white;
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background-color: #c62828; /* Darker shade of danger */
-  }
-
-  .btn-success {
-    background-color: var(--secondary);
-    color: white;
-  }
-
-  .btn-success:hover:not(:disabled) {
-    background-color: #388e3c; /* Darker shade of secondary */
-  }
-
-  .btn-warning {
-    background-color: #ff9800;
-    color: white;
-  }
-
-  .btn-warning:hover:not(:disabled) {
-    background-color: #f57c00; /* Darker shade of warning */
-  }
-
-  .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background-color: #5a6268;
-  }
-
-  .btn-action:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* Pending requests section */
-  .pending-requests-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .request-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--bg-light);
-    padding: 15px;
-    border-radius: 8px;
-    transition: transform 0.2s, background-color 0.2s;
-  }
-
-  .request-item:hover {
-    transform: translateY(-2px);
-    background-color: #edf7ff;
-  }
-
-  .request-user {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .user-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .user-info {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .user-name {
-    color: var(--primary);
-    font-weight: 500;
+.pd-breadcrumb a {
+    color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
     transition: color 0.2s;
-  }
+}
 
-  .user-name:hover {
-    color: var(--secondary);
-  }
+.pd-breadcrumb a:hover {
+    color: var(--pd-white);
+}
 
-  .user-speciality {
-    font-size: 14px;
-    color: var(--text-light);
-  }
+.pd-breadcrumb span {
+    color: rgba(255, 255, 255, 0.5);
+}
 
-  .request-actions {
+.pd-breadcrumb .current {
+    color: var(--pd-white);
+    font-weight: 500;
+}
+
+/* Hero Content */
+.pd-hero-content {
     display: flex;
-    gap: 10px;
-  }
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
 
-  .accept-btn,
-  .reject-btn {
+.pd-hero-text {
+    flex: 1;
+    min-width: 280px;
+}
+
+.pd-status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 15px;
-    border-radius: 6px;
-    font-weight: 500;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--pd-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 1rem;
+}
+
+.pd-status-badge.ongoing {
+    background: var(--pd-ongoing-bg);
+    color: var(--pd-ongoing);
+}
+
+.pd-status-badge.completed {
+    background: var(--pd-completed-bg);
+    color: var(--pd-completed);
+}
+
+.pd-status-badge.planned {
+    background: var(--pd-planned-bg);
+    color: var(--pd-planned);
+}
+
+.pd-title {
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-weight: 800;
+    color: var(--pd-white);
+    margin: 0 0 1rem;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+}
+
+.pd-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.pd-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pd-meta-item i {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Hero Actions */
+.pd-hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
     border: none;
     cursor: pointer;
     transition: all 0.2s;
-  }
+}
 
-  .accept-btn {
-    background-color: var(--secondary);
-    color: white;
-  }
+.pd-btn-primary {
+    background: var(--pd-primary);
+    color: var(--pd-white);
+}
 
-  .accept-btn:hover {
-    background-color: #3d8b40;
-  }
+.pd-btn-primary:hover {
+    background: var(--pd-primary-dark);
+    color: var(--pd-white);
+}
 
-  .reject-btn {
-    background-color: var(--danger);
-    color: white;
-  }
+.pd-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--pd-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
 
-  .reject-btn:hover {
-    background-color: #d32f2f;
-  }
+.pd-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--pd-white);
+}
 
-  .accept-btn svg,
-  .reject-btn svg {
-    width: 16px;
-    height: 16px;
-  }
+.pd-btn-danger {
+    background: var(--pd-danger);
+    color: var(--pd-white);
+}
 
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .button-container {
-      flex-direction: column;
+.pd-btn-danger:hover {
+    background: #dc2626;
+    color: var(--pd-white);
+}
+
+/* ===== MAIN CONTENT ===== */
+.pd-content {
+    max-width: 1200px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+}
+
+.pd-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .pd-layout {
+        grid-template-columns: 1fr;
     }
+}
 
-    .btn-action,
-    .button-container form .btn-action {
-      width: 100%;
-      min-width: auto;
+/* ===== MAIN COLUMN ===== */
+.pd-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.pd-card {
+    background: var(--pd-white);
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-xl);
+    overflow: hidden;
+}
+
+.pd-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--pd-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pd-card-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--pd-primary-glow);
+    border-radius: var(--pd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1.125rem;
+}
+
+.pd-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--pd-text);
+    margin: 0;
+}
+
+.pd-card-body {
+    padding: 1.5rem;
+}
+
+/* Description */
+.pd-description {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--pd-text-secondary);
+}
+
+/* Timeline */
+.pd-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+html[dir="rtl"] .pd-timeline {
+    padding-left: 0;
+    padding-right: 2rem;
+}
+
+.pd-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--pd-border);
+}
+
+html[dir="rtl"] .pd-timeline::before {
+    left: auto;
+    right: 0.5rem;
+}
+
+.pd-timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.pd-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.pd-timeline-dot {
+    position: absolute;
+    left: -1.5rem;
+    top: 0.25rem;
+    width: 12px;
+    height: 12px;
+    background: var(--pd-white);
+    border: 2px solid var(--pd-primary);
+    border-radius: 50%;
+}
+
+html[dir="rtl"] .pd-timeline-dot {
+    left: auto;
+    right: -1.5rem;
+}
+
+.pd-timeline-dot.active {
+    background: var(--pd-primary);
+}
+
+.pd-timeline-date {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--pd-primary);
+    margin-bottom: 0.25rem;
+}
+
+.pd-timeline-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--pd-text);
+    margin-bottom: 0.25rem;
+}
+
+.pd-timeline-desc {
+    font-size: 0.875rem;
+    color: var(--pd-text-secondary);
+}
+
+/* ===== SIDEBAR ===== */
+.pd-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Team Card */
+.pd-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.pd-team-member {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem;
+    background: var(--pd-muted);
+    border-radius: var(--pd-radius-md);
+}
+
+.pd-team-member.coordinator {
+    background: var(--pd-primary-glow);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.pd-member-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--pd-primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.pd-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pd-member-avatar-placeholder {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--pd-primary);
+    text-transform: uppercase;
+}
+
+.pd-member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pd-member-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--pd-text);
+    margin-bottom: 0.125rem;
+}
+
+.pd-member-role {
+    font-size: 0.8rem;
+    color: var(--pd-text-muted);
+}
+
+.pd-member-badge {
+    padding: 0.25rem 0.625rem;
+    background: var(--pd-primary);
+    color: var(--pd-white);
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--pd-radius-sm);
+    text-transform: uppercase;
+}
+
+/* Join Button */
+.pd-join-section {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--pd-border);
+}
+
+.pd-join-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: var(--pd-primary);
+    color: var(--pd-white);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: var(--pd-radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pd-join-btn:hover {
+    background: var(--pd-primary-dark);
+}
+
+.pd-join-btn.pending {
+    background: var(--pd-muted);
+    color: var(--pd-text-muted);
+    cursor: not-allowed;
+}
+
+.pd-join-btn.member {
+    background: var(--pd-ongoing-bg);
+    color: var(--pd-ongoing);
+}
+
+/* Links Card */
+.pd-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pd-link-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--pd-muted);
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pd-link-item:hover {
+    background: var(--pd-subtle);
+}
+
+.pd-link-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--pd-white);
+    border-radius: var(--pd-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-text-secondary);
+    font-size: 1rem;
+}
+
+.pd-link-text {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--pd-text);
+}
+
+.pd-link-arrow {
+    color: var(--pd-text-muted);
+    font-size: 0.875rem;
+}
+
+/* Info Card */
+.pd-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.pd-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.pd-info-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--pd-muted);
+    border-radius: var(--pd-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-text-muted);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.pd-info-content {
+    flex: 1;
+}
+
+.pd-info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.125rem;
+}
+
+.pd-info-value {
+    font-size: 0.9rem;
+    color: var(--pd-text);
+}
+
+/* Back Link */
+.pd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--pd-white);
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-md);
+    color: var(--pd-text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pd-back:hover {
+    background: var(--pd-muted);
+    color: var(--pd-text);
+}
+
+/* Empty State */
+.pd-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--pd-text-muted);
+    font-size: 0.9rem;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .pd-hero {
+        padding: 1.5rem 0 3rem;
     }
-  }
+    
+    .pd-hero-content {
+        flex-direction: column;
+    }
+    
+    .pd-hero-actions {
+        width: 100%;
+    }
+    
+    .pd-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .pd-content {
+        padding: 0 1rem 3rem;
+    }
+}
 </style>
+{% endblock %}
 
+{% block content %}
+<div class="pd-page">
+    
+    <!-- ============ HERO HEADER ============ -->
+    <header class="pd-hero">
+        <div class="pd-hero-container">
+            
+            <!-- Breadcrumb -->
+            <nav class="pd-breadcrumb">
+                <a href="{% url 'projects:project_list' %}">{% translate "Projects" %}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{{ project.get_localized_title|truncatechars:50 }}</span>
+            </nav>
+            
+            <div class="pd-hero-content">
+                <div class="pd-hero-text">
+                    <span class="pd-status-badge {{ project.status }}">
+                        {% if project.status == 'ongoing' %}
+                        <i class="bi bi-play-circle-fill"></i>
+                        {% elif project.status == 'completed' %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        {% else %}
+                        <i class="bi bi-calendar-event"></i>
+                        {% endif %}
+                        {{ project.get_status_display }}
+                    </span>
+                    
+                    <h1 class="pd-title">{{ project.get_localized_title }}</h1>
+                    
+                    <div class="pd-meta-row">
+                        <div class="pd-meta-item">
+                            <i class="bi bi-building"></i>
+                            {{ project.institution }}
+                        </div>
+                        {% if project.date_start %}
+                        <div class="pd-meta-item">
+                            <i class="bi bi-calendar3"></i>
+                            {{ project.date_start|date:"M d, Y" }}{% if project.date_end %} - {{ project.date_end|date:"M d, Y" }}{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="pd-meta-item">
+                            <i class="bi bi-person"></i>
+                            {{ project.coordinator.full_name }}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if is_coordinator %}
+                <div class="pd-hero-actions">
+                    <a href="{% url 'projects:project_update' project.pk %}" class="pd-btn pd-btn-secondary">
+                        <i class="bi bi-pencil"></i>
+                        {% translate "Edit" %}
+                    </a>
+                    <a href="{% url 'projects:project_members' project.pk %}" class="pd-btn pd-btn-secondary">
+                        <i class="bi bi-people"></i>
+                        {% translate "Manage Team" %}
+                    </a>
+                    <a href="{% url 'projects:project_delete' project.pk %}" class="pd-btn pd-btn-danger">
+                        <i class="bi bi-trash"></i>
+                        {% translate "Delete" %}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+        </div>
+    </header>
+    
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="pd-content">
+        <div class="pd-layout">
+            
+            <!-- Main Column -->
+            <div class="pd-main">
+                
+                <!-- Project Description -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-file-text"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Description" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-description">
+                            {{ project.get_localized_description|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project Timeline -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Timeline" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-timeline">
+                            {% if project.date_start %}
+                            <div class="pd-timeline-item">
+                                <div class="pd-timeline-dot active"></div>
+                                <div class="pd-timeline-date">{{ project.date_start|date:"M d, Y" }}</div>
+                                <div class="pd-timeline-title">{% translate "Project Started" %}</div>
+                                <div class="pd-timeline-desc">{% translate "Research activities began" %}</div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="pd-timeline-item">
+                                <div class="pd-timeline-dot {% if project.status == 'ongoing' %}active{% endif %}"></div>
+                                <div class="pd-timeline-date">{% translate "Current" %}</div>
+                                <div class="pd-timeline-title">
+                                    {% if project.status == 'ongoing' %}
+                                    {% translate "In Progress" %}
+                                    {% elif project.status == 'completed' %}
+                                    {% translate "Completed" %}
+                                    {% else %}
+                                    {% translate "Planned" %}
+                                    {% endif %}
+                                </div>
+                                <div class="pd-timeline-desc">{{ project.get_status_display }}</div>
+                            </div>
+                            
+                            {% if project.date_end %}
+                            <div class="pd-timeline-item">
+                                <div class="pd-timeline-dot {% if project.status == 'completed' %}active{% endif %}"></div>
+                                <div class="pd-timeline-date">{{ project.date_end|date:"M d, Y" }}</div>
+                                <div class="pd-timeline-title">{% translate "Target Completion" %}</div>
+                                <div class="pd-timeline-desc">{% translate "Expected project completion date" %}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Back Link -->
+                <a href="{% url 'projects:project_list' %}" class="pd-back">
+                    <i class="bi bi-arrow-left"></i>
+                    {% translate "Back to Projects" %}
+                </a>
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="pd-sidebar">
+                
+                <!-- Team Card -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Research Team" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-team-list">
+                            <!-- Coordinator -->
+                            <div class="pd-team-member coordinator">
+                                <div class="pd-member-avatar">
+                                    {% if project.coordinator.avatar %}
+                                    <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
+                                    {% else %}
+                                    <span class="pd-member-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="pd-member-info">
+                                    <div class="pd-member-name">{{ project.coordinator.full_name }}</div>
+                                    <div class="pd-member-role">{% translate "Coordinator" %}</div>
+                                </div>
+                                <span class="pd-member-badge">{% translate "Lead" %}</span>
+                            </div>
+                            
+                            <!-- Team Members -->
+                            {% for member in team_members %}
+                            <div class="pd-team-member">
+                                <div class="pd-member-avatar">
+                                    {% if member.avatar %}
+                                    <img src="{{ member.avatar.url }}" alt="{{ member.full_name }}">
+                                    {% else %}
+                                    <span class="pd-member-avatar-placeholder">{{ member.full_name|slice:":2"|upper }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="pd-member-info">
+                                    <div class="pd-member-name">{{ member.full_name }}</div>
+                                    <div class="pd-member-role">{% translate "Researcher" %}</div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="pd-empty">
+                                <i class="bi bi-person-plus"></i>
+                                <p>{% translate "No team members yet" %}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Join/Leave Section -->
+                    {% if user.is_authenticated and not is_coordinator %}
+                    <div class="pd-join-section">
+                        {% if is_member %}
+                            {% if has_pending_leave_request %}
+                            <button class="pd-join-btn pending" disabled>
+                                <i class="bi bi-hourglass-split"></i>
+                                {% translate "Leave Request Pending" %}
+                            </button>
+                            {% else %}
+                            <form method="post" action="{% url 'projects:leave_project' project.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="pd-join-btn member">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                    {% translate "Request to Leave" %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% elif has_pending_request %}
+                        <button class="pd-join-btn pending" disabled>
+                            <i class="bi bi-hourglass-split"></i>
+                            {% translate "Request Pending" %}
+                        </button>
+                        {% else %}
+                            {% if project.status != 'completed' %}
+                            <form method="post" action="{% url 'projects:join_project' project.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="pd-join-btn">
+                                    <i class="bi bi-person-plus"></i>
+                                    {% translate "Request to Join" %}
+                                </button>
+                            </form>
+                            {% else %}
+                            <button class="pd-join-btn pending" disabled>
+                                <i class="bi bi-lock"></i>
+                                {% translate "Project Closed" %}
+                            </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Project Info Card -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Info" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-info-list">
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Institution" %}</div>
+                                    <div class="pd-info-value">{{ project.institution }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Status" %}</div>
+                                    <div class="pd-info-value">{{ project.get_status_display }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Created" %}</div>
+                                    <div class="pd-info-value">{{ project.created_at|date:"M d, Y" }}</div>
+                                </div>
+                            </div>
+                            
+                            {% if project.attachment %}
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-paperclip"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Attachment" %}</div>
+                                    <div class="pd-info-value">
+                                        {% if project.coordinator == user or is_member %}
+                                        <a href="{{ project.attachment.url }}" target="_blank">{% translate "Download" %}</a>
+                                        {% else %}
+                                        {% translate "Members only" %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+        </div>
+    </main>
+    
+</div>
 {% endblock %}

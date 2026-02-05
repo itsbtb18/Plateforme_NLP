@@ -1,785 +1,1179 @@
 {% extends "base.html" %}
-{% load i18n %}
-{% block title %}{% trans "All Resources" %}{% endblock %}
+{% load i18n static %}
+
+{% block title %}{% translate "Research Resources Hub" %} - {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
-{% comment "Link to main.css managed in base.html" %}{% endcomment %}
-{% endblock %}
-
-{% block content %}
-<div class="resources-container container py-5">
-    <!-- Header Section -->
-    <div class="row mb-4 align-items-center">
-        <div class="col-lg-8 col-md-7">
-            <h1 class="display-5 fw-bold mb-2">{% trans "Research Resources" %}</h1>
-            <p class="text-muted fs-5">{{ total_count }} {% trans "resources available" %}</p>
-        </div>
-        {% if user.is_authenticated %}
-        <div class="col-lg-4 col-md-5 d-flex justify-content-md-end justify-content-start mt-3 mt-md-0">
-            <a href="{% url 'resources:create' %}" class="btn btn-primary btn-lg shadow-sm">
-                <i class="bi bi-plus-lg me-2"></i> {% trans "Add Resource" %}
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Search Box -->
-    <div class="global-searchbox">
-        <form method="get" action="" class="searchbox-form" id="globalSearchForm">
-            <div class="searchbox-group shadow-sm">
-                <!-- Query Input Section -->
-                <div class="query-container w-100 position-relative">
-                    <input type="text" 
-                           name="q" 
-                           id="globalQuery" 
-                           class="query-input" 
-                           placeholder={% trans "Search for resources..." %}
-                           autocomplete="off"
-                           value="{{ request.GET.q|default:'' }}">
-                    
-                    <!-- Query Status Indicators -->
-                    <div class="status-indicator">
-                        <i class="bi bi-search status-icon"></i>
-                        <div class="spinner-border spinner-border-sm text-primary status-spinner" 
-                             role="status" 
-                             style="display: none;">
-                            <span class="visually-hidden">{% trans "Chargement..." %}</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Dropdowns -->
-                    <div class="suggestions-panel" id="querySuggestions"></div>
-                    <div class="history-panel" id="queryHistory"></div>
-                </div>
-                
-               
-                
-                
-                <!-- Action Buttons -->
-                <button type="submit" class="action-button submit-action">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Category Filters -->
-    <div class="category-filters">
-        <div class="category-label">
-            <i class="bi bi-funnel me-2"></i> {% trans "Filter by:" %}
-        </div>
-        <div class="category-list">
-            <a href="?q={{ request.GET.q }}" 
-               class="category-item {% if not request.GET.type %}active{% endif %}">
-                {% trans "All" %}
-            </a>
-            <a href="?q={{ request.GET.q }}&type=article" 
-               class="category-item {% if request.GET.type == 'article' %}active{% endif %}">
-                <i class="bi bi-file-text me-1"></i> {% trans "Articles" %}
-            </a>
-            <a href="?q={{ request.GET.q }}&type=thesis" 
-               class="category-item {% if request.GET.type == 'thesis' %}active{% endif %}">
-                <i class="bi bi-journal-richtext me-1"></i>{% trans "Theses" %} 
-            </a>
-            <a href="?q={{ request.GET.q }}&type=memoir" 
-               class="category-item {% if request.GET.type == 'memoir' %}active{% endif %}">
-                <i class="bi bi-book me-1"></i> {% trans "Memoirs" %}
-            </a>
-            <a href="?q={{ request.GET.q }}&type=tool" 
-               class="category-item {% if request.GET.type == 'tool' %}active{% endif %}">
-                <i class="bi bi-tools me-1"></i>{% trans "Tools" %} 
-            </a>
-            <a href="?q={{ request.GET.q }}&type=course" 
-               class="category-item {% if request.GET.type == 'course' %}active{% endif %}">
-                <i class="bi bi-mortarboard me-1"></i> {% trans "Courses" %}
-            </a>
-            <a href="?q={{ request.GET.q }}&type=corpus" 
-               class="category-item {% if request.GET.type == 'corpus' %}active{% endif %}">
-                <i class="bi bi-archive me-1"></i> {% trans "Corpus" %}
-            </a>
-        </div>
-    </div>
-
-    <!-- Resources Grid -->
-    {% if resources %}
-    <div class="resource-grid">
-        {% for resource in resources %}
-        <div class="resource-card">
-            <div class="resource-type-indicator type-{{ resource.resource_type }}"></div>
-            <div class="card-body">
-                <div class="resource-badge type-{{ resource.resource_type }}">
-    <i class="bi {% if resource.resource_type == 'article' %}bi-file-text
-               {% elif resource.resource_type == 'thesis' %}bi-journal-richtext
-               {% elif resource.resource_type == 'memoir' %}bi-book
-               {% elif resource.resource_type == 'tool' %}bi-tools
-               {% elif resource.resource_type == 'course' %}bi-mortarboard
-               {% elif resource.resource_type == 'corpus' %}bi-archive
-               {% else %}bi-file-earmark{% endif %} me-2"></i>
-    {% if resource.resource_type == 'course' %}{% trans "Course" %}
-    {% elif resource.resource_type == 'tool' %}{% trans "Tool" %}
-    {% elif resource.resource_type == 'corpus' %}{% trans "Corpus" %}
-    {% elif resource.resource_type == 'article' %}{% trans "Article" %}
-    {% elif resource.resource_type == 'thesis' %}{% trans "Thesis" %}
-    {% elif resource.resource_type == 'memoir' %}{% trans "Memoir" %}
-    {% else %}{{ resource.resource_type|title }}{% endif %}
-</div>
-                <h5 class="card-title">{{ resource.get_localized_title }}</h5>
-                <div class="card-text">
-    {{ resource.get_localized_description|truncatewords:20|default:_('No description provided') }}
-</div>
-                <div class="resource-meta">
-    <div class="meta-item">
-        <i class="bi bi-person-circle"></i>
-        <span>{{ resource.author.get_full_name_display|default:_('Unknown') }}</span>
-    </div>
-    <div class="meta-item">
-        <i class="bi bi-calendar-event"></i>
-        <span>{{ resource.creation_date|date:"M d, Y"|default:_("Not specified") }}</span>
-    </div>
-</div>
-            </div>
-            <div class="card-footer">
-                <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}" 
-                   class="btn-view">
-                    <span>{% trans "View Details" %}</span>
-                    <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <nav class="pagination-container" aria-label="Page navigation">
-        <ul class="pagination">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page=1" aria-label="First">
-                    <i class="bi bi-chevron-double-left"></i>
-                </a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                    <i class="bi bi-chevron-left"></i>
-                </a>
-            </li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active">
-                <span class="page-link">{{ num }}</span>
-            </li>
-            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-            <li class="page-item">
-                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.next_page_number }}" aria-label="Next">
-                    <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.paginator.num_pages }}" aria-label="Last">
-                    <i class="bi bi-chevron-double-right"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">
-            <i class="bi bi-search"></i>
-        </div>
-        <h3>{% trans "No resources found" %}</h3>
-        <p class="text-muted">{% trans "Try adjusting your search criteria" %}</p>
-        {% if user.is_authenticated %}
-        <a href="{% url 'resources:create' %}" class="btn btn-primary btn-lg mt-3">
-            <i class="bi bi-plus-lg me-2"></i> {% trans "Add a resource" %}
-        </a>
-        {% endif %}
-    </div>
-    {% endif %}
-</div>
-
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-/* Variables */
+/* ===== CSS VARIABLES - Research Hub Premium Theme ===== */
 :root {
-    --primary: #4361ee;
-    --primary-dark: #3a56d4;
-    --bg-light: #f8f9fa;
-    --text-dark: #212529;
-    --text-muted: #6c757d;
-    --border-color: #dee2e6;
-    --shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
-    --card-radius: 12px;
+    /* Primary Branding - Deep Blue & Slate Gray */
+    --hub-deep-blue: #0f172a;
+    --hub-navy: #1e3a5f;
+    --hub-slate: #334155;
+    --hub-accent: #2563eb;
+    --hub-accent-light: #3b82f6;
+    --hub-accent-hover: #1d4ed8;
+    --hub-accent-glow: rgba(37, 99, 235, 0.12);
     
-    /* Resource type colors */
-    --color-article: #4cc9f0;
-    --color-thesis: #4895ef;
-    --color-memoir: #f77f00;
-    --color-tool: #52b788;
-    --color-course: #7209b7;
+    /* Surface & Background */
+    --hub-white: #ffffff;
+    --hub-surface: #ffffff;
+    --hub-background: #f8fafc;
+    --hub-muted: #f1f5f9;
+    --hub-subtle: #e2e8f0;
+    
+    /* Borders */
+    --hub-border: #e2e8f0;
+    --hub-border-hover: #cbd5e1;
+    
+    /* Typography */
+    --hub-text-primary: #0f172a;
+    --hub-text-secondary: #475569;
+    --hub-text-muted: #94a3b8;
+    --hub-text-inverse: #ffffff;
+    
+    /* Semantic Colors */
+    --hub-success: #059669;
+    --hub-warning: #d97706;
+    --hub-danger: #dc2626;
+    
+    /* Resource Type Colors */
+    --type-article: #2563eb;
+    --type-article-bg: rgba(37, 99, 235, 0.08);
+    --type-thesis: #7c3aed;
+    --type-thesis-bg: rgba(124, 58, 237, 0.08);
+    --type-memoir: #ea580c;
+    --type-memoir-bg: rgba(234, 88, 12, 0.08);
+    --type-tool: #059669;
+    --type-tool-bg: rgba(5, 150, 105, 0.08);
+    --type-course: #8b5cf6;
+    --type-course-bg: rgba(139, 92, 246, 0.08);
+    --type-corpus: #0891b2;
+    --type-corpus-bg: rgba(8, 145, 178, 0.08);
+    
+    /* Effects */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.08);
+    
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-base: 250ms ease;
+    --transition-slow: 350ms ease;
 }
 
-/* Container */
-.resources-container {
-    max-width: 1320px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
+/* Font Family */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Global Searchbox */
-.global-searchbox {
-    margin-bottom: 2rem;
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.searchbox-form {
-    max-width: 800px;
-    margin: 0 auto;
+/* ===== PAGE LAYOUT ===== */
+.hub-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--hub-muted) 0%, var(--hub-background) 50%);
 }
 
-.searchbox-group {
-    display: flex;
-    align-items: stretch;
-    border-radius: 12px;
-    background: white;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Query Container */
-.query-container {
+/* ===== HERO SECTION ===== */
+.hub-hero {
+    background: linear-gradient(145deg, var(--hub-deep-blue) 0%, var(--hub-navy) 50%, var(--hub-slate) 100%);
+    padding: 4rem 0 6rem;
     position: relative;
+    overflow: hidden;
 }
 
-.query-input {
-    width: 100%;
-    border: none;
-    padding: 1rem 2.5rem 1rem 1.2rem;
-    font-size: 1rem;
-}
-
-.query-input:focus {
-    outline: none;
-    box-shadow: none;
-}
-
-/* Status Indicators */
-.status-indicator {
+.hub-hero::before {
+    content: '';
     position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.15), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     pointer-events: none;
 }
 
-.status-icon {
+/* Floating decorative elements */
+.hub-hero::after {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+    top: -200px;
+    right: -100px;
+    pointer-events: none;
+}
+
+.hero-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.hero-inner {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(37, 99, 235, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    border-radius: var(--radius-full);
+    margin-bottom: 1.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--hub-accent-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hero-badge i {
     font-size: 1rem;
 }
 
-.status-spinner {
-    width: 1rem;
-    height: 1rem;
+.hero-title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 900;
+    color: var(--hub-white);
+    margin: 0 0 1rem;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
 }
 
-/* Type Selection */
-.type-select {
-    border: none;
-    border-left: 1px solid var(--border-color);
-    padding: 1rem 1.2rem;
-    min-width: 140px;
+.hero-title .accent {
+    background: linear-gradient(135deg, var(--hub-accent-light) 0%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-/* Action Buttons */
-.action-button {
-    padding: 0 1.5rem;
+.hero-subtitle {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 2rem;
+    line-height: 1.6;
+}
+
+/* Stats Row */
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2.5rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.25rem;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--hub-white);
+    line-height: 1;
+}
+
+.stat-number .suffix {
+    font-size: 1.25rem;
+    color: var(--hub-accent-light);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Hero Action */
+.hero-action {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-add-resource {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--hub-accent) 0%, var(--hub-accent-light) 100%);
+    color: var(--hub-white);
+    font-weight: 700;
+    font-size: 1rem;
     border: none;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4), 0 0 0 0 rgba(37, 99, 235, 0);
+}
+
+.btn-add-resource:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5), 0 0 0 4px rgba(37, 99, 235, 0.15);
+    color: var(--hub-white);
+}
+
+.btn-add-resource i {
+    font-size: 1.1rem;
+}
+
+/* ===== MAIN CONTENT ===== */
+.hub-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+    margin-top: -3rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* ===== SEARCH BAR - Pill Style ===== */
+.search-container {
+    max-width: 720px;
+    margin: 0 auto 2.5rem;
+}
+
+.search-pill {
+    display: flex;
+    align-items: stretch;
+    background: var(--hub-white);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.03);
+    overflow: hidden;
+    transition: box-shadow var(--transition-base);
+}
+
+.search-pill:focus-within {
+    box-shadow: var(--shadow-xl), 0 0 0 4px var(--hub-accent-glow);
+}
+
+.search-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-}
-.submit-action
- {
-    background-color: var(--primary);
-    color: white;
+    padding: 0 0.25rem 0 1.5rem;
+    color: var(--hub-text-muted);
+    font-size: 1.25rem;
 }
 
-/* Category Filters */
-.category-filters {
+.search-input {
+    flex: 1;
+    padding: 1.125rem 1rem;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--hub-text-primary);
+    min-width: 0;
+}
+
+.search-input::placeholder {
+    color: var(--hub-text-muted);
+}
+
+.search-input:focus {
+    outline: none;
+}
+
+.search-btn {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 2rem;
-    padding: 0.5rem 0;
+    padding: 0.875rem 1.75rem;
+    margin: 0.5rem;
+    background: var(--hub-accent);
+    color: var(--hub-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
 }
 
-.category-label {
-    font-weight: 500;
-    color: var(--text-dark);
-    margin-right: 0.5rem;
+.search-btn:hover {
+    background: var(--hub-accent-hover);
 }
 
-.category-list {
+/* ===== FILTER TABS - Animated Pills ===== */
+.filter-section {
+    margin-bottom: 2.5rem;
+}
+
+.filter-tabs {
     display: flex;
+    justify-content: center;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.625rem;
+    padding: 1rem 1.5rem;
+    background: var(--hub-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--hub-border);
 }
 
-.category-item {
+.filter-tab {
     display: inline-flex;
     align-items: center;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    color: var(--text-dark);
-    padding: 0.5rem 1rem;
-    border-radius: 30px;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--hub-muted);
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--hub-text-secondary);
+    font-family: inherit;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     text-decoration: none;
-    transition: all 0.2s ease;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    position: relative;
+    overflow: hidden;
 }
 
-.category-item:hover {
-    background-color: rgba(67, 97, 238, 0.1);
-    border-color: var(--primary);
-    color: var(--primary);
+.filter-tab::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--hub-accent);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
 }
 
-.category-item.active {
-    background-color: var(--primary);
-    border-color: var(--primary);
-    color: white;
+.filter-tab:hover {
+    background: var(--hub-subtle);
+    color: var(--hub-text-primary);
+    transform: translateY(-1px);
 }
 
-/* Resource Grid */
+.filter-tab.active {
+    background: var(--hub-accent);
+    color: var(--hub-white);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transform: translateY(-1px);
+}
+
+.filter-tab.active:hover {
+    background: var(--hub-accent-hover);
+}
+
+.filter-tab i {
+    font-size: 1rem;
+    transition: transform var(--transition-fast);
+}
+
+.filter-tab:hover i {
+    transform: scale(1.1);
+}
+
+.filter-tab .count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 0.4rem;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.filter-tab.active .count {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== RESULTS HEADER ===== */
+.results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--hub-border);
+}
+
+.results-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.results-count {
+    font-size: 0.95rem;
+    color: var(--hub-text-secondary);
+}
+
+.results-count strong {
+    color: var(--hub-text-primary);
+    font-weight: 700;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    background: var(--hub-muted);
+    border-radius: var(--radius-sm);
+}
+
+.view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--hub-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.view-btn:hover {
+    color: var(--hub-text-secondary);
+}
+
+.view-btn.active {
+    background: var(--hub-white);
+    color: var(--hub-accent);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===== RESOURCE GRID ===== */
 .resource-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-    margin-bottom: 2rem;
 }
 
-/* Resource Cards */
+@media (max-width: 1024px) {
+    .resource-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .resource-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== RESOURCE CARD - Premium Design ===== */
 .resource-card {
-    background-color: white;
-    border-radius: var(--card-radius);
+    position: relative;
+    background: var(--hub-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--hub-border);
     overflow: hidden;
-    box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
-    position: relative;
-    transition: all 0.3s ease;
-    border: none;
-    height: 100%;
+    transition: all var(--transition-base);
+    animation: cardFadeIn 0.5s ease-out forwards;
+    opacity: 0;
 }
 
 .resource-card:hover {
     transform: translateY(-6px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+    border-color: var(--hub-border-hover);
+    box-shadow: var(--shadow-card-hover);
 }
 
-.resource-type-indicator {
-    position: absolute;
-    top: 0;
-    left: 0;
+@keyframes cardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Staggered animation delays */
+.resource-card:nth-child(1) { animation-delay: 0.05s; }
+.resource-card:nth-child(2) { animation-delay: 0.1s; }
+.resource-card:nth-child(3) { animation-delay: 0.15s; }
+.resource-card:nth-child(4) { animation-delay: 0.2s; }
+.resource-card:nth-child(5) { animation-delay: 0.25s; }
+.resource-card:nth-child(6) { animation-delay: 0.3s; }
+.resource-card:nth-child(7) { animation-delay: 0.35s; }
+.resource-card:nth-child(8) { animation-delay: 0.4s; }
+.resource-card:nth-child(9) { animation-delay: 0.45s; }
+
+/* Card Top Accent Line - 4px colored border by type */
+.card-accent-line {
+    height: 4px;
     width: 100%;
-    height: 6px;
+    flex-shrink: 0;
 }
 
-.resource-type-indicator.type-article { background-color: var(--color-article); }
-.resource-type-indicator.type-thesis { background-color: var(--color-thesis); }
-.resource-type-indicator.type-memoir { background-color: var(--color-memoir); }
-.resource-type-indicator.type-tool { background-color: var(--color-tool); }
-.resource-type-indicator.type-course { background-color: var(--color-course); }
-.resource-type-indicator.type-corpus { background-color: var(--color-tool); }
+.card-accent-line.type-article { background: linear-gradient(90deg, var(--type-article), #60a5fa); }
+.card-accent-line.type-thesis { background: linear-gradient(90deg, var(--type-thesis), #a78bfa); }
+.card-accent-line.type-memoir { background: linear-gradient(90deg, var(--type-memoir), #fb923c); }
+.card-accent-line.type-tool { background: linear-gradient(90deg, var(--type-tool), #34d399); }
+.card-accent-line.type-course { background: linear-gradient(90deg, var(--type-course), #a78bfa); }
+.card-accent-line.type-corpus { background: linear-gradient(90deg, var(--type-corpus), #22d3ee); }
 
-/* Card Body */
-.card-body {
-    padding: 1.75rem;
-    padding-top: 2rem;
+/* Card Content */
+.card-content {
+    padding: 1.5rem;
     flex: 1;
     display: flex;
     flex-direction: column;
 }
 
-.resource-badge {
+/* Type Badge - Semi-transparent, top-left */
+.card-type-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.4rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
     font-weight: 700;
-    margin-bottom: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    width: fit-content;
 }
 
-.resource-badge.type-article { background-color: rgba(76, 201, 240, 0.1); color: var(--color-article); }
-.resource-badge.type-thesis { background-color: rgba(72, 149, 239, 0.1); color: var(--color-thesis); }
-.resource-badge.type-memoir { background-color: rgba(247, 127, 0, 0.1); color: var(--color-memoir); }
-.resource-badge.type-tool { background-color: rgba(82, 183, 136, 0.1); color: var(--color-tool); }
-.resource-badge.type-course { background-color: rgba(114, 9, 183, 0.1); color: var(--color-course); }
-.resource-badge.type-corpus { background-color: rgba(29, 171, 88, 0.1); color: var(--color-tool); }
+.card-type-badge.type-article { background: var(--type-article-bg); color: var(--type-article); }
+.card-type-badge.type-thesis { background: var(--type-thesis-bg); color: var(--type-thesis); }
+.card-type-badge.type-memoir { background: var(--type-memoir-bg); color: var(--type-memoir); }
+.card-type-badge.type-tool { background: var(--type-tool-bg); color: var(--type-tool); }
+.card-type-badge.type-course { background: var(--type-course-bg); color: var(--type-course); }
+.card-type-badge.type-corpus { background: var(--type-corpus-bg); color: var(--type-corpus); }
 
+.card-type-badge i {
+    font-size: 0.8rem;
+}
+
+/* Card Title - Bold, max 2 lines */
 .card-title {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    margin-bottom: 0.75rem;
-    line-height: 1.4;
-    color: var(--text-dark);
+    color: var(--hub-text-primary);
+    margin: 0 0 0.75rem;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.card-text {
-    color: var(--text-muted);
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    flex-grow: 1;
-    overflow: hidden;
+/* Card Description - 3 lines truncated */
+.card-description {
+    color: var(--hub-text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    margin: 0;
+    flex: 1;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-/* Resource Meta */
-.resource-meta {
-    margin-top: auto;
+/* Card Metadata */
+.card-meta {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-top: 1.25rem;
+    margin-top: auto;
+    border-top: 1px solid var(--hub-border);
 }
 
 .meta-item {
     display: flex;
     align-items: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--hub-text-muted);
 }
 
 .meta-item i {
-    margin-right: 0.5rem;
-    font-size: 1rem;
-    opacity: 0.8;
+    font-size: 0.85rem;
+    color: var(--hub-text-muted);
 }
 
-/* Card Footer */
-.card-footer {
-    background-color: var(--bg-light);
-    border-top: 1px solid var(--border-color);
-    padding: 1rem 1.75rem;
+/* Card Action Footer */
+.card-action {
+    padding: 0;
+    border-top: 1px solid var(--hub-border);
 }
 
-.btn-view {
+.btn-view-details {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 0.5rem;
     width: 100%;
-    text-decoration: none;
-    color: var(--text-dark);
+    padding: 1rem 1.5rem;
+    background: transparent;
+    color: var(--hub-text-secondary);
     font-weight: 600;
-    padding: 0.5rem 0;
-    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    position: relative;
 }
 
-.btn-view i {
-    transition: transform 0.2s ease;
+.btn-view-details::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background: var(--hub-accent);
+    transition: width var(--transition-base);
 }
 
-.btn-view:hover {
-    color: var(--primary);
+.btn-view-details:hover {
+    color: var(--hub-accent);
+    background: var(--hub-accent-glow);
 }
 
-.btn-view:hover i {
+.btn-view-details:hover::after {
+    width: calc(100% - 3rem);
+}
+
+.btn-view-details i {
+    font-size: 1rem;
+    transition: transform var(--transition-fast);
+}
+
+.btn-view-details:hover i {
     transform: translateX(4px);
 }
 
-/* Pagination */
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    background: var(--hub-white);
+    border-radius: var(--radius-2xl);
+    border: 2px dashed var(--hub-border);
+}
 
-/* ============================================
-   Ultra-Professional Pagination - FIXED
-   ============================================ */
+.empty-illustration {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(135deg, var(--hub-muted) 0%, var(--hub-subtle) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
 
-.pagination-container {
-    margin: 3rem 0 2rem;
-    padding: 1.5rem 0;
+.empty-illustration::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border: 2px dashed var(--hub-border);
+    border-radius: 50%;
+    animation: rotateSlowly 30s linear infinite;
+}
+
+@keyframes rotateSlowly {
+    to { transform: rotate(360deg); }
+}
+
+.empty-illustration i {
+    font-size: 3.5rem;
+    color: var(--hub-text-muted);
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--hub-text-primary);
+    margin: 0 0 0.75rem;
+}
+
+.empty-state p {
+    color: var(--hub-text-muted);
+    font-size: 1rem;
+    margin: 0 0 2rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.btn-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: var(--hub-accent);
+    color: var(--hub-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-base);
+}
+
+.btn-reset:hover {
+    background: var(--hub-accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    color: var(--hub-white);
+}
+
+/* ===== PAGINATION ===== */
+.pagination-wrapper {
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
 }
 
 .pagination {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
+    gap: 0.375rem;
     list-style: none;
-    padding: 0;
+    padding: 0.5rem;
     margin: 0;
-}
-
-.page-item {
-    list-style: none;
+    background: var(--hub-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--hub-border);
 }
 
 .page-item .page-link {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 48px;
-    height: 48px;
-    padding: 0.6rem 1.1rem;
-    border-radius: 12px;
-    border: 2px solid transparent;
-    background-color: #f8fafc;
-    color: #64748b;
+    min-width: 42px;
+    height: 42px;
+    padding: 0.5rem 0.875rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--hub-text-secondary);
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.9rem;
     text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Gradient hover effect */
-.page-item .page-link::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: -1;
-}
-
-.page-item .page-link:hover::before {
-    opacity: 0.1;
+    transition: all var(--transition-fast);
 }
 
 .page-item .page-link:hover {
-    background-color: white;
-    border-color: var(--primary);
-    color: var(--primary);
-    transform: translateY(-3px);  /* CHANGED: Removed scale(1.05) */
-    box-shadow: 0 8px 16px rgba(67, 97, 238, 0.2);
+    background: var(--hub-muted);
+    color: var(--hub-accent);
 }
 
-/* Active page number - FIXED: No scale transform */
 .page-item.active .page-link {
-    background: linear-gradient(135deg, #4361ee 0%, #3730a3 100%);
-    border-color: #4361ee;
-    color: white;
-    box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
-    /* REMOVED: transform: scale(1.08); */
-    font-weight: 700;
-    cursor: default;
+    background: var(--hub-accent);
+    color: var(--hub-white);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
-.page-item.active .page-link::before {
-    opacity: 0;
-}
-
-.page-item.active .page-link:hover {
-    /* REMOVED: transform: scale(1.08); */
-    box-shadow: 0 8px 24px rgba(67, 97, 238, 0.5);
-}
-
-/* Navigation arrows (first, previous, next, last) */
-.page-item:first-child .page-link,
-.page-item:last-child .page-link,
-.page-item:nth-child(2) .page-link,
-.page-item:nth-last-child(2) .page-link {
-    background-color: white;
-    border: 2px solid var(--border-color);
-}
-
-.page-item:first-child .page-link:hover,
-.page-item:last-child .page-link:hover,
-.page-item:nth-child(2) .page-link:hover,
-.page-item:nth-last-child(2) .page-link:hover {
-    background-color: var(--primary);
-    border-color: var(--primary);
-    color: white;
-    transform: translateY(-2px);  /* ADDED: Subtle lift effect */
-}
-
-/* Disabled state */
 .page-item.disabled .page-link {
-    background-color: var(--bg-light);
-    border-color: var(--border-color);
-    color: #cbd5e0;
-    cursor: not-allowed;
+    color: var(--hub-text-muted);
     pointer-events: none;
-    box-shadow: none;
-    opacity: 0.5;
 }
 
-/* Pagination icons (chevrons) styling */
-.page-item .page-link i {
-    font-size: 0.9rem;
-    font-weight: bold;
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .search-icon {
+    padding: 0 1.5rem 0 0.25rem;
 }
 
-/* Mobile responsive adjustments */
+html[dir="rtl"] .search-btn {
+    margin: 0.5rem 0.5rem 0.5rem 0;
+}
+
+html[dir="rtl"] .btn-view-details:hover i {
+    transform: translateX(-4px);
+}
+
+html[dir="rtl"] .filter-tabs {
+    direction: rtl;
+}
+
+html[dir="rtl"] .meta-item {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .card-type-badge {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .pagination {
-        gap: 8px;
+    .hub-hero {
+        padding: 3rem 0 5rem;
     }
     
-    .page-item .page-link {
-        min-width: 42px;
-        height: 42px;
-        padding: 0.5rem 0.9rem;
-        font-size: 0.95rem;
+    .hero-title {
+        font-size: 1.75rem;
+    }
+    
+    .hero-stats {
+        gap: 1.5rem;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+    
+    .search-pill {
+        flex-direction: column;
+        border-radius: var(--radius-xl);
+    }
+    
+    .search-btn {
+        margin: 0.5rem;
+        justify-content: center;
+    }
+    
+    .filter-tabs {
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+    
+    .filter-tab {
+        padding: 0.625rem 1rem;
+        font-size: 0.85rem;
+    }
+    
+    .results-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
     }
 }
 
-@media (max-width: 576px) {
-    .pagination-container {
-        margin: 2rem 0 1.5rem;
-        padding: 1rem 0;
+@media (max-width: 480px) {
+    .hero-action {
+        width: 100%;
     }
     
-    .pagination {
-        gap: 6px;
-        flex-wrap: wrap;
+    .btn-add-resource {
+        width: 100%;
+        justify-content: center;
     }
     
-    .page-item .page-link {
-        min-width: 40px;
-        height: 40px;
-        padding: 0.5rem 0.8rem;
-        font-size: 0.9rem;
-        border-radius: 10px;
-    }
-    
-    /* Hide middle page numbers on small screens */
-    .page-item:not(.active):not(:first-child):not(:last-child):not(:nth-child(2)):not(:nth-last-child(2)) {
+    .filter-tab .count {
         display: none;
     }
 }
-
-/* RTL support for Arabic */
-[dir="rtl"] .pagination {
-    direction: ltr;
-}
-
-/* Active page pulse animation */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-.page-item.active .page-link {
-    animation: pulse 2s ease-in-out infinite;
-}
-
-
-/* Empty State */
-.empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    background-color: white;
-    border-radius: var(--card-radius);
-    box-shadow: var(--shadow);
-}
-
-.empty-icon {
-    font-size: 4rem;
-    color: var(--primary);
-    opacity: 0.5;
-    margin-bottom: 1.5rem;
-}
-
-.empty-state h3 {
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-/* Dropdowns */
-.suggestions-panel,
-.history-panel {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background: white;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    z-index: 1000;
-    display: none;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .searchbox-group {
-        flex-direction: column;
-    }
-    
-    .type-select {
-        border-left: none;
-        border-top: 1px solid var(--border-color);
-        min-width: 100%;
-    }
-    
-    .action-button {
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .category-filters {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .category-list {
-        width: 100%;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-        flex-wrap: nowrap;
-    }
-    
-    .resource-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .card-body {
-        padding: 1.25rem;
-    }
-    
-    .card-footer {
-        padding: 0.75rem 1.25rem;
-    }
-}
-
-@media (min-width: 577px) and (max-width: 768px) {
-    .resource-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    }
-}
-
-@media (min-width: 992px) {
-    .resource-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
 </style>
+{% endblock %}
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchForm = document.getElementById('globalSearchForm');
-    const searchInput = document.getElementById('globalQuery');
-    const typeSelect = document.getElementById('contentTypeSelect');
-    const searchSuggestions = document.getElementById('querySuggestions');
-    const searchHistory = document.getElementById('queryHistory');
+{% block content %}
+<div class="hub-page">
     
-    // ... Le reste de votre JavaScript existant avec les nouveaux IDs ...
-});
-</script>
+    <!-- ============ HERO SECTION ============ -->
+    <section class="hub-hero">
+        <div class="hero-container">
+            <div class="hero-inner">
+                
+                <!-- Badge -->
+                <div class="hero-badge">
+                    <i class="bi bi-stars"></i>
+                    {% translate "Arabic NLP Assets" %}
+                </div>
+                
+                <!-- Title -->
+                <h1 class="hero-title">
+                    {% translate "Research Resources" %}
+                    <span class="accent">{% translate "Hub" %}</span>
+                </h1>
+                
+                <!-- Subtitle -->
+                <p class="hero-subtitle">
+                    {% translate "Discover articles, theses, tools, courses, and corpora for Arabic Natural Language Processing" %}
+                </p>
+                
+                <!-- Stats Row -->
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">
+                            {{ total_count|default:"0" }}
+                            <span class="suffix">+</span>
+                        </div>
+                        <div class="stat-label">{% translate "Resources" %}</div>
+                    </div>
+                </div>
+                
+                <!-- Action Button -->
+                {% if user.is_authenticated %}
+                <div class="hero-action">
+                    <a href="{% url 'resources:create' %}" class="btn-add-resource">
+                        <i class="bi bi-plus-lg"></i>
+                        {% translate "Add Resource" %}
+                    </a>
+                </div>
+                {% endif %}
+                
+            </div>
+        </div>
+    </section>
+    
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="hub-content">
+        
+        <!-- Search Bar - Pill Style -->
+        <div class="search-container">
+            <form method="get" action="" id="searchForm">
+                <div class="search-pill">
+                    <div class="search-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <input type="text" 
+                           name="q" 
+                           class="search-input" 
+                           placeholder="{% translate 'Search by title, author, or keyword...' %}"
+                           value="{{ request.GET.q|default:'' }}"
+                           autocomplete="off">
+                    <button type="submit" class="search-btn">
+                        <i class="bi bi-arrow-right"></i>
+                        <span>{% translate "Search" %}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Filter Tabs - Animated Pills -->
+        <div class="filter-section">
+            <div class="filter-tabs" role="tablist">
+                <a href="?q={{ request.GET.q }}" 
+                   class="filter-tab {% if not request.GET.type %}active{% endif %}"
+                   role="tab"
+                   aria-selected="{% if not request.GET.type %}true{% else %}false{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <span>{% translate "All" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=article" 
+                   class="filter-tab {% if request.GET.type == 'article' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>{% translate "Articles" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=thesis" 
+                   class="filter-tab {% if request.GET.type == 'thesis' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-journal-richtext"></i>
+                    <span>{% translate "Theses" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=memoir" 
+                   class="filter-tab {% if request.GET.type == 'memoir' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-book"></i>
+                    <span>{% translate "Memoirs" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=tool" 
+                   class="filter-tab {% if request.GET.type == 'tool' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-cpu"></i>
+                    <span>{% translate "Tools" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=course" 
+                   class="filter-tab {% if request.GET.type == 'course' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-mortarboard"></i>
+                    <span>{% translate "Courses" %}</span>
+                </a>
+                <a href="?q={{ request.GET.q }}&type=corpus" 
+                   class="filter-tab {% if request.GET.type == 'corpus' %}active{% endif %}"
+                   role="tab">
+                    <i class="bi bi-database"></i>
+                    <span>{% translate "Corpus" %}</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        {% if resources %}
+        
+        <!-- Results Header -->
+        <div class="results-header">
+            <div class="results-info">
+                <span class="results-count">
+                    {% translate "Showing" %} <strong>{{ resources|length }}</strong> {% translate "resources" %}
+                    {% if request.GET.type %}
+                        {% translate "in" %} <strong>{{ request.GET.type|title }}</strong>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="view-toggle">
+                <button class="view-btn active" title="{% translate 'Grid View' %}">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                </button>
+                <button class="view-btn" title="{% translate 'List View' %}">
+                    <i class="bi bi-list-ul"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Resource Grid - 3 Column Responsive -->
+        <div class="resource-grid">
+            {% for resource in resources %}
+            <article class="resource-card">
+                <!-- Accent Line - Color by Type -->
+                <div class="card-accent-line type-{{ resource.resource_type }}"></div>
+                
+                <!-- Card Content -->
+                <div class="card-content">
+                    <!-- Type Badge -->
+                    <span class="card-type-badge type-{{ resource.resource_type }}">
+                        <i class="bi {% if resource.resource_type == 'article' %}bi-file-earmark-text
+                                   {% elif resource.resource_type == 'thesis' %}bi-journal-richtext
+                                   {% elif resource.resource_type == 'memoir' %}bi-book
+                                   {% elif resource.resource_type == 'tool' %}bi-cpu
+                                   {% elif resource.resource_type == 'course' %}bi-mortarboard
+                                   {% elif resource.resource_type == 'corpus' %}bi-database
+                                   {% else %}bi-file-earmark{% endif %}"></i>
+                        {% if resource.resource_type == 'course' %}{% translate "Course" %}
+                        {% elif resource.resource_type == 'tool' %}{% translate "Tool" %}
+                        {% elif resource.resource_type == 'corpus' %}{% translate "Corpus" %}
+                        {% elif resource.resource_type == 'article' %}{% translate "Article" %}
+                        {% elif resource.resource_type == 'thesis' %}{% translate "Thesis" %}
+                        {% elif resource.resource_type == 'memoir' %}{% translate "Memoir" %}
+                        {% else %}{{ resource.resource_type|title }}{% endif %}
+                    </span>
+                    
+                    <!-- Title - Max 2 lines -->
+                    <h3 class="card-title">{{ resource.get_localized_title }}</h3>
+                    
+                    <!-- Description - 3 lines truncated -->
+                    <p class="card-description">
+                        {{ resource.get_localized_description|truncatewords:25|default:_('No description provided') }}
+                    </p>
+                    
+                    <!-- Metadata -->
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <i class="bi bi-person"></i>
+                            <span>{{ resource.author.get_full_name_display|default:_('Unknown') }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="bi bi-calendar3"></i>
+                            <span>{{ resource.creation_date|date:"M d, Y"|default:_("Not specified") }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Card Action -->
+                <div class="card-action">
+                    <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}" 
+                       class="btn-view-details">
+                        <span>{% translate "View Details" %}</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="pagination-wrapper" aria-label="{% translate 'Page navigation' %}">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page=1" title="{% translate 'First' %}">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.previous_page_number }}" title="{% translate 'Previous' %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ num }}">{{ num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.next_page_number }}" title="{% translate 'Next' %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&page={{ page_obj.paginator.num_pages }}" title="{% translate 'Last' %}">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-illustration">
+                <i class="bi bi-search"></i>
+            </div>
+            <h3>{% translate "No resources found" %}</h3>
+            <p>{% translate "Try adjusting your search query or filter criteria to discover more resources" %}</p>
+            <a href="{% url 'resources:list' %}" class="btn-reset">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                {% translate "Reset Filters" %}
+            </a>
+        </div>
+        
+        {% endif %}
+        
+    </main>
+</div>
 {% endblock %}

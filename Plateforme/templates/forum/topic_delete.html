@@ -1,69 +1,398 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load i18n static %}
+
+{% block title %}{% translate "Delete Discussion" %} | {{ topic.get_localized_title }}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== TOPIC DELETE CSS ===== */
+:root {
+    --td-primary: #3B82F6;
+    
+    --td-deep: #0f172a;
+    --td-navy: #1e3a5f;
+    --td-white: #ffffff;
+    --td-bg: #f8fafc;
+    --td-muted: #f1f5f9;
+    --td-subtle: #e2e8f0;
+    
+    --td-text: #0f172a;
+    --td-text-secondary: #475569;
+    --td-text-muted: #94a3b8;
+    
+    --td-border: #e2e8f0;
+    --td-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    
+    --td-danger: #dc2626;
+    --td-danger-dark: #b91c1c;
+    --td-danger-light: #fef2f2;
+    --td-danger-border: #fecaca;
+    --td-danger-glow: rgba(220, 38, 38, 0.15);
+    
+    --td-warning: #f59e0b;
+    --td-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --td-radius-sm: 6px;
+    --td-radius-md: 10px;
+    --td-radius-lg: 14px;
+    --td-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.td-page {
+    min-height: 100vh;
+    background: var(--td-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.td-hero {
+    background: linear-gradient(145deg, var(--td-deep) 0%, var(--td-navy) 100%);
+    padding: 2rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.td-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(220, 38, 38, 0.12), transparent);
+    pointer-events: none;
+}
+
+.td-hero-container {
+    max-width: 650px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.td-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.td-breadcrumb a { color: rgba(255, 255, 255, 0.7); text-decoration: none; transition: color 0.2s; }
+.td-breadcrumb a:hover { color: var(--td-white); }
+.td-breadcrumb span { color: rgba(255, 255, 255, 0.5); }
+.td-breadcrumb .current { color: var(--td-white); font-weight: 500; }
+
+.td-hero-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.td-hero-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: var(--td-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.td-hero-icon i { font-size: 1.75rem; color: #fecaca; }
+
+.td-hero-text h1 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--td-white);
+    margin: 0 0 0.5rem;
+}
+
+.td-hero-text p { font-size: 1rem; color: rgba(255, 255, 255, 0.7); margin: 0; }
+
+.td-content {
+    max-width: 650px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+    flex: 1;
+}
+
+.td-danger-card {
+    background: var(--td-white);
+    border: 2px solid var(--td-danger-border);
+    border-radius: var(--td-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--td-shadow-lg);
+}
+
+.td-card-header {
+    padding: 1.5rem 2rem;
+    background: var(--td-danger-light);
+    border-bottom: 1px solid var(--td-danger-border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.td-danger-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--td-danger);
+    color: var(--td-white);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--td-radius-sm);
+}
+
+.td-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--td-danger);
+    margin: 0;
+}
+
+.td-card-body { padding: 2rem; }
+
+.td-topic-info {
+    background: var(--td-muted);
+    border: 1px solid var(--td-border);
+    border-radius: var(--td-radius-md);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.td-topic-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--td-text);
+    margin: 0 0 0.5rem;
+}
+
+.td-topic-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--td-text-secondary);
+}
+
+.td-topic-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.td-topic-meta i { color: var(--td-text-muted); font-size: 0.9rem; }
+
+.td-warning-list {
+    margin-bottom: 1.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.td-warning-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--td-warning-bg);
+    border-radius: var(--td-radius-sm);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--td-text);
+}
+
+.td-warning-item:last-child { margin-bottom: 0; }
+.td-warning-item i { color: var(--td-warning); font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+
+.td-confirm-text {
+    font-size: 0.95rem;
+    color: var(--td-text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.td-confirm-text strong { color: var(--td-danger); }
+
+.td-card-footer {
+    padding: 1.5rem 2rem;
+    background: var(--td-danger-light);
+    border-top: 1px solid var(--td-danger-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.td-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: var(--td-radius-md);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.td-btn-danger {
+    background: var(--td-danger);
+    color: var(--td-white);
+}
+
+.td-btn-danger:hover {
+    background: var(--td-danger-dark);
+    color: var(--td-white);
+    box-shadow: 0 0 0 4px var(--td-danger-glow);
+}
+
+.td-btn-cancel {
+    background: var(--td-white);
+    color: var(--td-text-secondary);
+    border: 1px solid var(--td-border);
+}
+
+.td-btn-cancel:hover {
+    background: var(--td-muted);
+    color: var(--td-text);
+}
+
+@media (max-width: 768px) {
+    .td-hero { padding: 1.5rem 0 3rem; }
+    .td-hero-icon { width: 48px; height: 48px; }
+    .td-hero-icon i { font-size: 1.25rem; }
+    .td-hero-content { flex-direction: column; text-align: center; }
+    .td-content { padding: 0 1rem 3rem; }
+    .td-card-header { flex-direction: column; align-items: flex-start; }
+    .td-card-body { padding: 1.5rem; }
+    .td-card-footer { 
+        flex-direction: column-reverse; 
+        padding: 1.25rem 1.5rem;
+        gap: 0.75rem;
+    }
+    .td-btn { width: 100%; justify-content: center; }
+    .td-topic-meta { flex-direction: column; gap: 0.5rem; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4 mb-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow-sm border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>{% trans "Delete topic" %}</h4>
+<div class="td-page">
+    
+    <header class="td-hero">
+        <div class="td-hero-container">
+            <nav class="td-breadcrumb">
+                <a href="{% url 'forum:topic-list' %}">{% translate "Discussion Hub" %}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <a href="{% url 'forum:chatroom-list' topic.pk %}">{{ topic.get_localized_title|truncatechars:30 }}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{% translate "Delete" %}</span>
+            </nav>
+            
+            <div class="td-hero-content">
+                <div class="td-hero-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
                 </div>
-                <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <div class="display-1 text-danger mb-3">
-                            <i class="fas fa-trash-alt"></i>
-                        </div>
-                        <h5 class="fw-bold">{% trans "Are you sure you want to delete the topic:" %}</h5>
-                        <h4 class="text-danger my-3">"{{ topic.get_localized_title }}"</h4>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        <strong>{% trans "Attention :" %}</strong>{% trans "This action is irreversible and will delete all associated chat rooms and messages." %} 
-                    </div>
-                    
-                    <form method="post" class="mt-4">
-                        {% csrf_token %}
-                        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mt-4">
-                            <a href="{% url 'forum:topic-list' %}" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
-                            </a>
-                            <button type="submit" class="btn btn-danger btn-lg">
-                                <i class="fas fa-trash-alt me-2"></i>{% trans "Confirm deletion" %}
-                            </button>
-                        </div>
-                    </form>
+                <div class="td-hero-text">
+                    <h1>{% translate "Delete Discussion" %}</h1>
+                    <p>{% translate "This action cannot be undone. Please review carefully." %}</p>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form');
-        const deleteButton = form.querySelector('button[type="submit"]');
-        
-        // Add confirmation step
-        form.addEventListener('submit', function(e) {
-            if (!deleteButton.classList.contains('confirmed')) {
-                e.preventDefault();
-                deleteButton.innerHTML = '<i class="fas fa-question-circle me-2"></i>Êtes-vous vraiment sûr ?';
-                deleteButton.classList.add('confirmed');
+    </header>
+    
+    <main class="td-content">
+        <div class="td-danger-card">
+            
+            <div class="td-card-header">
+                <span class="td-danger-badge">
+                    <i class="bi bi-shield-exclamation"></i>
+                    {% translate "Danger Zone" %}
+                </span>
+                <h2 class="td-card-title">{% translate "Permanent Deletion" %}</h2>
+            </div>
+            
+            <div class="td-card-body">
                 
-                // Reset after 3 seconds if user doesn't click
-                setTimeout(function() {
-                    if (deleteButton.classList.contains('confirmed')) {
-                        deleteButton.innerHTML = '<i class="fas fa-trash-alt me-2"></i>Confirmer la suppression';
-                        deleteButton.classList.remove('confirmed');
-                    }
-                }, 3000);
-            } else {
-                // Show loading state
-                deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Suppression en cours...';
-                deleteButton.disabled = true;
-            }
-        });
-    });
-</script>
+                <div class="td-topic-info">
+                    <h3 class="td-topic-title">{{ topic.get_localized_title }}</h3>
+                    <div class="td-topic-meta">
+                        <span>
+                            <i class="bi bi-person"></i>
+                            {{ topic.creator.get_full_name_display|default:topic.creator.username }}
+                        </span>
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            {{ topic.created_at|date:"M d, Y" }}
+                        </span>
+                        <span>
+                            <i class="bi bi-chat-dots"></i>
+                            {{ topic.chatrooms.count }} {% translate "chat rooms" %}
+                        </span>
+                    </div>
+                </div>
+                
+                <p class="td-impact-title" style="font-size: 0.85rem; font-weight: 700; color: var(--td-danger); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    {% translate "What will be deleted" %}
+                </p>
+                <ul class="td-warning-list">
+                    <li class="td-warning-item">
+                        <i class="bi bi-chat-square-text"></i>
+                        <span>{% translate "The discussion topic and all its content" %}</span>
+                    </li>
+                    <li class="td-warning-item">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>{% translate "All chat rooms associated with this topic" %}</span>
+                    </li>
+                    <li class="td-warning-item">
+                        <i class="bi bi-chat-left-text"></i>
+                        <span>{% translate "All messages within those chat rooms" %}</span>
+                    </li>
+                    <li class="td-warning-item">
+                        <i class="bi bi-clock-history"></i>
+                        <span>{% translate "Complete discussion history and timestamps" %}</span>
+                    </li>
+                </ul>
+                
+                <p class="td-confirm-text">
+                    {% translate "Are you absolutely sure you want to delete" %} <strong>"{{ topic.get_localized_title }}"</strong>?
+                    {% translate "This will permanently remove the discussion and all associated data. This action" %} <strong>{% translate "cannot be undone" %}</strong>.
+                </p>
+                
+            </div>
+            
+            <div class="td-card-footer">
+                <a href="{% url 'forum:chatroom-list' topic.pk %}" class="td-btn td-btn-cancel">
+                    <i class="bi bi-arrow-left"></i>
+                    {% translate "Cancel" %}
+                </a>
+                <form method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="td-btn td-btn-danger">
+                        <i class="bi bi-trash3"></i>
+                        {% translate "Confirm Permanent Deletion" %}
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </main>
+</div>
 {% endblock %}
