@@ -5,105 +5,215 @@
 
 {% block extra_styles %}
 <link rel="stylesheet" href="{% static 'css/projects-modern.css' %}?v=1">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   FILTER PILLS BAR - Unified Design System
+   ═══════════════════════════════════════════════════════════════ */
+.filter-pills-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    border: 1px solid #e2e8f0;
+}
+
+.filter-pills-label {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.filter-pills-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.filter-pill:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+    transform: translateY(-1px);
+}
+
+.filter-pill.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.filter-pill.active:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.filter-pill i {
+    font-size: 0.8rem;
+}
+
+.filter-pill-count {
+    background: rgba(255,255,255,0.2);
+    padding: 0.125rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.filter-pill:not(.active) .filter-pill-count {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+/* Status Dropdown Pill */
+.filter-pill-select {
+    padding: 0.5rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 140px;
+}
+
+.filter-pill-select:hover,
+.filter-pill-select:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Search in Pills Bar */
+.filter-search-wrapper {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 0.25rem;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 300px;
+    min-width: 200px;
+}
+
+.filter-search-wrapper:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-search-input {
+    border: none;
+    outline: none;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    background: transparent;
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-search-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.filter-search-btn:hover {
+    background: #2563eb;
+}
+
+/* RTL Support */
+[dir="rtl"] .filter-pills-bar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .filter-pill i {
+    margin-left: 0.25rem;
+    margin-right: 0;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="content">
   <div class="projects-header">
-   
-    <div class="projects-actions">
-      <form method="get" class="search-form">
-        <div class="search-wrapper">
-          <input
-            type="text"
-            name="search"
-            placeholder={% trans "Search for a project..." %}
-            value="{{ request.GET.search }}"
-            class="search-input"
-          />
-          <button type="submit" class="search-btn">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
-        </div>
-        {% if request.GET.search %}
-        <a
-          href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}"
-          class="clear-search"
-        >
-        Clear search
+    <!-- ═══════════════════════════════════════════════════════════════
+         FILTER PILLS BAR
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="filter-pills-bar">
+      <span class="filter-pills-label"><i class="fas fa-filter me-1"></i> {% trans "Filter:" %}</span>
+      
+      <div class="filter-pills-group">
+        <!-- All Projects -->
+        <a href="{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" 
+           class="filter-pill {% if not request.GET.my_projects %}active{% endif %}">
+          <i class="fas fa-th-large"></i>
+          <span>{% trans "All Projects" %}</span>
         </a>
-        {% endif %}
-      </form>
-      <a href="{% url 'projects:project_new' %}" class="btn create-btn">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-         {% trans "New Project" %}      </a>
-      <a
-        href="{% if request.GET.my_projects %}{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% else %}?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% endif %}"
-        class="btn filter-btn {% if request.GET.my_projects %}active{% endif %}"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon
-            points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
-          ></polygon>
-        </svg>
-        {% if request.GET.my_projects %} {% trans "All projects" %}{% else %} {% trans "My projects" %} {% endif %}
-      </a>
-
-      {# Filtre par statut #}
-      <div class="filter-status">
-        <form method="get" action="{% url 'projects:project_list' %}">
-          {% comment %} Conserver les autres paramètres de la requête GET {% endcomment %}
-          {% for key, value in request.GET.items %}
-            {% if key != 'status' %}
-              <input type="hidden" name="{{ key }}" value="{{ value }}">
-            {% endif %}
-          {% endfor %}
-          
-          <select name="status" onchange="this.form.submit()" class="form-select">
-            <option value="">{% trans "All Statuses"  %}</option>
-            {% for status_value, status_label in project_statuses %}
-              <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
-            {% endfor %}
-          </select>
-        </form>
+        
+        <!-- My Projects -->
+        <a href="?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" 
+           class="filter-pill {% if request.GET.my_projects %}active{% endif %}">
+          <i class="fas fa-user"></i>
+          <span>{% trans "My Projects" %}</span>
+        </a>
       </div>
 
+      <!-- Status Dropdown -->
+      <form method="get" action="{% url 'projects:project_list' %}" class="d-inline">
+        {% if request.GET.my_projects %}<input type="hidden" name="my_projects" value="1">{% endif %}
+        {% if request.GET.search %}<input type="hidden" name="search" value="{{ request.GET.search }}">{% endif %}
+        <select name="status" onchange="this.form.submit()" class="filter-pill-select">
+          <option value="">{% trans "All Statuses" %}</option>
+          {% for status_value, status_label in project_statuses %}
+            <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <!-- Search -->
+      <form method="get" class="filter-search-wrapper">
+        {% if request.GET.my_projects %}<input type="hidden" name="my_projects" value="1">{% endif %}
+        {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+        <input type="text" name="search" placeholder="{% trans 'Search projects...' %}" 
+               value="{{ request.GET.search }}" class="filter-search-input">
+        <button type="submit" class="filter-search-btn">
+          <i class="fas fa-search"></i>
+        </button>
+      </form>
+
+      <!-- Create Button -->
+      <a href="{% url 'projects:project_new' %}" class="filter-pill active" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-color: #10b981;">
+        <i class="fas fa-plus"></i>
+        <span>{% trans "New Project" %}</span>
+      </a>
     </div>
   </div>
 

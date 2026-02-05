@@ -4,49 +4,243 @@
 
 {% block title %}{% trans "Institution Directory" %} | {% trans "Arabic Language Technology Platform" %}{% endblock %}
 
+{% block extra_styles %}
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   FILTER PILLS BAR - Unified Design System
+   ═══════════════════════════════════════════════════════════════ */
+.filter-pills-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    border: 1px solid #e2e8f0;
+}
+
+.filter-pills-label {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.filter-pills-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.filter-pill:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+    transform: translateY(-1px);
+}
+
+.filter-pill.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.filter-pill.active:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.filter-pill i {
+    font-size: 0.8rem;
+}
+
+/* Filter Pill Select */
+.filter-pill-select {
+    padding: 0.5rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 130px;
+}
+
+.filter-pill-select:hover,
+.filter-pill-select:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Search in Pills Bar */
+.filter-search-wrapper {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 0.25rem;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 280px;
+    min-width: 200px;
+}
+
+.filter-search-wrapper:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-search-input {
+    border: none;
+    outline: none;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    background: transparent;
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-search-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.filter-search-btn:hover {
+    background: #2563eb;
+}
+
+/* Institution Cards */
+.institution-card {
+    transition: all 0.3s ease;
+}
+
+.institution-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important;
+}
+
+.hover-shadow {
+    transition: box-shadow 0.3s ease;
+}
+
+[dir="rtl"] .filter-pills-bar {
+    flex-direction: row-reverse;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container my-5">
-    <div class="row mb-5">
+    <div class="row mb-4">
         <div class="col-lg-10 col-md-12 mx-auto">
             <h1 class="text-center fw-bold mb-4 display-5">
                 {% trans "Directory of Research Institutions in Arabic Language Processing" %}
             </h1>
             <div class="d-flex justify-content-center mb-4">
-                <div style="width: 100px; height: 4px; background-color: #0d6efd;"></div>
+                <div style="width: 100px; height: 4px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 2px;"></div>
             </div>
-            <p class="text-center text-muted lead mb-5">{% trans "Discover leading organizations in Arabic language technology research and development" %}</p>
+            <p class="text-center text-muted lead mb-4">{% trans "Discover leading organizations in Arabic language technology research and development" %}</p>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-5 search-filter-card">
-        <div class="card-body search-filter-body">
-            <form method="get" action="{% url 'institutions:institution_list' %}" class="row g-3 filter-form">
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.institution_type.label_tag }}
-                    {{ filter_form.institution_type }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.country.label_tag }}
-                    {{ filter_form.country }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.specialty.label_tag }}
-                    {{ filter_form.specialty }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.search_term.label_tag }}
-                    {{ filter_form.search_term }}
-                </div>
-                <div class="col-12 text-center text-md-end mt-3">
-                    <a href="{% url 'institutions:institution_list' %}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-undo me-1"></i> {% trans "Reset" %}
-                    </a>
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="fas fa-search me-1"></i> {% trans "Search" %}
-                    </button>
-                </div>
-            </form>
+    <!-- ═══════════════════════════════════════════════════════════════
+         FILTER PILLS BAR
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="filter-pills-bar">
+        <span class="filter-pills-label"><i class="fas fa-filter me-1"></i> {% trans "Filter:" %}</span>
+        
+        <div class="filter-pills-group">
+            <!-- All Institutions -->
+            <a href="{% url 'institutions:institution_list' %}" 
+               class="filter-pill {% if not request.GET.institution_type and not request.GET.country and not request.GET.specialty %}active{% endif %}">
+                <i class="fas fa-th-large"></i>
+                <span>{% trans "All Institutions" %}</span>
+            </a>
         </div>
+
+        <!-- Type Dropdown -->
+        <form method="get" class="d-inline">
+            {% if request.GET.country %}<input type="hidden" name="country" value="{{ request.GET.country }}">{% endif %}
+            {% if request.GET.specialty %}<input type="hidden" name="specialty" value="{{ request.GET.specialty }}">{% endif %}
+            {% if request.GET.search_term %}<input type="hidden" name="search_term" value="{{ request.GET.search_term }}">{% endif %}
+            <select name="institution_type" onchange="this.form.submit()" class="filter-pill-select">
+                <option value="">{% trans "All Types" %}</option>
+                {% for choice in filter_form.institution_type.field.choices %}
+                    {% if choice.0 %}
+                    <option value="{{ choice.0 }}" {% if request.GET.institution_type == choice.0|stringformat:"s" %}selected{% endif %}>{{ choice.1 }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- Country Dropdown -->
+        <form method="get" class="d-inline">
+            {% if request.GET.institution_type %}<input type="hidden" name="institution_type" value="{{ request.GET.institution_type }}">{% endif %}
+            {% if request.GET.specialty %}<input type="hidden" name="specialty" value="{{ request.GET.specialty }}">{% endif %}
+            {% if request.GET.search_term %}<input type="hidden" name="search_term" value="{{ request.GET.search_term }}">{% endif %}
+            <select name="country" onchange="this.form.submit()" class="filter-pill-select">
+                <option value="">{% trans "All Countries" %}</option>
+                {% for choice in filter_form.country.field.choices %}
+                    {% if choice.0 %}
+                    <option value="{{ choice.0 }}" {% if request.GET.country == choice.0|stringformat:"s" %}selected{% endif %}>{{ choice.1 }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- Specialty Dropdown -->
+        <form method="get" class="d-inline">
+            {% if request.GET.institution_type %}<input type="hidden" name="institution_type" value="{{ request.GET.institution_type }}">{% endif %}
+            {% if request.GET.country %}<input type="hidden" name="country" value="{{ request.GET.country }}">{% endif %}
+            {% if request.GET.search_term %}<input type="hidden" name="search_term" value="{{ request.GET.search_term }}">{% endif %}
+            <select name="specialty" onchange="this.form.submit()" class="filter-pill-select">
+                <option value="">{% trans "All Specialties" %}</option>
+                {% for choice in filter_form.specialty.field.choices %}
+                    {% if choice.0 %}
+                    <option value="{{ choice.0 }}" {% if request.GET.specialty == choice.0|stringformat:"s" %}selected{% endif %}>{{ choice.1 }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- Search -->
+        <form method="get" class="filter-search-wrapper">
+            {% if request.GET.institution_type %}<input type="hidden" name="institution_type" value="{{ request.GET.institution_type }}">{% endif %}
+            {% if request.GET.country %}<input type="hidden" name="country" value="{{ request.GET.country }}">{% endif %}
+            {% if request.GET.specialty %}<input type="hidden" name="specialty" value="{{ request.GET.specialty }}">{% endif %}
+            <input type="text" name="search_term" placeholder="{% trans 'Search institutions...' %}" 
+                   value="{{ request.GET.search_term }}" class="filter-search-input">
+            <button type="submit" class="filter-search-btn">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
     </div>
 
     <div class="row">
