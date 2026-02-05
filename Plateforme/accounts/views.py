@@ -141,8 +141,8 @@ class ProfileView(LoginRequiredMixin, DetailView):
         # Get user's projects if viewing own profile
         if context['is_own_profile']:
             context['user_projects'] = Project.objects.filter(
-                projectmember__member=profile_user,
-                projectmember__status='accepted'
+                members__member=profile_user,
+                members__status='accepted'
             ).distinct()[:5]
         
         return context
