@@ -1,10 +1,15 @@
 from django.urls import path, include
-from .views import SignUp, ProfileView, ProfileEditView, InviteToProjectView, RespondToProjectInviteView, awaiting_verification_view, delete_account
+from .views import (
+    SignUp, LoginView, ProfileView, ProfileEditView, 
+    InviteToProjectView, RespondToProjectInviteView, 
+    awaiting_verification_view, delete_account
+)
 
 
 app_name = 'accounts'
 urlpatterns = [
     path('signup/', SignUp.as_view(), name='signup'),
+    path('login/', LoginView.as_view(), name='account_login'),  # Custom login view with Remember Me
     path('profile/<uuid:pk>/', ProfileView.as_view(), name='profile'),
     path('profile/<uuid:pk>/edit/', ProfileEditView.as_view(), name='profile-edit'),
     path('profile/<uuid:pk>/invite/', InviteToProjectView.as_view(), name='invite_to_project'),

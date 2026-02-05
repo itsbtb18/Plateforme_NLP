@@ -142,6 +142,10 @@ ACCOUNT_FORMS = {
     "signup": "accounts.forms.CustomUserCreationForm",
 }
 
+# Remember Me Configuration
+ACCOUNT_SESSION_REMEMBER = True  # Enable remember me functionality
+ACCOUNT_REMEMBER_ME_EXPIRY = 604800  # 1 week in seconds (7 days)
+
 LOGIN_REDIRECT_URL = "pages:home"
 ACCOUNT_LOGOUT_REDIRECT = "pages:home"
 
@@ -168,11 +172,11 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Session Security Settings
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week in seconds
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds (14 days)
 SESSION_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
 SESSION_COOKIE_SAMESITE = 'Lax'  # Protect against CSRF
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Don't expire at browser close by default
 SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 
 # CSRF Security
