@@ -47,8 +47,14 @@ class EventListView(LoginAndVerifiedRequiredMixin, ListView):
             if keyword:
                 queryset = queryset.filter(
                     Q(title__icontains=keyword) | 
+                    Q(title_ar__icontains=keyword) | 
+                    Q(title_en__icontains=keyword) | 
                     Q(description__icontains=keyword) |
-                    Q(organizer__name__icontains=keyword)
+                    Q(description_ar__icontains=keyword) |
+                    Q(description_en__icontains=keyword) |
+                    Q(organizer__name__icontains=keyword) |
+                    Q(domains__icontains=keyword) |
+                    Q(location__icontains=keyword)
                 )
             if event_type:
                 queryset = queryset.filter(event_type=event_type)

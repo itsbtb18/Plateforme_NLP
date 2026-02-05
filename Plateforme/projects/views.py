@@ -51,16 +51,20 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         if status_filter:
             qs = qs.filter(status=status_filter)
             
-        # Ajouter la recherche
-        search_query = self.request.GET.get('search')
+        # Ajouter la recherche (support both 'q' and 'search' for compatibility)
+        search_query = self.request.GET.get('q') or self.request.GET.get('search', '')
         if search_query:
             qs = qs.filter(
                 Q(title__icontains=search_query) |
                 Q(title_ar__icontains=search_query) |
                 Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
+                Q(description_ar__icontains=search_query) |
+                Q(description_en__icontains=search_query) |
                 Q(institution__name__icontains=search_query) |
-                Q(coordinator__full_name__icontains=search_query)
+                Q(institution__acronym__icontains=search_query) |
+                Q(coordinator__full_name__icontains=search_query) |
+                Q(coordinator__username__icontains=search_query)
             )
             
         return qs.annotate(is_member=Exists(membership))
@@ -69,6 +73,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['project_statuses'] = Project.STATUS_CHOICES
         context['page'] = 'research_projects'
+        context['search_query'] = self.request.GET.get('q') or self.request.GET.get('search', '')
         return context
 
 

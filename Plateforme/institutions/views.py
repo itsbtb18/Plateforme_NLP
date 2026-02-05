@@ -38,6 +38,10 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
             specialty = form.cleaned_data.get('specialty')
             search_term = form.cleaned_data.get('search_term')
             
+            # Also check for 'q' parameter for consistency
+            if not search_term:
+                search_term = self.request.GET.get('q', '').strip()
+            
             if institution_type:
                 queryset = queryset.filter(type=institution_type)
             
@@ -50,8 +54,14 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
             if search_term:
                 queryset = queryset.filter(
                     Q(name__icontains=search_term) | 
+                    Q(name_ar__icontains=search_term) | 
+                    Q(name_en__icontains=search_term) | 
                     Q(description__icontains=search_term) |
-                    Q(acronym__icontains=search_term)
+                    Q(description_ar__icontains=search_term) |
+                    Q(description_en__icontains=search_term) |
+                    Q(acronym__icontains=search_term) |
+                    Q(city__icontains=search_term) |
+                    Q(specialties__name__icontains=search_term)
                 )
         
         return queryset.distinct()

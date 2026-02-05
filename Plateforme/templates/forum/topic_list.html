@@ -515,10 +515,10 @@ html[dir="rtl"] .ft-user-info { text-align: left; }
     <main class="ft-content">
         
         <div class="ft-toolbar">
-            <div class="ft-search-box">
+            <form method="get" action="" class="ft-search-box">
                 <i class="bi bi-search ft-search-icon"></i>
-                <input type="text" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch">
-            </div>
+                <input type="text" name="q" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch" value="{{ search_query|default:'' }}">
+            </form>
             <a href="{% url 'forum:topic-new' %}" class="ft-btn ft-btn-primary">
                 <i class="bi bi-plus-lg"></i>
                 {% translate "New Discussion" %}
@@ -623,17 +623,37 @@ html[dir="rtl"] .ft-user-info { text-align: left; }
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('topicSearch');
+    const searchForm = searchInput ? searchInput.closest('form') : null;
     const topicList = document.getElementById('topicList');
+    let debounceTimer;
     
-    if (searchInput && topicList) {
+    if (searchInput && searchForm) {
+        // Submit form on Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchForm.submit();
+            }
+        });
+        
+        // Client-side instant filtering while typing (only filters visible items)
         searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase();
-            const cards = topicList.querySelectorAll('.ft-topic-card');
+            clearTimeout(debounceTimer);
+            const query = this.value.toLowerCase().trim();
             
-            cards.forEach(card => {
-                const title = card.dataset.title || '';
-                card.style.display = title.includes(query) ? '' : 'none';
-            });
+            if (topicList) {
+                const cards = topicList.querySelectorAll('.ft-topic-card');
+                cards.forEach(card => {
+                    const title = card.dataset.title || '';
+                    card.style.display = title.includes(query) ? '' : 'none';
+                });
+            }
+            
+            // Auto-submit after 500ms of no typing for backend search
+            debounceTimer = setTimeout(function() {
+                if (searchInput.value.trim().length >= 2 || searchInput.value.trim().length === 0) {
+                    searchForm.submit();
+                }
+            }, 800);
         });
     }
 });

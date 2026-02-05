@@ -105,6 +105,15 @@ class EventForm(forms.ModelForm):
 class EventSearchForm(forms.Form):
     """Form for searching events."""
     
+    # Support both 'q' (standard) and 'keyword' (legacy) for search
+    q = forms.CharField(
+        required=False, 
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': ('Search by title, description, or organizer'),
+            'name': 'q'
+        })
+    )
     keyword = forms.CharField(
         required=False, 
         widget=forms.TextInput(attrs={
@@ -137,3 +146,11 @@ class EventSearchForm(forms.Form):
             'class': 'form-check-input'
         })
     )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        # Merge q and keyword fields - q takes precedence
+        q = cleaned_data.get('q', '')
+        keyword = cleaned_data.get('keyword', '')
+        cleaned_data['keyword'] = q or keyword
+        return cleaned_data

@@ -15,7 +15,7 @@ from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 import logging
 
 # Import allauth LoginView
@@ -146,11 +146,15 @@ class LoginView(AllauthLoginView):
             # User wants to be remembered - use default session age from settings
             # SESSION_COOKIE_AGE = 1209600 (2 weeks)
             self.request.session.set_expiry(None)  # Use settings default
-            logger.debug(f"User {self.request.user.email} logged in with 'Remember Me' enabled")
+            if self.request.user.is_authenticated:
+                user = cast('CustomUser', self.request.user)
+                logger.debug(f"User {user.email} logged in with 'Remember Me' enabled")
         else:
             # User doesn't want to be remembered - expire session when browser closes
             self.request.session.set_expiry(0)
-            logger.debug(f"User {self.request.user.email} logged in without 'Remember Me'")
+            if self.request.user.is_authenticated:
+                user = cast('CustomUser', self.request.user)
+                logger.debug(f"User {user.email} logged in without 'Remember Me'")
         
         return response
 

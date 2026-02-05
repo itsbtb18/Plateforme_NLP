@@ -775,10 +775,10 @@ html[dir="rtl"] .rp-avatar:first-child {
                 <div class="rp-search-box">
                     <i class="bi bi-search rp-search-icon"></i>
                     <input type="text" 
-                           name="search" 
+                           name="q" 
                            class="rp-search-input" 
                            placeholder="{% translate 'Search projects by title, institution, or researcher...' %}"
-                           value="{{ request.GET.search }}">
+                           value="{{ search_query|default:request.GET.q }}">
                 </div>
                 <button type="submit" class="rp-search-btn">
                     <i class="bi bi-search"></i>
@@ -789,21 +789,21 @@ html[dir="rtl"] .rp-avatar:first-child {
             <div class="rp-pill-group">
                 <span class="rp-pill-label">{% translate "Filter:" %}</span>
                 
-                <a href="{% if request.GET.search %}?search={{ request.GET.search }}{% else %}{% url 'projects:project_list' %}{% endif %}"
+                <a href="{% if request.GET.q %}?q={{ request.GET.q }}{% else %}{% url 'projects:project_list' %}{% endif %}"
                    class="rp-pill {% if not request.GET.my_projects and not request.GET.status %}active{% endif %}">
                     <i class="bi bi-grid-3x3-gap"></i>
                     {% translate "All Projects" %}
                 </a>
                 
-                <a href="?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}"
+                <a href="?my_projects=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
                    class="rp-pill {% if request.GET.my_projects %}active{% endif %}">
                     <i class="bi bi-person-badge"></i>
                     {% translate "My Projects" %}
                 </a>
                 
                 <form method="get" style="display: inline-flex;">
-                    {% if request.GET.search %}
-                    <input type="hidden" name="search" value="{{ request.GET.search }}">
+                    {% if request.GET.q %}
+                    <input type="hidden" name="q" value="{{ request.GET.q }}">
                     {% endif %}
                     {% if request.GET.my_projects %}
                     <input type="hidden" name="my_projects" value="1">
@@ -816,7 +816,7 @@ html[dir="rtl"] .rp-avatar:first-child {
                     </select>
                 </form>
                 
-                {% if request.GET.search or request.GET.status %}
+                {% if request.GET.q or request.GET.status %}
                 <a href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}" 
                    class="rp-pill">
                     <i class="bi bi-x-lg"></i>

@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.db.models import Q as DjangoQ
 from elasticsearch_dsl import Q,MultiSearch 
 from elasticsearch_dsl.query import  MultiMatch, DisMax, Bool, Term, MatchPhrase
 import logging
@@ -11,6 +12,14 @@ from .documents import (
     CourseDocument, InstitutionDocument, ResourceDocument, ProjectDocument,
     EventDocument, ToolDocument, CorpusDocument, UserDocument
 )
+
+# Import Django models for fallback search
+from resources.models import Course, NLPTool, Corpus, Document
+from projects.models import Project
+from events.models import Event
+from institutions.models import Institution
+from forum.models import Topic
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 
@@ -312,20 +321,38 @@ class GlobalSearchView(View):
         if not query:
             return JsonResponse({'results': [], 'total': 0})
 
+        per_type = self._get_per_type(request)
+        
+        # Always try Django fallback first for reliability, then try ES for ranking
         try:
-            per_type = self._get_per_type(request)
+            # First get Django fallback results (more reliable)
+            fallback_results = self._django_fallback_search(query, per_type)
+            
+            # If we got results from Django, return them
+            if fallback_results:
+                return JsonResponse({
+                    'results': fallback_results[:20],
+                    'total': len(fallback_results)
+                })
+            
+            # If Django found nothing, try Elasticsearch as backup
             language = request.GET.get('language', 'auto')
             doc_type = request.GET.get('type', None)
             subtype = request.GET.get('subtype', None)
             
             results, total_count = self._execute_search(query, per_type, language, doc_type, subtype, with_count=True)
-            return JsonResponse({
-                'results': results[:20],
-                'total': total_count
-            })
+            if results:
+                return JsonResponse({
+                    'results': results[:20],
+                    'total': total_count
+                })
+            
+            # No results found anywhere
+            return JsonResponse({'results': [], 'total': 0})
+            
         except Exception as e:
             logger.exception(f"Search error: {str(e)}")
-            return JsonResponse({'error': 'Search service error'}, status=500)
+            return JsonResponse({'results': [], 'total': 0})
 
     def handle_normal_search(self, request):
         query = request.GET.get('q', '').strip()
@@ -375,12 +402,42 @@ class GlobalSearchView(View):
             
             return render(request, self.template_name, context)
         except Exception as e:
-            logger.exception(f"Search error: {str(e)}")
-            return render(request, self.template_name, {
-                'error': 'An error occurred while searching',
-                'query': query,
-                'total': 0
-            })
+            logger.exception(f"Elasticsearch search error, falling back to Django: {str(e)}")
+            # Fallback to Django Q-based search
+            try:
+                per_type = self._get_per_type(request)
+                page = request.GET.get('page', 1)
+                results = self._django_fallback_search(query, per_type * 2)
+                total_count = len(results)
+                
+                paginator = Paginator(results, self.RESULTS_PER_PAGE)
+                try:
+                    paginated_results = paginator.page(page)
+                except PageNotAnInteger:
+                    paginated_results = paginator.page(1)
+                except EmptyPage:
+                    paginated_results = paginator.page(paginator.num_pages)
+                
+                return render(request, self.template_name, {
+                    'results': paginated_results,
+                    'query': query,
+                    'total': total_count,
+                    'total_pages': paginator.num_pages,
+                    'current_page': paginated_results.number,
+                    'has_previous': paginated_results.has_previous(),
+                    'has_next': paginated_results.has_next(),
+                    'previous_page': paginated_results.previous_page_number() if paginated_results.has_previous() else None,
+                    'next_page': paginated_results.next_page_number() if paginated_results.has_next() else None,
+                    'page_range': self._get_page_range(paginator, paginated_results.number),
+                    'fallback_mode': True
+                })
+            except Exception as fallback_error:
+                logger.exception(f"Django fallback search also failed: {str(fallback_error)}")
+                return render(request, self.template_name, {
+                    'error': 'An error occurred while searching',
+                    'query': query,
+                    'total': 0
+                })
 
     def _get_page_range(self, paginator, current_page):
         total_pages = paginator.num_pages
@@ -781,3 +838,229 @@ class GlobalSearchView(View):
             result['academic_level'] = str(source['academic_level_display'])
         elif 'academic_level' in source:
             result['academic_level'] = str(source['academic_level'])
+    
+    def _django_fallback_search(self, query, per_type=5):
+        """
+        Django Q-based fallback search when Elasticsearch is unavailable.
+        Returns a list of results similar to Elasticsearch results format.
+        """
+        results = []
+        User = get_user_model()
+        
+        # Search Courses
+        try:
+            courses = Course.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(keywords__icontains=query))
+            )[:per_type]
+            for course in courses:
+                results.append({
+                    'id': str(course.id),
+                    'type': 'course',
+                    'title': course.get_localized_title() or course.title,
+                    'description': (course.get_localized_description() or course.description or '')[:200],
+                    'link': f'/resources/details/course/{course.id}/',
+                    'score': 1.0,
+                    'field': getattr(course, 'field', ''),
+                    'academic_level': getattr(course, 'academic_level', ''),
+                    'author': course.created_by.full_name if hasattr(course, 'created_by') and course.created_by else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (courses): {e}")
+        
+        # Search Tools (NLPTool)
+        try:
+            tools = NLPTool.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(keywords__icontains=query))
+            )[:per_type]
+            for tool in tools:
+                results.append({
+                    'id': str(tool.id),
+                    'type': 'tool',
+                    'title': tool.get_localized_title() or tool.title,
+                    'description': (tool.get_localized_description() or tool.description or '')[:200],
+                    'link': f'/resources/details/tool/{tool.id}/',
+                    'score': 1.0,
+                    'tool_type': getattr(tool, 'tool_type', ''),
+                    'author': tool.created_by.full_name if hasattr(tool, 'created_by') and tool.created_by else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (tools): {e}")
+        
+        # Search Corpus
+        try:
+            corpuses = Corpus.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(keywords__icontains=query))
+            )[:per_type]
+            for corpus in corpuses:
+                results.append({
+                    'id': str(corpus.id),
+                    'type': 'corpus',
+                    'title': corpus.get_localized_title() or corpus.title,
+                    'description': (corpus.get_localized_description() or corpus.description or '')[:200],
+                    'link': f'/resources/details/corpus/{corpus.id}/',
+                    'score': 1.0,
+                    'field': getattr(corpus, 'field', ''),
+                    'author': corpus.created_by.full_name if hasattr(corpus, 'created_by') and corpus.created_by else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (corpus): {e}")
+        
+        # Search Documents (Resource)
+        try:
+            documents = Document.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(keywords__icontains=query))
+            )[:per_type]
+            for document in documents:
+                results.append({
+                    'id': str(document.id),
+                    'type': 'resource',
+                    'title': document.get_localized_title() or document.title,
+                    'description': (document.get_localized_description() or document.description or '')[:200],
+                    'link': f'/resources/details/document/{document.id}/',
+                    'score': 1.0,
+                    'document_type': getattr(document, 'document_type', ''),
+                    'author': document.created_by.full_name if hasattr(document, 'created_by') and document.created_by else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (documents): {e}")
+        
+        # Search Projects
+        try:
+            projects = Project.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(institution__name__icontains=query))
+            )[:per_type]
+            for project in projects:
+                results.append({
+                    'id': str(project.id),
+                    'type': 'project',
+                    'title': project.get_localized_title() or project.title,
+                    'description': (project.get_localized_description() or project.description or '')[:200],
+                    'link': f'/projects/{project.id}/',
+                    'score': 1.0,
+                    'status': project.status,
+                    'author': project.coordinator.full_name if project.coordinator else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (projects): {e}")
+        
+        # Search Events
+        try:
+            events = Event.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(organizer__name__icontains=query))
+            )[:per_type]
+            for event in events:
+                results.append({
+                    'id': str(event.id),
+                    'type': 'event',
+                    'title': event.get_localized_title() or event.title,
+                    'description': (event.get_localized_description() or event.description or '')[:200],
+                    'link': f'/events/{event.id}/',
+                    'score': 1.0,
+                    'event_type': getattr(event, 'event_type', ''),
+                    'author': event.organizer.name if hasattr(event, 'organizer') and event.organizer else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (events): {e}")
+        
+        # Search Institutions
+        try:
+            institutions = Institution.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(name__icontains=query) |
+                 DjangoQ(name_ar__icontains=query) |
+                 DjangoQ(name_en__icontains=query) |
+                 DjangoQ(acronym__icontains=query) |
+                 DjangoQ(description__icontains=query))
+            )[:per_type]
+            for institution in institutions:
+                results.append({
+                    'id': str(institution.id),
+                    'type': 'institution',
+                    'title': institution.get_localized_name() if hasattr(institution, 'get_localized_name') else institution.name,
+                    'description': (getattr(institution, 'description', '') or '')[:200],
+                    'link': f'/institutions/{institution.id}/',
+                    'score': 1.0,
+                    'acronym': getattr(institution, 'acronym', ''),
+                    'country': str(institution.country) if hasattr(institution, 'country') and institution.country else ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (institutions): {e}")
+        
+        # Search Users
+        try:
+            users = User.objects.filter(
+                DjangoQ(is_active=True) &
+                (DjangoQ(full_name__icontains=query) |
+                 DjangoQ(username__icontains=query) |
+                 DjangoQ(email__icontains=query))
+            )[:per_type]
+            for user in users:
+                results.append({
+                    'id': str(user.id),
+                    'type': 'user',
+                    'title': user.full_name or user.username,
+                    'description': getattr(user, 'bio', '')[:200] if getattr(user, 'bio', '') else '',
+                    'link': f'/accounts/profile/{user.id}/',
+                    'score': 1.0,
+                    'email': user.email,
+                    'author': ''
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (users): {e}")
+        
+        # Search Forum Topics
+        try:
+            topics = Topic.objects.filter(
+                DjangoQ(approval_status='approved') &
+                (DjangoQ(title__icontains=query) |
+                 DjangoQ(title_ar__icontains=query) |
+                 DjangoQ(title_en__icontains=query) |
+                 DjangoQ(description__icontains=query) |
+                 DjangoQ(description_ar__icontains=query) |
+                 DjangoQ(description_en__icontains=query))
+            )[:per_type]
+            for topic in topics:
+                results.append({
+                    'id': str(topic.id),
+                    'type': 'topic',
+                    'title': topic.get_localized_title() or topic.title,
+                    'description': (topic.get_localized_description() or topic.description or '')[:200],
+                    'link': f'/forum/topics/{topic.id}/',
+                    'score': 1.0,
+                    'author': topic.creator.full_name if topic.creator else '',
+                    'chatrooms_count': topic.chatrooms.count() if hasattr(topic, 'chatrooms') else 0
+                })
+        except Exception as e:
+            logger.error(f"Fallback search error (topics): {e}")
+        
+        return results
