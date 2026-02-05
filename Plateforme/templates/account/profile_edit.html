@@ -2,14 +2,126 @@
 {% load crispy_forms_tags %}
 {% load i18n %}
 
+{% block title %}{% trans "Edit Profile" %}{% endblock %}
+
+{% block head %}
+<style>
+    .profile-edit-card {
+        max-width: 700px;
+        margin: 0 auto;
+        border-radius: 12px;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .profile-edit-card .card-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .profile-edit-card .card-header h3 {
+        color: #fff;
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .profile-edit-card .card-body {
+        padding: 2rem;
+    }
+    
+    /* Section Headers */
+    .form-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .form-section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-section-title i {
+        color: #007bff;
+    }
+    
+    /* Avatar Preview */
+    .avatar-preview {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #e9ecef;
+        margin-bottom: 1rem;
+    }
+    
+    .avatar-upload-container {
+        text-align: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    /* Form Controls */
+    .profile-edit-card .form-control:focus,
+    .profile-edit-card .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+    }
+    
+    /* RTL Support */
+    [dir="rtl"] .form-control {
+        text-align: right;
+    }
+    
+    /* Card Footer */
+    .profile-edit-card .card-footer {
+        background-color: #f8f9fa;
+        padding: 1rem 2rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    /* Button Effects */
+    .btn-save-profile {
+        padding: 0.625rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-save-profile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Hide legacy fields */
+    #div_id_full_name,
+    #div_id_bio,
+    #div_id_password {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
+        <div class="col-md-10 col-lg-8">
+            <div class="card profile-edit-card">
                 <!-- Card Header -->
-                <div class="card-header bg-primary text-white">
-                    <h3 class="card-title mb-0">
+                <div class="card-header">
+                    <h3>
                         <i class="fas fa-user-edit me-2"></i>{% trans "Edit Profile" %}
                     </h3>
                 </div>
@@ -19,31 +131,144 @@
                     {% csrf_token %}
                     <div class="card-body">
                         {% if messages %}
-                        <div class="alert alert-info">
                             {% for message in messages %}
-                                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
+                                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
                                     {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>
                                 </div>
                             {% endfor %}
-                        </div>
                         {% endif %}
-                        {{ form|crispy }}
+
+                        <!-- Avatar Section -->
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-camera"></i>{% trans "Profile Picture" %}
+                            </h5>
+                            <div class="avatar-upload-container">
+                                {% if profile_user.avatar %}
+                                    <img src="{{ profile_user.avatar.url }}" alt="{% trans 'Current avatar' %}" class="avatar-preview" id="avatarPreview">
+                                {% else %}
+                                    <div class="avatar-preview d-flex align-items-center justify-content-center bg-secondary text-white" id="avatarPreview" style="font-size: 2rem;">
+                                        {{ profile_user.get_initials }}
+                                    </div>
+                                {% endif %}
+                                {{ form.avatar }}
+                                {% if form.avatar.help_text %}
+                                    <small class="text-muted d-block mt-2">{{ form.avatar.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Personal Information -->
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-user"></i>{% trans "Personal Information" %}
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.full_name_en.id_for_label }}" class="form-label">{{ form.full_name_en.label }}</label>
+                                    {{ form.full_name_en }}
+                                    {% if form.full_name_en.errors %}
+                                        <div class="text-danger small mt-1">{{ form.full_name_en.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.full_name_ar.id_for_label }}" class="form-label">{{ form.full_name_ar.label }}</label>
+                                    {{ form.full_name_ar }}
+                                    {% if form.full_name_ar.errors %}
+                                        <div class="text-danger small mt-1">{{ form.full_name_ar.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                                    {{ form.email }}
+                                    <small class="text-muted">{% trans "Contact support to change your email" %}</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.institution.id_for_label }}" class="form-label">{{ form.institution.label }}</label>
+                                    {{ form.institution }}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.speciality.id_for_label }}" class="form-label">{{ form.speciality.label }}</label>
+                                {{ form.speciality }}
+                            </div>
+                        </div>
+
+                        <!-- Biography -->
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-align-left"></i>{% trans "Biography" %}
+                            </h5>
+                            <div class="mb-3">
+                                <label for="{{ form.bio_en.id_for_label }}" class="form-label">{{ form.bio_en.label }}</label>
+                                {{ form.bio_en }}
+                                {% if form.bio_en.errors %}
+                                    <div class="text-danger small mt-1">{{ form.bio_en.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.bio_ar.id_for_label }}" class="form-label">{{ form.bio_ar.label }}</label>
+                                {{ form.bio_ar }}
+                                {% if form.bio_ar.errors %}
+                                    <div class="text-danger small mt-1">{{ form.bio_ar.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Social Links -->
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-share-alt"></i>{% trans "Social Links" %}
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.linkedin_url.id_for_label }}" class="form-label">
+                                        <i class="fab fa-linkedin text-primary me-1"></i>{{ form.linkedin_url.label }}
+                                    </label>
+                                    {{ form.linkedin_url }}
+                                    {% if form.linkedin_url.errors %}
+                                        <div class="text-danger small mt-1">{{ form.linkedin_url.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.twitter_url.id_for_label }}" class="form-label">
+                                        <i class="fab fa-twitter text-info me-1"></i>{{ form.twitter_url.label }}
+                                    </label>
+                                    {{ form.twitter_url }}
+                                    {% if form.twitter_url.errors %}
+                                        <div class="text-danger small mt-1">{{ form.twitter_url.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.facebook_url.id_for_label }}" class="form-label">
+                                        <i class="fab fa-facebook text-primary me-1"></i>{{ form.facebook_url.label }}
+                                    </label>
+                                    {{ form.facebook_url }}
+                                    {% if form.facebook_url.errors %}
+                                        <div class="text-danger small mt-1">{{ form.facebook_url.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Form Footer -->
-                    <div class="card-footer bg-transparent">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a href="{% url 'accounts:profile' pk=user.pk %}" class="btn btn-outline-secondary">
+                    <div class="card-footer">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <a href="{% url 'accounts:profile' pk=profile_user.pk %}" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
                             </a>
-
-                            <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-key me-2"></i>{% trans "Change Password" %}
-                            </a>
-
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>{% trans "Save" %}
-                            </button>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'account_change_password' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-key me-2"></i>{% trans "Change Password" %}
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-save-profile">
+                                    <i class="fas fa-save me-2"></i>{% trans "Save Changes" %}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -51,4 +276,29 @@
         </div>
     </div>
 </div>
+
+<script>
+// Avatar preview on file selection
+document.getElementById('{{ form.avatar.id_for_label }}')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('avatarPreview');
+            if (preview.tagName === 'IMG') {
+                preview.src = e.target.result;
+            } else {
+                // Replace div with img
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'avatar-preview';
+                img.id = 'avatarPreview';
+                img.alt = '{% trans "New avatar preview" %}';
+                preview.replaceWith(img);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
 {% endblock %}
