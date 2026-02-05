@@ -690,44 +690,45 @@
                         {% endif %}
                     </div>
                     <div class="form-group">
-                        <label for="id_full_name">
-                            {% trans "Full Name (English)" %}
+                        <label for="id_full_name_en">
+                            {% trans "Full Name (English)" %} <span class="required">*</span>
                         </label>
                         <div class="input-wrapper">
                             <input type="text" 
-                                   name="full_name" 
-                                   id="id_full_name" 
+                                   name="full_name_en" 
+                                   id="id_full_name_en" 
                                    placeholder="{% trans 'Full name in English' %}"
-                                   value="{{ form.full_name.value|default:'' }}"
-                                   dir="ltr">
+                                   value="{{ form.full_name_en.value|default:'' }}"
+                                   dir="ltr"
+                                   required>
                             <i class="fas fa-user input-icon"></i>
                         </div>
-                        {% if form.full_name.errors %}
-                            <span class="field-error">{{ form.full_name.errors.0 }}</span>
+                        {% if form.full_name_en.errors %}
+                            <span class="field-error">{{ form.full_name_en.errors.0 }}</span>
                         {% endif %}
                     </div>
                     {% else %}
                     <!-- English Name First -->
                     <div class="form-group">
-                        <label for="id_full_name">
+                        <label for="id_full_name_en">
                             {% trans "Full Name" %} <span class="required">*</span>
                         </label>
                         <div class="input-wrapper">
                             <input type="text" 
-                                   name="full_name" 
-                                   id="id_full_name" 
+                                   name="full_name_en" 
+                                   id="id_full_name_en" 
                                    placeholder="{% trans 'Enter your full name' %}"
-                                   value="{{ form.full_name.value|default:'' }}"
+                                   value="{{ form.full_name_en.value|default:'' }}"
                                    required>
                             <i class="fas fa-user input-icon"></i>
                         </div>
-                        {% if form.full_name.errors %}
-                            <span class="field-error">{{ form.full_name.errors.0 }}</span>
+                        {% if form.full_name_en.errors %}
+                            <span class="field-error">{{ form.full_name_en.errors.0 }}</span>
                         {% endif %}
                     </div>
                     <div class="form-group">
                         <label for="id_full_name_ar">
-                            {% trans "Full Name (Arabic)" %}
+                            {% trans "Full Name (Arabic)" %} <span class="required">*</span>
                         </label>
                         <div class="input-wrapper">
                             <input type="text" 
@@ -735,7 +736,8 @@
                                    id="id_full_name_ar" 
                                    placeholder="{% trans 'الاسم الكامل بالعربية' %}"
                                    value="{{ form.full_name_ar.value|default:'' }}"
-                                   dir="rtl">
+                                   dir="rtl"
+                                   required>
                             <i class="fas fa-user input-icon"></i>
                         </div>
                         {% if form.full_name_ar.errors %}
@@ -788,19 +790,22 @@
 
                 <!-- Specialization Field -->
                 <div class="form-group full-width">
-                    <label for="id_ai_specialization">
+                    <label for="id_speciality">
                         {% trans "Field of Specialization in AI" %}
                     </label>
                     <div class="input-wrapper">
-                        <input type="text" 
-                               name="ai_specialization" 
-                               id="id_ai_specialization" 
-                               placeholder="{% trans 'e.g., NLP, Machine Learning, Deep Learning' %}"
-                               value="{{ form.ai_specialization.value|default:'' }}">
+                        <select name="speciality" id="id_speciality">
+                            <option value="">{% trans "Select your specialization" %}</option>
+                            {% for value, label in form.speciality.field.choices %}
+                                {% if value %}
+                                <option value="{{ value }}" {% if form.speciality.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
                         <i class="fas fa-microscope input-icon"></i>
                     </div>
-                    {% if form.ai_specialization.errors %}
-                        <span class="field-error">{{ form.ai_specialization.errors.0 }}</span>
+                    {% if form.speciality.errors %}
+                        <span class="field-error">{{ form.speciality.errors.0 }}</span>
                     {% endif %}
                 </div>
 
