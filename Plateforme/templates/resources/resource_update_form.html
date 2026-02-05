@@ -3,7 +3,18 @@
 
 {% block content %}
 <div class="container py-5">
+    {% if review_mode and is_pending %}
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>{% trans "Admin Review Mode" %}</strong> - 
+        {% trans "Please review and complete all bilingual fields (Arabic & English) before approving." %}
+    </div>
+    {% endif %}
+
     <h1 class="mb-4">
+        {% if review_mode and is_pending %}
+            {% trans "Review & Edit" %} - 
+        {% endif %}
         {% if form.initial.document_type == 'thesis' %}
             {% trans "Update Thesis" %}
         {% elif form.initial.document_type == 'article' %}
@@ -45,6 +56,47 @@
                 {{ form.access_link|as_crispy_field }}
             </div>
         </div>
+
+        <!-- Bilingual Fields Section - Show in review mode or for admins -->
+        {% if review_mode or request.user.is_staff %}
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-language me-2"></i>{% trans "Bilingual Content (Required for Approval)" %}
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-primary mb-3"><i class="fas fa-globe me-1"></i> {% trans "English" %}</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{% trans "Title (English)" %} <span class="text-danger">*</span></label>
+                            <input type="text" name="title_en" class="form-control" 
+                                   value="{{ resource.title_en|default:'' }}" 
+                                   placeholder="{% trans 'Enter title in English' %}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{% trans "Description (English)" %} <span class="text-danger">*</span></label>
+                            <textarea name="description_en" class="form-control" rows="4" 
+                                      placeholder="{% trans 'Enter description in English' %}">{{ resource.description_en|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="text-success mb-3"><i class="fas fa-globe me-1"></i> {% trans "Arabic" %}</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{% trans "Title (Arabic)" %} <span class="text-danger">*</span></label>
+                            <input type="text" name="title_ar" class="form-control" dir="rtl" 
+                                   value="{{ resource.title_ar|default:'' }}" 
+                                   placeholder="{% trans 'Enter title in Arabic' %}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{% trans "Description (Arabic)" %} <span class="text-danger">*</span></label>
+                            <textarea name="description_ar" class="form-control" rows="4" dir="rtl" 
+                                      placeholder="{% trans 'Enter description in Arabic' %}">{{ resource.description_ar|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Conditional fields based on resource type -->
         {% if form.initial.resource_type == 'course' %}
@@ -110,9 +162,16 @@
         <div class="d-flex justify-content-between mt-4">
             <a href="{% url 'resources:resource-detail' type=view.kwargs.type pk=view.kwargs.pk %}" 
                class="btn btn-secondary">{% trans "Cancel" %}</a>
-            <button type="submit" class="btn btn-primary">
-                {% trans "Save Changes" %}
-            </button>
+            <div>
+                <button type="submit" class="btn btn-primary me-2">
+                    {% trans "Save Changes" %}
+                </button>
+                {% if review_mode and is_pending and request.user.is_staff %}
+                <button type="submit" name="approve_and_publish" value="1" class="btn btn-success">
+                    <i class="fas fa-check me-1"></i> {% trans "Approve & Publish" %}
+                </button>
+                {% endif %}
+            </div>
         </div>
     </form>
 </div>

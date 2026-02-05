@@ -30,6 +30,13 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
         
+        # Only show approved projects (unless staff or coordinator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(coordinator=self.request.user)
+            )
+        
         membership = ProjectMember.objects.filter(
             project=OuterRef('pk'),
             member=self.request.user
@@ -49,6 +56,8 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         if search_query:
             qs = qs.filter(
                 Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
                 Q(institution__name__icontains=search_query) |
                 Q(coordinator__full_name__icontains=search_query)
@@ -67,6 +76,16 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Project
     template_name = 'project_detail.html'
     context_object_name = 'project'
+    
+    def get_queryset(self) -> QuerySet[Project]:
+        qs = super().get_queryset()
+        # Only show approved projects (unless staff or coordinator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(coordinator=self.request.user)
+            )
+        return qs
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -120,16 +139,11 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         form.instance.coordinator = self.request.user
         response = super().form_valid(form)
-        # NOTIFICATION à tous les utilisateurs actifs via le service
-        User = get_user_model()
-        for user in User.objects.filter(is_active=True):
-            NotificationService.create_notification(
-                recipient=user,
-                notification_type='SYSTEM',
-                title="New research project",
-                message=f"The project « {form.instance.title} » has just been published."
-            )
-           
+        # Show pending approval message - don't notify all users until approved
+        messages.info(
+            self.request,
+            _("Your project '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+        )
         return response
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:

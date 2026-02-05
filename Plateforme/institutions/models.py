@@ -21,6 +21,14 @@ class Country(models.Model):
         current_lang = get_language()
         return self.name_ar if current_lang == 'ar' else self.name_en
 
+    def get_localized_name(self):
+        """Return name based on current language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        return self.name_en
+
 
 class Specialty(models.Model):
     name_en = models.CharField(_("Specialty Name (English)"), max_length=100, unique=True, default='')
@@ -36,6 +44,14 @@ class Specialty(models.Model):
         from django.utils.translation import get_language
         current_lang = get_language()
         return self.name_ar if current_lang == 'ar' else self.name_en
+
+    def get_localized_name(self):
+        """Return name based on current language."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        return self.name_en
 
     
 class Institution(models.Model):
@@ -57,6 +73,8 @@ class Institution(models.Model):
     type = models.CharField(max_length=255, choices=TYPE)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name=_("Country"))
     city = models.CharField(_("City"), max_length=100)
+    city_ar = models.CharField(_("City (Arabic)"), max_length=100, blank=True, default='')
+    city_en = models.CharField(_("City (English)"), max_length=100, blank=True, default='')
     specialties = models.ManyToManyField(Specialty, verbose_name=_("Specialties"))
     
     logo = models.ImageField(
@@ -70,7 +88,13 @@ class Institution(models.Model):
     email = models.EmailField(_("Email"), blank=True)
     phone = models.CharField(_("Phone"), max_length=50, blank=True)
     address = models.TextField(_("Address"), blank=True)
+    address_ar = models.TextField(_("Address (Arabic)"), blank=True, default='')
+    address_en = models.TextField(_("Address (English)"), blank=True, default='')
+    # Legacy field - kept for compatibility
     description = models.TextField(_("Description"), blank=True)
+    # Bilingual description fields
+    description_ar = models.TextField(_("Description (Arabic)"), blank=True)
+    description_en = models.TextField(_("Description (English)"), blank=True)
     
     image = models.ImageField(
         default='default.jpg',
@@ -94,6 +118,64 @@ class Institution(models.Model):
         verbose_name = _("Institution")
         verbose_name_plural = _("Institutions")
         ordering = ['name']
+
+    @property
+    def name_display(self):
+        """Return name based on current language - NO fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.name_ar or ''
+        return self.name_en or ''
+
+    @property
+    def description_display(self):
+        """Return description based on current language - NO fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return getattr(self, 'description_ar', '') or ''
+        return getattr(self, 'description_en', '') or ''
+
+    def get_localized_name(self):
+        """Return name based on current language with fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        elif self.name_en:
+            return self.name_en
+        return self.name
+
+    def get_localized_description(self):
+        """Return description based on current language with fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
+
+    def get_localized_city(self):
+        """Return city based on current language with fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.city_ar:
+            return self.city_ar
+        elif self.city_en:
+            return self.city_en
+        return self.city
+
+    def get_localized_address(self):
+        """Return address based on current language with fallback."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.address_ar:
+            return self.address_ar
+        elif self.address_en:
+            return self.address_en
+        return self.address
 
     def __str__(self):
         from django.utils.translation import get_language

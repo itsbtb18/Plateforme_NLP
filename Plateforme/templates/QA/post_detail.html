@@ -13,14 +13,14 @@
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         {% if post.author.avatar %}
-                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.get_full_name_display }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
                         {% else %}
                             <div class="bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                                 <span></span>
                             </div>
                         {% endif %}
                         <div>
-                            <h6 class="mb-0">{{ post.author.full_name }}</h6>
+                            <h6 class="mb-0">{{ post.author.get_full_name_display }}</h6>
                             <small class="text-muted">{{ post.created_at|timesince }} ago</small>
                         </div>
                     </div>
@@ -93,7 +93,7 @@
                                     <div class="flex-shrink-0 me-3">
                                         {% if comment.author.avatar %}
                                             <img src="{{ comment.author.avatar.url }}" 
-                                                 alt="{{ comment.author.full_name }}" 
+                                                 alt="{{ comment.author.get_full_name_display }}" 
                                                  class="rounded-circle" 
                                                  style="width: 40px; height: 40px; object-fit: cover;"
                                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -106,7 +106,7 @@
                                     <div class="flex-grow-1">
                                         <div class="bg-light rounded p-3 mb-2">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <strong>{{ comment.author.full_name }}</strong>
+                                                <strong>{{ comment.author.get_full_name_display }}</strong>
                                                 <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
                                             </div>
                                             <p class="mb-0 comment-content">{{ comment.content }}</p>
@@ -178,7 +178,7 @@
                                                 <div class="flex-shrink-0 me-2">
                                                     {% if reply.author.avatar %}
                                                         <img src="{{ reply.author.avatar.url }}" 
-                                                             alt="{{ reply.author.full_name }}" 
+                                                             alt="{{ reply.author.get_full_name_display }}" 
                                                              class="rounded-circle" 
                                                              style="width: 32px; height: 32px; object-fit: cover;"
                                                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -193,7 +193,7 @@
                                                 <div class="flex-grow-1">
                                                     <div class="bg-light rounded p-2">
                                                         <div class="d-flex justify-content-between align-items-start mb-1">
-                                                            <strong class="small">{{ reply.author.full_name }}</strong>
+                                                            <strong class="small">{{ reply.author.get_full_name_display }}</strong>
                                                             <small class="text-muted">{{ reply.created_at|timesince }} ago</small>
                                                         </div>
                                                         <p class="mb-0 small">{{ reply.content }}</p>
@@ -245,7 +245,7 @@
         <div class="mb-2">
             <strong>Comment {{ comment.id }}</strong><br>
             Author: {{ comment.author }} (ID: {{ comment.author.id }})<br>
-            Full Name: {{ comment.author.full_name }}<br>
+            Full Name: {{ comment.author.get_full_name_display }}<br>
             Avatar: {{ comment.author.avatar }}<br>
             Avatar URL: {% if comment.author.avatar %}{{ comment.author.avatar.url }}{% else %}None{% endif %}<br>
             Parent: {{ comment.parent }}<br>

@@ -13,7 +13,7 @@
               <div class="forum-icon">
                 <i class="fas fa-comments"></i>
               </div>
-              <h4 class="mb-0 text-truncate">{{ chatroom.name }}</h4>
+              <h4 class="mb-0 text-truncate">{{ chatroom.get_localized_name }}</h4>
             </div>
             <a
               href="{% url 'forum:chatroom-list' chatroom.topic.id %}"
@@ -23,14 +23,14 @@
             </a>
           </div>
 
-          <p class="forum-description mb-0">{{ chatroom.description }}</p>
+          <p class="forum-description mb-0">{{ chatroom.get_localized_description }}</p>
 
           <div class="forum-meta d-flex flex-wrap gap-3">
             <div class="forum-tag">
-              <i class="fas fa-tag me-1"></i>{{ chatroom.topic.title }}
+              <i class="fas fa-tag me-1"></i>{{ chatroom.topic.get_localized_title }}
             </div>
             <div class="forum-creator">
-              <i class="fas fa-user me-1"></i>{{ chatroom.creator.full_name }}
+              <i class="fas fa-user me-1"></i>{{ chatroom.creator.get_full_name_display }}
             </div>
             {% if user.is_staff or user == chatroom.creator %}
             <div class="forum-actions">
@@ -116,7 +116,7 @@
                       href="{% url 'accounts:profile' message.user.id %}"
                       class="profile-link"
                     >
-                      {{ message.user }}
+                      {{ message.user.get_full_name_display }}
                     </a>
                     {% if user.is_staff or user == chatroom.creator %}
                     <div class="message-actions">

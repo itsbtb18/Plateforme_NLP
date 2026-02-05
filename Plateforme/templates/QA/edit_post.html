@@ -5,8 +5,21 @@
  {% block content %}
 <div class="container mt-4">
   <div class="row">
-    <div class="col-md-8 mx-auto">
+    <div class="col-md-10 mx-auto">
       <div class="card">
+        {% if review_mode and is_pending %}
+        <!-- Admin Review Mode Banner -->
+        <div class="alert alert-info mb-0 rounded-0 rounded-top">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-user-shield fa-2x me-3"></i>
+            <div>
+              <strong>{% trans "Admin Review Mode" %}</strong>
+              <p class="mb-0 small">{% trans "Review and add translations before approving this post." %}</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
         <div class="card-header">
           <h3>{% trans "Edit post" %}</h3>
         </div>
@@ -14,6 +27,56 @@
           <form method="post" enctype="multipart/form-data">
             {% csrf_token %} {{ form.non_field_errors }}
 
+            {% if review_mode %}
+            <!-- Bilingual Fields for Admin Review -->
+            <div class="card mb-4 border-info">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-language me-2"></i>{% trans "Bilingual Content" %}</h5>
+              </div>
+              <div class="card-body">
+                <!-- Title Fields -->
+                <h6 class="text-muted mb-3">{% trans "Title" %} <small class="text-muted">({% trans "Optional" %})</small></h6>
+                <div class="row mb-4">
+                  <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                      <span class="badge bg-primary me-1">EN</span> {% trans "Title (English)" %}
+                    </label>
+                    <input type="text" name="title_en" class="form-control"
+                           value="{{ post.title_en|default:'' }}" 
+                           placeholder="{% trans 'Enter English title' %}">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                      <span class="badge bg-success me-1">AR</span> {% trans "Title (Arabic)" %}
+                    </label>
+                    <input type="text" name="title_ar" class="form-control" dir="rtl"
+                           value="{{ post.title_ar|default:'' }}" 
+                           placeholder="{% trans 'أدخل العنوان بالعربية' %}">
+                  </div>
+                </div>
+                
+                <!-- Content Fields -->
+                <h6 class="text-muted mb-3">{% trans "Content" %}</h6>
+                <div class="row">
+                  <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                      <span class="badge bg-primary me-1">EN</span> {% trans "Content (English)" %}
+                    </label>
+                    <textarea name="content_en" class="form-control" rows="6"
+                              placeholder="{% trans 'Enter English content' %}">{{ post.content_en|default:'' }}</textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                      <span class="badge bg-success me-1">AR</span> {% trans "Content (Arabic)" %}
+                    </label>
+                    <textarea name="content_ar" class="form-control" rows="6" dir="rtl"
+                              placeholder="{% trans 'أدخل المحتوى بالعربية' %}">{{ post.content_ar|default:'' }}</textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <!-- Regular Edit Mode -->
             <div class="mb-3">
               <label for="{{ form.content.id_for_label }}" class="form-label"
                 >{% trans "Content" %}</label
@@ -24,6 +87,7 @@
               </div>
               {% endif %}
             </div>
+            {% endif %}
 
             <div class="mb-3">
               <label for="{{ form.image.id_for_label }}" class="form-label"
@@ -78,16 +142,31 @@
               {% endif %}
             </div>
 
-            <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save me-2"></i>{% trans "Save changes" %}
-              </button>
-              <a
-                href="{% url 'QA:post_detail' post.slug %}"
-                class="btn btn-secondary"
-              >
-                <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+            <div class="d-flex justify-content-between">
+              {% if review_mode %}
+              <a href="{% url 'pages:admin_news' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>{% trans "Back to Admin" %}
               </a>
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-1"></i>{% trans "Save Draft" %}
+                </button>
+                {% if is_pending %}
+                <button type="submit" name="action" value="approve" class="btn btn-success">
+                  <i class="fas fa-check-circle me-1"></i>{% trans "Approve & Publish" %}
+                </button>
+                {% endif %}
+              </div>
+              {% else %}
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-2"></i>{% trans "Save changes" %}
+                </button>
+                <a href="{% url 'QA:post_detail' post.slug %}" class="btn btn-secondary">
+                  <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
+                </a>
+              </div>
+              {% endif %}
             </div>
           </form>
         </div>

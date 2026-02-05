@@ -1,7 +1,34 @@
 from django import forms
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from typing import List
 from .models import Institution, Country, Specialty
+
+
+def get_active_language():
+    """Get the current language, normalizing to 'ar' or 'en'."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return 'ar'
+    return 'en'
+
+
+def get_institution_bilingual_labels():
+    """Return language-appropriate labels for bilingual fields."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return {
+            'name_ar': _("اسم المؤسسة (بالعربية)"),
+            'name_en': _("اسم المؤسسة (بالإنجليزية)"),
+            'description_ar': _("الوصف (بالعربية)"),
+            'description_en': _("الوصف (بالإنجليزية)"),
+        }
+    else:
+        return {
+            'name_ar': _("Institution Name (Arabic)"),
+            'name_en': _("Institution Name (English)"),
+            'description_ar': _("Description (Arabic)"),
+            'description_en': _("Description (English)"),
+        }
 
 
 class InstitutionFilterForm(forms.Form):
@@ -135,6 +162,26 @@ class InstitutionForm(forms.ModelForm):
         label=_('Nom de l\'institution'), 
         widget=forms.TextInput(attrs={'class': 'form-control', 'required': True})
     )
+    
+    name_ar = forms.CharField(
+        label=_('Institution Name (Arabic)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'dir': 'rtl',
+            'placeholder': _('Enter institution name in Arabic')
+        })
+    )
+    
+    name_en = forms.CharField(
+        label=_('Institution Name (English)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter institution name in English')
+        })
+    )
+    
     acronym = forms.CharField(
         label=_('Sigle'), 
         required=False, 
@@ -196,13 +243,43 @@ class InstitutionForm(forms.ModelForm):
         required=False, 
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5})
     )
+    
+    description_ar = forms.CharField(
+        label=_('Description (Arabic)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 4,
+            'dir': 'rtl',
+            'placeholder': _('Enter institution description in Arabic')
+        })
+    )
+    
+    description_en = forms.CharField(
+        label=_('Description (English)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': _('Enter institution description in English')
+        })
+    )
 
     class Meta:
         model = Institution
         fields = [
-            'name', 'acronym', 'type', 'country', 'city', 'specialties',
-            'logo', 'website', 'email', 'phone', 'address', 'description'
+            'name', 'name_ar', 'name_en', 'acronym', 'type', 'country', 'city', 'specialties',
+            'logo', 'website', 'email', 'phone', 'address', 'description', 'description_ar', 'description_en'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Get conditional labels based on current language
+        labels = get_institution_bilingual_labels()
+        self.fields['name_ar'].label = labels['name_ar']
+        self.fields['name_en'].label = labels['name_en']
+        self.fields['description_ar'].label = labels['description_ar']
+        self.fields['description_en'].label = labels['description_en']
 
     def clean(self):
         """

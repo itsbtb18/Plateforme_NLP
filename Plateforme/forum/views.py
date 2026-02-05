@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -13,6 +13,7 @@ from django.views.generic import (
     View,
 )
 from .models import Topic, ChatRoom, Message, BannedUser
+from .forms import TopicForm
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.template.loader import render_to_string
 from django.contrib.auth import get_user_model
@@ -20,6 +21,8 @@ from notifications.services import NotificationService
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
+from django.contrib import messages
+from django.utils.translation import gettext_lazy as _
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         model = Topic
@@ -28,7 +31,14 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         ordering = ['-created_at']  # Tri par date de creation decroissante
 
         def get_queryset(self) -> QuerySet[Topic]:
-            return cast(QuerySet[Topic], super().get_queryset())
+            qs = cast(QuerySet[Topic], super().get_queryset())
+            # Only show approved topics (unless staff or creator)
+            if not self.request.user.is_staff:
+                qs = qs.filter(
+                    Q(approval_status='approved') | 
+                    Q(creator=self.request.user)
+                )
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -38,26 +48,25 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = Topic
-    fields = ['title', 'description']
+    form_class = TopicForm
     template_name = 'forum/topic_new.html'  # Ajout du préfixe 'forum/'
     success_url = reverse_lazy('forum:topic-list')
     context_object_name = 'topic'
       
     def form_valid(self, form):
         form.instance.creator = self.request.user
-        response = super().form_valid(form)
-        # NOTIFICATION à tous les utilisateurs actifs via le service
-        User = get_user_model()
-        for user in User.objects.filter(is_active=True):
-            # Évite d'envoyer la notification à l'utilisateur qui vient de créer le topic
-            if user != self.request.user:
-                NotificationService.create_notification(
-                    recipient=user,
-                    notification_type='SYSTEM', # Ou un type spécifique si tu en crées un pour le forum
-                    title="New topic in the forum",
-                    message=f"{self.request.user.username} created a new topic : {form.instance.title}",
-                    related_object=form.instance # Optionnel: lie la notification à l'objet Topic créé
-                )
+        # Auto-approve for staff, pending for regular users
+        if self.request.user.is_staff:
+            form.instance.approval_status = 'approved'
+            response = super().form_valid(form)
+            messages.success(self.request, _("Your topic has been published."))
+        else:
+            form.instance.approval_status = 'pending'
+            response = super().form_valid(form)
+            messages.info(
+                self.request,
+                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            )
         return response
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -66,7 +75,7 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
 
 class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Topic
-    fields = ['title', 'description']
+    form_class = TopicForm
     template_name = 'forum/topic_update.html'  # Ajout du préfixe 'forum/'
     success_url = reverse_lazy('forum:topic-list')
     context_object_name = 'topic'
@@ -76,9 +85,47 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         return topic.creator == self.request.user or self.request.user.is_staff or self.request.user.is_superuser
 
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        # Admin review mode - show bilingual fields
+        review_mode = self.request.GET.get('review') == '1' and (
+            self.request.user.is_staff or self.request.user.is_superuser
+        )
+        context['review_mode'] = review_mode
+        context['is_pending'] = self.object.approval_status == 'pending'  # type: ignore[union-attr]
+        context['topic'] = self.object
+        return context
+
+    def form_valid(self, form):
+        topic = form.save(commit=False)
+        
+        # Handle bilingual fields from admin review mode
+        if self.request.POST.get('title_en'):
+            topic.title_en = self.request.POST.get('title_en', '')
+        if self.request.POST.get('title_ar'):
+            topic.title_ar = self.request.POST.get('title_ar', '')
+        if self.request.POST.get('description_en'):
+            topic.description_en = self.request.POST.get('description_en', '')
+        if self.request.POST.get('description_ar'):
+            topic.description_ar = self.request.POST.get('description_ar', '')
+        
+        # Also update the main title/description with English version as default
+        if self.request.POST.get('title_en'):
+            topic.title = self.request.POST.get('title_en', topic.title)
+        if self.request.POST.get('description_en'):
+            topic.description = self.request.POST.get('description_en', topic.description)
+        
+        # Handle "Approve & Publish" action from admin review
+        if self.request.POST.get('action') == 'approve' and (
+            self.request.user.is_staff or self.request.user.is_superuser
+        ):
+            topic.approval_status = 'approved'
+            topic.save()
+            messages.success(self.request, _("Topic has been approved and published."))
+            return redirect('pages:admin_forum')
+        
+        topic.save()
+        return super().form_valid(form)
 
 class TopicDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Topic
@@ -99,6 +146,16 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Topic
     template_name = 'forum/topic_detail.html' 
     context_object_name = 'topic'
+
+    def get_queryset(self) -> QuerySet[Topic]:
+        qs = cast(QuerySet[Topic], super().get_queryset())
+        # Only show approved topics (unless staff or creator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(creator=self.request.user)
+            )
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

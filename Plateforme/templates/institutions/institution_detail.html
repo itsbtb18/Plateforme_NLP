@@ -1,12 +1,12 @@
 {% extends 'base.html' %} {% load static %} {% load i18n %} {% block title %} 
-{{ institution.name }} | {% trans "Institution Directory" %}{% endblock %} 
+{{ institution.get_localized_name }} | {% trans "Institution Directory" %}{% endblock %} 
 {% block content %}
 <div class="container my-5">
   <!-- Header with main information -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white">
       <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">{{ institution.name }}</h2>
+        <h2 class="mb-0">{{ institution.get_localized_name }}</h2>
         {% if institution.acronym %}
         <span class="badge bg-light text-primary"
           >{{ institution.acronym }}</span
@@ -20,14 +20,14 @@
           {% if institution.logo %}
           <img
             src="{{ institution.logo.url }}"
-            alt="{{ institution.name }}"
+            alt="{{ institution.get_localized_name }}"
             class="img-fluid mb-3 institution-logo"
             style="max-height: 150px"
           />
           {% else %}
           <img
             src="{% static 'images/institution-placeholder.png' %}"
-            alt="{{ institution.name }}"
+            alt="{{ institution.get_localized_name }}"
             class="img-fluid mb-3"
             style="max-height: 150px"
           />
@@ -37,9 +37,9 @@
           <div class="row">
             <div class="col-md-6">
               <p>
-                <strong>{% trans "Country:" %}</strong> {{ institution.country.name }}
+                <strong>{% trans "Country:" %}</strong> {{ institution.country.get_localized_name }}
               </p>
-              <p><strong>{% trans "City:" %}</strong> {{ institution.city }}</p>
+              <p><strong>{% trans "City:" %}</strong> {{ institution.get_localized_city }}</p>
             </div>
             <div class="col-md-6">
               {% if institution.website %}
@@ -63,26 +63,26 @@
               {% endif %}
             </div>
           </div>
-          {% if institution.address %}
+          {% if institution.get_localized_address %}
           <p>
-            <strong>{% trans "Address:" %}</strong> {{ institution.address }}
+            <strong>{% trans "Address:" %}</strong> {{ institution.get_localized_address }}
           </p>
           {% endif %}
           <div class="mt-3">
             <strong>{% trans "Specialties:" %}</strong>
             {% for specialty in institution.specialties.all %}
             <span class="badge bg-info text-dark me-2"
-              >{{ specialty.name }}</span
+              >{{ specialty.get_localized_name }}</span
             >
             {% endfor %}
           </div>
         </div>
       </div>
 
-      {% if institution.description %}
+      {% if institution.get_localized_description %}
       <div class="mt-4">
         <h5>{% trans "About the Institution" %}</h5>
-        <p>{{ institution.description }}</p>
+        <p>{{ institution.get_localized_description }}</p>
       </div>
       {% endif %}
     </div>
@@ -140,7 +140,7 @@
             <div class="card-body">
               <h5 class="card-title">
                 <a href="{% url 'projects:project_detail' project.id %}"
-                  >{{ project.title }}</a
+                  >{{ project.get_localized_title }}</a
                 >
               </h5>
               {% if project.start_date %}
@@ -154,7 +154,7 @@
               </p>
               {% endif %} {% if project.description %}
               <p class="card-text">
-                {{ project.description|truncatewords:30 }}
+                {{ project.get_localized_description|truncatewords:30 }}
               </p>
               {% endif %} {% if project.url %}
               <a
@@ -224,7 +224,7 @@
             <div class="card-body">
               <h5 class="card-title">
                 <a href="{% url 'events:event_detail' event.pk %}"
-                  >{{ event.title }}</a
+                  >{{ event.get_localized_title }}</a
                 >
               </h5>
               <p class="card-text">
@@ -232,10 +232,10 @@
               </p>
               {% if event.location %}
               <p class="card-text">
-                <i class="fas fa-map-marker-alt me-2"></i>{{ event.location }}
+                <i class="fas fa-map-marker-alt me-2"></i>{{ event.get_localized_location }}
               </p>
               {% endif %} {% if event.description %}
-              <p class="card-text">{{ event.description|truncatewords:25 }}</p>
+              <p class="card-text">{{ event.get_localized_description|truncatewords:25 }}</p>
               {% endif %} {% if event.registration_url %}
               <a
                 href="{{ event.registration_url }}"
@@ -313,7 +313,7 @@
           <div>
             <h6 class="mb-0">
               <a href="{% url 'accounts:profile' user.pk %}"
-                >{{ user.full_name|default:user.email }}</a
+                >{{ user.get_full_name_display|default:user.email }}</a
               >
             </h6>
             <small class="text-muted"
@@ -341,9 +341,9 @@
         <div class="col-md-6">
           <h5>{% trans "Contact Information" %}</h5>
           <ul class="list-unstyled">
-            {% if institution.address %}
+            {% if institution.get_localized_address %}
             <li class="mb-2">
-              <i class="fas fa-map-marker-alt me-2"></i>{{ institution.address }}
+              <i class="fas fa-map-marker-alt me-2"></i>{{ institution.get_localized_address }}
             </li>
             {% endif %} {% if institution.phone %}
             <li class="mb-2">

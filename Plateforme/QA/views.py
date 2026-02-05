@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from django.db import models
 from django.urls import reverse
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
 
@@ -90,13 +91,13 @@ def search_questions(request):
     return render(request, 'QA/search.html', {'results': results, 'query': query})
 
 def qa_home(request):
-    # Posts populaires (les plus likés)
-    popular_posts = Post.objects.annotate(
+    # Posts populaires (les plus likés) - only approved
+    popular_posts = Post.objects.filter(approval_status='approved').annotate(
         like_count=models.Count('likes')
     ).order_by('-like_count', '-created_at')[:5]
 
-    # Posts récents
-    recent_posts = Post.objects.order_by('-created_at')[:5]
+    # Posts récents - only approved
+    recent_posts = Post.objects.filter(approval_status='approved').order_by('-created_at')[:5]
 
     # Questions récentes
     recent_questions = Question.objects.order_by('-created_at')[:5]
@@ -119,7 +120,15 @@ def qa_home(request):
 @login_required
 @login_and_verified_required
 def feed(request):
-    posts = Post.objects.all()
+    # Show approved posts + user's own posts (including pending)
+    if request.user.is_staff:
+        # Staff can see all posts
+        posts = Post.objects.all()
+    else:
+        # Regular users see approved posts + their own posts
+        posts = Post.objects.filter(
+            Q(approval_status='approved') | Q(author=request.user)
+        )
     post_form = PostForm()
     comment_form = CommentForm()
     return render(request, 'QA/feed.html', {
@@ -137,8 +146,15 @@ def create_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.author = request.user
-            post.save()
-            messages.success(request, 'Your post has been successfully created.')
+            # Auto-approve for staff, pending for regular users
+            if request.user.is_staff:
+                post.approval_status = 'approved'
+                post.save()
+                messages.success(request, _('Your post has been published.'))
+            else:
+                post.approval_status = 'pending'
+                post.save()
+                messages.info(request, _('Your post has been submitted and is pending admin approval.'))
             return redirect('QA:feed')
         
     return redirect('QA:feed')
@@ -150,6 +166,14 @@ def create_post(request):
 @login_and_verified_required
 def post_detail(request, slug):
     post = get_object_or_404(Post, slug=slug)
+    
+    # Check access permissions for pending/rejected posts
+    if post.approval_status != 'approved':
+        # Only allow access to author or staff
+        if post.author != request.user and not request.user.is_staff:
+            messages.error(request, _('This post is not available.'))
+            return redirect('QA:feed')
+    
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {
         'post': post,
@@ -294,7 +318,17 @@ def delete_comment(request, comment_id):
 @login_required
 @login_and_verified_required
 def edit_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id, author=request.user)
+    post = get_object_or_404(Post, id=post_id)
+    
+    # Check permission: author, staff, or superuser
+    is_admin = request.user.is_staff or request.user.is_superuser
+    if post.author != request.user and not is_admin:
+        messages.error(request, 'You do not have permission to edit this post.')
+        return redirect('QA:post_detail', slug=post.slug)
+    
+    # Admin review mode
+    review_mode = request.GET.get('review') == '1' and is_admin
+    is_pending = post.approval_status == 'pending'
 
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES, instance=post)
@@ -309,16 +343,42 @@ def edit_post(request, post_id):
                 post.file.delete()
                 post.file = None
 
-            post = form.save()
+            post = form.save(commit=False)
+            
+            # Handle bilingual fields from admin review mode
+            if review_mode:
+                if request.POST.get('title_en'):
+                    post.title_en = request.POST.get('title_en', '')
+                    post.title = request.POST.get('title_en', post.title)  # Set main title
+                if request.POST.get('title_ar'):
+                    post.title_ar = request.POST.get('title_ar', '')
+                if request.POST.get('content_en'):
+                    post.content_en = request.POST.get('content_en', '')
+                if request.POST.get('content_ar'):
+                    post.content_ar = request.POST.get('content_ar', '')
+            
+            # Handle "Approve & Publish" action
+            if request.POST.get('action') == 'approve' and is_admin:
+                post.approval_status = 'approved'
+                post.save()
+                messages.success(request, _('Post has been approved and published.'))
+                return redirect('pages:admin_news')
+            
+            post.save()
             messages.success(request, 'Your post has been successfully edited.')
+            
+            if review_mode:
+                return redirect('pages:admin_news')
             return redirect('QA:post_detail', slug=post.slug)
     else:
         form = PostForm(instance=post)
 
     return render(request, 'QA/edit_post.html', {
         'form': form,
-        'post': post , 
-        'page': 'feed'
+        'post': post,
+        'page': 'feed',
+        'review_mode': review_mode,
+        'is_pending': is_pending,
     })
 
 @login_required

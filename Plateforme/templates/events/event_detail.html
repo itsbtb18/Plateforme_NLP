@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load i18n %} {% block title %}{{ event.title }} | {% trans "Events" %}{% endblock %} {% block extra_css %}
+{% extends "base.html" %} {% load i18n %} {% block title %}{{ event.get_localized_title }} | {% trans "Events" %}{% endblock %} {% block extra_css %}
 <style>
   /* Custom CSS for enhanced event detail page */
   .event-hero {
@@ -229,14 +229,14 @@
           <a href="{% url 'events:event_list' %}">{% trans "Events" %}</a>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
-          {{ event.title }}
+          {{ event.get_localized_title }}
         </li>
       </ol>
     </nav>
 
     <div class="row align-items-center">
       <div class="col-md-8">
-        <h1 class="display-5 fw-bold mb-3">{{ event.title }}</h1>
+        <h1 class="display-5 fw-bold mb-3">{{ event.get_localized_title }}</h1>
         <div class="d-flex flex-wrap event-badge-container gap-2 mb-3">
           <span
             class="badge badge-pill {% if event.event_type == 'conference' %}badge-event-conference{% elif event.event_type == 'workshop' %}badge-event-workshop{% elif event.event_type == 'call_for_papers' %}badge-event-call_for_papers{% elif event.event_type == 'hackathon' %}badge-event-hackathon{% else %}badge-event-other{% endif %}"
@@ -292,7 +292,7 @@
 
           <!-- Event description -->
           <div class="event-description mb-4">
-            {{ event.description|linebreaks }}
+            {{ event.get_localized_description|linebreaks }}
           </div>
 
           <!-- Event details -->
@@ -501,20 +501,20 @@
         <div class="card-body p-4">
           <div class="d-grid gap-2">
             <a
-              href="mailto:?subject={{ event.title }}&body={{ request.build_absolute_uri }}"
+              href="mailto:?subject={{ event.get_localized_title }}&body={{ request.build_absolute_uri }}"
               class="btn btn-outline-secondary"
             >
               <i class="fas fa-envelope me-2"></i> {% trans "Email" %}
             </a>
             <a
-              href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ event.title }}"
+              href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ event.get_localized_title }}"
               target="_blank"
               class="btn btn-outline-primary"
             >
               <i class="fab fa-twitter me-2"></i> {% trans "Twitter" %}
             </a>
             <a
-              href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ event.title }}"
+              href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ event.get_localized_title }}"
               target="_blank"
               class="btn btn-outline-primary"
             >

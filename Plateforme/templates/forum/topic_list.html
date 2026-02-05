@@ -16,15 +16,20 @@
     {% if topics %}
     <div class="topic-list">
         {% for topic in topics %}
-        <div class="topic-card">
+        <div class="topic-card {% if topic.approval_status == 'pending' %}border-warning{% endif %}">
+            {% if topic.approval_status == 'pending' and topic.creator == user %}
+            <div class="alert alert-warning mb-0 rounded-0 rounded-top py-2">
+                <i class="fas fa-clock me-2"></i>{% trans "This topic is pending admin approval" %}
+            </div>
+            {% endif %}
             <div class="topic-card-header">
                 <div class="topic-info">
                     <a href="{% url 'forum:chatroom-list' topic.id %}" class="topic-title">
-                        <h3>{{ topic.title }}</h3>
+                        <h3>{{ topic.get_localized_title }}</h3>
                     </a>
                     <div class="topic-meta">
                         <span class="topic-author">
-                            <i class="fas fa-user"></i> {{ topic.creator.full_name }}
+                            <i class="fas fa-user"></i> {{ topic.creator.get_full_name_display }}
                         </span>
                         <span class="topic-date">
                             <i class="far fa-calendar-alt"></i> {{ topic.created_at|date:"d/m/Y" }}
@@ -34,7 +39,7 @@
             </div>
             
             <div class="topic-card-body">
-                <p class="topic-description">{{ topic.description }}</p>
+                <p class="topic-description">{{ topic.get_localized_description }}</p>
             </div>
             
             <div class="topic-card-footer">

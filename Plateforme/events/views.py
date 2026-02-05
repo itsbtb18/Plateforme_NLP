@@ -31,8 +31,9 @@ class EventListView(ListView):
     def get_queryset(self):
         """Filter events based on user permissions."""
         queryset = super().get_queryset()
+        # Only show approved events (unless staff)
         if not self.request.user.is_staff:
-            queryset = queryset.filter(is_approved=True)
+            queryset = queryset.filter(approval_status='approved')
         form = EventSearchForm(self.request.GET)
         
         if form.is_valid():
@@ -91,12 +92,12 @@ class EventDetailView(DetailView):
         # Allow authenticated users to see approved events OR their own events
         if self.request.user.is_authenticated:
             queryset = queryset.filter(
-                Q(is_approved=True) | 
+                Q(approval_status='approved') | 
                 Q(created_by=self.request.user)
             )
         else:
             # Anonymous users can only see approved events
-            queryset = queryset.filter(is_approved=True)
+            queryset = queryset.filter(approval_status='approved')
         
         return queryset
 

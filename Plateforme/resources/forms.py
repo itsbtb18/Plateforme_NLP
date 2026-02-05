@@ -1,12 +1,33 @@
 from django import forms
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, Row, Column, HTML
 from .models import Course, NLPTool, Corpus, Document, Article, Thesis, Memoir, ResourceBase, FieldChoices
 from accounts.models import Institution
 
 
+def get_active_language():
+    """Get the current language, normalizing to 'ar' or 'en'."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return 'ar'
+    return 'en'
+
+
 class ResourceForm(forms.Form):
+    """
+    Context-aware resource form that shows language-specific fields.
+    
+    - Title and Description are shown with the current language label
+    - Data is saved to the appropriate _ar or _en field based on active language
+    """
+    
+    # Bilingual field mappings: generic_field -> (ar_field, en_field)
+    BILINGUAL_FIELDS = {
+        'title': ('title_ar', 'title_en'),
+        'description': ('description_ar', 'description_en'),
+    }
+    
     RESOURCE_TYPES = [
         ('course', _('Course')),
         ('nlp_tool', _('NLP Tool')),
@@ -199,14 +220,29 @@ class ResourceForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.is_update = kwargs.pop('is_update', False)
-        instance = kwargs.get('instance', None)
+        # Pop instance since forms.Form doesn't accept it (unlike ModelForm)
+        instance = kwargs.pop('instance', None)
 
         if instance and hasattr(instance, 'supported_languages'):
             if 'initial' not in kwargs:
                 kwargs['initial'] = {}
             kwargs['initial']['supported_languages'] = self.prepare_supported_languages(instance.supported_languages)
         
+        # Pre-populate bilingual fields from instance based on current language
+        if instance and 'initial' not in kwargs:
+            kwargs['initial'] = {}
+        if instance:
+            lang = get_active_language()
+            for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
+                target_field = ar_field if lang == 'ar' else en_field
+                value = getattr(instance, target_field, '') or getattr(instance, generic_field, '')
+                if value:
+                    kwargs['initial'][generic_field] = value
+        
         super().__init__(*args, **kwargs)
+        
+        # Set context-aware labels for bilingual fields
+        self._setup_bilingual_labels()
         
         self.helper = FormHelper()
         self.helper.form_method = 'post'
@@ -224,6 +260,21 @@ class ResourceForm(forms.Form):
             })
 
         self.helper.layout = self._build_layout(resource_type)
+    
+    def _setup_bilingual_labels(self):
+        """Set context-aware labels for bilingual fields."""
+        lang = get_active_language()
+        
+        if lang == 'ar':
+            self.fields['title'].label = _("Title * (Arabic / العنوان)")
+            self.fields['title'].help_text = _("Enter the title in Arabic")
+            self.fields['description'].label = _("Description * (Arabic / الوصف)")
+            self.fields['description'].help_text = _("Enter the description in Arabic")
+        else:
+            self.fields['title'].label = _("Title * (English)")
+            self.fields['title'].help_text = _("Enter the title in English")
+            self.fields['description'].label = _("Description * (English)")
+            self.fields['description'].help_text = _("Enter the description in English")
 
     def _build_layout(self, resource_type):
         layout = Layout(
@@ -392,9 +443,17 @@ class ResourceForm(forms.Form):
 
     def save(self, instance=None):
         resource_type = self.cleaned_data['resource_type']
+        
+        # Determine which bilingual fields to populate based on active language
+        lang = get_active_language()
+        title_field = 'title_ar' if lang == 'ar' else 'title_en'
+        desc_field = 'description_ar' if lang == 'ar' else 'description_en'
+        
         common_data = {
-            'title': self.cleaned_data['title'],
-            'description': self.cleaned_data['description'],
+            'title': self.cleaned_data['title'],  # Legacy field
+            title_field: self.cleaned_data['title'],  # Bilingual field
+            'description': self.cleaned_data['description'],  # Legacy field
+            desc_field: self.cleaned_data['description'],  # Bilingual field
             'author': self.user,
             'keywords': self.cleaned_data['keywords'],
             'access_link': self.cleaned_data['access_link'] or None,
@@ -402,8 +461,14 @@ class ResourceForm(forms.Form):
         }
 
         if self.is_update and instance:
-            for field, value in common_data.items():
-                setattr(instance, field, value)
+            # Update only the current language fields (don't overwrite the other language)
+            instance.title = self.cleaned_data['title']
+            setattr(instance, title_field, self.cleaned_data['title'])
+            instance.description = self.cleaned_data['description']
+            setattr(instance, desc_field, self.cleaned_data['description'])
+            instance.keywords = self.cleaned_data['keywords']
+            instance.access_link = self.cleaned_data['access_link'] or None
+            instance.language = self.cleaned_data['language']
             instance.save()
 
             if resource_type == 'course':

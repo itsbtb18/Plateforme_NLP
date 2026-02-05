@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load i18n %} {% load static %} {% block title %}{{object.title }} {% endblock %} {% block extra_styles %}
+{% extends "base.html" %} {% load i18n %} {% load static %} {% block title %}{{ object.get_localized_title }} {% endblock %} {% block extra_styles %}
 <link rel="stylesheet" href="{% static 'css/main.css' %}" />
 {% endblock %} {% block content %}
 <div class="container py-4">
@@ -12,7 +12,7 @@
       </li>
       {% if resource_type == 'article' or resource_type == 'memoir' or resource_type == 'thesis' %}
       <li class="breadcrumb-item active">
-        {{ object.title|truncatechars:30 }}
+        {{ object.get_localized_title|truncatechars:30 }}
       </li>
       {% else %}
       <li class="breadcrumb-item">
@@ -24,7 +24,7 @@
         </a>
       </li>
       <li class="breadcrumb-item active">
-        {{ object.title|truncatechars:30 }}
+        {{ object.get_localized_title|truncatechars:30 }}
       </li>
       {% endif %}
     </ol>
@@ -36,7 +36,7 @@
       class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
     >
       <div>
-        <h1 class="h4 mb-0 fw-bold">{{ object.title }}</h1>
+        <h1 class="h4 mb-0 fw-bold">{{ object.get_localized_title }}</h1>
       </div>
       {% if request.user == object.author %}
       <div>
@@ -64,7 +64,7 @@
             <h3 class="h5 border-bottom pb-2 fw-bold">
               <i class="bi bi-card-text me-2"></i>{% trans "Description" %}
             </h3>
-            <p class="lead mt-3">{{ object.description }}</p>
+            <p class="lead mt-3">{{ object.get_localized_description }}</p>
           </div>
 
           {% if object.keywords %}
@@ -107,7 +107,7 @@
                 <span
                   ><i class="bi bi-person me-2 text-primary"></i>{% trans "Author" %}</span
                 >
-                <strong>{{ object.author.full_name}}</strong>
+                <strong>{{ object.author.get_full_name_display }}</strong>
               </li>
               <li
                 class="list-group-item d-flex justify-content-between align-items-center"
