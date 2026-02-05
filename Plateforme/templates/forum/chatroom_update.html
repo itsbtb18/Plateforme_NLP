@@ -1,57 +1,392 @@
 {% extends 'base.html' %}
-{% load i18n %}
-{% block title %}{% trans "Edit chat room" %}
-{% endblock %} {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-      <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-          <h4 class="mb-0">
-            <i class="fas fa-edit me-2"></i>{% trans "Edit chat room" %}
-          </h4>
+{% load i18n static %}
+
+{% block title %}{% translate "Edit Chat Room" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CHATROOM UPDATE CSS ===== */
+:root {
+    --cu-primary: #3B82F6;
+    --cu-primary-dark: #2563eb;
+    --cu-primary-light: #60a5fa;
+    --cu-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --cu-deep: #0f172a;
+    --cu-white: #ffffff;
+    --cu-bg: #f8fafc;
+    --cu-muted: #f1f5f9;
+    --cu-subtle: #e2e8f0;
+    
+    --cu-text: #0f172a;
+    --cu-text-secondary: #475569;
+    --cu-text-muted: #94a3b8;
+    
+    --cu-border: #e2e8f0;
+    --cu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --cu-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --cu-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --cu-warning: #f59e0b;
+    --cu-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --cu-radius-sm: 6px;
+    --cu-radius-md: 10px;
+    --cu-radius-lg: 14px;
+    --cu-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.cu-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--cu-bg) 0%, var(--cu-muted) 100%);
+    padding: 3rem 1.5rem;
+}
+
+.cu-container {
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+/* Header */
+.cu-header { margin-bottom: 2rem; }
+
+.cu-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--cu-text-secondary);
+    text-decoration: none;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.cu-back:hover { color: var(--cu-primary); }
+
+.cu-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--cu-text);
+    margin: 0 0 0.5rem;
+}
+
+.cu-subtitle { font-size: 1rem; color: var(--cu-text-muted); margin: 0; }
+
+/* Form Card */
+.cu-card {
+    background: var(--cu-white);
+    border: 1px solid var(--cu-border);
+    border-radius: var(--cu-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--cu-shadow-lg);
+}
+
+/* Room Info Banner */
+.cu-room-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--cu-warning-bg);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--cu-radius-md);
+    margin-bottom: 2rem;
+}
+
+.cu-room-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--cu-white);
+    border-radius: var(--cu-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cu-warning);
+    font-size: 1.25rem;
+}
+
+.cu-room-details h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--cu-text);
+    margin: 0 0 0.25rem;
+}
+
+.cu-room-details span {
+    font-size: 0.8rem;
+    color: var(--cu-warning);
+}
+
+/* Form Sections */
+.cu-section { margin-bottom: 1.5rem; }
+.cu-section:last-child { margin-bottom: 0; }
+
+.cu-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cu-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.cu-field { margin-bottom: 1.25rem; }
+.cu-field:last-child { margin-bottom: 0; }
+
+.cu-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--cu-text);
+    margin-bottom: 0.5rem;
+}
+
+.cu-input, .cu-textarea {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--cu-muted);
+    border: 2px solid transparent;
+    border-radius: var(--cu-radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--cu-text);
+    transition: all 0.2s;
+}
+
+.cu-input:focus, .cu-textarea:focus {
+    outline: none;
+    background: var(--cu-white);
+    border-color: var(--cu-primary);
+    box-shadow: 0 0 0 4px var(--cu-primary-glow);
+}
+
+.cu-input::placeholder, .cu-textarea::placeholder { color: var(--cu-text-muted); }
+
+.cu-textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.cu-hint {
+    font-size: 0.8rem;
+    color: var(--cu-text-muted);
+    margin-top: 0.375rem;
+}
+
+/* Split Fields */
+.cu-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .cu-split { grid-template-columns: 1fr; }
+}
+
+/* Actions */
+.cu-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--cu-border);
+}
+
+.cu-actions-left { display: flex; gap: 0.75rem; }
+.cu-actions-right { display: flex; gap: 0.75rem; }
+
+.cu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--cu-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.cu-btn-secondary {
+    background: var(--cu-muted);
+    color: var(--cu-text-secondary);
+    border-color: var(--cu-border);
+}
+
+.cu-btn-secondary:hover { background: var(--cu-subtle); color: var(--cu-text); }
+
+.cu-btn-primary {
+    background: var(--cu-primary);
+    color: var(--cu-white);
+}
+
+.cu-btn-primary:hover { background: var(--cu-primary-dark); transform: translateY(-1px); }
+
+.cu-btn-danger {
+    background: transparent;
+    color: #ef4444;
+    border-color: #fecaca;
+}
+
+.cu-btn-danger:hover { background: #fef2f2; border-color: #ef4444; }
+
+/* Errors */
+.cu-errors {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--cu-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.cu-errors ul { margin: 0; padding-left: 1.25rem; }
+.cu-errors li { color: #dc2626; font-size: 0.875rem; margin-bottom: 0.25rem; }
+.cu-errors li:last-child { margin-bottom: 0; }
+
+/* Meta Info */
+.cu-meta {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    background: var(--cu-muted);
+    border-radius: var(--cu-radius-md);
+    margin-bottom: 2rem;
+}
+
+.cu-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cu-meta-item i { font-size: 1rem; color: var(--cu-text-muted); }
+.cu-meta-item span { font-size: 0.85rem; color: var(--cu-text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cu-page">
+    <div class="cu-container">
+        
+        <header class="cu-header">
+            <a href="{% url 'forum:chatroom-detail' chatroom.pk %}" class="cu-back">
+                <i class="bi bi-arrow-left"></i>
+                {% translate "Back to Chat Room" %}
+            </a>
+            <h1 class="cu-title">{% translate "Edit Chat Room" %}</h1>
+            <p class="cu-subtitle">{% translate "Update your room's name and description" %}</p>
+        </header>
+        
+        <div class="cu-card">
+            
+            <div class="cu-room-banner">
+                <div class="cu-room-icon">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
+                <div class="cu-room-details">
+                    <h3>{{ chatroom.get_localized_name }}</h3>
+                    <span>{% translate "Editing this room" %}</span>
+                </div>
+            </div>
+            
+            <div class="cu-meta">
+                <div class="cu-meta-item">
+                    <i class="bi bi-person"></i>
+                    <span>{% translate "Created by" %} {{ chatroom.creator.get_full_name_display|default:chatroom.creator.username }}</span>
+                </div>
+                <div class="cu-meta-item">
+                    <i class="bi bi-calendar"></i>
+                    <span>{{ chatroom.created_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+            
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                <div class="cu-errors">
+                    <ul>
+                        {% for field in form %}
+                        {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="cu-section">
+                    <h3 class="cu-section-title">{% translate "Room Name" %}</h3>
+                    <div class="cu-split">
+                        <div class="cu-field">
+                            <label for="id_name_ar" class="cu-label">{% translate "Arabic Name" %}</label>
+                            <input type="text" name="name_ar" id="id_name_ar" 
+                                   class="cu-input" placeholder="{% translate 'Enter Arabic name' %}"
+                                   value="{{ form.name_ar.value|default:chatroom.name_ar }}">
+                        </div>
+                        <div class="cu-field">
+                            <label for="id_name_en" class="cu-label">{% translate "English Name" %}</label>
+                            <input type="text" name="name_en" id="id_name_en" 
+                                   class="cu-input" placeholder="{% translate 'Enter English name' %}"
+                                   value="{{ form.name_en.value|default:chatroom.name_en }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="cu-section">
+                    <h3 class="cu-section-title">{% translate "Room Description" %}</h3>
+                    <div class="cu-split">
+                        <div class="cu-field">
+                            <label for="id_description_ar" class="cu-label">{% translate "Arabic Description" %}</label>
+                            <textarea name="description_ar" id="id_description_ar" class="cu-textarea"
+                                      placeholder="{% translate 'Describe the purpose of this room...' %}">{{ form.description_ar.value|default:chatroom.description_ar }}</textarea>
+                        </div>
+                        <div class="cu-field">
+                            <label for="id_description_en" class="cu-label">{% translate "English Description" %}</label>
+                            <textarea name="description_en" id="id_description_en" class="cu-textarea"
+                                      placeholder="{% translate 'Describe the purpose of this room...' %}">{{ form.description_en.value|default:chatroom.description_en }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="cu-actions">
+                    <div class="cu-actions-left">
+                        <a href="{% url 'forum:chatroom-delete' chatroom.pk %}" class="cu-btn cu-btn-danger">
+                            <i class="bi bi-trash3"></i>
+                            {% translate "Delete" %}
+                        </a>
+                    </div>
+                    <div class="cu-actions-right">
+                        <a href="{% url 'forum:chatroom-detail' chatroom.pk %}" class="cu-btn cu-btn-secondary">
+                            {% translate "Cancel" %}
+                        </a>
+                        <button type="submit" class="cu-btn cu-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            {% translate "Save Changes" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-        <div class="card-body">
-          <form method="post">
-            {% csrf_token %}
-            <div class="mb-3">
-              <label for="id_name" class="form-label">{% trans "Room name" %}</label>
-              <input
-                type="text"
-                class="form-control"
-                id="id_name"
-                name="name"
-                value="{{ chatroom.name }}"
-                required
-              />
-            </div>
-            <div class="mb-3">
-              <label for="id_description" class="form-label">{% trans "Description" %}</label>
-              <textarea
-                class="form-control"
-                id="id_description"
-                name="description"
-                rows="4"
-                required
-              >
-{{ chatroom.description }}</textarea
-              >
-            </div>
-            <div class="d-flex justify-content-between">
-              <a
-                href="{% url 'forum:chatroom-detail' pk=chatroom.pk %}"
-                class="btn btn-secondary"
-              >
-                <i class="fas fa-arrow-left me-2"></i>{% trans "Back" %}
-              </a>
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save me-2"></i>{% trans "Save changes" %}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+        
     </div>
-  </div>
 </div>
 {% endblock %}

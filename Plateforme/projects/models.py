@@ -33,12 +33,19 @@ class Project(models.Model):
         ('completed', pgettext_lazy('project_status', 'Completed')),          
         ('planned', pgettext_lazy('project_status', 'Planned')),    
     )
+    APPROVAL_STATUS_CHOICES = (
+        ('pending', pgettext_lazy('approval_status', 'Pending')),
+        ('approved', pgettext_lazy('approval_status', 'Approved')),
+        ('rejected', pgettext_lazy('approval_status', 'Rejected')),
+    )
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
         editable=False
     )
     title = models.CharField(max_length=255)
+    title_ar = models.CharField(max_length=255, blank=True, default='', verbose_name=_('Title (Arabic)'))
+    title_en = models.CharField(max_length=255, blank=True, default='', verbose_name=_('Title (English)'))
     institution = models.ForeignKey(
         Institution,
         on_delete=models.CASCADE,
@@ -49,12 +56,20 @@ class Project(models.Model):
         choices=STATUS_CHOICES, 
         default='ongoing'
     )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending',
+        verbose_name=_('Approval Status')
+    )
     coordinator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='coordinated_projects'
     )
     description = models.TextField()
+    description_ar = models.TextField(blank=True, default='', verbose_name=_('Description (Arabic)'))
+    description_en = models.TextField(blank=True, default='', verbose_name=_('Description (English)'))
     date_start = models.DateField(blank=True, null=True)
     date_end = models.DateField(blank=True, null=True)
     attachment = models.FileField(upload_to='project_attachments/', blank=True, null=True)
@@ -68,6 +83,44 @@ class Project(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_localized_title(self):
+        """Return title based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.title_ar:
+            return self.title_ar
+        elif self.title_en:
+            return self.title_en
+        return self.title
+
+    def get_localized_description(self):
+        """Return description based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
+
+    @property
+    def title_display(self):
+        """Return title based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.title_ar or ''
+        return self.title_en or ''
+
+    @property
+    def description_display(self):
+        """Return description based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.description_ar or ''
+        return self.description_en or ''
 
     def get_absolute_url(self):
         return reverse('projects:project_detail', kwargs={'pk': self.pk})

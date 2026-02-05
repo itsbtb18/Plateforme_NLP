@@ -1,44 +1,414 @@
-{% extends "base.html" %} {% load i18n %} {% block title %}
-{% trans "Delete Project" %} - {{ project.title }}{% endblock %} {% block content %}
-<div class="container mt-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <div class="card shadow-lg border-danger">
-        <div class="card-header bg-danger text-white">
-          <h2 class="text-center mb-0">
-            <i class="fas fa-exclamation-triangle me-2"></i>{% trans "Confirm Deletion" %}
-          </h2>
-        </div>
-        <div class="card-body p-4 text-center">
-          <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">{% trans "Warning!" %}</h4>
-            <p class="mb-0">
-              {% trans "Are you sure you want to delete the project" %}
-              <strong>"{{ project.title }}"</strong>?
-            </p>
-          </div>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-          <p>
-            {% trans "This action cannot be undone. All project data, including members, requests, and associated information, will be permanently removed." %}
-          </p>
+{% block title %}{% translate "Delete Project" %} | {{ project.get_localized_title }}{% endblock %}
 
-          <form method="post">
-            {% csrf_token %}
-            <div class="d-flex justify-content-center mt-4">
-              <a
-                href="{% url 'projects:project_detail' project.pk %}"
-                class="btn btn-secondary me-2"
-              >
-                <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
-              </a>
-              <button type="submit" class="btn btn-danger">
-                <i class="fas fa-trash-alt me-2"></i>{% trans "Confirm Delete" %}
-              </button>
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== PROJECT DELETE CSS ===== */
+:root {
+    --pdl-primary: #3B82F6;
+    --pdl-primary-dark: #2563eb;
+    
+    --pdl-deep: #0f172a;
+    --pdl-navy: #1e3a5f;
+    --pdl-white: #ffffff;
+    --pdl-bg: #f8fafc;
+    --pdl-muted: #f1f5f9;
+    --pdl-subtle: #e2e8f0;
+    
+    --pdl-text: #0f172a;
+    --pdl-text-secondary: #475569;
+    --pdl-text-muted: #94a3b8;
+    
+    --pdl-border: #e2e8f0;
+    --pdl-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    
+    --pdl-danger: #dc2626;
+    --pdl-danger-dark: #b91c1c;
+    --pdl-danger-light: #fef2f2;
+    --pdl-danger-border: #fecaca;
+    --pdl-danger-glow: rgba(220, 38, 38, 0.15);
+    
+    --pdl-warning: #f59e0b;
+    --pdl-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --pdl-radius-sm: 6px;
+    --pdl-radius-md: 10px;
+    --pdl-radius-lg: 14px;
+    --pdl-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.pdl-page {
+    min-height: 100vh;
+    background: var(--pdl-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.pdl-hero {
+    background: linear-gradient(145deg, var(--pdl-deep) 0%, var(--pdl-navy) 100%);
+    padding: 2rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.pdl-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(220, 38, 38, 0.12), transparent);
+    pointer-events: none;
+}
+
+.pdl-hero-container {
+    max-width: 650px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.pdl-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.pdl-breadcrumb a { color: rgba(255, 255, 255, 0.7); text-decoration: none; transition: color 0.2s; }
+.pdl-breadcrumb a:hover { color: var(--pdl-white); }
+.pdl-breadcrumb span { color: rgba(255, 255, 255, 0.5); }
+.pdl-breadcrumb .current { color: var(--pdl-white); font-weight: 500; }
+
+.pdl-hero-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.pdl-hero-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: var(--pdl-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pdl-hero-icon i { font-size: 1.75rem; color: #fecaca; }
+
+.pdl-hero-text h1 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--pdl-white);
+    margin: 0 0 0.5rem;
+}
+
+.pdl-hero-text p { font-size: 1rem; color: rgba(255, 255, 255, 0.7); margin: 0; }
+
+.pdl-content {
+    max-width: 650px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+    flex: 1;
+}
+
+.pdl-danger-card {
+    background: var(--pdl-white);
+    border: 2px solid var(--pdl-danger-border);
+    border-radius: var(--pdl-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--pdl-shadow-lg);
+}
+
+.pdl-card-header {
+    padding: 1.5rem 2rem;
+    background: var(--pdl-danger-light);
+    border-bottom: 1px solid var(--pdl-danger-border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.pdl-danger-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--pdl-danger);
+    color: var(--pdl-white);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--pdl-radius-sm);
+}
+
+.pdl-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--pdl-danger);
+    margin: 0;
+}
+
+.pdl-card-body { padding: 2rem; }
+
+.pdl-project-info {
+    background: var(--pdl-muted);
+    border: 1px solid var(--pdl-border);
+    border-radius: var(--pdl-radius-md);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.pdl-project-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--pdl-text);
+    margin: 0 0 0.5rem;
+}
+
+.pdl-project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--pdl-text-secondary);
+}
+
+.pdl-project-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.pdl-project-meta i { color: var(--pdl-text-muted); font-size: 0.9rem; }
+
+.pdl-warning-list {
+    margin-bottom: 1.5rem;
+    padding: 0;
+    list-style: none;
+}
+
+.pdl-warning-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--pdl-warning-bg);
+    border-radius: var(--pdl-radius-sm);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--pdl-text);
+}
+
+.pdl-warning-item:last-child { margin-bottom: 0; }
+.pdl-warning-item i { color: var(--pdl-warning); font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+
+.pdl-confirm-text {
+    font-size: 0.95rem;
+    color: var(--pdl-text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.pdl-confirm-text strong { color: var(--pdl-danger); }
+
+.pdl-card-footer {
+    padding: 1.5rem 2rem;
+    background: var(--pdl-danger-light);
+    border-top: 1px solid var(--pdl-danger-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.pdl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: var(--pdl-radius-md);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pdl-btn-danger {
+    background: var(--pdl-danger);
+    color: var(--pdl-white);
+}
+
+.pdl-btn-danger:hover {
+    background: var(--pdl-danger-dark);
+    color: var(--pdl-white);
+    box-shadow: 0 0 0 4px var(--pdl-danger-glow);
+}
+
+.pdl-btn-cancel {
+    background: var(--pdl-white);
+    color: var(--pdl-text-secondary);
+    border: 1px solid var(--pdl-border);
+}
+
+.pdl-btn-cancel:hover {
+    background: var(--pdl-muted);
+    color: var(--pdl-text);
+}
+
+.pdl-impact-section {
+    margin-bottom: 1.5rem;
+}
+
+.pdl-impact-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--pdl-danger);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .pdl-hero { padding: 1.5rem 0 3rem; }
+    .pdl-hero-icon { width: 48px; height: 48px; }
+    .pdl-hero-icon i { font-size: 1.25rem; }
+    .pdl-hero-content { flex-direction: column; text-align: center; }
+    .pdl-content { padding: 0 1rem 3rem; }
+    .pdl-card-header { flex-direction: column; align-items: flex-start; }
+    .pdl-card-body { padding: 1.5rem; }
+    .pdl-card-footer { 
+        flex-direction: column-reverse; 
+        padding: 1.25rem 1.5rem;
+        gap: 0.75rem;
+    }
+    .pdl-btn { width: 100%; justify-content: center; }
+    .pdl-project-meta { flex-direction: column; gap: 0.5rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdl-page">
+    
+    <header class="pdl-hero">
+        <div class="pdl-hero-container">
+            <nav class="pdl-breadcrumb">
+                <a href="{% url 'projects:project_list' %}">{% translate "Projects" %}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <a href="{% url 'projects:project_detail' project.pk %}">{{ project.get_localized_title|truncatechars:30 }}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{% translate "Delete" %}</span>
+            </nav>
+            
+            <div class="pdl-hero-content">
+                <div class="pdl-hero-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="pdl-hero-text">
+                    <h1>{% translate "Delete Project" %}</h1>
+                    <p>{% translate "This action cannot be undone. Please review carefully." %}</p>
+                </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  </div>
+    </header>
+    
+    <main class="pdl-content">
+        <div class="pdl-danger-card">
+            
+            <div class="pdl-card-header">
+                <span class="pdl-danger-badge">
+                    <i class="bi bi-shield-exclamation"></i>
+                    {% translate "Danger Zone" %}
+                </span>
+                <h2 class="pdl-card-title">{% translate "Permanent Deletion" %}</h2>
+            </div>
+            
+            <div class="pdl-card-body">
+                
+                <div class="pdl-project-info">
+                    <h3 class="pdl-project-title">{{ project.get_localized_title }}</h3>
+                    <div class="pdl-project-meta">
+                        <span>
+                            <i class="bi bi-building"></i>
+                            {% if project.institution %}{{ project.institution.get_localized_name }}{% else %}{% translate "No institution" %}{% endif %}
+                        </span>
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            {% translate "Created" %} {{ project.created_at|date:"M d, Y" }}
+                        </span>
+                        <span>
+                            <i class="bi bi-people"></i>
+                            {{ project.members.count }} {% translate "members" %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="pdl-impact-section">
+                    <p class="pdl-impact-title">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        {% translate "What will be deleted" %}
+                    </p>
+                    <ul class="pdl-warning-list">
+                        <li class="pdl-warning-item">
+                            <i class="bi bi-folder-x"></i>
+                            <span>{% translate "All project data including title, description, and documentation" %}</span>
+                        </li>
+                        <li class="pdl-warning-item">
+                            <i class="bi bi-people-fill"></i>
+                            <span>{% translate "All member associations and their roles" %}</span>
+                        </li>
+                        <li class="pdl-warning-item">
+                            <i class="bi bi-file-earmark-x"></i>
+                            <span>{% translate "All attached files and resources" %}</span>
+                        </li>
+                        <li class="pdl-warning-item">
+                            <i class="bi bi-clock-history"></i>
+                            <span>{% translate "Complete activity history and timestamps" %}</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <p class="pdl-confirm-text">
+                    {% translate "Are you absolutely sure you want to delete" %} <strong>"{{ project.get_localized_title }}"</strong>?
+                    {% translate "This will permanently remove the project and all associated data. This action" %} <strong>{% translate "cannot be undone" %}</strong>.
+                </p>
+                
+            </div>
+            
+            <div class="pdl-card-footer">
+                <a href="{% url 'projects:project_detail' project.pk %}" class="pdl-btn pdl-btn-cancel">
+                    <i class="bi bi-arrow-left"></i>
+                    {% translate "Cancel" %}
+                </a>
+                <form method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="pdl-btn pdl-btn-danger">
+                        <i class="bi bi-trash3"></i>
+                        {% translate "Confirm Permanent Deletion" %}
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </main>
 </div>
-{% endblock content %}
+{% endblock %}

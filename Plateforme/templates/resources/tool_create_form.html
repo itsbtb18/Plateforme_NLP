@@ -1,113 +1,1534 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
+{% block title %}
+{% if object %}{% trans "Edit Tool" %}{% else %}{% trans "Submit New Tool" %}{% endif %} - {% trans "NLP Tool Hub" %}
+{% endblock %}
+
 {% block extra_styles %}
-<link rel="stylesheet" href="{% static 'css/tool-form-modern.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Developer Portal Theme ===== */
+:root {
+    --portal-primary: #0f172a;
+    --portal-accent: #2563eb;
+    --portal-accent-light: #3b82f6;
+    --portal-accent-glow: rgba(37, 99, 235, 0.15);
+    --portal-teal: #0d9488;
+    --portal-purple: #7c3aed;
+    --portal-surface: #ffffff;
+    --portal-background: #f8fafc;
+    --portal-muted: #f1f5f9;
+    --portal-border: #e2e8f0;
+    --portal-border-dark: #cbd5e1;
+    --portal-text: #0f172a;
+    --portal-text-secondary: #475569;
+    --portal-text-muted: #94a3b8;
+    --portal-success: #059669;
+    --portal-success-bg: #ecfdf5;
+    --portal-warning: #d97706;
+    --portal-warning-bg: #fffbeb;
+    --portal-danger: #dc2626;
+    --portal-danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.tool-form-page {
+    min-height: calc(100vh - 200px);
+    background: linear-gradient(180deg, var(--portal-muted) 0%, var(--portal-background) 100%);
+    padding: 2.5rem 0 4rem;
+}
+
+.form-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.page-header-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 1.25rem;
+    background: linear-gradient(135deg, var(--portal-accent) 0%, var(--portal-purple) 100%);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+}
+
+.page-header h1 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--portal-text);
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.5px;
+}
+
+.page-header p {
+    color: var(--portal-text-secondary);
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+/* ===== SECTION TABS (Visual Navigation) ===== */
+.section-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    padding: 0.5rem;
+    background: var(--portal-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--portal-border);
+}
+
+.section-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--portal-text-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.section-tab:hover {
+    color: var(--portal-text-secondary);
+    background: var(--portal-muted);
+}
+
+.section-tab.active {
+    background: var(--portal-accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.section-tab .tab-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    background: var(--portal-muted);
+    color: var(--portal-text-muted);
+    transition: all 0.3s ease;
+}
+
+.section-tab.active .tab-icon {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.section-tab.completed .tab-icon {
+    background: var(--portal-success);
+    color: white;
+}
+
+.section-tab .tab-number {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .section-tabs {
+        flex-direction: column;
+    }
+    
+    .section-tab {
+        justify-content: flex-start;
+    }
+}
+
+/* ===== MAIN FORM CARD ===== */
+.form-card {
+    background: var(--portal-surface);
+    border: 1px solid var(--portal-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+/* ===== SECTION PANELS ===== */
+.section-panel {
+    display: none;
+    padding: 2rem;
+    animation: fadeSlideIn 0.4s ease-out forwards;
+}
+
+.section-panel.active {
+    display: block;
+}
+
+@keyframes fadeSlideIn {
+    from { 
+        opacity: 0; 
+        transform: translateX(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateX(0); 
+    }
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--portal-muted);
+}
+
+.section-title-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+
+.section-title-icon.identity { background: #dbeafe; color: #1e40af; }
+.section-title-icon.technical { background: #f3e8ff; color: #6b21a8; }
+.section-title-icon.multilingual { background: #ccfbf1; color: #0d9488; }
+
+.section-title-text h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--portal-text);
+}
+
+.section-title-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--portal-text-muted);
+}
+
+/* ===== FLOATING LABEL INPUTS ===== */
+.floating-field {
+    position: relative;
+    margin-bottom: 1.75rem;
+}
+
+.floating-field input,
+.floating-field textarea,
+.floating-field select {
+    width: 100%;
+    padding: 1.25rem 1rem 0.625rem;
+    font-size: 1rem;
+    border: 2px solid var(--portal-border);
+    border-radius: var(--radius-md);
+    background: var(--portal-surface);
+    transition: all 0.3s ease;
+    color: var(--portal-text);
+}
+
+.floating-field label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    color: var(--portal-text-muted);
+    pointer-events: none;
+    transition: all 0.2s ease;
+    background: transparent;
+    padding: 0;
+}
+
+.floating-field textarea ~ label {
+    top: 1.25rem;
+    transform: translateY(0);
+}
+
+.floating-field input:focus,
+.floating-field textarea:focus,
+.floating-field select:focus {
+    outline: none;
+    border-color: var(--portal-accent);
+    box-shadow: 0 0 0 4px var(--portal-accent-glow);
+}
+
+.floating-field input:focus ~ label,
+.floating-field input:not(:placeholder-shown) ~ label,
+.floating-field textarea:focus ~ label,
+.floating-field textarea:not(:placeholder-shown) ~ label,
+.floating-field select:focus ~ label,
+.floating-field select:valid ~ label {
+    top: 0.5rem;
+    transform: translateY(0);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--portal-accent);
+    background: var(--portal-surface);
+    padding: 0 0.25rem;
+}
+
+.floating-field textarea {
+    min-height: 140px;
+    resize: vertical;
+    padding-top: 1.5rem;
+}
+
+.floating-field textarea ~ label {
+    top: 0.5rem;
+    transform: translateY(0);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--portal-surface);
+    padding: 0 0.25rem;
+}
+
+.floating-field select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+.floating-field select ~ label {
+    top: 0.5rem;
+    transform: translateY(0);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--portal-accent);
+    background: var(--portal-surface);
+    padding: 0 0.25rem;
+}
+
+/* Field with icon */
+.floating-field.with-icon input {
+    padding-right: 3rem;
+}
+
+.field-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--portal-text-muted);
+    font-size: 1.1rem;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+/* Validation States */
+.floating-field.valid input {
+    border-color: var(--portal-success);
+}
+
+.floating-field.valid .field-icon {
+    color: var(--portal-success);
+}
+
+.floating-field.invalid input {
+    border-color: var(--portal-danger);
+}
+
+.floating-field.invalid .field-icon {
+    color: var(--portal-danger);
+}
+
+/* Required indicator */
+.required-star {
+    color: var(--portal-danger);
+    margin-left: 0.25rem;
+}
+
+/* Help text */
+.field-help {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--portal-text-muted);
+}
+
+.field-help i {
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+/* Field Grid */
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== TOOLTIP ===== */
+.tooltip-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: var(--portal-muted);
+    border-radius: 50%;
+    font-size: 0.7rem;
+    color: var(--portal-text-muted);
+    cursor: help;
+    margin-left: 0.5rem;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.tooltip-trigger:hover {
+    background: var(--portal-accent);
+    color: white;
+}
+
+.tooltip-trigger .tooltip-content {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1rem;
+    background: var(--portal-text);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: normal;
+    line-height: 1.5;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    max-width: 280px;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    margin-bottom: 0.5rem;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+}
+
+.tooltip-trigger .tooltip-content::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--portal-text);
+}
+
+.tooltip-trigger:hover .tooltip-content {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== DRAG & DROP ICON UPLOAD ===== */
+.icon-upload-zone {
+    position: relative;
+    border: 2px dashed var(--portal-border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    text-align: center;
+    background: var(--portal-muted);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.icon-upload-zone:hover {
+    border-color: var(--portal-accent);
+    background: var(--portal-accent-glow);
+}
+
+.icon-upload-zone.dragover {
+    border-color: var(--portal-accent);
+    background: var(--portal-accent-glow);
+    transform: scale(1.02);
+}
+
+.icon-upload-zone.has-file {
+    border-style: solid;
+    border-color: var(--portal-success);
+    background: var(--portal-success-bg);
+}
+
+.icon-upload-zone input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    pointer-events: none;
+}
+
+.upload-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--portal-accent) 0%, var(--portal-purple) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.upload-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.icon-upload-zone.has-file .upload-preview {
+    box-shadow: 0 0 0 4px var(--portal-success), var(--shadow-md);
+}
+
+.upload-text h4 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--portal-text);
+}
+
+.upload-text p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--portal-text-muted);
+}
+
+.upload-text .file-types {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--portal-text-muted);
+}
+
+.upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--portal-surface);
+    border: 1px solid var(--portal-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--portal-accent);
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+.upload-btn:hover {
+    background: var(--portal-accent);
+    border-color: var(--portal-accent);
+    color: white;
+}
+
+.upload-success {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--portal-success-bg);
+    border-radius: var(--radius-sm);
+    color: var(--portal-success);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.icon-upload-zone.has-file .upload-success {
+    display: inline-flex;
+}
+
+.icon-upload-zone.has-file .upload-btn {
+    display: none;
+}
+
+/* ===== TRANSLATION SECTION ===== */
+.translation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    border: 1px solid #5eead4;
+}
+
+.translation-header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.translation-header-content i {
+    font-size: 1.75rem;
+    color: var(--portal-teal);
+}
+
+.translation-header-content h4 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--portal-text);
+}
+
+.translation-header-content p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--portal-text-secondary);
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    width: 56px;
+    height: 30px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--portal-border-dark);
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 24px;
+    width: 24px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--portal-teal);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(26px);
+}
+
+/* Language Columns */
+.language-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .language-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.language-column {
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    background: var(--portal-muted);
+}
+
+.language-column.english {
+    border-left: 4px solid var(--portal-accent);
+}
+
+.language-column.arabic {
+    border-left: 4px solid var(--portal-teal);
+}
+
+.language-column-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px dashed var(--portal-border);
+}
+
+.language-column-header .lang-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.language-column.english .lang-badge {
+    background: var(--portal-accent);
+    color: white;
+}
+
+.language-column.arabic .lang-badge {
+    background: var(--portal-teal);
+    color: white;
+}
+
+.language-column-header h5 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--portal-text);
+}
+
+/* Arabic fields */
+.arabic-fields {
+    display: none;
+}
+
+.arabic-fields.visible {
+    display: block;
+    animation: fadeSlideIn 0.4s ease-out forwards;
+}
+
+/* ===== CHARACTER COUNTER ===== */
+.char-counter-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--portal-text-muted);
+    padding: 0.25rem 0.5rem;
+    background: var(--portal-muted);
+    border-radius: var(--radius-sm);
+}
+
+.char-counter.warning { 
+    color: var(--portal-warning); 
+    background: var(--portal-warning-bg);
+}
+
+.char-counter.danger { 
+    color: var(--portal-danger); 
+    background: var(--portal-danger-bg);
+}
+
+/* ===== FORM NAVIGATION ===== */
+.form-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: var(--portal-muted);
+    border-top: 1px solid var(--portal-border);
+}
+
+.btn-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-nav.ghost {
+    background: transparent;
+    border: 2px solid var(--portal-border);
+    color: var(--portal-text-secondary);
+}
+
+.btn-nav.ghost:hover {
+    border-color: var(--portal-text-secondary);
+    color: var(--portal-text);
+}
+
+.btn-nav.secondary {
+    background: var(--portal-surface);
+    border: 2px solid var(--portal-border);
+    color: var(--portal-text);
+}
+
+.btn-nav.secondary:hover {
+    background: var(--portal-muted);
+    border-color: var(--portal-border-dark);
+}
+
+.btn-nav.primary {
+    background: linear-gradient(135deg, var(--portal-accent) 0%, var(--portal-accent-light) 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-nav.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-nav.primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Submit Button Loading */
+.btn-submit-wrap {
+    position: relative;
+}
+
+.btn-submit .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-submit.loading .spinner {
+    display: block;
+}
+
+.btn-submit.loading .btn-text {
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Navigation buttons for sections */
+.nav-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* ===== URL VALIDATION INDICATOR ===== */
+.url-validation {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.url-validation .status-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.url-validation .status-icon.checking {
+    background: var(--portal-muted);
+    color: var(--portal-text-muted);
+    animation: pulse 1s infinite;
+}
+
+.url-validation .status-icon.valid {
+    background: var(--portal-success-bg);
+    color: var(--portal-success);
+}
+
+.url-validation .status-icon.invalid {
+    background: var(--portal-danger-bg);
+    color: var(--portal-danger);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .floating-field label {
+    left: auto;
+    right: 1rem;
+}
+
+html[dir="rtl"] .floating-field select {
+    background-position: left 1rem center;
+    padding-left: 2.5rem;
+    padding-right: 1rem;
+}
+
+html[dir="rtl"] .field-icon {
+    right: auto;
+    left: 1rem;
+}
+
+html[dir="rtl"] .tooltip-trigger {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+html[dir="rtl"] .language-column.english,
+html[dir="rtl"] .language-column.arabic {
+    border-left: none;
+    border-right: 4px solid;
+}
+
+html[dir="rtl"] .language-column.english {
+    border-right-color: var(--portal-accent);
+}
+
+html[dir="rtl"] .language-column.arabic {
+    border-right-color: var(--portal-teal);
+}
+
+html[dir="rtl"] .form-navigation {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 1.75rem;
+    }
+    
+    .section-panel {
+        padding: 1.5rem;
+    }
+    
+    .form-navigation {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-nav {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-buttons {
+        width: 100%;
+        flex-direction: column;
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">{% trans "Create New Tool" %}</h1>
-    
-    <div class="card">
-        <div class="card-body">
-            <form method="post" novalidate>
-                {% csrf_token %}
+<div class="tool-form-page">
+    <div class="form-container">
+        
+        <!-- Page Header -->
+        <header class="page-header">
+            <div class="page-header-icon">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <h1>{% if object %}{% trans "Edit Tool" %}{% else %}{% trans "Submit New Tool" %}{% endif %}</h1>
+            <p>{% trans "Register your NLP tool to the developer community" %}</p>
+        </header>
+        
+        <!-- Section Tabs -->
+        <nav class="section-tabs" role="tablist">
+            <button type="button" class="section-tab active" data-section="identity" role="tab">
+                <span class="tab-icon"><i class="bi bi-card-heading"></i></span>
+                <span class="tab-text">{% trans "Identity" %}</span>
+            </button>
+            <button type="button" class="section-tab" data-section="technical" role="tab">
+                <span class="tab-icon"><i class="bi bi-gear"></i></span>
+                <span class="tab-text">{% trans "Technical Specs" %}</span>
+            </button>
+            <button type="button" class="section-tab" data-section="multilingual" role="tab">
+                <span class="tab-icon"><i class="bi bi-translate"></i></span>
+                <span class="tab-text">{% trans "Multilingual" %}</span>
+            </button>
+        </nav>
+        
+        <!-- Main Form -->
+        <form method="post" enctype="multipart/form-data" id="tool-form" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="resource_type" value="nlp_tool">
+            
+            <div class="form-card">
                 
-                <input type="hidden" name="resource_type" value="nlp_tool">
-                
-                <!-- Basic Information -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Basic Information" %}
+                <!-- ===================== SECTION 1: IDENTITY ===================== -->
+                <div class="section-panel active" data-panel="identity">
+                    <div class="section-title">
+                        <div class="section-title-icon identity">
+                            <i class="bi bi-card-heading"></i>
+                        </div>
+                        <div class="section-title-text">
+                            <h2>{% trans "Tool Identity" %}</h2>
+                            <p>{% trans "Define your tool's name, category, and visual identity" %}</p>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        {{ form.title|as_crispy_field }}
-                        {{ form.language|as_crispy_field }}
-                        {{ form.description|as_crispy_field }}
-                        {{ form.keywords|as_crispy_field }}
-                        {{ form.access_link|as_crispy_field }}
+                    
+                    <!-- Icon Upload -->
+                    <div class="floating-field" style="margin-bottom: 2rem;">
+                        <label style="position: static; transform: none; font-size: 0.9rem; font-weight: 600; color: var(--portal-text); margin-bottom: 0.75rem; display: flex; align-items: center;">
+                            {% trans "Tool Icon / Thumbnail" %}
+                            <span class="tooltip-trigger">
+                                <i class="bi bi-question"></i>
+                                <span class="tooltip-content">{% trans "Upload a square icon (128×128px recommended) to represent your tool in listings" %}</span>
+                            </span>
+                        </label>
+                        <div class="icon-upload-zone" id="icon-upload-zone">
+                            <input type="file" name="icon" id="icon-input" accept="image/*">
+                            <div class="upload-content">
+                                <div class="upload-preview" id="upload-preview">
+                                    <i class="bi bi-cpu"></i>
+                                </div>
+                                <div class="upload-text">
+                                    <h4>{% trans "Drag & Drop your icon here" %}</h4>
+                                    <p>{% trans "or click to browse files" %}</p>
+                                    <span class="file-types">PNG, JPG, SVG • {% trans "Max 2MB" %}</span>
+                                </div>
+                                <span class="upload-btn">
+                                    <i class="bi bi-upload"></i>
+                                    {% trans "Choose File" %}
+                                </span>
+                                <span class="upload-success">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    <span id="file-name">{% trans "File uploaded" %}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tool Name -->
+                    <div class="floating-field">
+                        <input type="text" 
+                               name="title_en" 
+                               id="id_title_en" 
+                               placeholder=" "
+                               required
+                               value="{{ form.title_en.value|default:'' }}">
+                        <label for="id_title_en">{% trans "Tool Name" %}<span class="required-star">*</span></label>
+                        <div class="field-help">
+                            <i class="bi bi-info-circle"></i>
+                            <span>{% trans "A clear, memorable name for your NLP tool (e.g., 'ArabicNER', 'SentiLex')" %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Category / Tool Type -->
+                    <div class="floating-field">
+                        <select name="tool_type" id="id_tool_type" required>
+                            <option value="">{% trans "Select a category" %}</option>
+                            <option value="tokenization" {% if form.tool_type.value == 'tokenization' %}selected{% endif %}>{% trans "Tokenization" %}</option>
+                            <option value="stemming" {% if form.tool_type.value == 'stemming' %}selected{% endif %}>{% trans "Stemming" %}</option>
+                            <option value="ner" {% if form.tool_type.value == 'ner' %}selected{% endif %}>{% trans "Named Entity Recognition (NER)" %}</option>
+                            <option value="pos_tagging" {% if form.tool_type.value == 'pos_tagging' %}selected{% endif %}>{% trans "POS Tagging" %}</option>
+                            <option value="sentiment" {% if form.tool_type.value == 'sentiment' %}selected{% endif %}>{% trans "Sentiment Analysis" %}</option>
+                            <option value="translation" {% if form.tool_type.value == 'translation' %}selected{% endif %}>{% trans "Machine Translation" %}</option>
+                        </select>
+                        <label for="id_tool_type">{% trans "Category" %}<span class="required-star">*</span></label>
+                        <div class="field-help">
+                            <i class="bi bi-info-circle"></i>
+                            <span>{% trans "Select the primary NLP function of your tool" %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Tagline / Keywords -->
+                    <div class="floating-field">
+                        <input type="text" 
+                               name="keywords" 
+                               id="id_keywords" 
+                               placeholder=" "
+                               value="{{ form.keywords.value|default:'' }}">
+                        <label for="id_keywords">{% trans "Tagline / Keywords" %}</label>
+                        <div class="field-help">
+                            <i class="bi bi-info-circle"></i>
+                            <span>{% trans "Comma-separated keywords to help users discover your tool" %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Content Language -->
+                    <div class="floating-field">
+                        <select name="language" id="id_language" required>
+                            <option value="en" {% if form.language.value == 'en' %}selected{% endif %}>{% trans "English" %}</option>
+                            <option value="ar" {% if form.language.value == 'ar' %}selected{% endif %}>{% trans "Arabic" %}</option>
+                        </select>
+                        <label for="id_language">{% trans "Primary Language" %}<span class="required-star">*</span></label>
+                    </div>
+                    
+                </div>
+                
+                <!-- ===================== SECTION 2: TECHNICAL SPECS ===================== -->
+                <div class="section-panel" data-panel="technical">
+                    <div class="section-title">
+                        <div class="section-title-icon technical">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <div class="section-title-text">
+                            <h2>{% trans "Technical Specifications" %}</h2>
+                            <p>{% trans "Repository, documentation, version, and licensing information" %}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Repository URL -->
+                    <div class="floating-field with-icon" id="repo-field">
+                        <input type="url" 
+                               name="access_link" 
+                               id="id_access_link" 
+                               placeholder=" "
+                               pattern="https?://.+"
+                               value="{{ form.access_link.value|default:'' }}">
+                        <label for="id_access_link">
+                            {% trans "Repository URL" %}
+                            <span class="tooltip-trigger">
+                                <i class="bi bi-question"></i>
+                                <span class="tooltip-content">{% trans "Link to your GitHub, GitLab, or Bitbucket repository where the source code is hosted" %}</span>
+                            </span>
+                        </label>
+                        <div class="url-validation" id="repo-validation">
+                            <span class="status-icon" id="repo-status" style="display: none;">
+                                <i class="bi bi-check"></i>
+                            </span>
+                        </div>
+                        <div class="field-help">
+                            <i class="bi bi-github"></i>
+                            <span>{% trans "e.g., https://github.com/username/tool-name" %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Documentation Link -->
+                    <div class="floating-field with-icon" id="docs-field">
+                        <input type="url" 
+                               name="documentation" 
+                               id="id_documentation" 
+                               placeholder=" "
+                               pattern="https?://.+"
+                               value="{{ form.documentation.value|default:'' }}">
+                        <label for="id_documentation">
+                            {% trans "Documentation URL" %}
+                            <span class="tooltip-trigger">
+                                <i class="bi bi-question"></i>
+                                <span class="tooltip-content">{% trans "Link to your tool's documentation, API reference, or user guide (ReadTheDocs, Wiki, etc.)" %}</span>
+                            </span>
+                        </label>
+                        <div class="url-validation" id="docs-validation">
+                            <span class="status-icon" id="docs-status" style="display: none;">
+                                <i class="bi bi-check"></i>
+                            </span>
+                        </div>
+                        <div class="field-help">
+                            <i class="bi bi-book"></i>
+                            <span>{% trans "e.g., https://tool-name.readthedocs.io" %}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="field-row">
+                        <!-- Version -->
+                        <div class="floating-field">
+                            <input type="text" 
+                                   name="tool_version" 
+                                   id="id_tool_version" 
+                                   placeholder=" "
+                                   pattern="[0-9]+\.[0-9]+(\.[0-9]+)?"
+                                   value="{{ form.tool_version.value|default:'' }}">
+                            <label for="id_tool_version">
+                                {% trans "Version" %}
+                                <span class="tooltip-trigger">
+                                    <i class="bi bi-question"></i>
+                                    <span class="tooltip-content">{% trans "Semantic versioning recommended: MAJOR.MINOR.PATCH (e.g., 1.0.0, 2.1.3)" %}</span>
+                                </span>
+                            </label>
+                            <div class="field-help">
+                                <i class="bi bi-tag"></i>
+                                <span>{% trans "e.g., 1.0.0" %}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Supported Languages -->
+                        <div class="floating-field">
+                            <select name="supported_languages" id="id_supported_languages">
+                                <option value="">{% trans "Select languages" %}</option>
+                                <option value="ar" {% if 'ar' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "Arabic" %}</option>
+                                <option value="en" {% if 'en' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "English" %}</option>
+                                <option value="fr" {% if 'fr' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "French" %}</option>
+                                <option value="es" {% if 'es' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "Spanish" %}</option>
+                            </select>
+                            <label for="id_supported_languages">
+                                {% trans "Supported Languages" %}
+                                <span class="tooltip-trigger">
+                                    <i class="bi bi-question"></i>
+                                    <span class="tooltip-content">{% trans "Natural languages that your tool can process or analyze" %}</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- ===================== SECTION 3: MULTILINGUAL CONTENT ===================== -->
+                <div class="section-panel" data-panel="multilingual">
+                    <div class="section-title">
+                        <div class="section-title-icon multilingual">
+                            <i class="bi bi-translate"></i>
+                        </div>
+                        <div class="section-title-text">
+                            <h2>{% trans "Multilingual Content" %}</h2>
+                            <p>{% trans "Provide descriptions in English and Arabic for wider reach" %}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Translation Toggle Header -->
+                    <div class="translation-header">
+                        <div class="translation-header-content">
+                            <i class="bi bi-globe2"></i>
+                            <div>
+                                <h4>{% trans "Arabic Translation Gate" %}</h4>
+                                <p>{% trans "Enable to add Arabic description for bilingual support" %}</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="arabic-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <!-- Language Columns -->
+                    <div class="language-columns">
+                        
+                        <!-- English Column -->
+                        <div class="language-column english">
+                            <div class="language-column-header">
+                                <span class="lang-badge">EN</span>
+                                <h5>{% trans "English" %}</h5>
+                            </div>
+                            
+                            <div class="floating-field">
+                                <textarea name="description_en" 
+                                          id="id_description_en" 
+                                          placeholder=" "
+                                          maxlength="2000"
+                                          required>{{ form.description_en.value|default:'' }}</textarea>
+                                <label for="id_description_en">{% trans "Description (English)" %}<span class="required-star">*</span></label>
+                            </div>
+                            <div class="char-counter-wrap">
+                                <span class="char-counter"><span id="en-char-count">0</span>/2000</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Arabic Column -->
+                        <div class="language-column arabic arabic-fields" id="arabic-column">
+                            <div class="language-column-header">
+                                <span class="lang-badge">AR</span>
+                                <h5>{% trans "Arabic" %}</h5>
+                            </div>
+                            
+                            <div class="floating-field">
+                                <input type="text" 
+                                       name="title_ar" 
+                                       id="id_title_ar" 
+                                       placeholder=" "
+                                       dir="rtl"
+                                       value="{{ form.title_ar.value|default:'' }}">
+                                <label for="id_title_ar">{% trans "Tool Name (Arabic)" %}</label>
+                            </div>
+                            
+                            <div class="floating-field">
+                                <textarea name="description_ar" 
+                                          id="id_description_ar" 
+                                          placeholder=" "
+                                          maxlength="2000"
+                                          dir="rtl">{{ form.description_ar.value|default:'' }}</textarea>
+                                <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                            </div>
+                            <div class="char-counter-wrap">
+                                <span class="char-counter"><span id="ar-char-count">0</span>/2000</span>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <!-- ===================== FORM NAVIGATION ===================== -->
+                <div class="form-navigation">
+                    <a href="{% url 'resources:tool_list' %}" class="btn-nav ghost">
+                        <i class="bi bi-x-lg"></i>
+                        {% trans "Cancel" %}
+                    </a>
+                    
+                    <div class="nav-buttons">
+                        <button type="button" class="btn-nav secondary" id="btn-prev" style="display: none;">
+                            <i class="bi bi-arrow-left"></i>
+                            {% trans "Previous" %}
+                        </button>
+                        <button type="button" class="btn-nav primary" id="btn-next">
+                            <span class="btn-text">{% trans "Next" %}</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                        <button type="submit" class="btn-nav primary btn-submit" id="btn-submit" style="display: none;">
+                            <span class="spinner"></span>
+                            <i class="bi bi-check2"></i>
+                            <span class="btn-text">{% if object %}{% trans "Update Tool" %}{% else %}{% trans "Submit Tool" %}{% endif %}</span>
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Tool Specific Fields -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Tool Details" %}
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.tool_type|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.tool_version|as_crispy_field }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12">
-                                {{ form.documentation|as_crispy_field }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12">
-                                {{ form.supported_languages|as_crispy_field }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="text-end">
-                    <a href="{% url 'resources:tool_list' %}" class="btn btn-secondary me-2">{% trans "Cancel" %}</a>
-                    <button type="submit" class="btn btn-primary">{% trans "Save Tool" %}</button>
-                </div>
-            </form>
-        </div>
+            </div>
+        </form>
+        
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Hide non-tool fields
-        const nonToolFields = [
-            'course_field', 'academic_level', 'course_institution', 'academic_year',
-            'document_type', 'document_format',
-            'corpus_language', 'corpus_size', 'corpus_field', 'corpus_format',
-            'doi', 'journal', 'publication_date',
-            'supervisor', 'thesis_institution', 'defense_year',
-            'memoir_level', 'memoir_institution', 'memoir_defense_year'
-        ];
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ===== Section Navigation =====
+    const tabs = document.querySelectorAll('.section-tab');
+    const panels = document.querySelectorAll('.section-panel');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnSubmit = document.getElementById('btn-submit');
+    const sections = ['identity', 'technical', 'multilingual'];
+    let currentSection = 0;
+    
+    function showSection(index) {
+        currentSection = index;
         
-        nonToolFields.forEach(field => {
-            const fieldElement = document.querySelector(`[name="${field}"]`);
-            if (fieldElement) {
-                const formGroup = fieldElement.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
-            }
+        // Update tabs
+        tabs.forEach((tab, i) => {
+            tab.classList.toggle('active', i === index);
+            if (i < index) tab.classList.add('completed');
+            else tab.classList.remove('completed');
         });
         
-        // Add character counter for description field
-        const descriptionField = document.getElementById('id_description');
-        if (descriptionField) {
-            const maxLength = descriptionField.maxLength || 500;
-            const counterDiv = document.createElement('div');
-            counterDiv.className = 'char-counter';
-            counterDiv.textContent = `0/${maxLength}`;
-            
-            descriptionField.parentElement.style.position = 'relative';
-            descriptionField.parentElement.appendChild(counterDiv);
-            
-            descriptionField.addEventListener('input', function() {
-                const currentLength = this.value.length;
-                counterDiv.textContent = `${currentLength}/${maxLength}`;
-                
-                if (currentLength > maxLength * 0.9) {
-                    counterDiv.style.color = '#ef4444';
-                } else {
-                    counterDiv.style.color = '#9ca3af';
-                }
-            });
+        // Update panels
+        panels.forEach((panel, i) => {
+            panel.classList.toggle('active', i === index);
+        });
+        
+        // Update buttons
+        btnPrev.style.display = index === 0 ? 'none' : 'inline-flex';
+        
+        if (index === sections.length - 1) {
+            btnNext.style.display = 'none';
+            btnSubmit.style.display = 'inline-flex';
+        } else {
+            btnNext.style.display = 'inline-flex';
+            btnSubmit.style.display = 'none';
+        }
+    }
+    
+    // Tab clicks
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => showSection(index));
+    });
+    
+    // Navigation buttons
+    btnPrev.addEventListener('click', () => {
+        if (currentSection > 0) showSection(currentSection - 1);
+    });
+    
+    btnNext.addEventListener('click', () => {
+        if (currentSection < sections.length - 1) showSection(currentSection + 1);
+    });
+    
+    // ===== Arabic Translation Toggle =====
+    const arabicToggle = document.getElementById('arabic-toggle');
+    const arabicColumn = document.getElementById('arabic-column');
+    
+    arabicToggle.addEventListener('change', function() {
+        arabicColumn.classList.toggle('visible', this.checked);
+    });
+    
+    // ===== Icon Upload Drag & Drop =====
+    const uploadZone = document.getElementById('icon-upload-zone');
+    const iconInput = document.getElementById('icon-input');
+    const uploadPreview = document.getElementById('upload-preview');
+    const fileName = document.getElementById('file-name');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'));
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'));
+    });
+    
+    uploadZone.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            iconInput.files = files;
+            handleFileSelect(files[0]);
         }
     });
+    
+    iconInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            handleFileSelect(this.files[0]);
+        }
+    });
+    
+    function handleFileSelect(file) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadPreview.innerHTML = `<img src="${e.target.result}" alt="Icon preview">`;
+                uploadZone.classList.add('has-file');
+                fileName.textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // ===== URL Validation =====
+    const repoInput = document.getElementById('id_access_link');
+    const docsInput = document.getElementById('id_documentation');
+    const repoStatus = document.getElementById('repo-status');
+    const docsStatus = document.getElementById('docs-status');
+    
+    function validateUrl(input, statusEl) {
+        const value = input.value.trim();
+        const urlPattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+        
+        if (!value) {
+            statusEl.style.display = 'none';
+            input.parentElement.classList.remove('valid', 'invalid');
+            return;
+        }
+        
+        statusEl.style.display = 'flex';
+        
+        if (urlPattern.test(value)) {
+            statusEl.classList.remove('checking', 'invalid');
+            statusEl.classList.add('valid');
+            statusEl.innerHTML = '<i class="bi bi-check-lg"></i>';
+            input.parentElement.classList.remove('invalid');
+            input.parentElement.classList.add('valid');
+        } else {
+            statusEl.classList.remove('checking', 'valid');
+            statusEl.classList.add('invalid');
+            statusEl.innerHTML = '<i class="bi bi-x-lg"></i>';
+            input.parentElement.classList.remove('valid');
+            input.parentElement.classList.add('invalid');
+        }
+    }
+    
+    repoInput.addEventListener('input', () => validateUrl(repoInput, repoStatus));
+    docsInput.addEventListener('input', () => validateUrl(docsInput, docsStatus));
+    
+    // Initial validation if values exist
+    if (repoInput.value) validateUrl(repoInput, repoStatus);
+    if (docsInput.value) validateUrl(docsInput, docsStatus);
+    
+    // ===== Character Counters =====
+    const enDesc = document.getElementById('id_description_en');
+    const arDesc = document.getElementById('id_description_ar');
+    const enCount = document.getElementById('en-char-count');
+    const arCount = document.getElementById('ar-char-count');
+    
+    function updateCounter(textarea, counter) {
+        const count = textarea.value.length;
+        counter.textContent = count;
+        const counterWrap = counter.parentElement;
+        counterWrap.classList.remove('warning', 'danger');
+        if (count > 1800) counterWrap.classList.add('danger');
+        else if (count > 1500) counterWrap.classList.add('warning');
+    }
+    
+    enDesc.addEventListener('input', () => updateCounter(enDesc, enCount));
+    arDesc.addEventListener('input', () => updateCounter(arDesc, arCount));
+    
+    // Initial count
+    updateCounter(enDesc, enCount);
+    updateCounter(arDesc, arCount);
+    
+    // ===== Submit with Loading =====
+    const form = document.getElementById('tool-form');
+    
+    form.addEventListener('submit', function() {
+        btnSubmit.classList.add('loading');
+        btnSubmit.disabled = true;
+    });
+    
+    // ===== Hide non-tool fields if rendered by crispy =====
+    const nonToolFields = [
+        'course_field', 'academic_level', 'course_institution', 'academic_year',
+        'document_type', 'document_format',
+        'corpus_language', 'corpus_size', 'corpus_field', 'corpus_format',
+        'doi', 'journal', 'publication_date',
+        'supervisor', 'thesis_institution', 'defense_year',
+        'memoir_level', 'memoir_institution', 'memoir_defense_year',
+        'title', 'description'
+    ];
+    
+    nonToolFields.forEach(field => {
+        const fieldElement = document.querySelector(`[name="${field}"]`);
+        if (fieldElement) {
+            const formGroup = fieldElement.closest('.form-group, .floating-field, .mb-3');
+            if (formGroup) formGroup.style.display = 'none';
+        }
+    });
+    
+});
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
-{{user.full_name }} | {% trans "Profile" %}
+{{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
  {% block extra_css %}
 <link
@@ -22,7 +22,7 @@
           {% if user.avatar %}
           <img
             src="{{ user.avatar.url }}"
-            alt="{{ user.full_name }}"
+            alt="{{ user.get_full_name_display }}"
             class="avatar-img"
           />
           {% else %}
@@ -34,7 +34,7 @@
       <!-- Profile Information -->
       <div class="profile-info text-center">
         <h1 class="user-name">
-          {{ user.full_name }}
+          {{ user.get_full_name_display }}
           {% if user.is_verified %}
           <i class="fas fa-check-circle text-success ms-2" data-bs-toggle="tooltip" data-bs-placement="top" title="{% trans "Profil vérifié" %}"></i>
           {% endif %}
@@ -85,7 +85,7 @@
             </div>
             <div class="detail-content">
               <h6>{% trans "Bio" %}</h6>
-              <p>{{ user.bio|default:_("No bio provided") }}</p>
+              <p>{{ user.bio_display|default:_('No bio provided') }}</p>
             </div>
           </div>
 
@@ -193,7 +193,7 @@
               <select name="project_id" class="form-select">
                 <option selected disabled>{% trans "Select project" %}</option>
                 {% for project in request.user.coordinated_projects.all %}
-                <option value="{{ project.pk }}">{{ project.title }}</option>
+                <option value="{{ project.pk }}">{{ project.get_localized_title }}</option>
                 {% endfor %}
               </select>
               <button type="submit" class="btn btn-success">

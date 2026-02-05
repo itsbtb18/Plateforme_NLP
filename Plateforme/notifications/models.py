@@ -2,19 +2,44 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import gettext_lazy as _
 import uuid
 
 class Notification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     NOTIFICATION_TYPES = [
-        ('SYSTEM', 'Système'),
-        ('PROJECT_INVITATION', 'Invitation à un projet'),
-        ('MEMBERSHIP_REQUEST', 'Demande d\'adhésion'),
-        ('PROJECT_UPDATE', 'Mise à jour de projet'),
-        ('TASK_ASSIGNED', 'Tâche assignée'),
-        ('COMMENT', 'Commentaire'),
-        ('EVENT_CREATED', 'Événement créé'),
-        ('EVENT_APPROVED', 'Événement approuvé'),
+        # System & General
+        ('SYSTEM', _('System')),
+        
+        # Project-related
+        ('PROJECT_INVITATION', _('Project Invitation')),
+        ('MEMBERSHIP_REQUEST', _('Membership Request')),
+        ('PROJECT_UPDATE', _('Project Update')),
+        ('TASK_ASSIGNED', _('Task Assigned')),
+        ('LEAVE_REQUEST', _('Leave Request')),
+        
+        # Community & Communication
+        ('COMMENT', _('Comment')),
+        ('MESSAGE', _('Message')),
+        
+        # Events
+        ('EVENT_CREATED', _('Event Created')),
+        ('EVENT_APPROVED', _('Event Approved')),
+        
+        # Resources & Tools (Academic)
+        ('RESOURCE_ADDED', _('New Resource')),
+        ('TOOL_ADDED', _('New Tool')),
+        ('CORPUS_UPDATE', _('Corpus Update')),
+        ('RESEARCH_UPDATE', _('Research Update')),
+        
+        # Forum & Q&A (Community)
+        ('FORUM_TOPIC', _('Forum Topic')),
+        ('QA_ANSWER', _('Q&A Answer')),
+        ('QA_COMMENT', _('Q&A Comment')),
+        ('POST_APPROVED', _('Post Approved')),
+        
+        # Institution
+        ('INSTITUTION_UPDATE', _('Institution Update')),
     ]
     response_given = models.BooleanField(default=False)
     response = models.CharField(

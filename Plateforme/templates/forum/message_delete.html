@@ -1,60 +1,269 @@
-{% extends 'base.html' %} 
-{% load i18n %}
-{% block content %}
-<div class="container mt-4 mb-5">
-  <div class="row">
-    <div class="col-md-8 offset-md-2">
-      <div class="card shadow-sm border-danger">
-        <div class="card-header bg-danger text-white">
-          <h2 class="h3 mb-0">
-            <i class="fas fa-trash-alt me-2"></i>{% trans "Delete post" %}
-          </h2>
-        </div>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-        <div class="card-body p-4">
-          <div class="alert alert-warning" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>{% trans "Warning!" %}</strong> {% trans "This action is irreversible. Are you sure you want to delete this message?" %}
-          </div>
+{% block title %}{% translate "Delete Message" %}{% endblock %}
 
-          <div class="message-preview p-3 bg-light rounded mb-4">
-            <div class="d-flex justify-content-between mb-2">
-              <strong>{{ message.user }}</strong>
-              <small class="text-muted">{{ message.timestamp|date:"d/m/Y H:i" }}</small>
-            </div>
-            <div class="message-content">
-              {{ message.content }}
-            </div>
-          </div>
-
-          <form method="post">
-            {% csrf_token %}
-            <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mt-4">
-              <a
-                href="{% url 'forum:chatroom-detail' message.chatroom.pk %}"
-                class="btn btn-outline-secondary"
-              >
-                <i class="fas fa-times me-1"></i>{% trans "Cancel" %}
-              </a>
-              <button type="submit" class="btn btn-danger px-4">
-                <i class="fas fa-trash-alt me-1"></i>{% trans "Confirm deletion" %}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-.message-preview {
-  border-left: 3px solid #dee2e6;
+/* ===== MESSAGE DELETE CSS ===== */
+:root {
+    --md-primary: #3B82F6;
+    
+    --md-deep: #0f172a;
+    --md-white: #ffffff;
+    --md-bg: #f8fafc;
+    --md-muted: #f1f5f9;
+    --md-subtle: #e2e8f0;
+    
+    --md-text: #0f172a;
+    --md-text-secondary: #475569;
+    --md-text-muted: #94a3b8;
+    
+    --md-border: #e2e8f0;
+    --md-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --md-danger: #ef4444;
+    --md-danger-dark: #dc2626;
+    --md-danger-bg: rgba(239, 68, 68, 0.08);
+    --md-danger-glow: rgba(239, 68, 68, 0.15);
+    
+    --md-radius-sm: 6px;
+    --md-radius-md: 10px;
+    --md-radius-lg: 14px;
+    --md-radius-xl: 20px;
 }
 
-.message-content {
-  word-wrap: break-word;
-  white-space: pre-wrap;
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.md-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--md-bg) 0%, var(--md-muted) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+.md-container {
+    max-width: 480px;
+    width: 100%;
+}
+
+/* Card */
+.md-card {
+    background: var(--md-white);
+    border: 2px solid var(--md-danger);
+    border-radius: var(--md-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--md-shadow-lg);
+}
+
+.md-card-header {
+    background: var(--md-danger-bg);
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.md-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--md-danger-glow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.md-icon i { font-size: 1.75rem; color: var(--md-danger); }
+
+.md-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--md-danger);
+    margin: 0 0 0.5rem;
+}
+
+.md-subtitle {
+    font-size: 0.9rem;
+    color: var(--md-text-secondary);
+    margin: 0;
+}
+
+.md-card-body { padding: 2rem; }
+
+/* Message Preview */
+.md-message-preview {
+    background: var(--md-muted);
+    border-radius: var(--md-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.md-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.md-preview-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--md-primary);
+    background: linear-gradient(135deg, var(--md-primary), var(--md-primary-dark));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.md-preview-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.md-preview-avatar i { font-size: 0.8rem; color: var(--md-white); }
+
+.md-preview-meta { flex: 1; }
+
+.md-preview-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--md-text);
+}
+
+.md-preview-time {
+    font-size: 0.75rem;
+    color: var(--md-text-muted);
+}
+
+.md-preview-content {
+    font-size: 0.9rem;
+    color: var(--md-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+    padding-left: 2.75rem;
+}
+
+html[dir="rtl"] .md-preview-content { padding-left: 0; padding-right: 2.75rem; }
+
+/* Warning */
+.md-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--md-danger-bg);
+    border-radius: var(--md-radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.md-warning i { font-size: 1.1rem; color: var(--md-danger); margin-top: 0.125rem; }
+
+.md-warning p {
+    font-size: 0.85rem;
+    color: var(--md-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Actions */
+.md-actions { display: flex; gap: 1rem; }
+
+.md-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--md-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.md-btn-secondary {
+    background: var(--md-muted);
+    color: var(--md-text-secondary);
+    border-color: var(--md-border);
+}
+
+.md-btn-secondary:hover { background: var(--md-subtle); color: var(--md-text); }
+
+.md-btn-danger {
+    background: var(--md-danger);
+    color: var(--md-white);
+}
+
+.md-btn-danger:hover {
+    background: var(--md-danger-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--md-danger-glow);
 }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <div class="md-container">
+        
+        <div class="md-card">
+            <div class="md-card-header">
+                <div class="md-icon">
+                    <i class="bi bi-trash3"></i>
+                </div>
+                <h1 class="md-title">{% translate "Delete Message" %}</h1>
+                <p class="md-subtitle">{% translate "This action cannot be undone" %}</p>
+            </div>
+            
+            <div class="md-card-body">
+                <div class="md-message-preview">
+                    <div class="md-preview-header">
+                        <div class="md-preview-avatar">
+                            {% if message.user.avatar %}
+                            <img src="{{ message.user.avatar.url }}" alt="{{ message.user.username }}">
+                            {% else %}
+                            <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="md-preview-meta">
+                            <span class="md-preview-name">{{ message.user.get_full_name_display|default:message.user.username }}</span>
+                            <span class="md-preview-time">{{ message.timestamp|date:"M d, Y H:i" }}</span>
+                        </div>
+                    </div>
+                    <p class="md-preview-content">{{ message.content }}</p>
+                </div>
+                
+                <div class="md-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p>{% translate "This message will be permanently deleted from the chat room. All participants will no longer see this message." %}</p>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="md-actions">
+                        <a href="{% url 'forum:chatroom-detail' message.chatroom.pk %}" class="md-btn md-btn-secondary">
+                            <i class="bi bi-x-lg"></i>
+                            {% translate "Cancel" %}
+                        </a>
+                        <button type="submit" class="md-btn md-btn-danger">
+                            <i class="bi bi-trash3"></i>
+                            {% translate "Delete" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
 {% endblock %}

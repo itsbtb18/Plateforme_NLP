@@ -1,292 +1,684 @@
-{% extends 'base.html' %} {% block title %}Membership management - {{ project.title }}{% endblock %} {% block content %}
-<div class="content">
-  <h1 class="page-title">Membership management - {{ project.title }}</h1>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-  <!-- Membres en attente -->
-  <div class="card-section">
-    <h2 class="section-title">Pending requests</h2>
-    <div class="members-list">
-      {% for member in pending_members %}
-      <div class="member-item pending">
-        <div class="member-info">
-          <div class="member-avatar">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="member-details">
-            <div class="member-name">{{ member.member.full_name }}</div>
-            <div class="member-role">{{ member.role }}</div>
-          </div>
-        </div>
-        <div class="member-actions">
-          <form
-            action="{% url 'projects:accept_member' project.pk member.member.id %}"
-            method="post"
-            class="d-inline"
-          >
-            {% csrf_token %}
-            <button type="submit" class="btn accept-btn">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              Accept
-            </button>
-          </form>
-          <form
-            action="{% url 'projects:reject_member' project.pk member.member.id %}"
-            method="post"
-            class="d-inline"
-          >
-            {% csrf_token %}
-            <button type="submit" class="btn reject-btn">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-              Refuse
-            </button>
-          </form>
-        </div>
-      </div>
-      {% empty %}
-      <div class="empty-message">No pending requests.</div>
-      {% endfor %}
-    </div>
-  </div>
+{% block title %}{% translate "Team Members" %} | {{ project.get_localized_title }}{% endblock %}
 
-  <!-- Membres acceptés -->
-  <div class="card-section">
-    <h2 class="section-title">Members accepted</h2>
-    <div class="members-list">
-      {% for member in accepted_members %}
-      <div class="member-item accepted">
-        <div class="member-info">
-          <div class="member-avatar">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="member-details">
-            <div class="member-name">{{ member.member.full_name }}</div>
-            <div class="member-role">{{ member.role }}</div>
-          </div>
-        </div>
-        <div class="member-actions">
-          <form
-            action="{% url 'projects:remove_member' project.pk member.member.id %}"
-            method="post"
-            style="display: inline"
-          >
-            {% csrf_token %}
-            <button type="submit" class="btn reject-btn">Withdraw</button>
-          </form>
-        </div>
-      </div>
-      {% empty %}
-      <div class="empty-message">No members accepted.</div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Membres refusés -->
-  <div class="card-section">
-    <h2 class="section-title">Requests denied</h2>
-    <div class="members-list">
-      {% for member in rejected_members %}
-      <div class="member-item rejected">
-        <div class="member-info">
-          <div class="member-avatar">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="member-details">
-            <div class="member-name">{{ member.member.full_name }}</div>
-            <div class="member-role">{{ member.role }}</div>
-          </div>
-        </div>
-      </div>
-      {% empty %}
-      <div class="empty-message">No requests refused.</div>
-      {% endfor %}
-    </div>
-  </div>
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  .card-section {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
+/* ===== PROJECT MEMBERS CSS ===== */
+:root {
+    --pm-primary: #3B82F6;
+    --pm-primary-dark: #2563eb;
+    --pm-primary-light: #60a5fa;
+    --pm-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --pm-deep: #0f172a;
+    --pm-navy: #1e3a5f;
+    --pm-white: #ffffff;
+    --pm-bg: #f8fafc;
+    --pm-muted: #f1f5f9;
+    --pm-subtle: #e2e8f0;
+    
+    --pm-text: #0f172a;
+    --pm-text-secondary: #475569;
+    --pm-text-muted: #94a3b8;
+    
+    --pm-border: #e2e8f0;
+    --pm-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    
+    --pm-success: #10b981;
+    --pm-success-bg: rgba(16, 185, 129, 0.1);
+    --pm-success-border: rgba(16, 185, 129, 0.2);
+    
+    --pm-warning: #f59e0b;
+    --pm-warning-bg: rgba(245, 158, 11, 0.1);
+    --pm-warning-border: rgba(245, 158, 11, 0.2);
+    
+    --pm-danger: #ef4444;
+    --pm-danger-bg: rgba(239, 68, 68, 0.1);
+    --pm-danger-border: rgba(239, 68, 68, 0.2);
+    
+    --pm-info: #6366f1;
+    --pm-info-bg: rgba(99, 102, 241, 0.1);
+    
+    --pm-radius-sm: 6px;
+    --pm-radius-md: 10px;
+    --pm-radius-lg: 14px;
+    --pm-radius-xl: 20px;
+    --pm-radius-full: 9999px;
+}
 
-  .section-title {
-    font-size: 1.2em;
-    color: #333;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-  }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
-  .members-list {
-    display: grid;
-    gap: 15px;
-  }
+.pm-page { min-height: 100vh; background: var(--pm-bg); }
 
-  .member-item {
+.pm-hero {
+    background: linear-gradient(145deg, var(--pm-deep) 0%, var(--pm-navy) 100%);
+    padding: 2rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.pm-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent);
+    pointer-events: none;
+}
+
+.pm-hero-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.pm-breadcrumb {
     display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.pm-breadcrumb a { color: rgba(255, 255, 255, 0.7); text-decoration: none; transition: color 0.2s; }
+.pm-breadcrumb a:hover { color: var(--pm-white); }
+.pm-breadcrumb span { color: rgba(255, 255, 255, 0.5); }
+.pm-breadcrumb .current { color: var(--pm-white); font-weight: 500; }
+
+.pm-hero-row {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-  }
+    gap: 2rem;
+    flex-wrap: wrap;
+}
 
-  .member-item:hover {
-    background: #f1f3f5;
-  }
+.pm-hero-content { display: flex; align-items: center; gap: 1.5rem; }
 
-  .member-info {
+.pm-hero-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--pm-radius-lg);
     display: flex;
     align-items: center;
-    gap: 15px;
-  }
+    justify-content: center;
+    flex-shrink: 0;
+}
 
-  .member-avatar {
-    width: 40px;
-    height: 40px;
-    background: #e9ecef;
+.pm-hero-icon i { font-size: 1.75rem; color: var(--pm-white); }
+
+.pm-hero-text h1 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--pm-white);
+    margin: 0 0 0.5rem;
+}
+
+.pm-hero-text p { font-size: 1rem; color: rgba(255, 255, 255, 0.7); margin: 0; }
+
+.pm-hero-stats {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.pm-stat {
+    text-align: center;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--pm-radius-md);
+}
+
+.pm-stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--pm-white);
+    line-height: 1;
+}
+
+.pm-stat-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.pm-content {
+    max-width: 1000px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+}
+
+.pm-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .pm-grid { grid-template-columns: 1fr; }
+}
+
+.pm-card {
+    background: var(--pm-white);
+    border: 1px solid var(--pm-border);
+    border-radius: var(--pm-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--pm-shadow-lg);
+}
+
+.pm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--pm-border);
+}
+
+.pm-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--pm-text);
+    margin: 0;
+}
+
+.pm-card-title i { color: var(--pm-primary); font-size: 1.125rem; }
+
+.pm-card-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 0.5rem;
+    background: var(--pm-primary-glow);
+    color: var(--pm-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--pm-radius-full);
+}
+
+.pm-card-body { padding: 0; }
+
+.pm-member-list { list-style: none; padding: 0; margin: 0; }
+
+.pm-member-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--pm-border);
+    transition: background 0.2s;
+}
+
+.pm-member-item:last-child { border-bottom: none; }
+.pm-member-item:hover { background: var(--pm-muted); }
+
+.pm-member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--pm-primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.pm-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pm-member-avatar i { font-size: 1.25rem; color: var(--pm-primary); }
+
+.pm-member-info { flex: 1; min-width: 0; }
+
+.pm-member-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--pm-text);
+    margin: 0 0 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pm-member-meta { font-size: 0.8rem; color: var(--pm-text-muted); }
+
+.pm-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: var(--pm-radius-full);
+}
+
+.pm-role-lead { background: var(--pm-warning-bg); color: #b45309; }
+.pm-role-researcher { background: var(--pm-info-bg); color: #4f46e5; }
+.pm-role-member { background: var(--pm-muted); color: var(--pm-text-secondary); }
+
+.pm-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--pm-radius-full);
+}
+
+.pm-status-accepted { background: var(--pm-success-bg); color: var(--pm-success); }
+.pm-status-pending { background: var(--pm-warning-bg); color: var(--pm-warning); }
+.pm-status-rejected { background: var(--pm-danger-bg); color: var(--pm-danger); }
+
+.pm-member-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.pm-btn-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--pm-radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.pm-btn-accept {
+    background: var(--pm-success-bg);
+    color: var(--pm-success);
+    border: 1px solid var(--pm-success-border);
+}
+
+.pm-btn-accept:hover {
+    background: var(--pm-success);
+    color: var(--pm-white);
+}
+
+.pm-btn-decline {
+    background: var(--pm-danger-bg);
+    color: var(--pm-danger);
+    border: 1px solid var(--pm-danger-border);
+}
+
+.pm-btn-decline:hover {
+    background: var(--pm-danger);
+    color: var(--pm-white);
+}
+
+.pm-btn-remove {
+    background: var(--pm-muted);
+    color: var(--pm-text-muted);
+    border: 1px solid var(--pm-border);
+}
+
+.pm-btn-remove:hover {
+    background: var(--pm-danger-bg);
+    color: var(--pm-danger);
+    border-color: var(--pm-danger-border);
+}
+
+.pm-empty {
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.pm-empty-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--pm-muted);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #495057;
-  }
+    margin: 0 auto 1rem;
+    color: var(--pm-text-muted);
+    font-size: 1.5rem;
+}
 
-  .member-details {
+.pm-empty-text {
+    font-size: 0.9rem;
+    color: var(--pm-text-muted);
+    margin: 0;
+}
+
+.pm-sidebar-card { margin-bottom: 1.5rem; }
+.pm-sidebar-card:last-child { margin-bottom: 0; }
+
+.pm-quick-actions { padding: 1rem 1.5rem; }
+
+.pm-action-btn {
     display: flex;
-    flex-direction: column;
-  }
-
-  .member-name {
-    font-weight: 500;
-    color: #212529;
-  }
-
-  .member-role {
-    font-size: 0.9em;
-    color: #6c757d;
-  }
-
-  .member-actions {
-    display: flex;
-    gap: 10px;
-  }
-
-  .btn {
-    padding: 8px 15px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: 0.9em;
-    transition: all 0.3s ease;
-  }
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--pm-muted);
+    border: 1px solid var(--pm-border);
+    border-radius: var(--pm-radius-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--pm-text);
+    text-decoration: none;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+}
 
-  .accept-btn {
-    background: #28a745;
-    color: white;
-  }
+.pm-action-btn:last-child { margin-bottom: 0; }
+.pm-action-btn:hover { background: var(--pm-subtle); color: var(--pm-text); }
 
-  .accept-btn:hover {
-    background: #218838;
-  }
+.pm-action-btn i { font-size: 1.125rem; color: var(--pm-primary); }
 
-  .reject-btn {
-    background: #dc3545;
-    color: white;
-  }
+.pm-action-btn.pm-action-primary {
+    background: var(--pm-primary);
+    border-color: var(--pm-primary);
+    color: var(--pm-white);
+}
 
-  .reject-btn:hover {
-    background: #c82333;
-  }
+.pm-action-btn.pm-action-primary:hover {
+    background: var(--pm-primary-dark);
+    color: var(--pm-white);
+}
 
-  .empty-message {
-    color: #6c757d;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
-  }
+.pm-action-btn.pm-action-primary i { color: var(--pm-white); }
 
-  .member-item.pending {
-    border-left: 4px solid #ffc107;
-  }
+.pm-project-mini {
+    padding: 1.25rem 1.5rem;
+}
 
-  .member-item.accepted {
-    border-left: 4px solid #28a745;
-  }
+.pm-project-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--pm-text);
+    margin: 0 0 0.75rem;
+}
 
-  .member-item.rejected {
-    border-left: 4px solid #dc3545;
-  }
+.pm-project-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.pm-project-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--pm-text-secondary);
+}
+
+.pm-project-stat i { color: var(--pm-text-muted); }
+
+.pm-leave-request {
+    background: var(--pm-warning-bg);
+    border: 1px solid var(--pm-warning-border);
+    border-radius: var(--pm-radius-sm);
+    padding: 0.375rem 0.625rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #92400e;
+    text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+    .pm-hero { padding: 1.5rem 0 3rem; }
+    .pm-hero-row { flex-direction: column; align-items: flex-start; }
+    .pm-hero-stats { width: 100%; justify-content: space-around; }
+    .pm-hero-icon { width: 48px; height: 48px; }
+    .pm-hero-icon i { font-size: 1.25rem; }
+    .pm-content { padding: 0 1rem 3rem; }
+    .pm-member-item { flex-wrap: wrap; }
+    .pm-member-actions { width: 100%; margin-top: 0.75rem; padding-left: calc(48px + 1rem); }
+    html[dir="rtl"] .pm-member-actions { padding-left: 0; padding-right: calc(48px + 1rem); }
+}
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="pm-page">
+    
+    <header class="pm-hero">
+        <div class="pm-hero-container">
+            <nav class="pm-breadcrumb">
+                <a href="{% url 'projects:project_list' %}">{% translate "Projects" %}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <a href="{% url 'projects:project_detail' project.pk %}">{{ project.get_localized_title|truncatechars:30 }}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{% translate "Team" %}</span>
+            </nav>
+            
+            <div class="pm-hero-row">
+                <div class="pm-hero-content">
+                    <div class="pm-hero-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="pm-hero-text">
+                        <h1>{% translate "Team Members" %}</h1>
+                        <p>{% translate "Manage your project team and invitations." %}</p>
+                    </div>
+                </div>
+                
+                <div class="pm-hero-stats">
+                    <div class="pm-stat">
+                        <div class="pm-stat-value">{{ accepted_members|length }}</div>
+                        <div class="pm-stat-label">{% translate "Active" %}</div>
+                    </div>
+                    <div class="pm-stat">
+                        <div class="pm-stat-value">{{ pending_members|length }}</div>
+                        <div class="pm-stat-label">{% translate "Pending" %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <main class="pm-content">
+        <div class="pm-grid">
+            
+            <div class="pm-main">
+                
+                {% if pending_members %}
+                <div class="pm-card" style="margin-bottom: 1.5rem;">
+                    <div class="pm-card-header">
+                        <h2 class="pm-card-title">
+                            <i class="bi bi-hourglass-split"></i>
+                            {% translate "Pending Requests" %}
+                        </h2>
+                        <span class="pm-card-count">{{ pending_members|length }}</span>
+                    </div>
+                    <div class="pm-card-body">
+                        <ul class="pm-member-list">
+                            {% for membership in pending_members %}
+                            <li class="pm-member-item">
+                                <div class="pm-member-avatar">
+                                    {% if membership.user.avatar %}
+                                    <img src="{{ membership.user.avatar.url }}" alt="{{ membership.user.get_full_name }}">
+                                    {% else %}
+                                    <i class="bi bi-person"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="pm-member-info">
+                                    <h3 class="pm-member-name">
+                                        {{ membership.user.get_full_name|default:membership.user.email }}
+                                        <span class="pm-status-badge pm-status-pending">
+                                            <i class="bi bi-clock"></i> {% translate "Pending" %}
+                                        </span>
+                                    </h3>
+                                    <p class="pm-member-meta">
+                                        {% translate "Requested" %} {{ membership.joined_at|timesince }} {% translate "ago" %}
+                                    </p>
+                                </div>
+                                {% if is_owner %}
+                                <div class="pm-member-actions">
+                                    <form method="post" action="{% url 'projects:accept_member' project.pk membership.user.pk %}" style="margin: 0;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="pm-btn-icon pm-btn-accept" title="{% translate 'Accept' %}">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'projects:reject_member' project.pk membership.user.pk %}" style="margin: 0;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="pm-btn-icon pm-btn-decline" title="{% translate 'Decline' %}">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="pm-card">
+                    <div class="pm-card-header">
+                        <h2 class="pm-card-title">
+                            <i class="bi bi-people-fill"></i>
+                            {% translate "Active Members" %}
+                        </h2>
+                        <span class="pm-card-count">{{ accepted_members|length }}</span>
+                    </div>
+                    <div class="pm-card-body">
+                        {% if accepted_members %}
+                        <ul class="pm-member-list">
+                            {% for membership in accepted_members %}
+                            <li class="pm-member-item">
+                                <div class="pm-member-avatar">
+                                    {% if membership.user.avatar %}
+                                    <img src="{{ membership.user.avatar.url }}" alt="{{ membership.user.get_full_name }}">
+                                    {% else %}
+                                    <i class="bi bi-person"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="pm-member-info">
+                                    <h3 class="pm-member-name">
+                                        {{ membership.user.get_full_name|default:membership.user.email }}
+                                        {% if membership.user == project.owner %}
+                                        <span class="pm-role-badge pm-role-lead">
+                                            <i class="bi bi-star-fill"></i> {% translate "Lead" %}
+                                        </span>
+                                        {% else %}
+                                        <span class="pm-role-badge pm-role-researcher">
+                                            <i class="bi bi-mortarboard"></i> {% translate "Researcher" %}
+                                        </span>
+                                        {% endif %}
+                                        {% if membership.leave_request_status == 'pending' %}
+                                        <span class="pm-leave-request">{% translate "Leave Requested" %}</span>
+                                        {% endif %}
+                                    </h3>
+                                    <p class="pm-member-meta">
+                                        {% translate "Joined" %} {{ membership.joined_at|date:"M d, Y" }}
+                                    </p>
+                                </div>
+                                {% if is_owner and membership.user != project.owner %}
+                                <div class="pm-member-actions">
+                                    {% if membership.leave_request_status == 'pending' %}
+                                    <form method="post" action="{% url 'projects:approve_leave' project.pk membership.user.pk %}" style="margin: 0;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="pm-btn-icon pm-btn-accept" title="{% translate 'Approve Leave' %}">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <form method="post" action="{% url 'projects:remove_member' project.pk membership.user.pk %}" style="margin: 0;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="pm-btn-icon pm-btn-remove" title="{% translate 'Remove' %}">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div class="pm-empty">
+                            <div class="pm-empty-icon">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <p class="pm-empty-text">{% translate "No active team members yet." %}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <aside class="pm-sidebar">
+                
+                <div class="pm-card pm-sidebar-card">
+                    <div class="pm-card-header">
+                        <h3 class="pm-card-title">
+                            <i class="bi bi-folder"></i>
+                            {% translate "Project" %}
+                        </h3>
+                    </div>
+                    <div class="pm-project-mini">
+                        <h4 class="pm-project-name">{{ project.get_localized_title }}</h4>
+                        <div class="pm-project-stats">
+                            <span class="pm-project-stat">
+                                <i class="bi bi-circle-fill" style="font-size: 0.5rem; color: {% if project.status == 'ongoing' %}var(--pm-success){% elif project.status == 'completed' %}var(--pm-primary){% else %}var(--pm-warning){% endif %};"></i>
+                                {{ project.get_status_display }}
+                            </span>
+                            <span class="pm-project-stat">
+                                <i class="bi bi-building"></i>
+                                {% if project.institution %}{{ project.institution.get_localized_name|truncatechars:15 }}{% else %}—{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pm-card pm-sidebar-card">
+                    <div class="pm-card-header">
+                        <h3 class="pm-card-title">
+                            <i class="bi bi-lightning"></i>
+                            {% translate "Quick Actions" %}
+                        </h3>
+                    </div>
+                    <div class="pm-quick-actions">
+                        <a href="{% url 'projects:project_detail' project.pk %}" class="pm-action-btn">
+                            <i class="bi bi-arrow-left"></i>
+                            {% translate "Back to Project" %}
+                        </a>
+                        {% if is_owner %}
+                        <a href="{% url 'projects:project_update' project.pk %}" class="pm-action-btn">
+                            <i class="bi bi-pencil"></i>
+                            {% translate "Edit Project" %}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+            </aside>
+        </div>
+    </main>
+</div>
 {% endblock %}

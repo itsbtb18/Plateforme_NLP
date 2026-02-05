@@ -1,200 +1,1434 @@
-{% extends "base.html" %} {% load i18n %} {% load static %} {% block title %}{{object.title }} {% endblock %} {% block extra_styles %}
-<link rel="stylesheet" href="{% static 'css/main.css' %}" />
-{% endblock %} {% block content %}
-<div class="container py-4">
-  <!-- Breadcrumb Navigation -->
-  <nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb bg-light p-3 rounded-3 shadow-sm">
-      <li class="breadcrumb-item">
-        <a href="{% url 'resources:list' %}" class="text-decoration-none">
-          <i class="bi bi-archive me-1"></i>{% trans "Resources" %}
-        </a>
-      </li>
-      {% if resource_type == 'article' or resource_type == 'memoir' or resource_type == 'thesis' %}
-      <li class="breadcrumb-item active">
-        {{ object.title|truncatechars:30 }}
-      </li>
-      {% else %}
-      <li class="breadcrumb-item">
-        <a
-          href="{% url 'resources:'|add:resource_type|add:'_list' %}"
-          class="text-decoration-none"
-        >
-          <i class="bi bi-database me-1"></i>{{resource_type}}
-        </a>
-      </li>
-      <li class="breadcrumb-item active">
-        {{ object.title|truncatechars:30 }}
-      </li>
-      {% endif %}
-    </ol>
-  </nav>
+{% extends "base.html" %}
+{% load i18n static %}
 
-  <!-- Main Card -->
-  <div class="card border-0 shadow-lg">
-    <div
-      class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
-    >
-      <div>
-        <h1 class="h4 mb-0 fw-bold">{{ object.title }}</h1>
-      </div>
-      {% if request.user == object.author %}
-      <div>
-        <a
-          href="{% url 'resources:resource-update' type=resource_type pk=object.pk %}"
-          class="btn btn-outline-light btn-sm me-2 shadow-sm"
-        >
-          <i class="bi bi-pencil me-1"></i> {% trans "Edit" %}
-        </a>
-        <a
-          href="{% url 'resources:resource-delete' type=resource_type pk=object.pk %}"
-          class="btn btn-danger btn-sm shadow-sm"
-        >
-          <i class="bi bi-trash me-1"></i> {% trans "Delete" %}
-        </a>
-      </div>
-      {% endif %}
-    </div>
+{% block title %}{{ object.get_localized_title }} - {% translate "Arabic NLP Platform" %}{% endblock %}
 
-    <div class="card-body p-4">
-      <div class="row g-4">
-        <!-- Main Column -->
-        <div class="col-lg-8">
-          <div class="mb-4">
-            <h3 class="h5 border-bottom pb-2 fw-bold">
-              <i class="bi bi-card-text me-2"></i>{% trans "Description" %}
-            </h3>
-            <p class="lead mt-3">{{ object.description }}</p>
-          </div>
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Academic Research Theme ===== */
+:root {
+    /* Primary Branding */
+    --research-deep: #0f172a;
+    --research-navy: #1e3a5f;
+    --research-slate: #334155;
+    --research-accent: #2563eb;
+    --research-accent-light: #3b82f6;
+    --research-accent-hover: #1d4ed8;
+    --research-accent-glow: rgba(37, 99, 235, 0.12);
+    
+    /* Surfaces */
+    --research-white: #ffffff;
+    --research-surface: #ffffff;
+    --research-background: #f8fafc;
+    --research-muted: #f1f5f9;
+    --research-subtle: #e2e8f0;
+    
+    /* Borders */
+    --research-border: #e2e8f0;
+    --research-border-hover: #cbd5e1;
+    
+    /* Typography */
+    --research-text: #0f172a;
+    --research-text-secondary: #475569;
+    --research-text-muted: #94a3b8;
+    --research-text-inverse: #ffffff;
+    
+    /* Semantic */
+    --research-success: #059669;
+    --research-success-bg: #ecfdf5;
+    --research-success-border: #a7f3d0;
+    --research-warning: #d97706;
+    --research-warning-bg: #fffbeb;
+    --research-warning-border: #fde68a;
+    --research-danger: #dc2626;
+    --research-danger-bg: #fef2f2;
+    --research-danger-border: #fecaca;
+    --research-info: #0891b2;
+    --research-info-bg: #ecfeff;
+    
+    /* Resource Types */
+    --type-article: #2563eb;
+    --type-article-bg: rgba(37, 99, 235, 0.08);
+    --type-thesis: #7c3aed;
+    --type-thesis-bg: rgba(124, 58, 237, 0.08);
+    --type-memoir: #ea580c;
+    --type-memoir-bg: rgba(234, 88, 12, 0.08);
+    --type-tool: #059669;
+    --type-tool-bg: rgba(5, 150, 105, 0.08);
+    --type-course: #8b5cf6;
+    --type-course-bg: rgba(139, 92, 246, 0.08);
+    --type-corpus: #0891b2;
+    --type-corpus-bg: rgba(8, 145, 178, 0.08);
+    
+    /* Effects */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-sticky: 0 4px 12px rgba(0,0,0,0.06);
+    
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-base: 250ms ease;
+    --transition-slow: 350ms ease;
+}
 
-          {% if object.keywords %}
-          <div class="mb-3">
-            <span class="text-muted">{% trans "Keywords:" %}</span>
-            <div class="d-flex flex-wrap gap-2 mt-2">
-              {% for keyword in object.get_keywords_list %}
-              <span class="badge bg-secondary">{{ keyword }}</span>
-              {% endfor %}
+/* Font Family */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.detail-page {
+    min-height: 100vh;
+    background: var(--research-background);
+}
+
+/* ===== HERO SECTION ===== */
+.detail-hero {
+    background: linear-gradient(145deg, var(--research-deep) 0%, var(--research-navy) 60%, var(--research-slate) 100%);
+    padding: 2.5rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.detail-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 40% at 70% 20%, rgba(37, 99, 235, 0.12), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+.hero-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.breadcrumb-item a {
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--research-white);
+}
+
+.breadcrumb-separator {
+    color: rgba(255, 255, 255, 0.35);
+    margin: 0 0.25rem;
+}
+
+.breadcrumb-item.active {
+    color: rgba(255, 255, 255, 0.5);
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Hero Content */
+.hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.resource-type-icon {
+    width: 88px;
+    height: 88px;
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--research-white);
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.resource-type-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+}
+
+.resource-type-icon.type-article { background: linear-gradient(135deg, var(--type-article), #1d4ed8); }
+.resource-type-icon.type-thesis { background: linear-gradient(135deg, var(--type-thesis), #5b21b6); }
+.resource-type-icon.type-memoir { background: linear-gradient(135deg, var(--type-memoir), #c2410c); }
+.resource-type-icon.type-tool, 
+.resource-type-icon.type-nlp_tool { background: linear-gradient(135deg, var(--type-tool), #047857); }
+.resource-type-icon.type-course { background: linear-gradient(135deg, var(--type-course), #6d28d9); }
+.resource-type-icon.type-corpus { background: linear-gradient(135deg, var(--type-corpus), #0e7490); }
+
+.hero-info {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Badges Row */
+.hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.badge-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 1rem;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--research-white);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.875rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-status.approved {
+    background: var(--research-success);
+    color: var(--research-white);
+}
+
+.badge-status.approved i {
+    font-size: 0.85rem;
+}
+
+.badge-status.pending {
+    background: var(--research-warning);
+    color: var(--research-white);
+}
+
+.badge-status.rejected {
+    background: var(--research-danger);
+    color: var(--research-white);
+}
+
+/* Hero Title */
+.hero-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 800;
+    color: var(--research-white);
+    margin: 0 0 1rem;
+    line-height: 1.25;
+    letter-spacing: -0.5px;
+}
+
+/* Hero Meta */
+.hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.meta-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.meta-chip i {
+    font-size: 1rem;
+    color: var(--research-accent-light);
+}
+
+/* ===== ADMIN/OWNER ACTION BAR ===== */
+.governance-bar {
+    background: var(--research-white);
+    border-bottom: 1px solid var(--research-border);
+    padding: 0.875rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sticky);
+}
+
+.governance-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.governance-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.btn-gov {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.125rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1.5px solid var(--research-border);
+    background: var(--research-white);
+    color: var(--research-text-secondary);
+}
+
+.btn-gov:hover {
+    background: var(--research-muted);
+    border-color: var(--research-border-hover);
+    color: var(--research-text);
+}
+
+.btn-gov.edit {
+    background: var(--research-accent);
+    border-color: var(--research-accent);
+    color: var(--research-white);
+}
+
+.btn-gov.edit:hover {
+    background: var(--research-accent-hover);
+    border-color: var(--research-accent-hover);
+}
+
+.btn-gov.delete {
+    color: var(--research-danger);
+    border-color: var(--research-danger-border);
+    background: var(--research-danger-bg);
+}
+
+.btn-gov.delete:hover {
+    background: var(--research-danger);
+    border-color: var(--research-danger);
+    color: var(--research-white);
+}
+
+.btn-gov.status {
+    color: var(--research-warning);
+    border-color: var(--research-warning-border);
+    background: var(--research-warning-bg);
+}
+
+.btn-gov.status:hover {
+    background: var(--research-warning);
+    border-color: var(--research-warning);
+    color: var(--research-white);
+}
+
+.view-stats {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--research-text-muted);
+    font-size: 0.875rem;
+}
+
+.stat-chip i {
+    font-size: 1rem;
+}
+
+.stat-chip strong {
+    color: var(--research-text);
+    font-weight: 700;
+}
+
+/* ===== MAIN CONTENT AREA ===== */
+.detail-main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+}
+
+/* 70/30 Split Grid */
+.split-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 2.5rem;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .split-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== LEFT COLUMN (70%) - MAIN CONTENT ===== */
+.content-column {
+    min-width: 0;
+}
+
+/* ===== TABBED INTERFACE ===== */
+.tabs-container {
+    background: var(--research-white);
+    border: 1px solid var(--research-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.tabs-header {
+    display: flex;
+    border-bottom: 1px solid var(--research-border);
+    background: var(--research-muted);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tabs-header::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--research-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: var(--research-text-secondary);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.tab-btn.active {
+    color: var(--research-accent);
+    border-bottom-color: var(--research-accent);
+    background: var(--research-white);
+}
+
+.tab-btn i {
+    font-size: 1.1rem;
+}
+
+/* Tab Panels */
+.tab-panels {
+    min-height: 300px;
+}
+
+.tab-panel {
+    display: none;
+    padding: 2rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Abstract/Description Content */
+.abstract-content {
+    color: var(--research-text-secondary);
+    font-size: 1rem;
+    line-height: 1.85;
+}
+
+.abstract-content p {
+    margin: 0 0 1.25rem;
+}
+
+.abstract-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Technical Data Grid */
+.tech-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+    .tech-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tech-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    background: var(--research-muted);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--research-border);
+}
+
+.tech-item-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--research-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tech-item-label i {
+    font-size: 0.95rem;
+    color: var(--research-accent);
+}
+
+.tech-item-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--research-text);
+}
+
+/* References & Comments */
+.comments-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.comment-placeholder {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--research-text-muted);
+}
+
+.comment-placeholder i {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+
+/* ===== FILE PREVIEW / DOWNLOAD CARD ===== */
+.download-card {
+    margin-top: 2rem;
+    background: linear-gradient(135deg, var(--research-deep) 0%, var(--research-navy) 100%);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.download-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.download-icon-wrap {
+    width: 72px;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--research-white);
+    flex-shrink: 0;
+    position: relative;
+}
+
+.download-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.download-info h4 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--research-white);
+    margin: 0 0 0.375rem;
+}
+
+.download-info p {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+}
+
+.file-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.file-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+}
+
+.file-meta-item i {
+    font-size: 0.85rem;
+}
+
+.btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: var(--research-white);
+    color: var(--research-deep);
+    font-weight: 700;
+    font-size: 0.95rem;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-base);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+    position: relative;
+}
+
+.btn-download:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    color: var(--research-deep);
+}
+
+/* ===== RIGHT COLUMN (30%) - STICKY SIDEBAR ===== */
+.sidebar-column {
+    position: sticky;
+    top: 100px;
+}
+
+@media (max-width: 1100px) {
+    .sidebar-column {
+        position: static;
+    }
+}
+
+.sidebar-card {
+    background: var(--research-white);
+    border: 1px solid var(--research-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-card:last-child {
+    margin-bottom: 0;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1.125rem 1.5rem;
+    background: var(--research-muted);
+    border-bottom: 1px solid var(--research-border);
+}
+
+.sidebar-header i {
+    font-size: 1.1rem;
+    color: var(--research-accent);
+}
+
+.sidebar-header h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--research-text);
+    margin: 0;
+}
+
+/* Info List */
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--research-border);
+    gap: 1rem;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--research-text-muted);
+    flex-shrink: 0;
+}
+
+.info-label i {
+    font-size: 1rem;
+    color: var(--research-accent);
+    width: 20px;
+    text-align: center;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--research-text);
+    text-align: right;
+    word-break: break-word;
+}
+
+/* Author Card */
+.author-card {
+    padding: 1.5rem;
+}
+
+.author-profile {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.author-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--research-accent), var(--research-accent-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--research-white);
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.author-info h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--research-text);
+    margin: 0 0 0.25rem;
+}
+
+.author-info p {
+    font-size: 0.8rem;
+    color: var(--research-text-muted);
+    margin: 0;
+}
+
+/* Tags/Keywords */
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--research-muted);
+    border: 1px solid var(--research-border);
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    color: var(--research-text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.tag-chip:hover {
+    background: var(--research-accent);
+    border-color: var(--research-accent);
+    color: var(--research-white);
+    cursor: pointer;
+}
+
+.tag-chip i {
+    font-size: 0.7rem;
+}
+
+/* Quick Action Button */
+.sidebar-action {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--research-border);
+}
+
+.btn-primary-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, var(--research-accent) 0%, var(--research-accent-light) 100%);
+    color: var(--research-white);
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    color: var(--research-white);
+}
+
+/* ===== NOTES SECTION ===== */
+.notes-card {
+    margin-top: 2rem;
+}
+
+.notes-content {
+    padding: 1.5rem;
+    color: var(--research-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .split-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .hero-content {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .hero-badges {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .hero-meta {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .info-row {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .info-value {
+    text-align: left;
+}
+
+html[dir="rtl"] .governance-container {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .governance-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .author-profile {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .download-card {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .abstract-content {
+    text-align: right;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .hero-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .resource-type-icon {
+        width: 72px;
+        height: 72px;
+        font-size: 2rem;
+    }
+    
+    .hero-title {
+        font-size: 1.5rem;
+    }
+    
+    .governance-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .governance-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .view-stats {
+        justify-content: center;
+    }
+    
+    .tabs-header {
+        overflow-x: auto;
+    }
+    
+    .tab-btn {
+        padding: 0.875rem 1rem;
+        font-size: 0.85rem;
+    }
+    
+    .tab-panel {
+        padding: 1.5rem;
+    }
+    
+    .download-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .download-info {
+        text-align: center;
+    }
+    
+    .file-meta {
+        justify-content: center;
+    }
+    
+    .tech-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-page">
+    
+    <!-- ============ HERO SECTION ============ -->
+    <section class="detail-hero">
+        <div class="hero-container">
+            
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb" aria-label="{% translate 'Breadcrumb' %}">
+                <div class="breadcrumb-item">
+                    <a href="{% url 'resources:list' %}">
+                        <i class="bi bi-archive"></i>
+                        {% translate "Resources" %}
+                    </a>
+                </div>
+                <span class="breadcrumb-separator">/</span>
+                <div class="breadcrumb-item active">
+                    {{ object.get_localized_title|truncatechars:50 }}
+                </div>
+            </nav>
+            
+            <!-- Hero Content -->
+            <div class="hero-content">
+                <!-- Type Icon -->
+                <div class="resource-type-icon type-{{ resource_type }}">
+                    <i class="bi {% if resource_type == 'article' %}bi-file-earmark-text
+                               {% elif resource_type == 'thesis' %}bi-journal-richtext
+                               {% elif resource_type == 'memoir' %}bi-book
+                               {% elif resource_type == 'tool' or resource_type == 'nlp_tool' %}bi-cpu
+                               {% elif resource_type == 'course' %}bi-mortarboard
+                               {% elif resource_type == 'corpus' %}bi-database
+                               {% else %}bi-file-earmark{% endif %}"></i>
+                </div>
+                
+                <!-- Hero Info -->
+                <div class="hero-info">
+                    <!-- Badges -->
+                    <div class="hero-badges">
+                        <span class="badge-type">
+                            <i class="bi {% if resource_type == 'article' %}bi-file-earmark-text
+                                       {% elif resource_type == 'thesis' %}bi-journal-richtext
+                                       {% elif resource_type == 'memoir' %}bi-book
+                                       {% elif resource_type == 'tool' or resource_type == 'nlp_tool' %}bi-cpu
+                                       {% elif resource_type == 'course' %}bi-mortarboard
+                                       {% elif resource_type == 'corpus' %}bi-database
+                                       {% else %}bi-file-earmark{% endif %}"></i>
+                            {% if resource_type == 'course' %}{% translate "Course" %}
+                            {% elif resource_type == 'nlp_tool' or resource_type == 'tool' %}{% translate "NLP Tool" %}
+                            {% elif resource_type == 'corpus' %}{% translate "Corpus" %}
+                            {% elif resource_type == 'article' %}{% translate "Article" %}
+                            {% elif resource_type == 'thesis' %}{% translate "Thesis" %}
+                            {% elif resource_type == 'memoir' %}{% translate "Memoir" %}
+                            {% else %}{{ resource_type|title }}{% endif %}
+                        </span>
+                        
+                        <span class="badge-status {% if object.approval_status == 'approved' %}approved{% elif object.approval_status == 'pending' %}pending{% else %}rejected{% endif %}">
+                            <i class="bi {% if object.approval_status == 'approved' %}bi-patch-check-fill{% elif object.approval_status == 'pending' %}bi-clock-history{% else %}bi-x-octagon{% endif %}"></i>
+                            {% if object.approval_status == 'approved' %}{% translate "Verified" %}
+                            {% elif object.approval_status == 'pending' %}{% translate "Pending Review" %}
+                            {% else %}{% translate "Rejected" %}{% endif %}
+                        </span>
+                    </div>
+                    
+                    <!-- Title -->
+                    <h1 class="hero-title">{{ object.get_localized_title }}</h1>
+                    
+                    <!-- Meta Info -->
+                    <div class="hero-meta">
+                        <div class="meta-chip">
+                            <i class="bi bi-person-circle"></i>
+                            <span>{{ object.author.get_full_name_display|default:_("Unknown Author") }}</span>
+                        </div>
+                        <div class="meta-chip">
+                            <i class="bi bi-calendar3"></i>
+                            <span>{{ object.creation_date|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="meta-chip">
+                            <i class="bi bi-globe2"></i>
+                            <span>{% if object.language == "ar" %}{% translate "Arabic" %}{% else %}{% translate "English" %}{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-          {% endif %}
-
-          <hr />
-
-          {% block resource_specific_details %} {% endblock %} {% if object.notes %}
-          <div class="mb-4">
-            <h3 class="h5 border-bottom pb-2 fw-bold">
-              <i class="bi bi-journal me-2"></i>{% trans "Notes" %}
-            </h3>
-            <div class="mt-3">
-              <p>{{ object.notes }}</p>
-            </div>
-          </div>
-          {% endif %}
+            
         </div>
-
-        <!-- Sidebar with metadata -->
-        <div class="col-lg-4">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-light">
-              <h3 class="h6 mb-0 fw-bold">
-                <i class="bi bi-info-circle me-2"></i>{% trans "Resource Details" %}
-              </h3>
+    </section>
+    
+    <!-- ============ ADMIN/OWNER GOVERNANCE BAR ============ -->
+    <div class="governance-bar">
+        <div class="governance-container">
+            <div class="governance-actions">
+                {% if object.access_link %}
+                <a href="{{ object.access_link }}" target="_blank" class="btn-gov edit">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    {% translate "Access Resource" %}
+                </a>
+                {% endif %}
+                
+                {% if object.file %}
+                <a href="{{ object.file.url }}" target="_blank" class="btn-gov edit">
+                    <i class="bi bi-cloud-download"></i>
+                    {% translate "Download" %}
+                </a>
+                {% endif %}
+                
+                {% if request.user == object.author or request.user.is_staff %}
+                <a href="{% url 'resources:resource-update' type=resource_type pk=object.pk %}" class="btn-gov">
+                    <i class="bi bi-pencil-square"></i>
+                    {% translate "Edit" %}
+                </a>
+                
+                {% if request.user.is_staff %}
+                <button type="button" class="btn-gov status" data-bs-toggle="modal" data-bs-target="#statusModal">
+                    <i class="bi bi-gear"></i>
+                    {% translate "Manage Status" %}
+                </button>
+                {% endif %}
+                
+                <a href="{% url 'resources:resource-delete' type=resource_type pk=object.pk %}" class="btn-gov delete">
+                    <i class="bi bi-trash3"></i>
+                    {% translate "Delete" %}
+                </a>
+                {% endif %}
             </div>
-            <ul class="list-group list-group-flush">
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <span
-                  ><i class="bi bi-person me-2 text-primary"></i>{% trans "Author" %}</span
-                >
-                <strong>{{ object.author.full_name}}</strong>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <span
-                  ><i class="bi bi-calendar me-2 text-primary"></i>{% trans "Created" %}</span
-                >
-                <strong>{{ object.creation_date|date:"M d, Y" }}</strong>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <span
-                  ><i class="bi bi-arrow-repeat me-2 text-primary"></i>{% trans "Last Updated" %}</span
-                >
-                {% if object.update_date %}
-                <strong>{{ object.update_date|date:"M d, Y" }}</strong>
-                {% else %}
-                <span class="text-muted fst-italic"
-                  >{% trans "has never updated" %}</span
-                >
-                {% endif %}
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <span
-                  ><i class="bi bi-database me-2 text-primary"></i>{% trans "Type" %}</span
-                >
-                <strong>{% if resource_type == 'course' %}{% trans "Course" %}
-                {% elif resource_type == 'nlp_tool' %}{% trans "NLP Tool" %}
-                {% elif resource_type == 'corpus' %}{% trans "Corpus" %}
-                {% elif resource_type == 'document' %}{% trans "Document" %}
-                {% else %}{{resource_type}}{% endif %}
-              </strong>
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <span
-                  ><i class="bi bi-database me-2 text-primary"></i>{% trans "Language" %}</span
-                >
-                {% if object.language == "ar" %}
-                <strong>{% trans "Arabic" %}</strong>
-                {% else %}
-                <strong>{% trans "English" %}</strong>
-                {% endif %}
-              </li>
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center bg-white bg-opacity-75"
-              >
-                <span
-                  ><i class="bi bi-eye me-2 text-primary"></i>{% trans "Views" %}</span
-                >
-                <strong
-                  class="badge bg-secondary bg-opacity-10 text-secondary py-2 px-3"
-                  >{{ object.views_count }}</strong
-                >
-              </li>
-              {% if object.file %}
-              <li class="list-group-item">
-                <a
-                  href="{{ object.file.url }}"
-                  target="_blank"
-                  class="btn btn-outline-primary w-100 shadow-sm"
-                >
-                  <i class="bi bi-cloud-download me-2"></i>{% trans "Download Corpus" %}
-                </a>
-              </li>
-              {% endif %} {% if object.access_link %}
-              <li class="list-group-item">
-                <a
-                  href="{{ object.access_link }}"
-                  target="_blank"
-                  class="btn btn-outline-primary w-100 shadow-sm"
-                >
-                  <i class="bi bi-box-arrow-up-right me-2"></i>{% trans "Access Resource" %}
-                </a>
-              </li>
-              {% endif %}
-            </ul>
-          </div>
+            
+            <div class="view-stats">
+                <div class="stat-chip">
+                    <i class="bi bi-eye"></i>
+                    <strong>{{ object.views_count|default:"0" }}</strong>
+                    <span>{% translate "views" %}</span>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-
-
+    
+    <!-- ============ MAIN CONTENT AREA ============ -->
+    <main class="detail-main">
+        <div class="split-grid">
+            
+            <!-- ===== LEFT COLUMN (70%) ===== -->
+            <div class="content-column">
+                
+                <!-- Tabbed Interface -->
+                <div class="tabs-container">
+                    <div class="tabs-header" role="tablist">
+                        <button type="button" class="tab-btn active" data-tab="abstract" role="tab" aria-selected="true">
+                            <i class="bi bi-text-paragraph"></i>
+                            {% translate "Abstract" %}
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="technical" role="tab" aria-selected="false">
+                            <i class="bi bi-info-circle"></i>
+                            {% translate "Technical Data" %}
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="comments" role="tab" aria-selected="false">
+                            <i class="bi bi-chat-left-text"></i>
+                            {% translate "Comments" %}
+                        </button>
+                    </div>
+                    
+                    <div class="tab-panels">
+                        <!-- Abstract/Description Panel -->
+                        <div class="tab-panel active" data-panel="abstract" role="tabpanel">
+                            <div class="abstract-content">
+                                {{ object.get_localized_description|linebreaks|default:_("No description provided.") }}
+                            </div>
+                        </div>
+                        
+                        <!-- Technical Data Panel -->
+                        <div class="tab-panel" data-panel="technical" role="tabpanel">
+                            <div class="tech-grid">
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-folder2"></i>
+                                        {% translate "Resource Type" %}
+                                    </span>
+                                    <span class="tech-item-value">
+                                        {% if resource_type == 'course' %}{% translate "Course" %}
+                                        {% elif resource_type == 'nlp_tool' or resource_type == 'tool' %}{% translate "NLP Tool" %}
+                                        {% elif resource_type == 'corpus' %}{% translate "Corpus" %}
+                                        {% elif resource_type == 'article' %}{% translate "Article" %}
+                                        {% elif resource_type == 'thesis' %}{% translate "Thesis" %}
+                                        {% elif resource_type == 'memoir' %}{% translate "Memoir" %}
+                                        {% else %}{{ resource_type|title }}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-translate"></i>
+                                        {% translate "Language" %}
+                                    </span>
+                                    <span class="tech-item-value">
+                                        {% if object.language == "ar" %}{% translate "Arabic" %}{% else %}{% translate "English" %}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-calendar-plus"></i>
+                                        {% translate "Date Added" %}
+                                    </span>
+                                    <span class="tech-item-value">{{ object.creation_date|date:"F d, Y" }}</span>
+                                </div>
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                        {% translate "Last Updated" %}
+                                    </span>
+                                    <span class="tech-item-value">
+                                        {% if object.update_date %}{{ object.update_date|date:"F d, Y" }}{% else %}{% translate "Never" %}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-shield-check"></i>
+                                        {% translate "Status" %}
+                                    </span>
+                                    <span class="tech-item-value">
+                                        {% if object.approval_status == 'approved' %}{% translate "Approved" %}
+                                        {% elif object.approval_status == 'pending' %}{% translate "Pending Review" %}
+                                        {% else %}{% translate "Rejected" %}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="tech-item">
+                                    <span class="tech-item-label">
+                                        <i class="bi bi-eye"></i>
+                                        {% translate "Total Views" %}
+                                    </span>
+                                    <span class="tech-item-value">{{ object.views_count|default:"0" }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Resource Specific Details Block -->
+                            {% block resource_specific_details %}{% endblock %}
+                        </div>
+                        
+                        <!-- Comments Panel -->
+                        <div class="tab-panel" data-panel="comments" role="tabpanel">
+                            <div class="comments-section">
+                                <div class="comment-placeholder">
+                                    <i class="bi bi-chat-square-dots"></i>
+                                    <p>{% translate "Comments coming soon. Stay tuned!" %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Download Card (if file exists) -->
+                {% if object.file %}
+                <div class="download-card">
+                    <div class="download-icon-wrap">
+                        <i class="bi bi-file-earmark-arrow-down"></i>
+                    </div>
+                    <div class="download-info">
+                        <h4>{% translate "Download Document" %}</h4>
+                        <p>{% translate "Get the complete file for this resource" %}</p>
+                        <div class="file-meta">
+                            <span class="file-meta-item">
+                                <i class="bi bi-file-earmark"></i>
+                                PDF
+                            </span>
+                            <span class="file-meta-item">
+                                <i class="bi bi-hdd"></i>
+                                {% translate "Document" %}
+                            </span>
+                        </div>
+                    </div>
+                    <a href="{{ object.file.url }}" target="_blank" class="btn-download">
+                        <i class="bi bi-download"></i>
+                        {% translate "Download" %}
+                    </a>
+                </div>
+                {% endif %}
+                
+                <!-- Notes Section -->
+                {% if object.notes %}
+                <div class="sidebar-card notes-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-journal-text"></i>
+                        <h3>{% translate "Additional Notes" %}</h3>
+                    </div>
+                    <div class="notes-content">
+                        {{ object.notes|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+                
+            </div>
+            
+            <!-- ===== RIGHT COLUMN (30%) - STICKY SIDEBAR ===== -->
+            <aside class="sidebar-column">
+                
+                <!-- Author Info Card -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-person-badge"></i>
+                        <h3>{% translate "Author" %}</h3>
+                    </div>
+                    <div class="author-card">
+                        <div class="author-profile">
+                            <div class="author-avatar">
+                                {{ object.author.get_full_name_display|slice:":2"|upper|default:"?" }}
+                            </div>
+                            <div class="author-info">
+                                <h4>{{ object.author.get_full_name_display|default:_("Unknown") }}</h4>
+                                <p>{% translate "Contributor" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resource Details Card -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-info-circle"></i>
+                        <h3>{% translate "Resource Details" %}</h3>
+                    </div>
+                    <ul class="info-list">
+                        <li class="info-row">
+                            <span class="info-label">
+                                <i class="bi bi-calendar3"></i>
+                                {% translate "Submitted" %}
+                            </span>
+                            <span class="info-value">{{ object.creation_date|date:"M d, Y" }}</span>
+                        </li>
+                        <li class="info-row">
+                            <span class="info-label">
+                                <i class="bi bi-globe2"></i>
+                                {% translate "Language" %}
+                            </span>
+                            <span class="info-value">
+                                {% if object.language == "ar" %}
+                                    <span dir="rtl">{% translate "Arabic" %}</span>
+                                {% else %}
+                                    {% translate "English" %}
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li class="info-row">
+                            <span class="info-label">
+                                <i class="bi bi-folder2-open"></i>
+                                {% translate "Category" %}
+                            </span>
+                            <span class="info-value">
+                                {% if resource_type == 'course' %}{% translate "Course" %}
+                                {% elif resource_type == 'nlp_tool' or resource_type == 'tool' %}{% translate "NLP Tool" %}
+                                {% elif resource_type == 'corpus' %}{% translate "Corpus" %}
+                                {% elif resource_type == 'article' %}{% translate "Article" %}
+                                {% elif resource_type == 'thesis' %}{% translate "Thesis" %}
+                                {% elif resource_type == 'memoir' %}{% translate "Memoir" %}
+                                {% else %}{{ resource_type|title }}{% endif %}
+                            </span>
+                        </li>
+                        <li class="info-row">
+                            <span class="info-label">
+                                <i class="bi bi-eye"></i>
+                                {% translate "Views" %}
+                            </span>
+                            <span class="info-value">{{ object.views_count|default:"0" }}</span>
+                        </li>
+                    </ul>
+                    
+                    {% if object.access_link %}
+                    <div class="sidebar-action">
+                        <a href="{{ object.access_link }}" target="_blank" class="btn-primary-action">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            {% translate "Access Resource" %}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Keywords/Tags Card -->
+                {% if object.keywords %}
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-tags"></i>
+                        <h3>{% translate "Keywords" %}</h3>
+                    </div>
+                    <div class="tags-list">
+                        {% for keyword in object.get_keywords_list %}
+                        <span class="tag-chip">
+                            <i class="bi bi-hash"></i>
+                            {{ keyword }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+            </aside>
+            
+        </div>
+    </main>
+    
 </div>
+
+<!-- Tab Switching Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.dataset.tab;
+            
+            // Update buttons
+            tabBtns.forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+            
+            // Update panels
+            tabPanels.forEach(panel => {
+                panel.classList.remove('active');
+                if (panel.dataset.panel === targetTab) {
+                    panel.classList.add('active');
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

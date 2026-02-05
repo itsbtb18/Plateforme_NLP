@@ -1,33 +1,1098 @@
-{% extends "resources/resource_detail.html" %}
+{% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 
-{% block resource_specific_details %}
+{% block title %}{{ object.get_localized_title }} - {% trans "NLP Tool" %}{% endblock %}
 
-<div class="mb-4">
-    <h3 class="h5 border-bottom pb-2 fw-bold"><i class="bi bi-file-earmark-text me-2"></i>{% trans "Tool Details" %}</h3>
-    <div class="row mt-3">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Tool Type:" %}</span>
-                <strong class="ms-2">{{ object.get_tool_type_display  }} </strong>
-            </div>
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Version:" %}</span>
-                <strong class="ms-2">{{ object.version }}</strong>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Supported Languages:" %}</span>
-                 <div class="d-flex flex-wrap gap-2 mt-2">
-                    {% for lang in object.get_supported_languages_display %}
-                        <span class="badge bg-primary">{{ lang }}</span>
-                    {% endfor %}
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Engineering Grade Theme ===== */
+:root {
+    --eng-primary: #1e3a5f;
+    --eng-accent: #2563eb;
+    --eng-accent-light: #3b82f6;
+    --eng-teal: #0d9488;
+    --eng-surface: #ffffff;
+    --eng-background: #f8fafc;
+    --eng-muted: #f1f5f9;
+    --eng-border: #e2e8f0;
+    --eng-border-dark: #cbd5e1;
+    --eng-text: #0f172a;
+    --eng-text-secondary: #475569;
+    --eng-text-muted: #94a3b8;
+    --eng-success: #059669;
+    --eng-success-bg: #ecfdf5;
+    --eng-warning: #d97706;
+    --eng-warning-bg: #fffbeb;
+    --eng-danger: #dc2626;
+    --eng-danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    /* Category Colors */
+    --cat-tokenization: #2563eb;
+    --cat-stemming: #7c3aed;
+    --cat-ner: #059669;
+    --cat-pos: #ea580c;
+    --cat-sentiment: #dc2626;
+    --cat-translation: #0d9488;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.tool-detail-page {
+    min-height: calc(100vh - 200px);
+    background: var(--eng-background);
+    padding-bottom: 4rem;
+}
+
+/* ===== HERO HEADER ===== */
+.tool-hero {
+    background: linear-gradient(135deg, var(--eng-primary) 0%, #1e40af 60%, var(--eng-teal) 100%);
+    padding: 2rem 0 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.tool-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'%3E%3Cpath d='m0 40 40-40h-40z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.hero-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* Breadcrumb */
+.breadcrumb-nav {
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb-list {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.breadcrumb-list li {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.breadcrumb-list li a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb-list li a:hover {
+    color: white;
+}
+
+.breadcrumb-list li.active {
+    color: white;
+    font-weight: 500;
+}
+
+.breadcrumb-separator {
+    margin: 0 0.25rem;
+    opacity: 0.5;
+}
+
+/* Hero Content */
+.hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.hero-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    background: white;
+    color: var(--eng-accent);
+}
+
+.hero-text {
+    flex: 1;
+}
+
+.hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.875rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.status-badge {
+    padding: 0.35rem 0.875rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge.approved {
+    background: var(--eng-success-bg);
+    color: var(--eng-success);
+}
+
+.status-badge.pending {
+    background: var(--eng-warning-bg);
+    color: var(--eng-warning);
+}
+
+.status-badge.rejected {
+    background: var(--eng-danger-bg);
+    color: var(--eng-danger);
+}
+
+.hero-title {
+    color: white;
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+}
+
+.hero-author {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.hero-author a {
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.hero-author a:hover {
+    text-decoration: underline;
+}
+
+/* ===== INSTALL COMMAND BOX ===== */
+.install-box {
+    margin-top: 1.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.install-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.install-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-copy:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.btn-copy.copied {
+    background: var(--eng-success);
+}
+
+.install-command {
+    padding: 1rem;
+    font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    margin: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.install-command .prompt {
+    color: var(--eng-success);
+    user-select: none;
+}
+
+/* ===== ACTION BAR ===== */
+.action-bar {
+    background: var(--eng-surface);
+    border-bottom: 1px solid var(--eng-border);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+.action-bar-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.action-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.btn-docs {
+    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-docs:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    color: white;
+}
+
+.btn-repo {
+    background: var(--eng-text);
+    color: white;
+}
+
+.btn-repo:hover {
+    background: #000;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-edit {
+    background: var(--eng-surface);
+    border-color: var(--eng-border);
+    color: var(--eng-text-secondary);
+}
+
+.btn-edit:hover {
+    border-color: var(--eng-accent);
+    color: var(--eng-accent);
+}
+
+.btn-delete {
+    background: var(--eng-surface);
+    border-color: var(--eng-danger);
+    color: var(--eng-danger);
+}
+
+.btn-delete:hover {
+    background: var(--eng-danger);
+    color: white;
+}
+
+.view-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--eng-text-muted);
+    font-size: 0.9rem;
+}
+
+.view-counter i {
+    color: var(--eng-accent);
+}
+
+/* ===== MAIN CONTENT ===== */
+.content-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== MAIN COLUMN ===== */
+.main-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.content-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--eng-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--eng-muted);
+}
+
+.card-header i {
+    font-size: 1.25rem;
+    color: var(--eng-accent);
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Description */
+.description-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--eng-text-secondary);
+}
+
+.description-content p {
+    margin-bottom: 1rem;
+}
+
+.description-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Code Block */
+.code-section {
+    margin-top: 1.5rem;
+}
+
+.code-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.code-block {
+    background: #1e293b;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+}
+
+.code-lang {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+.code-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: #334155;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #e2e8f0;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.code-copy:hover {
+    background: #475569;
+}
+
+.code-content {
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.code-content pre {
+    margin: 0;
+    font-family: 'Fira Code', 'SF Mono', 'Monaco', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+
+.code-content .comment { color: #64748b; }
+.code-content .keyword { color: #f472b6; }
+.code-content .string { color: #a5f3fc; }
+.code-content .function { color: #fbbf24; }
+
+/* Keywords */
+.keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    background: var(--eng-muted);
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--eng-text-secondary);
+    transition: all 0.2s ease;
+}
+
+.keyword-tag:hover {
+    background: var(--eng-accent);
+    color: white;
+}
+
+.keyword-tag i {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Specs Card */
+.specs-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: sticky;
+    top: 80px;
+}
+
+.specs-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--eng-muted) 0%, #e2e8f0 100%);
+    border-bottom: 1px solid var(--eng-border);
+}
+
+.specs-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.specs-header h3 i {
+    color: var(--eng-accent);
+}
+
+.specs-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.spec-item {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--eng-border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: background 0.2s ease;
+}
+
+.spec-item:last-child {
+    border-bottom: none;
+}
+
+.spec-item:hover {
+    background: var(--eng-muted);
+}
+
+.spec-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.spec-icon.version { background: #dbeafe; color: #1e40af; }
+.spec-icon.updated { background: #dcfce7; color: #166534; }
+.spec-icon.language { background: #fef3c7; color: #92400e; }
+.spec-icon.license { background: #f3e8ff; color: #6b21a8; }
+.spec-icon.repo { background: #1e293b; color: white; }
+
+.spec-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.spec-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--eng-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.spec-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--eng-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spec-value a {
+    color: var(--eng-accent);
+    text-decoration: none;
+}
+
+.spec-value a:hover {
+    text-decoration: underline;
+}
+
+/* Languages Card */
+.lang-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.lang-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--eng-border);
+    background: var(--eng-muted);
+}
+
+.lang-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.lang-body {
+    padding: 1rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.lang-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    background: var(--eng-accent);
+    color: white;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .hero-content {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb-list {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .content-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .action-bar-container {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .spec-item {
+    flex-direction: row-reverse;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-card {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.content-card:nth-child(1) { animation-delay: 0.1s; }
+.content-card:nth-child(2) { animation-delay: 0.2s; }
+.content-card:nth-child(3) { animation-delay: 0.3s; }
+
+.specs-card, .lang-card {
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: 0.2s;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .tool-hero {
+        padding: 1.5rem 0 2rem;
+    }
+    
+    .hero-content {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+    
+    .hero-icon {
+        width: 64px;
+        height: 64px;
+        font-size: 1.5rem;
+    }
+    
+    .hero-title {
+        font-size: 1.5rem;
+    }
+    
+    .hero-badges {
+        justify-content: center;
+    }
+    
+    .action-bar-container {
+        flex-direction: column;
+    }
+    
+    .action-group {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tool-detail-page">
+    
+    <!-- ===== HERO HEADER ===== -->
+    <section class="tool-hero">
+        <div class="hero-container">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb-nav" aria-label="breadcrumb">
+                <ol class="breadcrumb-list">
+                    <li>
+                        <a href="{% url 'resources:list' %}">
+                            <i class="bi bi-archive"></i> {% trans "Resources" %}
+                        </a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li>
+                        <a href="{% url 'resources:tool_list' %}">{% trans "NLP Tools" %}</a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li class="active">{{ object.get_localized_title|truncatechars:30 }}</li>
+                </ol>
+            </nav>
+            
+            <!-- Hero Content -->
+            <div class="hero-content">
+                <div class="hero-icon">
+                    {% if object.tool_type == 'tokenization' %}
+                        <i class="bi bi-scissors"></i>
+                    {% elif object.tool_type == 'stemming' %}
+                        <i class="bi bi-tree"></i>
+                    {% elif object.tool_type == 'ner' %}
+                        <i class="bi bi-tag"></i>
+                    {% elif object.tool_type == 'pos_tagging' %}
+                        <i class="bi bi-diagram-3"></i>
+                    {% elif object.tool_type == 'sentiment_analysis' %}
+                        <i class="bi bi-emoji-smile"></i>
+                    {% elif object.tool_type == 'machine_translation' %}
+                        <i class="bi bi-translate"></i>
+                    {% else %}
+                        <i class="bi bi-cpu"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="hero-text">
+                    <div class="hero-badges">
+                        <span class="type-badge">
+                            <i class="bi bi-cpu"></i>
+                            {{ object.get_tool_type_display }}
+                        </span>
+                        <span class="status-badge {{ object.approval_status }}">
+                            {% if object.approval_status == 'approved' %}
+                                <i class="bi bi-check-circle"></i> {% trans "Approved" %}
+                            {% elif object.approval_status == 'pending' %}
+                                <i class="bi bi-clock"></i> {% trans "Pending Review" %}
+                            {% else %}
+                                <i class="bi bi-x-circle"></i> {% trans "Rejected" %}
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <h1 class="hero-title">{{ object.get_localized_title }}</h1>
+                    
+                    <p class="hero-author">
+                        {% trans "by" %} 
+                        {% if object.author %}
+                            <a href="{% url 'accounts:profile' object.author.id %}">{{ object.author.get_full_name_display }}</a>
+                        {% else %}
+                            {% trans "Unknown" %}
+                        {% endif %}
+                    </p>
+                    
+                    <!-- Install Command Box -->
+                    {% if object.access_link %}
+                    <div class="install-box">
+                        <div class="install-header">
+                            <span class="install-label">{% trans "Clone / Install" %}</span>
+                            <button class="btn-copy" onclick="copyInstallCommand(this)">
+                                <i class="bi bi-clipboard"></i>
+                                <span>{% trans "Copy" %}</span>
+                            </button>
+                        </div>
+                        <code class="install-command">
+                            <span class="prompt">$</span> git clone {{ object.access_link }}
+                        </code>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
+    </section>
+    
+    <!-- ===== ACTION BAR ===== -->
+    <div class="action-bar">
+        <div class="action-bar-container">
+            <div class="action-group">
+                {% if object.documentation_link %}
+                <a href="{{ object.documentation_link }}" class="btn-action btn-docs" target="_blank">
+                    <i class="bi bi-book"></i>
+                    <span>{% trans "Documentation" %}</span>
+                </a>
+                {% endif %}
+                
+                {% if object.access_link %}
+                <a href="{{ object.access_link }}" class="btn-action btn-repo" target="_blank">
+                    <i class="bi bi-github"></i>
+                    <span>{% trans "Repository" %}</span>
+                </a>
+                {% endif %}
+                
+                {% if request.user == object.author %}
+                <a href="{% url 'resources:resource-update' type='nlp_tool' pk=object.pk %}" class="btn-action btn-edit">
+                    <i class="bi bi-pencil"></i>
+                    <span>{% trans "Edit" %}</span>
+                </a>
+                <a href="{% url 'resources:resource-delete' type='nlp_tool' pk=object.pk %}" class="btn-action btn-delete">
+                    <i class="bi bi-trash"></i>
+                    <span>{% trans "Delete" %}</span>
+                </a>
+                {% endif %}
+            </div>
             
+            <div class="view-counter">
+                <i class="bi bi-eye"></i>
+                <span>{{ object.views_count }} {% trans "views" %}</span>
+            </div>
+        </div>
     </div>
+    
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="content-container">
+        <div class="content-grid">
+            
+            <!-- Main Column -->
+            <div class="main-column">
+                
+                <!-- Description Card -->
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-card-text"></i>
+                        <h2>{% trans "Description" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="description-content">
+                            {{ object.get_localized_description|linebreaks }}
+                        </div>
+                    </div>
+                </article>
+                
+                <!-- How to Use Card -->
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-code-slash"></i>
+                        <h2>{% trans "How to use" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="code-section">
+                            <h4><i class="bi bi-terminal"></i> {% trans "Basic Usage" %}</h4>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-lang">Python</span>
+                                    <button class="code-copy" onclick="copyCode(this)">
+                                        <i class="bi bi-clipboard"></i>
+                                        {% trans "Copy" %}
+                                    </button>
+                                </div>
+                                <div class="code-content">
+                                    <pre><span class="comment"># Import the tool</span>
+<span class="keyword">from</span> {{ object.get_localized_title|slugify|default:"nlp_tool" }} <span class="keyword">import</span> <span class="function">process</span>
+
+<span class="comment"># Process your text</span>
+text = <span class="string">"Your Arabic or English text here"</span>
+result = <span class="function">process</span>(text)
+
+<span class="comment"># Output the result</span>
+<span class="keyword">print</span>(result)</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                
+                <!-- Keywords -->
+                {% if object.keywords %}
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-tags"></i>
+                        <h2>{% trans "Keywords" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="keywords-list">
+                            {% for keyword in object.get_keywords_list %}
+                            <span class="keyword-tag">
+                                <i class="bi bi-hash"></i>
+                                {{ keyword }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <aside class="sidebar-column">
+                
+                <!-- Technical Specs Card -->
+                <div class="specs-card">
+                    <div class="specs-header">
+                        <h3>
+                            <i class="bi bi-gear"></i>
+                            {% trans "Technical Specifications" %}
+                        </h3>
+                    </div>
+                    <ul class="specs-list">
+                        <li class="spec-item">
+                            <div class="spec-icon version">
+                                <i class="bi bi-tag"></i>
+                            </div>
+                            <div class="spec-info">
+                                <div class="spec-label">{% trans "Version" %}</div>
+                                <div class="spec-value">{{ object.version|default:"1.0.0" }}</div>
+                            </div>
+                        </li>
+                        <li class="spec-item">
+                            <div class="spec-icon updated">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <div class="spec-info">
+                                <div class="spec-label">{% trans "Last Updated" %}</div>
+                                <div class="spec-value">{{ object.last_updated|date:"M d, Y" }}</div>
+                            </div>
+                        </li>
+                        <li class="spec-item">
+                            <div class="spec-icon language">
+                                <i class="bi bi-globe"></i>
+                            </div>
+                            <div class="spec-info">
+                                <div class="spec-label">{% trans "Content Language" %}</div>
+                                <div class="spec-value">{{ object.get_language_display }}</div>
+                            </div>
+                        </li>
+                        {% if object.access_link %}
+                        <li class="spec-item">
+                            <div class="spec-icon repo">
+                                <i class="bi bi-github"></i>
+                            </div>
+                            <div class="spec-info">
+                                <div class="spec-label">{% trans "Repository URL" %}</div>
+                                <div class="spec-value">
+                                    <a href="{{ object.access_link }}" target="_blank">
+                                        {{ object.access_link|truncatechars:35 }}
+                                    </a>
+                                </div>
+                            </div>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <!-- Supported Languages Card -->
+                <div class="lang-card">
+                    <div class="lang-header">
+                        <h4>
+                            <i class="bi bi-translate"></i>
+                            {% trans "Supported Languages" %}
+                        </h4>
+                    </div>
+                    <div class="lang-body">
+                        {% for lang in object.get_supported_languages_display %}
+                        <span class="lang-badge">
+                            <i class="bi bi-check-circle"></i>
+                            {{ lang }}
+                        </span>
+                        {% empty %}
+                        <span class="lang-badge">
+                            <i class="bi bi-check-circle"></i>
+                            {% trans "Arabic" %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+            </aside>
+            
+        </div>
+    </div>
+    
 </div>
 
+<script>
+function copyInstallCommand(button) {
+    const command = button.closest('.install-box').querySelector('.install-command').textContent.trim().replace('$', '').trim();
+    navigator.clipboard.writeText(command).then(() => {
+        button.classList.add('copied');
+        button.innerHTML = '<i class="bi bi-check2"></i> <span>{% trans "Copied!" %}</span>';
+        setTimeout(() => {
+            button.classList.remove('copied');
+            button.innerHTML = '<i class="bi bi-clipboard"></i> <span>{% trans "Copy" %}</span>';
+        }, 2000);
+    });
+}
+
+function copyCode(button) {
+    const codeBlock = button.closest('.code-block').querySelector('pre').textContent;
+    navigator.clipboard.writeText(codeBlock).then(() => {
+        button.innerHTML = '<i class="bi bi-check2"></i> {% trans "Copied!" %}';
+        setTimeout(() => {
+            button.innerHTML = '<i class="bi bi-clipboard"></i> {% trans "Copy" %}';
+        }, 2000);
+    });
+}
+</script>
 {% endblock %}

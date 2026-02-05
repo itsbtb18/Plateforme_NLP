@@ -36,13 +36,31 @@ class Event(models.Model):
         ('text_summarization', _('Text Summarization')),
         ('other', _('Other')),
     )
+
+    APPROVAL_STATUS_CHOICES = (
+        ('pending', _('Pending')),
+        ('approved', _('Approved')),
+        ('rejected', _('Rejected')),
+    )
     
     title = models.CharField(_('Title'), max_length=255)
+    title_ar = models.CharField(_('Title (Arabic)'), max_length=255, blank=True, default='')
+    title_en = models.CharField(_('Title (English)'), max_length=255, blank=True, default='')
     description = models.TextField(_('Description'))
+    description_ar = models.TextField(_('Description (Arabic)'), blank=True, default='')
+    description_en = models.TextField(_('Description (English)'), blank=True, default='')
     event_type = models.CharField(_('Event Type'), max_length=20, choices=TYPE_CHOICES)
     domains = models.CharField(_('Domains'), max_length=255, help_text=_('Comma-separated domains'))
     location = models.CharField(_('Location'), max_length=255, blank=True, help_text=_('Leave blank for virtual events'))
+    location_ar = models.CharField(_('Location (Arabic)'), max_length=255, blank=True, default='')
+    location_en = models.CharField(_('Location (English)'), max_length=255, blank=True, default='')
     is_approved = models.BooleanField(_('Approved'), default=False)
+    approval_status = models.CharField(
+        _('Approval Status'),
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending'
+    )
     start_date = models.DateField(_('Start Date'))
     end_date = models.DateField(_('End Date'))
     submission_deadline = models.DateField(_('Submission Deadline'), null=True, blank=True)
@@ -74,6 +92,63 @@ class Event(models.Model):
     
     def get_absolute_url(self):
         return reverse('events:event_detail', kwargs={'pk': self.pk})
+
+    def get_localized_title(self):
+        """Return title based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.title_ar:
+            return self.title_ar
+        elif self.title_en:
+            return self.title_en
+        return self.title
+
+    def get_localized_description(self):
+        """Return description based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
+
+    def get_localized_location(self):
+        """Return location based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.location_ar:
+            return self.location_ar
+        elif self.location_en:
+            return self.location_en
+        return self.location
+
+    @property
+    def title_display(self):
+        """Return title based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.title_ar or ''
+        return self.title_en or ''
+
+    @property
+    def description_display(self):
+        """Return description based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.description_ar or ''
+        return self.description_en or ''
+
+    @property
+    def location_display(self):
+        """Return location based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.location_ar or ''
+        return self.location_en or ''
     
     @property
     def is_virtual(self):

@@ -1,0 +1,237 @@
+{% load i18n %}
+{# 
+  Notification Card Partial Template
+  Used in notifications/list.html for rendering individual notification cards
+  Provides type-specific icons, styling, and action buttons with full RTL support
+#}
+
+<article class="notif-card {% if not notification.read %}unread{% endif %}"
+         data-notification-id="{{ notification.id }}"
+         onclick="window.location.href='{% url 'notifications:mark_read' notification.id %}'">
+  
+  <!-- Unread Indicator Bar -->
+  <div class="notif-card-indicator"></div>
+  
+  <!-- Delete Button -->
+  <a href="{% url 'notifications:delete' notification.id %}" 
+     class="notif-delete-btn"
+     title="{% translate 'Delete notification' %}"
+     aria-label="{% translate 'Delete notification' %}">
+    <i class="fas fa-trash-alt"></i>
+  </a>
+  
+  <div class="notif-card-inner">
+    <!-- Type-specific Icon -->
+    <div class="notif-icon-wrap 
+      {% if notification.type == 'RESOURCE_ADDED' or notification.type == 'CORPUS_UPDATE' or notification.type == 'RESEARCH_UPDATE' %}
+        icon-resource
+      {% elif notification.type == 'TOOL_ADDED' %}
+        icon-tool
+      {% elif notification.type == 'FORUM_TOPIC' or notification.type == 'QA_ANSWER' or notification.type == 'QA_COMMENT' or notification.type == 'MESSAGE' or notification.type == 'COMMENT' %}
+        icon-community
+      {% elif notification.type == 'PROJECT_INVITATION' or notification.type == 'PROJECT_INVITE' or notification.type == 'MEMBERSHIP_REQUEST' or notification.type == 'PROJECT_JOIN_REQUEST' or notification.type == 'PROJECT_UPDATE' or notification.type == 'TASK_ASSIGNED' or notification.type == 'LEAVE_REQUEST' %}
+        icon-project
+      {% elif notification.type == 'EVENT_CREATED' or notification.type == 'EVENT_APPROVED' %}
+        icon-event
+      {% elif notification.type == 'INSTITUTION_UPDATE' or notification.type == 'POST_APPROVED' %}
+        icon-academic
+      {% else %}
+        icon-system
+      {% endif %}">
+      
+      {# Icon based on notification type #}
+      {% if notification.type == 'RESOURCE_ADDED' or notification.type == 'CORPUS_UPDATE' or notification.type == 'RESEARCH_UPDATE' %}
+        <i class="fas fa-book-open"></i>
+      {% elif notification.type == 'TOOL_ADDED' %}
+        <i class="fas fa-tools"></i>
+      {% elif notification.type == 'FORUM_TOPIC' %}
+        <i class="fas fa-comments"></i>
+      {% elif notification.type == 'QA_ANSWER' or notification.type == 'QA_COMMENT' %}
+        <i class="fas fa-question-circle"></i>
+      {% elif notification.type == 'MESSAGE' or notification.type == 'COMMENT' %}
+        <i class="fas fa-comment-dots"></i>
+      {% elif notification.type == 'PROJECT_INVITATION' or notification.type == 'PROJECT_INVITE' %}
+        <i class="fas fa-user-plus"></i>
+      {% elif notification.type == 'MEMBERSHIP_REQUEST' or notification.type == 'PROJECT_JOIN_REQUEST' %}
+        <i class="fas fa-hand-paper"></i>
+      {% elif notification.type == 'PROJECT_UPDATE' %}
+        <i class="fas fa-project-diagram"></i>
+      {% elif notification.type == 'TASK_ASSIGNED' %}
+        <i class="fas fa-tasks"></i>
+      {% elif notification.type == 'LEAVE_REQUEST' %}
+        <i class="fas fa-sign-out-alt"></i>
+      {% elif notification.type == 'EVENT_CREATED' or notification.type == 'EVENT_APPROVED' %}
+        <i class="fas fa-calendar-alt"></i>
+      {% elif notification.type == 'INSTITUTION_UPDATE' %}
+        <i class="fas fa-university"></i>
+      {% elif notification.type == 'POST_APPROVED' %}
+        <i class="fas fa-check-circle"></i>
+      {% else %}
+        <i class="fas fa-bell"></i>
+      {% endif %}
+    </div>
+    
+    <!-- Content Area -->
+    <div class="notif-content">
+      <div class="notif-content-header">
+        <div class="notif-title-wrap">
+          <h3 class="notif-card-title">{{ notification.title }}</h3>
+          <span class="notif-type-badge">
+            {# Type badge text #}
+            {% if notification.type == 'RESOURCE_ADDED' %}
+              📘 {% translate "Resource" %}
+            {% elif notification.type == 'TOOL_ADDED' %}
+              🛠️ {% translate "Tool" %}
+            {% elif notification.type == 'FORUM_TOPIC' or notification.type == 'QA_ANSWER' or notification.type == 'QA_COMMENT' or notification.type == 'MESSAGE' or notification.type == 'COMMENT' %}
+              💬 {% translate "Community" %}
+            {% elif notification.type == 'CORPUS_UPDATE' or notification.type == 'RESEARCH_UPDATE' or notification.type == 'INSTITUTION_UPDATE' or notification.type == 'POST_APPROVED' %}
+              🎓 {% translate "Academic" %}
+            {% elif notification.type == 'PROJECT_INVITATION' or notification.type == 'PROJECT_INVITE' %}
+              {% translate "Invitation" %}
+            {% elif notification.type == 'MEMBERSHIP_REQUEST' or notification.type == 'PROJECT_JOIN_REQUEST' %}
+              {% translate "Membership" %}
+            {% elif notification.type == 'PROJECT_UPDATE' %}
+              {% translate "Project" %}
+            {% elif notification.type == 'TASK_ASSIGNED' %}
+              {% translate "Task" %}
+            {% elif notification.type == 'LEAVE_REQUEST' %}
+              {% translate "Leave Request" %}
+            {% elif notification.type == 'EVENT_CREATED' %}
+              {% translate "Event" %}
+            {% elif notification.type == 'EVENT_APPROVED' %}
+              {% translate "Event Approved" %}
+            {% elif notification.type == 'SYSTEM' %}
+              {% translate "System" %}
+            {% else %}
+              {{ notification.type|default:"Notification" }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="notif-time" title="{{ notification.created_at|date:'j F Y, H:i' }}">
+          <i class="far fa-clock"></i>
+          {{ notification.created_at|date:"j M Y, H:i" }}
+        </div>
+      </div>
+      
+      <p class="notif-message">{{ notification.message }}</p>
+      
+      <!-- Status Tags -->
+      <div class="notif-tags">
+        {% if not notification.read %}
+          <span class="notif-tag notif-tag-new">
+            <i class="fas fa-circle" style="font-size: 6px;"></i>
+            {% translate "New" %}
+          </span>
+        {% else %}
+          <span class="notif-tag notif-tag-read">
+            <i class="fas fa-check"></i>
+            {% translate "Read" %}
+          </span>
+        {% endif %}
+        
+        {% if notification.requires_action %}
+          <span class="notif-tag notif-tag-action">
+            <i class="fas fa-exclamation"></i>
+            {% translate "Action Required" %}
+          </span>
+        {% endif %}
+        
+        {% if notification.response_given %}
+          {% if notification.response == 'accept' or notification.response == 'approve' %}
+            <span class="notif-tag notif-tag-success">
+              <i class="fas fa-check-circle"></i>
+              {% translate "Completed" %}
+            </span>
+          {% elif notification.response == 'reject' %}
+            <span class="notif-tag notif-tag-danger">
+              <i class="fas fa-times-circle"></i>
+              {% translate "Rejected" %}
+            </span>
+          {% endif %}
+        {% endif %}
+      </div>
+      
+      <!-- Action Buttons for notifications requiring response -->
+      {% if notification.requires_action and not notification.response_given %}
+        <div class="notif-actions" onclick="event.stopPropagation();">
+          
+          {% if notification.is_project_invite %}
+            <form method="post" action="{% url 'accounts:respond_project_invite' notification.project_id %}" class="notif-action-form" style="display: inline-flex; gap: 0.5rem;">
+              {% csrf_token %}
+              <input type="hidden" name="notification_id" value="{{ notification.id }}">
+              <button type="submit" name="response" value="accept" class="notif-action-btn accept">
+                <i class="fas fa-check"></i> {% translate "Accept" %}
+              </button>
+              <button type="submit" name="response" value="reject" class="notif-action-btn reject">
+                <i class="fas fa-times"></i> {% translate "Decline" %}
+              </button>
+            </form>
+          
+          {% elif notification.is_join_request %}
+            <form method="post" action="{% url 'projects:accept_member' notification.project_id notification.sender_id %}" class="notif-action-form" style="display: inline-flex; gap: 0.5rem;">
+              {% csrf_token %}
+              <input type="hidden" name="notification_id" value="{{ notification.id }}">
+              <button type="submit" name="response" value="accept" class="notif-action-btn accept">
+                <i class="fas fa-check"></i> {% translate "Accept" %}
+              </button>
+              <button type="submit" name="response" value="reject" class="notif-action-btn reject">
+                <i class="fas fa-times"></i> {% translate "Decline" %}
+              </button>
+            </form>
+          
+          {% elif notification.is_leave_request %}
+            <form method="post" action="{% url 'projects:respond_leave_request' notification.project_id notification.sender_id %}" class="notif-action-form" style="display: inline-flex; gap: 0.5rem;">
+              {% csrf_token %}
+              <input type="hidden" name="notification_id" value="{{ notification.id }}">
+              <button type="submit" name="response" value="approve" class="notif-action-btn accept">
+                <i class="fas fa-check"></i> {% translate "Approve" %}
+              </button>
+              <button type="submit" name="response" value="reject" class="notif-action-btn reject">
+                <i class="fas fa-times"></i> {% translate "Reject" %}
+              </button>
+            </form>
+          {% endif %}
+          
+        </div>
+      {% endif %}
+      
+      <!-- Response status for already responded notifications -->
+      {% if notification.response_given %}
+        <div class="notif-actions" style="border-top: none; padding-top: 0.5rem;">
+          {% if notification.is_project_invite %}
+            {% if notification.response == 'accept' %}
+              <span style="color: var(--notif-success); font-size: 0.875rem;">
+                <i class="fas fa-check-circle"></i> {% translate "Invitation accepted" %}
+              </span>
+            {% elif notification.response == 'reject' %}
+              <span style="color: var(--notif-danger); font-size: 0.875rem;">
+                <i class="fas fa-times-circle"></i> {% translate "Invitation declined" %}
+              </span>
+            {% endif %}
+          {% elif notification.is_join_request %}
+            {% if notification.response == 'accept' %}
+              <span style="color: var(--notif-success); font-size: 0.875rem;">
+                <i class="fas fa-check-circle"></i> {% translate "Request accepted" %}
+              </span>
+            {% elif notification.response == 'reject' %}
+              <span style="color: var(--notif-danger); font-size: 0.875rem;">
+                <i class="fas fa-times-circle"></i> {% translate "Request declined" %}
+              </span>
+            {% endif %}
+          {% elif notification.is_leave_request %}
+            {% if notification.response == 'approve' %}
+              <span style="color: var(--notif-success); font-size: 0.875rem;">
+                <i class="fas fa-check-circle"></i> {% translate "Leave request approved" %}
+              </span>
+            {% elif notification.response == 'reject' %}
+              <span style="color: var(--notif-danger); font-size: 0.875rem;">
+                <i class="fas fa-times-circle"></i> {% translate "Leave request rejected" %}
+              </span>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endif %}
+      
+    </div>
+  </div>
+</article>
