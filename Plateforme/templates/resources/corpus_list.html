@@ -79,17 +79,6 @@
     opacity: 0.5;
 }
 
-.corpus-header-section::after {
-    content: '';
-    position: absolute;
-    bottom: -50%;
-    right: -10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    border-radius: 50%;
-}
-
 .header-content {
     position: relative;
     z-index: 2;
@@ -176,14 +165,13 @@
     font-size: 0.95rem;
 }
 
-/* ===== SEARCH & FILTER BAR ===== */
-.search-filter-section {
-    margin-bottom: 2.5rem;
+/* ===== SEARCH BAR ===== */
+.search-section {
+    margin-bottom: 2rem;
 }
 
 .search-wrapper {
-    max-width: 800px;
-    margin: 0 auto 1.5rem;
+    max-width: 100%;
 }
 
 .search-box {
@@ -241,60 +229,343 @@
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-/* Explore Toggle */
-.section-divider {
-    position: relative;
-    text-align: center;
-    margin: 2rem 0;
+/* ===== CONTENT LAYOUT WITH SIDEBAR ===== */
+.content-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
 }
 
-.section-divider::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+@media (max-width: 992px) {
+    .content-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
-.explore-toggle {
-    position: relative;
-    display: inline-flex;
+/* ===== FILTER SIDEBAR ===== */
+.filter-sidebar {
+    background: var(--surface-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 1rem;
+    overflow: hidden;
+}
+
+.filter-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-accent) 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.filter-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.btn-clear-filters {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-clear-filters:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-clear-filters:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.filter-section {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.filter-section:last-child {
+    border-bottom: none;
+}
+
+.filter-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-section-title i {
+    color: var(--primary-accent);
+    font-size: 1rem;
+}
+
+.filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.filter-options::-webkit-scrollbar {
+    width: 4px;
+}
+
+.filter-options::-webkit-scrollbar-track {
+    background: var(--surface-muted);
+    border-radius: 2px;
+}
+
+.filter-options::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.filter-option:hover {
+    background: var(--surface-light);
+}
+
+.filter-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-subtle);
+    border-radius: 4px;
+    cursor: pointer;
+    accent-color: var(--primary-accent);
+    flex-shrink: 0;
+}
+
+.filter-option-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex: 1;
+    line-height: 1.4;
+}
+
+.filter-option input:checked + .filter-option-label {
+    color: var(--primary-accent);
+    font-weight: 500;
+}
+
+/* Mobile filter toggle */
+.mobile-filter-toggle {
+    display: none;
+    width: 100%;
+    padding: 1rem;
     background: var(--surface-white);
     border: 2px solid var(--border-subtle);
-    padding: 0.75rem 1.5rem;
-    border-radius: 50px;
+    border-radius: var(--radius-md);
     font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 1rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
 }
 
-.explore-toggle:hover {
+.mobile-filter-toggle:hover {
     border-color: var(--primary-accent);
     color: var(--primary-accent);
-    box-shadow: var(--shadow-md);
 }
 
-.explore-toggle.active {
-    background: var(--primary-accent);
-    border-color: var(--primary-accent);
-    color: white;
+@media (max-width: 992px) {
+    .mobile-filter-toggle {
+        display: flex;
+    }
+    
+    .filter-sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 300px;
+        height: 100vh;
+        z-index: 1000;
+        border-radius: 0;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+    
+    .filter-sidebar.active {
+        left: 0;
+    }
+    
+    .filter-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .filter-overlay.active {
+        display: block;
+    }
 }
 
-.explore-toggle i {
+/* ===== RESULTS SECTION ===== */
+.results-section {
+    flex: 1;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface-white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.results-count {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.results-count strong {
+    color: var(--primary-accent);
+    font-weight: 700;
     font-size: 1.1rem;
+}
+
+.results-count i {
+    color: var(--primary-accent);
+}
+
+.active-filters-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--primary-accent);
+    color: white;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.active-filter-tag button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.active-filter-tag button:hover {
+    opacity: 1;
+}
+
+/* ===== LOADING STATE ===== */
+.results-container {
+    position: relative;
+    min-height: 200px;
+}
+
+.results-container.loading {
+    pointer-events: none;
+}
+
+.results-container.loading .corpus-grid,
+.results-container.loading .empty-state {
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.loading-overlay {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+}
+
+.results-container.loading .loading-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-subtle);
+    border-top-color: var(--primary-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 /* ===== CORPUS GRID ===== */
 .corpus-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.75rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
 }
 
 @media (max-width: 1200px) {
@@ -368,35 +639,12 @@
 }
 
 /* Type-specific icon colors */
-.corpus-icon.type-medical {
-    background: var(--type-medical-bg);
-    color: var(--type-medical);
-}
-
-.corpus-icon.type-linguistics {
-    background: var(--type-linguistics-bg);
-    color: var(--type-linguistics);
-}
-
-.corpus-icon.type-translation {
-    background: var(--type-translation-bg);
-    color: var(--type-translation);
-}
-
-.corpus-icon.type-general {
-    background: var(--type-general-bg);
-    color: var(--type-general);
-}
-
-.corpus-icon.type-social {
-    background: var(--type-social-bg);
-    color: var(--type-social);
-}
-
-.corpus-icon.type-legal {
-    background: var(--type-legal-bg);
-    color: var(--type-legal);
-}
+.corpus-icon.type-medical { background: var(--type-medical-bg); color: var(--type-medical); }
+.corpus-icon.type-linguistics { background: var(--type-linguistics-bg); color: var(--type-linguistics); }
+.corpus-icon.type-translation { background: var(--type-translation-bg); color: var(--type-translation); }
+.corpus-icon.type-general { background: var(--type-general-bg); color: var(--type-general); }
+.corpus-icon.type-social { background: var(--type-social-bg); color: var(--type-social); }
+.corpus-icon.type-legal { background: var(--type-legal-bg); color: var(--type-legal); }
 
 .card-title-section {
     flex: 1;
@@ -425,35 +673,12 @@
     letter-spacing: 0.025em;
 }
 
-.corpus-type-badge.type-medical {
-    background: var(--type-medical-bg);
-    color: var(--type-medical);
-}
-
-.corpus-type-badge.type-linguistics {
-    background: var(--type-linguistics-bg);
-    color: var(--type-linguistics);
-}
-
-.corpus-type-badge.type-translation {
-    background: var(--type-translation-bg);
-    color: var(--type-translation);
-}
-
-.corpus-type-badge.type-general {
-    background: var(--type-general-bg);
-    color: var(--type-general);
-}
-
-.corpus-type-badge.type-social {
-    background: var(--type-social-bg);
-    color: var(--type-social);
-}
-
-.corpus-type-badge.type-legal {
-    background: var(--type-legal-bg);
-    color: var(--type-legal);
-}
+.corpus-type-badge.type-medical { background: var(--type-medical-bg); color: var(--type-medical); }
+.corpus-type-badge.type-linguistics { background: var(--type-linguistics-bg); color: var(--type-linguistics); }
+.corpus-type-badge.type-translation { background: var(--type-translation-bg); color: var(--type-translation); }
+.corpus-type-badge.type-general { background: var(--type-general-bg); color: var(--type-general); }
+.corpus-type-badge.type-social { background: var(--type-social-bg); color: var(--type-social); }
+.corpus-type-badge.type-legal { background: var(--type-legal-bg); color: var(--type-legal); }
 
 /* Card Body */
 .card-body {
@@ -509,40 +734,13 @@
     transition: all 0.2s ease;
 }
 
-.tag-pill i {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.tag-pill.format-csv {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.tag-pill.format-txt {
-    background: #e0e7ff;
-    color: #3730a3;
-}
-
-.tag-pill.format-json {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.tag-pill.format-xml {
-    background: #fce7f3;
-    color: #9d174d;
-}
-
-.tag-pill.lang-ar {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.tag-pill.lang-en {
-    background: #f3e8ff;
-    color: #6b21a8;
-}
+.tag-pill i { font-size: 0.75rem; color: var(--text-muted); }
+.tag-pill.format-csv { background: #dcfce7; color: #166534; }
+.tag-pill.format-txt { background: #e0e7ff; color: #3730a3; }
+.tag-pill.format-json { background: #fef3c7; color: #92400e; }
+.tag-pill.format-xml { background: #fce7f3; color: #9d174d; }
+.tag-pill.lang-ar { background: #dbeafe; color: #1e40af; }
+.tag-pill.lang-en { background: #f3e8ff; color: #6b21a8; }
 
 /* Card Footer */
 .card-footer {
@@ -575,13 +773,8 @@
     color: white;
 }
 
-.btn-view i {
-    transition: transform 0.3s ease;
-}
-
-.btn-view:hover i {
-    transform: translateX(4px);
-}
+.btn-view i { transition: transform 0.3s ease; }
+.btn-view:hover i { transform: translateX(4px); }
 
 /* ===== EMPTY STATE ===== */
 .empty-state {
@@ -612,10 +805,7 @@
     margin: 0 0 0.5rem;
 }
 
-.empty-state p {
-    color: var(--text-muted);
-    margin: 0 0 1.5rem;
-}
+.empty-state p { color: var(--text-muted); margin: 0 0 1.5rem; }
 
 .btn-primary-modern {
     display: inline-flex;
@@ -640,102 +830,42 @@
 }
 
 /* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .header-content {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .card-header {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .meta-item {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .btn-view i {
-    transform: rotate(180deg);
-}
-
-html[dir="rtl"] .btn-view:hover i {
-    transform: rotate(180deg) translateX(4px);
-}
-
-html[dir="rtl"] .search-box {
-    flex-direction: row-reverse;
-}
+html[dir="rtl"] .content-layout { direction: rtl; }
+html[dir="rtl"] .header-content { flex-direction: row-reverse; }
+html[dir="rtl"] .card-header { flex-direction: row-reverse; }
+html[dir="rtl"] .meta-item { flex-direction: row-reverse; }
+html[dir="rtl"] .btn-view i { transform: rotate(180deg); }
+html[dir="rtl"] .btn-view:hover i { transform: rotate(180deg) translateX(4px); }
+html[dir="rtl"] .search-box { flex-direction: row-reverse; }
+html[dir="rtl"] .filter-sidebar { left: auto; right: -100%; }
+html[dir="rtl"] .filter-sidebar.active { left: auto; right: 0; }
 
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
 @media (max-width: 992px) {
-    .corpus-header-section {
-        padding: 2rem;
-    }
-    
-    .header-text h1 {
-        font-size: 1.75rem;
-    }
-    
-    .header-content {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+    .corpus-header-section { padding: 2rem; }
+    .header-text h1 { font-size: 1.75rem; }
+    .header-content { flex-direction: column; align-items: flex-start; }
 }
 
 @media (max-width: 576px) {
-    .corpus-page {
-        padding: 1rem 0 2rem;
-    }
-    
-    .corpus-header-section {
-        padding: 1.5rem;
-        border-radius: var(--radius-lg);
-    }
-    
-    .header-text h1 {
-        font-size: 1.5rem;
-    }
-    
-    .btn-glass {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .search-btn span {
-        display: none;
-    }
-    
-    .card-header {
-        padding: 1.25rem;
-    }
-    
-    .card-body {
-        padding: 0 1.25rem 1rem;
-    }
-    
-    .card-tags {
-        padding: 0 1.25rem 1rem;
-    }
-    
-    .card-footer {
-        padding: 1rem 1.25rem;
-    }
+    .corpus-page { padding: 1rem 0 2rem; }
+    .corpus-header-section { padding: 1.5rem; border-radius: var(--radius-lg); }
+    .header-text h1 { font-size: 1.5rem; }
+    .btn-glass { width: 100%; justify-content: center; }
+    .search-btn span { display: none; }
+    .card-header { padding: 1.25rem; }
+    .card-body { padding: 0 1.25rem 1rem; }
+    .card-tags { padding: 0 1.25rem 1rem; }
+    .card-footer { padding: 1rem 1.25rem; }
 }
 
 /* ===== ANIMATIONS ===== */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.corpus-card {
-    animation: fadeInUp 0.4s ease-out forwards;
-}
-
+.corpus-card { animation: fadeInUp 0.4s ease-out forwards; }
 .corpus-card:nth-child(1) { animation-delay: 0.05s; }
 .corpus-card:nth-child(2) { animation-delay: 0.1s; }
 .corpus-card:nth-child(3) { animation-delay: 0.15s; }
@@ -755,7 +885,7 @@ html[dir="rtl"] .search-box {
                 <div class="header-text">
                     <h1>{% trans "Corpus Collection" %}</h1>
                     <p class="subtitle">
-                        <span class="corpus-count">{{ total_count }}</span>
+                        <span class="corpus-count" id="totalCount">{{ total_count }}</span>
                         {% trans "curated corpora available for research" %}
                     </p>
                 </div>
@@ -776,163 +906,372 @@ html[dir="rtl"] .search-box {
             </div>
         </section>
         
-        <!-- ===== SEARCH & FILTER ===== -->
-        <section class="search-filter-section">
+        <!-- ===== SEARCH BAR ===== -->
+        <section class="search-section">
             <div class="search-wrapper">
-                <form method="get" action="" id="searchForm">
-                    <div class="search-box">
-                        <span class="search-icon">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" 
-                               name="q" 
-                               class="search-input" 
-                               placeholder="{% trans 'Search corpora by title, type, or keywords...' %}"
-                               value="{{ request.GET.q|default:'' }}"
-                               autocomplete="off">
-                        <button type="submit" class="search-btn">
-                            <i class="bi bi-arrow-right"></i>
-                            <span>{% trans "Search" %}</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="section-divider">
-                <button type="button" class="explore-toggle active">
-                    <i class="bi bi-grid-3x3-gap-fill"></i>
-                    <span>{% trans "Explore Corpora" %}</span>
-                </button>
+                <div class="search-box">
+                    <span class="search-icon">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           id="searchInput"
+                           class="search-input" 
+                           placeholder="{% trans 'Search corpora by title, type, or keywords...' %}"
+                           value="{{ request.GET.q|default:'' }}"
+                           autocomplete="off">
+                    <button type="button" class="search-btn" id="searchBtn">
+                        <i class="bi bi-arrow-right"></i>
+                        <span>{% trans "Search" %}</span>
+                    </button>
+                </div>
             </div>
         </section>
         
-        <!-- ===== CORPUS GRID ===== -->
-        {% if corpora %}
-        <div class="corpus-grid">
-            {% for corpus in corpora %}
-            <article class="corpus-card">
-                <div class="card-header">
-                    <!-- Dynamic Icon based on corpus type/field -->
-                    <div class="corpus-icon {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
-                        {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}
-                            <i class="bi bi-heart-pulse"></i>
-                        {% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}
-                            <i class="bi bi-chat-quote"></i>
-                        {% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}
-                            <i class="bi bi-translate"></i>
-                        {% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}
-                            <i class="bi bi-people"></i>
-                        {% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}
-                            <i class="bi bi-bank"></i>
-                        {% else %}
-                            <i class="bi bi-folder2-open"></i>
-                        {% endif %}
-                    </div>
-                    <div class="card-title-section">
-                        <h3 class="corpus-title">{{ corpus.get_localized_title }}</h3>
-                        <span class="corpus-type-badge {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
-                            {{ corpus.get_field_display }}
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="card-body">
-                    <div class="meta-list">
-                        <div class="meta-item">
-                            <span class="meta-label">{% trans "Created" %}</span>
-                            <span class="meta-value">{{ corpus.creation_date|date:"M d, Y" }}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">{% trans "Author" %}</span>
-                            <span class="meta-value">
-                                {% if corpus.author %}
-                                    {{ corpus.author.get_full_name_display }}
-                                {% else %}
-                                    {% trans "Unknown" %}
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card-tags">
-                    {% if corpus.file_format %}
-                    <span class="tag-pill {% if 'csv' in corpus.file_format|lower %}format-csv{% elif 'txt' in corpus.file_format|lower %}format-txt{% elif 'json' in corpus.file_format|lower %}format-json{% elif 'xml' in corpus.file_format|lower %}format-xml{% endif %}">
-                        <i class="bi bi-file-earmark"></i>
-                        {{ corpus.file_format|upper }}
-                    </span>
-                    {% endif %}
-                    
-                    {% if corpus.language %}
-                    <span class="tag-pill {% if corpus.language == 'ar' %}lang-ar{% elif corpus.language == 'en' %}lang-en{% endif %}">
-                        <i class="bi bi-globe"></i>
-                        {{ corpus.get_language_display }}
-                    </span>
-                    {% endif %}
-                    
-                    {% if corpus.keywords %}
-                    <span class="tag-pill">
-                        <i class="bi bi-tag"></i>
-                        {{ corpus.get_keywords_list.0 }}
-                    </span>
-                    {% endif %}
-                </div>
-                
-                <div class="card-footer">
-                    <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
-                        <span>{% trans "View Details" %}</span>
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
+        <!-- Mobile Filter Toggle -->
+        <button type="button" class="mobile-filter-toggle" id="mobileFilterToggle">
+            <i class="bi bi-funnel"></i>
+            <span>{% trans "Show Filters" %}</span>
+        </button>
         
-        {% else %}
-        <!-- Empty State -->
-        <div class="empty-state">
-            <div class="empty-icon">
-                <i class="bi bi-folder2-open"></i>
+        <!-- Filter Overlay (Mobile) -->
+        <div class="filter-overlay" id="filterOverlay"></div>
+        
+        <!-- ===== CONTENT LAYOUT ===== -->
+        <div class="content-layout">
+            
+            <!-- ===== FILTER SIDEBAR ===== -->
+            <aside class="filter-sidebar" id="filterSidebar">
+                <div class="filter-header">
+                    <h3>
+                        <i class="bi bi-funnel"></i>
+                        {% trans "Filters" %}
+                    </h3>
+                    <button type="button" class="btn-clear-filters" id="clearFilters" {% if not has_active_filters %}disabled{% endif %}>
+                        <i class="bi bi-x-lg"></i>
+                        {% trans "Clear" %}
+                    </button>
+                </div>
+                
+                <!-- Categories Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-bookmark"></i>
+                        {% trans "Categories" %}
+                    </h4>
+                    <div class="filter-options" id="fieldFilters">
+                        {% for value, label in field_choices %}
+                        <label class="filter-option">
+                            <input type="checkbox" 
+                                   name="field" 
+                                   value="{{ value }}"
+                                   {% if value in active_fields %}checked{% endif %}>
+                            <span class="filter-option-label">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Format Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-file-earmark-code"></i>
+                        {% trans "Format" %}
+                    </h4>
+                    <div class="filter-options" id="formatFilters">
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="json" {% if 'json' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">JSON</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="csv" {% if 'csv' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">CSV</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="txt" {% if 'txt' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">TXT</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="xml" {% if 'xml' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">XML</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Language Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-globe"></i>
+                        {% trans "Language" %}
+                    </h4>
+                    <div class="filter-options" id="languageFilters">
+                        <label class="filter-option">
+                            <input type="checkbox" name="language" value="ar" {% if 'ar' in active_languages %}checked{% endif %}>
+                            <span class="filter-option-label">{% trans "Arabic" %}</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="language" value="en" {% if 'en' in active_languages %}checked{% endif %}>
+                            <span class="filter-option-label">{% trans "English" %}</span>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- ===== RESULTS SECTION ===== -->
+            <div class="results-section">
+                
+                <!-- Results Header -->
+                <div class="results-header">
+                    <div class="results-count">
+                        <i class="bi bi-collection"></i>
+                        <span>{% trans "Showing" %} <strong id="resultsCount">{{ total_count }}</strong> {% trans "results" %}</span>
+                    </div>
+                    <div class="active-filters-display" id="activeFiltersDisplay">
+                        <!-- Active filter tags will be inserted here by JS -->
+                    </div>
+                </div>
+                
+                <!-- Results Container -->
+                <div class="results-container" id="resultsContainer">
+                    <!-- Loading Overlay -->
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <span class="loading-text">{% trans "Loading..." %}</span>
+                    </div>
+                    
+                    <!-- Corpus Cards -->
+                    <div id="corpusResults">
+                        {% include "resources/_corpus_cards.html" %}
+                    </div>
+                </div>
+                
             </div>
-            <h3>{% trans "No corpora available yet" %}</h3>
-            <p>{% trans "Be the first to contribute to our research collection" %}</p>
-            {% if user.is_authenticated %}
-            <a href="{% url 'resources:corpus-create' %}" class="btn-primary-modern">
-                <i class="bi bi-plus-lg"></i>
-                <span>{% trans "Add Your First Corpus" %}</span>
-            </a>
-            {% endif %}
         </div>
-        {% endif %}
         
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Live search with debounce
-    const searchInput = document.querySelector('.search-input');
-    const searchForm = document.getElementById('searchForm');
-    let searchTimeout;
+    // Elements
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const corpusResults = document.getElementById('corpusResults');
+    const resultsCount = document.getElementById('resultsCount');
+    const totalCount = document.getElementById('totalCount');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const activeFiltersDisplay = document.getElementById('activeFiltersDisplay');
+    const filterSidebar = document.getElementById('filterSidebar');
+    const filterOverlay = document.getElementById('filterOverlay');
+    const mobileFilterToggle = document.getElementById('mobileFilterToggle');
     
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                if (this.value.trim().length >= 2 || this.value.trim().length === 0) {
-                    searchForm.submit();
+    // Filter checkboxes
+    const fieldCheckboxes = document.querySelectorAll('#fieldFilters input[type="checkbox"]');
+    const formatCheckboxes = document.querySelectorAll('#formatFilters input[type="checkbox"]');
+    const languageCheckboxes = document.querySelectorAll('#languageFilters input[type="checkbox"]');
+    
+    let searchTimeout = null;
+    const DEBOUNCE_DELAY = 300;
+    
+    // Build query string from current filters
+    function buildQueryString() {
+        const params = new URLSearchParams();
+        
+        // Search query
+        const query = searchInput.value.trim();
+        if (query) {
+            params.append('q', query);
+        }
+        
+        // Field filters
+        fieldCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('field', cb.value);
+            }
+        });
+        
+        // Format filters
+        formatCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('format', cb.value);
+            }
+        });
+        
+        // Language filters
+        languageCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('language', cb.value);
+            }
+        });
+        
+        return params.toString();
+    }
+    
+    // Perform AJAX search
+    async function performSearch() {
+        const queryString = buildQueryString();
+        
+        // Show loading state
+        resultsContainer.classList.add('loading');
+        
+        try {
+            const response = await fetch(`?${queryString}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
-            }, 500);
+            });
+            
+            if (!response.ok) throw new Error('Search failed');
+            
+            const html = await response.text();
+            corpusResults.innerHTML = html;
+            
+            // Update results count (extract from response or count cards)
+            const cards = corpusResults.querySelectorAll('.corpus-card');
+            const count = cards.length;
+            resultsCount.textContent = count;
+            totalCount.textContent = count;
+            
+            // Update URL without reload
+            const newUrl = queryString ? `?${queryString}` : window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+            
+            // Update active filters display
+            updateActiveFiltersDisplay();
+            
+            // Update clear button state
+            updateClearButtonState();
+            
+        } catch (error) {
+            console.error('Search error:', error);
+        } finally {
+            resultsContainer.classList.remove('loading');
+        }
+    }
+    
+    // Debounced search
+    function debouncedSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(performSearch, DEBOUNCE_DELAY);
+    }
+    
+    // Update active filters display
+    function updateActiveFiltersDisplay() {
+        activeFiltersDisplay.innerHTML = '';
+        
+        // Search query tag
+        const query = searchInput.value.trim();
+        if (query) {
+            activeFiltersDisplay.appendChild(createFilterTag('search', query, `"${query}"`));
+        }
+        
+        // Field tags
+        fieldCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const label = cb.nextElementSibling.textContent.trim();
+                activeFiltersDisplay.appendChild(createFilterTag('field', cb.value, label));
+            }
+        });
+        
+        // Format tags
+        formatCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                activeFiltersDisplay.appendChild(createFilterTag('format', cb.value, cb.value.toUpperCase()));
+            }
+        });
+        
+        // Language tags
+        languageCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const label = cb.nextElementSibling.textContent.trim();
+                activeFiltersDisplay.appendChild(createFilterTag('language', cb.value, label));
+            }
         });
     }
     
-    // Explore toggle effect
-    const exploreToggle = document.querySelector('.explore-toggle');
-    if (exploreToggle) {
-        exploreToggle.addEventListener('click', function() {
-            this.classList.toggle('active');
+    // Create a filter tag element
+    function createFilterTag(type, value, label) {
+        const tag = document.createElement('span');
+        tag.className = 'active-filter-tag';
+        tag.innerHTML = `
+            ${label}
+            <button type="button" data-type="${type}" data-value="${value}" aria-label="Remove filter">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        
+        // Add click handler to remove button
+        tag.querySelector('button').addEventListener('click', function() {
+            if (type === 'search') {
+                searchInput.value = '';
+            } else {
+                const checkbox = document.querySelector(`input[name="${type}"][value="${value}"]`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+            }
+            performSearch();
         });
+        
+        return tag;
     }
+    
+    // Update clear button state
+    function updateClearButtonState() {
+        const hasFilters = searchInput.value.trim() ||
+            [...fieldCheckboxes].some(cb => cb.checked) ||
+            [...formatCheckboxes].some(cb => cb.checked) ||
+            [...languageCheckboxes].some(cb => cb.checked);
+        
+        clearFiltersBtn.disabled = !hasFilters;
+    }
+    
+    // Clear all filters
+    function clearAllFilters() {
+        searchInput.value = '';
+        [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(cb => {
+            cb.checked = false;
+        });
+        performSearch();
+    }
+    
+    // Mobile filter toggle
+    function toggleMobileFilters() {
+        filterSidebar.classList.toggle('active');
+        filterOverlay.classList.toggle('active');
+    }
+    
+    // Event Listeners
+    
+    // Search input - debounced search as you type
+    searchInput.addEventListener('input', debouncedSearch);
+    
+    // Search button
+    searchBtn.addEventListener('click', performSearch);
+    
+    // Enter key in search
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimeout);
+            performSearch();
+        }
+    });
+    
+    // Filter checkboxes
+    [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(checkbox => {
+        checkbox.addEventListener('change', performSearch);
+    });
+    
+    // Clear filters button
+    clearFiltersBtn.addEventListener('click', clearAllFilters);
+    
+    // Mobile filter toggle
+    mobileFilterToggle.addEventListener('click', toggleMobileFilters);
+    filterOverlay.addEventListener('click', toggleMobileFilters);
+    
+    // Initialize
+    updateActiveFiltersDisplay();
+    updateClearButtonState();
 });
 </script>
 {% endblock content %}

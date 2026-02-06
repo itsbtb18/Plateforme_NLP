@@ -1,0 +1,112 @@
+{% load i18n %}
+
+<div class="results-header">
+    <span class="results-count">
+        {% trans "Showing" %} <strong>{{ tools|length }}</strong> {% trans "tools" %}
+    </span>
+    {% if search_query %}
+    <span class="search-term-badge">
+        <i class="bi bi-search"></i>
+        "{{ search_query }}"
+    </span>
+    {% endif %}
+</div>
+
+{% if tools %}
+<div class="tools-grid">
+    {% for tool in tools %}
+    <article class="tool-card" data-category="{{ tool.tool_type }}">
+        <div class="card-top-accent"></div>
+        <div class="card-header">
+            <span class="category-badge {{ tool.tool_type }}">
+                {% if tool.tool_type == 'tokenization' %}
+                    <i class="bi bi-scissors"></i>
+                {% elif tool.tool_type == 'stemming' %}
+                    <i class="bi bi-tree"></i>
+                {% elif tool.tool_type == 'ner' %}
+                    <i class="bi bi-tag"></i>
+                {% elif tool.tool_type == 'pos_tagging' %}
+                    <i class="bi bi-diagram-3"></i>
+                {% elif tool.tool_type == 'sentiment_analysis' %}
+                    <i class="bi bi-emoji-smile"></i>
+                {% elif tool.tool_type == 'machine_translation' %}
+                    <i class="bi bi-translate"></i>
+                {% else %}
+                    <i class="bi bi-cpu"></i>
+                {% endif %}
+                {{ tool.get_tool_type_display }}
+            </span>
+        </div>
+        
+        <div class="card-body">
+            <h3 class="tool-title" data-text="{{ tool.get_localized_title }}">{{ tool.get_localized_title }}</h3>
+            <p class="tool-description" data-text="{% if tool.get_localized_description %}{{ tool.get_localized_description|truncatewords:15 }}{% else %}{% trans 'No description available' %}{% endif %}">
+                {% if tool.get_localized_description %}
+                    {{ tool.get_localized_description|truncatewords:15 }}
+                {% else %}
+                    {% trans "No description available" %}
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="card-footer">
+            <div class="tool-meta">
+                {% if tool.supported_languages %}
+                <span class="meta-item">
+                    <i class="bi bi-globe"></i>
+                    {{ tool.get_supported_languages_display|join:", "|default:tool.supported_languages }}
+                </span>
+                {% endif %}
+                {% if tool.version %}
+                <span class="meta-item">
+                    <i class="bi bi-tag"></i>
+                    v{{ tool.version }}
+                </span>
+                {% endif %}
+            </div>
+            <a href="{% url 'resources:tool_detail' tool.id %}" class="btn-view-api">
+                <i class="bi bi-code-slash"></i>
+                {% trans "View API" %}
+            </a>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+<!-- Pass search query to JS for highlighting -->
+<script>
+(function() {
+    const searchQuery = "{{ search_query|escapejs }}";
+    if (searchQuery && searchQuery.length > 0) {
+        highlightMatches(searchQuery);
+    }
+    
+    function highlightMatches(query) {
+        const titles = document.querySelectorAll('.tool-title');
+        const descriptions = document.querySelectorAll('.tool-description');
+        
+        [...titles, ...descriptions].forEach(el => {
+            const originalText = el.dataset.text || el.textContent;
+            if (!originalText) return;
+            
+            const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+            if (regex.test(originalText)) {
+                el.innerHTML = originalText.replace(regex, '<mark class="search-highlight">$1</mark>');
+            }
+        });
+    }
+    
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+})();
+</script>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="bi bi-tools"></i>
+    </div>
+    <h3>{% trans "No tools found" %}</h3>
+    <p>{% trans "Try adjusting your search query" %}</p>
+</div>
+{% endif %}
