@@ -771,6 +771,9 @@ html[dir="rtl"] .rp-avatar:first-child {
                 {% if request.GET.status %}
                 <input type="hidden" name="status" value="{{ request.GET.status }}">
                 {% endif %}
+                {% if request.GET.sort %}
+                <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+                {% endif %}
                 
                 <div class="rp-search-box">
                     <i class="bi bi-search rp-search-icon"></i>
@@ -778,7 +781,7 @@ html[dir="rtl"] .rp-avatar:first-child {
                            name="q" 
                            class="rp-search-input" 
                            placeholder="{% translate 'Search projects by title, institution, or researcher...' %}"
-                           value="{{ search_query|default:request.GET.q }}">
+                           value="{{ search_query|default:'' }}">
                 </div>
                 <button type="submit" class="rp-search-btn">
                     <i class="bi bi-search"></i>
@@ -789,24 +792,27 @@ html[dir="rtl"] .rp-avatar:first-child {
             <div class="rp-pill-group">
                 <span class="rp-pill-label">{% translate "Filter:" %}</span>
                 
-                <a href="{% if request.GET.q %}?q={{ request.GET.q }}{% else %}{% url 'projects:project_list' %}{% endif %}"
+                <a href="{% if search_query %}?q={{ search_query }}{% else %}{% url 'projects:project_list' %}{% endif %}"
                    class="rp-pill {% if not request.GET.my_projects and not request.GET.status %}active{% endif %}">
                     <i class="bi bi-grid-3x3-gap"></i>
                     {% translate "All Projects" %}
                 </a>
                 
-                <a href="?my_projects=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                <a href="?my_projects=1{% if search_query %}&q={{ search_query }}{% endif %}"
                    class="rp-pill {% if request.GET.my_projects %}active{% endif %}">
                     <i class="bi bi-person-badge"></i>
                     {% translate "My Projects" %}
                 </a>
                 
                 <form method="get" style="display: inline-flex;">
-                    {% if request.GET.q %}
-                    <input type="hidden" name="q" value="{{ request.GET.q }}">
+                    {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
                     {% endif %}
                     {% if request.GET.my_projects %}
                     <input type="hidden" name="my_projects" value="1">
+                    {% endif %}
+                    {% if request.GET.sort %}
+                    <input type="hidden" name="sort" value="{{ request.GET.sort }}">
                     {% endif %}
                     <select name="status" onchange="this.form.submit()" class="rp-filter-select">
                         <option value="">{% translate "All Statuses" %}</option>
@@ -816,7 +822,25 @@ html[dir="rtl"] .rp-avatar:first-child {
                     </select>
                 </form>
                 
-                {% if request.GET.q or request.GET.status %}
+                <form method="get" style="display: inline-flex;">
+                    {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
+                    {% if request.GET.my_projects %}
+                    <input type="hidden" name="my_projects" value="1">
+                    {% endif %}
+                    {% if request.GET.status %}
+                    <input type="hidden" name="status" value="{{ request.GET.status }}">
+                    {% endif %}
+                    <select name="sort" onchange="this.form.submit()" class="rp-filter-select">
+                        <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>{% translate "Newest First" %}</option>
+                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>{% translate "Oldest First" %}</option>
+                        <option value="alphabetical" {% if current_sort == 'alphabetical' %}selected{% endif %}>{% translate "A-Z" %}</option>
+                        <option value="updated" {% if current_sort == 'updated' %}selected{% endif %}>{% translate "Recently Updated" %}</option>
+                    </select>
+                </form>
+                
+                {% if search_query or request.GET.status %}
                 <a href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}" 
                    class="rp-pill">
                     <i class="bi bi-x-lg"></i>

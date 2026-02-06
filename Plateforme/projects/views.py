@@ -66,6 +66,17 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
                 Q(coordinator__full_name__icontains=search_query) |
                 Q(coordinator__username__icontains=search_query)
             )
+        
+        # Sorting functionality
+        sort_by = self.request.GET.get('sort', 'newest').strip()
+        if sort_by == 'oldest':
+            qs = qs.order_by('created_at')
+        elif sort_by == 'alphabetical':
+            qs = qs.order_by('title')
+        elif sort_by == 'updated':
+            qs = qs.order_by('-updated_at')
+        else:  # newest (default)
+            qs = qs.order_by('-created_at')
             
         return qs.annotate(is_member=Exists(membership))
 
@@ -74,6 +85,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         context['project_statuses'] = Project.STATUS_CHOICES
         context['page'] = 'research_projects'
         context['search_query'] = self.request.GET.get('q') or self.request.GET.get('search', '')
+        context['current_sort'] = self.request.GET.get('sort', 'newest').strip()
         return context
 
 

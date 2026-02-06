@@ -422,6 +422,44 @@ html[dir="rtl"] body {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* ===== SORT DROPDOWN ===== */
+.sort-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.sort-select {
+    appearance: none;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    background: var(--hub-white);
+    border: 1px solid var(--hub-border);
+    border-radius: var(--radius-full);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--hub-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23475569' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 0.75rem;
+}
+
+.sort-select:hover {
+    border-color: var(--hub-accent);
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: var(--hub-accent);
+    box-shadow: 0 0 0 3px var(--hub-accent-glow);
+}
+
+html[dir="rtl"] .sort-select {
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    background-position: left 1rem center;
+}
+
 /* ===== RESULTS HEADER ===== */
 .results-header {
     display: flex;
@@ -927,9 +965,8 @@ html[dir="rtl"] .card-type-badge {
                 </h1>
                 
                 <!-- Subtitle -->
-                <p class="hero-subtitle">
+                <p class="hero-subtitle"> 
                     {% translate "Discover articles, theses, tools, courses, and corpora for Arabic Natural Language Processing" %}
-                </p>
                 
                 <!-- Stats Row -->
                 <div class="hero-stats">
@@ -1026,6 +1063,15 @@ html[dir="rtl"] .card-type-badge {
                     <i class="bi bi-database"></i>
                     <span>{% translate "Corpus" %}</span>
                 </a>
+                
+                <!-- Sort Dropdown -->
+                <div class="sort-dropdown" style="margin-inline-start: auto;">
+                    <select class="sort-select" id="sortSelect" onchange="handleSort(this.value)">
+                        <option value="newest" {% if current_sort == 'newest' or not current_sort %}selected{% endif %}>{% translate "Newest First" %}</option>
+                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>{% translate "Oldest First" %}</option>
+                        <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>{% translate "Most Popular" %}</option>
+                    </select>
+                </div>
             </div>
         </div>
         
@@ -1176,4 +1222,12 @@ html[dir="rtl"] .card-type-badge {
         
     </main>
 </div>
+
+<script>
+function handleSort(sortValue) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sortValue);
+    window.location.href = url.toString();
+}
+</script>
 {% endblock %}
