@@ -1285,6 +1285,12 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
     // HELPER FUNCTIONS
     // ═══════════════════════════════════════
     function getCsrfToken() {
+        // First try to get from hidden input (works when CSRF_COOKIE_HTTPONLY=True)
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        // Fallback to cookie (works when CSRF_COOKIE_HTTPONLY=False)
         const cookie = document.cookie
             .split('; ')
             .find(row => row.startsWith('csrftoken='));
