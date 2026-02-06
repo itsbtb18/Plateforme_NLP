@@ -7,611 +7,585 @@
 {% block extra_styles %}
 <style>
 /* ══════════════════════════════════════════════════════════════════════════════
-   RESEARCH FEED - Premium Academic Portal
-   Modern, clean design inspired by LinkedIn & ResearchGate
-   Fully responsive with RTL support for Arabic
+   ARABIC NLP RESEARCH FEED - Premium Academic Portal
+   Modern Tailwind-inspired design with LinkedIn & ResearchGate aesthetics
+   Fully responsive with complete RTL support for Arabic
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* CSS Variables */
+/* ═══════════════════════════════════════
+   CSS CUSTOM PROPERTIES (Design Tokens)
+   ═══════════════════════════════════════ */
 :root {
-    --rf-bg: #f3f4f6;
-    --rf-card: #ffffff;
-    --rf-border: #e5e7eb;
-    --rf-border-light: #f3f4f6;
-    --rf-text: #111827;
-    --rf-text-secondary: #4b5563;
-    --rf-text-muted: #6b7280;
-    --rf-text-light: #9ca3af;
-    --rf-primary: #2563eb;
-    --rf-primary-hover: #1d4ed8;
-    --rf-primary-light: #dbeafe;
-    --rf-success: #10b981;
-    --rf-success-light: #d1fae5;
-    --rf-warning: #f59e0b;
-    --rf-warning-light: #fef3c7;
-    --rf-danger: #ef4444;
-    --rf-danger-light: #fee2e2;
-    --rf-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --rf-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
-    --rf-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-    --rf-shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-    --rf-radius: 12px;
-    --rf-radius-lg: 16px;
-    --rf-radius-full: 9999px;
-    --rf-transition: all 0.2s ease;
-}
-
-/* Base Layout */
-.rf-container {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 24px 16px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-html[lang="ar"] .rf-container,
-[dir="rtl"] .rf-container {
-    font-family: 'Tajawal', 'Inter', sans-serif;
-}
-
-/* Page Header */
-.rf-header {
-    margin-bottom: 24px;
-}
-
-.rf-header-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.rf-header-title svg {
-    width: 32px;
-    height: 32px;
-    color: var(--rf-primary);
-}
-
-.rf-header-title h1 {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--rf-text);
-    margin: 0;
-    letter-spacing: -0.025em;
-}
-
-.rf-header-subtitle {
-    color: var(--rf-text-muted);
-    font-size: 15px;
-    margin: 0;
-    line-height: 1.5;
+    /* Colors - Slate Palette */
+    --feed-bg: #f8fafc;
+    --feed-card: #ffffff;
+    --feed-border: #e2e8f0;
+    --feed-border-light: #f1f5f9;
+    
+    /* Text Colors */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    
+    /* Accent Colors */
+    --accent-blue: #2563eb;
+    --accent-blue-hover: #1d4ed8;
+    --accent-blue-light: #dbeafe;
+    --accent-blue-pale: #eff6ff;
+    
+    /* Status Colors */
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ═══════════════════════════════════════
-   COMPOSE CARD
+   PAGE LAYOUT
    ═══════════════════════════════════════ */
-.rf-compose {
-    background: var(--rf-card);
-    border-radius: var(--rf-radius-lg);
-    box-shadow: var(--rf-shadow);
-    margin-bottom: 24px;
-    overflow: hidden;
-    border: 1px solid var(--rf-border-light);
+.feed-page {
+    min-height: 100vh;
+    background: var(--feed-bg);
+    padding: 2rem 1rem;
 }
 
-.rf-compose-main {
-    padding: 20px;
+.feed-container {
+    max-width: 56rem; /* max-w-4xl equivalent */
+    margin: 0 auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
 
-.rf-compose-input-wrapper {
+html[lang="ar"] .feed-container,
+[dir="rtl"] .feed-container {
+    font-family: 'Tajawal', 'Inter', -apple-system, sans-serif;
+}
+
+/* ═══════════════════════════════════════
+   PAGE HEADER
+   ═══════════════════════════════════════ */
+.feed-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.feed-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #7c3aed 100%);
+    border-radius: var(--radius-xl);
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.feed-header-icon svg {
+    width: 32px;
+    height: 32px;
+    color: white;
+}
+
+.feed-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+}
+
+.feed-header-subtitle {
+    font-size: 1.0625rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════
+   CATEGORY FILTERS
+   ═══════════════════════════════════════ */
+.feed-filters {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
 }
 
-.rf-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--rf-radius-full);
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    transition: var(--transition-base);
+    border: 1px solid var(--feed-border);
+    background: var(--feed-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.filter-pill:hover {
+    background: var(--feed-border-light);
+    border-color: var(--text-light);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.filter-pill.active {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.filter-pill.active:hover {
+    background: var(--accent-blue-hover);
+    border-color: var(--accent-blue-hover);
+    transform: translateY(-1px);
+}
+
+.filter-pill svg {
+    width: 18px;
+    height: 18px;
+}
+
+.filter-pill .count {
+    background: rgba(255,255,255,0.2);
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+}
+
+.filter-pill:not(.active) .count {
+    background: var(--feed-border-light);
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════
+   CREATE POST BUTTON
+   ═══════════════════════════════════════ */
+.create-post-section {
+    margin-bottom: 1.5rem;
+}
+
+.create-post-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: var(--feed-card);
+    border: 2px solid var(--feed-border);
+    border-radius: var(--radius-2xl);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.create-post-btn:hover {
+    background: var(--accent-blue-pale);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.create-post-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+.create-post-btn .btn-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 600;
-    font-size: 18px;
+    font-size: 0.875rem;
     flex-shrink: 0;
     overflow: hidden;
 }
 
-.rf-avatar img {
+.create-post-btn .btn-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.rf-compose-form {
-    flex: 1;
+/* ═══════════════════════════════════════
+   POSTS FEED
+   ═══════════════════════════════════════ */
+.posts-feed {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-}
-
-.rf-compose-textarea {
-    width: 100%;
-    min-height: 80px;
-    padding: 14px 16px;
-    border: 2px solid var(--rf-border);
-    border-radius: var(--rf-radius);
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--rf-text);
-    resize: none;
-    transition: var(--rf-transition);
-    font-family: inherit;
-    background: #fafafa;
-}
-
-.rf-compose-textarea:focus {
-    outline: none;
-    border-color: var(--rf-primary);
-    background: white;
-    box-shadow: 0 0 0 4px var(--rf-primary-light);
-}
-
-.rf-compose-textarea::placeholder {
-    color: var(--rf-text-light);
-}
-
-/* Attachments Section */
-.rf-compose-attachments {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 12px 20px;
-    border-top: 1px solid var(--rf-border-light);
-    background: #fafafa;
-}
-
-.rf-attach-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border: 1px solid var(--rf-border);
-    border-radius: 8px;
-    background: white;
-    color: var(--rf-text-secondary);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--rf-transition);
-}
-
-.rf-attach-btn:hover {
-    background: var(--rf-border-light);
-    border-color: var(--rf-text-light);
-}
-
-.rf-attach-btn svg {
-    width: 18px;
-    height: 18px;
-}
-
-.rf-attach-btn.image-btn svg {
-    color: #10b981;
-}
-
-.rf-attach-btn.file-btn svg {
-    color: #6366f1;
-}
-
-.rf-publish-btn {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 24px;
-    background: var(--rf-primary);
-    color: white;
-    border: none;
-    border-radius: var(--rf-radius-full);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--rf-transition);
-}
-
-.rf-publish-btn:hover {
-    background: var(--rf-primary-hover);
-    transform: translateY(-1px);
-    box-shadow: var(--rf-shadow-md);
-}
-
-.rf-publish-btn:disabled {
-    background: var(--rf-text-light);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-.rf-publish-btn svg {
-    width: 18px;
-    height: 18px;
-}
-
-/* File Inputs (Hidden) */
-.rf-file-input {
-    display: none;
-}
-
-/* Preview Chips */
-.rf-preview-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.rf-preview-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--rf-primary-light);
-    color: var(--rf-primary);
-    border-radius: var(--rf-radius-full);
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.rf-preview-chip button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: var(--rf-primary);
-    color: white;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 10px;
+    gap: 1.25rem;
 }
 
 /* ═══════════════════════════════════════
-   POST CARDS
+   POST CARD
    ═══════════════════════════════════════ */
-.rf-posts {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.rf-post {
-    background: var(--rf-card);
-    border-radius: var(--rf-radius-lg);
-    box-shadow: var(--rf-shadow);
+.post-card {
+    background: var(--feed-card);
+    border: 1px solid var(--feed-border-light);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
-    border: 1px solid var(--rf-border-light);
-    transition: var(--rf-transition);
+    transition: var(--transition-base);
 }
 
-.rf-post:hover {
-    box-shadow: var(--rf-shadow-md);
+.post-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--feed-border);
 }
 
 /* Pending Banner */
-.rf-post-pending {
+.post-pending-banner {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: var(--rf-warning-light);
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--warning-light);
     color: #92400e;
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 500;
 }
 
-.rf-post-pending svg {
+.post-pending-banner svg {
     width: 18px;
     height: 18px;
-    color: var(--rf-warning);
+    color: var(--warning);
 }
 
 /* Post Header */
-.rf-post-header {
+.post-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 1.25rem 1.5rem;
 }
 
-.rf-post-user {
+.post-author {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75rem;
 }
 
-.rf-post-avatar {
+.post-avatar {
     width: 48px;
     height: 48px;
-    border-radius: var(--rf-radius-full);
+    border-radius: var(--radius-full);
     background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 600;
-    font-size: 18px;
+    font-size: 1.125rem;
     flex-shrink: 0;
     overflow: hidden;
 }
 
-.rf-post-avatar img {
+.post-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.rf-post-info h3 {
-    font-size: 15px;
+.post-author-info h3 {
+    font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--rf-text);
-    margin: 0 0 2px;
+    color: var(--text-primary);
+    margin: 0 0 0.125rem;
 }
 
-.rf-post-info h3 a {
+.post-author-info h3 a {
     color: inherit;
     text-decoration: none;
+    transition: var(--transition-fast);
 }
 
-.rf-post-info h3 a:hover {
-    color: var(--rf-primary);
+.post-author-info h3 a:hover {
+    color: var(--accent-blue);
 }
 
-.rf-post-meta {
+.post-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: var(--rf-text-muted);
-    font-size: 13px;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
 }
 
-.rf-post-meta svg {
+.post-meta svg {
     width: 14px;
     height: 14px;
 }
 
-/* Dropdown Menu */
-.rf-dropdown {
+/* Post Dropdown */
+.post-dropdown {
     position: relative;
 }
 
-.rf-dropdown-toggle {
+.dropdown-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 36px;
     height: 36px;
-    border: none;
     background: transparent;
-    color: var(--rf-text-muted);
-    border-radius: 8px;
+    border: none;
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
     cursor: pointer;
-    transition: var(--rf-transition);
+    transition: var(--transition-base);
 }
 
-.rf-dropdown-toggle:hover {
-    background: var(--rf-border-light);
-    color: var(--rf-text);
+.dropdown-toggle:hover {
+    background: var(--feed-border-light);
+    color: var(--text-primary);
 }
 
-.rf-dropdown-toggle svg {
+.dropdown-toggle svg {
     width: 20px;
     height: 20px;
 }
 
-.rf-dropdown-menu {
+.dropdown-menu {
     position: absolute;
     top: 100%;
     right: 0;
     min-width: 160px;
     background: white;
-    border-radius: 10px;
-    box-shadow: var(--rf-shadow-lg);
-    border: 1px solid var(--rf-border);
-    padding: 6px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--feed-border);
+    padding: 0.375rem;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(8px);
-    transition: var(--rf-transition);
+    transform: translateY(8px) scale(0.95);
+    transition: var(--transition-base);
     z-index: 100;
 }
 
-.rf-dropdown.open .rf-dropdown-menu {
+.post-dropdown.open .dropdown-menu {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateY(4px) scale(1);
 }
 
-.rf-dropdown-item {
+.dropdown-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.625rem;
     width: 100%;
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     border: none;
     background: none;
-    color: var(--rf-text-secondary);
-    font-size: 14px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: var(--rf-transition);
+    transition: var(--transition-fast);
 }
 
-.rf-dropdown-item:hover {
-    background: var(--rf-border-light);
-    color: var(--rf-text);
+.dropdown-item:hover {
+    background: var(--feed-border-light);
+    color: var(--text-primary);
 }
 
-.rf-dropdown-item.danger {
-    color: var(--rf-danger);
+.dropdown-item.danger {
+    color: var(--danger);
 }
 
-.rf-dropdown-item.danger:hover {
-    background: var(--rf-danger-light);
+.dropdown-item.danger:hover {
+    background: var(--danger-light);
 }
 
-.rf-dropdown-item svg {
+.dropdown-item svg {
     width: 18px;
     height: 18px;
 }
 
 /* Post Content */
-.rf-post-content {
-    padding: 0 20px 16px;
+.post-content {
+    padding: 0 1.5rem 1.25rem;
 }
 
-.rf-post-text {
-    font-size: 15px;
-    line-height: 1.7;
-    color: var(--rf-text);
+.post-text {
+    font-size: 0.9375rem;
+    line-height: 1.75;
+    color: var(--text-primary);
     margin: 0;
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 
 /* Post Media */
-.rf-post-media {
-    margin-top: 12px;
+.post-media {
+    margin-top: 1rem;
 }
 
-.rf-post-image {
+.post-image {
     width: 100%;
     max-height: 500px;
     object-fit: cover;
-    border-radius: var(--rf-radius);
+    border-radius: var(--radius-xl);
     cursor: pointer;
-    transition: var(--rf-transition);
+    transition: var(--transition-base);
 }
 
-.rf-post-image:hover {
+.post-image:hover {
     opacity: 0.95;
+    transform: scale(1.005);
 }
 
-.rf-post-file {
+.post-file-link {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--rf-border-light);
-    border-radius: var(--rf-radius);
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--feed-border-light);
+    border-radius: var(--radius-xl);
     text-decoration: none;
-    color: var(--rf-text);
-    transition: var(--rf-transition);
+    color: var(--text-primary);
+    transition: var(--transition-base);
 }
 
-.rf-post-file:hover {
-    background: var(--rf-border);
+.post-file-link:hover {
+    background: var(--feed-border);
 }
 
-.rf-post-file-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--rf-primary-light);
-    border-radius: 10px;
+.post-file-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-blue-light);
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--rf-primary);
+    color: var(--accent-blue);
 }
 
-.rf-post-file-icon svg {
-    width: 22px;
-    height: 22px;
+.post-file-icon svg {
+    width: 24px;
+    height: 24px;
 }
 
-.rf-post-file-info {
+.post-file-details {
     flex: 1;
 }
 
-.rf-post-file-name {
-    font-size: 14px;
+.post-file-name {
+    font-size: 0.875rem;
     font-weight: 500;
-    margin: 0 0 2px;
-    color: var(--rf-text);
+    margin: 0 0 0.125rem;
+    color: var(--text-primary);
 }
 
-.rf-post-file-meta {
-    font-size: 12px;
-    color: var(--rf-text-muted);
+.post-file-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
 /* Post Stats */
-.rf-post-stats {
+.post-stats {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
-    border-top: 1px solid var(--rf-border-light);
-    font-size: 13px;
-    color: var(--rf-text-muted);
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--feed-border-light);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
 }
 
-.rf-stat {
+.stat-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
 }
 
-.rf-stat svg {
+.stat-item svg {
     width: 16px;
     height: 16px;
 }
 
 /* Post Actions */
-.rf-post-actions {
+.post-actions {
     display: flex;
-    padding: 8px 12px;
-    border-top: 1px solid var(--rf-border-light);
-    gap: 4px;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--feed-border-light);
+    gap: 0.25rem;
 }
 
-.rf-action-btn {
+.action-btn {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px;
+    gap: 0.5rem;
+    padding: 0.75rem;
     border: none;
     background: transparent;
-    color: var(--rf-text-muted);
-    font-size: 14px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
     font-weight: 500;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     cursor: pointer;
-    transition: var(--rf-transition);
+    transition: var(--transition-base);
     text-decoration: none;
 }
 
-.rf-action-btn:hover {
-    background: var(--rf-border-light);
-    color: var(--rf-text);
+.action-btn:hover {
+    background: var(--feed-border-light);
+    color: var(--text-primary);
 }
 
-.rf-action-btn.liked {
-    color: var(--rf-danger);
+.action-btn.liked {
+    color: var(--danger);
 }
 
-.rf-action-btn.liked:hover {
-    background: var(--rf-danger-light);
+.action-btn.liked:hover {
+    background: var(--danger-light);
 }
 
-.rf-action-btn svg {
+.action-btn svg {
     width: 20px;
     height: 20px;
 }
@@ -619,233 +593,219 @@ html[lang="ar"] .rf-container,
 /* ═══════════════════════════════════════
    COMMENTS SECTION
    ═══════════════════════════════════════ */
-.rf-comments-section {
-    padding: 0 20px 16px;
-    border-top: 1px solid var(--rf-border-light);
+.post-comments {
+    padding: 0 1.5rem 1.25rem;
+    border-top: 1px solid var(--feed-border-light);
 }
 
-.rf-comments-preview {
-    padding-top: 12px;
+.comments-list {
+    padding-top: 1rem;
 }
 
-.rf-comment {
+.comment-item {
     display: flex;
-    gap: 10px;
-    padding: 12px 0;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
 }
 
-.rf-comment + .rf-comment {
-    border-top: 1px solid var(--rf-border-light);
+.comment-item + .comment-item {
+    border-top: 1px solid var(--feed-border-light);
 }
 
-.rf-comment-avatar {
+.comment-avatar {
     width: 36px;
     height: 36px;
-    border-radius: var(--rf-radius-full);
+    border-radius: var(--radius-full);
     background: linear-gradient(135deg, #34d399 0%, #60a5fa 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 0.75rem;
     flex-shrink: 0;
 }
 
-.rf-comment-body {
+.comment-body {
     flex: 1;
-    background: var(--rf-border-light);
-    padding: 10px 14px;
-    border-radius: 12px;
+    background: var(--feed-border-light);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-xl);
 }
 
-.rf-comment-author {
-    font-size: 13px;
+.comment-author {
+    font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--rf-text);
-    margin: 0 0 4px;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
 }
 
-.rf-comment-text {
-    font-size: 14px;
-    color: var(--rf-text-secondary);
+.comment-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
     margin: 0;
     line-height: 1.5;
 }
 
-.rf-comment-time {
-    font-size: 11px;
-    color: var(--rf-text-light);
-    margin-top: 6px;
+.comment-time {
+    font-size: 0.6875rem;
+    color: var(--text-light);
+    margin-top: 0.375rem;
     display: block;
 }
 
-.rf-view-all-link {
+.view-comments-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 12px;
-    color: var(--rf-text-muted);
-    font-size: 13px;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
     font-weight: 500;
     text-decoration: none;
-    transition: var(--rf-transition);
+    transition: var(--transition-fast);
 }
 
-.rf-view-all-link:hover {
-    color: var(--rf-primary);
+.view-comments-link:hover {
+    color: var(--accent-blue);
 }
 
-.rf-view-all-link svg {
+.view-comments-link svg {
     width: 16px;
     height: 16px;
-}
-
-/* Comment Form */
-.rf-comment-form {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--rf-border-light);
-}
-
-.rf-comment-input {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1px solid var(--rf-border);
-    border-radius: var(--rf-radius-full);
-    font-size: 14px;
-    background: var(--rf-border-light);
-    transition: var(--rf-transition);
-}
-
-.rf-comment-input:focus {
-    outline: none;
-    border-color: var(--rf-primary);
-    background: white;
-    box-shadow: 0 0 0 3px var(--rf-primary-light);
-}
-
-.rf-comment-submit {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: var(--rf-primary);
-    color: white;
-    border-radius: var(--rf-radius-full);
-    cursor: pointer;
-    transition: var(--rf-transition);
-}
-
-.rf-comment-submit:hover {
-    background: var(--rf-primary-hover);
-    transform: scale(1.05);
-}
-
-.rf-comment-submit svg {
-    width: 18px;
-    height: 18px;
 }
 
 /* ═══════════════════════════════════════
    EMPTY STATE
    ═══════════════════════════════════════ */
-.rf-empty {
+.empty-state {
     text-align: center;
-    padding: 60px 20px;
-    background: var(--rf-card);
-    border-radius: var(--rf-radius-lg);
-    box-shadow: var(--rf-shadow);
+    padding: 4rem 2rem;
+    background: var(--feed-card);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--feed-border-light);
 }
 
-.rf-empty-icon {
+.empty-icon {
     width: 80px;
     height: 80px;
-    margin: 0 auto 20px;
-    background: var(--rf-border-light);
-    border-radius: var(--rf-radius-full);
+    margin: 0 auto 1.5rem;
+    background: var(--feed-border-light);
+    border-radius: var(--radius-full);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.rf-empty-icon svg {
+.empty-icon svg {
     width: 40px;
     height: 40px;
-    color: var(--rf-text-light);
+    color: var(--text-light);
 }
 
-.rf-empty h3 {
-    font-size: 18px;
+.empty-state h3 {
+    font-size: 1.125rem;
     font-weight: 600;
-    color: var(--rf-text);
-    margin: 0 0 8px;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
 }
 
-.rf-empty p {
-    font-size: 14px;
-    color: var(--rf-text-muted);
+.empty-state p {
+    font-size: 0.9375rem;
+    color: var(--text-muted);
     margin: 0;
+}
+
+/* ═══════════════════════════════════════
+   LIGHTBOX
+   ═══════════════════════════════════════ */
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-slow);
+}
+
+.lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.lightbox-overlay img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: var(--radius-full);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-base);
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-close svg {
+    width: 24px;
+    height: 24px;
 }
 
 /* ═══════════════════════════════════════
    RTL SUPPORT
    ═══════════════════════════════════════ */
-[dir="rtl"] .rf-publish-btn {
-    margin-left: 0;
-    margin-right: auto;
+[dir="rtl"] .compose-input-row,
+[dir="rtl"] .post-author,
+[dir="rtl"] .post-header,
+[dir="rtl"] .comment-item {
+    flex-direction: row-reverse;
 }
 
-[dir="rtl"] .rf-dropdown-menu {
+[dir="rtl"] .dropdown-menu {
     right: auto;
     left: 0;
 }
 
-[dir="rtl"] .rf-post-user {
-    flex-direction: row-reverse;
+[dir="rtl"] .publish-btn {
+    margin-left: 0;
+    margin-right: auto;
 }
 
-[dir="rtl"] .rf-post-header {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-comment {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-comment-form {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-compose-input-wrapper {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-header-title {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-view-all-link svg {
+[dir="rtl"] .view-comments-link svg {
     transform: rotate(180deg);
 }
 
-[dir="rtl"] .rf-post-pending {
+[dir="rtl"] .post-pending-banner,
+[dir="rtl"] .stat-item,
+[dir="rtl"] .action-btn {
     flex-direction: row-reverse;
 }
 
-[dir="rtl"] .rf-stat {
+[dir="rtl"] .post-file-link {
     flex-direction: row-reverse;
 }
 
-[dir="rtl"] .rf-action-btn {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .rf-post-file {
+[dir="rtl"] .compose-actions {
     flex-direction: row-reverse;
 }
 
@@ -853,344 +813,320 @@ html[lang="ar"] .rf-container,
    RESPONSIVE
    ═══════════════════════════════════════ */
 @media (max-width: 768px) {
-    .rf-container {
-        padding: 16px 12px;
+    .feed-page {
+        padding: 1rem 0.75rem;
     }
 
-    .rf-header-title h1 {
-        font-size: 22px;
+    .feed-header h1 {
+        font-size: 1.5rem;
     }
 
-    .rf-compose-main {
-        padding: 16px;
+    .feed-filters {
+        gap: 0.375rem;
     }
 
-    .rf-compose-attachments {
-        padding: 12px 16px;
+    .filter-pill {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.8125rem;
+    }
+
+    .filter-pill span:not(.count) {
+        display: none;
+    }
+
+    .compose-main {
+        padding: 1rem;
+    }
+
+    .compose-input-row {
         flex-direction: column;
+        gap: 0.75rem;
     }
 
-    .rf-publish-btn {
+    .compose-avatar {
+        align-self: flex-start;
+    }
+
+    .compose-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .compose-attach-buttons {
         width: 100%;
         justify-content: center;
-        margin-top: 8px;
     }
 
-    .rf-post-header,
-    .rf-post-content,
-    .rf-post-stats,
-    .rf-comments-section {
-        padding-left: 16px;
-        padding-right: 16px;
+    .publish-btn {
+        width: 100%;
     }
 
-    .rf-action-btn span {
+    .post-header,
+    .post-content,
+    .post-stats,
+    .post-actions,
+    .post-comments {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .action-btn span {
         display: none;
     }
 }
 
-/* ═══════════════════════════════════════
-   IMAGE LIGHTBOX
-   ═══════════════════════════════════════ */
-.rf-lightbox {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.9);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: var(--rf-transition);
-}
+@media (max-width: 480px) {
+    .upload-zone {
+        padding: 1rem;
+    }
 
-.rf-lightbox.active {
-    opacity: 1;
-    visibility: visible;
-}
+    .upload-zone-icon {
+        width: 40px;
+        height: 40px;
+    }
 
-.rf-lightbox img {
-    max-width: 90%;
-    max-height: 90%;
-    object-fit: contain;
-    border-radius: 8px;
-}
-
-.rf-lightbox-close {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 44px;
-    height: 44px;
-    background: rgba(255,255,255,0.1);
-    border: none;
-    border-radius: var(--rf-radius-full);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--rf-transition);
-}
-
-.rf-lightbox-close:hover {
-    background: rgba(255,255,255,0.2);
-}
-
-.rf-lightbox-close svg {
-    width: 24px;
-    height: 24px;
+    .upload-zone-icon svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="rf-container">
-    <!-- Page Header -->
-    <header class="rf-header">
-        <div class="rf-header-title">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
-            </svg>
-            <h1>{% translate "Research Feed" %}</h1>
-        </div>
-        <p class="rf-header-subtitle">{% translate "Share research updates, datasets, and collaborate with the Arabic NLP community." %}</p>
-    </header>
-
-    <!-- Compose Card -->
-    {% if user.is_authenticated %}
-    <div class="rf-compose">
-        <form method="POST" action="{% url 'QA:create_post' %}" enctype="multipart/form-data" id="composeForm">
-            {% csrf_token %}
-            <div class="rf-compose-main">
-                <div class="rf-compose-input-wrapper">
-                    <div class="rf-avatar">
-                        {% if user.avatar %}
-                            <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
-                        {% else %}
-                            {{ user.full_name|slice:":1"|upper }}
-                        {% endif %}
-                    </div>
-                    <div class="rf-compose-form">
-                        <textarea 
-                            name="content" 
-                            class="rf-compose-textarea" 
-                            placeholder="{% translate "Share your research, thoughts, or updates with the community..." %}"
-                            required
-                            rows="3"
-                        ></textarea>
-                        <div class="rf-preview-chips" id="previewChips"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="rf-compose-attachments">
-                <label class="rf-attach-btn image-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    {% translate "Image" %}
-                    <input type="file" name="image" accept="image/*" class="rf-file-input" id="imageInput">
-                </label>
-                <label class="rf-attach-btn file-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                    </svg>
-                    {% translate "File" %}
-                    <input type="file" name="file" class="rf-file-input" id="fileInput">
-                </label>
-                <button type="submit" class="rf-publish-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                    </svg>
-                    {% translate "Publish" %}
-                </button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
-
-    <!-- Posts Feed -->
-    <div class="rf-posts">
-        {% for post in posts %}
-        <article class="rf-post" data-post-id="{{ post.id }}">
-            <!-- Pending Banner -->
-            {% if post.approval_status == 'pending' %}
-            <div class="rf-post-pending">
+<div class="feed-page">
+    <div class="feed-container">
+        <!-- Page Header -->
+        <header class="feed-header">
+            <div class="feed-header-icon">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z"/>
                 </svg>
-                {% translate "Pending approval - Only visible to you" %}
             </div>
-            {% endif %}
+            <h1>{% translate "Arabic NLP Research Feed" %}</h1>
+            <p class="feed-header-subtitle">{% translate "Stay updated with the latest in NLP research, datasets, and community updates" %}</p>
+        </header>
 
-            <!-- Post Header -->
-            <header class="rf-post-header">
-                <div class="rf-post-user">
-                    <div class="rf-post-avatar">
-                        {% if post.author.avatar %}
-                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
-                        {% else %}
-                            {{ post.author.full_name|slice:":1"|upper }}
-                        {% endif %}
-                    </div>
-                    <div class="rf-post-info">
-                        <h3><a href="{% url 'accounts:profile' post.author.id %}">{{ post.author.full_name }}</a></h3>
-                        <div class="rf-post-meta">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span>{{ post.created_at|timesince }} {% translate "ago" %}</span>
+        <!-- Category Filters -->
+        <nav class="feed-filters">
+            <a href="{% url 'QA:feed' %}" class="filter-pill {% if current_filter == 'all' %}active{% endif %}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <span>{% translate "All Posts" %}</span>
+            </a>
+            <a href="{% url 'QA:feed' %}?filter=popular" class="filter-pill {% if current_filter == 'popular' %}active{% endif %}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+                <span>{% translate "Most Popular" %}</span>
+            </a>
+            <a href="{% url 'QA:feed' %}?filter=my_posts" class="filter-pill {% if current_filter == 'my_posts' %}active{% endif %}">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span>{% translate "My Posts" %}</span>
+            </a>
+        </nav>
+
+        <!-- Create Post Button -->
+        {% if user.is_authenticated %}
+        <section class="create-post-section">
+            <a href="{% url 'QA:create_post' %}" class="create-post-btn">
+                <div class="btn-avatar">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
+                    {% else %}
+                        {{ user.full_name|slice:":1"|upper }}
+                    {% endif %}
+                </div>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                <span>{% translate "Create Post" %}</span>
+            </a>
+        </section>
+        {% endif %}
+
+        <!-- Posts Feed -->
+        <main class="posts-feed">
+            {% for post in posts %}
+            <article class="post-card" data-post-id="{{ post.id }}">
+                <!-- Pending Banner -->
+                {% if post.approval_status == 'pending' %}
+                <div class="post-pending-banner">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {% translate "Pending approval - Only visible to you" %}
+                </div>
+                {% endif %}
+
+                <!-- Post Header -->
+                <header class="post-header">
+                    <div class="post-author">
+                        <div class="post-avatar">
+                            {% if post.author.avatar %}
+                                <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
+                            {% else %}
+                                {{ post.author.full_name|slice:":1"|upper }}
+                            {% endif %}
+                        </div>
+                        <div class="post-author-info">
+                            <h3><a href="{% url 'accounts:profile' post.author.id %}">{{ post.author.full_name }}</a></h3>
+                            <div class="post-meta">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span>{{ post.created_at|timesince }} {% translate "ago" %}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Dropdown Menu (Only for author or staff) -->
-                {% if post.author == user or user.is_staff %}
-                <div class="rf-dropdown">
-                    <button type="button" class="rf-dropdown-toggle" onclick="toggleDropdown(this)">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-                        </svg>
-                    </button>
-                    <div class="rf-dropdown-menu">
-                        <a href="{% url 'QA:edit_post' post.id %}" class="rf-dropdown-item">
+                    <!-- Dropdown Menu -->
+                    {% if post.author == user or user.is_staff %}
+                    <div class="post-dropdown">
+                        <button type="button" class="dropdown-toggle" onclick="toggleDropdown(this)">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
                             </svg>
-                            {% translate "Edit" %}
-                        </a>
-                        <button type="button" class="rf-dropdown-item danger" onclick="confirmDelete('{{ post.id }}')">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            {% translate "Delete" %}
                         </button>
+                        <div class="dropdown-menu">
+                            <a href="{% url 'QA:edit_post' post.id %}" class="dropdown-item">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                                {% translate "Edit" %}
+                            </a>
+                            <button type="button" class="dropdown-item danger" onclick="confirmDelete('{{ post.id }}')">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                {% translate "Delete" %}
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </header>
+
+                <!-- Post Content -->
+                <div class="post-content">
+                    <p class="post-text">{{ post.get_localized_content }}</p>
+
+                    <!-- Post Media -->
+                    {% if post.image %}
+                    <div class="post-media">
+                        <img src="{{ post.image.url }}" alt="{% translate 'Post image' %}" class="post-image" onclick="openLightbox(this.src)">
+                    </div>
+                    {% endif %}
+
+                    {% if post.file %}
+                    <div class="post-media">
+                        <a href="{{ post.file.url }}" class="post-file-link" target="_blank" download>
+                            <div class="post-file-icon">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div class="post-file-details">
+                                <p class="post-file-name">{{ post.file.name|slice:"-30:" }}</p>
+                                <span class="post-file-hint">{% translate "Click to download" %}</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Post Stats -->
+                <div class="post-stats">
+                    <div class="stat-item">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ post.total_likes }} {% translate "likes" %}</span>
+                    </div>
+                    <div class="stat-item">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <span>{{ post.total_comments }} {% translate "comments" %}</span>
                     </div>
                 </div>
-                {% endif %}
-            </header>
 
-            <!-- Post Content -->
-            <div class="rf-post-content">
-                <p class="rf-post-text">{{ post.get_localized_content }}</p>
-
-                <!-- Post Media -->
-                {% if post.image %}
-                <div class="rf-post-media">
-                    <img src="{{ post.image.url }}" alt="{% translate 'Post image' %}" class="rf-post-image" onclick="openLightbox(this.src)">
-                </div>
-                {% endif %}
-
-                {% if post.file %}
-                <div class="rf-post-media">
-                    <a href="{{ post.file.url }}" class="rf-post-file" target="_blank" download>
-                        <div class="rf-post-file-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                        <div class="rf-post-file-info">
-                            <p class="rf-post-file-name">{{ post.file.name|slice:"-30:" }}</p>
-                            <span class="rf-post-file-meta">{% translate "Click to download" %}</span>
-                        </div>
+                <!-- Post Actions -->
+                <div class="post-actions">
+                    {% if user.is_authenticated %}
+                    <button type="button" class="action-btn {% if user in post.likes.all %}liked{% endif %}" onclick="toggleLike('{{ post.id }}', this)">
+                        <svg fill="{% if user in post.likes.all %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                        <span>{% translate "Like" %}</span>
+                    </button>
+                    {% else %}
+                    <a href="{% url 'account_login' %}" class="action-btn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                        <span>{% translate "Like" %}</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="action-btn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <span>{% translate "Comment" %}</span>
                     </a>
                 </div>
-                {% endif %}
-            </div>
 
-            <!-- Post Stats -->
-            <div class="rf-post-stats">
-                <div class="rf-stat">
-                    <svg fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span>{{ post.total_likes }} {% translate "likes" %}</span>
-                </div>
-                <div class="rf-stat">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    <span>{{ post.total_comments }} {% translate "comments" %}</span>
-                </div>
-            </div>
-
-            <!-- Post Actions -->
-            <div class="rf-post-actions">
-                {% if user.is_authenticated %}
-                <button type="button" class="rf-action-btn {% if user in post.likes.all %}liked{% endif %}" onclick="toggleLike('{{ post.id }}', this)">
-                    <svg fill="{% if user in post.likes.all %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                    </svg>
-                    <span>{% translate "Like" %}</span>
-                </button>
-                {% else %}
-                <a href="{% url 'account_login' %}" class="rf-action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                    </svg>
-                    <span>{% translate "Like" %}</span>
-                </a>
-                {% endif %}
-                <a href="{% url 'QA:post_detail' post.slug %}" class="rf-action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    <span>{% translate "Comment" %}</span>
-                </a>
-            </div>
-
-            <!-- Comments Preview -->
-            {% if post.comments.exists %}
-            <div class="rf-comments-section">
-                <div class="rf-comments-preview">
-                    {% for comment in post.comments.all|slice:":2" %}
-                    <div class="rf-comment">
-                        <div class="rf-comment-avatar">
-                            {{ comment.author.full_name|slice:":1"|upper }}
+                <!-- Comments Preview -->
+                {% if post.comments.exists %}
+                <div class="post-comments">
+                    <div class="comments-list">
+                        {% for comment in post.comments.all|slice:":2" %}
+                        <div class="comment-item">
+                            <div class="comment-avatar">
+                                {{ comment.author.full_name|slice:":1"|upper }}
+                            </div>
+                            <div class="comment-body">
+                                <p class="comment-author">{{ comment.author.full_name }}</p>
+                                <p class="comment-text">{{ comment.content|truncatewords:20 }}</p>
+                                <span class="comment-time">{{ comment.created_at|timesince }} {% translate "ago" %}</span>
+                            </div>
                         </div>
-                        <div class="rf-comment-body">
-                            <p class="rf-comment-author">{{ comment.author.full_name }}</p>
-                            <p class="rf-comment-text">{{ comment.content|truncatewords:20 }}</p>
-                            <span class="rf-comment-time">{{ comment.created_at|timesince }} {% translate "ago" %}</span>
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    {% if post.comments.count > 2 %}
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="view-comments-link">
+                        {% translate "View all" %} {{ post.comments.count }} {% translate "comments" %}
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                    {% endif %}
                 </div>
-                {% if post.comments.count > 2 %}
-                <a href="{% url 'QA:post_detail' post.slug %}" class="rf-view-all-link">
-                    {% translate "View all" %} {{ post.comments.count }} {% translate "comments" %}
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
                 {% endif %}
+            </article>
+            {% empty %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                    </svg>
+                </div>
+                <h3>{% translate "No posts yet" %}</h3>
+                <p>{% translate "Be the first to share something with the community!" %}</p>
             </div>
-            {% endif %}
-        </article>
-        {% empty %}
-        <!-- Empty State -->
-        <div class="rf-empty">
-            <div class="rf-empty-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
-                </svg>
-            </div>
-            <h3>{% translate "No posts yet" %}</h3>
-            <p>{% translate "Be the first to share something with the community!" %}</p>
-        </div>
-        {% endfor %}
+            {% endfor %}
+        </main>
     </div>
 </div>
 
 <!-- Lightbox for Images -->
-<div class="rf-lightbox" id="lightbox" onclick="closeLightbox()">
-    <button class="rf-lightbox-close" onclick="closeLightbox()">
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
     </button>
     <img src="" alt="{% translate 'Full size image' %}" id="lightboxImage">
@@ -1211,11 +1147,11 @@ html[lang="ar"] .rf-container,
     // DROPDOWN MENU
     // ═══════════════════════════════════════
     window.toggleDropdown = function(btn) {
-        const dropdown = btn.closest('.rf-dropdown');
+        const dropdown = btn.closest('.post-dropdown');
         const wasOpen = dropdown.classList.contains('open');
         
         // Close all dropdowns
-        document.querySelectorAll('.rf-dropdown.open').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('.post-dropdown.open').forEach(d => d.classList.remove('open'));
         
         // Toggle current
         if (!wasOpen) {
@@ -1225,8 +1161,8 @@ html[lang="ar"] .rf-container,
 
     // Close dropdowns on outside click
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.rf-dropdown')) {
-            document.querySelectorAll('.rf-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!e.target.closest('.post-dropdown')) {
+            document.querySelectorAll('.post-dropdown.open').forEach(d => d.classList.remove('open'));
         }
     });
 
@@ -1252,8 +1188,8 @@ html[lang="ar"] .rf-container,
                 svg.setAttribute('fill', isLiked ? 'currentColor' : 'none');
                 
                 // Update like count in stats
-                const post = btn.closest('.rf-post');
-                const statSpan = post.querySelector('.rf-post-stats .rf-stat:first-child span');
+                const post = btn.closest('.post-card');
+                const statSpan = post.querySelector('.post-stats .stat-item:first-child span');
                 if (statSpan && data.total_likes !== undefined) {
                     statSpan.textContent = `${data.total_likes} {% translate "likes" %}`;
                 }
@@ -1275,59 +1211,117 @@ html[lang="ar"] .rf-container,
     };
 
     // ═══════════════════════════════════════
-    // FILE PREVIEW
+    // FILE UPLOAD HANDLING
     // ═══════════════════════════════════════
-    const imageInput = document.getElementById('imageInput');
-    const fileInput = document.getElementById('fileInput');
-    const previewChips = document.getElementById('previewChips');
+    const uploadZone = document.getElementById('uploadZone');
+    const imageUpload = document.getElementById('imageUpload');
+    const fileUpload = document.getElementById('fileUpload');
+    const filePreview = document.getElementById('filePreview');
+    const quickImageInput = document.getElementById('quickImageInput');
+    const quickFileInput = document.getElementById('quickFileInput');
 
-    function addPreviewChip(name, inputId) {
+    // Create file chip
+    function createFileChip(name, type, inputId) {
         const chip = document.createElement('div');
-        chip.className = 'rf-preview-chip';
+        chip.className = 'file-chip';
+        chip.setAttribute('data-type', type);
         chip.innerHTML = `
-            <span>${name}</span>
-            <button type="button" onclick="removeFile('${inputId}', this)">×</button>
+            <span>${type === 'image' ? '📷' : '📎'} ${name}</span>
+            <button type="button" class="file-chip-remove" onclick="removeFile('${inputId}', this)">×</button>
         `;
-        previewChips.appendChild(chip);
+        return chip;
     }
 
     window.removeFile = function(inputId, btn) {
-        document.getElementById(inputId).value = '';
-        btn.closest('.rf-preview-chip').remove();
+        const input = document.getElementById(inputId);
+        if (input) input.value = '';
+        btn.closest('.file-chip').remove();
     };
 
-    if (imageInput) {
-        imageInput.addEventListener('change', function() {
-            // Remove existing image chip
-            previewChips.querySelectorAll('[data-type="image"]').forEach(c => c.remove());
-            
-            if (this.files[0]) {
-                const chip = document.createElement('div');
-                chip.className = 'rf-preview-chip';
-                chip.setAttribute('data-type', 'image');
-                chip.innerHTML = `
-                    <span>📷 ${this.files[0].name}</span>
-                    <button type="button" onclick="removeFile('imageInput', this)">×</button>
-                `;
-                previewChips.appendChild(chip);
+    // Drag and drop
+    if (uploadZone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
+        });
+
+        uploadZone.addEventListener('drop', function(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    // Set to image input
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    imageUpload.files = dt.files;
+                    updateFilePreview(file, 'image', 'imageUpload');
+                } else {
+                    // Set to file input
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileUpload.files = dt.files;
+                    updateFilePreview(file, 'file', 'fileUpload');
+                }
             }
         });
     }
 
-    if (fileInput) {
-        fileInput.addEventListener('change', function() {
-            // Remove existing file chip
-            previewChips.querySelectorAll('[data-type="file"]').forEach(c => c.remove());
-            
+    function updateFilePreview(file, type, inputId) {
+        // Remove existing chip of same type
+        if (filePreview) {
+            filePreview.querySelectorAll(`[data-type="${type}"]`).forEach(c => c.remove());
+            filePreview.appendChild(createFileChip(file.name, type, inputId));
+        }
+    }
+
+    // File input change handlers
+    if (imageUpload) {
+        imageUpload.addEventListener('change', function() {
             if (this.files[0]) {
-                const chip = document.createElement('div');
-                chip.className = 'rf-preview-chip';
-                chip.setAttribute('data-type', 'file');
-                chip.innerHTML = `
-                    <span>📎 ${this.files[0].name}</span>
-                    <button type="button" onclick="removeFile('fileInput', this)">×</button>
-                `;
-                previewChips.appendChild(chip);
+                updateFilePreview(this.files[0], 'image', 'imageUpload');
+            }
+        });
+    }
+
+    if (fileUpload) {
+        fileUpload.addEventListener('change', function() {
+            if (this.files[0]) {
+                updateFilePreview(this.files[0], 'file', 'fileUpload');
+            }
+        });
+    }
+
+    // Quick attach buttons
+    if (quickImageInput) {
+        quickImageInput.addEventListener('change', function() {
+            if (this.files[0]) {
+                const dt = new DataTransfer();
+                dt.items.add(this.files[0]);
+                if (imageUpload) imageUpload.files = dt.files;
+                updateFilePreview(this.files[0], 'image', 'imageUpload');
+            }
+        });
+    }
+
+    if (quickFileInput) {
+        quickFileInput.addEventListener('change', function() {
+            if (this.files[0]) {
+                const dt = new DataTransfer();
+                dt.items.add(this.files[0]);
+                if (fileUpload) fileUpload.files = dt.files;
+                updateFilePreview(this.files[0], 'file', 'fileUpload');
             }
         });
     }
@@ -1359,7 +1353,7 @@ html[lang="ar"] .rf-container,
     // ═══════════════════════════════════════
     // AUTO-EXPAND TEXTAREA
     // ═══════════════════════════════════════
-    const textarea = document.querySelector('.rf-compose-textarea');
+    const textarea = document.getElementById('composeTextarea');
     if (textarea) {
         textarea.addEventListener('input', function() {
             this.style.height = 'auto';

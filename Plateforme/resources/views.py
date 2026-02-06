@@ -105,7 +105,14 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
                 obj.resource_type = self.get_resource_type(obj)
                 combined.append(obj)
 
-        return sorted(combined, key=lambda x: x.creation_date, reverse=True)
+        # Handle sorting
+        sort_by = self.request.GET.get('sort', 'newest')
+        if sort_by == 'oldest':
+            return sorted(combined, key=lambda x: x.creation_date, reverse=False)
+        elif sort_by == 'popular':
+            return sorted(combined, key=lambda x: getattr(x, 'views_count', 0), reverse=True)
+        else:  # default: newest
+            return sorted(combined, key=lambda x: x.creation_date, reverse=True)
 
     def get_resource_type(self, obj):
         if isinstance(obj, Document):
@@ -127,6 +134,8 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         context['field_choices'] = FieldChoices.choices
         context['current_field'] = self.request.GET.get('field', '')
         context['current_language'] = self.request.GET.get('language', '')
+        context['current_type'] = self.request.GET.get('type', '')
+        context['current_sort'] = self.request.GET.get('sort', 'newest')
         context['page'] = 'resources'
         return context
 
@@ -144,8 +153,13 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
         else:
             queryset = NLPTool.objects.filter(approval_status='approved')
         
-        search_query = self.request.GET.get('q', '').strip()
+        # Filter by tool type/category
+        tool_type = self.request.GET.get('type', '').strip()
+        if tool_type:
+            queryset = queryset.filter(tool_type=tool_type)
         
+        # Search functionality
+        search_query = self.request.GET.get('q', '').strip()
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
@@ -164,6 +178,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         search_query = self.request.GET.get('q', '')
+        tool_type = self.request.GET.get('type', '')
         
         # Always use filtered queryset for count (respects approval_status)
         context['total_count'] = self.get_queryset().count()
@@ -174,6 +189,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
         else:
             context['is_search'] = False
         
+        context['current_type'] = tool_type
         context['page'] = 'tools'
         return context
 

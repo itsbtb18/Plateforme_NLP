@@ -120,7 +120,11 @@ def qa_home(request):
 @login_required
 @login_and_verified_required
 def feed(request):
-    # Show approved posts + user's own posts (including pending)
+    """Research Feed with filtering and sorting support."""
+    # Get filter parameter
+    filter_type = request.GET.get('filter', 'all')
+    
+    # Base queryset: approved posts + user's own posts
     if request.user.is_staff:
         # Staff can see all posts
         posts = Post.objects.all()
@@ -129,18 +133,34 @@ def feed(request):
         posts = Post.objects.filter(
             Q(approval_status='approved') | Q(author=request.user)
         )
+    
+    # Apply filters
+    if filter_type == 'my_posts':
+        posts = posts.filter(author=request.user)
+    elif filter_type == 'popular':
+        # Sort by likes count
+        posts = posts.annotate(
+            like_count=Count('likes')
+        ).order_by('-like_count', '-created_at')
+    else:
+        # Default: all posts, newest first
+        posts = posts.order_by('-created_at')
+    
     post_form = PostForm()
     comment_form = CommentForm()
+    
     return render(request, 'QA/feed.html', {
         'posts': posts,
         'post_form': post_form,
         'comment_form': comment_form,
-        'page': 'feed'
+        'page': 'feed',
+        'current_filter': filter_type,
     })
 
 @login_required
 @login_and_verified_required
 def create_post(request):
+    """Dedicated page for creating a new post."""
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -156,8 +176,13 @@ def create_post(request):
                 post.save()
                 messages.info(request, _('Your post has been submitted and is pending admin approval.'))
             return redirect('QA:feed')
-        
-    return redirect('QA:feed')
+    else:
+        form = PostForm()
+    
+    return render(request, 'QA/create_post.html', {
+        'form': form,
+        'page': 'feed',
+    })
 
 
 
