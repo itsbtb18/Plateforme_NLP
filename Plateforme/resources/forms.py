@@ -70,6 +70,17 @@ class ResourceForm(forms.Form):
         initial=ResourceBase.LanguageChoices.ARABIC,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    
+    # File upload field
+    uploaded_file = forms.FileField(
+        label=_("Upload Document"),
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.doc,.docx,.txt,.csv,.json,.xml,.zip,.rar'
+        }),
+        help_text=_("Upload a PDF, Word document, or other file (max 50MB)")
+    )
 
     # ==================== COURSE FIELDS ====================
     course_field = forms.ChoiceField(
@@ -458,6 +469,7 @@ class ResourceForm(forms.Form):
             'keywords': self.cleaned_data['keywords'],
             'access_link': self.cleaned_data['access_link'] or None,
             'language': self.cleaned_data['language'],
+            'uploaded_file': self.cleaned_data.get('uploaded_file'),
         }
 
         if self.is_update and instance:
@@ -469,6 +481,10 @@ class ResourceForm(forms.Form):
             instance.keywords = self.cleaned_data['keywords']
             instance.access_link = self.cleaned_data['access_link'] or None
             instance.language = self.cleaned_data['language']
+            # Handle file upload (only update if a new file is provided)
+            uploaded_file = self.cleaned_data.get('uploaded_file')
+            if uploaded_file:
+                instance.uploaded_file = uploaded_file
             instance.save()
 
             if resource_type == 'course':

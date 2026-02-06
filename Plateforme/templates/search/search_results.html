@@ -117,79 +117,89 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     font-weight: 600;
 }
 
-/* Search Box in Hero */
+/* Search Box in Hero - SaaS Style */
 .sr-search-box {
-    max-width: 600px;
+    max-width: 800px;
     margin: 1.5rem auto 0;
 }
 
 .sr-search-form {
     display: flex;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    padding: 0.5rem;
-    border-radius: var(--sr-radius-full);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    padding: 0 18px;
+    height: 44px;
+    border-radius: 9999px;
+    border: 1px solid #E2E8F0;
+    box-shadow: none;
 }
 
 .sr-search-input-wrap {
     flex: 1;
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%;
 }
 
 .sr-search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--sr-text-muted);
-    pointer-events: none;
+    color: #9ca3af;
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
 html[dir="rtl"] .sr-search-icon {
-    left: auto;
-    right: 1rem;
+    /* No position changes needed */
 }
 
 .sr-search-input {
+    flex: 1;
     width: 100%;
-    padding: 0.875rem 1rem 0.875rem 2.75rem;
-    background: var(--sr-white);
-    border: none;
-    border-radius: var(--sr-radius-full);
-    font-size: 0.95rem;
-    color: var(--sr-text);
-    transition: box-shadow 0.2s;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0;
+    font-size: 15px;
+    font-weight: 400;
+    color: #111827;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 html[dir="rtl"] .sr-search-input {
-    padding: 0.875rem 2.75rem 0.875rem 1rem;
+    padding: 0;
 }
 
 .sr-search-input:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--sr-primary-glow);
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.sr-search-input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
 }
 
 .sr-search-btn {
-    padding: 0.875rem 1.5rem;
-    background: var(--sr-primary);
-    color: var(--sr-white);
-    border: none;
-    border-radius: var(--sr-radius-full);
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    display: none; /* Hidden for clean look */
 }
 
-.sr-search-btn:hover {
-    background: var(--sr-primary-dark);
-    transform: translateY(-1px);
+/* Keep button visible on mobile */
+@media (max-width: 767px) {
+    .sr-search-btn {
+        display: flex;
+        padding: 0.75rem 1rem;
+        background: var(--sr-primary);
+        color: var(--sr-white);
+        border: none;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        align-items: center;
+        gap: 0.5rem;
+    }
 }
 
 /* Main Content */
@@ -628,8 +638,15 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
     .sr-sidebar { display: none; }
     .sr-layout { grid-template-columns: 1fr; }
     .sr-result-card { padding: 1rem; }
-    .sr-search-form { flex-direction: column; }
-    .sr-search-btn { justify-content: center; }
+    .sr-search-box { max-width: 100%; }
+    .sr-search-form { 
+        flex-direction: row;
+        height: auto;
+        padding: 0.5rem;
+    }
+    .sr-search-input-wrap {
+        height: 40px;
+    }
 }
 </style>
 {% endblock %}
@@ -662,7 +679,7 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                             <input type="text" 
                                    name="q" 
                                    class="sr-search-input" 
-                                   placeholder="{% trans 'Search resources, tools, corpus, projects...' %}"
+                                   placeholder="{% trans 'search...' %}"
                                    value="{{ query|default:'' }}"
                                    autocomplete="off">
                         </div>

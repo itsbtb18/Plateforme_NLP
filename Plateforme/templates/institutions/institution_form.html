@@ -340,6 +340,181 @@ html[dir="rtl"] .ifo-select {
     min-height: 100px;
 }
 
+/* ===== Specialty Tags Picker ===== */
+.ifo-specialty-picker {
+    border: 2px solid var(--ifo-border);
+    border-radius: var(--ifo-radius-md);
+    padding: 1rem;
+    background: var(--ifo-white);
+    transition: all 0.2s;
+}
+
+.ifo-specialty-picker:focus-within {
+    border-color: var(--ifo-primary);
+    box-shadow: var(--ifo-shadow-focus);
+}
+
+.ifo-specialty-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ifo-subtle);
+}
+
+.ifo-specialty-count {
+    font-size: 0.8rem;
+    color: var(--ifo-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ifo-specialty-count strong {
+    color: var(--ifo-primary);
+    font-weight: 700;
+}
+
+.ifo-specialty-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--ifo-muted);
+    border: 1px solid var(--ifo-subtle);
+    border-radius: var(--ifo-radius-sm);
+    font-size: 0.85rem;
+    max-width: 180px;
+}
+
+.ifo-specialty-search i {
+    color: var(--ifo-text-muted);
+    font-size: 0.9rem;
+}
+
+.ifo-specialty-search input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.85rem;
+    width: 100%;
+    color: var(--ifo-text);
+}
+
+.ifo-specialty-search input::placeholder {
+    color: var(--ifo-text-muted);
+}
+
+.ifo-specialty-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-track {
+    background: var(--ifo-muted);
+    border-radius: 3px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-thumb {
+    background: var(--ifo-subtle);
+    border-radius: 3px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-thumb:hover {
+    background: var(--ifo-text-muted);
+}
+
+.ifo-specialty-tag {
+    position: relative;
+}
+
+.ifo-specialty-tag input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ifo-specialty-tag label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--ifo-muted);
+    border: 2px solid var(--ifo-subtle);
+    border-radius: var(--ifo-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ifo-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.ifo-specialty-tag label:hover {
+    border-color: var(--ifo-primary-light);
+    background: var(--ifo-primary-glow);
+    color: var(--ifo-primary);
+}
+
+.ifo-specialty-tag label .tag-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--ifo-white);
+    border: 2px solid var(--ifo-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: transparent;
+    transition: all 0.2s ease;
+}
+
+.ifo-specialty-tag input[type="checkbox"]:checked + label {
+    background: var(--ifo-primary);
+    border-color: var(--ifo-primary);
+    color: var(--ifo-white);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.ifo-specialty-tag input[type="checkbox"]:checked + label .tag-icon {
+    background: var(--ifo-white);
+    border-color: var(--ifo-white);
+    color: var(--ifo-primary);
+}
+
+.ifo-specialty-tag input[type="checkbox"]:focus + label {
+    box-shadow: var(--ifo-shadow-focus);
+}
+
+.ifo-specialty-tag.hidden {
+    display: none;
+}
+
+.ifo-specialty-empty {
+    width: 100%;
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--ifo-text-muted);
+    font-size: 0.9rem;
+}
+
+.ifo-specialty-empty i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
 /* Help Text */
 .ifo-help-text {
     font-size: 0.75rem;
@@ -762,12 +937,39 @@ html[dir="rtl"] .ifo-select {
                     <!-- Specialties -->
                     <div class="ifo-form-group">
                         <label class="ifo-label">{% translate "Research Specialties" %}</label>
-                        <select name="specialties" class="ifo-select" multiple>
-                            {% for specialty in form.fields.specialties.queryset %}
-                            <option value="{{ specialty.pk }}" {% if specialty.pk in form.specialties.value %}selected{% endif %}>{{ specialty.get_localized_name }}</option>
-                            {% endfor %}
-                        </select>
-                        <p class="ifo-help-text">{% translate "Hold Ctrl (Cmd on Mac) to select multiple specialties" %}</p>
+                        <div class="ifo-specialty-picker">
+                            <div class="ifo-specialty-header">
+                                <span class="ifo-specialty-count">
+                                    <i class="bi bi-bookmark-check"></i>
+                                    <span><strong id="selectedCount">0</strong> {% translate "selected" %}</span>
+                                </span>
+                                <div class="ifo-specialty-search">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" id="specialtySearch" placeholder="{% translate 'Search...' %}">
+                                </div>
+                            </div>
+                            <div class="ifo-specialty-tags" id="specialtyTags">
+                                {% for specialty in form.fields.specialties.queryset %}
+                                <div class="ifo-specialty-tag" data-name="{{ specialty.get_localized_name|lower }}">
+                                    <input type="checkbox" 
+                                           name="specialties" 
+                                           value="{{ specialty.pk }}" 
+                                           id="specialty_{{ specialty.pk }}"
+                                           {% if specialty.pk in form.specialties.value %}checked{% endif %}>
+                                    <label for="specialty_{{ specialty.pk }}">
+                                        <span class="tag-icon"><i class="bi bi-check"></i></span>
+                                        {{ specialty.get_localized_name }}
+                                    </label>
+                                </div>
+                                {% empty %}
+                                <div class="ifo-specialty-empty">
+                                    <i class="bi bi-inbox"></i>
+                                    {% translate "No specialties available" %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <p class="ifo-help-text">{% translate "Click tags to select multiple research areas" %}</p>
                         {% for error in form.specialties.errors %}
                         <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
                         {% endfor %}
@@ -921,6 +1123,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
                 reader.readAsDataURL(this.files[0]);
             }
+        });
+    }
+    
+    // Specialty tags functionality
+    const specialtyCheckboxes = document.querySelectorAll('.ifo-specialty-tag input[type="checkbox"]');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const specialtySearch = document.getElementById('specialtySearch');
+    const specialtyTags = document.querySelectorAll('.ifo-specialty-tag');
+    
+    // Update count on change
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.ifo-specialty-tag input[type="checkbox"]:checked').length;
+        if (selectedCountEl) {
+            selectedCountEl.textContent = count;
+        }
+    }
+    
+    // Initialize count
+    updateSelectedCount();
+    
+    // Listen for changes
+    specialtyCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Search/filter functionality
+    if (specialtySearch) {
+        specialtySearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            
+            specialtyTags.forEach(tag => {
+                const name = tag.dataset.name || '';
+                if (query === '' || name.includes(query)) {
+                    tag.classList.remove('hidden');
+                } else {
+                    tag.classList.add('hidden');
+                }
+            });
         });
     }
 });

@@ -13,7 +13,7 @@ from django.views.generic import (
     View,
 )
 from .models import Topic, ChatRoom, Message, BannedUser
-from .forms import TopicForm
+from .forms import TopicForm, ChatRoomForm
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.template.loader import render_to_string
 from django.contrib.auth import get_user_model
@@ -308,27 +308,30 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
 class ChatRoomCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = ChatRoom
-    fields = ['name', 'description']
-    template_name = 'forum/chatroom_new.html'  # Ajout du préfixe 'forum/'
+    form_class = ChatRoomForm
+    template_name = 'forum/chatroom_new.html'
     context_object_name = 'chatroom'
     
     def form_valid(self, form):
         topic_id = self.kwargs.get('topic_id')
         form.instance.topic = get_object_or_404(Topic, id=topic_id)
-        form.instance.creator = self.request.user  # Ajout de l'attribution du créateur
+        form.instance.creator = self.request.user
         return super().form_valid(form)
     
     def get_success_url(self):
         chatroom: ChatRoom = cast(ChatRoom, self.object)
         return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
+    
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        topic_id = self.kwargs.get('topic_id')
+        context['topic'] = get_object_or_404(Topic, id=topic_id)
+        return context
 
 class ChatRoomUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
     model = ChatRoom
-    fields = ['name', 'description']
+    form_class = ChatRoomForm
     template_name = 'forum/chatroom_update.html'
     context_object_name = 'chatroom'
     
@@ -339,10 +342,11 @@ class ChatRoomUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upd
     def get_success_url(self):
         chatroom: ChatRoom = cast(ChatRoom, self.object)
         return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
+    
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        return context
 
 class ChatRoomDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
     model = ChatRoom

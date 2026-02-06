@@ -223,11 +223,18 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     border-radius: var(--ft-radius-lg);
     font-size: 0.95rem;
     color: var(--ft-text);
-    box-shadow: var(--ft-shadow-sm);
+    box-shadow: none;
     transition: all 0.2s;
+    height: 48px;
+    box-sizing: border-box;
 }
 
 html[dir="rtl"] .ft-search-input { padding: 0.875rem 3rem 0.875rem 1rem; }
+
+.ft-search-input::placeholder {
+    color: #94a3b8;
+    opacity: 1;
+}
 
 .ft-search-input:focus {
     outline: none;
@@ -251,7 +258,7 @@ html[dir="rtl"] .ft-search-icon { left: auto; right: 1rem; }
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
+    padding: 0 1.5rem;
     font-weight: 600;
     font-size: 0.9rem;
     border-radius: var(--ft-radius-md);
@@ -259,6 +266,8 @@ html[dir="rtl"] .ft-search-icon { left: auto; right: 1rem; }
     border: none;
     cursor: pointer;
     transition: all 0.2s;
+    height: 48px;
+    box-sizing: border-box;
 }
 
 .ft-btn-primary { background: var(--ft-primary); color: var(--ft-white); }
@@ -269,19 +278,19 @@ html[dir="rtl"] .ft-search-icon { left: auto; right: 1rem; }
 
 .ft-topic-card {
     display: grid;
-    grid-template-columns: 100px 1fr auto;
+    grid-template-columns: auto 1fr 100px;
     gap: 1.5rem;
     background: var(--ft-white);
-    border: 1px solid var(--ft-border);
+    border: 1px solid #E2E8F0;
     border-radius: var(--ft-radius-lg);
     padding: 1.25rem;
-    box-shadow: var(--ft-shadow-sm);
+    box-shadow: none;
     transition: all 0.3s ease;
 }
 
 .ft-topic-card:hover {
     border-color: var(--ft-primary);
-    box-shadow: var(--ft-shadow-md);
+    box-shadow: none;
     transform: translateY(-2px);
 }
 
@@ -294,7 +303,7 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     background: linear-gradient(to left, var(--ft-warning-bg), var(--ft-white) 30%);
 }
 
-/* Stats Column */
+/* Stats Column - Now on the RIGHT */
 .ft-stats-col {
     display: flex;
     flex-direction: column;
@@ -302,6 +311,7 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     padding: 0.5rem;
     background: var(--ft-muted);
     border-radius: var(--ft-radius-md);
+    order: 3;
 }
 
 .ft-stat-item {
@@ -391,22 +401,27 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     border-radius: var(--ft-radius-full);
 }
 
-/* User Meta Column */
+/* User Meta Column - Now on the LEFT */
 .ft-meta-col {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
     min-width: 140px;
 }
 
-html[dir="rtl"] .ft-meta-col { align-items: flex-start; }
+html[dir="rtl"] .ft-meta-col { align-items: flex-end; }
 
 .ft-user-meta {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 0.75rem;
+}
+
+html[dir="rtl"] .ft-user-meta {
+    flex-direction: row-reverse;
 }
 
 .ft-user-avatar {
@@ -424,8 +439,8 @@ html[dir="rtl"] .ft-meta-col { align-items: flex-start; }
 .ft-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .ft-user-avatar i { font-size: 1rem; color: var(--ft-primary); }
 
-.ft-user-info { text-align: right; }
-html[dir="rtl"] .ft-user-info { text-align: left; }
+.ft-user-info { text-align: left; }
+html[dir="rtl"] .ft-user-info { text-align: right; }
 
 .ft-user-name {
     font-size: 0.85rem;
@@ -550,7 +565,7 @@ html[dir="rtl"] .ft-search-spinner {
 /* Responsive */
 @media (max-width: 900px) {
     .ft-topic-card {
-        grid-template-columns: 80px 1fr;
+        grid-template-columns: 1fr 80px;
         grid-template-rows: auto auto;
     }
     .ft-meta-col {
@@ -560,6 +575,13 @@ html[dir="rtl"] .ft-search-spinner {
         justify-content: space-between;
         padding-top: 1rem;
         border-top: 1px solid var(--ft-border);
+        order: 3;
+    }
+    .ft-stats-col {
+        order: 2;
+    }
+    .ft-content-col {
+        order: 1;
     }
     html[dir="rtl"] .ft-meta-col { flex-direction: row-reverse; }
     .ft-user-info { text-align: left; }
@@ -660,7 +682,7 @@ html[dir="rtl"] .ft-search-spinner {
             <form method="get" action="" class="ft-search-box" id="topicSearchForm">
                 {% if my_topics %}<input type="hidden" name="my_topics" value="1">{% endif %}
                 {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
-                <i class="bi bi-search ft-search-icon"></i>
+               
                 <input type="text" name="q" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch" value="{{ search_query|default:'' }}" autocomplete="off">
                 <span class="ft-search-spinner" id="searchSpinner">
                     <i class="bi bi-arrow-repeat spin"></i>
@@ -677,18 +699,34 @@ html[dir="rtl"] .ft-search-spinner {
             {% for topic in topics %}
             <article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
                 
-                <div class="ft-stats-col">
-                    <div class="ft-stat-item">
-                        <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
-                        <div class="ft-stat-txt">{% translate "Votes" %}</div>
+                <!-- User Meta - LEFT SIDE -->
+                <div class="ft-meta-col">
+                    <div class="ft-user-meta">
+                        <div class="ft-user-avatar">
+                            {% if topic.creator.avatar %}
+                            <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+                            {% else %}
+                            <i class="bi bi-person"></i>
+                            {% endif %}
+                        </div>
+                        <div class="ft-user-info">
+                            <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                            <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                        </div>
                     </div>
-                    <div class="ft-stat-item">
-                        <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
-                        <div class="ft-stat-txt">{% translate "Rooms" %}</div>
-                    </div>
-                    <div class="ft-stat-item">
-                        <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
-                        <div class="ft-stat-txt">{% translate "Views" %}</div>
+                    
+                    <div class="ft-card-actions">
+                        <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+                            <i class="bi bi-chat-dots"></i>
+                        </a>
+                        {% if topic.creator == user or user.is_staff %}
+                        <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+                            <i class="bi bi-trash3"></i>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -717,33 +755,19 @@ html[dir="rtl"] .ft-search-spinner {
                     </div>
                 </div>
                 
-                <div class="ft-meta-col">
-                    <div class="ft-user-meta">
-                        <div class="ft-user-info">
-                            <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
-                            <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
-                        </div>
-                        <div class="ft-user-avatar">
-                            {% if topic.creator.avatar %}
-                            <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
-                            {% else %}
-                            <i class="bi bi-person"></i>
-                            {% endif %}
-                        </div>
+                <!-- Stats - RIGHT SIDE -->
+                <div class="ft-stats-col">
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Votes" %}</div>
                     </div>
-                    
-                    <div class="ft-card-actions">
-                        <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
-                            <i class="bi bi-chat-dots"></i>
-                        </a>
-                        {% if topic.creator == user or user.is_staff %}
-                        <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
-                            <i class="bi bi-trash3"></i>
-                        </a>
-                        {% endif %}
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
+                        <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+                    </div>
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Views" %}</div>
                     </div>
                 </div>
             </article>

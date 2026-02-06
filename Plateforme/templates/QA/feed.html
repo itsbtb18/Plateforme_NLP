@@ -128,6 +128,9 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     text-align: center;
     max-width: 720px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .hero-badge {
@@ -183,15 +186,24 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 .search-pill {
     display: flex;
     align-items: stretch;
+    width: 500px;
+    max-width: 100%;
     background: var(--feed-white);
     border-radius: var(--radius-full);
-    box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.03);
+    border: 1px solid var(--feed-border);
+    box-shadow: none;
     overflow: hidden;
-    transition: box-shadow var(--transition-base);
+    transition: border-color var(--transition-base);
 }
 
 .search-pill:focus-within {
-    box-shadow: var(--shadow-xl), 0 0 0 4px var(--feed-accent-glow);
+    border-color: var(--feed-border);
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.search-pill:hover {
+    border-color: var(--feed-border);
 }
 
 .search-icon {
@@ -205,7 +217,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 .search-input {
     flex: 1;
-    padding: 1rem;
+    padding: 1rem 1.5rem 1rem 0;
     border: none;
     background: transparent;
     font-size: 1rem;
@@ -214,8 +226,13 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     min-width: 0;
 }
 
-.search-input::placeholder { color: var(--feed-text-muted); }
-.search-input:focus { outline: none; }
+.search-input::placeholder { color: #94a3b8; }
+.search-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
 
 .search-btn {
     display: flex;
@@ -253,6 +270,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 .filter-section {
     display: flex;
     justify-content: center;
+    align-items: center;
     flex-wrap: wrap;
     gap: 0.75rem;
     padding: 1.25rem 1.5rem;
@@ -260,6 +278,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-card);
     margin-bottom: 1.5rem;
+    text-align: center;
 }
 
 .filter-pill {
@@ -503,29 +522,72 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 .post-meta i { font-size: 0.875rem; }
 
+/* Post Card Action Buttons - Consistent with Community page */
+.post-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.post-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--feed-border);
+    background: var(--feed-white);
+    color: var(--feed-text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+}
+
+.post-action-btn:hover {
+    background: var(--feed-muted);
+    color: var(--feed-text-primary);
+    border-color: var(--feed-border-hover);
+}
+
+.post-action-btn.primary:hover {
+    background: var(--feed-accent-glow);
+    color: var(--feed-accent);
+    border-color: var(--feed-accent);
+}
+
+.post-action-btn.danger:hover {
+    background: var(--feed-danger-bg);
+    color: var(--feed-danger);
+    border-color: var(--feed-danger);
+}
+
 /* Post Dropdown */
 .post-dropdown { position: relative; }
 
 .dropdown-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 36px;
     height: 36px;
     background: transparent;
-    border: none;
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--feed-border);
+    border-radius: var(--radius-sm);
     color: var(--feed-text-muted);
     cursor: pointer;
     transition: all var(--transition-base);
+    text-decoration: none;
 }
 
 .dropdown-toggle:hover {
     background: var(--feed-muted);
     color: var(--feed-text-primary);
+    border-color: var(--feed-border-hover);
 }
 
-.dropdown-toggle i { font-size: 1.25rem; }
+.dropdown-toggle i { font-size: 1.125rem; }
 
 .dropdown-menu {
     position: absolute;
@@ -938,10 +1000,6 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
                         <input type="text" name="q" class="search-input" 
                                placeholder="{% translate 'Search posts, authors, topics...' %}"
                                value="{{ request.GET.q|default:'' }}">
-                        <button type="submit" class="search-btn">
-                            <i class="bi bi-search"></i>
-                            {% translate "Search" %}
-                        </button>
                     </div>
                 </form>
             </div>
@@ -1031,22 +1089,18 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
                         </div>
                     </div>
 
-                    <!-- Dropdown Menu -->
+                    <!-- Action Buttons - Consistent with Community page -->
                     {% if post.author == user or user.is_staff %}
-                    <div class="post-dropdown">
-                        <button type="button" class="dropdown-toggle" onclick="toggleDropdown(this)">
-                            <i class="bi bi-three-dots-vertical"></i>
+                    <div class="post-header-actions">
+                        <a href="{% url 'QA:edit_post' post.id %}" class="post-action-btn primary" title="{% translate 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button type="button" class="post-action-btn danger" onclick="confirmDelete('{{ post.id }}')" title="{% translate 'Delete' %}">
+                            <i class="bi bi-trash3"></i>
                         </button>
-                        <div class="dropdown-menu">
-                            <a href="{% url 'QA:edit_post' post.id %}" class="dropdown-item">
-                                <i class="bi bi-pencil"></i>
-                                {% translate "Edit" %}
-                            </a>
-                            <button type="button" class="dropdown-item danger" onclick="confirmDelete('{{ post.id }}')">
-                                <i class="bi bi-trash"></i>
-                                {% translate "Delete" %}
-                            </button>
-                        </div>
+                        <a href="{% url 'QA:post_detail' post.slug %}" class="post-action-btn" title="{% translate 'View details' %}">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </a>
                     </div>
                     {% endif %}
                 </header>

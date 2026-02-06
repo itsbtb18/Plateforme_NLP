@@ -78,9 +78,13 @@ class Post(models.Model):
         verbose_name_plural = _("Posts")
 
     def save(self, *args, **kwargs):
+        # First save to get an ID if this is a new object
+        if not self.pk:
+            super().save(*args, **kwargs)
+        # Now generate slug if needed (ID is now available)
         if not self.slug:
-            self.slug = slugify(f"{self.author.full_name}-{self.id}")  # type: ignore
-        super().save(*args, **kwargs)
+            self.slug = slugify(f"{self.author.full_name}-{self.pk}")  # type: ignore
+            super().save(update_fields=['slug'])
 
     def __str__(self):
         title = self.get_localized_title() or f"Post {self.id}"

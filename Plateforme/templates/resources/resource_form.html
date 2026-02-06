@@ -351,6 +351,16 @@
     display: none;
 }
 
+/* Hide the custom file wrapper added by custom-file-input.js */
+.file-upload-zone .custom-file-input-wrapper {
+    display: contents;
+}
+
+.file-upload-zone .custom-file-button,
+.file-upload-zone .custom-file-name {
+    display: none !important;
+}
+
 .btn-browse {
     display: inline-flex;
     align-items: center;
@@ -386,6 +396,40 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.file-preview .btn-remove-file {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--eng-danger);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.file-preview .btn-remove-file:hover {
+    background: var(--eng-danger-bg);
+}
+
+.file-upload-zone.has-file {
+    border-color: var(--eng-success);
+    background: var(--eng-success-bg);
+}
+
+.file-upload-zone.has-file .upload-icon {
+    background: var(--eng-success);
+    color: white;
+}
+
+.file-upload-zone.has-file h4,
+.file-upload-zone.has-file p,
+.file-upload-zone.has-file .btn-browse {
+    display: none;
 }
 
 /* ===== SPECIFIC FIELDS SECTIONS ===== */
@@ -488,6 +532,11 @@
     margin-bottom: 1.5rem;
 }
 
+/* Hide auto-rendered uploaded_file field from Django form */
+#div_id_uploaded_file {
+    display: none !important;
+}
+
 /* ===== RTL SUPPORT ===== */
 html[dir="rtl"] .section-header {
     flex-direction: row-reverse;
@@ -579,15 +628,7 @@ html[dir="rtl"] .form-actions {
             
             <!-- Section 2: Content & Files -->
             <section class="section-card">
-                <div class="section-header">
-                    <div class="section-icon content">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </div>
-                    <div class="section-header-text">
-                        <h2>{% trans "Content & Files" %}</h2>
-                        <p>{% trans "Description and file attachments" %}</p>
-                    </div>
-                </div>
+                
                 <div class="section-body">
                     
                     <!-- Description -->
@@ -598,6 +639,32 @@ html[dir="rtl"] .form-actions {
                         </label>
                         {{ form.description }}
                         <span class="form-text">{% trans "Provide a detailed description of your resource" %}</span>
+                    </div>
+                    
+                    <!-- File Upload Zone -->
+                    <div class="form-group">
+                        <label>{% trans "Upload Document" %}</label>
+                        <div class="file-upload-zone" id="file-upload-zone">
+                            <input type="file" name="uploaded_file" id="id_uploaded_file" 
+                                   accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.zip,.rar,.ppt,.pptx,.xls,.xlsx">
+                            <div class="upload-icon">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <h4>{% trans "Drag & drop your file here" %}</h4>
+                            <p>{% trans "or click to browse - PDF, DOC, TXT, CSV, JSON (max 50MB)" %}</p>
+                            <span class="btn-browse">
+                                <i class="bi bi-folder2-open"></i>
+                                {% trans "Browse Files" %}
+                            </span>
+                            <div class="file-preview" id="file-preview">
+                                <i class="bi bi-file-earmark-check"></i>
+                                <span id="file-name"></span>
+                                <button type="button" class="btn-remove-file" id="btn-remove-file">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <span class="form-text">{% trans "Optional: Attach a document to your resource" %}</span>
                     </div>
                     
                     <!-- Access Link -->
@@ -887,6 +954,82 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFields();
     }
     
+    // ===== File Upload Functionality =====
+    const fileUploadZone = document.getElementById('file-upload-zone');
+    const fileInput = document.getElementById('id_uploaded_file');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const btnRemoveFile = document.getElementById('btn-remove-file');
+    
+    if (fileUploadZone && fileInput) {
+        // Click to upload
+        fileUploadZone.addEventListener('click', function(e) {
+            if (e.target !== btnRemoveFile && !btnRemoveFile.contains(e.target)) {
+                fileInput.click();
+            }
+        });
+        
+        // File selected
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                displayFile(this.files[0]);
+            }
+        });
+        
+        // Drag & Drop
+        fileUploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        fileUploadZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        fileUploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                displayFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        // Remove file
+        if (btnRemoveFile) {
+            btnRemoveFile.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                filePreview.classList.remove('visible');
+                fileUploadZone.classList.remove('has-file');
+            });
+        }
+        
+        function displayFile(file) {
+            // Check file size (50MB max)
+            const maxSize = 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert('{% trans "File is too large. Maximum size is 50MB." %}');
+                fileInput.value = '';
+                return;
+            }
+            
+            fileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+            filePreview.classList.add('visible');
+            fileUploadZone.classList.add('has-file');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    }
+    
     // ===== Submit Loading =====
     const form = document.getElementById('resource-form');
     const submitBtn = document.getElementById('submit-btn');
@@ -900,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ===== Add form-control class to all inputs =====
     document.querySelectorAll('.section-body input, .section-body select, .section-body textarea').forEach(el => {
-        if (!el.classList.contains('form-control')) {
+        if (!el.classList.contains('form-control') && el.type !== 'file') {
             el.classList.add('form-control');
         }
     });

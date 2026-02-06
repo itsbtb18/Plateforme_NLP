@@ -114,6 +114,15 @@ class ResourceBase(models.Model):
         default='',
         help_text=_("English description of the resource")
     )
+    
+    # File upload field for documents (PDF, DOCX, etc.)
+    uploaded_file = models.FileField(
+        upload_to='resources/files/%Y/%m/',
+        verbose_name=_("Uploaded File"),
+        blank=True,
+        null=True,
+        help_text=_("Upload a document (PDF, DOCX, TXT, etc.)")
+    )
 
     
     def get_supported_languages_list(self):

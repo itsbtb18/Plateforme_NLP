@@ -1,5 +1,5 @@
 from django import forms
-from .models import Topic
+from .models import Topic, ChatRoom
 from django.utils.translation import get_language, gettext_lazy as _
 
 
@@ -9,6 +9,67 @@ def get_active_language():
     if lang and lang.startswith('ar'):
         return 'ar'
     return 'en'
+
+
+class ChatRoomForm(forms.ModelForm):
+    """
+    Bilingual ChatRoom form with Arabic and English fields.
+    """
+    
+    name_ar = forms.CharField(
+        max_length=200,
+        required=False,
+        label=_("Arabic Name"),
+        widget=forms.TextInput(attrs={'class': 'cn-input', 'placeholder': _('Enter Arabic name')})
+    )
+    name_en = forms.CharField(
+        max_length=200,
+        required=False,
+        label=_("English Name"),
+        widget=forms.TextInput(attrs={'class': 'cn-input', 'placeholder': _('Enter English name')})
+    )
+    description_ar = forms.CharField(
+        required=False,
+        label=_("Arabic Description"),
+        widget=forms.Textarea(attrs={'class': 'cn-textarea', 'placeholder': _('Describe the purpose of this room...')})
+    )
+    description_en = forms.CharField(
+        required=False,
+        label=_("English Description"),
+        widget=forms.Textarea(attrs={'class': 'cn-textarea', 'placeholder': _('Describe the purpose of this room...')})
+    )
+    
+    class Meta:
+        model = ChatRoom
+        fields = ['name_ar', 'name_en', 'description_ar', 'description_en']
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        name_ar = cleaned_data.get('name_ar', '').strip()
+        name_en = cleaned_data.get('name_en', '').strip()
+        
+        # At least one name is required
+        if not name_ar and not name_en:
+            raise forms.ValidationError(_("Please provide at least one room name (Arabic or English)."))
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Set the main name field from whichever language is provided
+        name_en = self.cleaned_data.get('name_en', '').strip()
+        name_ar = self.cleaned_data.get('name_ar', '').strip()
+        instance.name = name_en or name_ar
+        
+        # Set the main description field
+        desc_en = self.cleaned_data.get('description_en', '').strip()
+        desc_ar = self.cleaned_data.get('description_ar', '').strip()
+        instance.description = desc_en or desc_ar or ''
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class TopicForm(forms.ModelForm):

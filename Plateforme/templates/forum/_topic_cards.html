@@ -4,18 +4,34 @@
 {% for topic in topics %}
 <article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
     
-    <div class="ft-stats-col">
-        <div class="ft-stat-item">
-            <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
-            <div class="ft-stat-txt">{% translate "Votes" %}</div>
+    <!-- User Meta - LEFT SIDE -->
+    <div class="ft-meta-col">
+        <div class="ft-user-meta">
+            <div class="ft-user-avatar">
+                {% if topic.creator.avatar %}
+                <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+                {% else %}
+                <i class="bi bi-person"></i>
+                {% endif %}
+            </div>
+            <div class="ft-user-info">
+                <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+            </div>
         </div>
-        <div class="ft-stat-item">
-            <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
-            <div class="ft-stat-txt">{% translate "Rooms" %}</div>
-        </div>
-        <div class="ft-stat-item">
-            <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
-            <div class="ft-stat-txt">{% translate "Views" %}</div>
+        
+        <div class="ft-card-actions">
+            <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+                <i class="bi bi-chat-dots"></i>
+            </a>
+            {% if topic.creator == user or user.is_staff %}
+            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+                <i class="bi bi-trash3"></i>
+            </a>
+            {% endif %}
         </div>
     </div>
     
@@ -44,33 +60,19 @@
         </div>
     </div>
     
-    <div class="ft-meta-col">
-        <div class="ft-user-meta">
-            <div class="ft-user-info">
-                <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
-                <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
-            </div>
-            <div class="ft-user-avatar">
-                {% if topic.creator.avatar %}
-                <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
-                {% else %}
-                <i class="bi bi-person"></i>
-                {% endif %}
-            </div>
+    <!-- Stats - RIGHT SIDE -->
+    <div class="ft-stats-col">
+        <div class="ft-stat-item">
+            <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
+            <div class="ft-stat-txt">{% translate "Votes" %}</div>
         </div>
-        
-        <div class="ft-card-actions">
-            <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
-                <i class="bi bi-chat-dots"></i>
-            </a>
-            {% if topic.creator == user or user.is_staff %}
-            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
-                <i class="bi bi-pencil"></i>
-            </a>
-            <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
-                <i class="bi bi-trash3"></i>
-            </a>
-            {% endif %}
+        <div class="ft-stat-item">
+            <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
+            <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+        </div>
+        <div class="ft-stat-item">
+            <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+            <div class="ft-stat-txt">{% translate "Views" %}</div>
         </div>
     </div>
 </article>
