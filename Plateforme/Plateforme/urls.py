@@ -6,7 +6,14 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
+from django.utils.translation import gettext_lazy as _
 
+# ============================================
+# ADMIN SITE CUSTOMIZATION
+# ============================================
+admin.site.site_header = _('Arabic NLP Platform Administration')
+admin.site.site_title = _('Arabic NLP Admin')
+admin.site.index_title = _('Welcome to the Administration Dashboard')
 
 urlpatterns = [
     path('i18n/', include('django.conf.urls.i18n')),

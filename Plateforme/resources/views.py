@@ -207,8 +207,8 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
         else:
             queryset = Course.objects.filter(approval_status='approved')
         
+        # Search filter
         search_query = self.request.GET.get('q', '').strip()
-        
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
@@ -223,11 +223,29 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
                 Q(institution__name__icontains=search_query)
             ).distinct()
         
-        return queryset.order_by('-creation_date')
+        # Level filter (Bachelor, Master, Doctorate)
+        level = self.request.GET.get('level', '').strip().lower()
+        if level in ['bachelor', 'master', 'doctorate']:
+            queryset = queryset.filter(academic_level=level)
+        
+        # Sort filter
+        sort = self.request.GET.get('sort', 'newest')
+        if sort == 'oldest':
+            queryset = queryset.order_by('creation_date')
+        elif sort == 'alphabetical':
+            queryset = queryset.order_by('title')
+        elif sort == 'popular':
+            queryset = queryset.order_by('-views_count')
+        else:  # newest (default)
+            queryset = queryset.order_by('-creation_date')
+        
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         search_query = self.request.GET.get('q', '')
+        level = self.request.GET.get('level', '')
+        sort = self.request.GET.get('sort', 'newest')
         
         # Always use filtered queryset for count (respects approval_status)
         context['total_count'] = self.get_queryset().count()
@@ -238,6 +256,8 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
         else:
             context['is_search'] = False
         
+        context['current_level'] = level.lower() if level else ''
+        context['current_sort'] = sort
         context['page'] = 'course'
         return context
 

@@ -37,6 +37,7 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
             country = form.cleaned_data.get('country')
             specialty = form.cleaned_data.get('specialty')
             search_term = form.cleaned_data.get('search_term')
+            sort = form.cleaned_data.get('sort', 'name')
             
             # Also check for 'q' parameter for consistency
             if not search_term:
@@ -61,8 +62,21 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
                     Q(description_en__icontains=search_term) |
                     Q(acronym__icontains=search_term) |
                     Q(city__icontains=search_term) |
-                    Q(specialties__name__icontains=search_term)
+                    Q(specialties__name_en__icontains=search_term) |
+                    Q(specialties__name_ar__icontains=search_term)
                 )
+            
+            # Apply sort
+            if sort == 'name_desc':
+                queryset = queryset.order_by('-name')
+            elif sort == 'newest':
+                queryset = queryset.order_by('-created_at')
+            elif sort == 'oldest':
+                queryset = queryset.order_by('created_at')
+            else:  # 'name' or default
+                queryset = queryset.order_by('name')
+        else:
+            queryset = queryset.order_by('name')
         
         return queryset.distinct()
 

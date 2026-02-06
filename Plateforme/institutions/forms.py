@@ -33,6 +33,13 @@ def get_institution_bilingual_labels():
 
 class InstitutionFilterForm(forms.Form):
     INSTITUTION_TYPE_CHOICES = [('', _('All'))] + Institution.TYPE
+    
+    SORT_CHOICES = [
+        ('name', _('Alphabetical (A-Z)')),
+        ('name_desc', _('Alphabetical (Z-A)')),
+        ('newest', _('Newest First')),
+        ('oldest', _('Oldest First')),
+    ]
 
     institution_type = forms.ChoiceField(
         choices=INSTITUTION_TYPE_CHOICES,
@@ -67,6 +74,14 @@ class InstitutionFilterForm(forms.Form):
             'class': 'form-control',
             'placeholder': _('Enter institution name or keyword...'),
             'type': 'search',
+        })
+    )
+    sort = forms.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        label=_('Sort By'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
         })
     )
 
