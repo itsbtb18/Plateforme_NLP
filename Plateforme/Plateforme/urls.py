@@ -27,10 +27,10 @@ urlpatterns = [
     path('institutions/', include('institutions.urls', namespace='institutions')),
     path('QA/', include('QA.urls')),
     path('notifications/', include('notifications.urls', namespace='notifications')),
-    path('admin/', admin.site.urls),
     path('chatbot/', include('chatbot.urls')),
-    path('', include('pages.urls')),      # Keep empty paths at the bottom
-    path('', include('translate.urls')),  # Keep empty paths at the bottom
+    path('', include('pages.urls')),      # Custom admin pages - BEFORE Django admin
+    path('admin/', admin.site.urls),      # Django admin after custom pages
+    path('', include('translate.urls')),
 ]
 
 # Serve static and media files in development

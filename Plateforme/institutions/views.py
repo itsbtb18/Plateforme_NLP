@@ -1,4 +1,4 @@
-from django.views.generic import ListView, DetailView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -97,6 +97,30 @@ class InstitutionDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['page'] = 'institutions'
         return context
+
+
+class InstitutionCreateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView):
+    """Staff only: Create new institutions from admin panel."""
+    model = Institution
+    form_class = InstitutionForm
+    template_name = 'institutions/institution_form.html'
+    
+    def test_func(self) -> bool:
+        return self.request.user.is_staff
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['mode'] = 'create'
+        return context
+    
+    def form_valid(self, form) -> HttpResponse:
+        form.instance.created_by = self.request.user
+        self.object = form.save()
+        messages.success(self.request, _("Institution created successfully!"))
+        return redirect(self.get_success_url())
+    
+    def get_success_url(self):
+        return reverse_lazy('pages:admin_institutions')
 
 
 class InstitutionUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
