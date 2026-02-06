@@ -17,15 +17,217 @@ from django.utils.translation import gettext_lazy as _
 from typing import TYPE_CHECKING, Any
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.template.loader import render_to_string
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from django.forms import BaseModelForm
+
+
+def detect_language(query: str) -> str:
+    """Detect if query is primarily Arabic or English."""
+    if not query:
+        return 'english'
+    
+    arabic_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+')
+    arabic_chars = len(arabic_pattern.findall(query))
+    total_chars = len(query.replace(' ', ''))
+    
+    if total_chars == 0:
+        return 'english'
+    
+    if arabic_chars / total_chars > 0.3:
+        return 'arabic'
+    return 'english'
 
 
 class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Project
     template_name = 'project_list.html'
     context_object_name = 'projects'
+    
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Handle both AJAX and regular requests."""
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        if is_ajax:
+            return self._handle_ajax_request(request)
+        
+        # Regular HTML request
+        return super().get(request, *args, **kwargs)
+    
+    def _handle_ajax_request(self, request: HttpRequest) -> HttpResponse:
+        """Return partial HTML for AJAX search requests."""
+        from django.http import JsonResponse
+        
+        # Get the search query and filters
+        search_query = request.GET.get('q', '').strip()
+        
+        # Get projects using Elasticsearch if query exists, else use standard queryset
+        if search_query:
+            projects, highlights = self._search_with_elasticsearch(search_query, request)
+        else:
+            projects = list(self.get_queryset())
+            highlights = {}
+        
+        # Build context for partial template
+        context = {
+            'projects': projects,
+            'highlights': highlights,
+            'search_query': search_query,
+            'request': request,
+        }
+        
+        # Render partial template
+        html = render_to_string('projects/_project_cards.html', context, request=request)
+        
+        return HttpResponse(html)
+    
+    def _search_with_elasticsearch(self, query: str, request: HttpRequest) -> tuple[list[Project], dict]:
+        """
+        Search projects using Elasticsearch with highlighting.
+        Returns a tuple of (projects, highlights_dict).
+        """
+        from elasticsearch_dsl import Q as ESQ
+        from elasticsearch.exceptions import ConnectionError, NotFoundError
+        
+        try:
+            from search.documents import ProjectDocument
+        except ImportError:
+            logger.warning("ProjectDocument not found, falling back to DB search")
+            return list(self.get_queryset()), {}
+        
+        try:
+            detected_lang = detect_language(query)
+            
+            # Build the search query with dis_max for ranking
+            search_fields = [
+                'title^3', 'title.arabic^3', 'title.english^3', 'title.phonetic^1',
+                'description^2', 'description.arabic^2', 'description.english^2',
+                'coordinator.full_name^1.5',
+                'institution.name^1.5', 'institution.name.arabic^1.5', 'institution.name.english^1.5',
+            ]
+            
+            # Build multi_match query
+            es_query = ESQ(
+                'multi_match',
+                query=query,
+                fields=search_fields,
+                type='best_fields',
+                fuzziness='AUTO',
+                prefix_length=1,
+            )
+            
+            # Create search
+            search = ProjectDocument.search()
+            search = search.query(es_query)
+            
+            # Apply filters
+            # Status filter
+            status_filter = request.GET.get('status', '').strip()
+            if status_filter:
+                search = search.filter('term', **{'status.raw': status_filter})
+            
+            # My projects filter (coordinator)
+            if request.GET.get('my_projects'):
+                search = search.filter('term', **{'coordinator.id': request.user.id})
+            
+            # Sorting
+            sort_by = request.GET.get('sort', 'newest').strip()
+            if sort_by == 'oldest':
+                search = search.sort({'created_at': {'order': 'asc', 'unmapped_type': 'date'}})
+            elif sort_by == 'alphabetical':
+                search = search.sort({'title.raw': {'order': 'asc', 'unmapped_type': 'keyword'}})
+            elif sort_by == 'updated':
+                # Use date_end or fall back to created_at for "updated"
+                search = search.sort({'date_end': {'order': 'desc', 'unmapped_type': 'date'}})
+            else:  # newest (default) - but for search, prefer relevance
+                pass  # Keep relevance-based sorting from ES
+            
+            # Add highlighting
+            search = search.highlight_options(
+                pre_tags=['<mark class="search-highlight">'],
+                post_tags=['</mark>'],
+                encoder='html',
+                fragment_size=200,
+            )
+            search = search.highlight('title', 'title.arabic', 'title.english')
+            search = search.highlight('description', 'description.arabic', 'description.english')
+            
+            # Execute search (limit to reasonable number)
+            search = search[:50]
+            response = search.execute()
+            
+            # Collect project IDs and highlights
+            project_ids = []
+            highlights = {}
+            
+            for hit in response:
+                project_id = hit.meta.id
+                project_ids.append(project_id)
+                
+                # Extract highlights
+                if hasattr(hit.meta, 'highlight'):
+                    hit_highlights = {}
+                    highlight_dict = hit.meta.highlight.to_dict()
+                    
+                    # Get title highlight (check all variants)
+                    for field in ['title', 'title.arabic', 'title.english']:
+                        if field in highlight_dict:
+                            hit_highlights['title'] = highlight_dict[field][0]
+                            break
+                    
+                    # Get description highlight
+                    for field in ['description', 'description.arabic', 'description.english']:
+                        if field in highlight_dict:
+                            hit_highlights['description'] = highlight_dict[field][0]
+                            break
+                    
+                    if hit_highlights:
+                        highlights[str(project_id)] = hit_highlights
+            
+            if not project_ids:
+                return [], {}
+            
+            # Fetch actual Project objects from database
+            # Preserve Elasticsearch ordering
+            membership = ProjectMember.objects.filter(
+                project=OuterRef('pk'),
+                member=request.user
+            )
+            
+            projects_qs = Project.objects.filter(pk__in=project_ids)
+            
+            # Apply approval status filter for non-staff
+            if not request.user.is_staff:
+                projects_qs = projects_qs.filter(
+                    Q(approval_status='approved') | 
+                    Q(coordinator=request.user)
+                )
+            
+            projects_qs = projects_qs.annotate(is_member=Exists(membership))
+            
+            # Convert to dict for ordering
+            projects_dict = {str(p.pk): p for p in projects_qs}
+            
+            # Preserve ES ordering
+            ordered_projects = []
+            for pid in project_ids:
+                if str(pid) in projects_dict:
+                    ordered_projects.append(projects_dict[str(pid)])
+            
+            return ordered_projects, highlights
+            
+        except (ConnectionError, NotFoundError) as e:
+            logger.warning(f"Elasticsearch unavailable, falling back to DB: {e}")
+            return list(self.get_queryset()), {}
+        except Exception as e:
+            logger.error(f"Elasticsearch search error: {e}")
+            return list(self.get_queryset()), {}
     
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
@@ -86,6 +288,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         context['page'] = 'research_projects'
         context['search_query'] = self.request.GET.get('q') or self.request.GET.get('search', '')
         context['current_sort'] = self.request.GET.get('sort', 'newest').strip()
+        context['highlights'] = {}  # Empty for non-AJAX requests (no ES highlighting)
         return context
 
 

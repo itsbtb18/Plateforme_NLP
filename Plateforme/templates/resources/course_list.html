@@ -709,6 +709,59 @@ html[dir="rtl"] .course-hub-pill-group {
         font-size: 1.5rem;
     }
 }
+
+/* ===== LOADING STATE ===== */
+#courses-grid-wrapper {
+    position: relative;
+    min-height: 200px;
+}
+
+#courses-grid-wrapper.loading .course-hub-grid {
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out;
+}
+
+#courses-grid-wrapper .course-hub-card {
+    transition: opacity 0.2s ease-out, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#courses-grid-wrapper.loading .course-hub-card {
+    opacity: 0.3;
+}
+
+.course-hub-loading-spinner {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+}
+
+#courses-grid-wrapper.loading .course-hub-loading-spinner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: var(--academy-white);
+    border-radius: var(--academy-radius-lg);
+    box-shadow: var(--academy-shadow-lg);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--academy-text-secondary);
+}
+
+.course-hub-loading-spinner i {
+    animation: spin 1s linear infinite;
+    color: var(--academy-primary);
+    font-size: 1.25rem;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 </style>
 {% endblock %}
 
@@ -800,79 +853,192 @@ html[dir="rtl"] .course-hub-pill-group {
     
     <!-- ============ COURSE GRID ============ -->
     <main class="course-hub-container">
-        {% if courses %}
-        <div class="course-hub-grid">
-            {% for course in courses %}
-            <article class="course-hub-card">
-                <div class="course-hub-card-header">
-                    <div class="course-hub-card-icon">
-                        <i class="bi bi-journal-bookmark"></i>
-                    </div>
-                    <span class="course-hub-level-badge {{ course.academic_level }}">
-                        {{ course.get_academic_level_display }}
-                    </span>
-                </div>
-                
-                <div class="course-hub-card-body">
-                    <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
-                    <p class="course-hub-card-desc">
-                        {{ course.get_localized_description|truncatewords:18|default:_("Comprehensive course content covering essential topics in Arabic NLP.") }}
-                    </p>
-                    
-                    <div class="course-hub-card-meta">
-                        <div class="course-hub-meta-row">
-                            <i class="bi bi-person-workspace"></i>
-                            <strong>{{ course.teacher.get_full_name_display|default:_("Instructor") }}</strong>
-                        </div>
-                        <div class="course-hub-meta-row">
-                            <i class="bi bi-building"></i>
-                            <span>{{ course.institution.name|truncatechars:28 }}</span>
-                        </div>
-                        <div class="course-hub-meta-row">
-                            <i class="bi bi-calendar3"></i>
-                            <span>{{ course.academic_year }}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="course-hub-card-footer">
-                    <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-card-cta">
-                        <i class="bi bi-play-circle"></i>
-                        {% translate "Start Learning" %}
-                    </a>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="course-hub-grid">
-            <div class="course-hub-empty">
-                <div class="course-hub-empty-icon">
-                    <i class="bi bi-journal-x"></i>
-                </div>
-                <h3>{% translate "No Courses Found" %}</h3>
-                <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
-                {% if user.is_authenticated %}
-                <a href="{% url 'resources:course-create' %}" class="course-hub-empty-btn">
-                    <i class="bi bi-plus-lg"></i>
-                    {% translate "Create Your First Course" %}
-                </a>
-                {% endif %}
+        <div id="courses-grid-wrapper">
+            <div class="course-hub-loading-spinner">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>{% translate "Loading..." %}</span>
             </div>
+            {% if courses %}
+            <div class="course-hub-grid" id="courses-grid">
+                {% for course in courses %}
+                <article class="course-hub-card">
+                    <div class="course-hub-card-header">
+                        <div class="course-hub-card-icon">
+                            <i class="bi bi-journal-bookmark"></i>
+                        </div>
+                        <span class="course-hub-level-badge {{ course.academic_level }}">
+                            {{ course.get_academic_level_display }}
+                        </span>
+                    </div>
+                    
+                    <div class="course-hub-card-body">
+                        <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
+                        <p class="course-hub-card-desc">
+                            {{ course.get_localized_description|truncatewords:18|default:_("Comprehensive course content covering essential topics in Arabic NLP.") }}
+                        </p>
+                        
+                        <div class="course-hub-card-meta">
+                            <div class="course-hub-meta-row">
+                                <i class="bi bi-person-workspace"></i>
+                                <strong>{{ course.teacher.get_full_name_display|default:_("Instructor") }}</strong>
+                            </div>
+                            <div class="course-hub-meta-row">
+                                <i class="bi bi-building"></i>
+                                <span>{{ course.institution.name|truncatechars:28 }}</span>
+                            </div>
+                            <div class="course-hub-meta-row">
+                                <i class="bi bi-calendar3"></i>
+                                <span>{{ course.academic_year }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="course-hub-card-footer">
+                        <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-card-cta">
+                            <i class="bi bi-play-circle"></i>
+                            {% translate "Start Learning" %}
+                        </a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="course-hub-grid" id="courses-grid">
+                <div class="course-hub-empty">
+                    <div class="course-hub-empty-icon">
+                        <i class="bi bi-journal-x"></i>
+                    </div>
+                    <h3>{% translate "No Courses Found" %}</h3>
+                    <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'resources:course-create' %}" class="course-hub-empty-btn">
+                        <i class="bi bi-plus-lg"></i>
+                        {% translate "Create Your First Course" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </main>
     
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Pill filter animation
+    // ===== LIVE SEARCH CONFIGURATION =====
+    const DEBOUNCE_DELAY = 300; // milliseconds
+    
+    // DOM Elements
+    const searchInput = document.querySelector('.course-hub-search-input');
+    const searchForm = document.getElementById('courseSearchForm');
+    const gridWrapper = document.getElementById('courses-grid-wrapper');
     const pills = document.querySelectorAll('.course-hub-pill');
+    
+    let currentLevel = '{{ current_level|default:"" }}';
+    let debounceTimer = null;
+    let currentRequest = null;
+    
+    // ===== DEBOUNCE FUNCTION =====
+    function debounce(func, delay) {
+        return function(...args) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+    
+    // ===== FETCH COURSES VIA AJAX =====
+    function fetchCourses(query, level) {
+        // Cancel any pending request
+        if (currentRequest) {
+            currentRequest.abort();
+        }
+        
+        // Show loading state
+        gridWrapper.classList.add('loading');
+        
+        // Build query params
+        const params = new URLSearchParams();
+        if (query) params.set('q', query);
+        if (level) params.set('level', level);
+        
+        const url = `${window.location.pathname}?${params.toString()}`;
+        
+        // Update browser URL without reload
+        history.replaceState(null, '', url);
+        
+        // Create AbortController for this request
+        const controller = new AbortController();
+        currentRequest = controller;
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            signal: controller.signal
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.text();
+        })
+        .then(html => {
+            // Replace the grid content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const newGrid = tempDiv.querySelector('#courses-grid') || tempDiv.firstElementChild;
+            
+            const existingGrid = document.getElementById('courses-grid');
+            if (existingGrid && newGrid) {
+                existingGrid.replaceWith(newGrid);
+            }
+            
+            // Remove loading state
+            gridWrapper.classList.remove('loading');
+            currentRequest = null;
+        })
+        .catch(error => {
+            if (error.name !== 'AbortError') {
+                console.error('Error fetching courses:', error);
+                gridWrapper.classList.remove('loading');
+            }
+            currentRequest = null;
+        });
+    }
+    
+    // ===== SEARCH INPUT HANDLER WITH DEBOUNCE =====
+    const debouncedSearch = debounce(function() {
+        const query = searchInput.value.trim();
+        fetchCourses(query, currentLevel);
+    }, DEBOUNCE_DELAY);
+    
+    searchInput.addEventListener('input', debouncedSearch);
+    
+    // ===== PREVENT FORM SUBMISSION (use AJAX instead) =====
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        clearTimeout(debounceTimer);
+        const query = searchInput.value.trim();
+        fetchCourses(query, currentLevel);
+    });
+    
+    // ===== LEVEL FILTER PILLS =====
     pills.forEach(pill => {
         pill.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Update active state visually
             pills.forEach(p => p.classList.remove('active'));
             this.classList.add('active');
+            
+            // Extract level from href
+            const href = this.getAttribute('href');
+            const urlParams = new URLSearchParams(href.split('?')[1] || '');
+            currentLevel = urlParams.get('level') || '';
+            
+            // Trigger AJAX fetch
+            const query = searchInput.value.trim();
+            fetchCourses(query, currentLevel);
         });
     });
 });

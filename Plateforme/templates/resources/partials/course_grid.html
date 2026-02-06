@@ -1,0 +1,63 @@
+{% load i18n %}
+
+{% if courses %}
+<div class="course-hub-grid" id="courses-grid">
+    {% for course in courses %}
+    <article class="course-hub-card">
+        <div class="course-hub-card-header">
+            <div class="course-hub-card-icon">
+                <i class="bi bi-journal-bookmark"></i>
+            </div>
+            <span class="course-hub-level-badge {{ course.academic_level }}">
+                {{ course.get_academic_level_display }}
+            </span>
+        </div>
+        
+        <div class="course-hub-card-body">
+            <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
+            <p class="course-hub-card-desc">
+                {{ course.get_localized_description|truncatewords:18|default:_("Comprehensive course content covering essential topics in Arabic NLP.") }}
+            </p>
+            
+            <div class="course-hub-card-meta">
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-person-workspace"></i>
+                    <strong>{{ course.teacher.get_full_name_display|default:_("Instructor") }}</strong>
+                </div>
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-building"></i>
+                    <span>{{ course.institution.name|truncatechars:28 }}</span>
+                </div>
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-calendar3"></i>
+                    <span>{{ course.academic_year }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="course-hub-card-footer">
+            <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-card-cta">
+                <i class="bi bi-play-circle"></i>
+                {% translate "Start Learning" %}
+            </a>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="course-hub-grid" id="courses-grid">
+    <div class="course-hub-empty">
+        <div class="course-hub-empty-icon">
+            <i class="bi bi-journal-x"></i>
+        </div>
+        <h3>{% translate "No Courses Found" %}</h3>
+        <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
+        {% if user.is_authenticated %}
+        <a href="{% url 'resources:course-create' %}" class="course-hub-empty-btn">
+            <i class="bi bi-plus-lg"></i>
+            {% translate "Create Your First Course" %}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

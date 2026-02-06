@@ -209,6 +209,12 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = 'courses'
     paginate_by = 12
     
+    def get_template_names(self):
+        # Return partial template for AJAX requests (live search)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return ['resources/partials/course_grid.html']
+        return [self.template_name]
+    
     def get_queryset(self):
         # Only show approved content to public (staff sees all)
         if self.request.user.is_authenticated and self.request.user.is_staff:

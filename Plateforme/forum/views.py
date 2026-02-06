@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, cast
 
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Count
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -29,6 +29,38 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         template_name = 'forum/topic_list.html'  # Ajout du prefixe 'forum/'
         context_object_name = 'topics'
         ordering = ['-created_at']  # Tri par date de creation decroissante
+
+        def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+            """Handle both AJAX and regular requests."""
+            # Check if this is an AJAX request
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            
+            if is_ajax:
+                return self._handle_ajax_request(request)
+            
+            # Regular HTML request
+            return super().get(request, *args, **kwargs)
+
+        def _handle_ajax_request(self, request: HttpRequest) -> HttpResponse:
+            """Return partial HTML for AJAX requests."""
+            # Get the queryset with all filters applied
+            topics = self.get_queryset()
+            
+            # Build context for partial template
+            context = {
+                'topics': topics,
+                'search_query': request.GET.get('q', ''),
+                'current_sort': request.GET.get('sort', ''),
+                'my_topics': request.GET.get('my_topics', ''),
+                'user': request.user,
+                'request': request,
+            }
+            
+            # Render partial template
+            html = render_to_string('forum/_topic_cards.html', context, request=request)
+            
+            # Also return the count for updating stats
+            return HttpResponse(html)
 
         def get_queryset(self) -> QuerySet[Topic]:
             qs = cast(QuerySet[Topic], super().get_queryset())
@@ -64,11 +96,13 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
                 qs = qs.order_by('-created_at')
             elif sort == 'active':
                 # Sort by most chatrooms/activity
-                from django.db.models import Count
                 qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
             elif sort == 'popular':
-                # Sort by views
-                qs = qs.order_by('-views', '-created_at')
+                # Sort by views (fallback to chatroom count if views not available)
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
+            else:
+                # Default: order by creation date
+                qs = qs.order_by('-created_at')
             
             return qs
 
