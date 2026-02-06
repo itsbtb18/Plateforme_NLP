@@ -1,4 +1,4 @@
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -97,56 +97,6 @@ class InstitutionDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['page'] = 'institutions'
         return context
-
-
-class InstitutionCreateView(LoginAndVerifiedRequiredMixin, CreateView):
-    """Restricted: Replaced LoginRequiredMixin with LoginAndVerifiedRequiredMixin."""
-    model = Institution
-    form_class = InstitutionForm
-    template_name = 'institutions/institution_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['mode'] = 'create'
-        return context
-    
-    def form_valid(self, form) -> HttpResponse:
-        try:
-            logger.info("Form is valid")
-            institution_form = cast(InstitutionForm, form)
-            instance = institution_form.save(commit=False)
-            instance.created_by = self.request.user  # type: ignore[assignment]
-            self.object = institution_form.save()
-
-            created_specialties = institution_form.get_created_specialties()
-            if created_specialties:
-                specialty_names = ', '.join(created_specialties)
-                messages.info(
-                    self.request, 
-                    _("New specialties created : {}").format(specialty_names)
-                )
-            
-            messages.success(
-                self.request, 
-                _("The institution has been successfully added .")
-            )
-            return redirect(self.get_success_url())
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la création de l'institution : {str(e)}")
-            messages.error(
-                self.request, 
-                _("Une erreur s'est produite lors de la création de l'institution : {}").format(str(e))
-            )
-            return self.form_invalid(form)
-    
-    def form_invalid(self, form):
-        logger.error(f"Invalid form : {form.errors}")
-        messages.error(self.request, _("Please correct any errors in the form."))
-        return super().form_invalid(form)
-    
-    def get_success_url(self):
-        return reverse_lazy('institutions:institution_list')
 
 
 class InstitutionUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):

@@ -72,8 +72,8 @@ def question_detail(request, pk):
                 NotificationService.create_notification(
                     recipient=question.author,
                     notification_type='QA_ANSWER',
-                    title="New answer to your question",
-                    message=f"{request.user.username} answered your question « {question.title} ».",
+                    title=_("New answer to your question"),
+                    message=_("%(username)s answered your question « %(title)s ».") % {'username': request.user.username, 'title': question.title},
                     related_object=question
                 )
             return redirect('QA:question_detail', pk=pk)
@@ -124,15 +124,8 @@ def feed(request):
     # Get filter parameter
     filter_type = request.GET.get('filter', 'all')
     
-    # Base queryset: approved posts + user's own posts
-    if request.user.is_staff:
-        # Staff can see all posts
-        posts = Post.objects.all()
-    else:
-        # Regular users see approved posts + their own posts
-        posts = Post.objects.filter(
-            Q(approval_status='approved') | Q(author=request.user)
-        )
+    # Only show approved posts - strict approval workflow
+    posts = Post.objects.filter(approval_status='approved')
     
     # Apply filters
     if filter_type == 'my_posts':
@@ -166,15 +159,10 @@ def create_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.author = request.user
-            # Auto-approve for staff, pending for regular users
-            if request.user.is_staff:
-                post.approval_status = 'approved'
-                post.save()
-                messages.success(request, _('Your post has been published.'))
-            else:
-                post.approval_status = 'pending'
-                post.save()
-                messages.info(request, _('Your post has been submitted and is pending admin approval.'))
+            # All posts require admin approval - no exceptions
+            post.approval_status = 'pending'
+            post.save()
+            messages.info(request, _('Your post has been submitted and is pending admin approval.'))
             return redirect('QA:feed')
     else:
         form = PostForm()
@@ -190,14 +178,8 @@ def create_post(request):
 @login_required
 @login_and_verified_required
 def post_detail(request, slug):
-    post = get_object_or_404(Post, slug=slug)
-    
-    # Check access permissions for pending/rejected posts
-    if post.approval_status != 'approved':
-        # Only allow access to author or staff
-        if post.author != request.user and not request.user.is_staff:
-            messages.error(request, _('This post is not available.'))
-            return redirect('QA:feed')
+    # Only allow viewing approved posts - pending posts only visible in Admin
+    post = get_object_or_404(Post, slug=slug, approval_status='approved')
     
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {
@@ -228,8 +210,8 @@ def add_comment(request, post_id):
                 NotificationService.create_notification(
                     recipient=parent_comment.author,
                     notification_type='comment_reply',
-                    title="New reply to your comment",
-                    message=f"{request.user.full_name} replied to your comment.",
+                    title=_("New reply to your comment"),
+                    message=_("%(name)s replied to your comment.") % {'name': request.user.full_name},
                     related_object=post
                 )
         
@@ -240,8 +222,8 @@ def add_comment(request, post_id):
             NotificationService.create_notification(
                 recipient=post.author,
                 notification_type='comment',
-                title="New comment",
-                message=f"{request.user.full_name} commented on your post.",
+                title=_("New comment"),
+                message=_("%(name)s commented on your post.") % {'name': request.user.full_name},
                 related_object=post
             )
         
@@ -284,8 +266,8 @@ def like_post(request, post_id):
             NotificationService.create_notification(
                 recipient=post.author,
                 notification_type='like',
-                title="New I like",
-                message=f"{request.user.full_name} liked your post.",
+                title=_("New like"),
+                message=_("%(name)s liked your post.") % {'name': request.user.full_name},
                 related_object=post
             )
     
@@ -313,8 +295,8 @@ def like_comment(request, comment_id):
             NotificationService.create_notification(
                 recipient=comment.author,
                 notification_type='like',
-                title="New I like",
-                message=f"{request.user.full_name} liked your comment.",
+                title=_("New like"),
+                message=_("%(name)s liked your comment.") % {'name': request.user.full_name},
                 related_object=comment.post
             )
     

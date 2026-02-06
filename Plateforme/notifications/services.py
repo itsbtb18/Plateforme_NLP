@@ -1,6 +1,7 @@
 ﻿from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import gettext_lazy as _
 from typing import Optional
 from .models import Notification
 
@@ -66,8 +67,11 @@ class NotificationService:
 
     @staticmethod
     def create_project_invitation(recipient, project, sender):
-        title = "Invitation to join a project"
-        message = f"You have been invited to join the project {project.name} by {sender.username}."
+        title = _("Invitation to join a project")
+        message = _("You have been invited to join the project %(project_name)s by %(sender_name)s.") % {
+            'project_name': project.name,
+            'sender_name': sender.username
+        }
         return NotificationService.create_notification(
             recipient=recipient,
             notification_type='PROJECT_INVITATION',
@@ -80,8 +84,11 @@ class NotificationService:
 
     @staticmethod
     def create_leave_request(recipient, project, sender):
-        title = "Leave Request"
-        message = f"{sender.username} would like to leave your project {project.name}."
+        title = _("Leave Request")
+        message = _("%(sender_name)s would like to leave your project %(project_name)s.") % {
+            'sender_name': sender.username,
+            'project_name': project.name
+        }
         return NotificationService.create_notification(
             recipient=recipient,
             notification_type='LEAVE_REQUEST',
@@ -97,9 +104,12 @@ class NotificationService:
 
     @staticmethod
     def create_membership_request(recipient, project, sender):
-        title = "New membership application"
-        sender_name = getattr(sender, 'full_name', None) or getattr(sender, 'username', None) or 'Unknown user'
-        message = f"{sender_name} would like to join your project {project.title}."
+        title = _("New membership application")
+        sender_name = getattr(sender, 'full_name', None) or getattr(sender, 'username', None) or _('Unknown user')
+        message = _("%(sender_name)s would like to join your project %(project_title)s.") % {
+            'sender_name': sender_name,
+            'project_title': project.title
+        }
         return NotificationService.create_notification(
             recipient=recipient,
             notification_type='MEMBERSHIP_REQUEST',

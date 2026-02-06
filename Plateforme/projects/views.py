@@ -253,10 +253,10 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             NotificationService.create_notification(
                 recipient=member.member,
                 notification_type='SYSTEM',
-                title="Membership application accepted",
-                message=f"Your request to join the project « {project.title} » was accepted."
+                title=_("Membership application accepted"),
+                message=_("Your request to join the project « %(title)s » was accepted.") % {'title': project.title}
             )
-            messages.success(request, f"{member.member.full_name} was accepted into the project.")  # type: ignore[attr-defined]
+            messages.success(request, _("%(name)s was accepted into the project.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 
@@ -278,10 +278,10 @@ class RejectMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             NotificationService.create_notification(
                 recipient=member.member,
                 notification_type='SYSTEM',
-                title="Membership application refused",
-                message=f"Your request to join the project « {project.title} » was refused."
+                title=_("Membership application refused"),
+                message=_("Your request to join the project « %(title)s » was refused.") % {'title': project.title}
             )
-            messages.success(request, f"The request for {member.member.full_name} was refused.")  # type: ignore[attr-defined]
+            messages.success(request, _("The request for %(name)s was refused.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 

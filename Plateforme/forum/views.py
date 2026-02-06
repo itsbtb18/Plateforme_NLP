@@ -253,8 +253,8 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             NotificationService.create_notification(
                 recipient=chatroom.topic.creator,
                 notification_type='FORUM_REPLY',
-                title=f"Nouvelle reponse dans le sujet {chatroom.topic.title}",
-                message=f"{request.user.username} a repondu dans la salle de discussion {chatroom.name} liee a votre sujet.",
+                title=_("New reply in topic %(title)s") % {'title': chatroom.topic.title},
+                message=_("%(username)s replied in the chatroom %(name)s related to your topic.") % {'username': request.user.username, 'name': chatroom.name},
                 related_object=chatroom.topic,
                 action_url=chatroom.get_absolute_url()
             )
@@ -385,8 +385,8 @@ class BanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView
         NotificationService.create_notification(
             recipient=user_to_ban,
             notification_type='BAN',
-            title=f"Vous avez été banni de la salle {chatroom.name}",
-            message=f"Vous avez été banni de la salle de discussion {chatroom.name} par {self.request.user.username}.",
+            title=_("You have been banned from the chatroom %(name)s") % {'name': chatroom.name},
+            message=_("You have been banned from the chatroom %(name)s by %(username)s.") % {'name': chatroom.name, 'username': self.request.user.username},
             related_object=chatroom
         )
         
