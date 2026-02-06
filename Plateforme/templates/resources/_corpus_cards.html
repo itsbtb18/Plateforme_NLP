@@ -1,0 +1,92 @@
+{% load i18n %}
+
+{% if corpora %}
+<div class="corpus-grid" id="corpusGrid">
+    {% for corpus in corpora %}
+    <article class="corpus-card">
+        <div class="card-header">
+            <!-- Dynamic Icon based on corpus type/field -->
+            <div class="corpus-icon {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
+                {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}
+                    <i class="bi bi-heart-pulse"></i>
+                {% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}
+                    <i class="bi bi-chat-quote"></i>
+                {% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}
+                    <i class="bi bi-translate"></i>
+                {% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}
+                    <i class="bi bi-people"></i>
+                {% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}
+                    <i class="bi bi-bank"></i>
+                {% else %}
+                    <i class="bi bi-folder2-open"></i>
+                {% endif %}
+            </div>
+            <div class="card-title-section">
+                <h3 class="corpus-title">{{ corpus.get_localized_title }}</h3>
+                <span class="corpus-type-badge {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
+                    {{ corpus.get_field_display }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="meta-list">
+                <div class="meta-item">
+                    <span class="meta-label">{% trans "Created" %}</span>
+                    <span class="meta-value">{{ corpus.creation_date|date:"M d, Y" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">{% trans "Author" %}</span>
+                    <span class="meta-value">
+                        {% if corpus.author %}
+                            {{ corpus.author.get_full_name_display }}
+                        {% else %}
+                            {% trans "Unknown" %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-tags">
+            {% if corpus.file_format %}
+            <span class="tag-pill {% if 'csv' in corpus.file_format|lower %}format-csv{% elif 'txt' in corpus.file_format|lower %}format-txt{% elif 'json' in corpus.file_format|lower %}format-json{% elif 'xml' in corpus.file_format|lower %}format-xml{% endif %}">
+                <i class="bi bi-file-earmark"></i>
+                {{ corpus.file_format|upper }}
+            </span>
+            {% endif %}
+            
+            {% if corpus.language %}
+            <span class="tag-pill {% if corpus.language == 'ar' %}lang-ar{% elif corpus.language == 'en' %}lang-en{% endif %}">
+                <i class="bi bi-globe"></i>
+                {{ corpus.get_language_display }}
+            </span>
+            {% endif %}
+            
+            {% if corpus.keywords %}
+            <span class="tag-pill">
+                <i class="bi bi-tag"></i>
+                {{ corpus.get_keywords_list.0 }}
+            </span>
+            {% endif %}
+        </div>
+        
+        <div class="card-footer">
+            <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
+                <span>{% trans "View Details" %}</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<!-- Empty State -->
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="bi bi-folder2-open"></i>
+    </div>
+    <h3>{% trans "No corpora found" %}</h3>
+    <p>{% trans "Try adjusting your search or filters" %}</p>
+</div>
+{% endif %}

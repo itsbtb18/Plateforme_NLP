@@ -174,6 +174,12 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
             ).distinct()
         
         return queryset.order_by('-creation_date')
+    
+    def get_template_names(self):
+        """Return partial template for AJAX requests"""
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return ['resources/_tool_cards.html']
+        return [self.template_name]
      
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -188,6 +194,9 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
             context['is_search'] = True
         else:
             context['is_search'] = False
+        
+        # Tool type choices for filter chips
+        context['tool_type_choices'] = NLPTool.ToolType.choices
         
         context['current_type'] = tool_type
         context['page'] = 'tools'
@@ -335,8 +344,8 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
         else:
             queryset = Corpus.objects.filter(approval_status='approved')
         
+        # Search query
         search_query = self.request.GET.get('q', '').strip()
-        
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
@@ -350,7 +359,32 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
                 Q(file_format__icontains=search_query)
             ).distinct()
         
+        # Filter by fields (categories) - supports multiple values
+        fields = self.request.GET.getlist('field')
+        if fields:
+            queryset = queryset.filter(field__in=fields)
+        
+        # Filter by file formats - supports multiple values
+        formats = self.request.GET.getlist('format')
+        if formats:
+            # Case-insensitive format matching
+            format_q = Q()
+            for fmt in formats:
+                format_q |= Q(file_format__iexact=fmt)
+            queryset = queryset.filter(format_q)
+        
+        # Filter by languages - supports multiple values
+        languages = self.request.GET.getlist('language')
+        if languages:
+            queryset = queryset.filter(language__in=languages)
+        
         return queryset.order_by('-creation_date')
+    
+    def render_to_response(self, context, **response_kwargs):
+        # Return partial HTML for AJAX requests
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return render(self.request, 'resources/_corpus_cards.html', context)
+        return super().render_to_response(context, **response_kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -364,6 +398,23 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
             context['is_search'] = True
         else:
             context['is_search'] = False
+        
+        # Provide field choices for the filter sidebar
+        from .models import FieldChoices
+        context['field_choices'] = FieldChoices.choices
+        
+        # Track active filters
+        context['active_fields'] = self.request.GET.getlist('field')
+        context['active_formats'] = self.request.GET.getlist('format')
+        context['active_languages'] = self.request.GET.getlist('language')
+        
+        # Check if any filters are active
+        context['has_active_filters'] = bool(
+            context['active_fields'] or 
+            context['active_formats'] or 
+            context['active_languages'] or 
+            search_query
+        )
 
         context['page'] = 'corpus'
         return context

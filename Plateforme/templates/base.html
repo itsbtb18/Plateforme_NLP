@@ -867,6 +867,76 @@
                 transform: translateX(2px);
             }
             
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* AUTOCOMPLETE ITEM STYLES                                                            */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            
+            .sr-autocomplete-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                cursor: pointer;
+                border-bottom: 1px solid #f3f4f6;
+                transition: all 150ms ease;
+            }
+            
+            .sr-autocomplete-item:last-child {
+                border-bottom: none;
+            }
+            
+            .sr-autocomplete-item:hover {
+                background: linear-gradient(90deg, #fefce8 0%, #fef9c3 100%);
+                border-left: 3px solid #fbbf24;
+                padding-left: 13px;
+            }
+            
+            .sr-autocomplete-item.selected {
+                background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+                border-left: 3px solid #f59e0b;
+            }
+            
+            .sr-autocomplete-item:hover .cmd-item-title,
+            .sr-autocomplete-item.selected .cmd-item-title {
+                color: #92400e;
+            }
+            
+            .sr-autocomplete-item .cmd-item-type {
+                background: #fef3c7;
+                color: #92400e;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                padding: 2px 8px;
+                border-radius: 10px;
+            }
+            
+            .sr-autocomplete-item:hover .cmd-item-type,
+            .sr-autocomplete-item.selected .cmd-item-type {
+                background: #fbbf24;
+                color: #78350f;
+            }
+            
+            /* Yellow highlight mark styling */
+            .cmd-item-title mark,
+            .sr-autocomplete-item mark {
+                background: #fef08a !important;
+                color: inherit;
+                padding: 0 2px;
+                border-radius: 2px;
+                font-weight: 600;
+            }
+            
+            /* RTL support for autocomplete items */
+            html[dir="rtl"] .sr-autocomplete-item:hover,
+            html[dir="rtl"] .sr-autocomplete-item.selected {
+                border-left: none;
+                border-right: 3px solid #fbbf24;
+                padding-left: 16px;
+                padding-right: 13px;
+            }
+
             /* View All Link */
             .cmd-view-all {
                 display: flex;
@@ -1614,7 +1684,8 @@
         });
         
         // ═══════════════════════════════════════════════════════════════════════════
-        // COMMAND PALETTE SEARCH - Premium Instant Search Engine
+        // COMMAND PALETTE SEARCH - Premium Instant Search with Yellow Highlight
+        // Uses /search/autocomplete/ endpoint with 300ms debounce
         // ═══════════════════════════════════════════════════════════════════════════
         (function() {
             'use strict';
@@ -1624,6 +1695,9 @@
             const searchBar = document.getElementById('cmd-search-bar');
             const searchResults = document.getElementById('search-results');
             const searchResultsContent = document.getElementById('search-results-content');
+            
+            // Autocomplete endpoint URL
+            const AUTOCOMPLETE_URL = '{% url "search:autocomplete" %}';
             
             if (!searchForm || !searchInput || !searchResults || !searchResultsContent) return;
             
@@ -1644,22 +1718,40 @@
                 'topic': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
             };
             
-            // Show dropdown
+            // Type labels for display
+            const typeLabels = {
+                'course': '{% trans "Course" %}',
+                'tool': '{% trans "Tool" %}',
+                'corpus': '{% trans "Corpus" %}',
+                'resource': '{% trans "Resource" %}',
+                'project': '{% trans "Project" %}',
+                'event': '{% trans "Event" %}',
+                'institution': '{% trans "Institution" %}',
+                'user': '{% trans "User" %}',
+                'topic': '{% trans "Topic" %}'
+            };
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // DROPDOWN VISIBILITY CONTROL
+            // ─────────────────────────────────────────────────────────────────────
             function showDropdown() {
+                searchResults.style.display = 'block';
                 searchResults.classList.add('active');
                 searchBar.classList.add('has-results');
                 searchInput.setAttribute('aria-expanded', 'true');
             }
             
-            // Hide dropdown
             function hideDropdown() {
+                searchResults.style.display = 'none';
                 searchResults.classList.remove('active');
                 searchBar.classList.remove('has-results');
                 searchInput.setAttribute('aria-expanded', 'false');
                 selectedIndex = -1;
             }
             
-            // Show loading state
+            // ─────────────────────────────────────────────────────────────────────
+            // LOADING STATE
+            // ─────────────────────────────────────────────────────────────────────
             function showLoading() {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-loading">
@@ -1672,7 +1764,9 @@
                 showDropdown();
             }
             
-            // Show empty state
+            // ─────────────────────────────────────────────────────────────────────
+            // EMPTY STATE
+            // ─────────────────────────────────────────────────────────────────────
             function showEmpty(query) {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-empty">
@@ -1695,51 +1789,65 @@
                 `;
             }
             
-            // Escape HTML
+            // ─────────────────────────────────────────────────────────────────────
+            // HELPER: ESCAPE HTML
+            // ─────────────────────────────────────────────────────────────────────
             function escapeHtml(text) {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             }
             
-            // Highlight matching text
+            // ─────────────────────────────────────────────────────────────────────
+            // HIGHLIGHT MATCH - Yellow background highlight
+            // Uses <mark style="background:#fef08a;"> for yellow highlighting
+            // ─────────────────────────────────────────────────────────────────────
             function highlightMatch(text, query) {
                 if (!text || !query) return escapeHtml(text || '');
+                
                 const escaped = escapeHtml(text);
-                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;">$1</mark>');
+                // Escape regex special characters in query
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeQuery})`, 'gi');
+                
+                return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:500;">$1</mark>');
             }
             
-            // Render results
+            // ─────────────────────────────────────────────────────────────────────
+            // RENDER AUTOCOMPLETE RESULTS
+            // ─────────────────────────────────────────────────────────────────────
             function renderResults(data, query) {
-                if (!data.results || data.results.length === 0) {
+                // Handle both 'suggestions' (autocomplete) and 'results' (global search) formats
+                const suggestions = data.suggestions || data.results || [];
+                
+                if (!suggestions || suggestions.length === 0) {
                     showEmpty(query);
                     return;
                 }
                 
-                const results = data.results.slice(0, 8);
-                const total = data.total || data.results.length;
+                const total = data.total || suggestions.length;
                 
                 let html = `
                     <div class="cmd-section">
                         <div class="cmd-section-header">
-                            <span>{% trans "Results" %}</span>
-                            <span class="cmd-section-count">${total} {% trans "found" %}</span>
+                            <span>{% trans "Suggestions" %}</span>
+                            <span class="cmd-section-count">${suggestions.length}</span>
                         </div>
-                        ${results.map((result, index) => `
-                            <a href="${result.link}" 
-                               class="cmd-item" 
-                               data-index="${index}"
-                               role="option">
-                                <div class="cmd-item-icon ${result.type}">
-                                    ${typeIcons[result.type] || '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>'}
+                        ${suggestions.map((item, index) => `
+                            <div class="sr-autocomplete-item cmd-item" 
+                                 data-index="${index}"
+                                 data-title="${escapeHtml(item.title)}"
+                                 data-link="${item.link || '#'}"
+                                 data-type="${item.type}"
+                                 role="option"
+                                 tabindex="-1">
+                                <div class="cmd-item-icon ${item.type}">
+                                    ${typeIcons[item.type] || typeIcons['resource']}
                                 </div>
                                 <div class="cmd-item-content">
-                                    <h5 class="cmd-item-title">${highlightMatch(result.title, query)}</h5>
+                                    <h5 class="cmd-item-title">${highlightMatch(item.title, query)}</h5>
                                     <div class="cmd-item-meta">
-                                        <span class="cmd-item-badge">${result.type}</span>
-                                        ${result.field ? `<span>• ${escapeHtml(result.field)}</span>` : ''}
-                                        ${result.language ? `<span>• ${escapeHtml(result.language)}</span>` : ''}
+                                        <span class="cmd-item-badge cmd-item-type">${typeLabels[item.type] || item.type}</span>
                                     </div>
                                 </div>
                                 <div class="cmd-item-arrow">
@@ -1747,11 +1855,11 @@
                                         <path d="M5 12h14M12 5l7 7-7 7"/>
                                     </svg>
                                 </div>
-                            </a>
+                            </div>
                         `).join('')}
                     </div>
                     <a href="${searchForm.action}?q=${encodeURIComponent(query)}" class="cmd-view-all">
-                        <span>{% trans "View all" %} ${total} {% trans "results" %}</span>
+                        <span>{% trans "View all results" %}</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
@@ -1759,38 +1867,77 @@
                 `;
                 
                 searchResultsContent.innerHTML = html;
+                
+                // ─────────────────────────────────────────────────────────────────
+                // CLICK HANDLER: Fill input and navigate or submit
+                // ─────────────────────────────────────────────────────────────────
+                const items = searchResultsContent.querySelectorAll('.sr-autocomplete-item');
+                items.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const title = this.getAttribute('data-title');
+                        const link = this.getAttribute('data-link');
+                        
+                        // Fill the input with the selected title
+                        searchInput.value = title;
+                        currentQuery = title;
+                        
+                        // Navigate to the item's link directly
+                        if (link && link !== '#') {
+                            window.location.href = link;
+                        } else {
+                            // If no link, submit the search form
+                            searchForm.submit();
+                        }
+                        
+                        hideDropdown();
+                    });
+                });
             }
             
-            // Perform search
+            // ─────────────────────────────────────────────────────────────────────
+            // PERFORM AUTOCOMPLETE SEARCH
+            // Fetches from /search/autocomplete/?q= with 300ms debounce
+            // ─────────────────────────────────────────────────────────────────────
             function performSearch(query) {
                 if (query === currentQuery) return;
                 currentQuery = query;
                 
+                // Clear any pending search
                 clearTimeout(searchTimeout);
                 
-                if (!query || query.length < 1) {
+                // Hide dropdown if query is too short
+                if (!query || query.length < 2) {
                     hideDropdown();
                     return;
                 }
                 
                 showLoading();
                 
-                // Faster response for instant feel
+                // 300ms debounce as requested
                 searchTimeout = setTimeout(() => {
-                    fetch(`${searchForm.action}?q=${encodeURIComponent(query)}`, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(query)}`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
                     })
                     .then(response => {
                         if (!response.ok) throw new Error('Search failed');
                         return response.json();
                     })
                     .then(data => {
+                        // Only render if this is still the current query
                         if (query === currentQuery) {
                             renderResults(data, query);
+                            showDropdown();
                         }
                     })
                     .catch(error => {
-                        console.error('Search error:', error);
+                        console.error('Autocomplete error:', error);
                         searchResultsContent.innerHTML = `
                             <div class="cmd-empty">
                                 <div class="cmd-empty-icon" style="background:#fef2f2;">
@@ -1804,13 +1951,15 @@
                             </div>
                         `;
                     });
-                }, 150); // Fast 150ms debounce for instant feel
+                }, 300); // 300ms debounce
             }
             
-            // Keyboard navigation
+            // ─────────────────────────────────────────────────────────────────────
+            // KEYBOARD NAVIGATION (Arrow keys + Enter + Escape)
+            // ─────────────────────────────────────────────────────────────────────
             function handleKeydown(e) {
-                const items = searchResults.querySelectorAll('.cmd-item');
-                if (!items.length) return;
+                const items = searchResults.querySelectorAll('.sr-autocomplete-item, .cmd-item');
+                if (!items.length && e.key !== 'Escape') return;
                 
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -1820,9 +1969,12 @@
                     e.preventDefault();
                     selectedIndex = Math.max(selectedIndex - 1, -1);
                     updateSelection(items);
-                } else if (e.key === 'Enter' && selectedIndex >= 0) {
-                    e.preventDefault();
-                    items[selectedIndex].click();
+                } else if (e.key === 'Enter') {
+                    if (selectedIndex >= 0 && items[selectedIndex]) {
+                        e.preventDefault();
+                        items[selectedIndex].click();
+                    }
+                    // If no item selected, let the form submit normally
                 } else if (e.key === 'Escape') {
                     hideDropdown();
                     searchInput.blur();
@@ -1838,13 +1990,20 @@
                 });
             }
             
-            // Event listeners
+            // ─────────────────────────────────────────────────────────────────────
+            // EVENT LISTENERS
+            // ─────────────────────────────────────────────────────────────────────
             searchInput.addEventListener('input', (e) => performSearch(e.target.value.trim()));
+            
             searchInput.addEventListener('focus', () => {
-                if (currentQuery && currentQuery.length >= 1) showDropdown();
+                if (currentQuery && currentQuery.length >= 2) {
+                    showDropdown();
+                }
             });
+            
             searchInput.addEventListener('keydown', handleKeydown);
             
+            // Form submit - navigate to full search results page
             searchForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const query = searchInput.value.trim();
@@ -1853,7 +2012,7 @@
                 }
             });
             
-            // Close on outside click
+            // Close dropdown on outside click
             document.addEventListener('click', (e) => {
                 const wrapper = document.getElementById('global-search-wrapper');
                 if (wrapper && !wrapper.contains(e.target)) {
@@ -1861,7 +2020,7 @@
                 }
             });
             
-            // Global keyboard shortcut: Ctrl/Cmd + K
+            // Global keyboard shortcut: Ctrl/Cmd + K to focus search
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
@@ -1873,6 +2032,9 @@
                     searchInput.blur();
                 }
             });
+            
+            // Initialize dropdown as hidden
+            hideDropdown();
         })(); 
     </script>
 

@@ -10,6 +10,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
+/* Highlight styles for search results */
+mark, .sr-highlight {
+    background-color: #FEF08A;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+    font-weight: 500;
+}
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* GLOBAL SEARCH RESULTS - Premium SaaS Design                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -696,34 +703,96 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                         <h3 class="sr-filter-title">{% trans "Filter Results" %}</h3>
                     </div>
                     <div class="sr-filter-body">
+                        <!-- Content Type Filter -->
                         <div class="sr-filter-group">
                             <span class="sr-filter-label">{% trans "Content Type" %}</span>
                             
-                            <a href="?q={{ query }}" class="sr-filter-option {% if not request.GET.type %}active{% endif %}">
+                            <a href="?q={{ query }}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if not request.GET.type %}active{% endif %}">
                                 <span><i class="bi bi-grid-3x3-gap me-2"></i>{% trans "All Types" %}</span>
-                                <span class="sr-filter-count">{{ total|default:results|length }}</span>
+                                <span class="sr-filter-count">{{ total }}</span>
                             </a>
                             
-                            {% regroup results by type as type_list %}
-                            {% for type_group in type_list %}
-                            <a href="?q={{ query }}&type={{ type_group.grouper }}" 
-                               class="sr-filter-option {% if request.GET.type == type_group.grouper %}active{% endif %}">
-                                <span>
-                                    {% if type_group.grouper == 'course' %}<i class="bi bi-mortarboard me-2"></i>{% trans "Courses" %}
-                                    {% elif type_group.grouper == 'tool' %}<i class="bi bi-tools me-2"></i>{% trans "Tools" %}
-                                    {% elif type_group.grouper == 'corpus' %}<i class="bi bi-database me-2"></i>{% trans "Corpora" %}
-                                    {% elif type_group.grouper == 'resource' %}<i class="bi bi-file-earmark-text me-2"></i>{% trans "Resources" %}
-                                    {% elif type_group.grouper == 'project' %}<i class="bi bi-kanban me-2"></i>{% trans "Projects" %}
-                                    {% elif type_group.grouper == 'event' %}<i class="bi bi-calendar-event me-2"></i>{% trans "Events" %}
-                                    {% elif type_group.grouper == 'institution' %}<i class="bi bi-building me-2"></i>{% trans "Institutions" %}
-                                    {% elif type_group.grouper == 'user' %}<i class="bi bi-person me-2"></i>{% trans "Users" %}
-                                    {% elif type_group.grouper == 'topic' %}<i class="bi bi-chat-square-dots me-2"></i>{% trans "Discussions" %}
-                                    {% else %}<i class="bi bi-file me-2"></i>{{ type_group.grouper|title }}
-                                    {% endif %}
-                                </span>
-                                <span class="sr-filter-count">{{ type_group.list|length }}</span>
+                            {% if aggregations.course %}
+                            <a href="?q={{ query }}&type=course{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'course' %}active{% endif %}">
+                                <span><i class="bi bi-mortarboard me-2"></i>{% trans "Courses" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.course }}</span>
                             </a>
-                            {% endfor %}
+                            {% endif %}
+                            
+                            {% if aggregations.tool %}
+                            <a href="?q={{ query }}&type=tool{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'tool' %}active{% endif %}">
+                                <span><i class="bi bi-tools me-2"></i>{% trans "Tools" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.tool }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.corpus %}
+                            <a href="?q={{ query }}&type=corpus{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'corpus' %}active{% endif %}">
+                                <span><i class="bi bi-database me-2"></i>{% trans "Corpora" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.corpus }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.resource %}
+                            <a href="?q={{ query }}&type=resource{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'resource' %}active{% endif %}">
+                                <span><i class="bi bi-file-earmark-text me-2"></i>{% trans "Resources" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.resource }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.project %}
+                            <a href="?q={{ query }}&type=project{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'project' %}active{% endif %}">
+                                <span><i class="bi bi-kanban me-2"></i>{% trans "Projects" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.project }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.event %}
+                            <a href="?q={{ query }}&type=event{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'event' %}active{% endif %}">
+                                <span><i class="bi bi-calendar-event me-2"></i>{% trans "Events" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.event }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.institution %}
+                            <a href="?q={{ query }}&type=institution{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'institution' %}active{% endif %}">
+                                <span><i class="bi bi-building me-2"></i>{% trans "Institutions" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.institution }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.user %}
+                            <a href="?q={{ query }}&type=user{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'user' %}active{% endif %}">
+                                <span><i class="bi bi-person me-2"></i>{% trans "Users" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.user }}</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Sort By -->
+                        <div class="sr-filter-group" style="margin-top: 1.5rem;">
+                            <span class="sr-filter-label">{% trans "Sort By" %}</span>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=relevance" 
+                               class="sr-filter-option {% if filters.sort_by == 'relevance' or not filters.sort_by %}active{% endif %}">
+                                <span><i class="bi bi-star me-2"></i>{% trans "Relevance" %}</span>
+                            </a>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=newest" 
+                               class="sr-filter-option {% if filters.sort_by == 'newest' %}active{% endif %}">
+                                <span><i class="bi bi-clock me-2"></i>{% trans "Newest First" %}</span>
+                            </a>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=oldest" 
+                               class="sr-filter-option {% if filters.sort_by == 'oldest' %}active{% endif %}">
+                                <span><i class="bi bi-clock-history me-2"></i>{% trans "Oldest First" %}</span>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -734,11 +803,24 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                 <div class="sr-results-header">
                     <h2 class="sr-results-title">
                         {% if request.GET.type %}
-                            {{ request.GET.type|title }}{% trans "s" %}
+                            {% if request.GET.type == 'course' %}{% trans "Courses" %}
+                            {% elif request.GET.type == 'tool' %}{% trans "Tools" %}
+                            {% elif request.GET.type == 'corpus' %}{% trans "Corpora" %}
+                            {% elif request.GET.type == 'resource' %}{% trans "Resources" %}
+                            {% elif request.GET.type == 'project' %}{% trans "Projects" %}
+                            {% elif request.GET.type == 'event' %}{% trans "Events" %}
+                            {% elif request.GET.type == 'institution' %}{% trans "Institutions" %}
+                            {% elif request.GET.type == 'user' %}{% trans "Users" %}
+                            {% else %}{{ request.GET.type|title }}{% endif %}
                         {% else %}
                             {% trans "All Results" %}
                         {% endif %}
                     </h2>
+                    {% if detected_language %}
+                    <span class="sr-result-badge" title="{% trans 'Detected language' %}">
+                        <i class="bi bi-translate"></i> {{ detected_language|title }}
+                    </span>
+                    {% endif %}
                 </div>
                 
                 <div class="sr-results-grid">
@@ -775,13 +857,20 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                                     <i class="bi bi-clock"></i> {{ result.status|title }}
                                 </span>
                                 {% endif %}
+                                {% if result.document_type %}
+                                <span class="sr-result-badge">
+                                    <i class="bi bi-file-text"></i> {{ result.document_type }}
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
                         
-                        <h3 class="sr-result-title">{{ result.title }}</h3>
+                        {# Render title with highlight markup (safe) #}
+                        <h3 class="sr-result-title">{{ result.title|safe }}</h3>
                         
                         {% if result.description %}
-                        <p class="sr-result-desc">{{ result.description|truncatewords:30 }}</p>
+                        {# Render description with highlight markup (safe), truncate after safe #}
+                        <p class="sr-result-desc">{{ result.description|safe|truncatewords_html:30 }}</p>
                         {% endif %}
                         
                         <div class="sr-result-footer">
@@ -791,6 +880,13 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                                     <i class="bi bi-person-fill"></i>
                                 </span>
                                 {{ result.author }}
+                            </div>
+                            {% elif result.organizer %}
+                            <div class="sr-result-author">
+                                <span class="sr-result-author-avatar">
+                                    <i class="bi bi-building"></i>
+                                </span>
+                                {{ result.organizer }}
                             </div>
                             {% endif %}
                             
@@ -804,8 +900,14 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                                 {% if result.event_type %}
                                 <span class="sr-result-tag"><i class="bi bi-calendar me-1"></i>{{ result.event_type }}</span>
                                 {% endif %}
+                                {% if result.location %}
+                                <span class="sr-result-tag"><i class="bi bi-geo-alt me-1"></i>{{ result.location }}</span>
+                                {% endif %}
                                 {% if result.acronym %}
                                 <span class="sr-result-tag"><i class="bi bi-building me-1"></i>{{ result.acronym }}</span>
+                                {% endif %}
+                                {% if result.institution %}
+                                <span class="sr-result-tag"><i class="bi bi-building me-1"></i>{{ result.institution }}</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -817,7 +919,7 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                 {% if total_pages and total_pages > 1 %}
                 <nav class="sr-pagination">
                     {% if has_previous %}
-                    <a href="?q={{ query }}&page={{ previous_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}" class="sr-page-btn">
+                    <a href="?q={{ query }}&page={{ previous_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" class="sr-page-btn">
                         <i class="bi bi-chevron-left"></i>
                     </a>
                     {% else %}
@@ -828,7 +930,7 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                         {% if page_num == '...' %}
                         <span class="sr-page-btn disabled">...</span>
                         {% else %}
-                        <a href="?q={{ query }}&page={{ page_num }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}" 
+                        <a href="?q={{ query }}&page={{ page_num }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
                            class="sr-page-btn {% if page_num == current_page %}active{% endif %}">
                             {{ page_num }}
                         </a>
@@ -836,7 +938,7 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                     {% endfor %}
                     
                     {% if has_next %}
-                    <a href="?q={{ query }}&page={{ next_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}" class="sr-page-btn">
+                    <a href="?q={{ query }}&page={{ next_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" class="sr-page-btn">
                         <i class="bi bi-chevron-right"></i>
                     </a>
                     {% else %}
@@ -864,4 +966,199 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
         {% endif %}
     </main>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/**
+ * Search Autocomplete - Vanilla JS
+ * Provides live suggestions as user types in the search input
+ */
+(function() {
+    'use strict';
+    
+    const searchInput = document.querySelector('.sr-search-input');
+    if (!searchInput) return;
+    
+    const searchWrap = searchInput.closest('.sr-search-input-wrap');
+    
+    // Create autocomplete dropdown
+    const dropdown = document.createElement('div');
+    dropdown.className = 'sr-autocomplete-dropdown';
+    dropdown.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--sr-white, #fff);
+        border: 1px solid var(--sr-border, #e2e8f0);
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    `;
+    searchWrap.style.position = 'relative';
+    searchWrap.appendChild(dropdown);
+    
+    let debounceTimer = null;
+    let currentFocus = -1;
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchWrap.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Handle input changes
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(debounceTimer);
+        
+        if (query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        debounceTimer = setTimeout(function() {
+            fetchSuggestions(query);
+        }, 250);
+    });
+    
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        const items = dropdown.querySelectorAll('.sr-autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus++;
+            if (currentFocus >= items.length) currentFocus = 0;
+            setActive(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus--;
+            if (currentFocus < 0) currentFocus = items.length - 1;
+            setActive(items);
+        } else if (e.key === 'Enter' && currentFocus > -1) {
+            e.preventDefault();
+            if (items[currentFocus]) {
+                items[currentFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            currentFocus = -1;
+        }
+    });
+    
+    function setActive(items) {
+        items.forEach(function(item, i) {
+            item.classList.toggle('active', i === currentFocus);
+        });
+    }
+    
+    function fetchSuggestions(query) {
+        const url = '{% url "search:autocomplete" %}?q=' + encodeURIComponent(query);
+        
+        fetch(url)
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                renderSuggestions(data.suggestions, query);
+            })
+            .catch(function(error) {
+                console.error('Autocomplete error:', error);
+            });
+    }
+    
+    function renderSuggestions(suggestions, query) {
+        currentFocus = -1;
+        
+        if (!suggestions || suggestions.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        const typeIcons = {
+            'course': 'bi-mortarboard',
+            'tool': 'bi-tools',
+            'corpus': 'bi-database',
+            'resource': 'bi-file-earmark-text',
+            'project': 'bi-kanban',
+            'event': 'bi-calendar-event',
+            'institution': 'bi-building',
+            'user': 'bi-person'
+        };
+        
+        const typeColors = {
+            'course': '#166534',
+            'tool': '#92400E',
+            'corpus': '#1E40AF',
+            'resource': '#7C3AED',
+            'project': '#4338CA',
+            'event': '#BE185D',
+            'institution': '#991B1B',
+            'user': '#0F766E'
+        };
+        
+        let html = '';
+        suggestions.forEach(function(item) {
+            const icon = typeIcons[item.type] || 'bi-file';
+            const color = typeColors[item.type] || '#64748b';
+            const highlighted = highlightMatch(item.title, query);
+            
+            html += `
+                <div class="sr-autocomplete-item" data-query="${escapeHtml(item.title)}" style="
+                    padding: 0.75rem 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f1f5f9;
+                    transition: background 0.15s;
+                " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                    <i class="bi ${icon}" style="color: ${color}; font-size: 1rem;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.9rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${highlighted}
+                        </div>
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: capitalize;">${item.type}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+        
+        // Add click handlers
+        dropdown.querySelectorAll('.sr-autocomplete-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                searchInput.value = this.dataset.query;
+                dropdown.style.display = 'none';
+                searchInput.closest('form').submit();
+            });
+        });
+    }
+    
+    function highlightMatch(text, query) {
+        if (!text) return '';
+        const regex = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+        return escapeHtml(text).replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;">$1</mark>');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+})();
+</script>
 {% endblock %}

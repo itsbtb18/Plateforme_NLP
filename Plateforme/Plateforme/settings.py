@@ -34,6 +34,9 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     'django.contrib.staticfiles',
 
+    # Elasticsearch
+    "django_elasticsearch_dsl",
+
     # Apps projet
     "resources",
     "institutions",
@@ -259,9 +262,9 @@ else:
 # Elasticsearch
 ELASTICSEARCH_DSL = {
     "default": {
-        "hosts": os.getenv("ELASTIC_URL", "http://localhost:9200"),
+        "hosts": os.getenv("ELASTICSEARCH_HOST", os.getenv("ELASTIC_URL", "http://localhost:9200")),
         "timeout": 120,
-        "sniff_on_start": True,
+        "sniff_on_start": False,  # Disable sniffing to prevent connection errors in Docker
     },
 }
 ELASTICSEARCH_DSL_AUTOSYNC = True
