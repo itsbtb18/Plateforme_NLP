@@ -1,4 +1,4 @@
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.utils.timezone import now
 from django.shortcuts import redirect, render, get_object_or_404
 from django.views.generic import ListView, DetailView
@@ -138,6 +138,94 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         context['current_sort'] = self.request.GET.get('sort', 'newest')
         context['page'] = 'resources'
         return context
+
+
+@login_required
+def resource_ajax_search(request):
+    """AJAX endpoint for live search with JSON response."""
+    search_query = request.GET.get('q', '').strip()
+    resource_type = request.GET.get('type', '')
+    sort_by = request.GET.get('sort', 'newest')
+    
+    approval_filter = {} if request.user.is_staff else {'approval_status': 'approved'}
+    querysets = []
+    
+    def get_resource_type_label(obj):
+        if isinstance(obj, Document):
+            return obj.document_type
+        elif isinstance(obj, NLPTool):
+            return 'tool'
+        elif isinstance(obj, Course):
+            return 'course'
+        elif isinstance(obj, Corpus):
+            return 'corpus'
+        return 'unknown'
+    
+    if resource_type in ['', 'article', 'thesis', 'memoir']:
+        docs = Document.objects.filter(**approval_filter)
+        if resource_type in ['article', 'thesis', 'memoir']:
+            docs = docs.filter(document_type=resource_type)
+        if search_query:
+            docs = docs.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(docs)
+    
+    if resource_type in ['', 'tool']:
+        tools = NLPTool.objects.filter(**approval_filter)
+        if search_query:
+            tools = tools.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(tools)
+    
+    if resource_type in ['', 'course']:
+        courses = Course.objects.filter(**approval_filter)
+        if search_query:
+            courses = courses.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(courses)
+    
+    if resource_type in ['', 'corpus']:
+        corpora = Corpus.objects.filter(**approval_filter)
+        if search_query:
+            corpora = corpora.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(corpora)
+    
+    combined = []
+    for qs in querysets:
+        for obj in qs:
+            rtype = get_resource_type_label(obj)
+            combined.append({
+                'id': str(obj.id),
+                'title': obj.get_localized_title(),
+                'description': obj.get_localized_description()[:150],
+                'resource_type': rtype,
+                'author': obj.author.get_full_name() if obj.author else '',
+                'author_email': obj.author.email if obj.author else '',
+                'date': obj.creation_date.strftime('%b %d, %Y') if obj.creation_date else '',
+                'url': reverse('resources:resource-detail', kwargs={'type': rtype, 'pk': obj.id}),
+            })
+    
+    if sort_by == 'oldest':
+        combined.sort(key=lambda x: x['date'])
+    elif sort_by == 'popular':
+        pass  # already sorted by queryset order
+    else:
+        combined.sort(key=lambda x: x['date'], reverse=True)
+    
+    return JsonResponse({'resources': combined, 'count': len(combined)})
 
 
 class ToolListView(LoginAndVerifiedRequiredMixin, ListView):

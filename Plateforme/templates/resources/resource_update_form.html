@@ -86,6 +86,7 @@
     border: 1px solid #fcd34d;
     border-radius: var(--radius-lg);
     margin-bottom: 2rem;
+    text-align: start;
 }
 
 .review-alert i {
@@ -135,6 +136,7 @@
     padding: 1.25rem 1.5rem;
     background: linear-gradient(135deg, var(--eng-muted) 0%, #e2e8f0 100%);
     border-bottom: 1px solid var(--eng-border);
+    text-align: start;
 }
 
 .section-icon {
@@ -156,16 +158,19 @@
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--eng-text);
+    text-align: start;
 }
 
 .section-header-text p {
     margin: 0.25rem 0 0;
     font-size: 0.85rem;
     color: var(--eng-text-muted);
+    text-align: start;
 }
 
 .section-body {
     padding: 1.5rem;
+    text-align: start;
 }
 
 /* ===== FORM FIELDS ===== */
@@ -185,6 +190,7 @@
     font-weight: 600;
     color: var(--eng-text);
     margin-bottom: 0.5rem;
+    text-align: start;
 }
 
 .required-badge {
@@ -215,6 +221,7 @@
     background: var(--eng-surface);
     transition: all 0.3s ease;
     color: var(--eng-text);
+    text-align: start;
 }
 
 .form-control:focus,
@@ -237,6 +244,7 @@
     margin-top: 0.5rem;
     font-size: 0.8rem;
     color: var(--eng-text-muted);
+    text-align: start;
 }
 
 /* Field Grid */
@@ -272,11 +280,11 @@
 }
 
 .bilingual-column.english {
-    border-left: 4px solid var(--eng-accent);
+    border-inline-start: 4px solid var(--eng-accent);
 }
 
 .bilingual-column.arabic {
-    border-left: 4px solid var(--eng-teal);
+    border-inline-start: 4px solid var(--eng-teal);
 }
 
 .bilingual-column h5 {
@@ -386,32 +394,121 @@
     to { transform: rotate(360deg); }
 }
 
-/* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .section-header {
-    flex-direction: row-reverse;
+/* ===== RTL SUPPORT (logical properties handle most alignment) ===== */
+html[dir="rtl"] .resource-form-page {
+    direction: rtl;
 }
 
 html[dir="rtl"] .form-group label {
     flex-direction: row-reverse;
-    text-align: right;
+    justify-content: flex-end;
+}
+
+html[dir="rtl"] .form-control,
+html[dir="rtl"] .form-group input[type="text"],
+html[dir="rtl"] .form-group input[type="url"],
+html[dir="rtl"] .form-group input[type="number"],
+html[dir="rtl"] .form-group input[type="date"],
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select {
+    direction: rtl;
 }
 
 html[dir="rtl"] .form-actions {
     flex-direction: row-reverse;
 }
 
-html[dir="rtl"] .bilingual-column.english,
-html[dir="rtl"] .bilingual-column.arabic {
-    border-left: none;
-    border-right: 4px solid;
+html[dir="rtl"] .btn-cancel,
+html[dir="rtl"] .btn-submit {
+    flex-direction: row-reverse;
 }
 
-html[dir="rtl"] .bilingual-column.english {
-    border-right-color: var(--eng-accent);
+html[dir="rtl"] .bilingual-column h5 {
+    flex-direction: row-reverse;
 }
 
-html[dir="rtl"] .bilingual-column.arabic {
-    border-right-color: var(--eng-teal);
+html[dir="rtl"] .bilingual-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .required-badge {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .review-alert {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .page-header h1 {
+    flex-direction: row-reverse;
+}
+
+/* Corpus details table RTL mirroring */
+html[dir="rtl"] .corpus-details-table {
+    direction: rtl;
+}
+
+html[dir="rtl"] .corpus-details-table th {
+    text-align: right;
+}
+
+html[dir="rtl"] .corpus-details-table td {
+    text-align: left;
+}
+
+/* Corpus details table RTL mirroring */
+html[dir="rtl"] .corpus-details-table {
+    direction: rtl;
+}
+
+html[dir="rtl"] .corpus-details-table th {
+    text-align: right;
+}
+
+html[dir="rtl"] .corpus-details-table td {
+    text-align: left;
+}
+
+/* ===== CORPUS DETAILS TABLE ===== */
+.corpus-details-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--eng-border);
+}
+
+.corpus-details-table th,
+.corpus-details-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--eng-border);
+    vertical-align: middle;
+}
+
+.corpus-details-table th {
+    text-align: start;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--eng-text);
+    background: var(--eng-muted);
+    white-space: nowrap;
+    width: 35%;
+}
+
+.corpus-details-table td {
+    text-align: start;
+}
+
+.corpus-details-table tr:last-child th,
+.corpus-details-table tr:last-child td {
+    border-bottom: none;
+}
+
+.corpus-details-table .form-control,
+.corpus-details-table input,
+.corpus-details-table select {
+    text-align: start;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -694,20 +791,20 @@ html[dir="rtl"] .bilingual-column.arabic {
                     </div>
                 </div>
                 <div class="section-body">
-                    <div class="field-grid">
-                        <div class="form-group">
-                            <label for="id_corpus_size">{% trans "Corpus Size" %}</label>
-                            {{ form.corpus_size }}
-                        </div>
-                        <div class="form-group">
-                            <label for="id_corpus_field">{% trans "Field" %}</label>
-                            {{ form.corpus_field }}
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="id_corpus_format">{% trans "Format" %}</label>
-                        {{ form.corpus_format }}
-                    </div>
+                    <table class="corpus-details-table">
+                        <tr>
+                            <th><label for="id_corpus_size">{% trans "Size" %}</label></th>
+                            <td>{{ form.corpus_size }}</td>
+                        </tr>
+                        <tr>
+                            <th><label for="id_corpus_field">{% trans "Field" %}</label></th>
+                            <td>{{ form.corpus_field }}</td>
+                        </tr>
+                        <tr>
+                            <th><label for="id_corpus_format">{% trans "Format" %}</label></th>
+                            <td>{{ form.corpus_format }}</td>
+                        </tr>
+                    </table>
                 </div>
             </section>
             {% endif %}

@@ -539,10 +539,10 @@ class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
                 recipient=project.coordinator,
                 notification_type='LEAVE_REQUEST',
                 title=_('Leave request'),
-                message=_('{} wants to leave your project « {} ».').format(
-                    request.user.full_name,  # type: ignore[attr-defined]
-                    project.title
-                ),
+                message=_('%(sender_name)s wants to leave your project « %(project_title)s ».') % {
+                    'sender_name': request.user.full_name,
+                    'project_title': project.title
+                },
                 related_object=project,
                 project_id=project.id,  # type: ignore[attr-defined]
                 sender_id=request.user.id  # type: ignore[attr-defined]
@@ -586,7 +586,7 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=leaving_user,
                     notification_type='SYSTEM',
                     title=_('Leave request approved'),
-                    message=_('Your request to leave the project « {} » has been approved.').format(project.title),
+                    message=_('Your request to leave the project « %(project_title)s » has been approved.') % {'project_title': project.title},
                     related_object=project
                 )
                 
@@ -609,7 +609,7 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=member.member,
                     notification_type='SYSTEM',
                     title=_('Leave request rejected'),
-                    message=_('Your request to leave the project « {} » has been rejected by the coordinator.').format(project.title),
+                    message=_('Your request to leave the project « %(project_title)s » has been rejected by the coordinator.') % {'project_title': project.title},
                     related_object=project
                 )
                 
@@ -666,7 +666,7 @@ class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             recipient=removed_user,
             notification_type='SYSTEM',
             title=_('Removed from project'),
-            message=_('You have been removed from the project « {} » by the coordinator.').format(project.title),
+            message=_('You have been removed from the project « %(project_title)s » by the coordinator.') % {'project_title': project.title},
             related_object=project
         )
         
@@ -693,7 +693,7 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Accepted'),
-                message=_('Your request to join {} has been accepted.').format(project.title),
+                message=_('Your request to join %(project_title)s has been accepted.') % {'project_title': project.title},
                 notification_type='project_request_accepted',
                 related_object=project
             )
@@ -706,7 +706,7 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Rejected'),
-                message=_('Your request to join {} has been rejected.').format(project.title),
+                message=_('Your request to join %(project_title)s has been rejected.') % {'project_title': project.title},
                 notification_type='project_request_rejected',
                 related_object=project
             )
