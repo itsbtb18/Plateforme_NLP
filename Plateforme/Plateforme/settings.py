@@ -75,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "accounts.two_factor_auth.TwoFactorAuthenticationMiddleware",
 ]
 
 # URLs / Templates
@@ -105,6 +106,28 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     }
 }
+
+# Redis Cache Configuration
+redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": redis_url,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "PARSER_KWARGS": {"decode_responses": True},
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50}
+        }
+    }
+}
+
+# Parse REDIS_URL for 2FA utilities
+from urllib.parse import urlparse
+parsed_redis = urlparse(redis_url)
+REDIS_HOST = parsed_redis.hostname or '127.0.0.1'
+REDIS_PORT = parsed_redis.port or 6379
+REDIS_DB = int(parsed_redis.path.split('/')[-1] or 0)
+REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
 DATABASE_URL = config('DATABASE_URL', default='', cast=str)
@@ -208,8 +231,11 @@ if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    DEFAULT_FROM_EMAIL = "webmaster@localhost"
+    # Use file backend for development/testing
+    # Emails will be saved to /tmp/django-emails/
+    EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    EMAIL_FILE_PATH = "/tmp/django-emails"
+    DEFAULT_FROM_EMAIL = "noreply@plateforme-nlp.com"
 
 # Elasticsearch
 ELASTICSEARCH_DSL = {

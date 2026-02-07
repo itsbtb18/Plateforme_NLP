@@ -13,6 +13,12 @@ from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
+from .two_factor_models import TwoFactorAuth
+from .two_factor_utils import generate_otp, store_otp
+from .two_factor_email import send_otp_email
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # --------------------------
@@ -61,8 +67,38 @@ class SignUp(CreateView):
             user.is_email_verified = True
         user.save()
 
-        messages.success(self.request, "Registration successful! You can now log in.")
-        return redirect(self.success_url)
+        logger.info(f"✅ NEW USER CREATED: {user.email}")
+        
+        # ===== TRIGGER 2FA FOR NEW SIGNUP =====
+        try:
+            # Create TwoFactorAuth record with 2FA ENABLED
+            two_fa, created = TwoFactorAuth.objects.get_or_create(
+                user=user,
+                defaults={'is_enabled': True}
+            )
+            logger.info(f"🔐 TwoFactorAuth record created for {user.email}: is_enabled={two_fa.is_enabled}")
+            
+            # Generate OTP and store in Redis
+            otp_code = generate_otp()
+            store_otp(str(user.id), otp_code)
+            logger.info(f"📦 OTP stored in Redis for {user.email}")
+            
+            # Send OTP email
+            send_otp_email(user.email, user.get_full_name(), otp_code)
+            logger.info(f"📧 OTP email sent to {user.email}")
+            
+            # Mark user as pending 2FA verification
+            self.request.session['pending_2fa_user_id'] = str(user.id)
+            self.request.session.modified = True
+            logger.info(f"🚀 User {user.email} marked as pending 2FA, redirecting to verify page")
+            
+            # Redirect to 2FA verification instead of login
+            return redirect('accounts:verify_2fa')
+            
+        except Exception as e:
+            logger.error(f"❌ 2FA setup error for {user.email}: {str(e)}")
+            messages.error(self.request, "Error setting up 2FA. Please try again.")
+            return redirect('accounts:account_login')
 
 
 # --------------------------
@@ -202,3 +238,23 @@ def delete_account(request):
         messages.success(request, _('Votre compte a été supprimé avec succès.'))
         return redirect('pages:home')
     return render(request, 'accounts/delete_account.html')
+
+
+def custom_logout(request):
+    """
+    Custom logout view that shows logout confirmation page
+    On POST, clears 2FA session before logging out
+    """
+    if request.method == 'POST':
+        # Clear pending 2FA session
+        if 'pending_2fa_user_id' in request.session:
+            del request.session['pending_2fa_user_id']
+        
+        request.session.save()
+        logout(request)
+        messages.success(request, _('You have been logged out.'))
+        return redirect('pages:home')
+    
+    # GET request - show logout confirmation page
+    return render(request, 'account/logout.html')
+

@@ -1,7 +1,27 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Institution
+from .two_factor_models import TwoFactorAuth
 from .forms import CustomUserCreationForm, CustomUserChangeForm
+
+class TwoFactorAuthAdmin(admin.ModelAdmin):
+    list_display = ('user', 'is_enabled', 'created_at', 'updated_at')
+    list_filter = ('is_enabled', 'created_at')
+    search_fields = ('user__email', 'user__full_name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'is_enabled')
+        }),
+        ('Backup Codes', {
+            'fields': ('backup_codes',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
@@ -44,3 +64,4 @@ class CustomUserAdmin(UserAdmin):
     filter_horizontal = ('groups', 'user_permissions',)
 
 admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(TwoFactorAuth, TwoFactorAuthAdmin)

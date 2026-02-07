@@ -1,54 +1,444 @@
-{% extends "base.html" %}
-{% load crispy_forms_tags %}
-{% load i18n %}
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Edit Profile" %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <!-- Card Header -->
-                <div class="card-header bg-primary text-white">
-                    <h3 class="card-title mb-0">
-                        <i class="fas fa-user-edit me-2"></i>{% trans "Edit Profile" %}
-                    </h3>
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
+            z-index: 0;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #202124;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            z-index: 10;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: white;
+            transform: translateX(-3px);
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 40px 30px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .avatar-section {
+            text-align: center;
+            margin: -60px 0 30px 0;
+        }
+
+        .avatar-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 5px solid white;
+            box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3);
+            display: block;
+        }
+
+        .avatar-placeholder {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3rem;
+            border: 5px solid white;
+            box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3);
+            margin: 0 auto;
+        }
+
+        .verify-badge {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #34a853 0%, #2d8a47 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+            border: 4px solid white;
+            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+        }
+
+        .avatar-input {
+            display: none;
+        }
+
+        .btn-choose-image {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+        }
+
+        .btn-choose-image:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.3);
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #202124;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #5f6368;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        label .required {
+            color: #1a73e8;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="tel"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            color: #202124;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s;
+            background-color: white;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="number"]:focus,
+        input[type="tel"]:focus,
+        input[type="date"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #80868b;
+        }
+
+        .help-text {
+            color: #80868b;
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+
+        .error-list {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 0;
+        }
+
+        .error-list li {
+            color: #dc3545;
+            font-size: 0.8rem;
+        }
+
+        .form-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .btn-save,
+        .btn-secondary {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            color: white;
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.25);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(26, 115, 232, 0.35);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1a73e8;
+            border: 2px solid #1a73e8;
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.04) 100%);
+            transform: translateY(-2px);
+        }
+
+        .alert-box {
+            background: linear-gradient(135deg, rgba(52, 168, 83, 0.1) 0%, rgba(52, 168, 83, 0.05) 100%);
+            border-left: 4px solid #34a853;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: #1e8449;
+        }
+
+        @media (max-width: 480px) {
+            .form-card {
+                padding: 30px 20px;
+                border-radius: 16px;
+            }
+
+            .back-btn {
+                top: 20px;
+                left: 20px;
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.1rem;
+                margin-bottom: 20px;
+            }
+
+            .user-avatar,
+            .avatar-placeholder {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'accounts:profile' pk=user.pk %}" class="back-btn">
+        <i class="fas fa-chevron-left"></i>
+    </a>
+
+    <div class="main-wrapper">
+        <div class="form-card">
+            <!-- Avatar Section -->
+            <div class="avatar-section">
+                <div class="avatar-wrapper">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}" class="user-avatar" id="avatarPreview">
+                    {% else %}
+                        <div class="avatar-placeholder" id="avatarPreview">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    {% endif %}
+                    {% if user.is_verified %}
+                        <div class="verify-badge">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    {% endif %}
                 </div>
-                
-                <!-- Edit Form -->
-                <form method="post" class="needs-validation" enctype="multipart/form-data" novalidate>
-                    {% csrf_token %}
-                    <div class="card-body">
-                        {% if messages %}
-                        <div class="alert alert-info">
-                            {% for message in messages %}
-                                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        {{ form|crispy }}
-                    </div>
-                    
-                    <!-- Form Footer -->
-                    <div class="card-footer bg-transparent">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a href="{% url 'accounts:profile' pk=user.pk %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
-                            </a>
-
-                            <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-key me-2"></i>{% trans "Change Password" %}
-                            </a>
-
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>{% trans "Save" %}
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                <input type="file" id="avatarInput" accept="image/*" class="avatar-input">
+                <button type="button" class="btn-choose-image" onclick="document.getElementById('avatarInput').click()">
+                    <i class="fas fa-camera"></i> {% trans "Choose Image" %}
+                </button>
             </div>
+
+            <h1 class="page-title">{% trans "Edit Profile" %}</h1>
+
+            <!-- Form -->
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert-box">
+                            <i class="fas fa-check-circle"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% for field in form %}
+                    {% if field.name != 'avatar' %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                                {% if field.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="help-text">{{ field.help_text|safe }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                                <ul class="error-list">
+                                    {% for error in field.errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                <div class="form-buttons">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i>
+                        {% trans "Save Changes" %}
+                    </button>
+                    <a href="{% url 'account_change_password' %}" class="btn-secondary">
+                        <i class="fas fa-lock"></i>
+                        {% trans "Change Password" %}
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
-</div>
-{% endblock %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const avatarInput = document.getElementById('avatarInput');
+            const avatarPreview = document.getElementById('avatarPreview');
+            
+            if (avatarInput && avatarPreview) {
+                avatarInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            if (avatarPreview.tagName === 'IMG') {
+                                avatarPreview.src = event.target.result;
+                            } else {
+                                const img = document.createElement('img');
+                                img.src = event.target.result;
+                                img.alt = 'Avatar Preview';
+                                img.className = 'user-avatar';
+                                img.id = 'avatarPreview';
+                                avatarPreview.parentNode.replaceChild(img, avatarPreview);
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

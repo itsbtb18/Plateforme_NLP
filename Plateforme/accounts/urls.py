@@ -1,5 +1,6 @@
 from django.urls import path, include
-from .views import SignUp, ProfileView, ProfileEditView, InviteToProjectView, RespondToProjectInviteView, awaiting_verification_view, delete_account
+from .views import SignUp, ProfileView, ProfileEditView, InviteToProjectView, RespondToProjectInviteView, awaiting_verification_view, delete_account, custom_logout
+from .two_factor_views import OTPVerificationView, ResendOTPView, TwoFactorSettingsView
 
 
 app_name = 'accounts'
@@ -11,5 +12,12 @@ urlpatterns = [
     path('project/<uuid:project_id>/respond-invite/', RespondToProjectInviteView.as_view(), name='respond_project_invite'),
     path('awaiting-verification/', awaiting_verification_view, name='awaiting_verification'),
     path('delete-account/', delete_account, name='delete_account'),
+    path('logout/', custom_logout, name='account_logout'),  # Override allauth logout to clear 2FA session
+    
+    # Two-Factor Authentication
+    path('verify-2fa/', OTPVerificationView.as_view(), name='verify_2fa'),
+    path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
+    path('2fa-settings/', TwoFactorSettingsView.as_view(), name='two_factor_settings'),
 ]
+
 
