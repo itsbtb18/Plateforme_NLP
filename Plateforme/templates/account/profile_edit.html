@@ -6,12 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "Edit Profile" %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        :root {
+            --primary-dark: #0d47a1;
+            --primary: #1a73e8;
+            --primary-light: #4285f4;
+            --secondary: #34a853;
+            --text-dark: #202124;
+            --text-light: #5f6368;
+            --border-light: #dadce0;
+            --bg-light: #f8f9fa;
         }
 
         html, body {
@@ -21,128 +32,138 @@
         }
 
         body {
-            background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8eef7 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
+            padding: 0;
         }
 
-        body::before {
+        .header-banner {
+            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, #4285f4 100%);
+            height: 250px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-banner::after {
             content: '';
             position: absolute;
-            top: 0;
+            bottom: 0;
             left: 0;
             right: 0;
-            height: 200px;
-            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
-            z-index: 0;
-        }
-
-        .main-wrapper {
-            width: 100%;
-            max-width: 420px;
-            position: relative;
-            z-index: 1;
+            height: 100px;
+            background: linear-gradient(180deg, rgba(13, 71, 161, 0) 0%, rgba(248, 249, 250, 0.5) 100%);
         }
 
         .back-btn {
-            position: fixed;
-            top: 30px;
-            left: 30px;
+            position: absolute;
+            top: 25px;
+            left: 25px;
             width: 44px;
             height: 44px;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             border: none;
             border-radius: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #202124;
+            color: var(--primary);
             font-size: 1.2rem;
             transition: all 0.3s;
-            z-index: 10;
+            z-index: 20;
             text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .back-btn:hover {
             background: white;
             transform: translateX(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         }
 
-        .form-card {
+        .page-title {
+            position: absolute;
+            top: 100px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 700;
+            z-index: 10;
+        }
+
+        .main-container {
+            max-width: 1000px;
+            margin: -80px auto 0;
+            padding: 0 20px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .profile-summary {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-            padding: 40px 30px;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+            text-align: center;
+            display: grid;
+            grid-template-columns: auto auto 1fr;
+            align-items: center;
+            gap: 40px;
         }
 
         .avatar-section {
             text-align: center;
-            margin: -60px 0 30px 0;
         }
 
         .avatar-wrapper {
             position: relative;
             display: inline-block;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .user-avatar {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             border-radius: 50%;
             object-fit: cover;
-            border: 5px solid white;
-            box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3);
+            border: 6px solid white;
+            box-shadow: 0 12px 32px rgba(26, 115, 232, 0.3);
             display: block;
         }
 
         .avatar-placeholder {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 3rem;
-            border: 5px solid white;
-            box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3);
+            font-size: 3.5rem;
+            border: 6px solid white;
+            box-shadow: 0 12px 32px rgba(26, 115, 232, 0.3);
             margin: 0 auto;
         }
 
         .verify-badge {
             position: absolute;
-            bottom: -5px;
-            right: -5px;
-            width: 38px;
-            height: 38px;
+            bottom: 0;
+            right: 0;
+            width: 45px;
+            height: 45px;
             background: linear-gradient(135deg, #34a853 0%, #2d8a47 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1rem;
-            border: 4px solid white;
-            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+            font-size: 1.2rem;
+            border: 5px solid white;
+            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4);
         }
 
         .avatar-input {
@@ -152,8 +173,8 @@
         .btn-choose-image {
             display: inline-block;
             margin-top: 12px;
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            padding: 10px 22px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -161,38 +182,116 @@
             font-size: 0.9rem;
             font-weight: 600;
             transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.25);
         }
 
         .btn-choose-image:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.3);
+            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.35);
         }
 
-        .page-title {
-            text-align: center;
-            font-size: 1.4rem;
+        .user-info {
+            text-align: left;
+        }
+
+        .user-name {
+            font-size: 1.6rem;
             font-weight: 700;
-            color: #202124;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        .user-email {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+        }
+
+        .user-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .user-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-meta-item i {
+            width: 20px;
+            color: var(--primary);
+        }
+
+        .form-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 35px;
+        }
+
+        .form-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-dark);
             margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--bg-light);
+        }
+
+        .section-title i {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-right: 12px;
+            font-size: 0.9rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-row.full {
+            grid-template-columns: 1fr;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 0;
         }
 
         label {
             display: block;
-            margin-bottom: 6px;
-            color: #5f6368;
-            font-size: 0.8rem;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+            font-size: 0.85rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         label .required {
-            color: #1a73e8;
+            color: #dc3545;
         }
 
         input[type="text"],
@@ -201,14 +300,15 @@
         input[type="number"],
         input[type="tel"],
         input[type="date"],
+        input[type="url"],
         select,
         textarea {
             width: 100%;
             padding: 12px 14px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
             font-size: 0.95rem;
-            color: #202124;
+            color: var(--text-dark);
             font-family: 'Poppins', sans-serif;
             transition: all 0.3s;
             background-color: white;
@@ -221,11 +321,13 @@
         input[type="number"]:focus,
         input[type="tel"]:focus,
         input[type="date"]:focus,
+        input[type="url"]:focus,
         select:focus,
         textarea:focus {
             outline: none;
-            border-color: #1a73e8;
+            border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+            background-color: rgba(248, 249, 250, 0.5);
         }
 
         input::placeholder,
@@ -233,34 +335,42 @@
             color: #80868b;
         }
 
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
         .help-text {
             color: #80868b;
             font-size: 0.75rem;
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
         .error-list {
             list-style: none;
             padding: 0;
-            margin: 4px 0 0;
+            margin: 6px 0 0;
         }
 
         .error-list li {
             color: #dc3545;
             font-size: 0.8rem;
+            margin-bottom: 4px;
         }
 
         .form-buttons {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 30px;
+            flex-direction: row;
+            gap: 15px;
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 2px solid var(--bg-light);
         }
 
         .btn-save,
         .btn-secondary {
-            padding: 14px 24px;
-            border-radius: 10px;
+            padding: 12px 30px;
+            border-radius: 8px;
             font-weight: 700;
             font-size: 0.95rem;
             cursor: pointer;
@@ -271,11 +381,11 @@
             justify-content: center;
             gap: 8px;
             text-decoration: none;
-            width: 100%;
+            flex: 1;
         }
 
         .btn-save {
-            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             box-shadow: 0 6px 20px rgba(26, 115, 232, 0.25);
         }
@@ -287,8 +397,8 @@
 
         .btn-secondary {
             background: white;
-            color: #1a73e8;
-            border: 2px solid #1a73e8;
+            color: var(--primary);
+            border: 2px solid var(--primary);
         }
 
         .btn-secondary:hover {
@@ -298,49 +408,113 @@
 
         .alert-box {
             background: linear-gradient(135deg, rgba(52, 168, 83, 0.1) 0%, rgba(52, 168, 83, 0.05) 100%);
-            border-left: 4px solid #34a853;
+            border-left: 4px solid var(--secondary);
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 20px;
-            font-size: 0.85rem;
+            padding: 14px;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
             color: #1e8449;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        @media (max-width: 480px) {
-            .form-card {
-                padding: 30px 20px;
-                border-radius: 16px;
+        .alert-box i {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .profile-summary {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                text-align: center;
+                padding: 30px;
             }
 
-            .back-btn {
-                top: 20px;
-                left: 20px;
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
+            .user-info {
+                text-align: center;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .form-buttons {
+                flex-direction: column;
             }
 
             .page-title {
-                font-size: 1.1rem;
-                margin-bottom: 20px;
+                font-size: 1.5rem;
+                top: 80px;
+            }
+
+            .form-container {
+                padding: 25px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-banner {
+                height: 200px;
+            }
+
+            .main-container {
+                margin: -60px auto 0;
+            }
+
+            .profile-summary {
+                padding: 25px 20px;
             }
 
             .user-avatar,
             .avatar-placeholder {
-                width: 100px;
-                height: 100px;
+                width: 120px;
+                height: 120px;
+                font-size: 3rem;
+            }
+
+            .user-name {
+                font-size: 1.3rem;
+            }
+
+            .section-title {
+                font-size: 1rem;
+            }
+
+            .form-container {
+                margin-bottom: 20px;
+            }
+
+            .back-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <a href="{% url 'accounts:profile' pk=user.pk %}" class="back-btn">
-        <i class="fas fa-chevron-left"></i>
-    </a>
+    <!-- Header Banner -->
+    <div class="header-banner">
+        <a href="{% url 'accounts:profile' pk=user.pk %}" class="back-btn">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        <h1 class="page-title">{% trans "Edit Profile" %}</h1>
+    </div>
 
-    <div class="main-wrapper">
-        <div class="form-card">
-            <!-- Avatar Section -->
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Profile Summary Card -->
+        <div class="profile-summary">
             <div class="avatar-section">
                 <div class="avatar-wrapper">
                     {% if user.avatar %}
@@ -358,13 +532,43 @@
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" class="avatar-input">
                 <button type="button" class="btn-choose-image" onclick="document.getElementById('avatarInput').click()">
-                    <i class="fas fa-camera"></i> {% trans "Choose Image" %}
+                    <i class="fas fa-camera"></i> {% trans "Change Photo" %}
                 </button>
             </div>
 
-            <h1 class="page-title">{% trans "Edit Profile" %}</h1>
+            <div style="flex: 1;"></div>
 
-            <!-- Form -->
+            <div class="user-info">
+                <div class="user-name">
+                    {{ user.first_name }} {{ user.last_name }}
+                    {% if user.is_verified %}
+                        <i class="fas fa-badge-check" style="color: var(--secondary); margin-left: 8px;"></i>
+                    {% endif %}
+                </div>
+                <div class="user-email">{{ user.email }}</div>
+                <div class="user-meta">
+                    <div class="user-meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>{% trans "Member since" %} {{ user.date_joined|date:"M Y" }}</span>
+                    </div>
+                    {% if user.account.institution %}
+                    <div class="user-meta-item">
+                        <i class="fas fa-university"></i>
+                        <span>{{ user.account.institution.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if user.account.country %}
+                    <div class="user-meta-item">
+                        <i class="fas fa-globe"></i>
+                        <span>{{ user.account.country }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Container -->
+        <div class="form-container">
             <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
 
@@ -376,28 +580,193 @@
                     {% endfor %}
                 {% endif %}
 
-                {% for field in form %}
-                    {% if field.name != 'avatar' %}
+                <!-- Basic Information Section -->
+                {% if form.first_name or form.last_name or form.phone %}
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-user-circle"></i>
+                        {% trans "Basic Information" %}
+                    </div>
+                    <div class="form-row">
+                        {% if form.first_name %}
                         <div class="form-group">
-                            <label for="{{ field.id_for_label }}">
-                                {{ field.label }}
-                                {% if field.field.required %}<span class="required">*</span>{% endif %}
+                            <label for="{{ form.first_name.id_for_label }}">
+                                {{ form.first_name.label }}
+                                {% if form.first_name.field.required %}<span class="required">*</span>{% endif %}
                             </label>
-                            {{ field }}
-                            {% if field.help_text %}
-                                <div class="help-text">{{ field.help_text|safe }}</div>
-                            {% endif %}
-                            {% if field.errors %}
-                                <ul class="error-list">
-                                    {% for error in field.errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                </ul>
-                            {% endif %}
+                            {{ form.first_name }}
+                            {% if form.first_name.help_text %}<div class="help-text">{{ form.first_name.help_text|safe }}</div>{% endif %}
+                            {% if form.first_name.errors %}<ul class="error-list">{% for error in form.first_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if form.last_name %}
+                        <div class="form-group">
+                            <label for="{{ form.last_name.id_for_label }}">
+                                {{ form.last_name.label }}
+                                {% if form.last_name.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.last_name }}
+                            {% if form.last_name.help_text %}<div class="help-text">{{ form.last_name.help_text|safe }}</div>{% endif %}
+                            {% if form.last_name.errors %}<ul class="error-list">{% for error in form.last_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {% if form.phone %}
+                        <div class="form-group">
+                            <label for="{{ form.phone.id_for_label }}">
+                                {{ form.phone.label }}
+                                {% if form.phone.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.phone }}
+                            {% if form.phone.help_text %}<div class="help-text">{{ form.phone.help_text|safe }}</div>{% endif %}
+                            {% if form.phone.errors %}<ul class="error-list">{% for error in form.phone.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Contact Information Section -->
+                {% if form.email or form.bio %}
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-envelope"></i>
+                        {% trans "Contact & Bio" %}
+                    </div>
+                    {% if form.email %}
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">
+                            {{ form.email.label }}
+                            {% if form.email.field.required %}<span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.help_text %}<div class="help-text">{{ form.email.help_text|safe }}</div>{% endif %}
+                        {% if form.email.errors %}<ul class="error-list">{% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if form.bio %}
+                    <div class="form-group">
+                        <label for="{{ form.bio.id_for_label }}">
+                            {{ form.bio.label }}
+                            {% if form.bio.field.required %}<span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.bio }}
+                        {% if form.bio.help_text %}<div class="help-text">{{ form.bio.help_text|safe }}</div>{% endif %}
+                        {% if form.bio.errors %}<ul class="error-list">{% for error in form.bio.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Location & Institution Section -->
+                {% if form.country or form.institution or form.city %}
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {% trans "Location & Institution" %}
+                    </div>
+                    <div class="form-row">
+                        {% if form.country %}
+                        <div class="form-group">
+                            <label for="{{ form.country.id_for_label }}">
+                                {{ form.country.label }}
+                                {% if form.country.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.country }}
+                            {% if form.country.help_text %}<div class="help-text">{{ form.country.help_text|safe }}</div>{% endif %}
+                            {% if form.country.errors %}<ul class="error-list">{% for error in form.country.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if form.city %}
+                        <div class="form-group">
+                            <label for="{{ form.city.id_for_label }}">
+                                {{ form.city.label }}
+                                {% if form.city.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.city }}
+                            {% if form.city.help_text %}<div class="help-text">{{ form.city.help_text|safe }}</div>{% endif %}
+                            {% if form.city.errors %}<ul class="error-list">{% for error in form.city.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if form.institution %}
+                    <div class="form-group">
+                        <label for="{{ form.institution.id_for_label }}">
+                            {{ form.institution.label }}
+                            {% if form.institution.field.required %}<span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.institution }}
+                        {% if form.institution.help_text %}<div class="help-text">{{ form.institution.help_text|safe }}</div>{% endif %}
+                        {% if form.institution.errors %}<ul class="error-list">{% for error in form.institution.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Additional Information Section -->
+                {% if form.linkedin or form.website or form.specialty %}
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-link"></i>
+                        {% trans "Social & Web" %}
+                    </div>
+                    <div class="form-row">
+                        {% if form.linkedin %}
+                        <div class="form-group">
+                            <label for="{{ form.linkedin.id_for_label }}">
+                                {{ form.linkedin.label }}
+                                {% if form.linkedin.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.linkedin }}
+                            {% if form.linkedin.help_text %}<div class="help-text">{{ form.linkedin.help_text|safe }}</div>{% endif %}
+                            {% if form.linkedin.errors %}<ul class="error-list">{% for error in form.linkedin.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if form.website %}
+                        <div class="form-group">
+                            <label for="{{ form.website.id_for_label }}">
+                                {{ form.website.label }}
+                                {% if form.website.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.website }}
+                            {% if form.website.help_text %}<div class="help-text">{{ form.website.help_text|safe }}</div>{% endif %}
+                            {% if form.website.errors %}<ul class="error-list">{% for error in form.website.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if form.specialty %}
+                    <div class="form-group">
+                        <label for="{{ form.specialty.id_for_label }}">
+                            {{ form.specialty.label }}
+                            {% if form.specialty.field.required %}<span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.specialty }}
+                        {% if form.specialty.help_text %}<div class="help-text">{{ form.specialty.help_text|safe }}</div>{% endif %}
+                        {% if form.specialty.errors %}<ul class="error-list">{% for error in form.specialty.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Other Fields -->
+                {% for field in form %}
+                    {% if field.name not in 'avatar,first_name,last_name,phone,email,bio,country,city,institution,linkedin,website,specialty' %}
+                        <div class="form-section">
+                            <div class="form-group">
+                                <label for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}<div class="help-text">{{ field.help_text|safe }}</div>{% endif %}
+                                {% if field.errors %}<ul class="error-list">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
                         </div>
                     {% endif %}
                 {% endfor %}
 
+                <!-- Form Buttons -->
                 <div class="form-buttons">
                     <button type="submit" class="btn-save">
                         <i class="fas fa-save"></i>
@@ -410,6 +779,11 @@
                 </div>
             </form>
         </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>{% trans "Last updated" %}: {{ user.account.updated_at|date:"d M Y, H:i" }}</p>
+        </div>
     </div>
 
     <script>
@@ -421,6 +795,12 @@
                 avatarInput.addEventListener('change', function(e) {
                     const file = e.target.files[0];
                     if (file) {
+                        // Check file size (max 5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert('{% trans "File size must be less than 5MB" %}');
+                            return;
+                        }
+                        
                         const reader = new FileReader();
                         reader.onload = function(event) {
                             if (avatarPreview.tagName === 'IMG') {
