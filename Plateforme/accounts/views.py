@@ -21,6 +21,11 @@ import logging
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
 
+# Import 2FA modules
+from .two_factor_models import TwoFactorAuth
+from .two_factor_utils import generate_otp, store_otp
+from .two_factor_email import send_otp_email
+
 if TYPE_CHECKING:
     from .models import CustomUser
 
@@ -30,47 +35,34 @@ User = get_user_model()
 
 
 # --------------------------
-# Mixins and Decorators
+# Mixins et décorateurs
 # --------------------------
 class LoginAndVerifiedRequiredMixin(LoginRequiredMixin):
-    """
-    Mixin that requires user to be logged in AND verified.
-    Staff users bypass verification requirement.
-    """
-    def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+    def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        user = request.user
-        if hasattr(user, 'is_verified') and not user.is_verified and not user.is_staff:
-            messages.warning(request, _("Your account is pending verification. Please wait for admin approval."))
+        if not request.user.is_verified and not request.user.is_staff:
             return redirect('accounts:awaiting_verification')
         return super().dispatch(request, *args, **kwargs)
 
 
-def login_and_verified_required(view_func: Any) -> Any:
-    """
-    Decorator that requires user to be logged in AND verified.
-    Staff users bypass verification requirement.
-    """
+def login_and_verified_required(view_func):
     @wraps(view_func)
-    def _wrapped_view(request: Any, *args: Any, **kwargs: Any) -> Any:
+    def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            messages.info(request, _("Please log in to access this page."))
             return redirect('account_login')
-        user = request.user
-        if hasattr(user, 'is_verified') and not user.is_verified and not user.is_staff:
-            messages.warning(request, _("Your account is pending verification. Please wait for admin approval."))
+        if not request.user.is_verified and not request.user.is_staff:
             return redirect('accounts:awaiting_verification')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 
 # --------------------------
-# SignUp View (Enhanced)
+# Vue d’inscription (simplifiée)
 # --------------------------
 class SignUp(CreateView):
     """
-    User registration view with enhanced validation and security.
+    User registration view with enhanced validation, security, and 2FA.
     """
     form_class = CustomUserCreationForm
     template_name = 'account/signup.html'
@@ -86,7 +78,7 @@ class SignUp(CreateView):
     def form_valid(self, form: Any) -> Any:
         # Get and normalize email
         email = form.cleaned_data.get('email', '').lower().strip()
-        
+
         # Check for existing email (case-insensitive)
         if User.objects.filter(email__iexact=email).exists():
             messages.error(self.request, _("This email is already registered. Please use a different email or try logging in."))
@@ -106,13 +98,41 @@ class SignUp(CreateView):
                 user.status = 'active'
             user.save()
 
-            # Log the user in using allauth backend
-            login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
-            
-            logger.info(f"New user registered: {email}")
-            messages.success(self.request, _("Welcome! Your account has been created successfully."))
-            return redirect('pages:home')
-            
+            logger.info(f"New user registered: {user.email}")
+
+            # ===== TRIGGER 2FA FOR NEW SIGNUP =====
+            try:
+                # Create TwoFactorAuth record with 2FA ENABLED
+                two_fa, created = TwoFactorAuth.objects.get_or_create(
+                    user=user,
+                    defaults={'is_enabled': True}
+                )
+                logger.info(f"TwoFactorAuth record created for {user.email}: is_enabled={two_fa.is_enabled}")
+
+                # Generate OTP and store in Redis
+                otp_code = generate_otp()
+                store_otp(str(user.id), otp_code)
+                logger.info(f"OTP stored in Redis for {user.email}")
+
+                # Send OTP email
+                send_otp_email(user.email, user.get_full_name(), otp_code)
+                logger.info(f"OTP email sent to {user.email}")
+
+                # Mark user as pending 2FA verification
+                self.request.session['pending_2fa_user_id'] = str(user.id)
+                self.request.session.modified = True
+                logger.info(f"User {user.email} marked as pending 2FA, redirecting to verify page")
+
+                # Redirect to 2FA verification instead of login
+                return redirect('accounts:verify_2fa')
+
+            except Exception as e:
+                logger.error(f"2FA setup error for {user.email}: {str(e)}")
+                # Fall back to direct login if 2FA fails
+                login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
+                messages.success(self.request, _("Welcome! Your account has been created successfully."))
+                return redirect('pages:home')
+
         except Exception as e:
             logger.error(f"Error creating user account: {str(e)}")
             messages.error(self.request, _("An error occurred while creating your account. Please try again."))
@@ -131,17 +151,17 @@ class LoginView(AllauthLoginView):
     Custom login view that handles the "Remember Me" checkbox.
     Extends allauth's LoginView to add session expiry control.
     """
-    
+
     def form_valid(self, form: Any) -> Any:
         """
         Handle successful login and set session expiry based on "Remember Me" checkbox.
         """
         # Call parent's form_valid to perform the login
         response = super().form_valid(form)
-        
+
         # Check if "Remember Me" checkbox was checked
         remember = self.request.POST.get('remember')
-        
+
         if remember:
             # User wants to be remembered - use default session age from settings
             # SESSION_COOKIE_AGE = 1209600 (2 weeks)
@@ -155,7 +175,7 @@ class LoginView(AllauthLoginView):
             if self.request.user.is_authenticated:
                 user = cast('CustomUser', self.request.user)
                 logger.debug(f"User {user.email} logged in without 'Remember Me'")
-        
+
         return response
 
 
@@ -169,21 +189,21 @@ class ProfileView(LoginRequiredMixin, DetailView):
     model = User
     template_name = 'account/profile.html'
     context_object_name = 'profile_user'
-    
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         profile_user = self.get_object()
-        
+
         # Check if viewing own profile
         context['is_own_profile'] = self.request.user == profile_user
-        
+
         # Get user's projects if viewing own profile
         if context['is_own_profile']:
             context['user_projects'] = Project.objects.filter(
                 members__member=profile_user,
                 members__status='accepted'
             ).distinct()[:5]
-        
+
         return context
 
 
@@ -217,18 +237,15 @@ class ProfileEditView(LoginRequiredMixin, UpdateView):
 
 
 # --------------------------
-# Project Invitation View
+# Vue invitation à un projet
 # --------------------------
 class InviteToProjectView(LoginRequiredMixin, View):
-    """
-    Handle sending project invitations to users.
-    """
-    def post(self, request: Any, pk: Any) -> Any:
-        user_to_invite = get_object_or_404(User, pk=pk)
+    def post(self, request, pk):
+        user_to_invite = get_object_or_404(get_user_model(), pk=pk)
         project_id = request.POST.get('project_id')
         project = get_object_or_404(Project, pk=project_id, coordinator=request.user)
 
-        # Check if user is already a member or has pending invitation
+        # Vérifier que l'utilisateur n'est pas déjà membre ou invité
         if not ProjectMember.objects.filter(project=project, member=user_to_invite).exists():
             ProjectMember.objects.create(
                 project=project,
@@ -237,50 +254,32 @@ class InviteToProjectView(LoginRequiredMixin, View):
                 status='pending'
             )
 
-            # Get display name safely
-            invite_user_name = getattr(user_to_invite, 'get_full_name_display', None)
-            if invite_user_name is None:
-                invite_user_name = str(user_to_invite)
-            
-            request_user_name = getattr(request.user, 'get_full_name_display', None)
-            if request_user_name is None:
-                request_user_name = str(request.user)
-
-            # Create invitation notification
+            # Notification d’invitation
             NotificationService.create_notification(
                 recipient=user_to_invite,
                 notification_type='PROJECT_INVITE',
-                title=_("Project Invitation"),
-                message=_("You have been invited to join the project '%(project)s' by %(user)s.") % {
-                    'project': project.title,
-                    'user': request_user_name
-                },
+                title="Invitation à rejoindre un projet",
+                message=f"Vous avez été invité(e) à rejoindre le projet « {project.title} » par {request.user.full_name}.",
                 project_id=project.pk,
                 sender_id=request.user.id
             )
 
-            messages.success(request, _("Invitation sent to %(name)s.") % {'name': invite_user_name})
+            messages.success(request, f"Invitation envoyée à {user_to_invite.full_name}.")
         else:
-            invite_user_name = getattr(user_to_invite, 'get_full_name_display', None)
-            if invite_user_name is None:
-                invite_user_name = str(user_to_invite)
-            messages.warning(request, _("%(name)s is already a member or has a pending invitation.") % {'name': invite_user_name})
+            messages.warning(request, f"{user_to_invite.full_name} est déjà membre ou a déjà une invitation en attente.")
         return redirect('accounts:profile', pk=pk)
 
 
 # --------------------------
-# Project Invitation Response View
+# Vue réponse à une invitation
 # --------------------------
 class RespondToProjectInviteView(LoginRequiredMixin, View):
-    """
-    Handle user responses to project invitations.
-    """
-    def post(self, request: Any, project_id: Any) -> Any:
+    def post(self, request, project_id):
         project = get_object_or_404(Project, pk=project_id)
         member = ProjectMember.objects.filter(project=project, member=request.user, status='pending').first()
 
         if not member:
-            messages.error(request, _("No pending invitation found for this project."))
+            messages.error(request, "Aucune invitation en attente pour ce projet.")
             return redirect('projects:project_detail', pk=project_id)
 
         response = request.POST.get('response')
@@ -292,11 +291,6 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
                 notification = Notification.objects.get(id=notification_id, recipient=request.user)
             except Notification.DoesNotExist:
                 pass
-
-        # Get display name safely
-        request_user_name = getattr(request.user, 'get_full_name_display', None)
-        if request_user_name is None:
-            request_user_name = str(request.user)
 
         if response == 'accept':
             member.status = 'accepted'
@@ -311,15 +305,12 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_ACCEPTED',
-                title=_("Invitation Accepted"),
-                message=_("%(user)s has accepted the invitation to join the project '%(project)s'.") % {
-                    'user': request_user_name,
-                    'project': project.title
-                },
+                title="Invitation acceptée",
+                message=f"{request.user.full_name} a accepté l'invitation à rejoindre le projet « {project.title} ».",
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.success(request, _("You have joined the project '%(project)s'.") % {'project': project.title})
+            messages.success(request, f"Vous avez rejoint le projet « {project.title} ».")
 
         elif response == 'reject':
             member.status = 'rejected'
@@ -334,49 +325,49 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_REJECTED',
-                title=_("Invitation Declined"),
-                message=_("%(user)s has declined the invitation to join the project '%(project)s'.") % {
-                    'user': request_user_name,
-                    'project': project.title
-                },
+                title="Invitation refusée",
+                message=f"{request.user.full_name} a refusé l'invitation à rejoindre le projet « {project.title} ».",
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.info(request, _("You have declined the invitation."))
+            messages.info(request, "Vous avez refusé l'invitation.")
 
         return redirect('projects:project_detail', pk=project_id)
 
 
 # --------------------------
-# Other Views
+# Autres vues
 # --------------------------
-def awaiting_verification_view(request: Any) -> Any:
-    """
-    Display page for users awaiting verification.
-    """
-    if request.user.is_authenticated:
-        if hasattr(request.user, 'is_verified') and request.user.is_verified:
-            return redirect('pages:home')
+def awaiting_verification_view(request):
     return render(request, 'awaiting_verification.html')
 
 
 @login_required
-def delete_account(request: Any) -> Any:
-    """
-    Handle account deletion with confirmation.
-    """
+def delete_account(request):
     if request.method == 'POST':
         user = request.user
-        email = getattr(user, 'email', str(user))
-        
-        # Log the account deletion
-        logger.info(f"Account deleted: {email}")
-        
-        # Logout and delete user
         logout(request)
         user.delete()
+        messages.success(request, _('Votre compte a été supprimé avec succès.'))
+        return redirect('pages:home')
+    return render(request, 'accounts/delete_account.html')
+
+
+def custom_logout(request):
+    """
+    Custom logout view that shows logout confirmation page
+    On POST, clears 2FA session before logging out
+    """
+    if request.method == 'POST':
+        # Clear pending 2FA session
+        if 'pending_2fa_user_id' in request.session:
+            del request.session['pending_2fa_user_id']
         
-        messages.success(request, _('Your account has been deleted successfully.'))
+        request.session.save()
+        logout(request)
+        messages.success(request, _('You have been logged out.'))
         return redirect('pages:home')
     
-    return render(request, 'accounts/delete_account.html')
+    # GET request - show logout confirmation page
+    return render(request, 'account/logout.html')
+

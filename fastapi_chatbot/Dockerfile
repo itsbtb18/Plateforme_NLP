@@ -40,9 +40,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Download sentence-transformers model during build
 # This speeds up container startup significantly
-RUN python -c "from sentence_transformers import SentenceTransformer; \
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2'); \
-    print('Model downloaded successfully')"
+# Commented out to speed up builds - model will download on first use
+# RUN python -c "from sentence_transformers import SentenceTransformer; \
+#     model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2'); \
+#     print('Model downloaded successfully')"
 
 # ============================================
 # PRODUCTION STAGE
@@ -52,7 +53,7 @@ FROM base as production
 # Copy installed packages from dependencies stage
 COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=dependencies /usr/local/bin /usr/local/bin
-COPY --from=dependencies /root/.cache /home/fastapi/.cache
+# Cache copy removed - not needed for production
 
 # Copy application code
 COPY --chown=fastapi:fastapi . .
@@ -61,8 +62,9 @@ COPY --chown=fastapi:fastapi . .
 RUN mkdir -p logs && \
     chown -R fastapi:fastapi logs
 
-# Fix cache permissions
-RUN chown -R fastapi:fastapi /home/fastapi/.cache
+# Fix cache permissions (create directory if it doesn't exist)
+RUN mkdir -p /home/fastapi/.cache && \
+    chown -R fastapi:fastapi /home/fastapi/.cache
 
 # Switch to non-root user
 USER fastapi

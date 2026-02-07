@@ -1,36 +1,248 @@
-{% extends "base.html" %}
-{% load crispy_forms_tags %}
-{% load i18n %}
-{% block title %}{% trans "Log Out" %}{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Out - Plateforme NLP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <div class="card-header bg-danger text-white">
-                    <h2 class="card-title text-center mb-0"><i class="fas fa-sign-out-alt me-2"></i>{% trans "Log Out" %}</h2>
-                </div>
-                <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <p class="lead">{% trans "Are you sure you want to log out?" %}</p>
-                    </div>
-                    
-                    <form method="post" action="{% url 'account_logout' %}">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-danger btn-lg">
-                                <i class="fas fa-sign-out-alt me-2"></i>{% trans "Confirm Log Out" %}
-                            </button>
-                            <a href="{% url 'pages:home' %}" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
-                            </a>
-                        </div>
-                    </form>
-                </div>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
+            z-index: 0;
+        }
+
+        .logout-container {
+            max-width: 480px;
+            width: 100%;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .logout-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logout-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(26, 115, 232, 0.3);
+        }
+
+        h1 {
+            color: #202124;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .logout-subtitle {
+            color: #5f6368;
+            font-size: 1rem;
+            font-weight: 400;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .user-info {
+            background: linear-gradient(135deg, #f0f8ff 0%, #f5f5f5 100%);
+            border-left: 4px solid #0d47a1;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 35px;
+            text-align: left;
+        }
+
+        .user-info-label {
+            color: #5f6368;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .user-email {
+            color: #0d47a1;
+            font-size: 1.05rem;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .logout-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-logout {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(26, 115, 232, 0.25);
+        }
+
+        .btn-logout:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(26, 115, 232, 0.35);
+            color: white;
+            text-decoration: none;
+        }
+
+        .btn-logout:active {
+            transform: translateY(0);
+        }
+
+        .btn-cancel {
+            background: white;
+            color: #0d47a1;
+            border: 2px solid #0d47a1;
+        }
+
+        .btn-cancel:hover {
+            background: #f0f8ff;
+            transform: translateY(-2px);
+            color: #1a73e8;
+            border-color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .btn-cancel:active {
+            transform: translateY(0);
+        }
+
+        .logout-footer {
+            color: #5f6368;
+            font-size: 0.9rem;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e8e8e8;
+        }
+
+        .logout-footer i {
+            color: #34a853;
+            margin: 0 3px;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logout-card {
+                padding: 40px 25px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .logout-subtitle {
+                font-size: 0.95rem;
+            }
+
+            .btn {
+                padding: 11px 20px;
+                font-size: 0.95rem;
+            }
+
+            .user-email {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="logout-container">
+        <div class="logout-card">
+            <div class="logout-icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+
+            <h1>Sign Out</h1>
+            <p class="logout-subtitle">Are you sure you want to leave?</p>
+
+            <div class="user-info">
+                <div class="user-info-label">Signed in as:</div>
+                <div class="user-email">{{ user.email }}</div>
+            </div>
+
+            <form method="post" action="{% url 'account_logout' %}" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Yes, Sign Me Out
+                </button>
+                <a href="/" class="btn btn-cancel">
+                    <i class="fas fa-chevron-left"></i>
+                    Cancel
+                </a>
+            </form>
+
+            <div class="logout-footer">
+                Come back soon! <i class="fas fa-hand-paper"></i>
             </div>
         </div>
     </div>
-</div>
-{% endblock content %}
+</body>
+</html>
