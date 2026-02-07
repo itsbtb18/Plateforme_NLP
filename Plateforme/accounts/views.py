@@ -41,7 +41,9 @@ class LoginAndVerifiedRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if not request.user.is_verified and not request.user.is_staff:
+        user = request.user
+        is_verified = getattr(user, 'is_verified', True)
+        if not is_verified and not user.is_staff:
             return redirect('accounts:awaiting_verification')
         return super().dispatch(request, *args, **kwargs)
 
@@ -51,7 +53,8 @@ def login_and_verified_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('account_login')
-        if not request.user.is_verified and not request.user.is_staff:
+        user = request.user
+        if hasattr(user, 'is_verified') and not user.is_verified and not user.is_staff:
             return redirect('accounts:awaiting_verification')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
@@ -258,15 +261,18 @@ class InviteToProjectView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=user_to_invite,
                 notification_type='PROJECT_INVITE',
-                title="Invitation à rejoindre un projet",
-                message=f"Vous avez été invité(e) à rejoindre le projet « {project.title} » par {request.user.full_name}.",
+                title=_("Project Invitation"),
+                message=_("You have been invited to join the project '%(project)s' by %(user)s.") % {
+                    'project': project.title,
+                    'user': getattr(request.user, 'full_name', str(request.user))
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
 
-            messages.success(request, f"Invitation envoyée à {user_to_invite.full_name}.")
+            messages.success(request, _("Invitation sent to %(name)s.") % {'name': getattr(user_to_invite, 'full_name', str(user_to_invite))})
         else:
-            messages.warning(request, f"{user_to_invite.full_name} est déjà membre ou a déjà une invitation en attente.")
+            messages.warning(request, _("%(name)s is already a member or has a pending invitation.") % {'name': getattr(user_to_invite, 'full_name', str(user_to_invite))})
         return redirect('accounts:profile', pk=pk)
 
 
@@ -279,7 +285,7 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
         member = ProjectMember.objects.filter(project=project, member=request.user, status='pending').first()
 
         if not member:
-            messages.error(request, "Aucune invitation en attente pour ce projet.")
+            messages.error(request, _("No pending invitation for this project."))
             return redirect('projects:project_detail', pk=project_id)
 
         response = request.POST.get('response')
@@ -305,12 +311,15 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_ACCEPTED',
-                title="Invitation acceptée",
-                message=f"{request.user.full_name} a accepté l'invitation à rejoindre le projet « {project.title} ».",
+                title=_("Invitation Accepted"),
+                message=_("%(user)s has accepted the invitation to join the project '%(project)s'.") % {
+                    'user': getattr(request.user, 'full_name', str(request.user)),
+                    'project': project.title
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.success(request, f"Vous avez rejoint le projet « {project.title} ».")
+            messages.success(request, _("You have joined the project '%(project)s'.") % {'project': project.title})
 
         elif response == 'reject':
             member.status = 'rejected'
@@ -325,12 +334,15 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_REJECTED',
-                title="Invitation refusée",
-                message=f"{request.user.full_name} a refusé l'invitation à rejoindre le projet « {project.title} ».",
+                title=_("Invitation Declined"),
+                message=_("%(user)s has declined the invitation to join the project '%(project)s'.") % {
+                    'user': getattr(request.user, 'full_name', str(request.user)),
+                    'project': project.title
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.info(request, "Vous avez refusé l'invitation.")
+            messages.info(request, _("You have declined the invitation."))
 
         return redirect('projects:project_detail', pk=project_id)
 
