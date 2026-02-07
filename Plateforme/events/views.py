@@ -126,8 +126,8 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             NotificationService.notify_group(
                 active_users,
                 'EVENT_APPROVED',
-                f"New event approved: {self.object.title}",
-                f"A new event has been approved: {self.object.title}.",
+                _("New event approved: %(title)s") % {'title': self.object.title},
+                _("A new event has been approved: %(title)s.") % {'title': self.object.title},
                 self.object
             )
             return redirect(self.object.get_absolute_url())
@@ -136,8 +136,8 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             NotificationService.create_notification(
                 recipient=self.request.user,
                 notification_type='EVENT_CREATED',
-                title="Your event is awaiting approval",
-                message=f"Your event '{self.object.title}' is awaiting approval.",
+                title=_("Your event is awaiting approval"),
+                message=_("Your event '%(title)s' is awaiting approval.") % {'title': self.object.title},
                 related_object=self.object
             )
             return redirect('events:event_list')
@@ -239,8 +239,8 @@ def event_validate(request, pk):
     NotificationService.create_notification(
         recipient=event.created_by,
         notification_type='EVENT_APPROVED',
-        title="Your event has been approved",
-        message=f"Your event '{event.title}' is now visible.",
+        title=_("Your event has been approved"),
+        message=_("Your event '%(title)s' is now visible.") % {'title': event.title},
         related_object=event
     )
     
@@ -249,8 +249,8 @@ def event_validate(request, pk):
     NotificationService.notify_group(
         active_users,
         'EVENT_APPROVED',
-        f"New event approved: {event.title}",
-        f"A new event has been approved: {event.title}.",
+        _("New event approved: %(title)s") % {'title': event.title},
+        _("A new event has been approved: %(title)s.") % {'title': event.title},
         event
     )
     

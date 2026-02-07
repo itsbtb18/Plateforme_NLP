@@ -58,7 +58,7 @@ class GlobalSearchView(TemplateView):
         },
         'tool': {
             'document': ToolDocument,
-            'url_name': 'resources:nlptool_detail',
+            'url_name': 'resources:tool_detail',
             'url_field': 'pk',
             'fields': {
                 'title': ['title', 'title.arabic', 'title.english', 'title.phonetic'],
@@ -82,8 +82,9 @@ class GlobalSearchView(TemplateView):
         },
         'resource': {
             'document': ResourceDocument,
-            'url_name': 'resources:resource_detail',
+            'url_name': 'resources:resource-detail',
             'url_field': 'pk',
+            'url_extra_kwargs': lambda hit: {'type': getattr(hit, 'document_type', 'article')},
             'fields': {
                 'title': ['title', 'title.arabic', 'title.english', 'title.phonetic'],
                 'description': ['description', 'description.arabic', 'description.english', 'description.phonetic'],
@@ -128,7 +129,7 @@ class GlobalSearchView(TemplateView):
         },
         'user': {
             'document': UserDocument,
-            'url_name': 'accounts:profile_detail',
+            'url_name': 'accounts:profile',
             'url_field': 'pk',
             'fields': {
                 'full_name': ['full_name', 'full_name.arabic', 'full_name.english', 'full_name.phonetic'],
@@ -256,7 +257,12 @@ class GlobalSearchView(TemplateView):
             else: title = highlight.get('title') or getattr(hit, 'title', '')
             
             try:
-                url = reverse(config['url_name'], kwargs={config['url_field']: hit.meta.id})
+                url_kwargs = {config['url_field']: hit.meta.id}
+                extra = config.get('url_extra_kwargs', {})
+                if callable(extra):
+                    extra = extra(hit)
+                url_kwargs.update(extra)
+                url = reverse(config['url_name'], kwargs=url_kwargs)
             except: url = '#'
             
             result = {
@@ -367,7 +373,7 @@ class SearchAutocompleteView(View):
         },
         'tool': {
             'document': ToolDocument,
-            'url_name': 'resources:nlptool_detail',
+            'url_name': 'resources:tool_detail',
             'title_field': 'title',
             'fields': ['title', 'title.arabic', 'title.english', 'keywords'],
         },

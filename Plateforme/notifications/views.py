@@ -152,8 +152,8 @@ def api_notification_list(request):
         
         data.append({
             'id': str(n.id),
-            'title': n.title,
-            'message': n.message[:100] + '...' if len(n.message) > 100 else n.message,
+            'title': n.get_localized_title(),
+            'message': n.get_localized_message()[:100] + '...' if len(n.get_localized_message()) > 100 else n.get_localized_message(),
             'type': n.type,
             'type_display': str(n.get_type_display()),
             'icon': type_icons.get(n.type, 'fa-bell'),
@@ -243,8 +243,8 @@ def api_notification_list_filtered(request):
         'id': n.id,
         'type': n.get_type_display(),
         'type_code': n.type,
-        'title': n.title,
-        'message': n.message,
+        'title': n.get_localized_title(),
+        'message': n.get_localized_message(),
         'created_at': n.created_at.isoformat(),
         'read': n.read,
         'read_at': n.read_at.isoformat() if n.read_at else None,
