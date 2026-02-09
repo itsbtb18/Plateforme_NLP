@@ -1,5 +1,5 @@
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -13,10 +13,15 @@ import logging
 from .models import Institution
 from .forms import InstitutionFilterForm, InstitutionForm
 
+# CRITICAL: Import your custom Mixin
+from accounts.views import LoginAndVerifiedRequiredMixin
+
 logger = logging.getLogger(__name__)
 
+# 
 
-class InstitutionListView(ListView):
+class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
+    """Restricted: Only logged-in and verified users can see the institution list."""
     model = Institution
     template_name = 'institutions/institution_list.html'
     context_object_name = 'institutions'
@@ -32,6 +37,11 @@ class InstitutionListView(ListView):
             country = form.cleaned_data.get('country')
             specialty = form.cleaned_data.get('specialty')
             search_term = form.cleaned_data.get('search_term')
+            sort = form.cleaned_data.get('sort', 'name')
+            
+            # Also check for 'q' parameter for consistency
+            if not search_term:
+                search_term = self.request.GET.get('q', '').strip()
             
             if institution_type:
                 queryset = queryset.filter(type=institution_type)
@@ -45,9 +55,28 @@ class InstitutionListView(ListView):
             if search_term:
                 queryset = queryset.filter(
                     Q(name__icontains=search_term) | 
+                    Q(name_ar__icontains=search_term) | 
+                    Q(name_en__icontains=search_term) | 
                     Q(description__icontains=search_term) |
-                    Q(acronym__icontains=search_term)
+                    Q(description_ar__icontains=search_term) |
+                    Q(description_en__icontains=search_term) |
+                    Q(acronym__icontains=search_term) |
+                    Q(city__icontains=search_term) |
+                    Q(specialties__name_en__icontains=search_term) |
+                    Q(specialties__name_ar__icontains=search_term)
                 )
+            
+            # Apply sort
+            if sort == 'name_desc':
+                queryset = queryset.order_by('-name')
+            elif sort == 'newest':
+                queryset = queryset.order_by('-created_at')
+            elif sort == 'oldest':
+                queryset = queryset.order_by('created_at')
+            else:  # 'name' or default
+                queryset = queryset.order_by('name')
+        else:
+            queryset = queryset.order_by('name')
         
         return queryset.distinct()
 
@@ -58,7 +87,8 @@ class InstitutionListView(ListView):
         return context
 
 
-class InstitutionDetailView(DetailView):
+class InstitutionDetailView(LoginAndVerifiedRequiredMixin, DetailView):
+    """Restricted: Only logged-in and verified users can see institution details."""
     model = Institution
     template_name = 'institutions/institution_detail.html'
     context_object_name = 'institution'
@@ -69,10 +99,14 @@ class InstitutionDetailView(DetailView):
         return context
 
 
-class InstitutionCreateView(LoginRequiredMixin, CreateView):
+class InstitutionCreateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView):
+    """Staff only: Create new institutions from admin panel."""
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
+    
+    def test_func(self) -> bool:
+        return self.request.user.is_staff
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -80,59 +114,23 @@ class InstitutionCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def form_valid(self, form) -> HttpResponse:
-        try:
-            logger.info("Form is valid")
-            
-            # Cast to InstitutionForm for type checking
-            institution_form = cast(InstitutionForm, form)
-            
-            # Type assertion to satisfy type checker
-            instance = institution_form.save(commit=False)
-            instance.created_by = self.request.user  # type: ignore[assignment]
-            
-            # Sauvegarder l'institution
-            self.object = institution_form.save()
-
-            # Afficher un message pour les spécialités créées
-            created_specialties = institution_form.get_created_specialties()
-            if created_specialties:
-                specialty_names = ', '.join(created_specialties)
-                messages.info(
-                    self.request, 
-                    _("New specialties created : {}").format(specialty_names)
-                )
-            
-            messages.success(
-                self.request, 
-                _("The institution has been successfully added .")
-            )
-            return redirect(self.get_success_url())
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la création de l'institution : {str(e)}")
-            messages.error(
-                self.request, 
-                _("Une erreur s'est produite lors de la création de l'institution : {}").format(str(e))
-            )
-            return self.form_invalid(form)
-    
-    def form_invalid(self, form):
-        logger.error(f"Invalid form : {form.errors}")
-        messages.error(self.request, _("Please correct any errors in the form."))
-        return super().form_invalid(form)
+        form.instance.created_by = self.request.user
+        self.object = form.save()
+        messages.success(self.request, _("Institution created successfully!"))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
-        return reverse_lazy('institutions:institution_list')
+        return reverse_lazy('pages:admin_institutions')
 
 
-class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class InstitutionUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Restricted: Only owner/staff who are verified can update."""
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
     
     def test_func(self) -> bool:
         institution = self.get_object()
-        # Type assertion for created_by
         created_by = getattr(institution, 'created_by', None)
         return (self.request.user == created_by or 
                 self.request.user.is_staff)
@@ -144,13 +142,9 @@ class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
     
     def form_valid(self, form) -> HttpResponse:
         try:
-            # Cast to InstitutionForm for type checking
             institution_form = cast(InstitutionForm, form)
-            
-            # Sauvegarder l'institution
             self.object = institution_form.save()
             
-            # Afficher un message pour les spécialités créées
             created_specialties = institution_form.get_created_specialties()
             if created_specialties:
                 specialty_names = ', '.join(created_specialties)
@@ -180,14 +174,14 @@ class InstitutionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
         return reverse_lazy('institutions:institution_detail', kwargs={'pk': self.object.pk})
 
 
-class InstitutionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+class InstitutionDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Restricted: Only owner/staff who are verified can delete."""
     model = Institution
     template_name = 'institutions/institution_confirm_delete.html'
     success_url = reverse_lazy('institutions:institution_list')
     
     def test_func(self) -> bool:
         institution = self.get_object()
-        # Type assertion for created_by
         created_by = getattr(institution, 'created_by', None)
         return (self.request.user == created_by or 
                 self.request.user.is_staff)
@@ -197,3 +191,4 @@ class InstitutionDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView)
         logger.info(f"Institution Deletion - ID: {institution.pk}")
         messages.success(self.request, "The institution has been successfully abolished.")
         return super().delete(request, *args, **kwargs)
+    

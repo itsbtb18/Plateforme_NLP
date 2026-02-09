@@ -14,4 +14,7 @@ urlpatterns = [
     # Utilisé par chatbot_interface pour obtenir un session_id initial via FastAPI
     # Peut aussi être appelé explicitement par JS si un reset complet de session est nécessaire sans passer par 'ask_bot'
     path("start_new_session/", views.start_new_session, name="start_new_session"),
+    
+    # Get all chat history/sessions for current user
+    path("history/", views.chat_history, name="chat_history"),
 ]

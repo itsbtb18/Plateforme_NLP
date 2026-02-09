@@ -1,26 +1,1042 @@
-{% extends "resources/resource_detail.html" %}
+{% extends "base.html" %}
 {% load i18n %}
-{% block resource_specific_details %}
-<div class="mb-4">
-    <h3 class="h5 border-bottom pb-2 fw-bold"><i class="bi bi-file-earmark-text me-2"></i>{% trans "Corpus Details" %}</h3>
-    <div class="row mt-3">
-        <div class="col-md-6">
-             <div class="mb-3">
-                <span class="text-muted">{% trans "Field:" %}</span>
-                <strong class="ms-2">{{ object.get_field_display }}</strong>
+{% load static %}
+
+{% block title %}{{ object.get_localized_title }} - {% trans "Corpus" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES ===== */
+:root {
+    --primary-deep: #1e3a5f;
+    --primary-accent: #2563eb;
+    --primary-light: #3b82f6;
+    --teal-accent: #0d9488;
+    --surface-white: #ffffff;
+    --surface-light: #f8fafc;
+    --surface-muted: #f1f5f9;
+    --border-subtle: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --success: #059669;
+    --success-bg: #ecfdf5;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    /* Type Colors */
+    --type-medical: #dc2626;
+    --type-medical-bg: #fef2f2;
+    --type-linguistics: #7c3aed;
+    --type-linguistics-bg: #f5f3ff;
+    --type-translation: #059669;
+    --type-translation-bg: #ecfdf5;
+    --type-general: #2563eb;
+    --type-general-bg: #eff6ff;
+    --type-social: #ea580c;
+    --type-social-bg: #fff7ed;
+    --type-legal: #4f46e5;
+    --type-legal-bg: #eef2ff;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.corpus-detail-page {
+    min-height: calc(100vh - 200px);
+    background: var(--surface-light);
+    padding-bottom: 4rem;
+}
+
+/* ===== HERO HEADER BANNER ===== */
+.corpus-hero {
+    background: linear-gradient(135deg, var(--primary-deep) 0%, #1e40af 50%, var(--teal-accent) 100%);
+    padding: 3rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.corpus-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.hero-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* Breadcrumb */
+.breadcrumb-nav {
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb-list {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.breadcrumb-list li {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.breadcrumb-list li a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb-list li a:hover {
+    color: white;
+}
+
+.breadcrumb-list li.active {
+    color: white;
+    font-weight: 500;
+}
+
+.breadcrumb-separator {
+    margin: 0 0.25rem;
+    opacity: 0.5;
+}
+
+/* Hero Content */
+.hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.hero-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    flex-shrink: 0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.hero-icon.type-medical { background: var(--type-medical); color: white; }
+.hero-icon.type-linguistics { background: var(--type-linguistics); color: white; }
+.hero-icon.type-translation { background: var(--type-translation); color: white; }
+.hero-icon.type-general { background: var(--type-general); color: white; }
+.hero-icon.type-social { background: var(--type-social); color: white; }
+.hero-icon.type-legal { background: var(--type-legal); color: white; }
+
+.hero-text {
+    flex: 1;
+}
+
+.hero-text h1 {
+    color: white;
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0 0 0.75rem;
+    line-height: 1.3;
+}
+
+.hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 50px;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.meta-badge i {
+    opacity: 0.8;
+}
+
+.approval-badge {
+    padding: 0.375rem 0.875rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.approval-badge.approved {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.approval-badge.pending {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.approval-badge.rejected {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+/* ===== ACTION BAR ===== */
+.action-bar {
+    background: var(--surface-white);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+.action-bar-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.action-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.btn-download {
+    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    color: white;
+}
+
+.btn-edit {
+    background: var(--surface-white);
+    border-color: var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.btn-edit:hover {
+    border-color: var(--primary-accent);
+    color: var(--primary-accent);
+    background: var(--surface-light);
+}
+
+.btn-delete {
+    background: var(--surface-white);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-external {
+    background: var(--teal-accent);
+    color: white;
+}
+
+.btn-external:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    color: white;
+}
+
+.view-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.view-counter i {
+    color: var(--primary-accent);
+}
+
+/* ===== MAIN CONTENT ===== */
+.content-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Main Column */
+.main-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.content-card {
+    background: var(--surface-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header i {
+    font-size: 1.25rem;
+    color: var(--primary-accent);
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Description */
+.description-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+
+.description-content p {
+    margin-bottom: 1rem;
+}
+
+.description-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Keywords */
+.keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    background: var(--surface-muted);
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.keyword-tag:hover {
+    background: var(--primary-accent);
+    color: white;
+}
+
+.keyword-tag i {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* Corpus Specs */
+.specs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .specs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.spec-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--surface-light);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+}
+
+.spec-item:hover {
+    background: var(--surface-muted);
+}
+
+.spec-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.spec-icon.size { background: #dbeafe; color: #1e40af; }
+.spec-icon.field { background: #f3e8ff; color: #6b21a8; }
+.spec-icon.format { background: #dcfce7; color: #166534; }
+.spec-icon.language { background: #fef3c7; color: #92400e; }
+
+.spec-info {
+    flex: 1;
+}
+
+.spec-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.spec-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Notes */
+.notes-content {
+    background: var(--surface-light);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    border-left: 4px solid var(--primary-accent);
+}
+
+.notes-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.metadata-card {
+    background: var(--surface-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    position: sticky;
+    top: 80px;
+}
+
+.metadata-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--surface-light) 0%, var(--surface-muted) 100%);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.metadata-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.metadata-header h3 i {
+    color: var(--primary-accent);
+}
+
+.metadata-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.metadata-item {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.metadata-item:last-child {
+    border-bottom: none;
+}
+
+.metadata-item:hover {
+    background: var(--surface-light);
+}
+
+.metadata-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.metadata-label i {
+    width: 20px;
+    color: var(--primary-accent);
+}
+
+.metadata-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+.metadata-value a {
+    color: var(--primary-accent);
+    text-decoration: none;
+}
+
+.metadata-value a:hover {
+    text-decoration: underline;
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .hero-content {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .hero-text {
+    text-align: right;
+}
+
+html[dir="rtl"] .hero-meta {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+html[dir="rtl"] .meta-badge {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .action-bar-container {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .action-group {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .btn-action {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .view-counter {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb-list {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb-list li {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb-list li a {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .breadcrumb-separator i {
+    transform: rotate(180deg);
+}
+
+html[dir="rtl"] .content-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .card-header {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .card-header h2 {
+    text-align: right;
+}
+
+html[dir="rtl"] .description-content {
+    text-align: right;
+}
+
+html[dir="rtl"] .spec-item {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .spec-info {
+    text-align: right;
+}
+
+html[dir="rtl"] .keyword-tag {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .notes-content {
+    border-left: none;
+    border-right: 4px solid var(--primary-accent);
+}
+
+html[dir="rtl"] .metadata-header h3 {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .metadata-item {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .metadata-label {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .metadata-value {
+    text-align: left;
+}
+
+html[dir="rtl"] .approval-badge {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .corpus-hero {
+        padding: 2rem 0;
+    }
+    
+    .hero-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .hero-icon {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+    }
+    
+    .hero-text h1 {
+        font-size: 1.5rem;
+    }
+    
+    .hero-meta {
+        justify-content: center;
+    }
+    
+    .action-bar-container {
+        flex-direction: column;
+    }
+    
+    .action-group {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-card {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.content-card:nth-child(1) { animation-delay: 0.1s; }
+.content-card:nth-child(2) { animation-delay: 0.2s; }
+.content-card:nth-child(3) { animation-delay: 0.3s; }
+
+.metadata-card {
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: 0.2s;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="corpus-detail-page">
+    
+    <!-- ===== HERO HEADER ===== -->
+    <section class="corpus-hero">
+        <div class="hero-container">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb-nav" aria-label="breadcrumb">
+                <ol class="breadcrumb-list">
+                    <li>
+                        <a href="{% url 'resources:list' %}">
+                            <i class="bi bi-archive"></i> {% trans "Resources" %}
+                        </a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li>
+                        <a href="{% url 'resources:corpus_list' %}">{% trans "Corpora" %}</a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li class="active">{{ object.get_localized_title|truncatechars:40 }}</li>
+                </ol>
+            </nav>
+            
+            <!-- Hero Content -->
+            <div class="hero-content">
+                <div class="hero-icon {% if 'medical' in object.field|lower or 'طبي' in object.field|lower %}type-medical{% elif 'linguistic' in object.field|lower or 'لغوي' in object.field|lower %}type-linguistics{% elif 'translation' in object.field|lower or 'ترجمة' in object.field|lower %}type-translation{% elif 'social' in object.field|lower or 'اجتماعي' in object.field|lower %}type-social{% elif 'legal' in object.field|lower or 'قانوني' in object.field|lower %}type-legal{% else %}type-general{% endif %}">
+                    {% if 'medical' in object.field|lower or 'طبي' in object.field|lower %}
+                        <i class="bi bi-heart-pulse"></i>
+                    {% elif 'linguistic' in object.field|lower or 'لغوي' in object.field|lower %}
+                        <i class="bi bi-chat-quote"></i>
+                    {% elif 'translation' in object.field|lower or 'ترجمة' in object.field|lower %}
+                        <i class="bi bi-translate"></i>
+                    {% elif 'social' in object.field|lower or 'اجتماعي' in object.field|lower %}
+                        <i class="bi bi-people"></i>
+                    {% elif 'legal' in object.field|lower or 'قانوني' in object.field|lower %}
+                        <i class="bi bi-bank"></i>
+                    {% else %}
+                        <i class="bi bi-folder2-open"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="hero-text">
+                    <h1>{{ object.get_localized_title }}</h1>
+                    
+                    <div class="hero-meta">
+                        <span class="meta-badge">
+                            <i class="bi bi-person"></i>
+                            {% if object.author %}{{ object.author.get_full_name_display }}{% else %}{% trans "Unknown" %}{% endif %}
+                        </span>
+                        <span class="meta-badge">
+                            <i class="bi bi-calendar3"></i>
+                            {{ object.creation_date|date:"M d, Y" }}
+                        </span>
+                        <span class="meta-badge">
+                            <i class="bi bi-folder"></i>
+                            {{ object.get_field_display }}
+                        </span>
+                        <span class="approval-badge {{ object.approval_status }}">
+                            {% if object.approval_status == 'approved' %}
+                                <i class="bi bi-check-circle"></i> {% trans "Approved" %}
+                            {% elif object.approval_status == 'pending' %}
+                                <i class="bi bi-clock"></i> {% trans "Pending Review" %}
+                            {% else %}
+                                <i class="bi bi-x-circle"></i> {% trans "Rejected" %}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ===== ACTION BAR ===== -->
+    <div class="action-bar">
+        <div class="action-bar-container">
+            <div class="action-group">
+                {% if object.file %}
+                <a href="{{ object.file.url }}" class="btn-action btn-download" download>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% trans "Download Corpus" %}</span>
+                </a>
+                {% endif %}
+                
+                {% if object.access_link %}
+                <a href="{{ object.access_link }}" class="btn-action btn-external" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    <span>{% trans "Access Resource" %}</span>
+                </a>
+                {% endif %}
+                
+                {% if request.user == object.author %}
+                <a href="{% url 'resources:resource-update' type='corpus' pk=object.pk %}" class="btn-action btn-edit">
+                    <i class="bi bi-pencil"></i>
+                    <span>{% trans "Edit" %}</span>
+                </a>
+                <a href="{% url 'resources:resource-delete' type='corpus' pk=object.pk %}" class="btn-action btn-delete">
+                    <i class="bi bi-trash"></i>
+                    <span>{% trans "Delete" %}</span>
+                </a>
+                {% endif %}
             </div>
             
-        </div>
-        <div class="col-md-6">
-           <div class="mb-3">
-                <span class="text-muted">{% trans "Size:" %}</span>
-                <strong class="ms-2">{{ object.size }} {% trans "words" %}</strong>
-            </div>
-            <div class="mb-3">
-                <span class="text-muted">{% trans "File Format:" %}</span>
-                <strong class="ms-2">{{ object.file_format }}</strong>
+            <div class="view-counter">
+                <i class="bi bi-eye"></i>
+                <span>{{ object.views_count }} {% trans "views" %}</span>
             </div>
         </div>
     </div>
+    
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="content-container">
+        <div class="content-grid">
+            
+            <!-- Main Column -->
+            <div class="main-column">
+                
+                <!-- Description Card -->
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-card-text"></i>
+                        <h2>{% trans "Description" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="description-content">
+                            {{ object.get_localized_description|linebreaks }}
+                        </div>
+                    </div>
+                </article>
+                
+                <!-- Corpus Specifications -->
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-gear"></i>
+                        <h2>{% trans "Corpus Specifications" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="specs-grid">
+                            <div class="spec-item">
+                                <div class="spec-icon size">
+                                    <i class="bi bi-bar-chart"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Size" %}</div>
+                                    <div class="spec-value">{{ object.size|default:"—" }} {% trans "words" %}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="spec-item">
+                                <div class="spec-icon field">
+                                    <i class="bi bi-bookmark"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Field" %}</div>
+                                    <div class="spec-value">{{ object.get_field_display }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="spec-item">
+                                <div class="spec-icon format">
+                                    <i class="bi bi-file-earmark-code"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Format" %}</div>
+                                    <div class="spec-value">{{ object.file_format|upper|default:"—" }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="spec-item">
+                                <div class="spec-icon language">
+                                    <i class="bi bi-globe"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Language" %}</div>
+                                    <div class="spec-value">{{ object.get_language_display }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                
+                <!-- Keywords -->
+                {% if object.keywords %}
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-tags"></i>
+                        <h2>{% trans "Keywords" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="keywords-list">
+                            {% for keyword in object.get_keywords_list %}
+                            <span class="keyword-tag">
+                                <i class="bi bi-hash"></i>
+                                {{ keyword }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+                <!-- Notes -->
+                {% if object.notes %}
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-journal-text"></i>
+                        <h2>{% trans "Additional Notes" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="notes-content">
+                            <p>{{ object.notes }}</p>
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <aside class="sidebar-column">
+                <div class="metadata-card">
+                    <div class="metadata-header">
+                        <h3>
+                            <i class="bi bi-info-circle"></i>
+                            {% trans "Resource Details" %}
+                        </h3>
+                    </div>
+                    <ul class="metadata-list">
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-person"></i>
+                                {% trans "Author" %}
+                            </span>
+                            <span class="metadata-value">
+                                {% if object.author %}
+                                    <a href="{% url 'accounts:profile' object.author.id %}">
+                                        {{ object.author.get_full_name_display }}
+                                    </a>
+                                {% else %}
+                                    {% trans "Unknown" %}
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-calendar-plus"></i>
+                                {% trans "Created" %}
+                            </span>
+                            <span class="metadata-value">{{ object.creation_date|date:"M d, Y" }}</span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-calendar-check"></i>
+                                {% trans "Updated" %}
+                            </span>
+                            <span class="metadata-value">
+                                {% if object.update_date %}
+                                    {{ object.update_date|date:"M d, Y" }}
+                                {% else %}
+                                    <em class="text-muted">{% trans "Never" %}</em>
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-folder2"></i>
+                                {% trans "Type" %}
+                            </span>
+                            <span class="metadata-value">{% trans "Corpus" %}</span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-translate"></i>
+                                {% trans "Language" %}
+                            </span>
+                            <span class="metadata-value">{{ object.get_language_display }}</span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-file-earmark"></i>
+                                {% trans "Format" %}
+                            </span>
+                            <span class="metadata-value">{{ object.file_format|upper|default:"—" }}</span>
+                        </li>
+                        <li class="metadata-item">
+                            <span class="metadata-label">
+                                <i class="bi bi-eye"></i>
+                                {% trans "Views" %}
+                            </span>
+                            <span class="metadata-value">{{ object.views_count }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+            
+        </div>
+    </div>
+    
 </div>
 {% endblock %}

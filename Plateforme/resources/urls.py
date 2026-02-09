@@ -15,11 +15,15 @@ from .views import (
     CourseCreateView,
     CorpusCreateView,
     ToolCreateView,
+    resource_ajax_search,
 )
 
 app_name = 'resources'
 
 urlpatterns = [
+    # AJAX search endpoint
+    path('api/search/', resource_ajax_search, name="ajax_search"),
+    
     # Main resource listing
     path('', ResourceListView.as_view(), name="list"),
     

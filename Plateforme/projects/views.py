@@ -17,9 +17,31 @@ from django.utils.translation import gettext_lazy as _
 from typing import TYPE_CHECKING, Any
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.template.loader import render_to_string
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from django.forms import BaseModelForm
+
+
+def detect_language(query: str) -> str:
+    """Detect if query is primarily Arabic or English."""
+    if not query:
+        return 'english'
+    
+    arabic_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+')
+    arabic_chars = len(arabic_pattern.findall(query))
+    total_chars = len(query.replace(' ', ''))
+    
+    if total_chars == 0:
+        return 'english'
+    
+    if arabic_chars / total_chars > 0.3:
+        return 'arabic'
+    return 'english'
 
 
 class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -27,8 +49,195 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'project_list.html'
     context_object_name = 'projects'
     
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Handle both AJAX and regular requests."""
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        if is_ajax:
+            return self._handle_ajax_request(request)
+        
+        # Regular HTML request
+        return super().get(request, *args, **kwargs)
+    
+    def _handle_ajax_request(self, request: HttpRequest) -> HttpResponse:
+        """Return partial HTML for AJAX search requests."""
+        from django.http import JsonResponse
+        
+        # Get the search query and filters
+        search_query = request.GET.get('q', '').strip()
+        
+        # Get projects using Elasticsearch if query exists, else use standard queryset
+        if search_query:
+            projects, highlights = self._search_with_elasticsearch(search_query, request)
+        else:
+            projects = list(self.get_queryset())
+            highlights = {}
+        
+        # Build context for partial template
+        context = {
+            'projects': projects,
+            'highlights': highlights,
+            'search_query': search_query,
+            'request': request,
+        }
+        
+        # Render partial template
+        html = render_to_string('projects/_project_cards.html', context, request=request)
+        
+        return HttpResponse(html)
+    
+    def _search_with_elasticsearch(self, query: str, request: HttpRequest) -> tuple[list[Project], dict]:
+        """
+        Search projects using Elasticsearch with highlighting.
+        Returns a tuple of (projects, highlights_dict).
+        """
+        from elasticsearch_dsl import Q as ESQ
+        from elasticsearch.exceptions import ConnectionError, NotFoundError
+        
+        try:
+            from search.documents import ProjectDocument
+        except ImportError:
+            logger.warning("ProjectDocument not found, falling back to DB search")
+            return list(self.get_queryset()), {}
+        
+        try:
+            detected_lang = detect_language(query)
+            
+            # Build the search query with dis_max for ranking
+            search_fields = [
+                'title^3', 'title.arabic^3', 'title.english^3', 'title.phonetic^1',
+                'description^2', 'description.arabic^2', 'description.english^2',
+                'coordinator.full_name^1.5',
+                'institution.name^1.5', 'institution.name.arabic^1.5', 'institution.name.english^1.5',
+            ]
+            
+            # Build multi_match query
+            es_query = ESQ(
+                'multi_match',
+                query=query,
+                fields=search_fields,
+                type='best_fields',
+                fuzziness='AUTO',
+                prefix_length=1,
+            )
+            
+            # Create search
+            search = ProjectDocument.search()
+            search = search.query(es_query)
+            
+            # Apply filters
+            # Status filter
+            status_filter = request.GET.get('status', '').strip()
+            if status_filter:
+                search = search.filter('term', **{'status.raw': status_filter})
+            
+            # My projects filter (coordinator)
+            if request.GET.get('my_projects'):
+                search = search.filter('term', **{'coordinator.id': request.user.id})
+            
+            # Sorting
+            sort_by = request.GET.get('sort', 'newest').strip()
+            if sort_by == 'oldest':
+                search = search.sort({'created_at': {'order': 'asc', 'unmapped_type': 'date'}})
+            elif sort_by == 'alphabetical':
+                search = search.sort({'title.raw': {'order': 'asc', 'unmapped_type': 'keyword'}})
+            elif sort_by == 'updated':
+                # Use date_end or fall back to created_at for "updated"
+                search = search.sort({'date_end': {'order': 'desc', 'unmapped_type': 'date'}})
+            else:  # newest (default) - but for search, prefer relevance
+                pass  # Keep relevance-based sorting from ES
+            
+            # Add highlighting
+            search = search.highlight_options(
+                pre_tags=['<mark class="search-highlight">'],
+                post_tags=['</mark>'],
+                encoder='html',
+                fragment_size=200,
+            )
+            search = search.highlight('title', 'title.arabic', 'title.english')
+            search = search.highlight('description', 'description.arabic', 'description.english')
+            
+            # Execute search (limit to reasonable number)
+            search = search[:50]
+            response = search.execute()
+            
+            # Collect project IDs and highlights
+            project_ids = []
+            highlights = {}
+            
+            for hit in response:
+                project_id = hit.meta.id
+                project_ids.append(project_id)
+                
+                # Extract highlights
+                if hasattr(hit.meta, 'highlight'):
+                    hit_highlights = {}
+                    highlight_dict = hit.meta.highlight.to_dict()
+                    
+                    # Get title highlight (check all variants)
+                    for field in ['title', 'title.arabic', 'title.english']:
+                        if field in highlight_dict:
+                            hit_highlights['title'] = highlight_dict[field][0]
+                            break
+                    
+                    # Get description highlight
+                    for field in ['description', 'description.arabic', 'description.english']:
+                        if field in highlight_dict:
+                            hit_highlights['description'] = highlight_dict[field][0]
+                            break
+                    
+                    if hit_highlights:
+                        highlights[str(project_id)] = hit_highlights
+            
+            if not project_ids:
+                return [], {}
+            
+            # Fetch actual Project objects from database
+            # Preserve Elasticsearch ordering
+            membership = ProjectMember.objects.filter(
+                project=OuterRef('pk'),
+                member=request.user
+            )
+            
+            projects_qs = Project.objects.filter(pk__in=project_ids)
+            
+            # Apply approval status filter for non-staff
+            if not request.user.is_staff:
+                projects_qs = projects_qs.filter(
+                    Q(approval_status='approved') | 
+                    Q(coordinator=request.user)
+                )
+            
+            projects_qs = projects_qs.annotate(is_member=Exists(membership))
+            
+            # Convert to dict for ordering
+            projects_dict = {str(p.pk): p for p in projects_qs}
+            
+            # Preserve ES ordering
+            ordered_projects = []
+            for pid in project_ids:
+                if str(pid) in projects_dict:
+                    ordered_projects.append(projects_dict[str(pid)])
+            
+            return ordered_projects, highlights
+            
+        except (ConnectionError, NotFoundError) as e:
+            logger.warning(f"Elasticsearch unavailable, falling back to DB: {e}")
+            return list(self.get_queryset()), {}
+        except Exception as e:
+            logger.error(f"Elasticsearch search error: {e}")
+            return list(self.get_queryset()), {}
+    
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
+        
+        # Only show approved projects (unless staff or coordinator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(coordinator=self.request.user)
+            )
         
         membership = ProjectMember.objects.filter(
             project=OuterRef('pk'),
@@ -44,15 +253,32 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         if status_filter:
             qs = qs.filter(status=status_filter)
             
-        # Ajouter la recherche
-        search_query = self.request.GET.get('search')
+        # Ajouter la recherche (support both 'q' and 'search' for compatibility)
+        search_query = self.request.GET.get('q') or self.request.GET.get('search', '')
         if search_query:
             qs = qs.filter(
                 Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
+                Q(description_ar__icontains=search_query) |
+                Q(description_en__icontains=search_query) |
                 Q(institution__name__icontains=search_query) |
-                Q(coordinator__full_name__icontains=search_query)
+                Q(institution__acronym__icontains=search_query) |
+                Q(coordinator__full_name__icontains=search_query) |
+                Q(coordinator__username__icontains=search_query)
             )
+        
+        # Sorting functionality
+        sort_by = self.request.GET.get('sort', 'newest').strip()
+        if sort_by == 'oldest':
+            qs = qs.order_by('created_at')
+        elif sort_by == 'alphabetical':
+            qs = qs.order_by('title')
+        elif sort_by == 'updated':
+            qs = qs.order_by('-updated_at')
+        else:  # newest (default)
+            qs = qs.order_by('-created_at')
             
         return qs.annotate(is_member=Exists(membership))
 
@@ -60,6 +286,9 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['project_statuses'] = Project.STATUS_CHOICES
         context['page'] = 'research_projects'
+        context['search_query'] = self.request.GET.get('q') or self.request.GET.get('search', '')
+        context['current_sort'] = self.request.GET.get('sort', 'newest').strip()
+        context['highlights'] = {}  # Empty for non-AJAX requests (no ES highlighting)
         return context
 
 
@@ -67,6 +296,16 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Project
     template_name = 'project_detail.html'
     context_object_name = 'project'
+    
+    def get_queryset(self) -> QuerySet[Project]:
+        qs = super().get_queryset()
+        # Only show approved projects (unless staff or coordinator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(coordinator=self.request.user)
+            )
+        return qs
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -120,16 +359,11 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         form.instance.coordinator = self.request.user
         response = super().form_valid(form)
-        # NOTIFICATION à tous les utilisateurs actifs via le service
-        User = get_user_model()
-        for user in User.objects.filter(is_active=True):
-            NotificationService.create_notification(
-                recipient=user,
-                notification_type='SYSTEM',
-                title="New research project",
-                message=f"The project « {form.instance.title} » has just been published."
-            )
-           
+        # Show pending approval message - don't notify all users until approved
+        messages.info(
+            self.request,
+            _("Your project '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+        )
         return response
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -222,10 +456,10 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             NotificationService.create_notification(
                 recipient=member.member,
                 notification_type='SYSTEM',
-                title="Membership application accepted",
-                message=f"Your request to join the project « {project.title} » was accepted."
+                title=_("Membership application accepted"),
+                message=_("Your request to join the project « %(title)s » was accepted.") % {'title': project.title}
             )
-            messages.success(request, f"{member.member.full_name} was accepted into the project.")  # type: ignore[attr-defined]
+            messages.success(request, _("%(name)s was accepted into the project.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 
@@ -247,10 +481,10 @@ class RejectMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             NotificationService.create_notification(
                 recipient=member.member,
                 notification_type='SYSTEM',
-                title="Membership application refused",
-                message=f"Your request to join the project « {project.title} » was refused."
+                title=_("Membership application refused"),
+                message=_("Your request to join the project « %(title)s » was refused.") % {'title': project.title}
             )
-            messages.success(request, f"The request for {member.member.full_name} was refused.")  # type: ignore[attr-defined]
+            messages.success(request, _("The request for %(name)s was refused.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
         return redirect('projects:project_members', pk=pk)
 
@@ -305,10 +539,10 @@ class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
                 recipient=project.coordinator,
                 notification_type='LEAVE_REQUEST',
                 title=_('Leave request'),
-                message=_('{} wants to leave your project « {} ».').format(
-                    request.user.full_name,  # type: ignore[attr-defined]
-                    project.title
-                ),
+                message=_('%(sender_name)s wants to leave your project « %(project_title)s ».') % {
+                    'sender_name': request.user.full_name,
+                    'project_title': project.title
+                },
                 related_object=project,
                 project_id=project.id,  # type: ignore[attr-defined]
                 sender_id=request.user.id  # type: ignore[attr-defined]
@@ -352,7 +586,7 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=leaving_user,
                     notification_type='SYSTEM',
                     title=_('Leave request approved'),
-                    message=_('Your request to leave the project « {} » has been approved.').format(project.title),
+                    message=_('Your request to leave the project « %(project_title)s » has been approved.') % {'project_title': project.title},
                     related_object=project
                 )
                 
@@ -375,7 +609,7 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=member.member,
                     notification_type='SYSTEM',
                     title=_('Leave request rejected'),
-                    message=_('Your request to leave the project « {} » has been rejected by the coordinator.').format(project.title),
+                    message=_('Your request to leave the project « %(project_title)s » has been rejected by the coordinator.') % {'project_title': project.title},
                     related_object=project
                 )
                 
@@ -432,7 +666,7 @@ class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             recipient=removed_user,
             notification_type='SYSTEM',
             title=_('Removed from project'),
-            message=_('You have been removed from the project « {} » by the coordinator.').format(project.title),
+            message=_('You have been removed from the project « %(project_title)s » by the coordinator.') % {'project_title': project.title},
             related_object=project
         )
         
@@ -459,7 +693,7 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Accepted'),
-                message=_('Your request to join {} has been accepted.').format(project.title),
+                message=_('Your request to join %(project_title)s has been accepted.') % {'project_title': project.title},
                 notification_type='project_request_accepted',
                 related_object=project
             )
@@ -472,7 +706,7 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Rejected'),
-                message=_('Your request to join {} has been rejected.').format(project.title),
+                message=_('Your request to join %(project_title)s has been rejected.') % {'project_title': project.title},
                 notification_type='project_request_rejected',
                 related_object=project
             )

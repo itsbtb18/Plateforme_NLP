@@ -1,464 +1,1284 @@
-{% extends 'base.html' %} 
-{% load i18n %}
-{% block title %} {% trans "Projects - Arabic TAL Research" %} {% endblock title %}
- {% block content %}
-<div class="content">
-  <div class="projects-header">
-   
-    <div class="projects-actions">
-      <form method="get" class="search-form">
-        <div class="search-wrapper">
-          <input
-            type="text"
-            name="search"
-            placeholder={% trans "Search for a project..." %}
-            value="{{ request.GET.search }}"
-            class="search-input"
-          />
-          <button type="submit" class="search-btn">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
-        </div>
-        {% if request.GET.search %}
-        <a
-          href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}"
-          class="clear-search"
-        >
-        Clear search
-        </a>
-        {% endif %}
-      </form>
-      <a href="{% url 'projects:project_new' %}" class="btn create-btn">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-         {% trans "New Project" %}      </a>
-      <a
-        href="{% if request.GET.my_projects %}{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% else %}?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% endif %}"
-        class="btn filter-btn {% if request.GET.my_projects %}active{% endif %}"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon
-            points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
-          ></polygon>
-        </svg>
-        {% if request.GET.my_projects %} {% trans "All projects" %}{% else %} {% trans "My projects" %} {% endif %}
-      </a>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-      {# Filtre par statut #}
-      <div class="filter-status">
-        <form method="get" action="{% url 'projects:project_list' %}">
-          {% comment %} Conserver les autres paramètres de la requête GET {% endcomment %}
-          {% for key, value in request.GET.items %}
-            {% if key != 'status' %}
-              <input type="hidden" name="{{ key }}" value="{{ value }}">
-            {% endif %}
-          {% endfor %}
-          
-          <select name="status" onchange="this.form.submit()" class="form-select">
-            <option value="">{% trans "All Statuses"  %}</option>
-            {% for status_value, status_label in project_statuses %}
-              <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
-            {% endfor %}
-          </select>
-        </form>
-      </div>
+{% block title %}{% translate "Research Projects" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
-    </div>
-  </div>
-
-  <div class="projects-grid">
-    {% for project in projects %}
-    <div class="project-card">
-      <div class="project-header">
-        <h2 class="project-title">
-          <a href="{% url 'projects:project_detail' project.pk %}"
-            >{{ project.title }}</a
-          >
-        </h2>
-        <span class="status-badge status-{{ project.status }}"
-          >{{ project.get_status_display }}</span
-        >
-      </div>
-      <p class="project-description">
-        {{ project.description|truncatechars:150 }}
-      </p>
-      <div class="project-meta">
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"></path>
-            <path d="M1 21h22"></path>
-            <path d="M10 9h4"></path>
-            <path d="M10 13h4"></path>
-            <path d="M10 17h4"></path>
-          </svg>
-          {{ project.institution }}
-        </div>
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          {{ project.coordinator }}
-        </div>
-        {% if project.date_start and project.date_end %}
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          {{ project.date_start|date:"d/m/Y" }} - {{ project.date_end|date:"d/m/Y" }}
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% empty %}
-    <div class="empty-message">
-      {% if request.GET.search %} No projects match your search.
-      {% elif request.GET.my_projects %}You have not created a project yet.
-      {% else %} {% trans "No projects are available at the moment." %} {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  /* Global styles */
-  :root {
-    --primary: #1A73E8;
-    --secondary: #4caf50;
-    --text-dark: #333;
-    --text-light: #666;
-    --border-color: #e0e0e0;
-    --bg-light: #f5f5f5;
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
+/* ===== RESEARCH PROJECTS CSS ARCHITECTURE ===== */
+:root {
+    /* Brand Colors */
+    --rp-primary: #3B82F6;
+    --rp-primary-dark: #2563eb;
+    --rp-primary-light: #60a5fa;
+    --rp-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    /* Status Colors */
+    --rp-ongoing: #10b981;
+    --rp-ongoing-bg: rgba(16, 185, 129, 0.1);
+    --rp-completed: #6366f1;
+    --rp-completed-bg: rgba(99, 102, 241, 0.1);
+    --rp-planned: #f59e0b;
+    --rp-planned-bg: rgba(245, 158, 11, 0.1);
+    --rp-seeking: #ec4899;
+    --rp-seeking-bg: rgba(236, 72, 153, 0.1);
+    
+    /* Approval Status */
+    --rp-pending: #f59e0b;
+    --rp-pending-bg: rgba(245, 158, 11, 0.1);
+    --rp-approved: #10b981;
+    --rp-approved-bg: rgba(16, 185, 129, 0.1);
+    --rp-rejected: #ef4444;
+    --rp-rejected-bg: rgba(239, 68, 68, 0.1);
+    
+    /* Surfaces */
+    --rp-deep: #0f172a;
+    --rp-navy: #1e3a5f;
+    --rp-white: #ffffff;
+    --rp-surface: #ffffff;
+    --rp-bg: #f8fafc;
+    --rp-muted: #f1f5f9;
+    --rp-subtle: #e2e8f0;
+    
+    /* Typography */
+    --rp-text: #0f172a;
+    --rp-text-secondary: #475569;
+    --rp-text-muted: #94a3b8;
+    
+    /* Effects */
+    --rp-border: #e2e8f0;
+    --rp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --rp-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    --rp-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    --rp-shadow-card: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
+    --rp-shadow-hover: 0 20px 40px rgba(59, 130, 246, 0.15);
+    
+    /* Radii */
+    --rp-radius-sm: 6px;
+    --rp-radius-md: 10px;
+    --rp-radius-lg: 14px;
+    --rp-radius-xl: 20px;
+    --rp-radius-full: 9999px;
+}
 
-  /* Projects header */
-  .projects-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-  }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-  .page-title {
-    color: var(--primary);
-    font-size: 28px;
-    margin: 0;
-  }
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
 
-  .projects-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-  }
+/* ===== PAGE LAYOUT ===== */
+.rp-page {
+    min-height: 100vh;
+    background: var(--rp-bg);
+}
 
-  /* Search form */
-  .search-form {
+/* ===== HERO HEADER ===== */
+.rp-hero {
+    background: linear-gradient(145deg, var(--rp-deep) 0%, var(--rp-navy) 100%);
+    padding: 3rem 0 4rem;
     position: relative;
-    margin-right: 10px;
-  }
+    overflow: hidden;
+}
 
-  .search-wrapper {
+.rp-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+.rp-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.rp-hero-content {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.rp-hero-text {
+    flex: 1;
+    min-width: 280px;
+}
+
+.rp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--rp-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--rp-white);
+    margin-bottom: 1.25rem;
+}
+
+.rp-badge i {
+    color: #fbbf24;
+}
+
+.rp-title {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 800;
+    color: var(--rp-white);
+    margin: 0 0 0.75rem;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+}
+
+.rp-subtitle {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 1.5rem;
+    max-width: 500px;
+}
+
+.rp-stats {
     display: flex;
     align-items: center;
-    background-color: white;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    overflow: hidden;
-  }
+    gap: 2rem;
+    flex-wrap: wrap;
+}
 
-  .search-input {
-    padding: 8px 10px;
-    border: none;
-    outline: none;
-    font-size: 14px;
-    min-width: 200px;
-  }
+.rp-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
 
-  .search-btn {
-    background-color: var(--primary);
-    color: white;
+.rp-stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--rp-white);
+}
+
+.rp-stat-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rp-hero-action {
+    flex-shrink: 0;
+}
+
+.rp-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 1.75rem;
+    background: linear-gradient(135deg, var(--rp-primary), var(--rp-primary-light));
+    color: var(--rp-white);
+    font-weight: 700;
+    font-size: 0.95rem;
     border: none;
-    padding: 8px 12px;
+    border-radius: var(--rp-radius-lg);
+    text-decoration: none;
     cursor: pointer;
+    transition: all 0.25s;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.rp-create-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+    color: var(--rp-white);
+}
+
+.rp-create-btn i {
+    font-size: 1.1rem;
+}
+
+/* ===== SEARCH & FILTERS ===== */
+.rp-filters {
+    max-width: 1200px;
+    margin: -2rem auto 0;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 10;
+}
+
+.rp-filter-card {
+    background: var(--rp-white);
+    border: 1px solid var(--rp-border);
+    border-radius: var(--rp-radius-xl);
+    padding: 1.5rem;
+    box-shadow: var(--rp-shadow-lg);
+}
+
+.rp-search-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.rp-search-box {
+    flex: 1;
+    min-width: 280px;
+    position: relative;
+}
+
+.rp-search-input {
+    width: 100%;
+    padding: 0.875rem 1.25rem 0.875rem 3rem;
+    background: var(--rp-muted);
+    border: 2px solid transparent;
+    border-radius: 50px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--rp-text);
+    transition: all 0.2s;
+}
+
+.rp-search-input:focus {
+    outline: none;
+    background: var(--rp-white);
+    border-color: var(--rp-primary);
+    box-shadow: 0 0 0 4px var(--rp-primary-glow);
+}
+
+.rp-search-input::placeholder {
+    color: var(--rp-text-muted);
+}
+
+.rp-search-icon {
+    position: absolute;
+    left: 1.125rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--rp-text-muted);
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .rp-search-icon {
+    left: auto;
+    right: 1.125rem;
+}
+
+html[dir="rtl"] .rp-search-input {
+    padding: 0.875rem 3rem 0.875rem 1.25rem;
+}
+
+.rp-search-btn {
+    padding: 0.875rem 1.5rem;
+    background: var(--rp-primary);
+    color: var(--rp-white);
+    border: none;
+    border-radius: var(--rp-radius-full);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rp-search-btn:hover {
+    background: var(--rp-primary-dark);
+}
+
+/* Filter Pills */
+.rp-pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    align-items: center;
+}
+
+.rp-pill-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--rp-text-secondary);
+    margin-right: 0.5rem;
+}
+
+html[dir="rtl"] .rp-pill-label {
+    margin-right: 0;
+    margin-left: 0.5rem;
+}
+
+.rp-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--rp-muted);
+    border: 1px solid var(--rp-border);
+    border-radius: var(--rp-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--rp-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rp-pill:hover {
+    background: var(--rp-subtle);
+    color: var(--rp-text);
+}
+
+.rp-pill.active {
+    background: var(--rp-primary);
+    border-color: var(--rp-primary);
+    color: var(--rp-white);
+}
+
+.rp-pill i {
+    font-size: 0.9rem;
+}
+
+.rp-filter-select {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    background: var(--rp-muted);
+    border: 1px solid var(--rp-border);
+    border-radius: var(--rp-radius-full);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--rp-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+
+html[dir="rtl"] .rp-filter-select {
+    padding: 0.5rem 1rem 0.5rem 2rem;
+    background-position: left 0.75rem center;
+}
+
+.rp-filter-select:focus {
+    outline: none;
+    border-color: var(--rp-primary);
+    box-shadow: 0 0 0 3px var(--rp-primary-glow);
+}
+
+/* ===== PROJECTS GRID ===== */
+.rp-content {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem 4rem;
+}
+
+.rp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 480px) {
+    .rp-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== PROJECT CARD ===== */
+.rp-card {
+    background: var(--rp-white);
+    border: 1px solid var(--rp-border);
+    border-radius: var(--rp-radius-xl);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.rp-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--rp-shadow-hover);
+    border-color: var(--rp-primary-light);
+}
+
+.rp-card-header {
+    padding: 1.25rem 1.5rem 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.rp-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: var(--rp-radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.rp-status-badge.ongoing {
+    background: var(--rp-ongoing-bg);
+    color: var(--rp-ongoing);
+}
+
+.rp-status-badge.completed {
+    background: var(--rp-completed-bg);
+    color: var(--rp-completed);
+}
+
+.rp-status-badge.planned {
+    background: var(--rp-planned-bg);
+    color: var(--rp-planned);
+}
+
+.rp-status-badge i {
+    font-size: 0.7rem;
+}
+
+.rp-approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--rp-radius-sm);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.rp-approval-badge.pending {
+    background: var(--rp-pending-bg);
+    color: var(--rp-pending);
+}
+
+.rp-approval-badge.approved {
+    background: var(--rp-approved-bg);
+    color: var(--rp-approved);
+}
+
+.rp-approval-badge.rejected {
+    background: var(--rp-rejected-bg);
+    color: var(--rp-rejected);
+}
+
+.rp-card-body {
+    padding: 1rem 1.5rem;
+    flex: 1;
+}
+
+.rp-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--rp-text);
+    margin: 0 0 0.625rem;
+    line-height: 1.4;
+}
+
+.rp-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.rp-card-title a:hover {
+    color: var(--rp-primary);
+}
+
+.rp-card-summary {
+    font-size: 0.9rem;
+    color: var(--rp-text-secondary);
+    line-height: 1.6;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.rp-card-meta {
+    padding: 0 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--rp-text-muted);
+}
+
+.rp-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.rp-meta-item i {
+    font-size: 0.9rem;
+    color: var(--rp-text-muted);
+}
+
+/* Team Avatars */
+.rp-card-footer {
+    padding: 1rem 1.5rem 1.25rem;
+    border-top: 1px solid var(--rp-border);
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rp-team {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.rp-team-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--rp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.rp-avatars {
+    display: flex;
+    align-items: center;
+}
+
+.rp-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--rp-white);
+    background: var(--rp-primary-glow);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
-  }
+    margin-left: -8px;
+    overflow: hidden;
+    position: relative;
+}
 
-  .search-btn:hover {
-    background-color: #153a52;
-  }
+.rp-avatar:first-child {
+    margin-left: 0;
+}
 
-  .clear-search {
-    position: absolute;
-    right: 0;
-    bottom: -20px;
-    font-size: 12px;
-    color: var(--text-light);
-    text-decoration: none;
-  }
+html[dir="rtl"] .rp-avatar {
+    margin-left: 0;
+    margin-right: -8px;
+}
 
-  .clear-search:hover {
-    color: var(--primary);
-  }
+html[dir="rtl"] .rp-avatar:first-child {
+    margin-right: 0;
+}
 
-  /* Filter styles */
-  .filter-status select {
-    padding: 8px ;
-    padding-right: 30px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 14px;
-    background-color: white;
-    cursor: pointer;
-    outline: none;
-  }
+.rp-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
 
-  .filter-status select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 0.2rem rgba(30, 78, 109, 0.25); /* Adjust shadow color if needed */
-  }
+.rp-avatar-placeholder {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--rp-primary);
+    text-transform: uppercase;
+}
 
-  /* Project cards grid */
-  .projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-  }
+.rp-avatar-more {
+    background: var(--rp-muted);
+    color: var(--rp-text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
 
-  .project-card {
-    background-color: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: var(--card-shadow);
-    transition: transform 0.2s;
-  }
-
-  .project-card:hover {
-    transform: translateY(-2px);
-  }
-
-  .project-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
-  }
-
-  .project-title {
-    font-size: 18px;
-    margin: 0;
-    color: var(--primary);
-  }
-
-  .project-title a {
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .project-description {
-    color: var(--text-light);
-    margin-bottom: 15px;
-    line-height: 1.5;
-  }
-
-  .project-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .meta-item {
-    display: flex;
-    align-items: center;
-    color: var(--text-light);
-    font-size: 14px;
-  }
-
-  .meta-item svg {
-    margin-right: 8px;
-    color: var(--primary);
-  }
-
-  /* Status badges */
-  .status-badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .status-badge {
-    background-color: #ffca28; 
-    color: white;
-  }
-
-  .status-badge.status-Réalisé {
-    background-color: #4caf50; 
-    color: white;
-  }
-
-  .status-badge.status-Planifié {
-    background-color: #64b5f6; 
-    color: white;
-  }
-
-  /* Buttons */
-  .btn {
+.rp-card-action {
     display: inline-flex;
     align-items: center;
-    padding: 10px 18px;
-    border-radius: 4px;
-    font-weight: 500;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--rp-muted);
+    color: var(--rp-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--rp-radius-md);
     text-decoration: none;
-    transition: background-color 0.2s;
-  }
+    transition: all 0.2s;
+}
 
-  .btn svg {
-    margin-right: 8px;
-  }
+.rp-card-action:hover {
+    background: var(--rp-primary);
+    color: var(--rp-white);
+}
 
-  .create-btn {
-    background-color: var(--secondary);
-    color: white;
-  }
-
-  .create-btn:hover {
-    background-color: #3d9a40;
-  }
-
-  .filter-btn {
-    background-color: var(--bg-light);
-    color: var(--text-dark);
-    border: 1px solid var(--border-color);
-  }
-
-  .filter-btn:hover {
-    background-color: #e8e8e8;
-  }
-
-  .filter-btn.active {
-    background-color: var(--primary);
-    color: white;
-    border-color: var(--primary);
-  }
-
-  .empty-message {
+/* ===== EMPTY STATE ===== */
+.rp-empty {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 40px;
-    background-color: var(--bg-light);
-    border-radius: 8px;
-    color: var(--text-light);
-    font-style: italic;
-  }
+    padding: 4rem 2rem;
+    background: var(--rp-white);
+    border: 1px solid var(--rp-border);
+    border-radius: var(--rp-radius-xl);
+}
 
-  /* Responsive design */
-  @media (max-width: 768px) {
-    .projects-header {
-      flex-direction: column;
-      gap: 15px;
-    }
+.rp-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--rp-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
 
-    .projects-actions {
-      width: 100%;
-      flex-direction: column;
-    }
+.rp-empty-icon i {
+    font-size: 2rem;
+    color: var(--rp-text-muted);
+}
 
-    .search-form {
-      width: 100%;
-      margin-right: 0;
-      margin-bottom: 10px;
-    }
+.rp-empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--rp-text);
+    margin: 0 0 0.5rem;
+}
 
-    .search-wrapper {
-      width: 100%;
-    }
+.rp-empty-text {
+    font-size: 0.95rem;
+    color: var(--rp-text-secondary);
+    margin: 0 0 1.5rem;
+}
 
-    .search-input {
-      flex: 1;
-    }
+.rp-empty-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: var(--rp-primary);
+    color: var(--rp-white);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: var(--rp-radius-lg);
+    text-decoration: none;
+    transition: all 0.2s;
+}
 
-    .btn {
-      width: 100%;
-      justify-content: center;
-    }
+.rp-empty-btn:hover {
+    background: var(--rp-primary-dark);
+    color: var(--rp-white);
+}
 
-    .projects-grid {
-      grid-template-columns: 1fr;
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .rp-hero {
+        padding: 2rem 0 3rem;
     }
-  }
+    
+    .rp-hero-content {
+        flex-direction: column;
+    }
+    
+    .rp-hero-action {
+        width: 100%;
+    }
+    
+    .rp-create-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .rp-filters {
+        padding: 0 1rem;
+    }
+    
+    .rp-filter-card {
+        padding: 1rem;
+    }
+    
+    .rp-content {
+        padding: 1.5rem 1rem 3rem;
+    }
+    
+    .rp-grid {
+        gap: 1rem;
+    }
+}
+
+/* ===== SEARCH HIGHLIGHT ===== */
+.search-highlight,
+mark.search-highlight {
+    background-color: #fef08a;
+    color: inherit;
+    padding: 0.1em 0.2em;
+    border-radius: 3px;
+    font-weight: inherit;
+}
+
+/* ===== SEARCH SPINNER ===== */
+.rp-search-spinner {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--rp-primary);
+}
+
+html[dir="rtl"] .rp-search-spinner {
+    right: auto;
+    left: 1rem;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ===== SEARCH LOADING STATE ===== */
+.rp-grid.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ===== FADE IN ANIMATION ===== */
+.rp-card {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="rp-page">
+    
+    <!-- ============ HERO HEADER ============ -->
+    <header class="rp-hero">
+        <div class="rp-hero-container">
+            <div class="rp-hero-content">
+                
+                <div class="rp-hero-text">
+                    <div class="rp-badge">
+                        <i class="bi bi-stars"></i>
+                        {% translate "Research Hub" %}
+                    </div>
+                    <h1 class="rp-title">{% translate "Research Projects" %}</h1>
+                    <p class="rp-subtitle">{% translate "Discover and collaborate on cutting-edge Arabic NLP research projects with researchers worldwide." %}</p>
+                    
+                    <div class="rp-stats">
+                        <div class="rp-stat">
+                            <span class="rp-stat-value">{{ projects|length }}</span>
+                            <span class="rp-stat-label">{% translate "Projects" %}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rp-hero-action">
+                    <a href="{% url 'projects:project_new' %}" class="rp-create-btn">
+                        <i class="bi bi-plus-lg"></i>
+                        {% translate "Create Project" %}
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </header>
+    
+    <!-- ============ SEARCH & FILTERS ============ -->
+    <section class="rp-filters">
+        <div class="rp-filter-card">
+            <form method="get" class="rp-search-row" id="project-search-form">
+                {% if request.GET.my_projects %}
+                <input type="hidden" name="my_projects" value="1">
+                {% endif %}
+                {% if request.GET.status %}
+                <input type="hidden" name="status" value="{{ request.GET.status }}">
+                {% endif %}
+                {% if request.GET.sort %}
+                <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+                {% endif %}
+                
+                <div class="rp-search-box">
+                    
+                    <input type="text" 
+                           id="project-search"
+                           name="q" 
+                           class="rp-search-input" 
+                           placeholder="{% translate 'Search projects by title, institution, or researcher...' %}"
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                    <span class="rp-search-spinner" id="search-spinner" style="display: none;">
+                        <i class="bi bi-arrow-repeat spin"></i>
+                    </span>
+                </div>
+                <button type="submit" class="rp-search-btn">
+                    <i class="bi bi-search"></i>
+                    {% translate "Search" %}
+                </button>
+            </form>
+            
+            <div class="rp-pill-group">
+                <span class="rp-pill-label">{% translate "Filter:" %}</span>
+                
+                <a href="{% if search_query %}?q={{ search_query }}{% else %}{% url 'projects:project_list' %}{% endif %}"
+                   class="rp-pill {% if not request.GET.my_projects and not request.GET.status %}active{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    {% translate "All Projects" %}
+                </a>
+                
+                <a href="?my_projects=1{% if search_query %}&q={{ search_query }}{% endif %}"
+                   class="rp-pill {% if request.GET.my_projects %}active{% endif %}">
+                    <i class="bi bi-person-badge"></i>
+                    {% translate "My Projects" %}
+                </a>
+                
+                <form method="get" style="display: inline-flex;">
+                    {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
+                    {% if request.GET.my_projects %}
+                    <input type="hidden" name="my_projects" value="1">
+                    {% endif %}
+                    {% if request.GET.sort %}
+                    <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+                    {% endif %}
+                    <select name="status" onchange="this.form.submit()" class="rp-filter-select">
+                        <option value="">{% translate "All Statuses" %}</option>
+                        {% for status_value, status_label in project_statuses %}
+                        <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                
+                <form method="get" style="display: inline-flex;">
+                    {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
+                    {% if request.GET.my_projects %}
+                    <input type="hidden" name="my_projects" value="1">
+                    {% endif %}
+                    {% if request.GET.status %}
+                    <input type="hidden" name="status" value="{{ request.GET.status }}">
+                    {% endif %}
+                    <select name="sort" onchange="this.form.submit()" class="rp-filter-select">
+                        <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>{% translate "Newest First" %}</option>
+                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>{% translate "Oldest First" %}</option>
+                        <option value="alphabetical" {% if current_sort == 'alphabetical' %}selected{% endif %}>{% translate "A-Z" %}</option>
+                        <option value="updated" {% if current_sort == 'updated' %}selected{% endif %}>{% translate "Recently Updated" %}</option>
+                    </select>
+                </form>
+                
+                {% if search_query or request.GET.status %}
+                <a href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}" 
+                   class="rp-pill">
+                    <i class="bi bi-x-lg"></i>
+                    {% translate "Clear Filters" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- ============ PROJECTS GRID ============ -->
+    <main class="rp-content">
+        <div class="rp-grid" id="projects-grid">
+            {% load project_tags %}
+            {% for project in projects %}
+            <article class="rp-card">
+                <div class="rp-card-header">
+                    <span class="rp-status-badge {{ project.status }}">
+                        {% if project.status == 'ongoing' %}
+                        <i class="bi bi-play-circle-fill"></i>
+                        {% elif project.status == 'completed' %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        {% else %}
+                        <i class="bi bi-calendar-event"></i>
+                        {% endif %}
+                        {{ project.get_status_display }}
+                    </span>
+                    {% if project.approval_status == 'pending' and project.coordinator == request.user %}
+                    <span class="rp-approval-badge pending">
+                        <i class="bi bi-hourglass-split"></i>
+                        {% translate "Pending Review" %}
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <div class="rp-card-body">
+                    <h3 class="rp-card-title">
+                        <a href="{% url 'projects:project_detail' project.pk %}">{{ project|highlight_title:highlights|safe }}</a>
+                    </h3>
+                    <p class="rp-card-summary">{{ project|highlight_description:highlights|safe }}</p>
+                </div>
+                
+                <div class="rp-card-meta">
+                    <div class="rp-meta-item">
+                        <i class="bi bi-building"></i>
+                        {{ project.institution }}
+                    </div>
+                    {% if project.date_start %}
+                    <div class="rp-meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        {{ project.date_start|date:"M Y" }}{% if project.date_end %} - {{ project.date_end|date:"M Y" }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="rp-card-footer">
+                    <div class="rp-team">
+                        <span class="rp-team-label">{% translate "Team" %}</span>
+                        <div class="rp-avatars">
+                            <!-- Coordinator -->
+                            <div class="rp-avatar" title="{{ project.coordinator.full_name }}">
+                                {% if project.coordinator.avatar %}
+                                <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
+                                {% else %}
+                                <span class="rp-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
+                                {% endif %}
+                            </div>
+                            {% with members=project.members.all|slice:":3" %}
+                            {% for member in members %}
+                            {% if member.status == 'accepted' %}
+                            <div class="rp-avatar" title="{{ member.member.full_name }}">
+                                {% if member.member.avatar %}
+                                <img src="{{ member.member.avatar.url }}" alt="{{ member.member.full_name }}">
+                                {% else %}
+                                <span class="rp-avatar-placeholder">{{ member.member.full_name|slice:":2"|upper }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
+                        {% translate "View" %}
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </article>
+            {% empty %}
+            <div class="rp-empty">
+                <div class="rp-empty-icon">
+                    <i class="bi bi-folder2-open"></i>
+                </div>
+                <h3 class="rp-empty-title">
+                    {% if request.GET.search %}
+                    {% translate "No Projects Found" %}
+                    {% elif request.GET.my_projects %}
+                    {% translate "No Projects Yet" %}
+                    {% else %}
+                    {% translate "No Projects Available" %}
+                    {% endif %}
+                </h3>
+                <p class="rp-empty-text">
+                    {% if request.GET.search %}
+                    {% translate "Try adjusting your search terms or filters." %}
+                    {% elif request.GET.my_projects %}
+                    {% translate "You haven't created any research projects yet. Start your first one!" %}
+                    {% else %}
+                    {% translate "Be the first to create a research project and collaborate with others." %}
+                    {% endif %}
+                </p>
+                <a href="{% url 'projects:project_new' %}" class="rp-empty-btn">
+                    <i class="bi bi-plus-lg"></i>
+                    {% translate "Create Project" %}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+    
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    // ==================== Debounce Function ====================
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // ==================== DOM Elements ====================
+    const searchInput = document.getElementById('project-search');
+    const searchForm = document.getElementById('project-search-form');
+    const projectsGrid = document.getElementById('projects-grid');
+    const searchSpinner = document.getElementById('search-spinner');
+    const projectCountElement = document.querySelector('.rp-stat-value');
+    
+    // Filter elements
+    const statusSelect = document.querySelector('select[name="status"]');
+    const sortSelect = document.querySelector('select[name="sort"]');
+    const filterPills = document.querySelectorAll('.rp-pill[href]');
+    
+    // ==================== State ====================
+    let currentRequest = null;
+    
+    // ==================== Helper Functions ====================
+    function getFilterParams() {
+        const params = new URLSearchParams();
+        
+        // Search query
+        const query = searchInput ? searchInput.value.trim() : '';
+        if (query) {
+            params.set('q', query);
+        }
+        
+        // My projects filter
+        const myProjectsInput = searchForm ? searchForm.querySelector('input[name="my_projects"]') : null;
+        if (myProjectsInput && myProjectsInput.value) {
+            params.set('my_projects', '1');
+        }
+        
+        // Status filter
+        if (statusSelect && statusSelect.value) {
+            params.set('status', statusSelect.value);
+        }
+        
+        // Sort filter
+        if (sortSelect && sortSelect.value) {
+            params.set('sort', sortSelect.value);
+        }
+        
+        return params;
+    }
+    
+    function showLoading() {
+        if (projectsGrid) {
+            projectsGrid.classList.add('loading');
+        }
+        if (searchSpinner) {
+            searchSpinner.style.display = 'inline-block';
+        }
+    }
+    
+    function hideLoading() {
+        if (projectsGrid) {
+            projectsGrid.classList.remove('loading');
+        }
+        if (searchSpinner) {
+            searchSpinner.style.display = 'none';
+        }
+    }
+    
+    function updateProjectCount(html) {
+        // Count project cards in the returned HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const cardCount = tempDiv.querySelectorAll('.rp-card').length;
+        
+        if (projectCountElement) {
+            projectCountElement.textContent = cardCount;
+        }
+    }
+    
+    function updateBrowserUrl(params) {
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.history.replaceState(null, '', newUrl);
+    }
+    
+    // ==================== AJAX Search Function ====================
+    function performSearch() {
+        // Cancel previous request if still pending
+        if (currentRequest) {
+            currentRequest.abort();
+        }
+        
+        const params = getFilterParams();
+        const url = window.location.pathname + '?' + params.toString();
+        
+        showLoading();
+        
+        // Create AbortController for request cancellation
+        const controller = new AbortController();
+        currentRequest = controller;
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+            },
+            signal: controller.signal,
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(html => {
+            // Update the projects grid with new content
+            if (projectsGrid) {
+                projectsGrid.innerHTML = html;
+            }
+            
+            // Update project count
+            updateProjectCount(html);
+            
+            // Update browser URL without reload
+            updateBrowserUrl(params);
+            
+            hideLoading();
+            currentRequest = null;
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                // Request was cancelled, ignore
+                return;
+            }
+            console.error('Search error:', error);
+            hideLoading();
+            currentRequest = null;
+        });
+    }
+    
+    // ==================== Debounced Search ====================
+    const debouncedSearch = debounce(performSearch, 300);
+    
+    // ==================== Event Listeners ====================
+    
+    // Search input with debounce
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            debouncedSearch();
+        });
+        
+        // Prevent form submission on Enter, use AJAX instead
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    }
+    
+    // Form submission via AJAX
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            performSearch();
+        });
+    }
+    
+    // Status filter change
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function(e) {
+            performSearch();
+        });
+    }
+    
+    // Sort filter change
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function(e) {
+            performSearch();
+        });
+    }
+    
+    // Filter pills (All Projects, My Projects)
+    filterPills.forEach(function(pill) {
+        pill.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const href = this.getAttribute('href');
+            const pillUrl = new URL(href, window.location.origin);
+            const pillParams = pillUrl.searchParams;
+            
+            // Update form hidden inputs based on pill
+            const myProjectsInput = searchForm ? searchForm.querySelector('input[name="my_projects"]') : null;
+            
+            if (pillParams.has('my_projects')) {
+                // My Projects filter
+                if (myProjectsInput) {
+                    myProjectsInput.value = '1';
+                } else if (searchForm) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'my_projects';
+                    input.value = '1';
+                    searchForm.appendChild(input);
+                }
+            } else {
+                // All Projects - remove my_projects
+                if (myProjectsInput) {
+                    myProjectsInput.remove();
+                }
+            }
+            
+            // Update active state
+            filterPills.forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Trigger search
+            performSearch();
+        });
+    });
+    
+    // Clear Filters button
+    const clearFiltersBtn = document.querySelector('.rp-pill .bi-x-lg');
+    if (clearFiltersBtn) {
+        const clearBtn = clearFiltersBtn.closest('.rp-pill');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Clear search input
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+                
+                // Clear status filter
+                if (statusSelect) {
+                    statusSelect.value = '';
+                }
+                
+                // Trigger search
+                performSearch();
+            });
+        }
+    }
+    
+})();
+</script>
 {% endblock %}

@@ -467,3 +467,34 @@ def start_new_session(request):
             "error": _("Unable to start new session. Please try again."),
             "source": "error"
         }, status=503)
+
+
+@login_required
+def chatbot_interface(request):
+    """
+    Main chatbot interface/UI view
+    """
+    context = {
+        'user': request.user,
+        'page_title': _('Chatbot'),
+    }
+    return render(request, 'chatbot/chat.html', context)
+
+
+@login_required
+def chat_history(request):
+    """
+    Get all chat sessions for the current user
+    """
+    sessions = ChatSession.objects.filter(user=request.user).order_by('-created_at')
+    
+    data = {
+        'sessions': [{
+            'id': str(session.id),
+            'title': session.title or f"Chat {session.created_at.strftime('%Y-%m-%d %H:%M')}",
+            'created_at': session.created_at.isoformat(),
+            'message_count': session.messages.count()
+        } for session in sessions]
+    }
+    
+    return JsonResponse(data)

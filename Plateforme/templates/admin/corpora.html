@@ -255,6 +255,120 @@
     color: white;
   }
 
+  .action-btn-approve {
+    border-color: var(--success-color);
+    color: var(--success-color);
+  }
+
+  .action-btn-approve:hover {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+  }
+
+  .action-btn-reject {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+  }
+
+  .action-btn-reject:hover {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+  }
+
+  /* Approval Tabs */
+  .approval-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: var(--gray-600);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .tab-btn:hover {
+    background: var(--gray-100);
+    color: var(--gray-900);
+  }
+
+  .tab-btn.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+  }
+
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .tab-btn.active .tab-badge {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+  }
+
+  .tab-btn:not(.active) .tab-badge {
+    background: var(--gray-200);
+    color: var(--gray-700);
+  }
+
+  .tab-badge-pending {
+    background: #f59e0b !important;
+    color: white !important;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-approved {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
   /* Pagination */
   .pagination-modern {
     display: flex;
@@ -436,8 +550,83 @@
     </form>
   </div>
 
+  <!-- Approval Tabs -->
+  <div class="approval-tabs">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" 
+       class="tab-btn {% if active_tab == 'approved' %}active{% endif %}">
+      <i class="fas fa-check-circle"></i>
+      {% trans "Approved" %}
+      <span class="tab-badge">{{ approved_count }}</span>
+    </a>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" 
+       class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
+      <i class="fas fa-clock"></i>
+      {% trans "Pending Review" %}
+      <span class="tab-badge {% if pending_count > 0 %}tab-badge-pending{% endif %}">{{ pending_count }}</span>
+    </a>
+  </div>
+
   <!-- Table -->
-  {% if corpora %}
+  {% if active_tab == 'pending' %}
+    {% if pending_corpora %}
+    <div class="table-card">
+      <table class="corpus-table">
+        <thead>
+          <tr>
+            <th>{% trans "Title" %}</th>
+            <th>{% trans "Description" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th style="text-align: center;">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for corpus in pending_corpora %}
+          <tr>
+            <td>
+              <a href="{% url 'resources:corpus_detail' corpus.id %}" class="corpus-title">
+                {{ corpus.title }}
+              </a>
+            </td>
+            <td>
+              <div class="corpus-description">{{ corpus.description|truncatewords:10 }}</div>
+            </td>
+            <td>
+              <span class="status-badge status-pending">
+                <i class="fas fa-clock"></i> {% trans "Pending" %}
+              </span>
+            </td>
+            <td>
+              <div class="action-buttons justify-content-center">
+                <a href="{% url 'resources:corpus_detail' corpus.id %}" class="action-btn action-btn-view" title="{% trans 'View' %}">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'pages:admin_approve_item' model_type='corpus' pk=corpus.id %}" class="action-btn action-btn-approve" title="{% trans 'Review & Edit' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                {% translate "Are you sure you want to reject this corpus?" as confirm_corpus_msg %}
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type='corpus' pk=corpus.id %}" style="display: inline;" onsubmit="return confirm('{{ confirm_corpus_msg }}');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn action-btn-reject" title="{% trans 'Reject & Delete' %}">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="fas fa-check-double"></i></div>
+      <h3 class="empty-title">{% trans "No pending corpora" %}</h3>
+      <p class="empty-description">{% trans "All submissions have been reviewed." %}</p>
+    </div>
+    {% endif %}
+  {% else %}
+  <!-- Approved Corpora Table -->
+  {% if approved_corpora %}
   <div class="table-card">
     <table class="corpus-table">
       <thead>
@@ -449,7 +638,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for corpus in corpora %}
+        {% for corpus in approved_corpora %}
         <tr>
           <td>
             <a href="{% url 'resources:corpus_detail' corpus.id %}" class="corpus-title">
@@ -544,6 +733,7 @@
       {% trans "Create a corpus" %}
     </a>
   </div>
+  {% endif %}
   {% endif %}
 </div>
 

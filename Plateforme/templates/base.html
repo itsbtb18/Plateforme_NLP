@@ -14,10 +14,28 @@
     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/rtl-utilities.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
     <link href="{% static 'css/notifications-modern.css' %}" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS for modern components -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: { preflight: false },
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                        'tajawal': ['Tajawal', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -70,6 +88,386 @@
       .notification-badge:not(:empty) {
         display: block;
       }
+
+      /* ══════════════════════════════════════════════════════════════════════ */
+      /* MODERN NOTIFICATION DROPDOWN STYLES                                    */
+      /* ══════════════════════════════════════════════════════════════════════ */
+      
+      /* Dropdown Container */
+      .ntf-dropdown-container {
+        position: relative;
+      }
+      
+      /* Bell Button */
+      .ntf-bell-btn {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .ntf-bell-btn:hover {
+        background: #f3f4f6;
+      }
+      
+      .ntf-bell-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+      
+      .ntf-bell-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #4b5563;
+      }
+      
+      /* Badge */
+      .ntf-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        font-size: 11px;
+        font-weight: 600;
+        color: white;
+        background: #ef4444;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        animation: ntf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      @keyframes ntf-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+      }
+      
+      /* Dropdown Panel */
+      .ntf-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 384px;
+        max-width: calc(100vw - 2rem);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e5e7eb;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        transition: all 0.2s ease;
+      }
+      
+      .ntf-dropdown.ntf-open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      
+      /* Header */
+      .ntf-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      
+      .ntf-header h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      .ntf-subtitle {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      
+      .ntf-mark-all {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #2563eb;
+        background: #eff6ff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      
+      .ntf-mark-all:hover {
+        background: #dbeafe;
+      }
+      
+      /* Body */
+      .ntf-body {
+        max-height: 384px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+      
+      .ntf-body::-webkit-scrollbar {
+        width: 6px;
+      }
+      
+      .ntf-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .ntf-body::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+      }
+      
+      .ntf-body::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+      
+      /* Notification Items */
+      .ntf-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f9fafb;
+        text-decoration: none;
+        transition: background 0.15s ease;
+      }
+      
+      .ntf-item:hover {
+        background: #f9fafb;
+      }
+      
+      .ntf-item.ntf-unread {
+        background: rgba(239, 246, 255, 0.5);
+      }
+      
+      .ntf-item.ntf-unread:hover {
+        background: rgba(239, 246, 255, 0.8);
+      }
+      
+      /* Icon */
+      .ntf-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .ntf-icon i {
+        font-size: 14px;
+      }
+      
+      /* Content */
+      .ntf-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .ntf-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .ntf-message {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 2px 0 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      
+      .ntf-time {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      
+      .ntf-time svg {
+        width: 12px;
+        height: 12px;
+      }
+      
+      /* Unread Dot */
+      .ntf-dot {
+        flex-shrink: 0;
+        width: 8px;
+        height: 8px;
+        background: #3b82f6;
+        border-radius: 50%;
+        margin-top: 6px;
+      }
+      
+      /* Empty State */
+      .ntf-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 16px;
+      }
+      
+      .ntf-empty svg {
+        width: 48px;
+        height: 48px;
+        color: #9ca3af;
+        margin-bottom: 16px;
+      }
+      
+      .ntf-empty p {
+        margin: 0;
+        text-align: center;
+      }
+      
+      .ntf-empty p:first-of-type {
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+      }
+      
+      .ntf-empty p:last-of-type {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      
+      /* Footer */
+      .ntf-footer {
+        padding: 12px 16px;
+        border-top: 1px solid #f3f4f6;
+        background: rgba(249, 250, 251, 0.5);
+        border-radius: 0 0 12px 12px;
+      }
+      
+      .ntf-footer a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #2563eb;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+      
+      .ntf-footer a:hover {
+        color: #1d4ed8;
+      }
+      
+      .ntf-footer svg {
+        width: 16px;
+        height: 16px;
+      }
+      
+      /* Loading State */
+      .ntf-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
+      
+      .ntf-loading svg {
+        width: 24px;
+        height: 24px;
+        color: #3b82f6;
+        animation: ntf-spin 1s linear infinite;
+      }
+      
+      @keyframes ntf-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      /* ══════════════════════════════════════════════════════════════════════ */
+      /* RTL SUPPORT FOR ARABIC                                                 */
+      /* ══════════════════════════════════════════════════════════════════════ */
+      
+      html[dir="rtl"] .ntf-dropdown {
+        right: auto;
+        left: 0;
+      }
+      
+      html[dir="rtl"] .ntf-badge {
+        right: auto;
+        left: -4px;
+      }
+      
+      html[dir="rtl"] .ntf-item {
+        flex-direction: row-reverse;
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-content {
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-time {
+        flex-direction: row-reverse;
+      }
+      
+      html[dir="rtl"] .ntf-footer svg {
+        transform: rotate(180deg);
+      }
+      
+      html[dir="rtl"] .ntf-header {
+        flex-direction: row-reverse;
+      }
+      
+      html[dir="rtl"] .ntf-header > div:first-child {
+        text-align: right;
+      }
+      
+      html[dir="rtl"] .ntf-mark-all {
+        flex-direction: row-reverse;
+      }
+      
+      /* Mobile Responsive */
+      @media (max-width: 480px) {
+        .ntf-dropdown {
+          width: calc(100vw - 1rem);
+          right: -0.5rem;
+        }
+        
+        html[dir="rtl"] .ntf-dropdown {
+          right: auto;
+          left: -0.5rem;
+        }
+      }
     </style>
 </head>
 <body>
@@ -81,20 +479,643 @@
                     <span class="logo-text fw-bold fs-4 ">{% trans "Arabic NLP" %}  </span>
                 </a>
             </div>
-            <div class="search-container">
-                <div class="search-bar">
-                    <form id="global-search-form" action="{% url 'search:global_search' %}" method="get">
-                        <div class="input-group">
-                            <input type="text" name="q" placeholder=" {% trans "Search resources,tools,corpus..." %} " 
-                                   id="search-input" class="form-control" />
-                            <button type="submit" class="btn btn-primary ">
-                                <i class="fas fa-search"></i>
-                            </button>
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <!-- PREMIUM COMMAND PALETTE SEARCH - Inspired by Notion, GitHub, Linear               -->
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <div class="cmd-search" id="global-search-wrapper">
+                <form id="global-search-form" action="{% url 'search:global_search' %}" method="get" class="cmd-search-form">
+                    <div class="cmd-search-bar" id="cmd-search-bar" style="width: 100%;">
+                        <!-- Search Icon (Left for LTR, Right for RTL) -->
+                        <div class="cmd-icon cmd-icon-search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.3-4.3"></path>
+                            </svg>
                         </div>
-                    </form>
+                        
+                        <!-- Input Field -->
+                        <input type="text" 
+                               name="q" 
+                               id="search-input"
+                               class="cmd-input"
+                               placeholder="{% trans 'search...' %}"
+                               autocomplete="off"
+                               spellcheck="false"
+                               aria-label="{% trans 'Search' %}"
+                               aria-autocomplete="list"
+                               aria-controls="search-results"
+                               aria-expanded="false">
+                    </div>
+                </form>
+                
+                <!-- Search Results Dropdown -->
+                <div id="search-results" class="cmd-dropdown" role="listbox" aria-label="{% trans 'Search suggestions' %}">
+                    <div id="search-results-content" class="cmd-dropdown-content"></div>
                 </div>
             </div>
-            <div id="search-results" class="search-results-dropdown"></div>
+            
+            <style>
+            /* ════════════════════════════════════════════════════════════════════════════════════ */
+            /* COMMAND PALETTE SEARCH - Premium SaaS Design System                                  */
+            /* Inspired by: Notion, GitHub, Linear, Raycast                                         */
+            /* ════════════════════════════════════════════════════════════════════════════════════ */
+            
+            :root {
+                --cmd-bg: #FFFFFF;
+                --cmd-bg-hover: #FFFFFF;
+                --cmd-bg-active: #FFFFFF;
+                --cmd-border: #E2E8F0;
+                --cmd-border-hover: #E2E8F0;
+                --cmd-border-focus: #E2E8F0;
+                --cmd-text: #111827;
+                --cmd-text-muted: #9ca3af;
+                --cmd-text-placeholder: #9ca3af;
+                --cmd-accent: #9ca3af;
+                --cmd-accent-hover: #9ca3af;
+                --cmd-accent-light: #FFFFFF;
+                --cmd-shadow: none;
+                --cmd-shadow-hover: none;
+                --cmd-shadow-focus: none;
+                --cmd-shadow-dropdown: 0 4px 20px rgba(0, 0, 0, 0.08);
+                --cmd-radius: 9999px;
+                --cmd-radius-dropdown: 12px;
+                --cmd-transition: 150ms ease;
+            }
+            
+            /* Container - Flexible, fills available header space */
+            .cmd-search {
+                position: relative;
+                flex: 1 1 auto;
+                width: 100%;
+                min-width: 0;
+                max-width: 800px;
+                margin: 0 0 0 24px;
+                z-index: 1000;
+            }
+
+            html[dir="rtl"] .cmd-search {
+                margin: 0 24px 0 0;
+            }
+            
+            .cmd-search-form {
+                width: 100%;
+            }
+            
+            /* Search Bar - Pill Shape, Completely Flat */
+            .cmd-search-bar {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                width: 100%;
+                height: 44px;
+                padding: 0 18px;
+                background: #FFFFFF !important;
+                border: 1px solid #E2E8F0 !important;
+                border-radius: var(--cmd-radius);
+                box-shadow: none !important;
+                outline: none !important;
+                transition: none;
+            }
+            
+            .cmd-search-bar:hover {
+                border-color: #E2E8F0 !important;
+                box-shadow: none !important;
+            }
+            
+            .cmd-search-bar:focus-within {
+                border-color: #E2E8F0 !important;
+                box-shadow: none !important;
+                outline: none !important;
+            }
+            
+            .cmd-search-bar.has-results {
+                border-radius: var(--cmd-radius) var(--cmd-radius) 0 0;
+            }
+            
+            /* Search Icon */
+            .cmd-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                color: var(--cmd-text-placeholder);
+                transition: color var(--cmd-transition);
+            }
+            
+            .cmd-icon-search svg {
+                stroke-width: 1.5;
+            }
+            
+            .cmd-search-bar:focus-within .cmd-icon-search {
+                color: var(--cmd-text-placeholder);
+            }
+            
+            /* Input Field - No Focus Ring */
+            .cmd-input {
+                flex: 1;
+                min-width: 0;
+                height: 100%;
+                padding: 0 4px;
+                border: none !important;
+                background: transparent !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+                font-size: 15px;
+                font-weight: 400;
+                line-height: 44px;
+                color: var(--cmd-text);
+                outline: none !important;
+                box-shadow: none !important;
+            }
+            
+            .cmd-input:focus {
+                outline: none !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            
+            .cmd-input:focus-visible {
+                outline: none !important;
+                box-shadow: none !important;
+            }
+            
+            /* Nuclear option: kill all focus styles on search elements */
+            #search-input,
+            #search-input:focus,
+            #search-input:focus-visible,
+            #search-input:active {
+                outline: none !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            .cmd-input::placeholder {
+                color: var(--cmd-text-placeholder);
+                opacity: 1;
+                font-weight: 400;
+            }
+            
+            .cmd-input::-webkit-search-cancel-button,
+            .cmd-input::-webkit-search-decoration {
+                display: none;
+            }
+            
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* DROPDOWN                                                                            */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            
+            .cmd-dropdown {
+                position: absolute;
+                top: calc(100% + 6px);
+                left: 0;
+                width: 100%;
+                min-width: 280px;
+                max-width: 800px;
+                background: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: var(--cmd-radius-dropdown);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+                max-height: 420px;
+                overflow: hidden;
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(-4px);
+                transition: 
+                    opacity 150ms ease,
+                    transform 150ms ease,
+                    visibility 150ms;
+                z-index: 1001;
+            }
+            
+            .cmd-dropdown.active {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0);
+            }
+            
+            /* Dropdown fills parent width */
+            #search-results {
+                width: 100%;
+                min-width: 280px;
+            }
+            
+            .cmd-search-bar.has-results {
+                border-radius: var(--cmd-radius);
+            }
+            
+            .cmd-dropdown-content {
+                max-height: 400px;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                width: 100%;
+            }
+            
+            .cmd-dropdown-content::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .cmd-dropdown-content::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            
+            .cmd-dropdown-content::-webkit-scrollbar-thumb {
+                background: #d0d7de;
+                border-radius: 4px;
+                border: 2px solid var(--cmd-bg);
+            }
+            
+            .cmd-dropdown-content::-webkit-scrollbar-thumb:hover {
+                background: #afb8c1;
+            }
+            
+            /* Result Section */
+            .cmd-section {
+                padding: 12px 0 8px;
+            }
+            
+            .cmd-section-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 16px 10px;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--cmd-text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            
+            .cmd-section-count {
+                font-size: 11px;
+                font-weight: 500;
+                min-width: 20px;
+                height: 20px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 6px;
+                background: var(--cmd-bg-active);
+                border-radius: var(--cmd-radius-full);
+                color: var(--cmd-text-muted);
+            }
+            
+            /* Result Item */
+            .cmd-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 16px;
+                text-decoration: none;
+                color: var(--cmd-text);
+                transition: background var(--cmd-transition);
+                cursor: pointer;
+            }
+            
+            .cmd-item:hover,
+            .cmd-item:focus,
+            .cmd-item.selected {
+                background: var(--cmd-bg-active);
+                outline: none;
+            }
+            
+            .cmd-item-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                flex-shrink: 0;
+                font-size: 14px;
+            }
+            
+            /* Icon Colors by Type - Light off-white/yellow backgrounds */
+            .cmd-item-icon.course { background: #ecfdf5; color: #059669; }
+            .cmd-item-icon.tool { background: #fefce8; color: #ca8a04; }
+            .cmd-item-icon.corpus { background: #eff6ff; color: #2563eb; }
+            .cmd-item-icon.resource { background: #faf5ff; color: #9333ea; }
+            .cmd-item-icon.project { background: #eff6ff; color: #1d4ed8; }
+            .cmd-item-icon.event { background: #fdf2f8; color: #db2777; }
+            .cmd-item-icon.institution { background: #fef2f2; color: #dc2626; }
+            .cmd-item-icon.user { background: #f0f9ff; color: #0284c7; }
+            .cmd-item-icon.topic { background: #fefce8; color: #ca8a04; }
+            
+            .cmd-item-content {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .cmd-item-title {
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--cmd-text);
+                margin: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .cmd-item:hover .cmd-item-title {
+                color: var(--cmd-accent);
+            }
+            
+            .cmd-item-meta {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 2px;
+                font-size: 12px;
+                color: var(--cmd-text-muted);
+            }
+            
+            .cmd-item-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 1px 6px;
+                background: var(--cmd-bg-active);
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+                text-transform: capitalize;
+            }
+            
+            .cmd-item-arrow {
+                color: #d0d7de;
+                transition: all var(--cmd-transition);
+                flex-shrink: 0;
+            }
+            
+            .cmd-item:hover .cmd-item-arrow {
+                color: var(--cmd-accent);
+                transform: translateX(2px);
+            }
+            
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* AUTOCOMPLETE ITEM STYLES                                                            */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            
+            .sr-autocomplete-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                cursor: pointer;
+                border-bottom: 1px solid #f3f4f6;
+                transition: all 150ms ease;
+            }
+            
+            .sr-autocomplete-item:last-child {
+                border-bottom: none;
+            }
+            
+            .sr-autocomplete-item:hover {
+                background: linear-gradient(90deg, #fefce8 0%, #fef9c3 100%);
+                border-left: 3px solid #fbbf24;
+                padding-left: 13px;
+            }
+            
+            .sr-autocomplete-item.selected {
+                background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+                border-left: 3px solid #f59e0b;
+            }
+            
+            .sr-autocomplete-item:hover .cmd-item-title,
+            .sr-autocomplete-item.selected .cmd-item-title {
+                color: #92400e;
+            }
+            
+            .sr-autocomplete-item .cmd-item-type {
+                background: #fef3c7;
+                color: #92400e;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                padding: 2px 8px;
+                border-radius: 10px;
+            }
+            
+            .sr-autocomplete-item:hover .cmd-item-type,
+            .sr-autocomplete-item.selected .cmd-item-type {
+                background: #fbbf24;
+                color: #78350f;
+            }
+            
+            /* Yellow highlight mark styling */
+            .cmd-item-title mark,
+            .sr-autocomplete-item mark {
+                background: #fef08a !important;
+                color: inherit;
+                padding: 0 2px;
+                border-radius: 2px;
+                font-weight: 600;
+            }
+            
+            /* RTL support for autocomplete items */
+            html[dir="rtl"] .sr-autocomplete-item:hover,
+            html[dir="rtl"] .sr-autocomplete-item.selected {
+                border-left: none;
+                border-right: 3px solid #fbbf24;
+                padding-left: 16px;
+                padding-right: 13px;
+            }
+
+            /* View All Link */
+            .cmd-view-all {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 12px 16px;
+                background: var(--cmd-bg-hover);
+                border-top: 1px solid #d8dee4;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--cmd-accent);
+                text-decoration: none;
+                transition: background var(--cmd-transition);
+            }
+            
+            .cmd-view-all:hover {
+                background: var(--cmd-accent-light);
+            }
+            
+            /* Loading State */
+            .cmd-loading {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 32px 16px;
+                color: var(--cmd-text-muted);
+                font-size: 13px;
+            }
+            
+            .cmd-loading svg {
+                animation: cmd-spin 1s linear infinite;
+            }
+            
+            @keyframes cmd-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            /* Empty State */
+            .cmd-empty {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 48px 24px;
+                text-align: center;
+            }
+            
+            .cmd-empty-icon {
+                width: 56px;
+                height: 56px;
+                background: var(--cmd-bg-active);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 16px;
+                color: var(--cmd-text-placeholder);
+            }
+            
+            .cmd-empty-icon svg {
+                width: 24px;
+                height: 24px;
+                stroke-width: 1.5;
+            }
+            
+            .cmd-empty h4 {
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--cmd-text);
+                margin: 0 0 6px;
+            }
+            
+            .cmd-empty p {
+                font-size: 13px;
+                color: var(--cmd-text-muted);
+                margin: 0;
+                max-width: 280px;
+            }
+            
+            /* Suggestions */
+            .cmd-suggestions {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+                margin-top: 20px;
+            }
+            
+            .cmd-suggestions-label {
+                width: 100%;
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--cmd-text-placeholder);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 4px;
+            }
+            
+            .cmd-suggestion {
+                padding: 6px 14px;
+                background: var(--cmd-bg-hover);
+                border: 1px solid var(--cmd-border);
+                border-radius: var(--cmd-radius-full);
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--cmd-text-muted);
+                text-decoration: none;
+                transition: all var(--cmd-transition);
+            }
+            
+            .cmd-suggestion:hover {
+                background: var(--cmd-accent-light);
+                border-color: var(--cmd-accent);
+                color: var(--cmd-accent);
+            }
+            
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* RTL SUPPORT                                                                         */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            
+            html[dir="rtl"] .cmd-search-bar {
+                padding: 0 20px 0 6px;
+            }
+            
+            html[dir="rtl"] .cmd-item {
+                flex-direction: row-reverse;
+            }
+            
+            html[dir="rtl"] .cmd-item-content {
+                text-align: right;
+            }
+            
+            html[dir="rtl"] .cmd-item-arrow svg {
+                transform: rotate(180deg);
+            }
+            
+            html[dir="rtl"] .cmd-item:hover .cmd-item-arrow {
+                transform: translateX(-2px) rotate(180deg);
+            }
+            
+            html[dir="rtl"] .cmd-section-header {
+                flex-direction: row-reverse;
+            }
+            
+            html[dir="rtl"] .cmd-item-meta {
+                flex-direction: row-reverse;
+            }
+            
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* RESPONSIVE                                                                          */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            
+            @media (max-width: 768px) {
+                .cmd-search {
+                    max-width: none;
+                    margin: 0 16px;
+                }
+                
+                .cmd-search-bar {
+                    height: 44px;
+                    padding: 0 5px 0 16px;
+                }
+                
+                .cmd-input {
+                    font-size: 14px;
+                    line-height: 44px;
+                }
+                
+                .cmd-submit {
+                    width: 34px;
+                    height: 32px;
+                }
+                
+                .cmd-submit svg {
+                    width: 14px;
+                    height: 14px;
+                }
+                
+                .cmd-dropdown {
+                    max-height: 60vh;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .cmd-search {
+                    margin: 0 8px;
+                }
+                
+                .cmd-icon-search svg {
+                    width: 16px;
+                    height: 16px;
+                }
+            }
+            </style>
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
 
             <div class="header-actions">
                 <div class="language-dropdown-container action-dropdown-container">
@@ -130,83 +1151,171 @@
 
                 {% if user.is_authenticated %}
                 <div class="authenticated-actions">
-                    <div class="notification-dropdown-container action-dropdown-container">
-                        <button class="action-btn icon-btn notification-bell"
-                                id="notificationDropdownToggle"
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- MODERN NOTIFICATION DROPDOWN - Premium Academic Portal Style           -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <div class="ntf-dropdown-container tw-relative">
+                        <!-- Notification Bell Button -->
+                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent hover:tw-bg-gray-100 tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
+                                id="ntfDropdownToggle"
                                 aria-haspopup="menu"
                                 aria-expanded="false"
                                 aria-label="{% trans 'View notifications' %}"
                                 title="{% trans 'Notifications' %}">
-                            <i class="fas fa-bell" aria-hidden="true"></i>
-                            <span class="action-badge notification-badge" id="notificationBadge" aria-live="polite">
-                                {% if unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}
-                            </span>
+                            <svg class="tw-w-5 tw-h-5 tw-text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <!-- Unread Badge -->
+                            <span class="ntf-badge tw-absolute tw--top-1 tw--right-1 tw-min-w-[18px] tw-h-[18px] tw-flex tw-items-center tw-justify-center tw-text-xs tw-font-semibold tw-text-white tw-bg-red-500 tw-rounded-full tw-shadow-sm {% if unread_notifications_count == 0 %}tw-hidden{% endif %}" 
+                                  id="ntfBadge">{{ unread_notifications_count }}</span>
                         </button>
-                        <div class="dropdown-panel notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationDropdownToggle">
-                            <div class="notification-header">
-                                <div class="notification-header-left">
-                                    <p class="notification-title">{% trans "Notifications" %}</p>
-                                    <span class="notification-subtitle">
+
+                        <!-- Notification Dropdown Panel -->
+                        <div class="ntf-dropdown tw-absolute tw-top-full tw-mt-2 tw-w-96 tw-max-w-[calc(100vw-2rem)] tw-bg-white tw-rounded-xl tw-shadow-2xl tw-border tw-border-gray-100 tw-z-50 tw-opacity-0 tw-invisible tw-transform tw-translate-y-2 tw-transition-all tw-duration-200"
+                             id="ntfDropdown"
+                             role="menu"
+                             aria-labelledby="ntfDropdownToggle">
+                            
+                            <!-- Dropdown Header -->
+                            <div class="ntf-header tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-3 tw-border-b tw-border-gray-100">
+                                <div class="tw-flex tw-flex-col">
+                                    <h3 class="tw-text-base tw-font-semibold tw-text-gray-900 tw-m-0 tw-font-inter">{% trans "Notifications" %}</h3>
+                                    <span class="ntf-subtitle tw-text-xs tw-text-gray-500 tw-mt-0.5" id="ntfSubtitle">
                                         {% if unread_notifications_count > 0 %}
-                                            <span id="unreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
+                                            <span id="ntfUnreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
                                         {% else %}
                                             {% trans "All caught up" %}
                                         {% endif %}
                                     </span>
                                 </div>
-                                {% if unread_notifications_count > 0 %}
-                                <button type="button" class="mark-all-read" onclick="handleMarkAllRead(event)" aria-label="{% trans 'Mark all as read' %}">
-                                    <i class="fas fa-check-double"></i> {% trans "Mark all" %}
+                                <button type="button" 
+                                        class="ntf-mark-all tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-blue-600 tw-bg-blue-50 tw-rounded-lg tw-border-0 tw-cursor-pointer hover:tw-bg-blue-100 tw-transition-colors {% if unread_notifications_count == 0 %}tw-hidden{% endif %}"
+                                        id="ntfMarkAllBtn"
+                                        onclick="ntfMarkAllRead(event)">
+                                    <svg class="tw-w-3.5 tw-h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {% trans "Mark all read" %}
                                 </button>
-                                {% endif %}
                             </div>
-                            <div class="notification-body" id="notificationDropdownBody" role="list">
-                                {% if notifications %}
-                                    {% for notification in notifications %}
-                                    <a href="{% if notification.target_url %}{{ notification.target_url }}{% else %}{% url 'notifications:mark_read' notification.id %}{% endif %}" 
-                                       class="notification-item {% if not notification.read %}unread{% endif %}"
-                                       data-notification-id="{{ notification.id }}"
-                                       role="listitem"
-                                       aria-label="{{ notification.title }}"
-                                       onclick="handleNotificationClick(event, {{ notification.id }}, {% if notification.read %}true{% else %}false{% endif %}); return true;">
-                                        <div class="notification-item-wrapper">
-                                            <div class="notification-icon">
-                                                {% if notification.notification_type == 'resource_update' %}
-                                                    <i class="fas fa-file-alt"></i>
-                                                {% elif notification.notification_type == 'comment' %}
-                                                    <i class="fas fa-comment"></i>
-                                                {% elif notification.notification_type == 'project_update' %}
-                                                    <i class="fas fa-flask"></i>
-                                                {% elif notification.notification_type == 'event' %}
-                                                    <i class="fas fa-calendar-alt"></i>
-                                                {% elif notification.notification_type == 'forum' %}
-                                                    <i class="fas fa-users"></i>
+
+                            <!-- Dropdown Body (Scrollable List) -->
+                            <div class="ntf-body tw-max-h-96 tw-overflow-y-auto tw-overscroll-contain" id="ntfBody">
+                                <!-- Loading State -->
+                                <div class="ntf-loading tw-hidden tw-flex tw-items-center tw-justify-center tw-py-8" id="ntfLoading">
+                                    <svg class="tw-animate-spin tw-w-6 tw-h-6 tw-text-blue-500" fill="none" viewBox="0 0 24 24">
+                                        <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+
+                                <!-- Notification Items Container -->
+                                <div class="ntf-items" id="ntfItems">
+                                    {% if notifications %}
+                                        {% for notification in notifications %}
+                                        <a href="{% url 'notifications:go_to_notification' notification.id %}" 
+                                           class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 {% if not notification.read %}ntf-unread tw-bg-blue-50/50{% endif %}"
+                                           data-notification-id="{{ notification.id }}">
+                                            <!-- Type Icon -->
+                                            <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center
+                                                {% if notification.type == 'PROJECT_INVITATION' or notification.type == 'MEMBERSHIP_REQUEST' %}
+                                                    tw-bg-purple-100 tw-text-purple-600
+                                                {% elif notification.type == 'PROJECT_UPDATE' or notification.type == 'TASK_ASSIGNED' %}
+                                                    tw-bg-blue-100 tw-text-blue-600
+                                                {% elif notification.type == 'COMMENT' or notification.type == 'QA_COMMENT' %}
+                                                    tw-bg-green-100 tw-text-green-600
+                                                {% elif notification.type == 'EVENT_CREATED' or notification.type == 'EVENT_APPROVED' %}
+                                                    tw-bg-pink-100 tw-text-pink-600
+                                                {% elif notification.type == 'RESOURCE_ADDED' or notification.type == 'CORPUS_UPDATE' %}
+                                                    tw-bg-cyan-100 tw-text-cyan-600
+                                                {% elif notification.type == 'TOOL_ADDED' %}
+                                                    tw-bg-amber-100 tw-text-amber-600
+                                                {% elif notification.type == 'FORUM_TOPIC' or notification.type == 'QA_ANSWER' %}
+                                                    tw-bg-violet-100 tw-text-violet-600
+                                                {% elif notification.type == 'POST_APPROVED' %}
+                                                    tw-bg-emerald-100 tw-text-emerald-600
                                                 {% else %}
-                                                    <i class="fas fa-bell"></i>
+                                                    tw-bg-gray-100 tw-text-gray-600
+                                                {% endif %}">
+                                                {% if notification.type == 'PROJECT_INVITATION' %}
+                                                    <i class="fas fa-user-plus tw-text-sm"></i>
+                                                {% elif notification.type == 'MEMBERSHIP_REQUEST' %}
+                                                    <i class="fas fa-user-clock tw-text-sm"></i>
+                                                {% elif notification.type == 'PROJECT_UPDATE' %}
+                                                    <i class="fas fa-flask tw-text-sm"></i>
+                                                {% elif notification.type == 'TASK_ASSIGNED' %}
+                                                    <i class="fas fa-tasks tw-text-sm"></i>
+                                                {% elif notification.type == 'COMMENT' or notification.type == 'QA_COMMENT' %}
+                                                    <i class="fas fa-comment tw-text-sm"></i>
+                                                {% elif notification.type == 'EVENT_CREATED' %}
+                                                    <i class="fas fa-calendar-plus tw-text-sm"></i>
+                                                {% elif notification.type == 'EVENT_APPROVED' %}
+                                                    <i class="fas fa-calendar-check tw-text-sm"></i>
+                                                {% elif notification.type == 'RESOURCE_ADDED' %}
+                                                    <i class="fas fa-file-alt tw-text-sm"></i>
+                                                {% elif notification.type == 'TOOL_ADDED' %}
+                                                    <i class="fas fa-tools tw-text-sm"></i>
+                                                {% elif notification.type == 'CORPUS_UPDATE' %}
+                                                    <i class="fas fa-database tw-text-sm"></i>
+                                                {% elif notification.type == 'FORUM_TOPIC' %}
+                                                    <i class="fas fa-comments tw-text-sm"></i>
+                                                {% elif notification.type == 'QA_ANSWER' %}
+                                                    <i class="fas fa-reply tw-text-sm"></i>
+                                                {% elif notification.type == 'POST_APPROVED' %}
+                                                    <i class="fas fa-check-circle tw-text-sm"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell tw-text-sm"></i>
                                                 {% endif %}
                                             </div>
-                                            <div class="notification-content">
-                                                <strong>{{ notification.title }}</strong>
-                                                <p>{{ notification.message|truncatewords:15 }}</p>
-                                                <small><i class="far fa-clock"></i> {{ notification.created_at|timesince }} {% trans "ago" %}</small>
+
+                                            <!-- Content -->
+                                            <div class="ntf-content tw-flex-1 tw-min-w-0">
+                                                <div class="tw-flex tw-items-start tw-justify-between tw-gap-2">
+                                                    <p class="ntf-title tw-text-sm tw-font-medium tw-text-gray-900 tw-m-0 tw-line-clamp-1">{{ notification.get_localized_title }}</p>
+                                                    {% if not notification.read %}
+                                                    <span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full tw-mt-1.5"></span>
+                                                    {% endif %}
+                                                </div>
+                                                <p class="ntf-message tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-0.5 tw-line-clamp-2">{{ notification.get_localized_message|truncatewords:12 }}</p>
+                                                <span class="ntf-time tw-text-xs tw-text-gray-400 tw-mt-1 tw-flex tw-items-center tw-gap-1">
+                                                    <svg class="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                    {{ notification.created_at|timesince }} {% trans "ago" %}
+                                                </span>
                                             </div>
+                                        </a>
+                                        {% endfor %}
+                                    {% else %}
+                                        <!-- Empty State -->
+                                        <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
+                                            <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                                                <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                                </svg>
+                                            </div>
+                                            <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                                            <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
                                         </div>
-                                    </a>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="empty-notifications">
-                                        <i class="far fa-bell-slash"></i>
-                                        <p>{% trans "No notifications yet" %}</p>
-                                    </div>
-                                {% endif %}
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="notification-footer">
-                                <a href="{% url 'notifications:list' %}">
-                                    {% trans "View all notifications" %} <i class="fas fa-arrow-right"></i>
+
+                            <!-- Dropdown Footer -->
+                            <div class="ntf-footer tw-px-4 tw-py-3 tw-border-t tw-border-gray-100 tw-bg-gray-50/50 tw-rounded-b-xl">
+                                <a href="{% url 'notifications:list' %}" 
+                                   class="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-sm tw-font-medium tw-text-blue-600 tw-no-underline hover:tw-text-blue-700 tw-transition-colors">
+                                    {% trans "View all notifications" %}
+                                    <svg class="tw-w-4 tw-h-4 rtl:tw-rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                    </svg>
                                 </a>
                             </div>
                         </div>
                     </div>
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- END NOTIFICATION DROPDOWN                                              -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
                     <div class="profile-icon-container action-dropdown-container">
                         <button class="action-btn icon-btn profile-icon-btn"
@@ -571,101 +1680,359 @@
             });
         });
         
-        // Search functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        // ═══════════════════════════════════════════════════════════════════════════
+        // COMMAND PALETTE SEARCH - Premium Instant Search with Yellow Highlight
+        // Uses /search/autocomplete/ endpoint with 300ms debounce
+        // ═══════════════════════════════════════════════════════════════════════════
+        (function() {
+            'use strict';
+            
             const searchForm = document.getElementById('global-search-form');
             const searchInput = document.getElementById('search-input');
+            const searchBar = document.getElementById('cmd-search-bar');
             const searchResults = document.getElementById('search-results');
+            const searchResultsContent = document.getElementById('search-results-content');
+            
+            // Autocomplete endpoint URL
+            const AUTOCOMPLETE_URL = '{% url "search:autocomplete" %}';
+            
+            if (!searchForm || !searchInput || !searchResults || !searchResultsContent) return;
+            
             let searchTimeout;
-
-            const typeColors = {
-                'course': 'bg-primary',
-                'resource': 'bg-success',
-                'project': 'bg-info',
-                'event': 'bg-warning',
-                'tool': 'bg-secondary',
-                'corpus': 'bg-danger',
-                'user': 'bg-dark'
+            let currentQuery = '';
+            let selectedIndex = -1;
+            
+            // Type icons using SVG for consistency
+            const typeIcons = {
+                'course': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>',
+                'tool': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+                'corpus': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+                'resource': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+                'project': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+                'event': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+                'institution': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>',
+                'user': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+                'topic': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
             };
-
-            if (searchInput && searchResults && searchForm) {
-                searchInput.addEventListener('input', function(e) {
-                    const query = e.target.value.trim();
-                    
-                    clearTimeout(searchTimeout);
-                    
-                    if (query.length < 2) {
-                        searchResults.style.display = 'none';
-                        return;
-                    }
-
-                    searchTimeout = setTimeout(() => {
-                        fetch(`${searchForm.action}?q=${encodeURIComponent(query)}`, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.results && data.results.length > 0) {
-                                const limitedResults = data.results.slice(0, 5);
-                                
-                                searchResults.innerHTML = limitedResults.map(result => `
-                                    <a href="${result.link}" class="search-result-item">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="badge ${typeColors[result.type] || 'bg-secondary'} text-white">
-                                                ${result.type}
-                                            </span>
-                                            ${result.language ? `
-                                                <span class="badge bg-info text-white">
-                                                    ${result.language}
-                                                </span>
-                                            ` : ''}
-                                        </div>
-                                        <div class="fw-medium mt-2">${result.title}</div>
-                                        ${result.description ? `
-                                            <div class="text-muted small mt-1">
-                                                ${result.description.substring(0, 100)}...
-                                            </div>
-                                        ` : ''}
-                                    </a>
-                                `).join('') + `
-                                    <a href="${searchForm.action}?q=${encodeURIComponent(query)}" 
-                                       class="search-result-item text-center">
-                                        <small class="text-primary">View all results</small>
-                                    </a>
-                                `;
-                                
-                                searchResults.style.display = 'block';
-                            } else {
-                                searchResults.innerHTML = `
-                                    <div class="search-result-item text-center">
-                                        <div class="text-muted">No results found</div>
+            
+            // Type labels for display
+            const typeLabels = {
+                'course': '{% trans "Course" %}',
+                'tool': '{% trans "Tool" %}',
+                'corpus': '{% trans "Corpus" %}',
+                'resource': '{% trans "Resource" %}',
+                'project': '{% trans "Project" %}',
+                'event': '{% trans "Event" %}',
+                'institution': '{% trans "Institution" %}',
+                'user': '{% trans "User" %}',
+                'topic': '{% trans "Topic" %}'
+            };
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // DROPDOWN VISIBILITY CONTROL
+            // ─────────────────────────────────────────────────────────────────────
+            function showDropdown() {
+                searchResults.style.display = 'block';
+                searchResults.classList.add('active');
+                searchBar.classList.add('has-results');
+                searchInput.setAttribute('aria-expanded', 'true');
+            }
+            
+            function hideDropdown() {
+                searchResults.style.display = 'none';
+                searchResults.classList.remove('active');
+                searchBar.classList.remove('has-results');
+                searchInput.setAttribute('aria-expanded', 'false');
+                selectedIndex = -1;
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // LOADING STATE
+            // ─────────────────────────────────────────────────────────────────────
+            function showLoading() {
+                searchResultsContent.innerHTML = `
+                    <div class="cmd-loading">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                        <span>{% trans "Searching..." %}</span>
+                    </div>
+                `;
+                showDropdown();
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // EMPTY STATE
+            // ─────────────────────────────────────────────────────────────────────
+            function showEmpty(query) {
+                searchResultsContent.innerHTML = `
+                    <div class="cmd-empty">
+                        <div class="cmd-empty-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                                <path d="M8 11h6"/>
+                            </svg>
+                        </div>
+                        <h4>{% trans "No results for" %} "${escapeHtml(query)}"</h4>
+                        <p>{% trans "Try searching with different keywords" %}</p>
+                        <div class="cmd-suggestions">
+                            <a href="?q=NLP" class="cmd-suggestion">NLP</a>
+                            <a href="?q=Arabic" class="cmd-suggestion">{% trans "Arabic" %}</a>
+                            <a href="?q=corpus" class="cmd-suggestion">{% trans "Corpus" %}</a>
+                            <a href="?q=dataset" class="cmd-suggestion">{% trans "Dataset" %}</a>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // HELPER: ESCAPE HTML
+            // ─────────────────────────────────────────────────────────────────────
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // HIGHLIGHT MATCH - Yellow background highlight
+            // Uses <mark style="background:#fef08a;"> for yellow highlighting
+            // ─────────────────────────────────────────────────────────────────────
+            function highlightMatch(text, query) {
+                if (!text || !query) return escapeHtml(text || '');
+                
+                const escaped = escapeHtml(text);
+                // Escape regex special characters in query
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeQuery})`, 'gi');
+                
+                return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:500;">$1</mark>');
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // RENDER AUTOCOMPLETE RESULTS
+            // ─────────────────────────────────────────────────────────────────────
+            function renderResults(data, query) {
+                // Handle both 'suggestions' (autocomplete) and 'results' (global search) formats
+                const suggestions = data.suggestions || data.results || [];
+                
+                if (!suggestions || suggestions.length === 0) {
+                    showEmpty(query);
+                    return;
+                }
+                
+                const total = data.total || suggestions.length;
+                
+                let html = `
+                    <div class="cmd-section">
+                        <div class="cmd-section-header">
+                            <span>{% trans "Suggestions" %}</span>
+                            <span class="cmd-section-count">${suggestions.length}</span>
+                        </div>
+                        ${suggestions.map((item, index) => `
+                            <div class="sr-autocomplete-item cmd-item" 
+                                 data-index="${index}"
+                                 data-title="${escapeHtml(item.title)}"
+                                 data-link="${item.link || '#'}"
+                                 data-type="${item.type}"
+                                 role="option"
+                                 tabindex="-1">
+                                <div class="cmd-item-icon ${item.type}">
+                                    ${typeIcons[item.type] || typeIcons['resource']}
+                                </div>
+                                <div class="cmd-item-content">
+                                    <h5 class="cmd-item-title">${highlightMatch(item.title, query)}</h5>
+                                    <div class="cmd-item-meta">
+                                        <span class="cmd-item-badge cmd-item-type">${typeLabels[item.type] || item.type}</span>
                                     </div>
-                                `;
-                                searchResults.style.display = 'block';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Search error:', error);
-                        });
-                    }, 300);
+                                </div>
+                                <div class="cmd-item-arrow">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <a href="${searchForm.action}?q=${encodeURIComponent(query)}" class="cmd-view-all">
+                        <span>{% trans "View all results" %}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                `;
+                
+                searchResultsContent.innerHTML = html;
+                
+                // ─────────────────────────────────────────────────────────────────
+                // CLICK HANDLER: Fill input and navigate or submit
+                // ─────────────────────────────────────────────────────────────────
+                const items = searchResultsContent.querySelectorAll('.sr-autocomplete-item');
+                items.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const title = this.getAttribute('data-title');
+                        const link = this.getAttribute('data-link');
+                        
+                        // Fill the input with the selected title
+                        searchInput.value = title;
+                        currentQuery = title;
+                        
+                        // Navigate to the item's link directly
+                        if (link && link !== '#') {
+                            window.location.href = link;
+                        } else {
+                            // If no link, submit the search form
+                            searchForm.submit();
+                        }
+                        
+                        hideDropdown();
+                    });
                 });
-
-                searchForm.addEventListener('submit', function(e) {
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // PERFORM AUTOCOMPLETE SEARCH
+            // Fetches from /search/autocomplete/?q= with 300ms debounce
+            // ─────────────────────────────────────────────────────────────────────
+            function performSearch(query) {
+                if (query === currentQuery) return;
+                currentQuery = query;
+                
+                // Clear any pending search
+                clearTimeout(searchTimeout);
+                
+                // Hide dropdown if query is too short
+                if (!query || query.length < 2) {
+                    hideDropdown();
+                    return;
+                }
+                
+                showLoading();
+                
+                // 300ms debounce as requested
+                searchTimeout = setTimeout(() => {
+                    fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(query)}`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Search failed');
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Only render if this is still the current query
+                        if (query === currentQuery) {
+                            renderResults(data, query);
+                            showDropdown();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Autocomplete error:', error);
+                        searchResultsContent.innerHTML = `
+                            <div class="cmd-empty">
+                                <div class="cmd-empty-icon" style="background:#fef2f2;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M15 9l-6 6M9 9l6 6"/>
+                                    </svg>
+                                </div>
+                                <h4 style="color:#ef4444;">{% trans "Search error" %}</h4>
+                                <p>{% trans "Please try again" %}</p>
+                            </div>
+                        `;
+                    });
+                }, 300); // 300ms debounce
+            }
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // KEYBOARD NAVIGATION (Arrow keys + Enter + Escape)
+            // ─────────────────────────────────────────────────────────────────────
+            function handleKeydown(e) {
+                const items = searchResults.querySelectorAll('.sr-autocomplete-item, .cmd-item');
+                if (!items.length && e.key !== 'Escape') return;
+                
+                if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    if (searchInput.value.trim()) {
-                        window.location.href = `${searchForm.action}?q=${encodeURIComponent(searchInput.value.trim())}`;
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    if (selectedIndex >= 0 && items[selectedIndex]) {
+                        e.preventDefault();
+                        items[selectedIndex].click();
                     }
-                });
-
-                document.addEventListener('click', function(e) {
-                    if (!searchResults.contains(e.target) && e.target !== searchInput) {
-                        searchResults.style.display = 'none';
+                    // If no item selected, let the form submit normally
+                } else if (e.key === 'Escape') {
+                    hideDropdown();
+                    searchInput.blur();
+                }
+            }
+            
+            function updateSelection(items) {
+                items.forEach((item, i) => {
+                    item.classList.toggle('selected', i === selectedIndex);
+                    if (i === selectedIndex) {
+                        item.scrollIntoView({ block: 'nearest' });
                     }
                 });
             }
-        }); 
+            
+            // ─────────────────────────────────────────────────────────────────────
+            // EVENT LISTENERS
+            // ─────────────────────────────────────────────────────────────────────
+            searchInput.addEventListener('input', (e) => performSearch(e.target.value.trim()));
+            
+            searchInput.addEventListener('focus', () => {
+                if (currentQuery && currentQuery.length >= 2) {
+                    showDropdown();
+                }
+            });
+            
+            searchInput.addEventListener('keydown', handleKeydown);
+            
+            // Form submit - navigate to full search results page
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `${searchForm.action}?q=${encodeURIComponent(query)}`;
+                }
+            });
+            
+            // Close dropdown on outside click
+            document.addEventListener('click', (e) => {
+                const wrapper = document.getElementById('global-search-wrapper');
+                if (wrapper && !wrapper.contains(e.target)) {
+                    hideDropdown();
+                }
+            });
+            
+            // Global keyboard shortcut: Ctrl/Cmd + K to focus search
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                if (e.key === 'Escape') {
+                    hideDropdown();
+                    searchInput.blur();
+                }
+            });
+            
+            // Initialize dropdown as hidden
+            hideDropdown();
+        })(); 
     </script>
 
     <script>
@@ -836,6 +2203,259 @@
             });
         });
     </script>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- MODERN NOTIFICATION DROPDOWN JAVASCRIPT                                -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // DOM Elements
+        const ntfToggle = document.getElementById('ntfDropdownToggle');
+        const ntfDropdown = document.getElementById('ntfDropdown');
+        const ntfBadge = document.getElementById('ntfBadge');
+        const ntfBody = document.getElementById('ntfBody');
+        const ntfItems = document.getElementById('ntfItems');
+        const ntfLoading = document.getElementById('ntfLoading');
+        const ntfMarkAllBtn = document.getElementById('ntfMarkAllBtn');
+        const ntfSubtitle = document.getElementById('ntfSubtitle');
+        const ntfUnreadCount = document.getElementById('ntfUnreadCount');
+        
+        // State
+        let isOpen = false;
+        let isLoading = false;
+        
+        // Toggle dropdown
+        function toggleDropdown(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            isOpen = !isOpen;
+            
+            if (isOpen) {
+                ntfDropdown.classList.add('ntf-open');
+                ntfToggle.setAttribute('aria-expanded', 'true');
+                
+                // Load fresh notifications via AJAX
+                loadNotifications();
+                
+                // Close other dropdowns
+                closeOtherDropdowns();
+            } else {
+                closeDropdown();
+            }
+        }
+        
+        // Close dropdown
+        function closeDropdown() {
+            isOpen = false;
+            ntfDropdown.classList.remove('ntf-open');
+            ntfToggle.setAttribute('aria-expanded', 'false');
+        }
+        
+        // Close other dropdowns (profile, language)
+        function closeOtherDropdowns() {
+            const profileDropdown = document.getElementById('profileDropdown');
+            const languageDropdown = document.getElementById('languageDropdown');
+            
+            if (profileDropdown) profileDropdown.classList.remove('show');
+            if (languageDropdown) languageDropdown.classList.remove('show');
+        }
+        
+        // Load notifications via AJAX
+        async function loadNotifications() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            ntfLoading.classList.remove('tw-hidden');
+            ntfItems.style.opacity = '0.5';
+            
+            try {
+                const response = await fetch('{% url "notifications:api_list" %}', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch notifications');
+                
+                const data = await response.json();
+                
+                // Update badge
+                updateBadge(data.unread_count);
+                
+                // Render notifications
+                renderNotifications(data.notifications);
+                
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            } finally {
+                isLoading = false;
+                ntfLoading.classList.add('tw-hidden');
+                ntfItems.style.opacity = '1';
+            }
+        }
+        
+        // Render notifications
+        function renderNotifications(notifications) {
+            if (!notifications || notifications.length === 0) {
+                ntfItems.innerHTML = `
+                    <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
+                        <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                            <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                        </div>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                        <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = notifications.map(n => {
+                const unreadClass = n.read ? '' : 'ntf-unread tw-bg-blue-50/50';
+                const dotHtml = n.read ? '' : '<span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full tw-mt-1.5"></span>';
+                
+                return `
+                    <a href="${n.url}" 
+                       class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 ${unreadClass}"
+                       data-notification-id="${n.id}">
+                        <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center ${n.color_class}">
+                            <i class="fas ${n.icon} tw-text-sm"></i>
+                        </div>
+                        <div class="ntf-content tw-flex-1 tw-min-w-0">
+                            <div class="tw-flex tw-items-start tw-justify-between tw-gap-2">
+                                <p class="ntf-title tw-text-sm tw-font-medium tw-text-gray-900 tw-m-0 tw-line-clamp-1">${escapeHtml(n.title)}</p>
+                                ${dotHtml}
+                            </div>
+                            <p class="ntf-message tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-0.5 tw-line-clamp-2">${escapeHtml(n.message)}</p>
+                            <span class="ntf-time tw-text-xs tw-text-gray-400 tw-mt-1 tw-flex tw-items-center tw-gap-1">
+                                <svg class="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                ${n.time_since}
+                            </span>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+            
+            ntfItems.innerHTML = html;
+        }
+        
+        // Update badge count
+        function updateBadge(count) {
+            if (count > 0) {
+                ntfBadge.textContent = count > 99 ? '99+' : count;
+                ntfBadge.classList.remove('tw-hidden');
+                ntfMarkAllBtn.classList.remove('tw-hidden');
+                ntfSubtitle.innerHTML = `<span id="ntfUnreadCount">${count}</span> {% trans "unread" %}`;
+            } else {
+                ntfBadge.classList.add('tw-hidden');
+                ntfMarkAllBtn.classList.add('tw-hidden');
+                ntfSubtitle.textContent = '{% trans "All caught up" %}';
+            }
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize event listeners
+        if (ntfToggle) {
+            ntfToggle.addEventListener('click', toggleDropdown);
+        }
+        
+        // Close on click outside
+        document.addEventListener('click', function(e) {
+            if (isOpen && 
+                ntfDropdown && 
+                !ntfDropdown.contains(e.target) && 
+                ntfToggle && 
+                !ntfToggle.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+        
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isOpen) {
+                closeDropdown();
+                ntfToggle.focus();
+            }
+        });
+        
+        // Periodic badge update (every 60 seconds)
+        setInterval(async function() {
+            if (document.hidden) return;
+            
+            try {
+                const response = await fetch('{% url "notifications:api_notification_count" %}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    updateBadge(data.count);
+                }
+            } catch (error) {
+                // Silently fail
+            }
+        }, 60000);
+        
+        // Make mark all read function global
+        window.ntfMarkAllRead = async function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            try {
+                const response = await fetch('{% url "notifications:api_mark_all_as_read" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                
+                if (response.ok) {
+                    // Update UI
+                    updateBadge(0);
+                    
+                    // Remove unread styling from all items
+                    document.querySelectorAll('.ntf-item.ntf-unread').forEach(item => {
+                        item.classList.remove('ntf-unread', 'tw-bg-blue-50/50');
+                    });
+                    
+                    // Remove all unread dots
+                    document.querySelectorAll('.ntf-dot').forEach(dot => {
+                        dot.remove();
+                    });
+                }
+            } catch (error) {
+                console.error('Error marking all as read:', error);
+            }
+        };
+        
+        // Get CSRF token
+        function getCsrfToken() {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            return cookieValue ? cookieValue.split('=')[1] : '';
+        }
+    })();
+    </script>
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
     {% block extra_scripts %}{% endblock %}
 </body>

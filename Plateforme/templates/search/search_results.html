@@ -2,241 +2,1180 @@
 {% load static %}
 {% load i18n %}
 
-{% block content %}
-<div class="container py-4">
-    <!-- Résultats de recherche -->
-    <div class="search-results">
-        <h3 class="mb-4">{% trans "Results for" %} "{{ request.GET.q }}"</h3>
-        
-        <div class="row">
-            {% for result in results %}
-            <div class="col-md-6 mb-4">
-                <div class="card h-100 search-result-card">
-                    <div class="card-body">
-                        <!-- En-tête avec type, langue et auteur -->
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <!-- Type et langue -->
-                            <div>
-                                <span class="badge bg-{{ result.type }}-subtle text-{{ result.type }}">
-                                    {{ result.type|title }}
-                                </span>
-                                {% if result.language %}
-                                <span class="badge bg-info-subtle text-info ms-2">
-                                    {{ result.language }}
-                                </span>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Auteur en haut à droite -->
-                            {% if result.author and result.author != 'Anonymous' %}
-                            <div class="d-flex align-items-center">
-                                <span class="small text-muted me-2">{{ result.author }}</span>
-                                {% if user.avatar %}
-                                    <img src="{{ user.avatar.url }}" alt="Avatar" class="avatar-img-small">
-                                {% else %}
-                                    <i class="fas fa-user-circle avatar-icon-small"></i>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
+{% block title %}{% trans "Search Results" %} | {% trans "Arabic NLP Platform" %}{% endblock %}
 
-                        <!-- Titre et contenu -->
-                        <h5 class="card-title mb-3">
-                            <a href="{{ result.link }}" class="text-decoration-none stretched-link">
-                                {{ result.title }}
-                            </a>
-                        </h5>
-
-                        {% if result.description %}
-                        <p class="card-text text-muted">
-                            {{ result.description|truncatewords:30 }}
-                        </p>
-                        {% endif %}
-
-                        <!-- Informations spécifiques par type -->
-                        {% if result.type == 'course' %}
-                        <div class="mb-2">
-                            {% if result.academic_level %}
-                            <span class="badge bg-primary-subtle text-primary me-2">
-                                <i class="fas fa-graduation-cap me-1"></i>{{ result.academic_level }}
-                            </span>
-                            {% endif %}
-                            {% if result.field %}
-                            <span class="badge bg-secondary-subtle text-secondary me-2">
-                                <i class="fas fa-book me-1"></i>{{ result.field }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'tool' %}
-                        <div class="mb-2">
-                            {% if result.tool_type %}
-                            <span class="badge bg-warning-subtle text-warning me-2">
-                                <i class="fas fa-tools me-1"></i>{{ result.tool_type }}
-                            </span>
-                            {% endif %}
-                            {% if result.supported_languages %}
-                            <div class="mt-1">
-                                <small class="text-muted">{% trans "Languages:" %} 
-                                    {% for lang in result.supported_languages %}
-                                        <span class="badge bg-light text-dark me-1">{{ lang }}</span>
-                                    {% endfor %}
-                                </small>
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'resource' %}
-                        <div class="mb-2">
-                            {% if result.document_type %}
-                            <span class="badge bg-success-subtle text-success me-2">
-                                <i class="fas fa-file-alt me-1"></i>{{ result.document_type }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'event' %}
-                        <div class="mb-2">
-                            {% if result.event_type %}
-                            <span class="badge bg-danger-subtle text-danger me-2">
-                                <i class="fas fa-calendar-check me-1"></i>{{ result.event_type }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'corpus' %}
-                        <div class="mb-2">
-                            {% if result.field %}
-                            <span class="badge bg-info-subtle text-info me-2">
-                                <i class="fas fa-database me-1"></i>{{ result.field }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'project' %}
-                        <div class="mb-2">
-                            {% if result.status %}
-                            <span class="badge bg-dark-subtle text-dark me-2">
-                                <i class="fas fa-project-diagram me-1"></i>{{ result.status }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% elif result.type == 'user' %}
-                        <div class="mb-2">
-                            <span class="badge bg-light text-dark me-2">
-                                <i class="fas fa-envelope me-1"></i>{{ result.email }}
-
-                            </span>
-                            
-                        </div>
-                        {% endif %}
-                        {% if result.type == 'institution' %}
-                <div class="mb-2">
-                    {% if result.acronym %}
-                        <span class="badge bg-primary-subtle text-primary me-2">
-                            <i class="fas fa-university me-1"></i>{{ result.acronym }}
-                        </span>
-                    {% endif %}
-                    {% if result.country %}
-                        <span class="badge bg-secondary-subtle text-secondary me-2">
-                            <i class="fas fa-globe me-1"></i>{{ result.country }}
-                        </span>
-                    {% endif %}
-                    {% if result.city %}
-                        <span class="badge bg-info-subtle text-info me-2">
-                            <i class="fas fa-map-marker-alt me-1"></i>{{ result.city }}
-                        </span>
-                    {% endif %}
-                    {% if result.type %}
-                        <span class="badge bg-warning-subtle text-warning me-2">
-                            <i class="fas fa-building me-1"></i>{{ result.type }}
-                        </span>
-                    {% endif %}
-                    {% if result.specialties %}
-                        <div class="mt-2">
-                            <small class="text-muted">{% trans "Specialties:" %}
-                                {% for specialty in result.specialties %}
-                                    <span class="badge bg-light text-dark me-1">{{ specialty }}</span>
-                                {% endfor %}
-                            </small>
-                        </div>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% empty %}
-    <div class="col-12 text-center py-5">
-        <i class="fas fa-search fa-3x text-muted mb-3"></i>
-        <h4>{% trans "No results found" %}</h4>
-        <p class="text-muted">{% trans "Try different keywords or check your spelling" %}</p>
-    </div>
-    {% endfor %}
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-/* Styles pour les cartes de résultats */
-.search-result-card {
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* Highlight styles for search results */
+mark, .sr-highlight {
+    background-color: #FEF08A;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+    font-weight: 500;
+}
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* GLOBAL SEARCH RESULTS - Premium SaaS Design                                  */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+    --sr-primary: #3B82F6;
+    --sr-primary-dark: #2563EB;
+    --sr-primary-light: #60A5FA;
+    --sr-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --sr-deep: #0F172A;
+    --sr-navy: #1E3A5F;
+    --sr-white: #FFFFFF;
+    --sr-bg: #F8FAFC;
+    --sr-muted: #F1F5F9;
+    --sr-subtle: #E2E8F0;
+    
+    --sr-text: #0F172A;
+    --sr-text-secondary: #475569;
+    --sr-text-muted: #94A3B8;
+    
+    --sr-border: #E2E8F0;
+    --sr-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --sr-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --sr-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    
+    --sr-success: #10B981;
+    --sr-warning: #F59E0B;
+    --sr-danger: #EF4444;
+    --sr-info: #06B6D4;
+    --sr-purple: #8B5CF6;
+    
+    --sr-radius-sm: 6px;
+    --sr-radius-md: 10px;
+    --sr-radius-lg: 14px;
+    --sr-radius-xl: 20px;
+    --sr-radius-full: 9999px;
 }
 
-.search-result-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.sr-page { min-height: 100vh; background: var(--sr-bg); }
+
+/* Hero Header */
+.sr-hero {
+    background: linear-gradient(145deg, var(--sr-deep) 0%, var(--sr-navy) 100%);
+    padding: 2.5rem 0 4rem;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Styles pour les badges de type */
-.bg-course-subtle { background-color: #e8f5e9; }
-.bg-corpus-subtle { background-color: #e3f2fd; }
-.bg-tool-subtle { background-color: #fff3e0; }
-.bg-resource-subtle { background-color: #f3e5f5; }
-.bg-project-subtle { background-color: #e8eaf6; }
-.bg-event-subtle { background-color: #fce4ec; }
-.bg-user-subtle { background-color: #f1f8e9; }
-.bg-institution-subtle { background-color: #ede7f6; } 
-
-.text-institution { color: #512da8; } 
-.text-course { color: #2e7d32; }
-.text-corpus { color: #1565c0; }
-.text-tool { color: #ef6c00; }
-.text-resource { color: #7b1fa2; }
-.text-project { color: #283593; }
-.text-event { color: #c2185b; }
-.text-user { color: #558b2f; }
-
-/* Styles pour les badges de métadonnées */
-.bg-primary-subtle { background-color: #cfe2ff; }
-.bg-secondary-subtle { background-color: #e2e3e5; }
-.bg-warning-subtle { background-color: #fff3cd; }
-.bg-success-subtle { background-color: #d1e7dd; }
-.bg-danger-subtle { background-color: #f8d7da; }
-.bg-info-subtle { background-color: #d1ecf1; }
-.bg-dark-subtle { background-color: #d3d3d4; }
-
-.text-primary { color: #0d6efd; }
-.text-secondary { color: #6c757d; }
-.text-warning { color: #fd7e14; }
-.text-success { color: #198754; }
-.text-danger { color: #dc3545; }
-.text-info { color: #0dcaf0; }
-.text-dark { color: #212529; }
-
-/* Styles pour les avatars */
-.avatar-img-small {
-    width: 60px;
-    height: 60px;
-    border-radius: 35%;
-    object-fit: cover;
-    border: 2px solid #e9ecef;
+.sr-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent);
+    pointer-events: none;
 }
 
-.avatar-icon-small {
-    font-size: 30px;
-    color: #6c757d;
-    width: 30px;
-    height: 30px;
+.sr-hero-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.sr-hero-content {
+    text-align: center;
+}
+
+.sr-hero-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    color: var(--sr-white);
+    margin: 0 0 0.5rem;
+}
+
+.sr-hero-query {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 800;
+    color: var(--sr-primary-light);
+    margin: 0 0 1rem;
+    word-break: break-word;
+}
+
+.sr-hero-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+.sr-hero-stats strong {
+    color: var(--sr-white);
+    font-weight: 600;
+}
+
+/* Search Box in Hero - SaaS Style */
+.sr-search-box {
+    max-width: 800px;
+    margin: 1.5rem auto 0;
+}
+
+.sr-search-form {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    padding: 0 18px;
+    height: 44px;
+    border-radius: 9999px;
+    border: 1px solid #E2E8F0;
+    box-shadow: none;
+}
+
+.sr-search-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%;
+}
+
+.sr-search-icon {
+    color: #9ca3af;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+html[dir="rtl"] .sr-search-icon {
+    /* No position changes needed */
+}
+
+.sr-search-input {
+    flex: 1;
+    width: 100%;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0;
+    font-size: 15px;
+    font-weight: 400;
+    color: #111827;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+html[dir="rtl"] .sr-search-input {
+    padding: 0;
+}
+
+.sr-search-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.sr-search-input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+.sr-search-btn {
+    display: none; /* Hidden for clean look */
+}
+
+/* Keep button visible on mobile */
+@media (max-width: 767px) {
+    .sr-search-btn {
+        display: flex;
+        padding: 0.75rem 1rem;
+        background: var(--sr-primary);
+        color: var(--sr-white);
+        border: none;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+
+/* Main Content */
+.sr-content {
+    max-width: 1280px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+}
+
+/* Layout Grid */
+.sr-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 991px) {
+    .sr-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sidebar - Filters */
+.sr-sidebar {
+    position: sticky;
+    top: 100px;
+    align-self: start;
+}
+
+.sr-filter-card {
+    background: var(--sr-white);
+    border-radius: var(--sr-radius-lg);
+    box-shadow: var(--sr-shadow-md);
+    border: 1px solid var(--sr-border);
+    overflow: hidden;
+}
+
+.sr-filter-header {
+    padding: 1rem 1.25rem;
+    background: var(--sr-muted);
+    border-bottom: 1px solid var(--sr-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sr-filter-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--sr-text);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0;
+}
+
+.sr-filter-body {
+    padding: 1rem 1.25rem;
+}
+
+.sr-filter-group {
+    margin-bottom: 1rem;
+}
+
+.sr-filter-group:last-child {
+    margin-bottom: 0;
+}
+
+.sr-filter-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sr-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.sr-filter-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0.875rem;
+    margin-bottom: 0.25rem;
+    border-radius: var(--sr-radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: var(--sr-text-secondary);
+}
+
+.sr-filter-option:hover {
+    background: var(--sr-muted);
+    color: var(--sr-text);
+}
+
+.sr-filter-option.active {
+    background: var(--sr-primary-glow);
+    color: var(--sr-primary);
+    font-weight: 500;
+}
+
+.sr-filter-option i {
+    font-size: 1rem;
+    width: 24px;
+}
+
+.sr-filter-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    background: var(--sr-subtle);
+    border-radius: var(--sr-radius-full);
+    color: var(--sr-text-muted);
+}
+
+.sr-filter-option.active .sr-filter-count {
+    background: var(--sr-primary);
+    color: var(--sr-white);
+}
+
+/* Main Results */
+.sr-results {
+    flex: 1;
+}
+
+.sr-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.sr-results-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin: 0;
+}
+
+.sr-sort-select {
+    padding: 0.5rem 1rem;
+    background: var(--sr-white);
+    border: 1px solid var(--sr-border);
+    border-radius: var(--sr-radius-md);
+    font-size: 0.875rem;
+    color: var(--sr-text);
+    cursor: pointer;
+}
+
+/* Result Cards */
+.sr-results-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.sr-result-card {
+    background: var(--sr-white);
+    border-radius: var(--sr-radius-lg);
+    border: 1px solid var(--sr-border);
+    padding: 1.25rem 1.5rem;
+    transition: all 0.2s;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.sr-result-card:hover {
+    border-color: var(--sr-primary-light);
+    box-shadow: var(--sr-shadow-md);
+    transform: translateY(-2px);
+}
+
+.sr-result-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.sr-result-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--sr-radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.sr-result-type.course { background: #DCFCE7; color: #166534; }
+.sr-result-type.tool { background: #FEF3C7; color: #92400E; }
+.sr-result-type.corpus { background: #DBEAFE; color: #1E40AF; }
+.sr-result-type.resource { background: #F3E8FF; color: #7C3AED; }
+.sr-result-type.project { background: #E0E7FF; color: #4338CA; }
+.sr-result-type.event { background: #FCE7F3; color: #BE185D; }
+.sr-result-type.institution { background: #FEE2E2; color: #991B1B; }
+.sr-result-type.user { background: #CCFBF1; color: #0F766E; }
+.sr-result-type.topic { background: #FEF9C3; color: #854D0E; }
+
+.sr-result-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.sr-result-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--sr-muted);
+    border-radius: var(--sr-radius-sm);
+    font-size: 0.7rem;
+    color: var(--sr-text-muted);
+}
+
+.sr-result-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+    transition: color 0.15s;
+}
+
+.sr-result-card:hover .sr-result-title {
+    color: var(--sr-primary);
+}
+
+.sr-result-desc {
+    font-size: 0.9rem;
+    color: var(--sr-text-secondary);
+    line-height: 1.6;
+    margin: 0 0 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.sr-result-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--sr-subtle);
+}
+
+.sr-result-author {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--sr-text-muted);
+}
+
+.sr-result-author-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--sr-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--sr-text-secondary);
+}
+
+.sr-result-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.sr-result-tag {
+    padding: 0.2rem 0.5rem;
+    background: var(--sr-subtle);
+    border-radius: var(--sr-radius-sm);
+    font-size: 0.7rem;
+    color: var(--sr-text-secondary);
+}
+
+/* Empty State */
+.sr-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--sr-white);
+    border-radius: var(--sr-radius-lg);
+    border: 1px solid var(--sr-border);
+}
+
+.sr-empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: var(--sr-muted);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-</style>
 
+.sr-empty-icon i {
+    font-size: 2.5rem;
+    color: var(--sr-text-muted);
+}
+
+.sr-empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--sr-text);
+    margin: 0 0 0.5rem;
+}
+
+.sr-empty-text {
+    font-size: 0.95rem;
+    color: var(--sr-text-secondary);
+    margin: 0 0 1.5rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.sr-empty-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.sr-empty-suggestion {
+    padding: 0.5rem 1rem;
+    background: var(--sr-muted);
+    border-radius: var(--sr-radius-full);
+    font-size: 0.85rem;
+    color: var(--sr-text-secondary);
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.sr-empty-suggestion:hover {
+    background: var(--sr-primary-glow);
+    color: var(--sr-primary);
+}
+
+/* No Query State */
+.sr-no-query {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.sr-no-query-icon {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 1.5rem;
+    background: linear-gradient(135deg, var(--sr-primary-glow), var(--sr-muted));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sr-no-query-icon i {
+    font-size: 3rem;
+    color: var(--sr-primary);
+}
+
+/* Pagination */
+.sr-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+}
+
+.sr-page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--sr-radius-md);
+    border: 1px solid var(--sr-border);
+    background: var(--sr-white);
+    color: var(--sr-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.sr-page-btn:hover {
+    border-color: var(--sr-primary);
+    color: var(--sr-primary);
+}
+
+.sr-page-btn.active {
+    background: var(--sr-primary);
+    border-color: var(--sr-primary);
+    color: var(--sr-white);
+}
+
+.sr-page-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* RTL Support */
+html[dir="rtl"] .sr-result-card { text-align: right; }
+html[dir="rtl"] .sr-filter-option { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-result-header { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-result-footer { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-result-meta { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-result-tags { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-hero-stats { flex-direction: row-reverse; }
+html[dir="rtl"] .sr-empty-suggestions { flex-direction: row-reverse; }
+html[dir="rtl"] .me-2 { margin-left: 0.5rem; margin-right: 0; }
+html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
+
+/* Responsive */
+@media (max-width: 767px) {
+    .sr-hero { padding: 1.5rem 0 3rem; }
+    .sr-content { padding: 0 1rem 3rem; }
+    .sr-sidebar { display: none; }
+    .sr-layout { grid-template-columns: 1fr; }
+    .sr-result-card { padding: 1rem; }
+    .sr-search-box { max-width: 100%; }
+    .sr-search-form { 
+        flex-direction: row;
+        height: auto;
+        padding: 0.5rem;
+    }
+    .sr-search-input-wrap {
+        height: 40px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sr-page">
+    <!-- Hero Header -->
+    <header class="sr-hero">
+        <div class="sr-hero-container">
+            <div class="sr-hero-content">
+                {% if query %}
+                <h1 class="sr-hero-title">{% trans "Search Results for" %}</h1>
+                <p class="sr-hero-query">"{{ query }}"</p>
+                <div class="sr-hero-stats">
+                    <strong>{{ total|default:results|length }}</strong> {% trans "results found" %}
+                    {% if fallback_mode %}
+                    <span class="tw-text-yellow-300 tw-text-xs tw-ml-2">({% trans "Basic search mode" %})</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <h1 class="sr-hero-title">{% trans "Search the Platform" %}</h1>
+                <p class="sr-hero-query">{% trans "Find resources, tools, projects & more" %}</p>
+                {% endif %}
+                
+                <!-- Search Box -->
+                <div class="sr-search-box">
+                    <form method="get" action="{% url 'search:global_search' %}" class="sr-search-form">
+                        <div class="sr-search-input-wrap">
+                            <i class="bi bi-search sr-search-icon"></i>
+                            <input type="text" 
+                                   name="q" 
+                                   class="sr-search-input" 
+                                   placeholder="{% trans 'search...' %}"
+                                   value="{{ query|default:'' }}"
+                                   autocomplete="off">
+                        </div>
+                        <button type="submit" class="sr-search-btn">
+                            <i class="bi bi-search"></i>
+                            {% trans "Search" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="sr-content">
+        {% if not query %}
+        <!-- No Query Entered -->
+        <div class="sr-no-query">
+            <div class="sr-no-query-icon">
+                <i class="bi bi-search"></i>
+            </div>
+            <h2 class="sr-empty-title">{% trans "Enter a search term" %}</h2>
+            <p class="sr-empty-text">{% trans "Type keywords above to search across all platform content including resources, tools, corpora, projects, events, and community discussions." %}</p>
+            <div class="sr-empty-suggestions">
+                <a href="?q=NLP" class="sr-empty-suggestion">NLP</a>
+                <a href="?q=Arabic" class="sr-empty-suggestion">{% trans "Arabic" %}</a>
+                <a href="?q=machine learning" class="sr-empty-suggestion">{% trans "Machine Learning" %}</a>
+                <a href="?q=corpus" class="sr-empty-suggestion">{% trans "Corpus" %}</a>
+                <a href="?q=dataset" class="sr-empty-suggestion">{% trans "Dataset" %}</a>
+            </div>
+        </div>
+        {% elif results %}
+        <div class="sr-layout">
+            <!-- Sidebar Filters -->
+            <aside class="sr-sidebar">
+                <div class="sr-filter-card">
+                    <div class="sr-filter-header">
+                        <h3 class="sr-filter-title">{% trans "Filter Results" %}</h3>
+                    </div>
+                    <div class="sr-filter-body">
+                        <!-- Content Type Filter -->
+                        <div class="sr-filter-group">
+                            <span class="sr-filter-label">{% trans "Content Type" %}</span>
+                            
+                            <a href="?q={{ query }}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if not request.GET.type %}active{% endif %}">
+                                <span><i class="bi bi-grid-3x3-gap me-2"></i>{% trans "All Types" %}</span>
+                                <span class="sr-filter-count">{{ total }}</span>
+                            </a>
+                            
+                            {% if aggregations.course %}
+                            <a href="?q={{ query }}&type=course{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'course' %}active{% endif %}">
+                                <span><i class="bi bi-mortarboard me-2"></i>{% trans "Courses" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.course }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.tool %}
+                            <a href="?q={{ query }}&type=tool{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'tool' %}active{% endif %}">
+                                <span><i class="bi bi-tools me-2"></i>{% trans "Tools" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.tool }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.corpus %}
+                            <a href="?q={{ query }}&type=corpus{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'corpus' %}active{% endif %}">
+                                <span><i class="bi bi-database me-2"></i>{% trans "Corpora" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.corpus }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.resource %}
+                            <a href="?q={{ query }}&type=resource{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'resource' %}active{% endif %}">
+                                <span><i class="bi bi-file-earmark-text me-2"></i>{% trans "Resources" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.resource }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.project %}
+                            <a href="?q={{ query }}&type=project{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'project' %}active{% endif %}">
+                                <span><i class="bi bi-kanban me-2"></i>{% trans "Projects" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.project }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.event %}
+                            <a href="?q={{ query }}&type=event{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'event' %}active{% endif %}">
+                                <span><i class="bi bi-calendar-event me-2"></i>{% trans "Events" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.event }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.institution %}
+                            <a href="?q={{ query }}&type=institution{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'institution' %}active{% endif %}">
+                                <span><i class="bi bi-building me-2"></i>{% trans "Institutions" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.institution }}</span>
+                            </a>
+                            {% endif %}
+                            
+                            {% if aggregations.user %}
+                            <a href="?q={{ query }}&type=user{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                               class="sr-filter-option {% if request.GET.type == 'user' %}active{% endif %}">
+                                <span><i class="bi bi-person me-2"></i>{% trans "Users" %}</span>
+                                <span class="sr-filter-count">{{ aggregations.user }}</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Sort By -->
+                        <div class="sr-filter-group" style="margin-top: 1.5rem;">
+                            <span class="sr-filter-label">{% trans "Sort By" %}</span>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=relevance" 
+                               class="sr-filter-option {% if filters.sort_by == 'relevance' or not filters.sort_by %}active{% endif %}">
+                                <span><i class="bi bi-star me-2"></i>{% trans "Relevance" %}</span>
+                            </a>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=newest" 
+                               class="sr-filter-option {% if filters.sort_by == 'newest' %}active{% endif %}">
+                                <span><i class="bi bi-clock me-2"></i>{% trans "Newest First" %}</span>
+                            </a>
+                            <a href="?q={{ query }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}&sort_by=oldest" 
+                               class="sr-filter-option {% if filters.sort_by == 'oldest' %}active{% endif %}">
+                                <span><i class="bi bi-clock-history me-2"></i>{% trans "Oldest First" %}</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- Results Grid -->
+            <div class="sr-results">
+                <div class="sr-results-header">
+                    <h2 class="sr-results-title">
+                        {% if request.GET.type %}
+                            {% if request.GET.type == 'course' %}{% trans "Courses" %}
+                            {% elif request.GET.type == 'tool' %}{% trans "Tools" %}
+                            {% elif request.GET.type == 'corpus' %}{% trans "Corpora" %}
+                            {% elif request.GET.type == 'resource' %}{% trans "Resources" %}
+                            {% elif request.GET.type == 'project' %}{% trans "Projects" %}
+                            {% elif request.GET.type == 'event' %}{% trans "Events" %}
+                            {% elif request.GET.type == 'institution' %}{% trans "Institutions" %}
+                            {% elif request.GET.type == 'user' %}{% trans "Users" %}
+                            {% else %}{{ request.GET.type|title }}{% endif %}
+                        {% else %}
+                            {% trans "All Results" %}
+                        {% endif %}
+                    </h2>
+                    {% if detected_language %}
+                    <span class="sr-result-badge" title="{% trans 'Detected language' %}">
+                        <i class="bi bi-translate"></i> {{ detected_language|title }}
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <div class="sr-results-grid">
+                    {% for result in results %}
+                    <a href="{{ result.link }}" class="sr-result-card">
+                        <div class="sr-result-header">
+                            <span class="sr-result-type {{ result.type }}">
+                                {% if result.type == 'course' %}<i class="bi bi-mortarboard"></i>
+                                {% elif result.type == 'tool' %}<i class="bi bi-tools"></i>
+                                {% elif result.type == 'corpus' %}<i class="bi bi-database"></i>
+                                {% elif result.type == 'resource' %}<i class="bi bi-file-earmark-text"></i>
+                                {% elif result.type == 'project' %}<i class="bi bi-kanban"></i>
+                                {% elif result.type == 'event' %}<i class="bi bi-calendar-event"></i>
+                                {% elif result.type == 'institution' %}<i class="bi bi-building"></i>
+                                {% elif result.type == 'user' %}<i class="bi bi-person"></i>
+                                {% elif result.type == 'topic' %}<i class="bi bi-chat-square-dots"></i>
+                                {% else %}<i class="bi bi-file"></i>
+                                {% endif %}
+                                {{ result.type|title }}
+                            </span>
+                            <div class="sr-result-meta">
+                                {% if result.language %}
+                                <span class="sr-result-badge">
+                                    <i class="bi bi-translate"></i> {{ result.language }}
+                                </span>
+                                {% endif %}
+                                {% if result.field %}
+                                <span class="sr-result-badge">
+                                    <i class="bi bi-bookmark"></i> {{ result.field }}
+                                </span>
+                                {% endif %}
+                                {% if result.status %}
+                                <span class="sr-result-badge">
+                                    <i class="bi bi-clock"></i> {{ result.status|title }}
+                                </span>
+                                {% endif %}
+                                {% if result.document_type %}
+                                <span class="sr-result-badge">
+                                    <i class="bi bi-file-text"></i> {{ result.document_type }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {# Render title with highlight markup (safe) #}
+                        <h3 class="sr-result-title">{{ result.title|safe }}</h3>
+                        
+                        {% if result.description %}
+                        {# Render description with highlight markup (safe), truncate after safe #}
+                        <p class="sr-result-desc">{{ result.description|safe|truncatewords_html:30 }}</p>
+                        {% endif %}
+                        
+                        <div class="sr-result-footer">
+                            {% if result.author %}
+                            <div class="sr-result-author">
+                                <span class="sr-result-author-avatar">
+                                    <i class="bi bi-person-fill"></i>
+                                </span>
+                                {{ result.author }}
+                            </div>
+                            {% elif result.organizer %}
+                            <div class="sr-result-author">
+                                <span class="sr-result-author-avatar">
+                                    <i class="bi bi-building"></i>
+                                </span>
+                                {{ result.organizer }}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="sr-result-tags">
+                                {% if result.academic_level %}
+                                <span class="sr-result-tag"><i class="bi bi-mortarboard me-1"></i>{{ result.academic_level }}</span>
+                                {% endif %}
+                                {% if result.tool_type %}
+                                <span class="sr-result-tag"><i class="bi bi-gear me-1"></i>{{ result.tool_type }}</span>
+                                {% endif %}
+                                {% if result.event_type %}
+                                <span class="sr-result-tag"><i class="bi bi-calendar me-1"></i>{{ result.event_type }}</span>
+                                {% endif %}
+                                {% if result.location %}
+                                <span class="sr-result-tag"><i class="bi bi-geo-alt me-1"></i>{{ result.location }}</span>
+                                {% endif %}
+                                {% if result.acronym %}
+                                <span class="sr-result-tag"><i class="bi bi-building me-1"></i>{{ result.acronym }}</span>
+                                {% endif %}
+                                {% if result.institution %}
+                                <span class="sr-result-tag"><i class="bi bi-building me-1"></i>{{ result.institution }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if total_pages and total_pages > 1 %}
+                <nav class="sr-pagination">
+                    {% if has_previous %}
+                    <a href="?q={{ query }}&page={{ previous_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" class="sr-page-btn">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    {% else %}
+                    <span class="sr-page-btn disabled"><i class="bi bi-chevron-left"></i></span>
+                    {% endif %}
+                    
+                    {% for page_num in page_range %}
+                        {% if page_num == '...' %}
+                        <span class="sr-page-btn disabled">...</span>
+                        {% else %}
+                        <a href="?q={{ query }}&page={{ page_num }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" 
+                           class="sr-page-btn {% if page_num == current_page %}active{% endif %}">
+                            {{ page_num }}
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_next %}
+                    <a href="?q={{ query }}&page={{ next_page }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if filters.sort_by and filters.sort_by != 'relevance' %}&sort_by={{ filters.sort_by }}{% endif %}" class="sr-page-btn">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <span class="sr-page-btn disabled"><i class="bi bi-chevron-right"></i></span>
+                    {% endif %}
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <!-- No Results -->
+        <div class="sr-empty">
+            <div class="sr-empty-icon">
+                <i class="bi bi-search"></i>
+            </div>
+            <h2 class="sr-empty-title">{% trans "No results found" %}</h2>
+            <p class="sr-empty-text">{% trans "We couldn't find anything matching" %} "<strong>{{ query }}</strong>". {% trans "Try different keywords or check your spelling." %}</p>
+            <div class="sr-empty-suggestions">
+                <span class="tw-text-sm tw-text-gray-500 tw-mr-2">{% trans "Suggestions:" %}</span>
+                <a href="?q=NLP" class="sr-empty-suggestion">NLP</a>
+                <a href="?q=Arabic" class="sr-empty-suggestion">{% trans "Arabic" %}</a>
+                <a href="?q=dataset" class="sr-empty-suggestion">{% trans "Dataset" %}</a>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/**
+ * Search Autocomplete - Vanilla JS
+ * Provides live suggestions as user types in the search input
+ */
+(function() {
+    'use strict';
+    
+    const searchInput = document.querySelector('.sr-search-input');
+    if (!searchInput) return;
+    
+    const searchWrap = searchInput.closest('.sr-search-input-wrap');
+    
+    // Create autocomplete dropdown
+    const dropdown = document.createElement('div');
+    dropdown.className = 'sr-autocomplete-dropdown';
+    dropdown.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--sr-white, #fff);
+        border: 1px solid var(--sr-border, #e2e8f0);
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    `;
+    searchWrap.style.position = 'relative';
+    searchWrap.appendChild(dropdown);
+    
+    let debounceTimer = null;
+    let currentFocus = -1;
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchWrap.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Handle input changes
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(debounceTimer);
+        
+        if (query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        debounceTimer = setTimeout(function() {
+            fetchSuggestions(query);
+        }, 250);
+    });
+    
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        const items = dropdown.querySelectorAll('.sr-autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus++;
+            if (currentFocus >= items.length) currentFocus = 0;
+            setActive(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus--;
+            if (currentFocus < 0) currentFocus = items.length - 1;
+            setActive(items);
+        } else if (e.key === 'Enter' && currentFocus > -1) {
+            e.preventDefault();
+            if (items[currentFocus]) {
+                items[currentFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            currentFocus = -1;
+        }
+    });
+    
+    function setActive(items) {
+        items.forEach(function(item, i) {
+            item.classList.toggle('active', i === currentFocus);
+        });
+    }
+    
+    function fetchSuggestions(query) {
+        const url = '{% url "search:autocomplete" %}?q=' + encodeURIComponent(query);
+        
+        fetch(url)
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                renderSuggestions(data.suggestions, query);
+            })
+            .catch(function(error) {
+                console.error('Autocomplete error:', error);
+            });
+    }
+    
+    function renderSuggestions(suggestions, query) {
+        currentFocus = -1;
+        
+        if (!suggestions || suggestions.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        const typeIcons = {
+            'course': 'bi-mortarboard',
+            'tool': 'bi-tools',
+            'corpus': 'bi-database',
+            'resource': 'bi-file-earmark-text',
+            'project': 'bi-kanban',
+            'event': 'bi-calendar-event',
+            'institution': 'bi-building',
+            'user': 'bi-person'
+        };
+        
+        const typeColors = {
+            'course': '#166534',
+            'tool': '#92400E',
+            'corpus': '#1E40AF',
+            'resource': '#7C3AED',
+            'project': '#4338CA',
+            'event': '#BE185D',
+            'institution': '#991B1B',
+            'user': '#0F766E'
+        };
+        
+        let html = '';
+        suggestions.forEach(function(item) {
+            const icon = typeIcons[item.type] || 'bi-file';
+            const color = typeColors[item.type] || '#64748b';
+            const highlighted = highlightMatch(item.title, query);
+            
+            html += `
+                <div class="sr-autocomplete-item" data-query="${escapeHtml(item.title)}" style="
+                    padding: 0.75rem 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f1f5f9;
+                    transition: background 0.15s;
+                " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                    <i class="bi ${icon}" style="color: ${color}; font-size: 1rem;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.9rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${highlighted}
+                        </div>
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: capitalize;">${item.type}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+        
+        // Add click handlers
+        dropdown.querySelectorAll('.sr-autocomplete-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                searchInput.value = this.dataset.query;
+                dropdown.style.display = 'none';
+                searchInput.closest('form').submit();
+            });
+        });
+    }
+    
+    function highlightMatch(text, query) {
+        if (!text) return '';
+        const regex = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+        return escapeHtml(text).replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;">$1</mark>');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+})();
+</script>
 {% endblock %}

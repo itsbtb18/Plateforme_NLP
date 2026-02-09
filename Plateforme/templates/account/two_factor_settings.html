@@ -1,0 +1,662 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Two-Factor Authentication Settings" %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
+            z-index: 0;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 40px 30px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            z-index: 100;
+            color: #1a73e8;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .lock-icon-section {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .lock-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(26, 115, 232, 0.25);
+        }
+
+        .lock-icon i {
+            font-size: 2.2rem;
+            color: white;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #202124;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #5f6368;
+            margin-bottom: 25px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, rgba(52, 168, 83, 0.08) 0%, rgba(52, 168, 83, 0.04) 100%);
+            border: 2px solid #e8f5e9;
+            border-left: 4px solid #34a853;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 25px;
+        }
+
+        .status-label {
+            font-size: 0.85rem;
+            color: #5f6368;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .status-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2d8a47;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #34a853;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-badge.inactive {
+            background: #bdbdbd;
+        }
+
+        .info-box {
+            background: #fff8dc;
+            border-left: 4px solid #d39e00;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+            color: #856404;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            font-weight: 600;
+        }
+
+        .info-box ul {
+            margin: 12px 0 0 20px;
+            padding: 0;
+        }
+
+        .info-box li {
+            margin-bottom: 6px;
+        }
+
+        .toggle-section {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .toggle-label {
+            display: block;
+            margin-bottom: 15px;
+            color: #202124;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 70px;
+            height: 36px;
+            margin: 0 auto 15px;
+            background: #ccc;
+            border-radius: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: none;
+            padding: 0;
+        }
+
+        .toggle-switch.active {
+            background: #34a853;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            left: 37px;
+        }
+
+        .toggle-status-text {
+            font-size: 0.85rem;
+            color: #5f6368;
+            margin-top: 10px;
+        }
+
+        .toggle-status-text span {
+            font-weight: 700;
+            color: #34a853;
+        }
+
+        .toggle-status-text.disabled span {
+            color: #bdbdbd;
+        }
+
+        .message-box {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .message-box.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+            display: block;
+        }
+
+        .message-box.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+            display: block;
+        }
+
+        .backup-codes-section {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 193, 7, 0.04) 100%);
+            border-left: 4px solid #ffc107;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .backup-codes-section.show {
+            display: block;
+        }
+
+        .backup-codes-title {
+            font-weight: 700;
+            color: #d39e00;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .backup-codes-warning {
+            font-size: 0.85rem;
+            color: #856404;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .backup-code-list {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #202124;
+            max-height: 150px;
+            overflow-y: auto;
+            line-height: 2;
+        }
+
+        .backup-code {
+            letter-spacing: 1px;
+        }
+
+        .btn-download-backup {
+            display: inline-block;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+            color: #202124;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-download-backup:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+
+        .form-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn-submit,
+        .btn-cancel {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.25);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(26, 115, 232, 0.35);
+        }
+
+        .btn-cancel {
+            background: white;
+            color: #1a73e8;
+            border: 2px solid #1a73e8;
+        }
+
+        .btn-cancel:hover {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.04) 100%);
+            transform: translateY(-2px);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            .form-card {
+                padding: 30px 20px;
+                border-radius: 16px;
+            }
+
+            .page-title {
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .lock-icon {
+                width: 70px;
+                height: 70px;
+            }
+
+            .lock-icon i {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='{% url 'accounts:profile' %}';" title="{% trans 'Back' %}">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+
+    <div class="main-wrapper">
+        <div class="form-card">
+            <!-- Lock Icon -->
+            <div class="lock-icon-section">
+                <div class="lock-icon">
+                    <i class="fas fa-lock"></i>
+                </div>
+            </div>
+
+            <h1 class="page-title">{% trans "Two-Factor Authentication" %}</h1>
+            <p class="page-subtitle">{% trans "Enhance your account security" %}</p>
+
+            <!-- Message Box -->
+            <div class="message-box" id="messageBox"></div>
+
+            <!-- Current Status -->
+            <div class="status-card">
+                <div class="status-label">
+                    <i class="fas fa-shield-alt"></i> {% trans "Current Status" %}
+                </div>
+                <div class="status-value">
+                    <span id="statusText">
+                        {% if is_2fa_enabled %}
+                            <span class="status-badge">
+                                <i class="fas fa-check-circle"></i> {% trans "Enabled" %}
+                            </span>
+                        {% else %}
+                            <span class="status-badge inactive">
+                                <i class="fas fa-times-circle"></i> {% trans "Disabled" %}
+                            </span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <strong><i class="fas fa-info-circle"></i> {% trans "What is Two-Factor Authentication?" %}</strong>
+                <p style="margin-top: 8px;">
+                    {% trans "2FA adds an extra layer of security by requiring a code from your email in addition to your password." %}
+                </p>
+                <ul>
+                    <li>{% trans "Protects against unauthorized access" %}</li>
+                    <li>{% trans "Secure email-based verification" %}</li>
+                    <li>{% trans "5-minute code expiration" %}</li>
+                </ul>
+            </div>
+
+            <!-- Form -->
+            <form id="twoFactorForm" method="post">
+                {% csrf_token %}
+
+                <!-- Toggle Section -->
+                <div class="toggle-section">
+                    <label class="toggle-label">
+                        {% trans "Enable Two-Factor Authentication" %}
+                    </label>
+                    <button 
+                        type="button" 
+                        class="toggle-switch {% if is_2fa_enabled %}active{% endif %}" 
+                        id="toggleSwitch"
+                        onclick="toggleSwitch()"
+                    >
+                        <span class="toggle-slider"></span>
+                    </button>
+                    <div class="toggle-status-text {% if not is_2fa_enabled %}disabled{% endif %}">
+                        {% if is_2fa_enabled %}
+                            <i class="fas fa-check-circle" style="color: #34a853;"></i>
+                            {% trans "2FA is currently" %} <span>{% trans "enabled" %}</span>
+                        {% else %}
+                            <i class="fas fa-times-circle" style="color: #bdbdbd;"></i>
+                            {% trans "2FA is currently" %} <span style="color: #bdbdbd;">{% trans "disabled" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Backup Codes Section (Future) -->
+                <div class="backup-codes-section {% if is_2fa_enabled %}show{% endif %}" id="backupCodesSection">
+                    <div class="backup-codes-title">
+                        <i class="fas fa-key"></i> {% trans "Backup Codes" %}
+                    </div>
+                    <div class="backup-codes-warning">
+                        <strong>{% trans "Save these codes in a safe place." %}</strong>
+                        {% trans "You can use these to regain access if you lose access to your email." %}
+                    </div>
+                    <div class="backup-code-list" id="backupCodeList">
+                        {% if backup_codes %}
+                            {% for code in backup_codes %}
+                                <div class="backup-code">{{ code }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #999;">{% trans "No backup codes yet" %}</span>
+                        {% endif %}
+                    </div>
+                    {% if is_2fa_enabled %}
+                        <button type="button" class="btn-download-backup" onclick="downloadBackupCodes();">
+                            <i class="fas fa-download"></i> {% trans "Download Codes" %}
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Hidden input for form -->
+                <input type="hidden" id="twoFactorEnabled" name="two_factor_enabled" value="{% if is_2fa_enabled %}on{% endif %}">
+
+                <!-- Action Buttons -->
+                <div class="form-buttons">
+                    <button 
+                        type="submit" 
+                        class="btn-submit" 
+                        id="submitBtn"
+                        style="margin-top: 15px;"
+                    >
+                        <i class="fas fa-save"></i>
+                        <span id="submitBtnText">{% trans "Save Settings" %}</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        class="btn-cancel" 
+                        onclick="window.location.href='{% url 'accounts:profile' %}';"
+                    >
+                        <i class="fas fa-arrow-left"></i>
+                        {% trans "Back to Profile" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const toggleSwitch = (function() {
+            let isEnabled = {{ is_2fa_enabled|yesno:'true,false' }};
+
+            return function() {
+                const btn = document.getElementById('toggleSwitch');
+                const backupSection = document.getElementById('backupCodesSection');
+                const statusText = document.querySelector('.toggle-status-text');
+                const hiddenInput = document.getElementById('twoFactorEnabled');
+
+                isEnabled = !isEnabled;
+
+                btn.classList.toggle('active');
+                backupSection.classList.toggle('show');
+
+                if (isEnabled) {
+                    statusText.classList.remove('disabled');
+                    statusText.innerHTML = `
+                        <i class="fas fa-check-circle" style="color: #34a853;"></i>
+                        {% trans "2FA is currently" %} <span>{% trans "enabled" %}</span>
+                    `;
+                    hiddenInput.value = 'on';
+                } else {
+                    statusText.classList.add('disabled');
+                    statusText.innerHTML = `
+                        <i class="fas fa-times-circle" style="color: #bdbdbd;"></i>
+                        {% trans "2FA is currently" %} <span style="color: #bdbdbd;">{% trans "disabled" %}</span>
+                    `;
+                    hiddenInput.value = '';
+                }
+            };
+        })();
+
+        // Download backup codes
+        function downloadBackupCodes() {
+            const codes = document.getElementById('backupCodeList').innerText;
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(codes));
+            element.setAttribute('download', 'backup_codes.txt');
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        // Form submission
+        const form = document.getElementById('twoFactorForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageBox = document.getElementById('messageBox');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner"></span> {% trans "Saving..." %}';
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageBox.innerHTML = '✅ ' + data.message;
+                    messageBox.className = 'message-box success';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+
+                    setTimeout(() => {
+                        window.location.href = '{% url 'accounts:profile' %}';
+                    }, 1500);
+                } else {
+                    messageBox.innerHTML = '❌ ' + data.message;
+                    messageBox.className = 'message-box error';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                messageBox.innerHTML = '❌ An error occurred. Please try again.';
+                messageBox.className = 'message-box error';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    </script>
+</body>
+</html>

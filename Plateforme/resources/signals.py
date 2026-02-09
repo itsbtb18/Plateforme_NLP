@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 from resources.models import Resource, ResourceContribution
 from notifications.models import NotificationType
 from notifications.services import NotificationService
@@ -19,8 +20,8 @@ def notify_new_resource(sender, instance, created, **kwargs):
         NotificationService.notify_group(
             admins,
             NotificationType.NEW_RESOURCE,
-            f"New resource: {instance.title}",
-            f"A new resource has been added by {instance.author.username}: {instance.title}",
+            _("New resource: %(title)s") % {'title': instance.title},
+            _("A new resource has been added by %(author)s: %(title)s") % {'author': instance.author.username, 'title': instance.title},
             instance
         )
 
@@ -35,7 +36,7 @@ def notify_resource_contribution(sender, instance, created, **kwargs):
             NotificationService.create_notification(
                 resource_author,
                 NotificationType.CORPUS_UPDATE if instance.resource.resource_type == 'corpus' else NotificationType.RESEARCH_UPDATE,
-                f"New contribution to your resource",
-                f"{instance.contributor.username} contributed to your resource : {instance.resource.title}",
+                _("New contribution to your resource"),
+                _("%(contributor)s contributed to your resource: %(title)s") % {'contributor': instance.contributor.username, 'title': instance.resource.title},
                 instance
             )

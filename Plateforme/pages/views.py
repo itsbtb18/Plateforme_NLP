@@ -51,29 +51,29 @@ class HomePageView(TemplateView):
             like_count=Count('likes')
         ).order_by('-like_count', '-created_at')[:3]
 
-        # Ressources les plus vues
+        # Ressources les plus vues - ONLY APPROVED
         most_viewed_resources = []
 
-        # Récupérer les 5 corpus les plus vus
-        most_viewed_corpus = Corpus.objects.order_by('-views_count')[:3]
+        # Récupérer les 5 corpus les plus vus (approved only)
+        most_viewed_corpus = Corpus.objects.filter(approval_status='approved').order_by('-views_count')[:3]
         for resource in most_viewed_corpus:
             resource.resource_type_display = "Corpus"  # type: ignore
             most_viewed_resources.append(resource)
 
-        # Récupérer les 5 outils NLP les plus vus
-        most_viewed_tools = NLPTool.objects.order_by('-views_count')[:3]
+        # Récupérer les 5 outils NLP les plus vus (approved only)
+        most_viewed_tools = NLPTool.objects.filter(approval_status='approved').order_by('-views_count')[:3]
         for resource in most_viewed_tools:
             resource.resource_type_display = "Tool"  # type: ignore
             most_viewed_resources.append(resource)
 
-        # Récupérer les 5 documents les plus vus
-        most_viewed_documents = Document.objects.order_by('-views_count')[:3]
+        # Récupérer les 5 documents les plus vus (approved only)
+        most_viewed_documents = Document.objects.filter(approval_status='approved').order_by('-views_count')[:3]
         for resource in most_viewed_documents:
             resource.resource_type_display = getattr(resource, 'get_document_type_display', lambda: 'Document')()  # type: ignore
             most_viewed_resources.append(resource)
 
-        # Récupérer les 5 cours les plus vus
-        most_viewed_courses = Course.objects.order_by('-views_count')[:3]
+        # Récupérer les 5 cours les plus vus (approved only)
+        most_viewed_courses = Course.objects.filter(approval_status='approved').order_by('-views_count')[:3]
         for resource in most_viewed_courses:
             resource.resource_type_display = "Course"  # type: ignore
             most_viewed_resources.append(resource)
@@ -445,8 +445,8 @@ def admin_user_activate(request, user_id):
     
     Notification.objects.create(
         recipient=user,
-        title="Account activated",
-        message="Your account has been activated by an administrator. You can now access all features."
+        title=_("Account activated"),
+        message=_("Your account has been activated by an administrator. You can now access all features.")
     )
     
     messages.success(request, f"The user {user.full_name} has been successfully activated.")
@@ -487,8 +487,8 @@ def admin_user_block(request, user_id):
         
         Notification.objects.create(
             recipient=user,
-            title="Blocked account",
-            message="Your account has been locked by an administrator. Please contact support if necessary."
+            title=_("Blocked account"),
+            message=_("Your account has been locked by an administrator. Please contact support if necessary.")
         )
         
         messages.success(request, f"The user {user.full_name} has been successfully blocked.")
@@ -578,7 +578,7 @@ def admin_user_edit(request, user_id):
 @user_passes_test(is_admin)
 def admin_user_status(request, user_id, status):
     """Change user status (approve, block, etc.)"""
-    allowed_statuses = {code for code, _ in CustomUser.STATUS_CHOICES}
+    allowed_statuses = {code for code, _ in CustomUser.STATUS_CHOICES}  # type: ignore[attr-defined]
     if status not in allowed_statuses:
         messages.error(request, _("Unknown status %(status)s") % {'status': status})
         return redirect('pages:admin_users')
@@ -607,7 +607,7 @@ def admin_user_status(request, user_id, status):
         request,
         _("The user %(name)s has been marked as %(status)s.") % {
             'name': user_obj.full_name or user_obj.email,
-            'status': dict(CustomUser.STATUS_CHOICES).get(status, status),
+            'status': dict(CustomUser.STATUS_CHOICES).get(status, status),  # type: ignore[attr-defined]
         }
     )
     return redirect('pages:admin_users')
@@ -616,26 +616,41 @@ def admin_user_status(request, user_id, status):
 @login_required
 @user_passes_test(is_admin)
 def admin_publications(request):
-    """Admin publications management"""
+    """Admin publications management with approval workflow"""
     publication_type = request.GET.get('document_type', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')  # Default to approved tab
 
-    publications = Document.objects.prefetch_related('authors').select_related('author').order_by('-creation_date')
+    base_qs = Document.objects.prefetch_related('authors').select_related('author').order_by('-creation_date')
 
     if publication_type:
-        publications = publications.filter(document_type=publication_type)
+        base_qs = base_qs.filter(document_type=publication_type)
     if search:
-        publications = publications.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(keywords__icontains=search) |
             Q(authors__full_name__icontains=search)
         ).distinct()
 
+    # Separate pending and approved items
+    pending_publications = base_qs.filter(approval_status='pending')
+    approved_publications = base_qs.filter(approval_status='approved')
+    
+    # Get counts for badges
+    pending_count = pending_publications.count()
+    approved_count = approved_publications.count()
+
     context = {
-        'publications': publications,
+        'publications': approved_publications if tab == 'approved' else pending_publications,
+        'pending_publications': pending_publications,
+        'approved_publications': approved_publications,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'filter_publication_type': publication_type,
         'search': search,
+        'model_type': 'document',
     }
     return render(request, 'admin/publications.html', context)
 
@@ -643,34 +658,48 @@ def admin_publications(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_corpora(request):
-    """Admin corpora management"""
+    """Admin corpora management with approval workflow"""
     field = request.GET.get('field', '')
     file_format = request.GET.get('file_format', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
 
-    corpora = Corpus.objects.select_related('author').order_by('-creation_date')
+    base_qs = Corpus.objects.select_related('author').order_by('-creation_date')
 
     if field:
-        corpora = corpora.filter(field=field)
+        base_qs = base_qs.filter(field=field)
     if file_format:
-        corpora = corpora.filter(file_format__iexact=file_format)
+        base_qs = base_qs.filter(file_format__iexact=file_format)
     if search:
-        corpora = corpora.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(author__full_name__icontains=search)
         )
 
+    # Separate pending and approved items
+    pending_corpora = base_qs.filter(approval_status='pending')
+    approved_corpora = base_qs.filter(approval_status='approved')
+    
+    pending_count = pending_corpora.count()
+    approved_count = approved_corpora.count()
+
     available_fields = sorted(set(Corpus.objects.exclude(field='').values_list('field', flat=True)))
     available_formats = sorted(set(Corpus.objects.exclude(file_format='').values_list('file_format', flat=True)))
 
     context = {
-        'corpora': corpora,
+        'corpora': approved_corpora if tab == 'approved' else pending_corpora,
+        'pending_corpora': pending_corpora,
+        'approved_corpora': approved_corpora,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'filter_field': field,
         'filter_format': file_format,
         'search': search,
         'available_fields': available_fields,
         'available_formats': available_formats,
+        'model_type': 'corpus',
     }
     return render(request, 'admin/corpora.html', context)
 
@@ -678,29 +707,43 @@ def admin_corpora(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_tools(request):
-    """Admin tools management"""
+    """Admin tools management with approval workflow"""
     tool_type = request.GET.get('tool_type', '')
     supported_language = request.GET.get('language', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
 
-    tools = NLPTool.objects.select_related('author').order_by('-creation_date')
+    base_qs = NLPTool.objects.select_related('author').order_by('-creation_date')
 
     if tool_type:
-        tools = tools.filter(tool_type=tool_type)
+        base_qs = base_qs.filter(tool_type=tool_type)
     if supported_language:
-        tools = tools.filter(supported_languages=supported_language)
+        base_qs = base_qs.filter(supported_languages=supported_language)
     if search:
-        tools = tools.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(author__full_name__icontains=search)
         )
 
+    # Separate pending and approved items
+    pending_tools = base_qs.filter(approval_status='pending')
+    approved_tools = base_qs.filter(approval_status='approved')
+    
+    pending_count = pending_tools.count()
+    approved_count = approved_tools.count()
+
     context = {
-        'tools': tools,
+        'tools': approved_tools if tab == 'approved' else pending_tools,
+        'pending_tools': pending_tools,
+        'approved_tools': approved_tools,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'filter_tool_type': tool_type,
         'filter_language': supported_language,
         'search': search,
+        'model_type': 'nlptool',
     }
     return render(request, 'admin/tools.html', context)
 
@@ -778,6 +821,11 @@ def admin_projects(request):
 
     context = {
         'projects': projects,
+        'pending_projects': Project.objects.filter(approval_status='pending'),
+        'approved_projects': Project.objects.filter(approval_status='approved'),
+        'pending_count': Project.objects.filter(approval_status='pending').count(),
+        'approved_count': Project.objects.filter(approval_status='approved').count(),
+        'active_tab': request.GET.get('tab', 'approved'),
         'filter_status': status,
         'search': search,
         'projects_growth': round(projects_growth, 2),
@@ -788,6 +836,7 @@ def admin_projects(request):
         'average_duration_display_days': avg_duration_current.days if avg_duration_current else 0,
         'duration_trend_text': duration_trend_text,
         'duration_trend_class': duration_trend_class,
+        'model_type': 'project',
     }
     return render(request, 'admin/projects.html', context)
 
@@ -830,6 +879,11 @@ def admin_courses(request):
 
     context = {
         'courses': courses,
+        'pending_courses': Course.objects.filter(approval_status='pending'),
+        'approved_courses': Course.objects.filter(approval_status='approved'),
+        'pending_count': Course.objects.filter(approval_status='pending').count(),
+        'approved_count': Course.objects.filter(approval_status='approved').count(),
+        'active_tab': request.GET.get('tab', 'approved'),
         'filter_level': level,
         'filter_field': field,
         'search': search,
@@ -837,6 +891,7 @@ def admin_courses(request):
         'courses_this_month_count': courses_this_month_count,
         'courses_growth': round(courses_growth, 2),
         'courses_growth_class': growth_class,
+        'model_type': 'course',
     }
     return render(request, 'admin/courses.html', context)
 
@@ -870,12 +925,18 @@ def admin_forum(request):
 
     context = {
         'topics': page_obj,
+        'pending_topics': Topic.objects.filter(approval_status='pending'),
+        'approved_topics': Topic.objects.filter(approval_status='approved'),
+        'pending_count': Topic.objects.filter(approval_status='pending').count(),
+        'approved_count': Topic.objects.filter(approval_status='approved').count(),
+        'active_tab': request.GET.get('tab', 'approved'),
         'total_topics_count': Topic.objects.count(),
         'open_topics_count': Topic.objects.filter(is_closed=False).count(),
         'closed_topics_count': Topic.objects.filter(is_closed=True).count(),
         'total_messages_count': Message.objects.count(),
         'filter_status': status,
         'search': search,
+        'model_type': 'topic',
     }
     return render(request, 'admin/forum.html', context)
 
@@ -885,7 +946,7 @@ def admin_forum(request):
 def admin_topic_detail(request, pk):
     """View topic details"""
     topic = get_object_or_404(Topic, pk=pk)
-    chatrooms = topic.chatrooms.prefetch_related('messages', 'messages__user')
+    chatrooms = topic.chatrooms.prefetch_related('messages', 'messages__user')  # type: ignore[attr-defined]
     return render(request, 'admin/topic_detail.html', {'topic': topic, 'chatrooms': chatrooms})
 
 
@@ -973,6 +1034,44 @@ def admin_institutions(request):
         'search': search,
     }
     return render(request, 'admin/institutions.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news(request):
+    """Admin news/posts management with approval workflow"""
+    search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
+
+    base_qs = Post.objects.select_related('author').order_by('-created_at')
+
+    if search:
+        base_qs = base_qs.filter(
+            Q(title__icontains=search) |
+            Q(title_ar__icontains=search) |
+            Q(title_en__icontains=search) |
+            Q(content__icontains=search) |
+            Q(author__full_name__icontains=search)
+        )
+
+    # Separate pending and approved items
+    pending_posts = base_qs.filter(approval_status='pending')
+    approved_posts = base_qs.filter(approval_status='approved')
+    
+    pending_count = pending_posts.count()
+    approved_count = approved_posts.count()
+
+    context = {
+        'posts': approved_posts if tab == 'approved' else pending_posts,
+        'pending_posts': pending_posts,
+        'approved_posts': approved_posts,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
+        'search': search,
+        'model_type': 'post',
+    }
+    return render(request, 'admin/news.html', context)
 
 
 @login_required
@@ -1095,11 +1194,11 @@ def admin_statistics(request):
     user_reg_counts = [row['count'] for row in user_regs]
 
     top_resources = []
-    for resource in Document.objects.order_by('-views_count')[:2]:
+    for resource in Document.objects.filter(approval_status='approved').order_by('-views_count')[:2]:
         top_resources.append({'title': str(resource), 'views': resource.views_count})
-    for resource in Corpus.objects.order_by('-views_count')[:2]:
+    for resource in Corpus.objects.filter(approval_status='approved').order_by('-views_count')[:2]:
         top_resources.append({'title': str(resource), 'views': resource.views_count})
-    for resource in NLPTool.objects.order_by('-views_count')[:1]:
+    for resource in NLPTool.objects.filter(approval_status='approved').order_by('-views_count')[:1]:
         top_resources.append({'title': str(resource), 'views': resource.views_count})
     top_resources.sort(key=lambda item: item['views'], reverse=True)
     top_resources = top_resources[:5]
@@ -1222,7 +1321,7 @@ def admin_api_recent_content(request):
             {
                 'id': item.id,
                 'title': item.title,
-                'type': item.get_document_type_display(),
+                'type': item.get_document_type_display(),  # type: ignore[attr-defined]
                 'author': ", ".join(author.get_full_name() or author.email for author in item.authors.all()) or (item.author.get_full_name() if item.author else ''),
                 'date': item.creation_date.strftime('%Y-%m-%d'),
             }
@@ -1261,7 +1360,7 @@ def admin_api_recent_content(request):
                 'type': _('Project'),
                 'author': item.coordinator.get_full_name() if item.coordinator else '',
                 'date': item.created_at.strftime('%Y-%m-%d'),
-                'status': item.get_status_display(),
+                'status': item.get_status_display(),  # type: ignore[attr-defined]
             }
             for item in items
         ]
@@ -1408,7 +1507,7 @@ def admin_contact_detail(request, pk):
                     default_from = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
                     if default_from:
                         send_mail(
-                            subject=f"[Arabic NLP Platform] Response to your message: {contact_message.get_subject_display()}",
+                            subject=f"[Arabic NLP Platform] Response to your message: {contact_message.get_subject_display()}",  # type: ignore[attr-defined]
                             message=f"Hello {contact_message.name},\n\n{response.admin_response}\n\nBest regards,\nArabic NLP Platform Team",
                             from_email=default_from,
                             recipient_list=[contact_message.email],
@@ -1427,3 +1526,195 @@ def admin_contact_detail(request, pk):
         'contact_message': contact_message,
         'form': form,
     })
+
+
+# ============================================
+# APPROVAL WORKFLOW HANDLERS
+# ============================================
+
+MODEL_MAP = {
+    'document': Document,
+    'corpus': Corpus,
+    'nlptool': NLPTool,
+    'course': Course,
+    'project': Project,
+    'topic': Topic,
+    'event': Event,
+    'post': Post,
+}
+
+REDIRECT_MAP = {
+    'document': 'pages:admin_publications',
+    'corpus': 'pages:admin_corpora',
+    'nlptool': 'pages:admin_tools',
+    'course': 'pages:admin_courses',
+    'project': 'pages:admin_projects',
+    'topic': 'pages:admin_forum',
+    'event': 'pages:admin_calls',
+    'post': 'pages:admin_news',
+}
+
+# Translation field requirements for each model
+TRANSLATION_FIELDS = {
+    'document': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'corpus': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'nlptool': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'course': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'project': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'topic': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
+    'event': {
+        'title': ('title_ar', 'title_en'), 
+        'description': ('description_ar', 'description_en'),
+        'location': ('location_ar', 'location_en')
+    },
+    'post': {'title': ('title_ar', 'title_en'), 'content': ('content_ar', 'content_en')},
+}
+
+
+def validate_translations(item, model_type):
+    """
+    Validate that all required translation fields are filled.
+    Returns (is_valid, list_of_missing_fields)
+    """
+    fields_config = TRANSLATION_FIELDS.get(model_type, {})
+    missing_fields = []
+    
+    for field_name, (ar_field, en_field) in fields_config.items():
+        ar_value = getattr(item, ar_field, None)
+        en_value = getattr(item, en_field, None)
+        
+        # Both languages must have a value
+        if not ar_value or not str(ar_value).strip():
+            missing_fields.append(f"{field_name} (Arabic)")
+        if not en_value or not str(en_value).strip():
+            missing_fields.append(f"{field_name} (English)")
+    
+    return len(missing_fields) == 0, missing_fields
+
+
+# Edit URL mapping for admin review workflow
+EDIT_URL_MAP = {
+    'document': ('resources:resource-update', {'type': 'article'}),
+    'corpus': ('resources:resource-update', {'type': 'corpus'}),
+    'nlptool': ('resources:resource-update', {'type': 'tool'}),
+    'course': ('resources:resource-update', {'type': 'course'}),
+    'project': ('projects:project_update', {}),
+    'topic': ('forum:topic-update', {}),
+    'event': ('events:event_update', {}),
+    'post': ('QA:edit_post', {'post_id': None}),  # post_id will be set separately
+}
+
+
+def get_edit_url(model_type, pk):
+    """Get the edit URL for a given model type and pk."""
+    url_info = EDIT_URL_MAP.get(model_type)
+    if not url_info:
+        return reverse('pages:admin_dashboard')
+    
+    url_name, extra_kwargs = url_info
+    
+    # Handle special case for posts which use post_id instead of pk
+    if model_type == 'post':
+        kwargs = {'post_id': pk}
+    else:
+        kwargs = {'pk': pk}
+        kwargs.update(extra_kwargs)
+    
+    return reverse(url_name, kwargs=kwargs)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_approve_item(request, model_type, pk):
+    """
+    Redirect admin to the edit page for reviewing/editing before approval.
+    After editing, admin can use the 'Approve & Publish' button.
+    """
+    # For POST requests, this is the actual approval (called from edit page's "Approve & Publish" button)
+    if request.method == 'POST':
+        if model_type not in MODEL_MAP:
+            messages.error(request, _("Invalid model type."))
+            return redirect('pages:admin_dashboard')
+        
+        Model = MODEL_MAP[model_type]
+        item = get_object_or_404(Model, pk=pk)
+        
+        # TRANSLATION GATE: Validate that all translations are complete
+        is_valid, missing_fields = validate_translations(item, model_type)
+        if not is_valid:
+            missing_str = ", ".join(missing_fields)
+            messages.error(
+                request, 
+                _("Cannot approve: Missing translations for %(fields)s. Please fill in all bilingual fields.") % {'fields': missing_str}
+            )
+            # Redirect back to edit page
+            return redirect(get_edit_url(model_type, pk))
+        
+        item.approval_status = 'approved'
+        item.save(update_fields=['approval_status'])
+        
+        # Create notification to the author
+        author = getattr(item, 'author', None) or getattr(item, 'coordinator', None) or getattr(item, 'creator', None) or getattr(item, 'created_by', None)
+        title = getattr(item, 'title', str(item))
+        
+        if author:
+            Notification.objects.create(
+                recipient=author,
+                title=_("Your submission has been approved"),
+                message=_("Your submission '%(title)s' has been approved and is now visible to the public.") % {'title': title}
+            )
+        
+        messages.success(request, _("'%(title)s' has been approved and published.") % {'title': title})
+        redirect_url = REDIRECT_MAP.get(model_type, 'pages:admin_dashboard')
+        return redirect(f"{reverse(redirect_url)}?tab=pending")
+    
+    # For GET requests (clicking the Review button), redirect to edit page
+    if model_type not in MODEL_MAP:
+        messages.error(request, _("Invalid model type."))
+        return redirect('pages:admin_dashboard')
+    
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+    title = getattr(item, 'title', str(item))
+    
+    messages.info(request, _("Review and edit '%(title)s'. Click 'Approve & Publish' when ready.") % {'title': title})
+    
+    # Redirect to the edit page with a flag indicating admin review mode
+    edit_url = get_edit_url(model_type, pk)
+    return redirect(f"{edit_url}?review=1")
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_reject_item(request, model_type, pk):
+    """Reject and delete a pending item."""
+    # Require POST for security (state-changing operation)
+    if request.method != 'POST':
+        messages.warning(request, _("Please use the reject button to reject items."))
+        redirect_url = REDIRECT_MAP.get(model_type, 'pages:admin_dashboard')
+        return redirect(f"{reverse(redirect_url)}?tab=pending")
+    
+    if model_type not in MODEL_MAP:
+        messages.error(request, _("Invalid model type."))
+        return redirect('pages:admin_dashboard')
+    
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+    
+    # Get author before deletion
+    author = getattr(item, 'author', None) or getattr(item, 'coordinator', None) or getattr(item, 'creator', None) or getattr(item, 'created_by', None)
+    title = getattr(item, 'title', str(item))
+    
+    # Create notification to the author
+    if author:
+        Notification.objects.create(
+            recipient=author,
+            title=_("Your submission has been rejected"),
+            message=_("Your submission '%(title)s' has been rejected and removed.") % {'title': title}
+        )
+    
+    item.delete()
+    
+    messages.warning(request, _("'%(title)s' has been rejected and deleted.") % {'title': title})
+    redirect_url = REDIRECT_MAP.get(model_type, 'pages:admin_dashboard')
+    return redirect(f"{reverse(redirect_url)}?tab=pending")

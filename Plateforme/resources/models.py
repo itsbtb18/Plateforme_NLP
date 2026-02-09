@@ -24,6 +24,11 @@ class ResourceBase(models.Model):
         ARABIC = 'ar', _('Arabic')
         ENGLISH = 'en', _('English')
 
+    class ApprovalStatus(models.TextChoices):
+        PENDING = 'pending', _('Pending')
+        APPROVED = 'approved', _('Approved')
+        REJECTED = 'rejected', _('Rejected')
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -90,6 +95,34 @@ class ResourceBase(models.Model):
         default=0,
         verbose_name=_("Views Count")
     )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
+        verbose_name=_("Approval Status"),
+        help_text=_("Content must be approved by admin before being publicly visible")
+    )
+    description_ar = models.TextField(
+        verbose_name=_("Description (Arabic)"),
+        blank=True,
+        default='',
+        help_text=_("Arabic description of the resource")
+    )
+    description_en = models.TextField(
+        verbose_name=_("Description (English)"),
+        blank=True,
+        default='',
+        help_text=_("English description of the resource")
+    )
+    
+    # File upload field for documents (PDF, DOCX, etc.)
+    uploaded_file = models.FileField(
+        upload_to='resources/files/%Y/%m/',
+        verbose_name=_("Uploaded File"),
+        blank=True,
+        null=True,
+        help_text=_("Upload a document (PDF, DOCX, TXT, etc.)")
+    )
 
     
     def get_supported_languages_list(self):
@@ -115,6 +148,45 @@ class ResourceBase(models.Model):
         if self.author:
             return self.author.get_full_name() or self.author.email
         return ''
+
+    def get_localized_title(self):
+        """Return title based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.title_ar:
+            return self.title_ar
+        elif self.title_en:
+            return self.title_en
+        return self.title
+
+    def get_localized_description(self):
+        """Return description based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
+
+    @property
+    def title_display(self):
+        """Return title based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.title_ar or ''
+        return self.title_en or ''
+
+    @property
+    def description_display(self):
+        """Return description based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.description_ar or ''
+        return self.description_en or ''
+
     def get_absolute_url(self):
         model_name = self.__class__.__name__.lower()
         return reverse(f'resources:{model_name}_detail', kwargs={'pk': self.pk})

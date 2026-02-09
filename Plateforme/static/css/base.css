@@ -13,10 +13,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
-  /* Prevent layout shift from OS scaling - with full browser support */
-  -webkit-text-size-adjust: 100%;
-  -ms-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -28,6 +25,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: clip;
+  max-width: 100vw;
 }
 
 /* ========================================
@@ -114,7 +113,13 @@ body {
   background-clip: text;
 }
 
-/* ===== SEARCH CONTAINER ===== */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/* LEGACY SEARCH STYLES - DISABLED                                                                 */
+/* The new Command Palette search styles are in base.html inline <style>                           */
+/* These legacy styles are preserved but commented out for reference                               */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/*
 .search-container {
   width: 100%;
   max-width: 100%;
@@ -150,6 +155,7 @@ body {
   box-shadow: 0 6px 20px rgba(26, 115, 232, 0.15);
   transform: translateY(-1px);
 }
+*/
 
 #global-search-form {
   width: 100%;
@@ -158,6 +164,7 @@ body {
   padding: 0;
 }
 
+/*
 .input-group {
   width: 100%;
   display: flex;
@@ -233,7 +240,6 @@ body {
   font-size: 1rem;
 }
 
-/* ===== SEARCH RESULTS DROPDOWN ===== */
 .search-results-dropdown {
   position: absolute;
   top: calc(100% + 12px);
@@ -285,6 +291,7 @@ body {
 .search-result-item:first-child {
   border-radius: 16px 16px 0 0;
 }
+*/
 
 /* ===== HEADER ACTIONS ===== */
 .header-actions {
@@ -1174,6 +1181,15 @@ html[dir="rtl"] .logo-container {
   flex-direction: row-reverse;
 }
 
+/* Header: reverse the 3-column grid so actions are on the left in RTL */
+html[dir="rtl"] .header-container {
+  direction: rtl;
+}
+
+html[dir="rtl"] .header-actions {
+  justify-self: start;
+}
+
 html[dir="rtl"] .language-dropdown-item:hover,
 html[dir="rtl"] .profile-dropdown-item:hover {
   transform: translateX(-4px);
@@ -1373,6 +1389,8 @@ html[dir="rtl"] .sidebar-menu .active {
 /* ===== CONTENT AREA ===== */
 .content {
   flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
   padding: 32px;
   min-height: calc(100vh - 80px);
   background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);

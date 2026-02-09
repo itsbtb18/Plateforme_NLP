@@ -1,367 +1,1362 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% trans "Corpus" %}{% endblock title %}
-{% block content %}
-<div class="container py-5">
-    <div class="row header-section">
-        <div class="col-lg-8 col-md-7">
-            <h1 class="display-5 fw-bold mb-2">{% trans "Corpus Collection :" %}</h1>
-            <p class="text-muted fs-5">{{ total_count }} {% trans "corpora available" %}</p>
-        </div>
-        <div class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start mt-3 mt-md-0">
-            {% if user.is_authenticated %}
-            <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary btn-lg shadow-sm">
-                <i class="bi bi-plus-lg me-2"></i> {% trans "Add New Corpus" %}
-            </a>
-            {% else %}
-            <div class="alert alert-info d-flex align-items-center mb-0 py-3 px-4 shadow-sm">
-                <i class="bi bi-info-circle fs-5 me-2"></i>
-                <span>{% trans "You need to be logged in to add a new corpus." %}</span>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-     <div class="global-searchbox">
-        <form method="get" action="" class="searchbox-form" id="globalSearchForm">
-            <div class="searchbox-group shadow-sm">
-                <div class="query-container w-100 position-relative">
-                    <input type="text" 
-                           name="q" 
-                           id="globalQuery" 
-                           class="query-input" 
+{% load static %}
 
-                           placeholder={% trans "Search for resources..." %}
+{% block title %}{% trans "Corpus Collection" %} - {% trans "Arabic NLP Platform" %}{% endblock title %}
 
-                           autocomplete="off"
-                           value="{{ request.GET.q|default:'' }}">
-                    
-                </div>
-                
-                <button type="submit" class="action-button submit-action">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-
-<br>
-    <div class="position-relative mb-5">
-        <hr class="my-4">
-        <div class="position-absolute top-0 start-50 translate-middle">
-            <div class="px-4 py-2 bg-white border rounded-pill shadow-sm">
-                <i class="bi bi-folder2-open me-2 text-primary"></i> <span class="fw-medium">{% trans "Explore Corpora" %}</span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Corpus Grid -->
-    {% if corpora %}
-    <div class="corpus-grid">
-        {% for corpus in corpora %}
-        <div class="corpus-card">
-            <div class="corpus-header d-flex align-items-center gap-3">
-                <div class="corpus-badge">
-                    <i class="bi bi-folder2-open"></i>
-                </div>
-                <h3 class="corpus-title m-0">{{ corpus.titre }}</h3>
-            </div>
-            <div class="corpus-content flex-grow-1">
-                <div class="info-row">
-                    <span class="info-label">{% trans "Title:" %}</span>
-                    <span class="info-value">{{ corpus.title }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">{% trans "Type:" %}</span>
-                    <span class="info-value">{{ corpus.get_field_display }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">{% trans "Created:" %}</span>
-                    <span class="info-value">{{ corpus.creation_date|date:"d/m/Y H:i" }}</span>
-                </div>
-                  <div class="info-row">
-                        <span class="info-label">{% trans "Author:" %}</span>
-                        <span class="info-value">
-        {% if corpus.author%}
-            {{ corpus.author.full_name }}
-        {% else %}
-            {% trans "Unknown" %}
-        {% endif %}
-    </span>
-</div>
-            </div>
-
-            <div class="corpus-footer">
-    <div class="corpus-stats d-flex gap-2 mb-3">
-        {% if corpus.file_format %}
-        <span class="stat-item">
-            <i class="bi bi-file-earmark-text"></i>
-            <span>{{ corpus.file_format }}</span>
-        </span>
-        {% endif %}
-        
-        {% if corpus.language %}
-        <span class="stat-item">
-            <i class="bi bi-translate"></i>
-            {% if corpus.get_language_display %}
-                {{ corpus.get_language_display }}
-            {% else %}
-                {{ corpus.language }}
-            {% endif %}
-        </span>
-        {% endif %}
-
-        {% if corpus.keywords %}
-        <span class="stat-item">
-            <i class="bi bi-tags"></i>
-            {% if corpus.keywords %}
-                {{ corpus.get_keywords_list.0 }}
-            {% endif %}
-        </span>
-        {% endif %}
-    </div>
-
-     <div class="corpus-actions text-end">
-                    <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view-details">
-                        <span>{% trans "View Details" %}</span>
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">
-            <i class="bi bi-folder2-open"></i>
-        </div>
-        <h3>{% trans "No corpora available" %}</h3>
-        <p class="text-muted">{% trans "Corpora you add will appear here" %}</p>
-        {% if user.is_authenticated %}
-        <a href="{% url 'resources:corpus-create' %}" class="btn btn-primary btn-lg mt-3">
-            <i class="bi bi-plus-lg me-2"></i> {% trans "Add Your First Corpus" %}
-        </a>
-        {% endif %}
-    </div>
-    {% endif %}
-</div>
-
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
+/* ===== CSS VARIABLES - Academic SaaS Theme ===== */
 :root {
-    --primary: #4361ee;
-    --primary-hover: #3a56d4;
-    --dark-color: #1e455e;
-    --light-bg: #f8f9fa;
-    --text-muted: #6c757d;
-    --border-color: #e9ecef;
-    --card-shadow: 0 10px 20px rgba(0,0,0,0.05);
-    --hover-shadow: 0 15px 30px rgba(0,0,0,0.1);
-    --card-radius: 16px;
+    --primary-deep: #1e3a5f;
+    --primary-accent: #2563eb;
+    --primary-light: #3b82f6;
+    --teal-accent: #0d9488;
+    --surface-white: #ffffff;
+    --surface-light: #f8fafc;
+    --surface-muted: #f1f5f9;
+    --border-subtle: #e2e8f0;
+    --border-light: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    /* Corpus Type Colors */
+    --type-medical: #dc2626;
+    --type-medical-bg: #fef2f2;
+    --type-linguistics: #7c3aed;
+    --type-linguistics-bg: #f5f3ff;
+    --type-translation: #059669;
+    --type-translation-bg: #ecfdf5;
+    --type-general: #2563eb;
+    --type-general-bg: #eff6ff;
+    --type-social: #ea580c;
+    --type-social-bg: #fff7ed;
+    --type-legal: #4f46e5;
+    --type-legal-bg: #eef2ff;
 }
 
-.container { max-width: 1320px; margin: 0 auto; }
-
-/* Header styling */
-.header-section { margin-bottom: 2rem; }
-
-/* Corpus grid */
-.corpus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 2rem; padding: 0; }
-
-/* Corpus card */
-.corpus-card {
-    background-color: white;
-    border-radius: var(--card-radius);
-    overflow: hidden;
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-    min-height: 350px;
-    transition: all 0.3s ease;
-    border: none;
-    position: relative;
-}
-.corpus-card:hover { transform: translateY(-8px); box-shadow: var(--hover-shadow); }
-
-.corpus-header { padding: 1.5rem; padding-bottom: 0; }
-
-.corpus-title { margin: 0; font-weight: 700; font-size: 1.3rem; color: var(--dark-color); line-height: 1.4; }
-
-.corpus-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1; }
-.info-row { display: flex; justify-content: space-between; }
-.info-label { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); }
-.info-value { font-size: 0.95rem; }
-
-.corpus-footer { padding: 1.5rem; background-color: var(--light-bg); border-top: 1px solid var(--border-color); }
-.corpus-stats .stat-item { display: flex; align-items: center; gap: 0.5rem; background-color: white; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-.corpus-actions .btn-view-details { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.95rem; padding: 0.75rem 1.25rem; border: 2px solid var(--primary); border-radius: 8px; transition: all 0.2s ease; }
-.corpus-actions .btn-view-details:hover { background-color: var(--primary); color: white; }
-.corpus-actions .btn-view-details i { transition: transform 0.2s ease; }
-.corpus-actions .btn-view-details:hover i { transform: translateX(4px); }
-
-/* Empty state */
-.empty-state { text-align: center; padding: 4rem 1rem; background-color: white; border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
-.empty-icon { font-size: 4rem; color: var(--primary); opacity: 0.5; margin-bottom: 1.5rem; }
-
-/* Button */
-.btn-primary { background-color: var(--primary); border-color: var(--primary); border-width: 2px; font-weight: 600; border-radius: 8px; padding: 0.75rem 1.5rem; transition: all 0.3s ease; }
-.btn-primary:hover { background-color: var(--primary-hover); border-color: var(--primary-hover); transform: translateY(-2px); }
-
-/* Alert */
-.alert-info { background-color: rgba(67, 97, 238, 0.1); border: none; color: var(--primary); border-radius: 8px; }
-
-/* Responsive */
-@media (max-width: 767px) {
-    .corpus-grid { grid-template-columns: 1fr; }
-    .corpus-header { flex-direction: column; align-items: flex-start; }
-    .corpus-footer { padding: 1.25rem; }
-    h1.display-5 { font-size: 1.8rem; }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-@media (min-width: 768px) and (max-width: 991px) {
-    .corpus-grid { grid-template-columns: repeat(2, 1fr); }
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
 }
 
-@media (min-width: 992px) {
-    .corpus-grid { grid-template-columns: repeat(3, 1fr); }
-}
-.global-searchbox {
-    margin-bottom: 2rem;
+/* ===== PAGE WRAPPER ===== */
+.corpus-page {
+    min-height: calc(100vh - 200px);
+    background: linear-gradient(180deg, var(--surface-light) 0%, var(--surface-white) 100%);
+    padding: 2rem 0 4rem;
 }
 
-.searchbox-form {
-    max-width: 800px;
+.corpus-container {
+    max-width: 1400px;
     margin: 0 auto;
+    padding: 0 1.5rem;
 }
 
-.searchbox-group {
-    display: flex;
-    align-items: stretch;
-    border-radius: 12px;
-    background: white;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Query Container */
-.query-container {
+/* ===== HEADER SECTION - Academic Style ===== */
+.corpus-header-section {
+    background: linear-gradient(135deg, var(--primary-deep) 0%, #1e40af 50%, var(--teal-accent) 100%);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem 3rem;
+    margin-bottom: 2rem;
     position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
 }
 
-.query-input {
-    width: 100%;
-    border: none;
-    padding: 1rem 2.5rem 1rem 1.2rem;
-    font-size: 1rem;
-}
-
-.query-input:focus {
-    outline: none;
-    box-shadow: none;
-}
-
-/* Status Indicators */
-.status-indicator {
+.corpus-header-section::before {
+    content: '';
     position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
+    top: 0;
+    right: 0;
+    width: 40%;
+    height: 100%;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
 }
 
-.status-icon {
+.header-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.header-text h1 {
+    color: white;
+    font-size: 2.25rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.025em;
+}
+
+.header-text .subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.corpus-count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+/* Glassmorphism Button */
+.btn-glass {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 600;
     font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.status-spinner {
-    width: 1rem;
-    height: 1rem;
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    color: white;
 }
 
-
-/* Action Buttons */
-.action-button {
-    padding: 10px 1.5rem;
-    border: none;
+.btn-glass .icon-circle {
+    width: 28px;
+    height: 28px;
+    background: white;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    color: var(--primary-deep);
+    font-size: 1rem;
 }
 
-.submit-action {
-    background-color: var(--primary);
+.login-notice {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.5rem;
     color: white;
-}
-
-/* Category Filters */
-.category-filters {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+}
+
+/* ===== SEARCH BAR ===== */
+.search-section {
     margin-bottom: 2rem;
-    padding: 0.5rem 0;
 }
 
-.category-label {
-    font-weight: 500;
-    color: var(--text-dark);
-    margin-right: 0.5rem;
+.search-wrapper {
+    max-width: 100%;
 }
 
-.category-list {
+.search-box {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
+    background: var(--surface-white);
+    border: 2px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 0.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.search-box:focus-within {
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.search-icon {
+    padding: 0.75rem 1rem;
+    color: var(--text-muted);
+    font-size: 1.25rem;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.875rem 0.5rem;
+    font-size: 1rem;
+    color: var(--text-primary);
+    outline: none;
+    text-align: start; /* auto-flips to right in RTL */
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+    text-align: start;
+}
+
+.search-btn {
+    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.875rem 1.5rem;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
 }
 
-.category-item {
-    display: inline-flex;
+.search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* ===== CONTENT LAYOUT WITH SIDEBAR ===== */
+.content-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 992px) {
+    .content-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== FILTER SIDEBAR ===== */
+.filter-sidebar {
+    background: var(--surface-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 1rem;
+    overflow: hidden;
+}
+
+.filter-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-accent) 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    color: var(--text-dark);
-    padding: 0.5rem 1rem;
-    border-radius: 30px;
-    font-size: 0.9rem;
+}
+
+.filter-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-clear-filters {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
     font-weight: 500;
-    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-clear-filters:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-clear-filters:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.filter-section {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.filter-section:last-child {
+    border-bottom: none;
+}
+
+.filter-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-section-title i {
+    color: var(--primary-accent);
+    font-size: 1rem;
+}
+
+.filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.filter-options::-webkit-scrollbar {
+    width: 4px;
+}
+
+.filter-options::-webkit-scrollbar-track {
+    background: var(--surface-muted);
+    border-radius: 2px;
+}
+
+.filter-options::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--radius-sm);
     transition: all 0.2s ease;
 }
 
-.category-item:hover {
-    background-color: rgba(67, 97, 238, 0.1);
-    border-color: var(--primary);
-    color: var(--primary);
+.filter-option:hover {
+    background: var(--surface-light);
 }
 
-.category-item.active {
-    background-color: var(--primary);
-    border-color: var(--primary);
+.filter-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-subtle);
+    border-radius: 4px;
+    cursor: pointer;
+    accent-color: var(--primary-accent);
+    flex-shrink: 0;
+}
+
+.filter-option-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    flex: 1;
+    line-height: 1.4;
+}
+
+.filter-option input:checked + .filter-option-label {
+    color: var(--primary-accent);
+    font-weight: 500;
+}
+
+/* Mobile filter toggle */
+.mobile-filter-toggle {
+    display: none;
+    width: 100%;
+    padding: 1rem;
+    background: var(--surface-white);
+    border: 2px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 1rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.mobile-filter-toggle:hover {
+    border-color: var(--primary-accent);
+    color: var(--primary-accent);
+}
+
+@media (max-width: 992px) {
+    .mobile-filter-toggle {
+        display: flex;
+    }
+    
+    .filter-sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 300px;
+        height: 100vh;
+        z-index: 1000;
+        border-radius: 0;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+    
+    .filter-sidebar.active {
+        left: 0;
+    }
+    
+    .filter-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .filter-overlay.active {
+        display: block;
+    }
+}
+
+/* ===== RESULTS SECTION ===== */
+.results-section {
+    flex: 1;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface-white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.results-count {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.results-count strong {
+    color: var(--primary-accent);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.results-count i {
+    color: var(--primary-accent);
+}
+
+.active-filters-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--primary-accent);
+    color: white;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.active-filter-tag button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.active-filter-tag button:hover {
+    opacity: 1;
+}
+
+/* ===== LOADING STATE ===== */
+.results-container {
+    position: relative;
+    min-height: 200px;
+}
+
+.results-container.loading {
+    pointer-events: none;
+}
+
+.results-container.loading .corpus-grid,
+.results-container.loading .empty-state {
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.loading-overlay {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+}
+
+.results-container.loading .loading-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-subtle);
+    border-top-color: var(--primary-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* ===== CORPUS GRID ===== */
+.corpus-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+    .corpus-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .corpus-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== CORPUS CARD - Premium Design ===== */
+.corpus-card {
+    background: var(--surface-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.corpus-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-xl);
+    border-color: transparent;
+}
+
+.corpus-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-accent), var(--teal-accent));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.corpus-card:hover::before {
+    opacity: 1;
+}
+
+/* Card Header with Icon */
+.card-header {
+    padding: 1.5rem 1.5rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.corpus-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.corpus-card:hover .corpus-icon {
+    transform: scale(1.05);
+}
+
+/* Type-specific icon colors */
+.corpus-icon.type-medical { background: var(--type-medical-bg); color: var(--type-medical); }
+.corpus-icon.type-linguistics { background: var(--type-linguistics-bg); color: var(--type-linguistics); }
+.corpus-icon.type-translation { background: var(--type-translation-bg); color: var(--type-translation); }
+.corpus-icon.type-general { background: var(--type-general-bg); color: var(--type-general); }
+.corpus-icon.type-social { background: var(--type-social-bg); color: var(--type-social); }
+.corpus-icon.type-legal { background: var(--type-legal-bg); color: var(--type-legal); }
+
+.card-title-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.corpus-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.corpus-type-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.625rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.corpus-type-badge.type-medical { background: var(--type-medical-bg); color: var(--type-medical); }
+.corpus-type-badge.type-linguistics { background: var(--type-linguistics-bg); color: var(--type-linguistics); }
+.corpus-type-badge.type-translation { background: var(--type-translation-bg); color: var(--type-translation); }
+.corpus-type-badge.type-general { background: var(--type-general-bg); color: var(--type-general); }
+.corpus-type-badge.type-social { background: var(--type-social-bg); color: var(--type-social); }
+.corpus-type-badge.type-legal { background: var(--type-legal-bg); color: var(--type-legal); }
+
+/* Card Body */
+.card-body {
+    padding: 0 1.5rem 1rem;
+    flex: 1;
+}
+
+.meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.meta-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    min-width: 70px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: start; /* auto-flips based on dir */
+}
+
+.meta-value {
+    font-size: 0.925rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Tags Section */
+.card-tags {
+    padding: 0 1.5rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--surface-muted);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.tag-pill i { font-size: 0.75rem; color: var(--text-muted); }
+.tag-pill.format-csv { background: #dcfce7; color: #166534; }
+.tag-pill.format-txt { background: #e0e7ff; color: #3730a3; }
+.tag-pill.format-json { background: #fef3c7; color: #92400e; }
+.tag-pill.format-xml { background: #fce7f3; color: #9d174d; }
+.tag-pill.lang-ar { background: #dbeafe; color: #1e40af; }
+.tag-pill.lang-en { background: #f3e8ff; color: #6b21a8; }
+
+/* Card Footer */
+.card-footer {
+    padding: 1rem 1.5rem;
+    background: var(--surface-light);
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: end; /* logical: end = right in LTR, left in RTL */
+    align-items: center;
+}
+
+.btn-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: transparent;
+    border: 2px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-view:hover {
+    background: var(--primary-accent);
+    border-color: var(--primary-accent);
     color: white;
 }
+
+.btn-view i { transition: transform 0.3s ease; }
+.btn-view:hover i { transform: translateX(4px); }
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--surface-white);
+    border-radius: var(--radius-xl);
+    border: 2px dashed var(--border-subtle);
+}
+
+.empty-icon {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 1.5rem;
+    background: var(--surface-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--text-muted);
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.empty-state p { color: var(--text-muted); margin: 0 0 1.5rem; }
+
+.btn-primary-modern {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+    color: white;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════ */
+/* RTL SUPPORT — Uses direction: rtl + CSS logical properties                     */
+/* With direction: rtl, flex-direction: row lays items right-to-left,             */
+/* text-align: start resolves to right, and flex-start means the right edge.      */
+/* ══════════════════════════════════════════════════════════════════════════════ */
+
+/* --- Content Layout: direction:rtl flips the grid columns automatically --- */
+/* Column 1 (280px filter) renders on the right, column 2 (1fr results) on the left */
+html[dir="rtl"] .content-layout {
+    direction: rtl;
+}
+
+@media (max-width: 992px) {
+    html[dir="rtl"] .filter-sidebar {
+        right: -100%;
+        left: auto;
+    }
+    html[dir="rtl"] .filter-sidebar.active {
+        right: 0;
+        left: auto;
+    }
+}
+
+/* --- Header Section: title on the right, button on the left --- */
+html[dir="rtl"] .corpus-header-section { direction: rtl; }
+html[dir="rtl"] .header-text { text-align: start; }
+html[dir="rtl"] .header-text h1 { text-align: start; }
+html[dir="rtl"] .subtitle { justify-content: flex-start; }
+
+html[dir="rtl"] .corpus-header-section::before {
+    right: auto;
+    left: 0;
+}
+
+html[dir="rtl"] .corpus-header-section::after {
+    right: auto;
+    left: -10%;
+}
+
+/* --- Search Bar: right-aligned placeholder, reversed element order --- */
+html[dir="rtl"] .search-section { direction: rtl; }
+html[dir="rtl"] .search-input { text-align: right; }
+html[dir="rtl"] .search-input::placeholder { text-align: right; }
+html[dir="rtl"] .search-btn i { transform: scaleX(-1); }
+
+/* --- Results Header --- */
+html[dir="rtl"] .results-header { direction: rtl; }
+html[dir="rtl"] .results-count { text-align: start; }
+
+/* --- Corpus Cards: all content right-aligned --- */
+html[dir="rtl"] .corpus-card {
+    direction: rtl;
+    text-align: start;
+}
+
+html[dir="rtl"] .card-title-section { text-align: start; }
+html[dir="rtl"] .corpus-title { text-align: start; }
+html[dir="rtl"] .meta-label { text-align: start; min-width: 75px; }
+html[dir="rtl"] .meta-value { text-align: start; }
+
+/* Tags: flex-start in RTL = right edge */
+html[dir="rtl"] .card-tags { justify-content: flex-start; }
+
+/* Card Footer: "View Details" button slides to the left */
+html[dir="rtl"] .card-footer { justify-content: flex-start; }
+html[dir="rtl"] .btn-view i { transform: scaleX(-1); }
+html[dir="rtl"] .btn-view:hover i { transform: scaleX(-1) translateX(4px); }
+
+/* --- Filter Sidebar internals --- */
+html[dir="rtl"] .filter-sidebar { direction: rtl; }
+html[dir="rtl"] .filter-section-title { text-align: start; }
+html[dir="rtl"] .filter-option-label { text-align: start; }
+
+/* --- Empty State --- */
+html[dir="rtl"] .empty-state { text-align: center; }
+
+/* --- Active Filter Tags --- */
+html[dir="rtl"] .active-filter-tag button {
+    margin-inline-start: 0.25rem;
+    margin-inline-end: 0;
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+@media (max-width: 992px) {
+    .corpus-header-section { padding: 2rem; }
+    .header-text h1 { font-size: 1.75rem; }
+    .header-content { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 576px) {
+    .corpus-page { padding: 1rem 0 2rem; }
+    .corpus-header-section { padding: 1.5rem; border-radius: var(--radius-lg); }
+    .header-text h1 { font-size: 1.5rem; }
+    .btn-glass { width: 100%; justify-content: center; }
+    .search-btn span { display: none; }
+    .card-header { padding: 1.25rem; }
+    .card-body { padding: 0 1.25rem 1rem; }
+    .card-tags { padding: 0 1.25rem 1rem; }
+    .card-footer { padding: 1rem 1.25rem; }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.corpus-card { animation: fadeInUp 0.4s ease-out forwards; }
+.corpus-card:nth-child(1) { animation-delay: 0.05s; }
+.corpus-card:nth-child(2) { animation-delay: 0.1s; }
+.corpus-card:nth-child(3) { animation-delay: 0.15s; }
+.corpus-card:nth-child(4) { animation-delay: 0.2s; }
+.corpus-card:nth-child(5) { animation-delay: 0.25s; }
+.corpus-card:nth-child(6) { animation-delay: 0.3s; }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="corpus-page">
+    <div class="corpus-container">
+        
+        <!-- ===== HEADER SECTION ===== -->
+        <section class="corpus-header-section">
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>{% trans "Corpus Collection" %}</h1>
+                    <p class="subtitle">
+                        <span class="corpus-count" id="totalCount">{{ total_count }}</span>
+                        {% trans "curated corpora available for research" %}
+                    </p>
+                </div>
+                
+                {% if user.is_authenticated %}
+                <a href="{% url 'resources:corpus-create' %}" class="btn-glass">
+                    <span class="icon-circle">
+                        <i class="bi bi-plus-lg"></i>
+                    </span>
+                    <span>{% trans "Add New Corpus" %}</span>
+                </a>
+                {% else %}
+                <div class="login-notice">
+                    <i class="bi bi-info-circle"></i>
+                    <span>{% trans "Sign in to contribute corpora" %}</span>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        
+        <!-- ===== SEARCH BAR ===== -->
+        <section class="search-section">
+            <div class="search-wrapper">
+                <div class="search-box">
+                    <span class="search-icon">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           id="searchInput"
+                           class="search-input" 
+                           placeholder="{% trans 'Search corpora by title, type, or keywords...' %}"
+                           value="{{ request.GET.q|default:'' }}"
+                           autocomplete="off">
+                    <button type="button" class="search-btn" id="searchBtn">
+                        <i class="bi bi-arrow-right"></i>
+                        <span>{% trans "Search" %}</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Mobile Filter Toggle -->
+        <button type="button" class="mobile-filter-toggle" id="mobileFilterToggle">
+            <i class="bi bi-funnel"></i>
+            <span>{% trans "Show Filters" %}</span>
+        </button>
+        
+        <!-- Filter Overlay (Mobile) -->
+        <div class="filter-overlay" id="filterOverlay"></div>
+        
+        <!-- ===== CONTENT LAYOUT ===== -->
+        <div class="content-layout">
+            
+            <!-- ===== FILTER SIDEBAR ===== -->
+            <aside class="filter-sidebar" id="filterSidebar">
+                <div class="filter-header">
+                    <h3>
+                        <i class="bi bi-funnel"></i>
+                        {% trans "Filters" %}
+                    </h3>
+                    <button type="button" class="btn-clear-filters" id="clearFilters" {% if not has_active_filters %}disabled{% endif %}>
+                        <i class="bi bi-x-lg"></i>
+                        {% trans "Clear" %}
+                    </button>
+                </div>
+                
+                <!-- Categories Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-bookmark"></i>
+                        {% trans "Categories" %}
+                    </h4>
+                    <div class="filter-options" id="fieldFilters">
+                        {% for value, label in field_choices %}
+                        <label class="filter-option">
+                            <input type="checkbox" 
+                                   name="field" 
+                                   value="{{ value }}"
+                                   {% if value in active_fields %}checked{% endif %}>
+                            <span class="filter-option-label">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Format Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-file-earmark-code"></i>
+                        {% trans "Format" %}
+                    </h4>
+                    <div class="filter-options" id="formatFilters">
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="json" {% if 'json' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">JSON</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="csv" {% if 'csv' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">CSV</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="txt" {% if 'txt' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">TXT</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="format" value="xml" {% if 'xml' in active_formats %}checked{% endif %}>
+                            <span class="filter-option-label">XML</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Language Filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">
+                        <i class="bi bi-globe"></i>
+                        {% trans "Language" %}
+                    </h4>
+                    <div class="filter-options" id="languageFilters">
+                        <label class="filter-option">
+                            <input type="checkbox" name="language" value="ar" {% if 'ar' in active_languages %}checked{% endif %}>
+                            <span class="filter-option-label">{% trans "Arabic" %}</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="language" value="en" {% if 'en' in active_languages %}checked{% endif %}>
+                            <span class="filter-option-label">{% trans "English" %}</span>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- ===== RESULTS SECTION ===== -->
+            <div class="results-section">
+                
+                <!-- Results Header -->
+                <div class="results-header">
+                    <div class="results-count">
+                        <i class="bi bi-collection"></i>
+                        <span>{% trans "Showing" %}
+                             <strong id="resultsCount">{{ total_count }}</strong> 
+                             {% trans "results" %}
+                         </span>
+                    </div>
+                    <div class="active-filters-display" id="activeFiltersDisplay">
+                        <!-- Active filter tags will be inserted here by JS -->
+                    </div>
+                </div>
+                
+                <!-- Results Container -->
+                <div class="results-container" id="resultsContainer">
+                    <!-- Loading Overlay -->
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <span class="loading-text">{% trans "Loading..." %}</span>
+                    </div>
+                    
+                    <!-- Corpus Cards -->
+                    <div id="corpusResults">
+                        {% include "resources/_corpus_cards.html" %}
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    const searchForm = document.getElementById('globalSearchForm');
-    const searchInput = document.getElementById('globalQuery');
-
-    // Gestionnaire de soumission du formulaire
-    searchForm.addEventListener('submit', function(e) {
-        e.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const corpusResults = document.getElementById('corpusResults');
+    const resultsCount = document.getElementById('resultsCount');
+    const totalCount = document.getElementById('totalCount');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const activeFiltersDisplay = document.getElementById('activeFiltersDisplay');
+    const filterSidebar = document.getElementById('filterSidebar');
+    const filterOverlay = document.getElementById('filterOverlay');
+    const mobileFilterToggle = document.getElementById('mobileFilterToggle');
+    
+    // Filter checkboxes
+    const fieldCheckboxes = document.querySelectorAll('#fieldFilters input[type="checkbox"]');
+    const formatCheckboxes = document.querySelectorAll('#formatFilters input[type="checkbox"]');
+    const languageCheckboxes = document.querySelectorAll('#languageFilters input[type="checkbox"]');
+    
+    let searchTimeout = null;
+    const DEBOUNCE_DELAY = 300;
+    
+    // Build query string from current filters
+    function buildQueryString() {
+        const params = new URLSearchParams();
+        
+        // Search query
         const query = searchInput.value.trim();
-        window.location.href = `?q=${encodeURIComponent(query)}`;
-    });
-
-    // Recherche en temps réel après un délai
-    let searchTimeout;
-    searchInput.addEventListener('input', function() {
+        if (query) {
+            params.append('q', query);
+        }
+        
+        // Field filters
+        fieldCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('field', cb.value);
+            }
+        });
+        
+        // Format filters
+        formatCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('format', cb.value);
+            }
+        });
+        
+        // Language filters
+        languageCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                params.append('language', cb.value);
+            }
+        });
+        
+        return params.toString();
+    }
+    
+    // Perform AJAX search
+    async function performSearch() {
+        const queryString = buildQueryString();
+        
+        // Show loading state
+        resultsContainer.classList.add('loading');
+        
+        try {
+            const response = await fetch(`?${queryString}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) throw new Error('Search failed');
+            
+            const html = await response.text();
+            corpusResults.innerHTML = html;
+            
+            // Update results count (extract from response or count cards)
+            const cards = corpusResults.querySelectorAll('.corpus-card');
+            const count = cards.length;
+            resultsCount.textContent = count;
+            totalCount.textContent = count;
+            
+            // Update URL without reload
+            const newUrl = queryString ? `?${queryString}` : window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+            
+            // Update active filters display
+            updateActiveFiltersDisplay();
+            
+            // Update clear button state
+            updateClearButtonState();
+            
+        } catch (error) {
+            console.error('Search error:', error);
+        } finally {
+            resultsContainer.classList.remove('loading');
+        }
+    }
+    
+    // Debounced search
+    function debouncedSearch() {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            searchForm.submit();
-        }, 500); // Délai de 500ms
+        searchTimeout = setTimeout(performSearch, DEBOUNCE_DELAY);
+    }
+    
+    // Update active filters display
+    function updateActiveFiltersDisplay() {
+        activeFiltersDisplay.innerHTML = '';
+        
+        // Search query tag
+        const query = searchInput.value.trim();
+        if (query) {
+            activeFiltersDisplay.appendChild(createFilterTag('search', query, `"${query}"`));
+        }
+        
+        // Field tags
+        fieldCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const label = cb.nextElementSibling.textContent.trim();
+                activeFiltersDisplay.appendChild(createFilterTag('field', cb.value, label));
+            }
+        });
+        
+        // Format tags
+        formatCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                activeFiltersDisplay.appendChild(createFilterTag('format', cb.value, cb.value.toUpperCase()));
+            }
+        });
+        
+        // Language tags
+        languageCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const label = cb.nextElementSibling.textContent.trim();
+                activeFiltersDisplay.appendChild(createFilterTag('language', cb.value, label));
+            }
+        });
+    }
+    
+    // Create a filter tag element
+    function createFilterTag(type, value, label) {
+        const tag = document.createElement('span');
+        tag.className = 'active-filter-tag';
+        tag.innerHTML = `
+            ${label}
+            <button type="button" data-type="${type}" data-value="${value}" aria-label="Remove filter">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        
+        // Add click handler to remove button
+        tag.querySelector('button').addEventListener('click', function() {
+            if (type === 'search') {
+                searchInput.value = '';
+            } else {
+                const checkbox = document.querySelector(`input[name="${type}"][value="${value}"]`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+            }
+            performSearch();
+        });
+        
+        return tag;
+    }
+    
+    // Update clear button state
+    function updateClearButtonState() {
+        const hasFilters = searchInput.value.trim() ||
+            [...fieldCheckboxes].some(cb => cb.checked) ||
+            [...formatCheckboxes].some(cb => cb.checked) ||
+            [...languageCheckboxes].some(cb => cb.checked);
+        
+        clearFiltersBtn.disabled = !hasFilters;
+    }
+    
+    // Clear all filters
+    function clearAllFilters() {
+        searchInput.value = '';
+        [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(cb => {
+            cb.checked = false;
+        });
+        performSearch();
+    }
+    
+    // Mobile filter toggle
+    function toggleMobileFilters() {
+        filterSidebar.classList.toggle('active');
+        filterOverlay.classList.toggle('active');
+    }
+    
+    // Event Listeners
+    
+    // Search input - debounced search as you type
+    searchInput.addEventListener('input', debouncedSearch);
+    
+    // Search button
+    searchBtn.addEventListener('click', performSearch);
+    
+    // Enter key in search
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimeout);
+            performSearch();
+        }
     });
+    
+    // Filter checkboxes
+    [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(checkbox => {
+        checkbox.addEventListener('change', performSearch);
+    });
+    
+    // Clear filters button
+    clearFiltersBtn.addEventListener('click', clearAllFilters);
+    
+    // Mobile filter toggle
+    mobileFilterToggle.addEventListener('click', toggleMobileFilters);
+    filterOverlay.addEventListener('click', toggleMobileFilters);
+    
+    // Initialize
+    updateActiveFiltersDisplay();
+    updateClearButtonState();
 });
 </script>
 {% endblock content %}

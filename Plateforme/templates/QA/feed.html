@@ -2,225 +2,1394 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{% trans "News feed" %}{% endblock %}
+{% block title %}{% translate "Research Feed" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <!-- Colonne principale -->
-        <div class="col-md-8 mx-auto">
-            <!-- Formulaire de création de post -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="post" action="{% url 'QA:create_post' %}" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="{{ post_form.content.id_for_label }}" class="form-label">{% trans "Content" %}</label>
-                            {{ post_form.content }}
-                            {% if post_form.content.help_text %}
-                            <div class="form-text">{{ post_form.content.help_text }}</div>
-                            {% endif %}
-                            {% if post_form.content.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in post_form.content.errors %}
-                                {{ error }}
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ post_form.image.id_for_label }}" class="form-label">{% trans "Image" %}</label>
-                            {{ post_form.image }}
-                            {% if post_form.image.help_text %}
-                            <div class="form-text">{{ post_form.image.help_text }}</div>
-                            {% endif %}
-                            {% if post_form.image.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in post_form.image.errors %}
-                                {{ error }}
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ post_form.file.id_for_label }}" class="form-label">{% trans "Add a file" %}</label>
-                            {{ post_form.file }}
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane me-2"></i>{% trans "Publish" %}
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Liste des posts -->
-            {% for post in posts %}
-            <div class="card mb-4 post-card">
-                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        {% if post.author.avatar %}
-                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
-                        {% else %}
-                            <i class="fas fa-user-circle fa-2x me-2 text-primary"></i>
-                        {% endif %}
-                        <div>
-                            <h6 class="mb-0">{{ post.author.full_name }}</h6>
-                            <small class="text-muted">{{ post.created_at|timesince }}</small>
-                        </div>
-                    </div>
-                    {% if post.author == request.user %}
-                    <div class="dropdown">
-                        <button class="btn btn-link text-muted dropdown-toggle" type="button" id="dropdownMenuButton{{ post.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton{{ post.id }}">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'QA:edit_post' post.id %}">
-                                    <i class="fas fa-edit me-2"></i>{% trans "Edit" %}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item text-danger" href="{% url 'QA:delete_post' post.id %}">
-                                    <i class="fas fa-trash-alt me-2"></i>{% trans "Delete" %}
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    {% if post.image %}
-                    <img src="{{ post.image.url }}" class="img-fluid mb-2" alt="Publication image">
-                    {% endif %}
-
-                    {% if post.file %}
-                    <div class="mb-2">
-                        <a href="{{ post.file.url }}" download class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-download me-2"></i>{% trans "Download file" %}
-                        </a>
-                    </div>
-                    {% endif %}
-
-                    <p class="card-text">{{ post.content }}</p>
-                    
-                    <!-- Actions -->
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-link text-muted like-button" data-post-id="{{ post.id }}">
-                                <i class="fas fa-heart {% if request.user in post.likes.all %}text-danger{% endif %}"></i>
-                                <span class="likes-count">{{ post.total_likes }}</span>
-                            </button>
-                            <a href="{% url 'QA:post_detail' post.slug %}" class="btn btn-link text-muted">
-                                <i class="fas fa-comment"></i>
-                                <span>{{ post.total_comments }}</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Commentaires -->
-                    <div class="comments-section mt-3">
-                        {% for comment in post.comments.all|slice:":3" %}
-                        <div class="comment mb-3 d-flex align-items-start">
-                            <!-- Avatar - CORRIGÉ : comment au lieu de reply -->
-                            {% if comment.author.avatar %}
-                                <img src="{{ comment.author.avatar.url }}"
-                                     alt="{{ comment.author.full_name }}"
-                                     class="rounded-circle me-2"
-                                     style="width: 32px; height: 32px; object-fit: cover;"
-                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="bg-info text-white rounded-circle d-none align-items-center justify-content-center me-2"
-                                     style="width: 32px; height: 32px; font-size: 0.8rem;">
-                                    <span>{{ comment.author.full_name|first|upper }}</span>
-                                </div>
-                            {% else %}
-                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-2"
-                                     style="width: 32px; height: 32px; font-size: 0.8rem;">
-                                    <span>{{ comment.author.full_name|first|upper }}</span>
-                                </div>
-                            {% endif %}
-                            
-                            <!-- Contenu -->
-                            <div class="flex-grow-1">
-                                <div>
-                                    <strong>{{ comment.author.full_name }}</strong>
-                                    <small class="text-muted ms-2">{{ comment.created_at|timesince }} ago</small>
-                                </div>
-                                <p class="mb-0">{{ comment.content }}</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% if post.total_comments > 3 %}
-                        <a href="{% url 'QA:post_detail' post.slug %}" class="text-muted">
-                            {% trans "See all comments" %} ({{ post.total_comments }})
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_scripts %}
-    <!-- Bootstrap Bundle with Popper for dropdowns -->
-    <script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gestion des likes
-        document.querySelectorAll('.like-button').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                const postId = this.dataset.postId;
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                fetch(`/QA/post/${postId}/like/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Erreur réseau');
-                    return response.json();
-                })
-                .then(data => {
-                    const icon = this.querySelector('i');
-                    const count = this.querySelector('.likes-count');
-                    icon.classList.toggle('text-danger', data.liked);
-                    count.textContent = data.total_likes;
-                })
-                .catch(error => console.error('Erreur:', error));
-            });
-        });
-    });
-    </script>
-{% endblock %}
-
-{% block extra_css %}
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
- /* Supprimer toute numérotation dans les commentaires */
-.comments-section,
-.comments-section * {
-    counter-reset: none !important;
-    counter-increment: none !important;
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ARABIC NLP RESEARCH FEED - Premium Academic Portal
+   Modern hero-style design matching the Resources Hub aesthetic
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Primary Branding - Deep Blue & Slate */
+    --feed-deep: #0f172a;
+    --feed-navy: #1e3a5f;
+    --feed-slate: #334155;
+    --feed-accent: #2563eb;
+    --feed-accent-light: #3b82f6;
+    --feed-accent-hover: #1d4ed8;
+    --feed-accent-glow: rgba(37, 99, 235, 0.12);
+    
+    /* Surface & Background */
+    --feed-white: #ffffff;
+    --feed-surface: #ffffff;
+    --feed-bg: #f8fafc;
+    --feed-muted: #f1f5f9;
+    --feed-subtle: #e2e8f0;
+    
+    /* Borders */
+    --feed-border: #e2e8f0;
+    --feed-border-hover: #cbd5e1;
+    
+    /* Typography */
+    --feed-text-primary: #0f172a;
+    --feed-text-secondary: #475569;
+    --feed-text-muted: #94a3b8;
+    --feed-text-inverse: #ffffff;
+    
+    /* Semantic Colors */
+    --feed-success: #10b981;
+    --feed-success-bg: rgba(16, 185, 129, 0.1);
+    --feed-warning: #f59e0b;
+    --feed-warning-bg: rgba(245, 158, 11, 0.1);
+    --feed-danger: #ef4444;
+    --feed-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    /* Effects */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.08);
+    
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-base: 250ms ease;
 }
 
-.comment,
-.comment * {
-    list-style: none !important;
-    content: none !important;
+/* Font Family - scoped to feed page to avoid overriding base.css */
+.feed-page { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] .feed-page { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+/* ═══════════════════════════════════════
+   PAGE LAYOUT
+   ═══════════════════════════════════════ */
+.feed-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--feed-muted) 0%, var(--feed-bg) 50%);
 }
 
-/* Supprimer tout ::before et ::after généré par Bootstrap ou autre */
-.comment::before,
-.comment::after,
-.comment *::before,
-.comment *::after {
-    content: none !important;
-    display: none !important;
+/* ═══════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════ */
+.feed-hero {
+    background: linear-gradient(145deg, var(--feed-deep) 0%, var(--feed-navy) 50%, var(--feed-slate) 100%);
+    padding: 4rem 0 6rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.feed-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.15), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+.feed-hero::after {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+    top: -200px;
+    right: -100px;
+    pointer-events: none;
+}
+
+.hero-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.hero-inner {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(37, 99, 235, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    border-radius: var(--radius-full);
+    margin-bottom: 1.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--feed-accent-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hero-badge i { font-size: 1rem; }
+
+.hero-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 900;
+    color: var(--feed-white);
+    margin: 0 0 1rem;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+}
+
+.hero-title .accent {
+    background: linear-gradient(135deg, var(--feed-accent-light) 0%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-subtitle {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 2.5rem;
+    line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════
+   SEARCH BAR - Pill Style
+   ═══════════════════════════════════════ */
+.search-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.search-pill {
+    display: flex;
+    align-items: stretch;
+    width: 500px;
+    max-width: 100%;
+    background: var(--feed-white);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--feed-border);
+    box-shadow: none;
+    overflow: hidden;
+    transition: border-color var(--transition-base);
+}
+
+.search-pill:focus-within {
+    border-color: var(--feed-border);
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.search-pill:hover {
+    border-color: var(--feed-border);
+}
+
+.search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.25rem 0 1.5rem;
+    color: var(--feed-text-muted);
+    font-size: 1.25rem;
+}
+
+.search-input {
+    flex: 1;
+    padding: 1rem 1.5rem 1rem 0;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--feed-text-primary);
+    min-width: 0;
+}
+
+.search-input::placeholder { color: #94a3b8; }
+.search-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+
+.search-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    margin: 0.5rem;
+    background: var(--feed-accent);
+    color: var(--feed-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.search-btn:hover { background: var(--feed-accent-hover); }
+
+/* ═══════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════ */
+.feed-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+    margin-top: -3rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* ═══════════════════════════════════════
+   FILTER PILLS
+   ═══════════════════════════════════════ */
+.filter-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--feed-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    transition: all var(--transition-base);
+    border: 1px solid var(--feed-border);
+    background: var(--feed-white);
+    color: var(--feed-text-secondary);
+    cursor: pointer;
+}
+
+.filter-pill:hover {
+    background: var(--feed-muted);
+    border-color: var(--feed-border-hover);
+    color: var(--feed-text-primary);
+    transform: translateY(-1px);
+}
+
+.filter-pill.active {
+    background: var(--feed-accent);
+    border-color: var(--feed-accent);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.filter-pill.active:hover {
+    background: var(--feed-accent-hover);
+    border-color: var(--feed-accent-hover);
+}
+
+.filter-pill i { font-size: 1rem; }
+
+/* ═══════════════════════════════════════
+   CREATE POST CARD
+   ═══════════════════════════════════════ */
+.create-post-card {
+    background: var(--feed-white);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.create-post-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.create-post-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--feed-accent) 0%, #7c3aed 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.create-post-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.create-post-input {
+    flex: 1;
+    padding: 0.875rem 1.25rem;
+    background: var(--feed-muted);
+    border: 1px solid var(--feed-border);
+    border-radius: var(--radius-full);
+    font-size: 0.95rem;
+    color: var(--feed-text-muted);
+    text-decoration: none;
+    transition: all var(--transition-base);
+    display: block;
+    cursor: pointer;
+}
+
+.create-post-input:hover {
+    background: var(--feed-subtle);
+    border-color: var(--feed-border-hover);
+}
+
+.create-post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1rem;
+    border-top: 1px solid var(--feed-border);
+}
+
+.create-post-options {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Option buttons - subtle style matching base.css patterns */
+.feed-option-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: transparent;
+    border: 1px solid var(--feed-border);
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--feed-text-secondary);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+}
+
+.feed-option-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #1f2937;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feed-option-btn i { font-size: 1.25rem; }
+.feed-option-btn.image-btn i { color: #10b981; }
+.feed-option-btn.file-btn i { color: #1a73e8; }
+
+/* ═══════════════════════════════════════
+   POSTS FEED
+   ═══════════════════════════════════════ */
+.posts-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* ═══════════════════════════════════════
+   POST CARD
+   ═══════════════════════════════════════ */
+.post-card {
+    background: var(--feed-white);
+    border: 1px solid var(--feed-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: all var(--transition-base);
+}
+
+.post-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--feed-border-hover);
+    transform: translateY(-2px);
+}
+
+/* Pending Banner */
+.post-pending-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--feed-warning-bg);
+    color: #92400e;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.post-pending-banner i {
+    font-size: 1.125rem;
+    color: var(--feed-warning);
+}
+
+/* Post Header */
+.post-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1.5rem;
+}
+
+.post-author {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.post-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.post-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.post-author-info h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--feed-text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.post-author-info h3 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.post-author-info h3 a:hover { color: var(--feed-accent); }
+
+.post-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--feed-text-muted);
+}
+
+.post-meta i { font-size: 0.875rem; }
+
+/* Post Card Action Buttons - Consistent with Community page */
+.post-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.post-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--feed-border);
+    background: var(--feed-white);
+    color: var(--feed-text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+}
+
+.post-action-btn:hover {
+    background: var(--feed-muted);
+    color: var(--feed-text-primary);
+    border-color: var(--feed-border-hover);
+}
+
+.post-action-btn.primary:hover {
+    background: var(--feed-accent-glow);
+    color: var(--feed-accent);
+    border-color: var(--feed-accent);
+}
+
+.post-action-btn.danger:hover {
+    background: var(--feed-danger-bg);
+    color: var(--feed-danger);
+    border-color: var(--feed-danger);
+}
+
+/* Post Dropdown - scoped to .post-dropdown to avoid overriding Bootstrap */
+.post-dropdown { position: relative; }
+
+.post-dropdown .feed-dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--feed-border);
+    border-radius: var(--radius-sm);
+    color: var(--feed-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+}
+
+.post-dropdown .feed-dropdown-toggle:hover {
+    background: var(--feed-muted);
+    color: var(--feed-text-primary);
+    border-color: var(--feed-border-hover);
+}
+
+.post-dropdown .feed-dropdown-toggle i { font-size: 1.125rem; }
+
+.post-dropdown .feed-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    min-width: 160px;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--feed-border);
+    padding: 0.375rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all var(--transition-fast);
+    z-index: 50;
+}
+
+html[dir="rtl"] .post-dropdown .feed-dropdown-menu { right: auto; left: 0; }
+
+.post-dropdown.open .feed-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.post-dropdown .feed-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--feed-text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    border: none;
+    background: transparent;
+    width: 100%;
+    cursor: pointer;
+}
+
+.post-dropdown .feed-dropdown-item:hover {
+    background: var(--feed-muted);
+    color: var(--feed-text-primary);
+}
+
+.post-dropdown .feed-dropdown-item i { font-size: 1rem; }
+
+.post-dropdown .feed-dropdown-item.danger { color: var(--feed-danger); }
+.post-dropdown .feed-dropdown-item.danger:hover { background: var(--feed-danger-bg); }
+
+/* Post Content */
+.post-content { padding: 0 1.5rem 1rem; }
+
+.post-text {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--feed-text-primary);
+    margin: 0 0 1rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Post Media */
+.post-media { margin-top: 1rem; }
+
+.post-image {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: transform var(--transition-base);
+}
+
+.post-image:hover { transform: scale(1.01); }
+
+.post-file-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--feed-muted);
+    border: 1px solid var(--feed-border);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-base);
+}
+
+.post-file-link:hover {
+    background: var(--feed-subtle);
+    border-color: var(--feed-accent);
+}
+
+.post-file-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--feed-accent-glow);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-file-icon i {
+    font-size: 1.5rem;
+    color: var(--feed-accent);
+}
+
+.post-file-name {
+    font-weight: 600;
+    color: var(--feed-text-primary);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.post-file-hint {
+    font-size: 0.75rem;
+    color: var(--feed-text-muted);
+}
+
+/* Post Stats */
+.post-stats {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.8125rem;
+    color: var(--feed-text-muted);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.stat-item i { font-size: 0.9rem; }
+
+/* Post Actions - namespaced to avoid overriding base.css .action-btn */
+.post-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--feed-border);
+}
+
+.feed-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex: 1;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--feed-text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.feed-action-btn:hover {
+    background: var(--feed-muted);
+    color: var(--feed-text-primary);
+}
+
+.feed-action-btn i { font-size: 1.125rem; }
+
+.feed-action-btn.liked {
+    color: var(--feed-danger);
+}
+
+.feed-action-btn.liked:hover {
+    background: var(--feed-danger-bg);
+}
+
+/* Post Comments */
+.post-comments {
+    padding: 1rem 1.5rem;
+    background: var(--feed-muted);
+    border-top: 1px solid var(--feed-border);
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.comment-item {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--feed-accent) 0%, #7c3aed 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.comment-body {
+    flex: 1;
+    background: var(--feed-white);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--feed-border);
+}
+
+.comment-author {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--feed-text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.comment-text {
+    font-size: 0.8125rem;
+    color: var(--feed-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.comment-time {
+    font-size: 0.75rem;
+    color: var(--feed-text-muted);
+    margin-top: 0.375rem;
+    display: block;
+}
+
+.view-comments-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--feed-accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.view-comments-link:hover { color: var(--feed-accent-hover); }
+.view-comments-link i { font-size: 1rem; }
+
+/* ═══════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════ */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--feed-white);
+    border-radius: var(--radius-2xl);
+    border: 2px dashed var(--feed-border);
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--feed-muted);
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.empty-icon i {
+    font-size: 2.5rem;
+    color: var(--feed-text-muted);
+}
+
+.empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--feed-text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.empty-state p {
+    font-size: 0.95rem;
+    color: var(--feed-text-muted);
+    margin: 0;
+}
+
+/* ═══════════════════════════════════════
+   LIGHTBOX
+   ═══════════════════════════════════════ */
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+}
+
+.lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.lightbox-overlay img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: var(--radius-full);
+    color: white;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.2); }
+.lightbox-close i { font-size: 1.5rem; }
+
+/* ═══════════════════════════════════════
+   RESPONSIVE DESIGN
+   ═══════════════════════════════════════ */
+@media (max-width: 768px) {
+    .feed-hero { padding: 3rem 0 5rem; }
+    .hero-title { font-size: 1.75rem; }
+    .hero-subtitle { font-size: 1rem; }
+    
+    .search-pill { flex-direction: column; border-radius: var(--radius-xl); }
+    .search-input { padding: 1rem 1.25rem; }
+    .search-btn { margin: 0.5rem; border-radius: var(--radius-lg); justify-content: center; }
+    
+    .filter-section { gap: 0.5rem; padding: 1rem; }
+    .filter-pill { padding: 0.5rem 1rem; font-size: 0.8rem; }
+    
+    .create-post-actions { flex-direction: column; gap: 1rem; }
+    .create-post-options { width: 100%; justify-content: center; }
+    .publish-btn { width: 100%; justify-content: center; }
+    
+    .post-header,
+    .post-content,
+    .post-stats,
+    .post-actions,
+    .post-comments {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .feed-action-btn span { display: none; }
+}
+
+@media (max-width: 480px) {
+    .feed-hero { padding: 2rem 0 4rem; }
+    .hero-container { padding: 0 1rem; }
+    .feed-content { padding: 0 1rem 3rem; }
+    
+    .create-post-header { flex-direction: column; text-align: center; }
+    .create-post-avatar { width: 56px; height: 56px; }
+    .create-post-input { text-align: center; }
+    
+    .option-btn span { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RTL SUPPORT — Arabic mode: cards right-aligned, avatar first
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Page-level direction — cascades to all flex/grid containers */
+html[dir="rtl"] .feed-page { direction: rtl; text-align: right; }
+
+/* Hero: centered content is fine, just ensure text alignment */
+html[dir="rtl"] .hero-inner { text-align: center; }
+html[dir="rtl"] .hero-subtitle { text-align: center; }
+
+/* Search bar */
+html[dir="rtl"] .search-icon { padding: 0 1.5rem 0 0.25rem; }
+html[dir="rtl"] .search-input {
+    padding: 1rem 0 1rem 1.5rem;
+    text-align: right;
+}
+html[dir="rtl"] .search-input::placeholder { text-align: right; }
+
+/* Create post card */
+html[dir="rtl"] .create-post-input { text-align: right; }
+
+/* Post cards: text alignment */
+html[dir="rtl"] .post-author-info h3 { text-align: start; }
+html[dir="rtl"] .post-content { text-align: start; }
+html[dir="rtl"] .post-text { text-align: start; }
+
+/* Comments */
+html[dir="rtl"] .comment-body { text-align: start; }
+html[dir="rtl"] .comment-author { text-align: start; }
+html[dir="rtl"] .comment-text { text-align: start; }
+html[dir="rtl"] .view-comments-link i { transform: scaleX(-1); }
+
+/* Dropdown menu: flip to left side in RTL */
+html[dir="rtl"] .post-dropdown .feed-dropdown-menu {
+    right: auto;
+    left: 0;
 }
 </style>
 {% endblock %}
+
+{% block content %}
+<div class="feed-page">
+    <!-- Hero Section -->
+    <header class="feed-hero">
+        <div class="hero-container">
+            <div class="hero-inner">
+                <div class="hero-badge">
+                    <i class="bi bi-rss"></i>
+                    {% translate "Community Feed" %}
+                </div>
+                <h1 class="hero-title">
+                    {% translate "Arabic NLP" %} <span class="accent">{% translate "Research Feed" %}</span>
+                </h1>
+                <p class="hero-subtitle">{% translate "Stay updated with the latest in NLP research, datasets, and community updates" %}</p>
+                
+                <!-- Search Bar -->
+                <form class="search-container" method="GET" action="{% url 'QA:feed' %}">
+                    <div class="search-pill">
+                        <span class="search-icon"><i class="bi bi-search"></i></span>
+                        <input type="text" name="q" class="search-input" 
+                               placeholder="{% translate 'Search posts, authors, topics...' %}"
+                               value="{{ request.GET.q|default:'' }}">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="feed-content">
+        <!-- Filter Pills -->
+        <nav class="filter-section">
+            <a href="{% url 'QA:feed' %}" class="filter-pill {% if current_filter == 'all' %}active{% endif %}">
+                <i class="bi bi-grid-3x3-gap"></i>
+                <span>{% translate "All Posts" %}</span>
+            </a>
+            <a href="{% url 'QA:feed' %}?filter=popular" class="filter-pill {% if current_filter == 'popular' %}active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span>{% translate "Most Popular" %}</span>
+            </a>
+            <a href="{% url 'QA:feed' %}?filter=my_posts" class="filter-pill {% if current_filter == 'my_posts' %}active{% endif %}">
+                <i class="bi bi-person"></i>
+                <span>{% translate "My Posts" %}</span>
+            </a>
+        </nav>
+
+        <!-- Create Post Card -->
+        {% if user.is_authenticated %}
+        <div class="create-post-card">
+            <div class="create-post-header">
+                <div class="create-post-avatar">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}">
+                    {% else %}
+                        {{ user.get_full_name_display|slice:":1"|upper }}
+                    {% endif %}
+                </div>
+                <a href="{% url 'QA:create_post' %}" class="create-post-input">
+                    {% translate "What's on your mind," %} {{ user.get_full_name_display }}?
+                </a>
+            </div>
+            <div class="create-post-actions">
+                <div class="create-post-options">
+                    <a href="{% url 'QA:create_post' %}" class="feed-option-btn image-btn">
+                        <i class="bi bi-image"></i>
+                        <span>{% translate "Image" %}</span>
+                    </a>
+                    <a href="{% url 'QA:create_post' %}" class="feed-option-btn file-btn">
+                        <i class="bi bi-paperclip"></i>
+                        <span>{% translate "Attach File" %}</span>
+                    </a>
+                </div>
+                <a href="{% url 'QA:create_post' %}" class="btn btn-primary">
+                    <i class="bi bi-send"></i>
+                    {% translate "Publish" %}
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Posts Feed -->
+        <div class="posts-feed">
+            {% for post in posts %}
+            <article class="post-card" data-post-id="{{ post.id }}">
+                <!-- Pending Banner -->
+                {% if post.approval_status == 'pending' %}
+                <div class="post-pending-banner">
+                    <i class="bi bi-clock-history"></i>
+                    {% translate "Pending approval - Only visible to you" %}
+                </div>
+                {% endif %}
+
+                <!-- Post Header -->
+                <header class="post-header">
+                    <div class="post-author">
+                        <div class="post-avatar">
+                            {% if post.author.avatar %}
+                                <img src="{{ post.author.avatar.url }}" alt="{{ post.author.get_full_name_display }}">
+                            {% else %}
+                                {{ post.author.get_full_name_display|slice:":1"|upper }}
+                            {% endif %}
+                        </div>
+                        <div class="post-author-info">
+                            <h3><a href="{% url 'accounts:profile' post.author.id %}">{{ post.author.get_full_name_display }}</a></h3>
+                            <div class="post-meta">
+                                <i class="bi bi-clock"></i>
+                                <span>{{ post.created_at|timesince }} {% translate "ago" %}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons - Consistent with Community page -->
+                    {% if post.author == user or user.is_staff %}
+                    <div class="post-header-actions">
+                        <a href="{% url 'QA:edit_post' post.id %}" class="post-action-btn primary" title="{% translate 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button type="button" class="post-action-btn danger" onclick="confirmDelete('{{ post.id }}')" title="{% translate 'Delete' %}">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                        <a href="{% url 'QA:post_detail' post.slug %}" class="post-action-btn" title="{% translate 'View details' %}">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </header>
+
+                <!-- Post Content -->
+                <div class="post-content">
+                    <p class="post-text">{{ post.get_localized_content }}</p>
+
+                    <!-- Post Media -->
+                    {% if post.image %}
+                    <div class="post-media">
+                        <img src="{{ post.image.url }}" alt="{% translate 'Post image' %}" class="post-image" onclick="openLightbox(this.src)">
+                    </div>
+                    {% endif %}
+
+                    {% if post.file %}
+                    <div class="post-media">
+                        <a href="{{ post.file.url }}" class="post-file-link" target="_blank" download>
+                            <div class="post-file-icon">
+                                <i class="bi bi-file-earmark-arrow-down"></i>
+                            </div>
+                            <div class="post-file-details">
+                                <p class="post-file-name">{{ post.file.name|slice:"-30:" }}</p>
+                                <span class="post-file-hint">{% translate "Click to download" %}</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Post Stats -->
+                <div class="post-stats">
+                    <div class="stat-item">
+                        <i class="bi bi-heart-fill"></i>
+                        <span>{{ post.total_likes }} {% translate "likes" %}</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>{{ post.total_comments }} {% translate "comments" %}</span>
+                    </div>
+                </div>
+
+                <!-- Post Actions -->
+                <div class="post-actions">
+                    {% if user.is_authenticated %}
+                    <button type="button" class="feed-action-btn {% if user in post.likes.all %}liked{% endif %}" onclick="toggleLike('{{ post.id }}', this)">
+                        <i class="bi {% if user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                        <span>{% translate "Like" %}</span>
+                    </button>
+                    {% else %}
+                    <a href="{% url 'account_login' %}" class="feed-action-btn">
+                        <i class="bi bi-heart"></i>
+                        <span>{% translate "Like" %}</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="feed-action-btn">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>{% translate "Comment" %}</span>
+                    </a>
+                    <button type="button" class="feed-action-btn" onclick="sharePost('{{ post.slug }}')">
+                        <i class="bi bi-share"></i>
+                        <span>{% translate "Share" %}</span>
+                    </button>
+                </div>
+
+                <!-- Comments Preview -->
+                {% if post.comments.exists %}
+                <div class="post-comments">
+                    <div class="comments-list">
+                        {% for comment in post.comments.all|slice:":2" %}
+                        <div class="comment-item">
+                            <div class="comment-avatar">
+                                {{ comment.author.get_full_name_display|slice:":1"|upper }}
+                            </div>
+                            <div class="comment-body">
+                                <p class="comment-author">{{ comment.author.get_full_name_display }}</p>
+                                <p class="comment-text">{{ comment.content|truncatewords:20 }}</p>
+                                <span class="comment-time">{{ comment.created_at|timesince }} {% translate "ago" %}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if post.comments.count > 2 %}
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="view-comments-link">
+                        {% translate "View all" %} {{ post.comments.count }} {% translate "comments" %}
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </article>
+            {% empty %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <h3>{% translate "No posts yet" %}</h3>
+                <p>{% translate "Be the first to share something with the community!" %}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+
+<!-- Lightbox for Images -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <img src="" alt="{% translate 'Full size image' %}" id="lightboxImage">
+</div>
+
+<!-- Delete Confirmation Form (Hidden) -->
+<form id="deleteForm" method="POST" style="display: none;">
+    {% csrf_token %}
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    'use strict';
+
+    // ═══════════════════════════════════════
+    // SHARE FUNCTIONALITY
+    // ═══════════════════════════════════════
+    window.sharePost = function(slug) {
+        const url = window.location.origin + '/QA/post/' + slug + '/';
+        if (navigator.share) {
+            navigator.share({
+                title: 'Arabic NLP Research Feed',
+                url: url
+            }).catch(console.error);
+        } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('{% translate "Link copied to clipboard!" %}');
+            }).catch(console.error);
+        }
+    };
+
+    // ═══════════════════════════════════════
+    // DROPDOWN MENU
+    // ═══════════════════════════════════════
+    window.toggleDropdown = function(btn) {
+        const dropdown = btn.closest('.post-dropdown');
+        const wasOpen = dropdown.classList.contains('open');
+        
+        // Close all dropdowns
+        document.querySelectorAll('.post-dropdown.open').forEach(d => d.classList.remove('open'));
+        
+        // Toggle current
+        if (!wasOpen) {
+            dropdown.classList.add('open');
+        }
+    };
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.post-dropdown')) {
+            document.querySelectorAll('.post-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    // ═══════════════════════════════════════
+    // LIKE FUNCTIONALITY
+    // ═══════════════════════════════════════
+    window.toggleLike = async function(postId, btn) {
+        try {
+            const response = await fetch(`/QA/post/${postId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const isLiked = btn.classList.toggle('liked');
+                
+                // Update icon
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = isLiked ? 'bi bi-heart-fill' : 'bi bi-heart';
+                }
+                
+                // Update like count in stats
+                const post = btn.closest('.post-card');
+                const statSpan = post.querySelector('.post-stats .stat-item:first-child span');
+                if (statSpan && data.total_likes !== undefined) {
+                    statSpan.textContent = `${data.total_likes} {% translate "likes" %}`;
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+        }
+    };
+
+    // ═══════════════════════════════════════
+    // DELETE FUNCTIONALITY
+    // ═══════════════════════════════════════
+    window.confirmDelete = function(postId) {
+        if (confirm('{% translate "Are you sure you want to delete this post? This action cannot be undone." %}')) {
+            const form = document.getElementById('deleteForm');
+            form.action = `/QA/post/${postId}/delete/`;
+            form.submit();
+        }
+    };
+
+    // ═══════════════════════════════════════
+    // LIGHTBOX
+    // ═══════════════════════════════════════
+    window.openLightbox = function(src) {
+        const lightbox = document.getElementById('lightbox');
+        const img = document.getElementById('lightboxImage');
+        img.src = src;
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeLightbox = function() {
+        const lightbox = document.getElementById('lightbox');
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+    };
+
+    // Close lightbox on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLightbox();
+        }
+    });
+
+    // ═══════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════
+    function getCsrfToken() {
+        // First try to get from hidden input (works when CSRF_COOKIE_HTTPONLY=True)
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        // Fallback to cookie (works when CSRF_COOKIE_HTTPONLY=False)
+        const cookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='));
+        return cookie ? cookie.split('=')[1] : '';
+    }
+})();
+</script>
+{% endblock %}
+

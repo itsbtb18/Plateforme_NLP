@@ -66,6 +66,13 @@ class ChatroomConsumer(WebsocketConsumer):
                 user=self.user,
                 content=message_content
             )
+            # Get localized user name
+            user_name = getattr(self.user, 'get_full_name_display', str(self.user))
+            if callable(user_name):
+                user_name = user_name()
+            else:
+                user_name = str(user_name) if user_name else str(self.user)
+            
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
                 {
@@ -73,7 +80,7 @@ class ChatroomConsumer(WebsocketConsumer):
                     'message_id': str(message.id),
                     'content': message.content,
                     'user_id': str(self.user.id),
-                    'user_name': str(self.user),
+                    'user_name': user_name,
                     'timestamp': message.timestamp.strftime('%d/%m/%Y %H:%M'),
                     'is_edited': message.is_edited,
                     'profile_url': f'/accounts/profile/{self.user.id}/'

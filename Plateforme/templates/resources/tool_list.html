@@ -1,556 +1,789 @@
-{% extends "base.html" %} {% load i18n %} {% block title %} {% trans "NLPTools" %} {% endblock title %} {% block extra_styles %} 
-{% comment "Link to main.css managed in base.html" %} {% endcomment %} {% endblock %} 
-{% block content %}
-<div class="container py-5">
-  <link rel="stylesheet" href="static css\main.css" />
-  <div class="row header-section">
-    <div class="col-lg-8 col-md-7">
-      <h1 class="display-5 fw-bold mb-2">{% trans "NLP Tools" %}</h1>
-      <p class="text-muted fs-5">
-        {{ total_count }} {% trans "tools available" %}
-      </p>
-    </div>
-    <div
-    class="col-lg-4 col-md-5 d-flex align-items-center justify-content-md-end justify-content-start mt-3 mt-md-0"
-    >
-      {% if user.is_authenticated %}
-      <a
-        href="{% url 'resources:tool-create' %}"
-        class="btn btn-primary btn-lg shadow-sm"
-              
-      >
-        <i class="bi bi-plus-lg me-2"></i> {% trans "Add a new NLP Tool" %}
-      </a>
-      {% else %}
-      <div
-        class="alert alert-info d-flex align-items-center mb-0 py-3 px-4 shadow-sm"
-      >
-        <i class="bi bi-info-circle fs-5 me-2"></i>
-        <span>{% trans "You need to be logged in to add new tools" %}</span>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-  <div class="global-searchbox">
-    <form method="get" action="" class="searchbox-form" id="globalSearchForm">
-      <div class="searchbox-group shadow-sm">
-        <div class="query-container w-100 position-relative">
-          <input
-            type="text"
-            name="q"
-            id="globalQuery"
-            class="query-input"
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
 
-            placeholder={% trans "Search for resources..." %}
+{% block title %}{% trans "NLP Tool Hub" %} - {% trans "Resources" %}{% endblock %}
 
-            autocomplete="off"
-            value="{{ request.GET.q|default:'' }}"
-          />
-        </div>
-
-        <button type="submit" class="action-button submit-action">
-          <i class="bi bi-search"></i>
-        </button>
-      </div>
-    </form>
-  </div>
-  <br />
-
-  <div class="position-relative mb-5">
-    <hr class="my-4" />
-    <div class="position-absolute top-0 start-50 translate-middle">
-      <div class="px-4 py-2 bg-white border rounded-pill shadow-sm">
-        <i class="bi bi-tools me-2 text-primary"></i>
-        <span class="fw-medium">{% trans "Explore Tools" %}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tools Grid -->
-  {% if tools %}
-  <div class="tools-grid">
-    {% for tool in tools %}
-    <div class="tool-card">
-      <div class="tool-header d-flex align-items-center gap-3">
-        <div class="tool-badge">
-          <i class="bi bi-code-square"></i>
-        </div>
-        <h3 class="tool-title m-0">{{ tool.titre }}</h3>
-      </div>
-
-      <div class="tool-content flex-grow-1">
-        <div class="info-row">
-          <span class="info-label">{% trans "Title:" %}</span>
-          <span class="info-value">{{ tool.title }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">{% trans "Type:" %}</span>
-          <span class="info-value">{{ tool.get_tool_type_display }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">{% trans "Author:" %}</span>
-          <span class="info-value">{{ tool.author.full_name}}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">{% trans "Created:" %}</span>
-          <span class="info-value">{{ tool.creation_date|date:"d/m/Y" }}</span>
-        </div>
-      </div>
-
-      <div class="tool-footer">
-        <div class="tool-stats d-flex gap-2 mb-3">
-          {% if tool.language %}
-          <span class="stat-item">
-            <i class="bi bi-translate"></i> {{ tool.get_language_display }}
-          </span>
-          {% endif %} {% if tool.keywords %}
-          <span class="stat-item">
-            <i class="bi bi-tags"></i>
-            {% if tool.keywords %} {{ tool.get_keywords_list.0 }} {% endif %}
-          </span>
-          {% endif %} {% if tool.version %}
-          <span class="stat-item">
-            <i class="bi bi-tag"></i>
-            <span>v{{ tool.version }}</span>
-          </span>
-          {% endif %} {% if corpus.file_format %}
-          <span class="stat-item">
-            <i class="bi bi-file-earmark-code"></i>
-            <span>{{ corpus.file_format }}</span>
-          </span>
-          {% endif %}
-        </div>
-
-        <div class="tool-actions text-end">
-          <a
-            href="{% url 'resources:tool_detail' tool.id %}"
-            class="btn-view-details"
-          >
-            <span>{% trans "View Details" %}</span>
-            <i class="bi bi-arrow-right"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-state">
-    <div class="empty-icon">
-      <i class="bi bi-tools"></i>
-    </div>
-    <h3>{% trans "No NLP tools available" %}</h3>
-    <p class="text-muted">{% trans "Tools you add will appear here" %}</p>
-    {% if user.is_authenticated %}
-    <a
-      href="{% url 'resources:tool-create' %}"
-      class="btn btn-primary btn-lg mt-3"
-    >
-      <i class="bi bi-plus-lg me-2"></i> {% trans "Add Your First Tool" %}
-    </a>
-    {% endif %}
-  </div>
-  {% endif %}
-</div>
-
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  :root {
-    --primary: #4361ee;
-    --primary-hover: #3a56d4;
-    --dark-color: #1e455e;
-    --light-bg: #f8f9fa;
-    --text-muted: #6c757d;
-    --border-color: #e9ecef;
-    --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
-    --hover-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-    --card-radius: 16px;
-  }
+/* ===== CSS Variables ===== */
+:root {
+    --primary-deep: #1e3a5f;
+    --primary-accent: #2563eb;
+    --primary-light: #3b82f6;
+    --teal: #0d9488;
+    --surface: #ffffff;
+    --background: #f8fafc;
+    --muted: #f1f5f9;
+    --border: #e2e8f0;
+    --border-dark: #cbd5e1;
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+}
 
-  .container {
-    max-width: 1320px;
-    margin: 0 auto;
-  }
+/* ===== Page Layout ===== */
+.tool-hub-page {
+    min-height: calc(100vh - 200px);
+    background: var(--background);
+}
 
-  /* Header styling */
-  .header-section {
-    margin-bottom: 2rem;
-  }
-
-  /* Tools grid */
-  .tools-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 2rem;
-    padding: 0;
-  }
-
-  /* Tool card styling */
-  .tool-card {
-    background-color: white;
-    border-radius: var(--card-radius);
-    overflow: hidden;
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-    min-height: 300px;
-    border: none;
-    transition: all 0.3s ease;
+/* ===== Hero Section ===== */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-deep) 0%, #1e40af 60%, var(--teal) 100%);
+    padding: 2.5rem 0 3rem;
     position: relative;
-  }
-
-  .tool-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--hover-shadow);
-  }
-
-  .tool-header {
-    padding: 1.5rem;
-    padding-bottom: 0;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
- 
-
-  .tool-title {
-    margin: 0;
-    font-weight: 700;
-    font-size: 1.3rem;
-    color: var(--dark-color);
-    line-height: 1.4;
-  }
-
-  .tool-content {
-    padding: 1.5rem;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .info-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .info-label {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  .info-value {
-    font-size: 0.95rem;
-  }
-
-  .tool-footer {
-    padding: 1.5rem;
-    background-color: var(--light-bg);
-    border-top: 1px solid var(--border-color);
-  }
-
-  .tool-stats {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: white;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  }
-
-  .stat-item i {
-    color: var(--primary);
-  }
-
-  .tool-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .btn-view-details {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    color: var(--primary);
-    font-weight: 600;
-    font-size: 0.95rem;
-    padding: 0.75rem 1.25rem;
-    border: 2px solid var(--primary);
-    border-radius: 8px;
-    transition: all 0.2s ease;
-  }
-
-  .btn-view-details:hover {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  .btn-view-details i {
-    transition: transform 0.2s ease;
-  }
-
-  .btn-view-details:hover i {
-    transform: translateX(4px);
-  }
-
-  /* Empty state */
-  .empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    background-color: white;
-    border-radius: var(--card-radius);
-    box-shadow: var(--card-shadow);
-  }
-
-  .empty-icon {
-    font-size: 4rem;
-    color: var(--primary);
-    opacity: 0.5;
-    margin-bottom: 1.5rem;
-  }
-
-  .empty-state h3 {
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-  }
-
-  /* Button styling */
-  .btn-primary {
-    background-color: var(--primary);
-    border-color: var(--primary);
-    border-width: 2px;
-    font-weight: 600;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    transition: all 0.3s ease;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--primary-hover);
-    border-color: var(--primary-hover);
-    transform: translateY(-2px);
-  }
-
-  /* Alert styling */
-  .alert-info {
-    background-color: rgba(67, 97, 238, 0.1);
-    border: none;
-    color: var(--primary);
-    border-radius: 8px;
-  }
-
-  /* Responsive styles */
-  @media (max-width: 767px) {
-    .tools-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .tool-stats {
-      flex-wrap: wrap;
-    }
-
-    .tool-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .tool-content {
-      padding: 1.25rem;
-    }
-
-    .tool-footer {
-      padding: 1.25rem;
-    }
-
-    h1.display-5 {
-      font-size: 1.8rem;
-    }
-  }
-
-  @media (min-width: 768px) and (max-width: 991px) {
-    .tools-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (min-width: 992px) {
-    .tools-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-  .input {
-    border: 2px solid transparent;
-    width: 15em;
-    height: 2.5em;
-    padding-left: 0.8em;
-    outline: none;
     overflow: hidden;
-    background-color: #f3f3f3;
-    border-radius: 10px;
-    transition: all 0.5s;
-  }
+}
 
-  .input:hover,
-  .input:focus {
-    border: 2px solid #4a9dec;
-    box-shadow: 0px 0px 0px 7px rgb(74, 157, 236, 20%);
-    background-color: white;
-  }
-  .global-searchbox {
-    margin-bottom: 2rem;
-  }
-
-  .searchbox-form {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .searchbox-group {
-    display: flex;
-    align-items: stretch;
-    border-radius: 12px;
-    background: white;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Query Container */
-  .query-container {
-    position: relative;
-  }
-
-  .query-input {
-    width: 100%;
-    border: none;
-    padding: 1rem 2.5rem 1rem 1.2rem;
-    font-size: 1rem;
-  }
-
-  .query-input:focus {
-    outline: none;
-    box-shadow: none;
-  }
-
-  /* Status Indicators */
-  .status-indicator {
+.hero-section::before {
+    content: '';
     position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-  }
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='m0 40 40-40h-40z'/%3E%3C/g%3E%3C/svg%3E");
+}
 
-  .status-icon {
-    font-size: 1rem;
-  }
-
-  .status-spinner {
-    width: 1rem;
-    height: 1rem;
-  }
-  * Type Selection */ .type-select {
-    border: none;
-    border-left: 1px solid var(--border-color);
-    padding: 1rem 1.2rem;
-    min-width: 140px;
-  }
-
-  /* Action Buttons */
-  .action-button {
+.hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 0 1.5rem;
-    border: none;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.hero-text-block h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 0.5rem;
+}
+
+.hero-text {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.1rem;
+    max-width: 600px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Glass-style Add button (matches corpus page) */
+.btn-glass-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-glass-tool:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-glass-tool .icon-circle {
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-  }
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    font-size: 1rem;
+}
 
-  .submit-action {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  /* Category Filters */
-  .category-filters {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    padding: 0.5rem 0;
-  }
-
-  .category-label {
-    font-weight: 500;
-    color: var(--text-dark);
-    margin-right: 0.5rem;
-  }
-
-  .category-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .category-item {
+.login-notice-tool {
     display: inline-flex;
     align-items: center;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    color: var(--text-dark);
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    min-width: 100px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+}
+
+/* ===== Search Section ===== */
+.search-section {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.search-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    flex: 1;
+    min-width: 280px;
+    max-width: 500px;
+    position: relative;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    border: 2px solid var(--border);
+    border-radius: 50px;
+    font-size: 0.95rem;
+    background: var(--surface);
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.search-box input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+/* Category Pills */
+.category-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.category-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     padding: 0.5rem 1rem;
-    border-radius: 30px;
-    font-size: 0.9rem;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    font-size: 0.85rem;
     font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-pill:hover {
+    background: var(--primary-accent);
+    border-color: var(--primary-accent);
+    color: white;
+}
+
+.category-pill.active {
+    background: var(--primary-accent);
+    border-color: var(--primary-accent);
+    color: white;
+}
+
+.category-pill i {
+    font-size: 0.9rem;
+}
+
+/* ===== Main Content ===== */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem 2.5rem 4rem; /* py-6 px-10 */
+}
+
+/* Results Count */
+.results-count {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.results-count strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+/* Tool Results Container */
+#tools-grid-container {
+    position: relative;
+    min-height: 200px;
+    padding: 1.5rem 0; /* vertical spacing only, horizontal handled by main-content */
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: var(--radius-lg);
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== Tools Grid ===== */
+.tools-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem; /* 32px = gap-8 */
+    margin-top: 1.5rem;
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 768px) {
+    .tools-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop: exactly 3 columns */
+@media (min-width: 1024px) {
+    .tools-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== Results Header ===== */
+.results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.search-term-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: #FEF08A;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #854d0e;
+}
+
+/* ===== Search Highlight ===== */
+.search-highlight,
+mark.search-highlight {
+    background-color: #FEF08A;
+    color: inherit;
+    padding: 0.1em 0.2em;
+    border-radius: 3px;
+    font-weight: inherit;
+}
+
+/* ===== Tool Card ===== */
+.tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Equal height in grid row */
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.tool-card:hover {
+    border-color: var(--primary-accent);
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--primary-accent);
+    transform: translateY(-4px);
+}
+
+.card-top-accent {
+    height: 4px;
+    background: var(--primary-accent);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.tool-card[data-category="tokenization"] .card-top-accent { background: #2563eb; }
+.tool-card[data-category="stemming"] .card-top-accent { background: #7c3aed; }
+.tool-card[data-category="ner"] .card-top-accent { background: #059669; }
+.tool-card[data-category="pos_tagging"] .card-top-accent { background: #ea580c; }
+.tool-card[data-category="sentiment_analysis"] .card-top-accent { background: #dc2626; }
+.tool-card[data-category="machine_translation"] .card-top-accent { background: #0d9488; }
+
+.tool-card .card-header {
+    padding: 1.5rem 1.5rem 0; /* p-6 top/sides */
+}
+
+.category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.category-badge.tokenization { background: #dbeafe; color: #1e40af; }
+.category-badge.stemming { background: #f3e8ff; color: #6b21a8; }
+.category-badge.ner { background: #dcfce7; color: #166534; }
+.category-badge.pos_tagging { background: #ffedd5; color: #c2410c; }
+.category-badge.sentiment_analysis { background: #fee2e2; color: #b91c1c; }
+.category-badge.machine_translation { background: #ccfbf1; color: #0f766e; }
+
+.tool-card .card-body {
+    padding: 1rem 1.5rem; /* p-6 sides */
+    flex: 1; /* Grows to fill space, pushing footer to bottom */
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+}
+
+.tool-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tool-card .card-footer {
+    padding: 1.25rem 1.5rem; /* p-6 sides, slightly less top/bottom */
+    background: var(--muted);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto; /* Pins footer to bottom */
+    gap: 1rem;
+}
+
+.tool-meta {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 0.25rem 0.5rem;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+}
+
+.meta-item i {
+    font-size: 0.85rem;
+}
+
+.btn-view-api {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-accent);
     text-decoration: none;
     transition: all 0.2s ease;
-  }
+}
 
-  .category-item:hover {
-    background-color: rgba(67, 97, 238, 0.1);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-
-  .category-item.active {
-    background-color: var(--primary);
-    border-color: var(--primary);
+.btn-view-api:hover {
+    background: var(--primary-accent);
+    border-color: var(--primary-accent);
     color: white;
-  }
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--muted);
+    border-radius: 50%;
+    font-size: 2rem;
+    color: var(--text-muted);
+}
+
+.empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tool-card {
+    animation: fadeInUp 0.3s ease-out forwards;
+    opacity: 0;
+}
+
+.tool-card:nth-child(1) { animation-delay: 0.05s; }
+.tool-card:nth-child(2) { animation-delay: 0.1s; }
+.tool-card:nth-child(3) { animation-delay: 0.15s; }
+.tool-card:nth-child(4) { animation-delay: 0.2s; }
+.tool-card:nth-child(5) { animation-delay: 0.25s; }
+.tool-card:nth-child(6) { animation-delay: 0.3s; }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 0;
+    }
+    
+    .hero-text {
+        font-size: 1rem;
+    }
+    
+    .search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-box {
+        max-width: 100%;
+    }
+    
+    .category-pills {
+        justify-content: center;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* RTL SUPPORT — direction: rtl on containers, no row-reverse needed    */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+/* Hero */
+html[dir="rtl"] .hero-section { direction: rtl; }
+html[dir="rtl"] .hero-text-block h1 { text-align: start; }
+html[dir="rtl"] .hero-text { text-align: start; }
+
+/* Search */
+html[dir="rtl"] .search-section { direction: rtl; }
+html[dir="rtl"] .search-box i {
+    left: auto;
+    right: 1rem;
+}
+html[dir="rtl"] .search-box input {
+    padding: 0.875rem 2.75rem 0.875rem 1rem;
+    text-align: right;
+}
+html[dir="rtl"] .search-box input::placeholder { text-align: right; }
+
+/* Results header */
+html[dir="rtl"] .results-header { direction: rtl; }
+html[dir="rtl"] .results-count { text-align: start; }
+
+/* Cards */
+html[dir="rtl"] .tool-card { direction: rtl; text-align: start; }
+html[dir="rtl"] .tool-card .card-footer { direction: rtl; }
+html[dir="rtl"] .tool-meta { direction: rtl; }
+html[dir="rtl"] .btn-view-api i { transform: scaleX(-1); }
+
+/* Empty state */
+html[dir="rtl"] .empty-state { text-align: center; }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="tool-hub-page">
+    
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-text-block">
+                    <h1>{% trans "NLP Tool Hub" %}</h1>
+                    <p class="hero-text">
+                        {% trans "Discover and integrate powerful Natural Language Processing tools for Arabic and multilingual text analysis." %}
+                    </p>
+                    <div class="hero-stats">
+                        <div class="stat-box">
+                            <span class="stat-number" id="tools-count">{{ total_count|default:"0" }}</span>
+                            <span class="stat-label">{% trans "Tools" %}</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number">6</span>
+                            <span class="stat-label">{% trans "Categories" %}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if user.is_authenticated %}
+                <a href="{% url 'resources:tool-create' %}" class="btn-glass-tool">
+                    <span class="icon-circle">
+                        <i class="bi bi-plus-lg"></i>
+                    </span>
+                    <span>{% trans "Add New Tool" %}</span>
+                </a>
+                {% else %}
+                <div class="login-notice-tool">
+                    <i class="bi bi-info-circle"></i>
+                    <span>{% trans "Sign in to submit tools" %}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- Search Section -->
+    <section class="search-section">
+        <div class="search-container">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" 
+                       id="tool-search" 
+                       placeholder="{% trans 'Search tools...' %}" 
+                       value="{{ search_query|default:'' }}"
+                       autocomplete="off">
+            </div>
+            
+            <div class="category-pills">
+                <span class="category-pill {% if not current_type %}active{% endif %}" data-type="">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    {% trans "All" %}
+                </span>
+                <span class="category-pill {% if current_type == 'tokenization' %}active{% endif %}" data-type="tokenization">
+                    <i class="bi bi-scissors"></i>
+                    {% trans "Tokenization" %}
+                </span>
+                <span class="category-pill {% if current_type == 'sentiment_analysis' %}active{% endif %}" data-type="sentiment_analysis">
+                    <i class="bi bi-emoji-smile"></i>
+                    {% trans "Sentiment" %}
+                </span>
+                <span class="category-pill {% if current_type == 'ner' %}active{% endif %}" data-type="ner">
+                    <i class="bi bi-tag"></i>
+                    {% trans "NER" %}
+                </span>
+                <span class="category-pill {% if current_type == 'machine_translation' %}active{% endif %}" data-type="machine_translation">
+                    <i class="bi bi-translate"></i>
+                    {% trans "Translation" %}
+                </span>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div id="tools-grid-container">
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="loading-spinner"></div>
+            </div>
+            
+            {% include "resources/_tool_cards.html" %}
+        </div>
+    </main>
+    
+</div>
+
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const searchForm = document.getElementById("globalSearchForm");
-    const searchInput = document.getElementById("globalQuery");
-
-    // Gestionnaire de soumission du formulaire
-    searchForm.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const query = searchInput.value.trim();
-      window.location.href = `?q=${encodeURIComponent(query)}`;
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('tool-search');
+    const categoryPills = document.querySelectorAll('.category-pill');
+    const toolsContainer = document.getElementById('tools-grid-container');
+    const toolsCount = document.getElementById('tools-count');
+    
+    let debounceTimer;
+    let currentType = '{{ current_type|escapejs }}';
+    
+    // Debounce utility function (300ms)
+    function debounce(func, delay) {
+        return function(...args) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+    
+    // Live search with 300ms debounce
+    searchInput.addEventListener('input', debounce(function() {
+        fetchTools();
+    }, 300));
+    
+    // Category pill clicks - immediate
+    categoryPills.forEach(pill => {
+        pill.addEventListener('click', function() {
+            categoryPills.forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            currentType = this.dataset.type;
+            fetchTools();
+        });
     });
-
-    // Optionnel : recherche en temps réel après un délai
-    let searchTimeout;
-    searchInput.addEventListener("input", function () {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        searchForm.submit();
-      }, 500); // Délai de 500ms
-    });
-  });
+    
+    // Fetch tools via AJAX
+    function fetchTools() {
+        const query = searchInput.value.trim();
+        
+        // Build URL params
+        const params = new URLSearchParams();
+        if (query) params.append('q', query);
+        if (currentType) params.append('type', currentType);
+        
+        const url = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        
+        // Update browser URL without reload
+        history.replaceState(null, '', url);
+        
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) loadingOverlay.classList.add('active');
+        
+        // Fetch partial HTML with XMLHttpRequest header
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Swap the content of #tools-grid-container
+            toolsContainer.innerHTML = '<div class="loading-overlay" id="loading-overlay"><div class="loading-spinner"></div></div>' + html;
+            
+            // Update hero tools count
+            const countMatch = html.match(/<strong>(\d+)<\/strong>/);
+            if (countMatch) {
+                toolsCount.textContent = countMatch[1];
+            }
+            
+            // Hide loading
+            const newOverlay = document.getElementById('loading-overlay');
+            if (newOverlay) newOverlay.classList.remove('active');
+        })
+        .catch(error => {
+            console.error('Error fetching tools:', error);
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.remove('active');
+        });
+    }
+});
 </script>
 {% endblock %}

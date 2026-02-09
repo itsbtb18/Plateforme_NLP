@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet, Count
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -13,6 +13,7 @@ from django.views.generic import (
     View,
 )
 from .models import Topic, ChatRoom, Message, BannedUser
+from .forms import TopicForm, ChatRoomForm
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.template.loader import render_to_string
 from django.contrib.auth import get_user_model
@@ -20,6 +21,8 @@ from notifications.services import NotificationService
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
+from django.contrib import messages
+from django.utils.translation import gettext_lazy as _
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         model = Topic
@@ -27,37 +30,114 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         context_object_name = 'topics'
         ordering = ['-created_at']  # Tri par date de creation decroissante
 
+        def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+            """Handle both AJAX and regular requests."""
+            # Check if this is an AJAX request
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            
+            if is_ajax:
+                return self._handle_ajax_request(request)
+            
+            # Regular HTML request
+            return super().get(request, *args, **kwargs)
+
+        def _handle_ajax_request(self, request: HttpRequest) -> HttpResponse:
+            """Return partial HTML for AJAX requests."""
+            # Get the queryset with all filters applied
+            topics = self.get_queryset()
+            
+            # Build context for partial template
+            context = {
+                'topics': topics,
+                'search_query': request.GET.get('q', ''),
+                'current_sort': request.GET.get('sort', ''),
+                'my_topics': request.GET.get('my_topics', ''),
+                'user': request.user,
+                'request': request,
+            }
+            
+            # Render partial template
+            html = render_to_string('forum/_topic_cards.html', context, request=request)
+            
+            # Also return the count for updating stats
+            return HttpResponse(html)
+
         def get_queryset(self) -> QuerySet[Topic]:
-            return cast(QuerySet[Topic], super().get_queryset())
+            qs = cast(QuerySet[Topic], super().get_queryset())
+            
+            # Only show approved topics (unless staff or creator)
+            if not self.request.user.is_staff:
+                qs = qs.filter(
+                    Q(approval_status='approved') | 
+                    Q(creator=self.request.user)
+                )
+            
+            # Filter: My Topics only
+            if self.request.GET.get('my_topics'):
+                qs = qs.filter(creator=self.request.user)
+            
+            # Backend search filtering
+            search_query = self.request.GET.get('q', '').strip()
+            if search_query:
+                qs = qs.filter(
+                    Q(title__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query) |
+                    Q(description__icontains=search_query) |
+                    Q(description_ar__icontains=search_query) |
+                    Q(description_en__icontains=search_query) |
+                    Q(creator__username__icontains=search_query) |
+                    Q(creator__full_name__icontains=search_query)
+                )
+            
+            # Sort options
+            sort = self.request.GET.get('sort', '')
+            if sort == 'newest':
+                qs = qs.order_by('-created_at')
+            elif sort == 'active':
+                # Sort by most chatrooms/activity
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
+            elif sort == 'popular':
+                # Sort by views (fallback to chatroom count if views not available)
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
+            else:
+                # Default: order by creation date
+                qs = qs.order_by('-created_at')
+            
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'
+            context['search_query'] = self.request.GET.get('q', '')
+            context['total_chatrooms'] = ChatRoom.objects.count()
+            # Category filter context
+            context['current_sort'] = self.request.GET.get('sort', '')
+            context['my_topics'] = self.request.GET.get('my_topics', '')
             return context
 
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = Topic
-    fields = ['title', 'description']
+    form_class = TopicForm
     template_name = 'forum/topic_new.html'  # Ajout du préfixe 'forum/'
     success_url = reverse_lazy('forum:topic-list')
     context_object_name = 'topic'
       
     def form_valid(self, form):
         form.instance.creator = self.request.user
-        response = super().form_valid(form)
-        # NOTIFICATION à tous les utilisateurs actifs via le service
-        User = get_user_model()
-        for user in User.objects.filter(is_active=True):
-            # Évite d'envoyer la notification à l'utilisateur qui vient de créer le topic
-            if user != self.request.user:
-                NotificationService.create_notification(
-                    recipient=user,
-                    notification_type='SYSTEM', # Ou un type spécifique si tu en crées un pour le forum
-                    title="New topic in the forum",
-                    message=f"{self.request.user.username} created a new topic : {form.instance.title}",
-                    related_object=form.instance # Optionnel: lie la notification à l'objet Topic créé
-                )
+        # Auto-approve for staff, pending for regular users
+        if self.request.user.is_staff:
+            form.instance.approval_status = 'approved'
+            response = super().form_valid(form)
+            messages.success(self.request, _("Your topic has been published."))
+        else:
+            form.instance.approval_status = 'pending'
+            response = super().form_valid(form)
+            messages.info(
+                self.request,
+                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            )
         return response
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -66,7 +146,7 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
 
 class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Topic
-    fields = ['title', 'description']
+    form_class = TopicForm
     template_name = 'forum/topic_update.html'  # Ajout du préfixe 'forum/'
     success_url = reverse_lazy('forum:topic-list')
     context_object_name = 'topic'
@@ -76,9 +156,47 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         return topic.creator == self.request.user or self.request.user.is_staff or self.request.user.is_superuser
 
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        # Admin review mode - show bilingual fields
+        review_mode = self.request.GET.get('review') == '1' and (
+            self.request.user.is_staff or self.request.user.is_superuser
+        )
+        context['review_mode'] = review_mode
+        context['is_pending'] = self.object.approval_status == 'pending'  # type: ignore[union-attr]
+        context['topic'] = self.object
+        return context
+
+    def form_valid(self, form):
+        topic = form.save(commit=False)
+        
+        # Handle bilingual fields from admin review mode
+        if self.request.POST.get('title_en'):
+            topic.title_en = self.request.POST.get('title_en', '')
+        if self.request.POST.get('title_ar'):
+            topic.title_ar = self.request.POST.get('title_ar', '')
+        if self.request.POST.get('description_en'):
+            topic.description_en = self.request.POST.get('description_en', '')
+        if self.request.POST.get('description_ar'):
+            topic.description_ar = self.request.POST.get('description_ar', '')
+        
+        # Also update the main title/description with English version as default
+        if self.request.POST.get('title_en'):
+            topic.title = self.request.POST.get('title_en', topic.title)
+        if self.request.POST.get('description_en'):
+            topic.description = self.request.POST.get('description_en', topic.description)
+        
+        # Handle "Approve & Publish" action from admin review
+        if self.request.POST.get('action') == 'approve' and (
+            self.request.user.is_staff or self.request.user.is_superuser
+        ):
+            topic.approval_status = 'approved'
+            topic.save()
+            messages.success(self.request, _("Topic has been approved and published."))
+            return redirect('pages:admin_forum')
+        
+        topic.save()
+        return super().form_valid(form)
 
 class TopicDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Topic
@@ -99,6 +217,16 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Topic
     template_name = 'forum/topic_detail.html' 
     context_object_name = 'topic'
+
+    def get_queryset(self) -> QuerySet[Topic]:
+        qs = cast(QuerySet[Topic], super().get_queryset())
+        # Only show approved topics (unless staff or creator)
+        if not self.request.user.is_staff:
+            qs = qs.filter(
+                Q(approval_status='approved') | 
+                Q(creator=self.request.user)
+            )
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -159,8 +287,8 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             NotificationService.create_notification(
                 recipient=chatroom.topic.creator,
                 notification_type='FORUM_REPLY',
-                title=f"Nouvelle reponse dans le sujet {chatroom.topic.title}",
-                message=f"{request.user.username} a repondu dans la salle de discussion {chatroom.name} liee a votre sujet.",
+                title=_("New reply in topic %(title)s") % {'title': chatroom.topic.title},
+                message=_("%(username)s replied in the chatroom %(name)s related to your topic.") % {'username': request.user.username, 'name': chatroom.name},
                 related_object=chatroom.topic,
                 action_url=chatroom.get_absolute_url()
             )
@@ -180,27 +308,30 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
 class ChatRoomCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     model = ChatRoom
-    fields = ['name', 'description']
-    template_name = 'forum/chatroom_new.html'  # Ajout du préfixe 'forum/'
+    form_class = ChatRoomForm
+    template_name = 'forum/chatroom_new.html'
     context_object_name = 'chatroom'
     
     def form_valid(self, form):
         topic_id = self.kwargs.get('topic_id')
         form.instance.topic = get_object_or_404(Topic, id=topic_id)
-        form.instance.creator = self.request.user  # Ajout de l'attribution du créateur
+        form.instance.creator = self.request.user
         return super().form_valid(form)
     
     def get_success_url(self):
         chatroom: ChatRoom = cast(ChatRoom, self.object)
         return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
+    
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        topic_id = self.kwargs.get('topic_id')
+        context['topic'] = get_object_or_404(Topic, id=topic_id)
+        return context
 
 class ChatRoomUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
     model = ChatRoom
-    fields = ['name', 'description']
+    form_class = ChatRoomForm
     template_name = 'forum/chatroom_update.html'
     context_object_name = 'chatroom'
     
@@ -211,10 +342,11 @@ class ChatRoomUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upd
     def get_success_url(self):
         chatroom: ChatRoom = cast(ChatRoom, self.object)
         return reverse_lazy('forum:chatroom-detail', kwargs={'pk': chatroom.pk})
+    
     def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context['page'] = 'community'  
-            return context
+        context = super().get_context_data(**kwargs)
+        context['page'] = 'community'
+        return context
 
 class ChatRoomDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
     model = ChatRoom
@@ -291,8 +423,8 @@ class BanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView
         NotificationService.create_notification(
             recipient=user_to_ban,
             notification_type='BAN',
-            title=f"Vous avez été banni de la salle {chatroom.name}",
-            message=f"Vous avez été banni de la salle de discussion {chatroom.name} par {self.request.user.username}.",
+            title=_("You have been banned from the chatroom %(name)s") % {'name': chatroom.name},
+            message=_("You have been banned from the chatroom %(name)s by %(username)s.") % {'name': chatroom.name, 'username': self.request.user.username},
             related_object=chatroom
         )
         
@@ -330,8 +462,11 @@ class TopicToggleStatusView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, 
             NotificationService.create_notification(
                 recipient=topic.creator,
                 notification_type='FORUM_TOPIC_STATUS',
-                title=f"Sujet {'fermé' if topic.is_closed else 'rouvert'}",
-                message=f"Votre sujet '{topic.title}' a été {'fermé' if topic.is_closed else 'rouvert'} par un administrateur.",
+                title=_("Topic closed") if topic.is_closed else _("Topic reopened"),
+                message=_("Your topic '%(title)s' has been %(action)s by an administrator.") % {
+                    'title': topic.title,
+                    'action': str(_("closed")) if topic.is_closed else str(_("reopened"))
+                },
                 related_object=topic
             )
         

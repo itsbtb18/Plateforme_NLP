@@ -1,223 +1,776 @@
-{% extends "base.html" %}
-{% load i18n %}
+{% extends 'base.html' %}
+{% load i18n static %}
 
-{% block title %}{% trans "Scientific Events" %} | {% trans "Arabic NLP Platform" %}{% endblock title %}
+{% block title %}{% translate "Event Hub" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== EVENT HUB CSS ===== */
+:root {
+    --eh-primary: #3B82F6;
+    --eh-primary-dark: #2563eb;
+    --eh-primary-light: #60a5fa;
+    --eh-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --eh-deep: #0f172a;
+    --eh-navy: #1e3a5f;
+    --eh-white: #ffffff;
+    --eh-bg: #f8fafc;
+    --eh-muted: #f1f5f9;
+    --eh-subtle: #e2e8f0;
+    
+    --eh-text: #0f172a;
+    --eh-text-secondary: #475569;
+    --eh-text-muted: #94a3b8;
+    
+    --eh-border: #e2e8f0;
+    --eh-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --eh-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --eh-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --eh-success: #10b981;
+    --eh-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --eh-warning: #f59e0b;
+    --eh-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --eh-danger: #ef4444;
+    --eh-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --eh-purple: #8b5cf6;
+    --eh-purple-bg: rgba(139, 92, 246, 0.1);
+    
+    --eh-cyan: #06b6d4;
+    --eh-cyan-bg: rgba(6, 182, 212, 0.1);
+    
+    --eh-radius-sm: 6px;
+    --eh-radius-md: 10px;
+    --eh-radius-lg: 14px;
+    --eh-radius-xl: 20px;
+    --eh-radius-full: 9999px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.eh-page {
+    min-height: 100vh;
+    background: var(--eh-bg);
+}
+
+/* Hero Section */
+.eh-hero {
+    background: linear-gradient(135deg, var(--eh-deep) 0%, var(--eh-navy) 100%);
+    padding: 3rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.eh-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+}
+
+.eh-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.eh-hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.eh-hero-text { max-width: 600px; }
+
+.eh-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--eh-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--eh-primary-light);
+    margin-bottom: 1rem;
+}
+
+.eh-hero-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--eh-white);
+    margin: 0 0 0.75rem;
+    line-height: 1.2;
+}
+
+.eh-hero-subtitle {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.eh-hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+.eh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--eh-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.eh-btn-primary {
+    background: var(--eh-primary);
+    color: var(--eh-white);
+}
+
+.eh-btn-primary:hover {
+    background: var(--eh-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Main Content */
+.eh-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Filter Bar */
+.eh-filter-bar {
+    background: var(--eh-white);
+    border: 1px solid var(--eh-border);
+    border-radius: var(--eh-radius-xl);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--eh-shadow-sm);
+}
+
+.eh-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 150px 150px 150px auto auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+@media (max-width: 1024px) {
+    .eh-filter-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .eh-filter-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.eh-filter-group { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.eh-filter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--eh-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.eh-filter-input, .eh-filter-select {
+    padding: 0.75rem 1rem;
+    background: var(--eh-muted);
+    border: 2px solid transparent;
+    border-radius: var(--eh-radius-md);
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--eh-text);
+    transition: all 0.2s;
+    height: 46px;
+    box-sizing: border-box;
+}
+
+.eh-filter-input:focus, .eh-filter-select:focus {
+    outline: none;
+    background: var(--eh-white);
+    border-color: var(--eh-primary);
+    box-shadow: 0 0 0 4px var(--eh-primary-glow);
+}
+
+.eh-filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 40px;
+}
+
+.eh-filter-checkbox input {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--eh-primary);
+}
+
+.eh-filter-checkbox label {
+    font-size: 0.875rem;
+    color: var(--eh-text-secondary);
+    white-space: nowrap;
+}
+
+.eh-filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    height: 46px;
+}
+
+.eh-filter-btn {
+    padding: 0 1rem;
+    height: 46px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--eh-radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.eh-filter-btn-primary {
+    background: var(--eh-primary);
+    color: var(--eh-white);
+}
+
+.eh-filter-btn-primary:hover { background: var(--eh-primary-dark); }
+
+.eh-filter-btn-ghost {
+    background: transparent;
+    color: var(--eh-text-muted);
+}
+
+.eh-filter-btn-ghost:hover { background: var(--eh-muted); color: var(--eh-text); }
+
+/* Results Header */
+.eh-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.eh-results-count {
+    font-size: 0.95rem;
+    color: var(--eh-text-secondary);
+}
+
+.eh-results-count strong {
+    color: var(--eh-text);
+    font-weight: 700;
+}
+
+/* Events Grid */
+.eh-events-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .eh-events-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .eh-events-grid { grid-template-columns: 1fr; }
+}
+
+/* Event Card */
+.eh-event-card {
+    background: var(--eh-white);
+    border: 1px solid var(--eh-border);
+    border-radius: var(--eh-radius-xl);
+    overflow: hidden;
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+.eh-event-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--eh-shadow-lg);
+    border-color: var(--eh-primary);
+}
+
+.eh-card-header {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--eh-border);
+}
+
+/* Calendar Badge */
+.eh-date-badge {
+    width: 64px;
+    min-width: 64px;
+    background: var(--eh-primary);
+    border-radius: var(--eh-radius-md);
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.eh-date-day {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--eh-white);
+    line-height: 1;
+}
+
+.eh-date-month {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+}
+
+.eh-card-meta { flex: 1; min-width: 0; }
+
+.eh-card-badges { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+
+.eh-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--eh-radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.eh-type-conference { background: var(--eh-primary-glow); color: var(--eh-primary); }
+.eh-type-workshop { background: var(--eh-success-bg); color: var(--eh-success); }
+.eh-type-seminar { background: var(--eh-purple-bg); color: var(--eh-purple); }
+.eh-type-call_for_papers { background: var(--eh-warning-bg); color: var(--eh-warning); }
+.eh-type-hackathon { background: var(--eh-danger-bg); color: var(--eh-danger); }
+.eh-type-other { background: var(--eh-muted); color: var(--eh-text-muted); }
+
+.eh-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--eh-radius-full);
+}
+
+.eh-status-upcoming { background: var(--eh-cyan-bg); color: var(--eh-cyan); }
+.eh-status-ongoing { background: var(--eh-success-bg); color: var(--eh-success); }
+.eh-status-past { background: var(--eh-muted); color: var(--eh-text-muted); }
+
+.eh-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eh-text);
+    margin: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.eh-card-body { padding: 1.25rem; flex: 1; }
+
+.eh-card-desc {
+    font-size: 0.875rem;
+    color: var(--eh-text-secondary);
+    line-height: 1.6;
+    margin: 0 0 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.eh-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.eh-info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--eh-text-muted);
+}
+
+.eh-info-row i { font-size: 0.9rem; color: var(--eh-primary); width: 16px; text-align: center; }
+
+/* Deadline Alert */
+.eh-deadline-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--eh-warning-bg);
+    border-top: 1px solid rgba(245, 158, 11, 0.2);
+    margin-top: auto;
+}
+
+.eh-deadline-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--eh-white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--eh-warning);
+    font-size: 0.9rem;
+}
+
+.eh-deadline-text { flex: 1; }
+.eh-deadline-label { font-size: 0.7rem; color: var(--eh-warning); font-weight: 600; text-transform: uppercase; }
+.eh-deadline-date { font-size: 0.85rem; color: var(--eh-text); font-weight: 600; }
+
+.eh-deadline-days {
+    padding: 0.375rem 0.75rem;
+    background: var(--eh-warning);
+    color: var(--eh-white);
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--eh-radius-full);
+}
+
+.eh-card-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--eh-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.eh-card-organizer {
+    font-size: 0.8rem;
+    color: var(--eh-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.eh-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--eh-primary);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.eh-card-link:hover { gap: 0.625rem; }
+
+/* Empty State */
+.eh-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--eh-white);
+    border: 2px dashed var(--eh-border);
+    border-radius: var(--eh-radius-xl);
+}
+
+.eh-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--eh-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--eh-text-muted);
+    font-size: 2rem;
+}
+
+.eh-empty-title { font-size: 1.25rem; font-weight: 700; color: var(--eh-text); margin: 0 0 0.5rem; }
+.eh-empty-text { font-size: 0.95rem; color: var(--eh-text-muted); margin: 0; }
+
+/* Pagination */
+.eh-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 3rem;
+}
+
+.eh-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.75rem;
+    background: var(--eh-white);
+    border: 1px solid var(--eh-border);
+    border-radius: var(--eh-radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--eh-text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.eh-page-btn:hover { border-color: var(--eh-primary); color: var(--eh-primary); }
+.eh-page-btn.active { background: var(--eh-primary); border-color: var(--eh-primary); color: var(--eh-white); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <!-- Hero Header -->
-  <div class="row align-items-center mb-5 header-section">
-    <div class="col-lg-8 col-md-7">
-      <h1 class="display-4 fw-bold text-primary mb-2">{% trans "Scientific Events" %}</h1>
-      <p class="lead text-muted">{% trans "Discover conferences, workshops and calls for papers in Arabic NLP, Speech Processing and AI" %}</p>
-      <p class="fs-5 text-secondary">
-        {% if LANGUAGE_CODE == 'ar' %}
-          {% trans "events found" %} {{ events|length }} {% trans "events" %}
-        {% else %}
-          {{ events|length }} {% trans "events found" %}
-        {% endif %}
-      </p>
-    </div>
-    <div class="col-lg-4 col-md-5 text-md-end mt-4 mt-md-0">
-      {% if user.is_authenticated %}
-      <a href="{% url 'events:event_create' %}" class="btn btn-primary btn-lg shadow-sm">
-        <i class="fas fa-plus-circle me-2"></i> {% trans "Submit Event" %}
-      </a>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Filters Card -->
-  <div class="card mb-5 shadow-sm filter-card">
-    <div class="card-body">
-      <form method="get" class="row g-3">
-        <div class="col-md-3">
-          <div class="form-floating">
-            {{ search_form.keyword }}
-            <label for="{{ search_form.keyword.id_for_label }}">{% trans "Keywords" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <div class="form-floating">
-            {{ search_form.event_type }}
-            <label for="{{ search_form.event_type.id_for_label }}">{% trans "Type" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <div class="form-floating">
-            {{ search_form.domain }}
-            <label for="{{ search_form.domain.id_for_label }}">{% trans "Domain" %}</label>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="form-floating">
-            {{ search_form.start_date }}
-            <label for="{{ search_form.start_date.id_for_label }}">{% trans "Start Date" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2 d-flex align-items-center">
-          <div class="form-check form-switch">
-            {{ search_form.include_past }}
-            <label class="form-check-label" for="{{ search_form.include_past.id_for_label }}">{% trans "Include Past" %}</label>
-          </div>
-        </div>
-        <div class="col-12 text-end">
-          <button type="submit" class="btn btn-primary me-2">
-            <i class="fas fa-filter me-1"></i> {% trans "Filter" %}
-          </button>
-          <a href="{% url 'events:event_list' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-undo me-1"></i> {% trans "Clear" %}
-          </a>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Events Grid -->
-  {% if events %}
-  <div class="row events-grid g-4">
-    {% for event in events %}
-    <div class="col-lg-6 col-md-12">
-      <div class="card h-100 shadow-sm hover-card">
-        <div class="card-header bg-transparent d-flex justify-content-between align-items-center pt-3 px-4">
-          <span class="badge badge-type py-2 px-3">{{ event.get_event_type_display }}</span>
-          <span class="badge badge-status py-2 px-3">
-            {% if event.is_ongoing %}
-            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
-            {% elif event.is_upcoming %}
-            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
-            {% else %}
-            <i class="fas fa-calendar-times me-1"></i> {% trans "Past" %}
-            {% endif %}
-          </span>
-        </div>
-        <div class="card-body">
-          <h5 class="card-title">{{ event.title }}</h5>
-          <p class="text-muted mb-3">{{ event.description|truncatewords:25 }}</p>
-
-          <div class="mb-3 d-flex flex-wrap gap-2">
-            <span class="badge info-badge">
-              <i class="fas fa-globe me-1 text-primary"></i>
-              {% if event.is_ongoing or event.is_virtual %}
-              {% trans "Virtual" %}
-              {% else %}{{ event.location|truncatechars:20 }}{% endif %}
-            </span>
-            <span class="badge info-badge">
-              <i class="fas fa-calendar-day me-1 text-primary"></i>
-              {{ event.start_date|date:"M d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }}{% endif %}
-            </span>
-          </div>
-
-          {% if event.submission_deadline %}
-          <div class="alert alert-warning d-flex align-items-center mb-0">
-            <i class="fas fa-hourglass-half me-2"></i>
-            <div>
-              <strong>{% trans "Deadline:" %}</strong> {{ event.submission_deadline|date:"M d, Y" }}
-              <span class="badge bg-warning text-dark ms-2">{{ event.days_until_deadline }} {% trans "days left" %}</span>
+<div class="eh-page">
+    
+    <!-- Hero Section -->
+    <section class="eh-hero">
+        <div class="eh-hero-container">
+            <div class="eh-hero-content">
+                <div class="eh-hero-text">
+                    <span class="eh-hero-badge">
+                        <i class="bi bi-calendar-event"></i>
+                        {% translate "Discover & Connect" %}
+                    </span>
+                    <h1 class="eh-hero-title">{% translate "Scientific Events" %}</h1>
+                    <p class="eh-hero-subtitle">{% translate "Discover conferences, workshops and calls for papers in Arabic NLP, Speech Processing and AI" %}</p>
+                </div>
+                <div class="eh-hero-actions">
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'events:event_create' %}" class="eh-btn eh-btn-primary">
+                        <i class="bi bi-plus-circle"></i>
+                        {% translate "Submit Event" %}
+                    </a>
+                    {% endif %}
+                </div>
             </div>
-          </div>
-          {% endif %}
         </div>
-        <div class="card-footer bg-light border-0 text-end">
-          <a href="{% url 'events:event_detail' event.pk %}" class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-arrow-right me-1"></i> {% trans "Details" %}
-          </a>
+    </section>
+    
+    <!-- Main Content -->
+    <main class="eh-main">
+        
+        <!-- Filter Bar -->
+        <form method="get" class="eh-filter-bar">
+            <div class="eh-filter-grid">
+                <div class="eh-filter-group">
+                    <label class="eh-filter-label">{% translate "Keywords" %}</label>
+                    <input type="text" name="keyword" class="eh-filter-input" 
+                           placeholder="{% translate 'Search events...' %}"
+                           value="{{ request.GET.keyword }}">
+                </div>
+                <div class="eh-filter-group">
+                    <label class="eh-filter-label">{% translate "Type" %}</label>
+                    <select name="event_type" class="eh-filter-select">
+                        <option value="">{% translate "All Types" %}</option>
+                        <option value="conference" {% if request.GET.event_type == 'conference' %}selected{% endif %}>{% translate "Conference" %}</option>
+                        <option value="workshop" {% if request.GET.event_type == 'workshop' %}selected{% endif %}>{% translate "Workshop" %}</option>
+                        <option value="seminar" {% if request.GET.event_type == 'seminar' %}selected{% endif %}>{% translate "Seminar" %}</option>
+                        <option value="call_for_papers" {% if request.GET.event_type == 'call_for_papers' %}selected{% endif %}>{% translate "Call for Papers" %}</option>
+                        <option value="hackathon" {% if request.GET.event_type == 'hackathon' %}selected{% endif %}>{% translate "Hackathon" %}</option>
+                    </select>
+                </div>
+                <div class="eh-filter-group">
+                    <label class="eh-filter-label">{% translate "Domain" %}</label>
+                    <select name="domain" class="eh-filter-select">
+                        <option value="">{% translate "All Domains" %}</option>
+                        <option value="nlp" {% if request.GET.domain == 'nlp' %}selected{% endif %}>{% translate "NLP" %}</option>
+                        <option value="speech" {% if request.GET.domain == 'speech' %}selected{% endif %}>{% translate "Speech" %}</option>
+                        <option value="ai" {% if request.GET.domain == 'ai' %}selected{% endif %}>{% translate "AI" %}</option>
+                    </select>
+                </div>
+                <div class="eh-filter-group">
+                    <label class="eh-filter-label">{% translate "Start Date" %}</label>
+                    <input type="date" name="start_date" class="eh-filter-input" value="{{ request.GET.start_date }}">
+                </div>
+                <div class="eh-filter-group">
+                    <div class="eh-filter-checkbox">
+                        <input type="checkbox" name="include_past" id="include_past" 
+                               {% if request.GET.include_past %}checked{% endif %}>
+                        <label for="include_past">{% translate "Include Past" %}</label>
+                    </div>
+                </div>
+                <div class="eh-filter-actions">
+                    <button type="submit" class="eh-filter-btn eh-filter-btn-primary">
+                        <i class="bi bi-funnel"></i>
+                    </button>
+                    <a href="{% url 'events:event_list' %}" class="eh-filter-btn eh-filter-btn-ghost">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Results Header -->
+        <div class="eh-results-header">
+            <p class="eh-results-count">
+                <strong>{{ events|length }}</strong> {% translate "events found" %}
+            </p>
         </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
-  <!-- Pagination -->
-  {% if is_paginated %}
-  <nav class="mt-5">
-    <ul class="pagination justify-content-center">
-      {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1">&laquo;&laquo;</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
-      {% endif %}
-      {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+        
+        <!-- Events Grid -->
+        {% if events %}
+        <div class="eh-events-grid">
+            {% for event in events %}
+            <article class="eh-event-card">
+                <div class="eh-card-header">
+                    <div class="eh-date-badge">
+                        <span class="eh-date-day">{{ event.start_date|date:"d" }}</span>
+                        <span class="eh-date-month">{{ event.start_date|date:"M" }}</span>
+                    </div>
+                    <div class="eh-card-meta">
+                        <div class="eh-card-badges">
+                            <span class="eh-type-badge eh-type-{{ event.event_type }}">
+                                {{ event.get_event_type_display }}
+                            </span>
+                            {% if event.is_ongoing %}
+                            <span class="eh-status-badge eh-status-ongoing">
+                                <i class="bi bi-broadcast"></i>
+                                {% translate "Ongoing" %}
+                            </span>
+                            {% elif event.is_upcoming %}
+                            <span class="eh-status-badge eh-status-upcoming">
+                                <i class="bi bi-clock"></i>
+                                {% translate "Upcoming" %}
+                            </span>
+                            {% else %}
+                            <span class="eh-status-badge eh-status-past">
+                                {% translate "Past" %}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h3 class="eh-card-title">{{ event.get_localized_title }}</h3>
+                    </div>
+                </div>
+                
+                <div class="eh-card-body">
+                    <p class="eh-card-desc">{{ event.get_localized_description|truncatewords:20 }}</p>
+                    <div class="eh-card-info">
+                        <div class="eh-info-row">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>
+                                {% if event.is_virtual %}
+                                {% translate "Virtual Event" %}
+                                {% else %}
+                                {{ event.get_localized_location|truncatechars:30 }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="eh-info-row">
+                            <i class="bi bi-calendar-range"></i>
+                            <span>
+                                {{ event.start_date|date:"M d" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }}{% else %}, {{ event.start_date|date:"Y" }}{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if event.submission_deadline and event.days_until_deadline is not None %}
+                <div class="eh-deadline-alert">
+                    <div class="eh-deadline-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <div class="eh-deadline-text">
+                        <div class="eh-deadline-label">{% translate "Submission Deadline" %}</div>
+                        <div class="eh-deadline-date">{{ event.submission_deadline|date:"M d, Y" }}</div>
+                    </div>
+                    <span class="eh-deadline-days">{{ event.days_until_deadline }} {% translate "days" %}</span>
+                </div>
+                {% endif %}
+                
+                <div class="eh-card-footer">
+                    <span class="eh-card-organizer">
+                        <i class="bi bi-building"></i>
+                        {{ event.organizer }}
+                    </span>
+                    <a href="{% url 'events:event_detail' event.pk %}" class="eh-card-link">
+                        {% translate "View Details" %}
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="eh-pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1" class="eh-page-btn"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="eh-page-btn"><i class="bi bi-chevron-left"></i></a>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <span class="eh-page-btn active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?page={{ num }}" class="eh-page-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="eh-page-btn"><i class="bi bi-chevron-right"></i></a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="eh-page-btn"><i class="bi bi-chevron-double-right"></i></a>
+            {% endif %}
+        </nav>
         {% endif %}
-      {% endfor %}
-      {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;&raquo;</a></li>
-      {% endif %}
-    </ul>
-  </nav>
-  {% endif %}
-  {% else %}
-  <div class="empty-state text-center py-5 shadow-sm rounded">
-    <i class="fas fa-calendar-alt empty-icon mb-3"></i>
-    <h3 class="mb-3">{% trans "No events found" %}</h3>
-    <p class="text-muted mb-4">{% trans "Try changing filters or check back later." %}</p>
-    <a href="{% url 'events:event_list' %}" class="btn btn-primary">
-      <i class="fas fa-sync-alt me-1"></i> {% trans "Reset" %}
-    </a>
-  </div>
-  {% endif %}
+        
+        {% else %}
+        <!-- Empty State -->
+        <div class="eh-empty">
+            <div class="eh-empty-icon">
+                <i class="bi bi-calendar-x"></i>
+            </div>
+            <h3 class="eh-empty-title">{% translate "No Events Found" %}</h3>
+            <p class="eh-empty-text">{% translate "Try adjusting your filters or check back later for new events" %}</p>
+        </div>
+        {% endif %}
+        
+    </main>
 </div>
-
-<style>
-:root {
-  --primary: #4361ee;
-  --primary-hover: #3a56d4;
-  --success: #198754;
-  --warning: #ffc107;
-  --danger: #dc3545;
-  --light-bg: #f8f9fa;
-  --text-muted: #6c757d;
-  --card-radius: 12px;
-  --card-shadow: 0 8px 16px rgba(0,0,0,0.05);
-  --hover-shadow: 0 12px 24px rgba(0,0,0,0.1);
-}
-
-.filter-card {
-  border: none;
-  border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
-}
-.header-section h1, .header-section p, .header-section .fs-5 {
-  line-height: 1.2;
-}
-.events-grid .card {
-  border-radius: var(--card-radius);
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.hover-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--hover-shadow);
-}
-.badge-type {
-  background-color: var(--light-bg);
-  color: var(--primary);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.badge-status {
-  background-color: var(--primary);
-  color: white;
-}
-.info-badge {
-  background-color: var(--light-bg);
-  color: var(--text-muted);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--card-radius);
-  font-size: 0.9rem;
-}
-.empty-icon {
-  font-size: 3rem;
-  color: var(--primary);
-  opacity: 0.4;
-}
-@media (max-width: 767px) {
-  .header-section { text-align: center; }
-  .header-section .col-md-5 { margin-top: 1.5rem; }
-}
-</style>
-{% endblock content %}
+{% endblock %}

@@ -1,0 +1,451 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "News Management" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --primary-color: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary-color: #f1f5f9;
+    --accent-color: #06b6d4;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-card: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .main-header {
+    background: var(--gradient-primary);
+    color: white;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stats-card {
+    background: var(--gradient-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .stats-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .main-table-card {
+    background: var(--gradient-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  .table-header {
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 1rem 1.5rem;
+  }
+
+  .custom-table {
+    margin: 0;
+    width: 100%;
+  }
+
+  .custom-table thead th {
+    background: #f8fafc;
+    border: none;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 1rem;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  .custom-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s ease;
+  }
+
+  .custom-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+
+  .custom-table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-approved {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  .action-btn-approve {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #d1fae5;
+    color: #065f46;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+
+  .action-btn-approve:hover {
+    background: #10b981;
+    color: white;
+  }
+
+  .action-btn-reject {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .action-btn-reject:hover {
+    background: #ef4444;
+    color: white;
+  }
+
+  .post-content {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .author-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .author-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .nav-tabs .nav-link {
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    position: relative;
+  }
+
+  .nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    background: none;
+  }
+
+  .nav-tabs .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 3px 3px 0 0;
+  }
+
+  .badge-count {
+    background: var(--danger-color);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    margin-left: 0.5rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="main-header p-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="h3 mb-1">{% trans "News Management" %}</h1>
+        <p class="mb-0 opacity-75">{% trans "Manage and approve news posts" %}</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'QA:feed' %}" class="btn btn-light">
+          <i class="fas fa-eye me-2"></i>{% trans "View Feed" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="stats-card p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted mb-1 small">{% trans "Pending Approval" %}</p>
+            <h3 class="mb-0">{{ pending_count }}</h3>
+          </div>
+          <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+            <i class="fas fa-clock text-warning fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted mb-1 small">{% trans "Approved Posts" %}</p>
+            <h3 class="mb-0">{{ approved_count }}</h3>
+          </div>
+          <div class="rounded-circle bg-success bg-opacity-10 p-3">
+            <i class="fas fa-check-circle text-success fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card p-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted mb-1 small">{% trans "Total Posts" %}</p>
+            <h3 class="mb-0">{{ pending_count|add:approved_count }}</h3>
+          </div>
+          <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+            <i class="fas fa-newspaper text-primary fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search and Tabs -->
+  <div class="main-table-card">
+    <div class="table-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="fas fa-newspaper me-2"></i>{% trans "Posts" %}
+      </h5>
+      <form class="d-flex gap-2" method="get">
+        <input type="hidden" name="tab" value="{{ active_tab }}">
+        <input type="text" name="search" class="form-control form-control-sm" 
+               placeholder="{% trans 'Search posts...' %}" value="{{ search }}">
+        <button type="submit" class="btn btn-light btn-sm">
+          <i class="fas fa-search"></i>
+        </button>
+      </form>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs px-3 pt-3">
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'pending' %}active{% endif %}" 
+           href="?tab=pending{% if search %}&search={{ search }}{% endif %}">
+          {% trans "Pending" %}
+          {% if pending_count > 0 %}
+          <span class="badge-count">{{ pending_count }}</span>
+          {% endif %}
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'approved' %}active{% endif %}" 
+           href="?tab=approved{% if search %}&search={{ search }}{% endif %}">
+          {% trans "Approved" %}
+        </a>
+      </li>
+    </ul>
+
+    <!-- Table -->
+    {% if active_tab == 'pending' %}
+    {% if pending_posts %}
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th style="width: 35%;">{% trans "Content" %}</th>
+            <th style="width: 15%;">{% trans "Author" %}</th>
+            <th style="width: 12%;">{% trans "Date" %}</th>
+            <th style="width: 10%;">{% trans "Status" %}</th>
+            <th style="width: 20%;" class="text-center">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in pending_posts %}
+          <tr>
+            <td>
+              <div class="post-content">
+                {% if post.title %}
+                <strong>{{ post.get_localized_title }}</strong><br>
+                {% endif %}
+                {{ post.get_localized_content|truncatechars:100 }}
+              </div>
+            </td>
+            <td>
+              <div class="author-info">
+                <div class="author-avatar">{{ post.author.full_name|slice:":2"|upper }}</div>
+                <span>{{ post.author.full_name }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="small">{{ post.created_at|date:"d/m/Y" }}</div>
+              <div class="small text-muted">{{ post.created_at|date:"H:i" }}</div>
+            </td>
+            <td>
+              <span class="status-badge status-pending">{% trans "Pending" %}</span>
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center gap-1">
+                <!-- Review & Edit -->
+                <a href="{% url 'QA:edit_post' post_id=post.id %}?review=1" 
+                   class="action-btn-approve" title="{% trans 'Review & Edit' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <!-- Reject -->
+                {% translate "Are you sure you want to reject this post?" as confirm_msg %}
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type='post' pk=post.id %}" 
+                      style="display: inline;" onsubmit="return confirm('{{ confirm_msg }}');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn-reject" title="{% trans 'Reject & Delete' %}">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-check-double"></i>
+      <h5>{% trans "No pending posts" %}</h5>
+      <p class="text-muted">{% trans "All posts have been reviewed." %}</p>
+    </div>
+    {% endif %}
+    {% else %}
+    <!-- Approved Posts -->
+    {% if approved_posts %}
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th style="width: 40%;">{% trans "Content" %}</th>
+            <th style="width: 15%;">{% trans "Author" %}</th>
+            <th style="width: 12%;">{% trans "Date" %}</th>
+            <th style="width: 10%;">{% trans "Engagement" %}</th>
+            <th style="width: 15%;" class="text-center">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in approved_posts %}
+          <tr>
+            <td>
+              <div class="post-content">
+                {% if post.title %}
+                <strong>{{ post.get_localized_title }}</strong><br>
+                {% endif %}
+                {{ post.get_localized_content|truncatechars:100 }}
+              </div>
+            </td>
+            <td>
+              <div class="author-info">
+                <div class="author-avatar">{{ post.author.full_name|slice:":2"|upper }}</div>
+                <span>{{ post.author.full_name }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="small">{{ post.created_at|date:"d/m/Y" }}</div>
+            </td>
+            <td>
+              <span class="me-2"><i class="fas fa-heart text-danger"></i> {{ post.total_likes }}</span>
+              <span><i class="fas fa-comment text-primary"></i> {{ post.total_comments }}</span>
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center gap-1">
+                <a href="{% url 'QA:post_detail' slug=post.slug %}" class="btn btn-sm btn-outline-primary" 
+                   title="{% trans 'View' %}">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'QA:edit_post' post_id=post.id %}" class="btn btn-sm btn-outline-secondary" 
+                   title="{% trans 'Edit' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-newspaper"></i>
+      <h5>{% trans "No posts yet" %}</h5>
+      <p class="text-muted">{% trans "Approved posts will appear here." %}</p>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

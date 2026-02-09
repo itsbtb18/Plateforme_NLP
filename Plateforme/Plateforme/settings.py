@@ -34,6 +34,9 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     'django.contrib.staticfiles',
 
+    # Elasticsearch
+    "django_elasticsearch_dsl",
+
     # Apps projet
     "resources",
     "institutions",
@@ -75,6 +78,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "accounts.two_factor_auth.TwoFactorAuthenticationMiddleware",
 ]
 
 # URLs / Templates
@@ -105,6 +109,28 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     }
 }
+
+# Redis Cache Configuration
+redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": redis_url,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "PARSER_KWARGS": {"decode_responses": True},
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50}
+        }
+    }
+}
+
+# Parse REDIS_URL for 2FA utilities
+from urllib.parse import urlparse
+parsed_redis = urlparse(redis_url)
+REDIS_HOST = parsed_redis.hostname or '127.0.0.1'
+REDIS_PORT = parsed_redis.port or 6379
+REDIS_DB = int(parsed_redis.path.split('/')[-1] or 0)
+REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
 DATABASE_URL = config('DATABASE_URL', default='', cast=str)
@@ -142,8 +168,53 @@ ACCOUNT_FORMS = {
     "signup": "accounts.forms.CustomUserCreationForm",
 }
 
+# Remember Me Configuration
+ACCOUNT_SESSION_REMEMBER = True  # Enable remember me functionality
+ACCOUNT_REMEMBER_ME_EXPIRY = 604800  # 1 week in seconds (7 days)
+
 LOGIN_REDIRECT_URL = "pages:home"
 ACCOUNT_LOGOUT_REDIRECT = "pages:home"
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'OPTIONS': {
+            'user_attributes': ('email', 'full_name', 'full_name_en', 'full_name_ar'),
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+# Session Security Settings
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds (14 days)
+SESSION_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # Protect against CSRF
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Don't expire at browser close by default
+SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
+
+# CSRF Security
+CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Security Headers (for production)
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -208,15 +279,18 @@ if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    DEFAULT_FROM_EMAIL = "webmaster@localhost"
+    # Use file backend for development/testing
+    # Emails will be saved to /tmp/django-emails/
+    EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    EMAIL_FILE_PATH = "/tmp/django-emails"
+    DEFAULT_FROM_EMAIL = "noreply@plateforme-nlp.com"
 
 # Elasticsearch
 ELASTICSEARCH_DSL = {
     "default": {
-        "hosts": os.getenv("ELASTIC_URL", "http://localhost:9200"),
+        "hosts": os.getenv("ELASTICSEARCH_HOST", os.getenv("ELASTIC_URL", "http://localhost:9200")),
         "timeout": 120,
-        "sniff_on_start": True,
+        "sniff_on_start": False,  # Disable sniffing to prevent connection errors in Docker
     },
 }
 ELASTICSEARCH_DSL_AUTOSYNC = True

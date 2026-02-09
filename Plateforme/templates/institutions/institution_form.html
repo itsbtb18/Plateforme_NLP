@@ -1,551 +1,1168 @@
-{% extends 'base_admin.html' %}
-{% load i18n %}
-{% block title %} 
-{% if mode == 'create' %}
-    Create New Institution
-  {% else %}
-    Edit Institution
-  {% endif %}
-{% endblock %} 
+{% extends 'base.html' %}
+{% load i18n static %}
 
-{% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% block title %}{% if mode == 'update' %}{% translate "Edit Institution" %}{% else %}{% translate "Register Institution" %}{% endif %} | {% translate "Institutions" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  .select2-container {
-    width: 100% !important;
-  }
-  
-  .select2-selection--multiple {
-    border: 2px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-    padding: 0.5rem !important;
-    min-height: 50px !important;
-    font-size: 0.95rem !important;
-  }
-  
-  .select2-selection--multiple:focus-within {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
-  }
-  
-  .select2-selection__choice {
-    background-color: #6366f1 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 0.25rem 0.5rem !important;
-    margin: 0.25rem !important;
-  }
-  
-  .select2-selection__choice__remove {
-    color: white !important;
-    margin-right: 0.5rem !important;
-  }
-  
-  .select2-dropdown {
-    border: 2px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-  }
-  
-  .select2-search__field {
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    padding: 0.5rem !important;
-  }
-  
-  .specialty-help {
-    background: #f0f9ff;
-    border: 1px solid #0ea5e9;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-top: 0.5rem;
-  }
-  
-  .specialty-help-title {
-    font-weight: 600;
-    color: #0369a1;
-    margin-bottom: 0.5rem;
-  }
-  
-  .specialty-help-text {
-    color: #0369a1;
-    font-size: 0.875rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .specialty-help-example {
-    background: white;
-    border-radius: 6px;
-    padding: 0.5rem;
-    font-family: monospace;
-    font-size: 0.875rem;
-    color: #1e293b;
-  }
+/* ===== INSTITUTION FORM CSS ===== */
+:root {
+    --ifo-primary: #3B82F6;
+    --ifo-primary-dark: #2563eb;
+    --ifo-primary-light: #60a5fa;
+    --ifo-primary-glow: rgba(59, 130, 246, 0.1);
+    
+    --ifo-deep: #0f172a;
+    --ifo-navy: #1e3a5f;
+    --ifo-white: #ffffff;
+    --ifo-bg: #f8fafc;
+    --ifo-muted: #f1f5f9;
+    --ifo-subtle: #e2e8f0;
+    
+    --ifo-text: #0f172a;
+    --ifo-text-secondary: #475569;
+    --ifo-text-muted: #94a3b8;
+    
+    --ifo-border: #e2e8f0;
+    --ifo-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ifo-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ifo-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --ifo-shadow-focus: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    
+    --ifo-success: #10b981;
+    --ifo-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --ifo-danger: #ef4444;
+    --ifo-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --ifo-radius-sm: 6px;
+    --ifo-radius-md: 10px;
+    --ifo-radius-lg: 14px;
+    --ifo-radius-xl: 20px;
+    --ifo-radius-full: 9999px;
+}
 
-  .institution-form-page {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.ifo-page {
     min-height: 100vh;
-    padding: 2rem 0;
-  }
+    background: var(--ifo-bg);
+}
 
-  .form-container {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    padding: 2rem;
-    max-width: 800px;
+/* Header */
+.ifo-header {
+    background: linear-gradient(135deg, var(--ifo-deep) 0%, var(--ifo-navy) 100%);
+    padding: 2.5rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.ifo-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+}
+
+.ifo-header-content {
+    max-width: 900px;
     margin: 0 auto;
-  }
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
 
-  .form-header {
-    margin-bottom: 2rem;
-    text-align: center;
-  }
-
-  .form-title {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin-bottom: 0.5rem;
-  }
-
-  .form-subtitle {
-    color: #64748b;
-    font-size: 1rem;
-  }
-
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-
-  .form-label {
-    display: block;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 0.5rem;
+.ifo-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .form-control {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-  }
-
-  .form-control:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    outline: none;
-  }
-
-  .form-text {
-    font-size: 0.875rem;
-    color: #64748b;
-    margin-top: 0.25rem;
-  }
-
-  .btn-submit {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  }
-
-  .btn-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  }
-
-  .btn-cancel {
-    background: #f1f5f9;
-    color: #64748b;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-left: 1rem;
-  }
-
-  .btn-cancel:hover {
-    background: #e2e8f0;
-    transform: translateY(-2px);
-  }
-
-  .form-actions {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 2rem;
-  }
-
-  .error-message {
-    color: #dc2626;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-  }
-
-  .form-section {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .form-section-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #1e293b;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
     margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.ifo-back-link:hover { color: var(--ifo-white); }
+
+.ifo-title-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ifo-icon-box {
+    width: 56px;
+    height: 56px;
+    background: var(--ifo-primary);
+    border-radius: var(--ifo-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ifo-white);
+    font-size: 1.5rem;
+}
+
+.ifo-header-info { flex: 1; }
+
+.ifo-page-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--ifo-white);
+    margin: 0 0 0.25rem;
+}
+
+.ifo-page-subtitle {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+}
+
+/* Main Form Container */
+.ifo-main {
+    max-width: 900px;
+    margin: -2rem auto 2rem;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+.ifo-form-card {
+    background: var(--ifo-white);
+    border: 1px solid var(--ifo-border);
+    border-radius: var(--ifo-radius-xl);
+    box-shadow: var(--ifo-shadow-lg);
+    overflow: hidden;
+}
+
+/* Progress Indicator */
+.ifo-progress {
+    display: flex;
+    background: var(--ifo-muted);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--ifo-border);
+}
+
+.ifo-progress-step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ifo-progress-step-num {
+    width: 32px;
+    height: 32px;
+    background: var(--ifo-subtle);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ifo-text-muted);
+    transition: all 0.2s;
+}
+
+.ifo-progress-step.active .ifo-progress-step-num {
+    background: var(--ifo-primary);
+    color: var(--ifo-white);
+}
+
+.ifo-progress-step.completed .ifo-progress-step-num {
+    background: var(--ifo-success);
+    color: var(--ifo-white);
+}
+
+.ifo-progress-step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ifo-text-muted);
+    transition: color 0.2s;
+}
+
+.ifo-progress-step.active .ifo-progress-step-label { color: var(--ifo-primary); }
+.ifo-progress-step.completed .ifo-progress-step-label { color: var(--ifo-success); }
+
+@media (max-width: 640px) {
+    .ifo-progress-step-label { display: none; }
+    .ifo-progress { justify-content: center; gap: 1.5rem; }
+}
+
+/* Form Section */
+.ifo-section {
+    padding: 2rem;
+    border-bottom: 1px solid var(--ifo-border);
+}
+
+.ifo-section:last-of-type { border-bottom: none; }
+
+.ifo-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.ifo-section-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--ifo-primary-glow);
+    border-radius: var(--ifo-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ifo-primary);
+    font-size: 1.1rem;
+}
+
+.ifo-section-info { flex: 1; }
+
+.ifo-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ifo-text);
+    margin: 0 0 0.125rem;
+}
+
+.ifo-section-desc {
+    font-size: 0.8rem;
+    color: var(--ifo-text-muted);
+    margin: 0;
+}
+
+/* Form Grid */
+.ifo-form-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.ifo-form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.ifo-form-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .ifo-form-grid-2,
+    .ifo-form-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* Form Group */
+.ifo-form-group {
+    position: relative;
+}
+
+.ifo-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ifo-text);
+    margin-bottom: 0.5rem;
+}
+
+.ifo-label .required {
+    color: var(--ifo-danger);
+    margin-left: 0.25rem;
+}
+
+.ifo-input,
+.ifo-select,
+.ifo-textarea {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ifo-text);
+    background: var(--ifo-white);
+    border: 2px solid var(--ifo-border);
+    border-radius: var(--ifo-radius-md);
+    transition: all 0.2s;
+    -webkit-appearance: none;
+}
+
+.ifo-input:focus,
+.ifo-select:focus,
+.ifo-textarea:focus {
+    outline: none;
+    border-color: var(--ifo-primary);
+    box-shadow: var(--ifo-shadow-focus);
+}
+
+.ifo-input::placeholder { color: var(--ifo-text-muted); }
+
+.ifo-input.error,
+.ifo-select.error,
+.ifo-textarea.error {
+    border-color: var(--ifo-danger);
+}
+
+.ifo-textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.ifo-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+html[dir="rtl"] .ifo-select {
+    background-position: left 1rem center;
+    padding-right: 1rem;
+    padding-left: 2.5rem;
+}
+
+.ifo-select[multiple] {
+    background-image: none;
+    padding-right: 1rem;
+    height: auto;
+    min-height: 100px;
+}
+
+/* ===== Specialty Tags Picker ===== */
+.ifo-specialty-picker {
+    border: 2px solid var(--ifo-border);
+    border-radius: var(--ifo-radius-md);
+    padding: 1rem;
+    background: var(--ifo-white);
+    transition: all 0.2s;
+}
+
+.ifo-specialty-picker:focus-within {
+    border-color: var(--ifo-primary);
+    box-shadow: var(--ifo-shadow-focus);
+}
+
+.ifo-specialty-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ifo-subtle);
+}
+
+.ifo-specialty-count {
+    font-size: 0.8rem;
+    color: var(--ifo-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ifo-specialty-count strong {
+    color: var(--ifo-primary);
+    font-weight: 700;
+}
+
+.ifo-specialty-search {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
+    padding: 0.5rem 0.75rem;
+    background: var(--ifo-muted);
+    border: 1px solid var(--ifo-subtle);
+    border-radius: var(--ifo-radius-sm);
+    font-size: 0.85rem;
+    max-width: 180px;
+}
 
-  .form-section-title i {
-    color: #6366f1;
-  }
+.ifo-specialty-search i {
+    color: var(--ifo-text-muted);
+    font-size: 0.9rem;
+}
 
-  .alert {
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-  }
+.ifo-specialty-search input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.85rem;
+    width: 100%;
+    color: var(--ifo-text);
+}
 
-  .alert-success {
-    background-color: #dcfce7;
-    color: #166534;
-    border: 1px solid #86efac;
-  }
+.ifo-specialty-search input::placeholder {
+    color: var(--ifo-text-muted);
+}
 
-  .alert-error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
-  }
+.ifo-specialty-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
 
-  .alert-info {
-    background-color: #e0f2fe;
-    color: #0c4a6e;
-    border: 1px solid #67e8f9;
-  }
+.ifo-specialty-tags::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-track {
+    background: var(--ifo-muted);
+    border-radius: 3px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-thumb {
+    background: var(--ifo-subtle);
+    border-radius: 3px;
+}
+
+.ifo-specialty-tags::-webkit-scrollbar-thumb:hover {
+    background: var(--ifo-text-muted);
+}
+
+.ifo-specialty-tag {
+    position: relative;
+}
+
+.ifo-specialty-tag input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ifo-specialty-tag label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--ifo-muted);
+    border: 2px solid var(--ifo-subtle);
+    border-radius: var(--ifo-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ifo-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.ifo-specialty-tag label:hover {
+    border-color: var(--ifo-primary-light);
+    background: var(--ifo-primary-glow);
+    color: var(--ifo-primary);
+}
+
+.ifo-specialty-tag label .tag-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--ifo-white);
+    border: 2px solid var(--ifo-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: transparent;
+    transition: all 0.2s ease;
+}
+
+.ifo-specialty-tag input[type="checkbox"]:checked + label {
+    background: var(--ifo-primary);
+    border-color: var(--ifo-primary);
+    color: var(--ifo-white);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.ifo-specialty-tag input[type="checkbox"]:checked + label .tag-icon {
+    background: var(--ifo-white);
+    border-color: var(--ifo-white);
+    color: var(--ifo-primary);
+}
+
+.ifo-specialty-tag input[type="checkbox"]:focus + label {
+    box-shadow: var(--ifo-shadow-focus);
+}
+
+.ifo-specialty-tag.hidden {
+    display: none;
+}
+
+.ifo-specialty-empty {
+    width: 100%;
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--ifo-text-muted);
+    font-size: 0.9rem;
+}
+
+.ifo-specialty-empty i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Help Text */
+.ifo-help-text {
+    font-size: 0.75rem;
+    color: var(--ifo-text-muted);
+    margin-top: 0.375rem;
+}
+
+/* Error Messages */
+.ifo-error {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--ifo-danger);
+    margin-top: 0.5rem;
+}
+
+.ifo-error i { font-size: 0.9rem; }
+
+/* Non-field Errors */
+.ifo-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--ifo-danger-bg);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--ifo-radius-md);
+    margin: 1.5rem 2rem;
+}
+
+.ifo-alert-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--ifo-white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ifo-danger);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.ifo-alert-content { flex: 1; }
+
+.ifo-alert-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ifo-danger);
+    margin: 0 0 0.25rem;
+}
+
+.ifo-alert-text {
+    font-size: 0.85rem;
+    color: var(--ifo-text-secondary);
+    margin: 0;
+}
+
+/* Logo Upload Zone */
+.ifo-logo-zone {
+    position: relative;
+    border: 2px dashed var(--ifo-border);
+    border-radius: var(--ifo-radius-lg);
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.ifo-logo-zone:hover {
+    border-color: var(--ifo-primary);
+    background: var(--ifo-primary-glow);
+}
+
+.ifo-logo-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.ifo-logo-preview {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 1rem;
+    border-radius: var(--ifo-radius-lg);
+    overflow: hidden;
+    background: var(--ifo-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ifo-logo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.ifo-logo-preview i {
+    font-size: 2.5rem;
+    color: var(--ifo-text-muted);
+}
+
+.ifo-logo-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ifo-text);
+    margin: 0 0 0.25rem;
+}
+
+.ifo-logo-desc {
+    font-size: 0.8rem;
+    color: var(--ifo-text-muted);
+    margin: 0;
+}
+
+/* Form Actions */
+.ifo-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    background: var(--ifo-muted);
+    border-top: 1px solid var(--ifo-border);
+}
+
+.ifo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--ifo-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.ifo-btn-primary {
+    background: var(--ifo-primary);
+    color: var(--ifo-white);
+}
+
+.ifo-btn-primary:hover {
+    background: var(--ifo-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.ifo-btn-ghost {
+    background: transparent;
+    color: var(--ifo-text-secondary);
+    border-color: var(--ifo-border);
+}
+
+.ifo-btn-ghost:hover {
+    border-color: var(--ifo-text-muted);
+    background: var(--ifo-white);
+}
+
+@media (max-width: 500px) {
+    .ifo-actions { flex-direction: column; }
+    .ifo-btn { width: 100%; }
+}
 </style>
-{% endblock %} 
+{% endblock %}
 
 {% block content %}
-<div class="institution-form-page">
-  <div class="form-container">
-    <div class="form-header">
-      <h1 class="form-title">
-        <i class="fas fa-plus me-2"></i>
-        {% if mode == 'create' %}
-          {% trans "Create a new institution" %}
-        {% else %}
-          {% trans "Edit institution" %}
-        {% endif %}
-      </h1>
-      <p class="form-subtitle">
-        {% if mode == 'create' %} 
-          {% trans "Add a new institution to the platform" %} 
-        {% else %} 
-          {% trans "Edit institution information" %} 
-        {% endif %}
-      </p>
-    </div>
-
-    {% if messages %}
-    <div class="messages mb-4">
-      {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    <form method="post" class="institution-form" enctype="multipart/form-data">
-      {% csrf_token %} 
-      
-      {% if form.non_field_errors %}
-      <div class="alert alert-error mb-4">
-        {% for error in form.non_field_errors %}
-        <p>{{ error }}</p>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="form-section">
-        <h2 class="form-section-title">
-          <i class="fas fa-info-circle"></i>
-          {% trans "General information" %}
-        </h2>
-
-        <div class="form-group">
-          <label for="{{ form.name.id_for_label }}" class="form-label">
-            {% trans "Name of the institution" %} *
-          </label>
-          {{ form.name }} 
-          {% if form.name.errors %}
-          <div class="error-message">{{ form.name.errors }}</div>
-          {% endif %}
-          <div class="form-text">{% trans "The full name of the institution" %}</div>
+<div class="ifo-page">
+    
+    <!-- Header -->
+    <header class="ifo-header">
+        <div class="ifo-header-content">
+            <a href="{% url 'institutions:institution_list' %}" class="ifo-back-link">
+                <i class="bi bi-arrow-left"></i>
+                {% translate "Back to Institutions" %}
+            </a>
+            <div class="ifo-title-row">
+                <div class="ifo-icon-box">
+                    <i class="bi bi-building-add"></i>
+                </div>
+                <div class="ifo-header-info">
+                    <h1 class="ifo-page-title">
+                        {% if mode == 'update' %}
+                            {% translate "Edit Institution" %}
+                        {% else %}
+                            {% translate "Register Institution" %}
+                        {% endif %}
+                    </h1>
+                    <p class="ifo-page-subtitle">
+                        {% if mode == 'update' %}
+                            {% translate "Update the institution's profile information" %}
+                        {% else %}
+                            {% translate "Add a new university, research center, or lab to the network" %}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
         </div>
-
-        <div class="form-group">
-          <label for="{{ form.acronym.id_for_label }}" class="form-label">
-            {% trans "Sigle" %}
-          </label>
-          {{ form.acronym }} 
-          {% if form.acronym.errors %}
-          <div class="error-message">{{ form.acronym.errors }}</div>
-          {% endif %}
-          <div class="form-text">
-            {% trans "The institution's acronym or abbreviation" %}
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.type.id_for_label }}" class="form-label">
-            {% trans "Type of institution" %} *
-          </label>
-          {{ form.type }} 
-          {% if form.type.errors %}
-          <div class="error-message">{{ form.type.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.description.id_for_label }}" class="form-label">
-            {% trans "Description" %}
-          </label>
-          {{ form.description }} 
-          {% if form.description.errors %}
-          <div class="error-message">{{ form.description.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.specialties.id_for_label }}" class="form-label">
-            {% trans "Specialties" %}
-          </label>
-          {{ form.specialties }} 
-          {% if form.specialties.errors %}
-          <div class="error-message">{{ form.specialties.errors }}</div>
-          {% endif %}
-          
-          
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.logo.id_for_label }}" class="form-label">
-            {% trans "Logo" %}
-          </label>
-          {{ form.logo }} 
-          {% if form.logo.errors %}
-          <div class="error-message">{{ form.logo.errors }}</div>
-          {% endif %}
-          <div class="form-text">
-            {% trans "Upload the institution logo (recommended format: PNG or JPG)" %}
-          </div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h2 class="form-section-title">
-          <i class="fas fa-map-marker-alt"></i>
-          {% trans "Localisation" %}
-        </h2>
-
-        <div class="form-group">
-          <label for="{{ form.country.id_for_label }}" class="form-label">
-            {% trans "Country" %} *
-          </label>
-          {{ form.country }} 
-          {% if form.country.errors %}
-          <div class="error-message">{{ form.country.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.city.id_for_label }}" class="form-label">
-            {% trans "City" %} *
-          </label>
-          {{ form.city }} 
-          {% if form.city.errors %}
-          <div class="error-message">{{ form.city.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.address.id_for_label }}" class="form-label">
-            {% trans "Adresse" %}
-          </label>
-          {{ form.address }} 
-          {% if form.address.errors %}
-          <div class="error-message">{{ form.address.errors }}</div>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h2 class="form-section-title">
-          <i class="fas fa-globe"></i>
-          {% trans "Contact" %}
-        </h2>
-
-        <div class="form-group">
-          <label for="{{ form.website.id_for_label }}" class="form-label">
-            {% trans "web Site" %}
-          </label>
-          {{ form.website }} 
-          {% if form.website.errors %}
-          <div class="error-message">{{ form.website.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.email.id_for_label }}" class="form-label">
-            {% trans "Email" %}
-          </label>
-          {{ form.email }} 
-          {% if form.email.errors %}
-          <div class="error-message">{{ form.email.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.phone.id_for_label }}" class="form-label">
-            {% trans "Phone" %}
-          </label>
-          {{ form.phone }} 
-          {% if form.phone.errors %}
-          <div class="error-message">{{ form.phone.errors }}</div>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn-submit">
-          {% if mode == 'create' %}
-            <i class="fas fa-save me-2"></i>{% trans "Create the institution" %} 
-          {% else %} 
-            <i class="fas fa-plus me-2"></i>{% trans "Save changes" %} 
-          {% endif %}
-        </button>
-        <a href="{% url 'pages:admin_institutions' %}" class="btn-cancel">
-          <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
-        </a>
-      </div>
-    </form>
-  </div>
+    </header>
+    
+    <!-- Main Form -->
+    <main class="ifo-main">
+        <form method="post" enctype="multipart/form-data" class="ifo-form-card">
+            {% csrf_token %}
+            
+            <!-- Progress Indicator -->
+            <div class="ifo-progress">
+                <div class="ifo-progress-step active" data-section="1">
+                    <span class="ifo-progress-step-num">1</span>
+                    <span class="ifo-progress-step-label">{% translate "Identity & Logo" %}</span>
+                </div>
+                <div class="ifo-progress-step" data-section="2">
+                    <span class="ifo-progress-step-num">2</span>
+                    <span class="ifo-progress-step-label">{% translate "Research Focus" %}</span>
+                </div>
+                <div class="ifo-progress-step" data-section="3">
+                    <span class="ifo-progress-step-num">3</span>
+                    <span class="ifo-progress-step-label">{% translate "Contact Details" %}</span>
+                </div>
+            </div>
+            
+            <!-- Non-field Errors -->
+            {% if form.non_field_errors %}
+            <div class="ifo-alert">
+                <div class="ifo-alert-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="ifo-alert-content">
+                    <h4 class="ifo-alert-title">{% translate "Please fix the following errors" %}</h4>
+                    {% for error in form.non_field_errors %}
+                    <p class="ifo-alert-text">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Section 1: Identity & Logo -->
+            <div class="ifo-section" data-section="1">
+                <div class="ifo-section-header">
+                    <div class="ifo-section-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="ifo-section-info">
+                        <h2 class="ifo-section-title">{% translate "Identity & Logo" %}</h2>
+                        <p class="ifo-section-desc">{% translate "Basic information and branding" %}</p>
+                    </div>
+                </div>
+                
+                <div class="ifo-form-grid">
+                    <!-- Logo Upload -->
+                    <div class="ifo-form-group">
+                        <label class="ifo-label">{% translate "Institution Logo" %}</label>
+                        <div class="ifo-logo-zone">
+                            <input type="file" name="logo" accept="image/*">
+                            <div class="ifo-logo-preview">
+                                {% if form.instance.logo %}
+                                <img src="{{ form.instance.logo.url }}" alt="{% translate 'Current Logo' %}">
+                                {% else %}
+                                <i class="bi bi-image"></i>
+                                {% endif %}
+                            </div>
+                            <p class="ifo-logo-title">{% translate "Drop logo here or click to upload" %}</p>
+                            <p class="ifo-logo-desc">{% translate "PNG, JPG, or SVG. Recommended 200x200px." %}</p>
+                        </div>
+                        {% for error in form.logo.errors %}
+                        <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="ifo-form-grid-2">
+                        <!-- Name EN -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">
+                                {% translate "Name (English)" %}
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" name="name_en" class="ifo-input {% if form.name_en.errors %}error{% endif %}"
+                                   value="{{ form.name_en.value|default_if_none:'' }}"
+                                   placeholder="{% translate 'Enter institution name in English' %}">
+                            {% for error in form.name_en.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Name AR -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Name (Arabic)" %}</label>
+                            <input type="text" name="name_ar" class="ifo-input {% if form.name_ar.errors %}error{% endif %}"
+                                   value="{{ form.name_ar.value|default_if_none:'' }}"
+                                   placeholder="{% translate 'Enter institution name in Arabic' %}"
+                                   dir="rtl">
+                            {% for error in form.name_ar.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="ifo-form-grid-3">
+                        <!-- Acronym -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Acronym" %}</label>
+                            <input type="text" name="acronym" class="ifo-input {% if form.acronym.errors %}error{% endif %}"
+                                   value="{{ form.acronym.value|default_if_none:'' }}"
+                                   placeholder="{% translate 'e.g., MIT' %}">
+                            {% for error in form.acronym.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Type -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">
+                                {% translate "Type" %}
+                                <span class="required">*</span>
+                            </label>
+                            <select name="type" class="ifo-select {% if form.type.errors %}error{% endif %}">
+                                <option value="">{% translate "Select type" %}</option>
+                                {% for value, label in form.fields.type.choices %}
+                                <option value="{{ value }}" {% if form.type.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for error in form.type.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Country -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">
+                                {% translate "Country" %}
+                                <span class="required">*</span>
+                            </label>
+                            <select name="country" class="ifo-select {% if form.country.errors %}error{% endif %}">
+                                <option value="">{% translate "Select country" %}</option>
+                                {% for country in form.fields.country.queryset %}
+                                <option value="{{ country.pk }}" {% if form.country.value|stringformat:"s" == country.pk|stringformat:"s" %}selected{% endif %}>{{ country }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for error in form.country.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="ifo-form-grid-2">
+                        <!-- City EN -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">
+                                {% translate "City (English)" %}
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" name="city_en" class="ifo-input {% if form.city_en.errors %}error{% endif %}"
+                                   value="{{ form.city_en.value|default_if_none:'' }}"
+                                   placeholder="{% translate 'Enter city in English' %}">
+                            {% for error in form.city_en.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- City AR -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "City (Arabic)" %}</label>
+                            <input type="text" name="city_ar" class="ifo-input {% if form.city_ar.errors %}error{% endif %}"
+                                   value="{{ form.city_ar.value|default_if_none:'' }}"
+                                   placeholder="{% translate 'Enter city in Arabic' %}"
+                                   dir="rtl">
+                            {% for error in form.city_ar.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 2: Research Focus -->
+            <div class="ifo-section" data-section="2">
+                <div class="ifo-section-header">
+                    <div class="ifo-section-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div class="ifo-section-info">
+                        <h2 class="ifo-section-title">{% translate "Research Focus" %}</h2>
+                        <p class="ifo-section-desc">{% translate "Describe the institution's research areas and expertise" %}</p>
+                    </div>
+                </div>
+                
+                <div class="ifo-form-grid">
+                    <!-- Description EN -->
+                    <div class="ifo-form-group">
+                        <label class="ifo-label">{% translate "Description (English)" %}</label>
+                        <textarea name="description_en" class="ifo-textarea {% if form.description_en.errors %}error{% endif %}"
+                                  placeholder="{% translate 'Describe the institution research focus, achievements, and mission...' %}">{{ form.description_en.value|default_if_none:'' }}</textarea>
+                        {% for error in form.description_en.errors %}
+                        <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Description AR -->
+                    <div class="ifo-form-group">
+                        <label class="ifo-label">{% translate "Description (Arabic)" %}</label>
+                        <textarea name="description_ar" class="ifo-textarea {% if form.description_ar.errors %}error{% endif %}"
+                                  placeholder="{% translate 'Enter description in Arabic' %}"
+                                  dir="rtl">{{ form.description_ar.value|default_if_none:'' }}</textarea>
+                        {% for error in form.description_ar.errors %}
+                        <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Specialties -->
+                    <div class="ifo-form-group">
+                        <label class="ifo-label">{% translate "Research Specialties" %}</label>
+                        <div class="ifo-specialty-picker">
+                            <div class="ifo-specialty-header">
+                                <span class="ifo-specialty-count">
+                                    <i class="bi bi-bookmark-check"></i>
+                                    <span><strong id="selectedCount">0</strong> {% translate "selected" %}</span>
+                                </span>
+                                <div class="ifo-specialty-search">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" id="specialtySearch" placeholder="{% translate 'Search...' %}">
+                                </div>
+                            </div>
+                            <div class="ifo-specialty-tags" id="specialtyTags">
+                                {% for specialty in form.fields.specialties.queryset %}
+                                <div class="ifo-specialty-tag" data-name="{{ specialty.get_localized_name|lower }}">
+                                    <input type="checkbox" 
+                                           name="specialties" 
+                                           value="{{ specialty.pk }}" 
+                                           id="specialty_{{ specialty.pk }}"
+                                           {% if specialty.pk in form.specialties.value %}checked{% endif %}>
+                                    <label for="specialty_{{ specialty.pk }}">
+                                        <span class="tag-icon"><i class="bi bi-check"></i></span>
+                                        {{ specialty.get_localized_name }}
+                                    </label>
+                                </div>
+                                {% empty %}
+                                <div class="ifo-specialty-empty">
+                                    <i class="bi bi-inbox"></i>
+                                    {% translate "No specialties available" %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <p class="ifo-help-text">{% translate "Click tags to select multiple research areas" %}</p>
+                        {% for error in form.specialties.errors %}
+                        <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 3: Contact Details -->
+            <div class="ifo-section" data-section="3">
+                <div class="ifo-section-header">
+                    <div class="ifo-section-icon">
+                        <i class="bi bi-person-lines-fill"></i>
+                    </div>
+                    <div class="ifo-section-info">
+                        <h2 class="ifo-section-title">{% translate "Contact Details" %}</h2>
+                        <p class="ifo-section-desc">{% translate "How to reach and connect with this institution" %}</p>
+                    </div>
+                </div>
+                
+                <div class="ifo-form-grid">
+                    <div class="ifo-form-grid-2">
+                        <!-- Website -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Official Website" %}</label>
+                            <input type="url" name="website" class="ifo-input {% if form.website.errors %}error{% endif %}"
+                                   value="{{ form.website.value|default_if_none:'' }}"
+                                   placeholder="https://www.example.edu">
+                            {% for error in form.website.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Email -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Official Email" %}</label>
+                            <input type="email" name="email" class="ifo-input {% if form.email.errors %}error{% endif %}"
+                                   value="{{ form.email.value|default_if_none:'' }}"
+                                   placeholder="contact@example.edu">
+                            {% for error in form.email.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Phone -->
+                    <div class="ifo-form-group">
+                        <label class="ifo-label">{% translate "Phone Number" %}</label>
+                        <input type="tel" name="phone" class="ifo-input {% if form.phone.errors %}error{% endif %}"
+                               value="{{ form.phone.value|default_if_none:'' }}"
+                               placeholder="+1 (234) 567-8900">
+                        {% for error in form.phone.errors %}
+                        <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="ifo-form-grid-2">
+                        <!-- Address EN -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Address (English)" %}</label>
+                            <textarea name="address_en" class="ifo-textarea {% if form.address_en.errors %}error{% endif %}" rows="3"
+                                      placeholder="{% translate 'Full mailing address...' %}">{{ form.address_en.value|default_if_none:'' }}</textarea>
+                            {% for error in form.address_en.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Address AR -->
+                        <div class="ifo-form-group">
+                            <label class="ifo-label">{% translate "Address (Arabic)" %}</label>
+                            <textarea name="address_ar" class="ifo-textarea {% if form.address_ar.errors %}error{% endif %}" rows="3"
+                                      placeholder="{% translate 'Enter address in Arabic' %}"
+                                      dir="rtl">{{ form.address_ar.value|default_if_none:'' }}</textarea>
+                            {% for error in form.address_ar.errors %}
+                            <div class="ifo-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="ifo-actions">
+                <a href="{% url 'institutions:institution_list' %}" class="ifo-btn ifo-btn-ghost">
+                    <i class="bi bi-x-lg"></i>
+                    {% translate "Cancel" %}
+                </a>
+                <button type="submit" class="ifo-btn ifo-btn-primary">
+                    <i class="bi bi-check-lg"></i>
+                    {% if mode == 'update' %}
+                        {% translate "Update Institution" %}
+                    {% else %}
+                        {% translate "Register Institution" %}
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+    </main>
 </div>
 
-{% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-$(document).ready(function() {
-  $('#id_specialties').select2({
-    tags: true,
-    tokenSeparators: [',', ' '],
-    placeholder: "{% trans 'Select or add specialties...' %}",
-    allowClear: true,
-    width: '100%',
-    createTag: function (params) {
-      var term = $.trim(params.term);
-      
-      if (term === '') {
-        return null;
-      }
-      
-      // Validation côté client
-      if (term.length < 2) {
-        return null;
-      }
-      
-      if (term.length > 100) {
-        return null;
-      }
-      
-      return {
-        id: term,
-        text: term,
-        newTag: true
-      };
-    },
-    templateResult: function(data) {
-      if (data.newTag) {
-        return $('<span><i class="fas fa-plus text-success"></i> {% trans "Créer" %}: ' + data.text + '</span>');
-      }
-      return data.text;
-    },
-    templateSelection: function(data) {
-      return data.text;
-    },
-    language: {
-      noResults: function() {
-        return "{% trans 'Aucune spécialité trouvée. Tapez pour en créer une nouvelle.' %}";
-      },
-      searching: function() {
-        return "{% trans 'Recherche en cours...' %}";
-      },
-      inputTooShort: function(args) {
-        return "{% trans 'Tapez au moins 2 caractères' %}";
-      },
-      inputTooLong: function(args) {
-        return "{% trans 'Nom trop long (max 100 caractères)' %}";
-      }
-    }
-  });
-
-  // Validation en temps réel
-  $('#id_specialties').on('select2:select', function(e) {
-    var data = e.params.data;
-    if (data.newTag) {
-      // Afficher un feedback visuel pour la nouvelle spécialité
-      $(this).next('.select2-container').find('.select2-selection__choice').last().addClass('new-specialty');
-    }
-  });
-
-  // Gestion de la soumission du formulaire
-  $('.institution-form').on('submit', function(e) {
-    // Récupérer toutes les valeurs sélectionnées
-    var selectedValues = $('#id_specialties').val();
+document.addEventListener('DOMContentLoaded', function() {
+    // Progress steps click handlers
+    const progressSteps = document.querySelectorAll('.ifo-progress-step');
     
-    // S'assurer que toutes les valeurs sont préservées
-    if (selectedValues && selectedValues.length > 0) {
-      // Créer des champs cachés pour toutes les valeurs
-      selectedValues.forEach(function(value) {
-        // Supprimer les anciens champs cachés pour éviter les doublons
-        $('input[name="specialties"][value="' + value + '"]').remove();
-        
-        // Créer un nouveau champ caché
-        $('<input>')
-          .attr('type', 'hidden')
-          .attr('name', 'specialties')
-          .attr('value', value)
-          .appendTo(this);
-      }.bind(this));
+    progressSteps.forEach(step => {
+        step.addEventListener('click', function() {
+            const sectionNum = this.dataset.section;
+            const section = document.querySelector(`.ifo-section[data-section="${sectionNum}"]`);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+    
+    // Update progress on scroll
+    const sections = document.querySelectorAll('.ifo-section');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const sectionNum = entry.target.dataset.section;
+                
+                progressSteps.forEach(step => {
+                    const stepNum = parseInt(step.dataset.section);
+                    const currentNum = parseInt(sectionNum);
+                    
+                    step.classList.remove('active', 'completed');
+                    if (stepNum === currentNum) {
+                        step.classList.add('active');
+                    } else if (stepNum < currentNum) {
+                        step.classList.add('completed');
+                    }
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    sections.forEach(section => observer.observe(section));
+    
+    // Logo upload preview
+    const logoZone = document.querySelector('.ifo-logo-zone');
+    const logoInput = logoZone?.querySelector('input[type="file"]');
+    const logoPreview = logoZone?.querySelector('.ifo-logo-preview');
+    
+    if (logoInput && logoPreview) {
+        logoInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoPreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
     }
-  });
-
-  // Ajouter du CSS pour les nouvelles spécialités
-  $('<style>')
-    .prop('type', 'text/css')
-    .html('.new-specialty { background-color: #10b981 !important; animation: pulse 1s ease-in-out; }')
-    .appendTo('head');
+    
+    // Specialty tags functionality
+    const specialtyCheckboxes = document.querySelectorAll('.ifo-specialty-tag input[type="checkbox"]');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const specialtySearch = document.getElementById('specialtySearch');
+    const specialtyTags = document.querySelectorAll('.ifo-specialty-tag');
+    
+    // Update count on change
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.ifo-specialty-tag input[type="checkbox"]:checked').length;
+        if (selectedCountEl) {
+            selectedCountEl.textContent = count;
+        }
+    }
+    
+    // Initialize count
+    updateSelectedCount();
+    
+    // Listen for changes
+    specialtyCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Search/filter functionality
+    if (specialtySearch) {
+        specialtySearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            
+            specialtyTags.forEach(tag => {
+                const name = tag.dataset.name || '';
+                if (query === '' || name.includes(query)) {
+                    tag.classList.remove('hidden');
+                } else {
+                    tag.classList.add('hidden');
+                }
+            });
+        });
+    }
 });
 </script>
-{% endblock %}
 {% endblock %}

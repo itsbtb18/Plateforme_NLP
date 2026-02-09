@@ -284,6 +284,135 @@
     opacity: 0.6;
     pointer-events: none;
   }
+
+  /* Approval Action Buttons */
+  .action-btn-approve {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--success-color);
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+    transition: all 0.2s ease;
+    margin: 0 2px;
+    text-decoration: none;
+  }
+
+  .action-btn-approve:hover {
+    background-color: var(--success-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .action-btn-reject {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--danger-color);
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    transition: all 0.2s ease;
+    margin: 0 2px;
+    text-decoration: none;
+  }
+
+  .action-btn-reject:hover {
+    background-color: var(--danger-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Approval Tabs */
+  .approval-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0;
+  }
+
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+
+  .tab-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+  }
+
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: var(--secondary-color);
+    color: var(--text-secondary);
+  }
+
+  .tab-btn.active .tab-badge {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: var(--primary-color);
+  }
+
+  .tab-btn.pending .tab-badge {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+  }
+
+  .tab-btn.pending.active .tab-badge {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: var(--warning-color);
+  }
+
+  /* Status Badge */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-pending {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+  }
+
+  .status-approved {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+  }
 </style>
 {% endblock extra_css %}
 
@@ -348,16 +477,108 @@
     </div>
   </div>
 
+  <!-- Approval Tabs -->
+  <div class="approval-tabs animate-fade-in">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" 
+       class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
+      <i class="fas fa-check-circle"></i>
+      {% trans "Approved" %}
+      <span class="tab-badge">{{ approved_count|default:0 }}</span>
+    </a>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" 
+       class="tab-btn pending {% if active_tab == 'pending' %}active{% endif %}">
+      <i class="fas fa-clock"></i>
+      {% trans "Pending Review" %}
+      <span class="tab-badge">{{ pending_count|default:0 }}</span>
+    </a>
+  </div>
+
   <!-- Tableau principal -->
   <div class="main-table-card animate-fade-in">
     <div class="table-header">
       <div class="d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold">
-          <i class="fas fa-list me-2"></i>{% trans "Forum topics" %}
+          <i class="fas fa-list me-2"></i>
+          {% if active_tab == 'pending' %}{% trans "Pending Topics" %}{% else %}{% trans "Forum topics" %}{% endif %}
         </h5>
-        <span class="badge bg-white text-primary px-3 py-2 rounded-pill">{{ total_topics_count }} {% trans "topics" %}</span>
+        <span class="badge bg-white text-primary px-3 py-2 rounded-pill">
+          {% if active_tab == 'pending' %}{{ pending_count|default:0 }}{% else %}{{ approved_count|default:0 }}{% endif %} {% trans "topics" %}
+        </span>
       </div>
     </div>
+
+    {% if active_tab == 'pending' %}
+    <!-- Pending Topics Table -->
+    <div class="table-responsive">
+      <table class="custom-table table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 30%;">{% trans "topics" %}</th>
+            <th style="width: 15%;">{% trans "Author" %}</th>
+            <th style="width: 12%;">{% trans "Date" %}</th>
+            <th style="width: 10%;">{% trans "Status" %}</th>
+            <th style="width: 25%;" class="text-center">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for topic in pending_topics %}
+          <tr>
+            <td class="p-3">
+              <div>
+                <div class="topic-title mb-1">{{ topic.get_localized_title }}</div>
+                <div class="topic-preview">{{ topic.get_localized_description|truncatechars:100 }}</div>
+              </div>
+            </td>
+            <td class="p-3">
+              <div class="author-info">
+                <div class="author-avatar">{{ topic.creator.full_name|slice:":2"|upper }}</div>
+                <span class="fw-medium">{{ topic.creator.full_name }}</span>
+              </div>
+            </td>
+            <td class="p-3">
+              <div class="small">{{ topic.created_at|date:"d/m/Y" }}</div>
+              <div class="small text-muted">{{ topic.created_at|date:"H:i" }}</div>
+            </td>
+            <td class="p-3">
+              <span class="status-badge status-pending">{% trans "Pending" %}</span>
+            </td>
+            <td class="p-3">
+              <div class="d-flex justify-content-center gap-1">
+                <!-- Review & Edit -->
+                <a href="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <!-- Reject -->
+                {% translate "Are you sure you want to reject this topic?" as confirm_topic_msg %}
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type='topic' pk=topic.pk %}" style="display: inline;" onsubmit="return confirm('{{ confirm_topic_msg }}');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+                <!-- View -->
+                <a href="{% url 'forum:topic-list' %}" class="action-btn btn btn-outline-primary" title="{% trans 'View topic' %}">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <h3 class="empty-state-title">{% trans "No pending topics" %}</h3>
+                <p class="empty-state-description">{% trans "All topics have been reviewed. Great job!" %}</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <!-- Approved Topics Table -->
 
     <div class="table-responsive">
       <table class="custom-table table align-middle">
@@ -371,12 +592,12 @@
           </tr>
         </thead>
         <tbody>
-          {% for topic in topics %}
+          {% for topic in approved_topics %}
           <tr>
             <td class="p-3">
               <div>
-                <div class="topic-title mb-1">{{ topic.title }}</div>
-                <div class="topic-preview">{{ topic.description|truncatechars:100 }}</div>
+                <div class="topic-title mb-1">{{ topic.get_localized_title }}</div>
+                <div class="topic-preview">{{ topic.get_localized_description|truncatechars:100 }}</div>
               </div>
             </td>
             <td class="p-3">
@@ -395,7 +616,7 @@
             <td class="p-3">
               <div class="d-flex justify-content-center gap-1">
                 <!-- Voir le topic -->
-                <a href="{% url 'forum:topic-list'  %}" class="action-btn btn btn-outline-primary" title="{% trans 'View topic' %}">
+                <a href="{% url 'forum:topic-list' %}" class="action-btn btn btn-outline-primary" title="{% trans 'View topic' %}">
                   <i class="fas fa-eye"></i>
                 </a>
                 
@@ -413,7 +634,7 @@
                 
                 <!-- Voir les chatrooms (si disponibles) -->
                 {% if topic.chatrooms.first %}
-                  <a href="{% url 'forum:chatroom-list' topic.id  %}" class="action-btn btn btn-outline-info" title="{% trans 'View chatroom' %}">
+                  <a href="{% url 'forum:chatroom-list' topic.id %}" class="action-btn btn btn-outline-info" title="{% trans 'View chatroom' %}">
                     <i class="fas fa-comments"></i>
                   </a>
                 {% endif %}
@@ -434,6 +655,7 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
   </div>
 
   <!-- Pagination -->

@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from django.db import models
 from django.urls import reverse
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
 
@@ -71,8 +72,8 @@ def question_detail(request, pk):
                 NotificationService.create_notification(
                     recipient=question.author,
                     notification_type='QA_ANSWER',
-                    title="New answer to your question",
-                    message=f"{request.user.username} answered your question « {question.title} ».",
+                    title=_("New answer to your question"),
+                    message=_("%(username)s answered your question « %(title)s ».") % {'username': request.user.username, 'title': question.title},
                     related_object=question
                 )
             return redirect('QA:question_detail', pk=pk)
@@ -90,13 +91,13 @@ def search_questions(request):
     return render(request, 'QA/search.html', {'results': results, 'query': query})
 
 def qa_home(request):
-    # Posts populaires (les plus likés)
-    popular_posts = Post.objects.annotate(
+    # Posts populaires (les plus likés) - only approved
+    popular_posts = Post.objects.filter(approval_status='approved').annotate(
         like_count=models.Count('likes')
     ).order_by('-like_count', '-created_at')[:5]
 
-    # Posts récents
-    recent_posts = Post.objects.order_by('-created_at')[:5]
+    # Posts récents - only approved
+    recent_posts = Post.objects.filter(approval_status='approved').order_by('-created_at')[:5]
 
     # Questions récentes
     recent_questions = Question.objects.order_by('-created_at')[:5]
@@ -119,29 +120,57 @@ def qa_home(request):
 @login_required
 @login_and_verified_required
 def feed(request):
-    posts = Post.objects.all()
+    """Research Feed with filtering and sorting support."""
+    # Get filter parameter
+    filter_type = request.GET.get('filter', 'all')
+    
+    # Only show approved posts - strict approval workflow
+    posts = Post.objects.filter(approval_status='approved')
+    
+    # Apply filters
+    if filter_type == 'my_posts':
+        posts = posts.filter(author=request.user)
+    elif filter_type == 'popular':
+        # Sort by likes count
+        posts = posts.annotate(
+            like_count=Count('likes')
+        ).order_by('-like_count', '-created_at')
+    else:
+        # Default: all posts, newest first
+        posts = posts.order_by('-created_at')
+    
     post_form = PostForm()
     comment_form = CommentForm()
+    
     return render(request, 'QA/feed.html', {
         'posts': posts,
         'post_form': post_form,
         'comment_form': comment_form,
-        'page': 'feed'
+        'page': 'feed',
+        'current_filter': filter_type,
     })
 
 @login_required
 @login_and_verified_required
 def create_post(request):
+    """Dedicated page for creating a new post."""
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
             post = form.save(commit=False)
             post.author = request.user
+            # All posts require admin approval - no exceptions
+            post.approval_status = 'pending'
             post.save()
-            messages.success(request, 'Your post has been successfully created.')
+            messages.info(request, _('Your post has been submitted and is pending admin approval.'))
             return redirect('QA:feed')
-        
-    return redirect('QA:feed')
+    else:
+        form = PostForm()
+    
+    return render(request, 'QA/create_post.html', {
+        'form': form,
+        'page': 'feed',
+    })
 
 
 
@@ -149,7 +178,9 @@ def create_post(request):
 @login_required
 @login_and_verified_required
 def post_detail(request, slug):
-    post = get_object_or_404(Post, slug=slug)
+    # Only allow viewing approved posts - pending posts only visible in Admin
+    post = get_object_or_404(Post, slug=slug, approval_status='approved')
+    
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {
         'post': post,
@@ -179,8 +210,8 @@ def add_comment(request, post_id):
                 NotificationService.create_notification(
                     recipient=parent_comment.author,
                     notification_type='comment_reply',
-                    title="New reply to your comment",
-                    message=f"{request.user.full_name} replied to your comment.",
+                    title=_("New reply to your comment"),
+                    message=_("%(name)s replied to your comment.") % {'name': request.user.full_name},
                     related_object=post
                 )
         
@@ -191,8 +222,8 @@ def add_comment(request, post_id):
             NotificationService.create_notification(
                 recipient=post.author,
                 notification_type='comment',
-                title="New comment",
-                message=f"{request.user.full_name} commented on your post.",
+                title=_("New comment"),
+                message=_("%(name)s commented on your post.") % {'name': request.user.full_name},
                 related_object=post
             )
         
@@ -235,8 +266,8 @@ def like_post(request, post_id):
             NotificationService.create_notification(
                 recipient=post.author,
                 notification_type='like',
-                title="New I like",
-                message=f"{request.user.full_name} liked your post.",
+                title=_("New like"),
+                message=_("%(name)s liked your post.") % {'name': request.user.full_name},
                 related_object=post
             )
     
@@ -264,8 +295,8 @@ def like_comment(request, comment_id):
             NotificationService.create_notification(
                 recipient=comment.author,
                 notification_type='like',
-                title="New I like",
-                message=f"{request.user.full_name} liked your comment.",
+                title=_("New like"),
+                message=_("%(name)s liked your comment.") % {'name': request.user.full_name},
                 related_object=comment.post
             )
     
@@ -294,7 +325,17 @@ def delete_comment(request, comment_id):
 @login_required
 @login_and_verified_required
 def edit_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id, author=request.user)
+    post = get_object_or_404(Post, id=post_id)
+    
+    # Check permission: author, staff, or superuser
+    is_admin = request.user.is_staff or request.user.is_superuser
+    if post.author != request.user and not is_admin:
+        messages.error(request, 'You do not have permission to edit this post.')
+        return redirect('QA:post_detail', slug=post.slug)
+    
+    # Admin review mode
+    review_mode = request.GET.get('review') == '1' and is_admin
+    is_pending = post.approval_status == 'pending'
 
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES, instance=post)
@@ -309,16 +350,42 @@ def edit_post(request, post_id):
                 post.file.delete()
                 post.file = None
 
-            post = form.save()
+            post = form.save(commit=False)
+            
+            # Handle bilingual fields from admin review mode
+            if review_mode:
+                if request.POST.get('title_en'):
+                    post.title_en = request.POST.get('title_en', '')
+                    post.title = request.POST.get('title_en', post.title)  # Set main title
+                if request.POST.get('title_ar'):
+                    post.title_ar = request.POST.get('title_ar', '')
+                if request.POST.get('content_en'):
+                    post.content_en = request.POST.get('content_en', '')
+                if request.POST.get('content_ar'):
+                    post.content_ar = request.POST.get('content_ar', '')
+            
+            # Handle "Approve & Publish" action
+            if request.POST.get('action') == 'approve' and is_admin:
+                post.approval_status = 'approved'
+                post.save()
+                messages.success(request, _('Post has been approved and published.'))
+                return redirect('pages:admin_news')
+            
+            post.save()
             messages.success(request, 'Your post has been successfully edited.')
+            
+            if review_mode:
+                return redirect('pages:admin_news')
             return redirect('QA:post_detail', slug=post.slug)
     else:
         form = PostForm(instance=post)
 
     return render(request, 'QA/edit_post.html', {
         'form': form,
-        'post': post , 
-        'page': 'feed'
+        'post': post,
+        'page': 'feed',
+        'review_mode': review_mode,
+        'is_pending': is_pending,
     })
 
 @login_required

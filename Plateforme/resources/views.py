@@ -1,4 +1,4 @@
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.utils.timezone import now
 from django.shortcuts import redirect, render, get_object_or_404
 from django.views.generic import ListView, DetailView
@@ -16,6 +16,7 @@ from django.db import models
 from .models import Document, NLPTool, Article, Thesis, Memoir, Course, Corpus, ResourceBase
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
+from django.utils.translation import gettext_lazy as _
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
 
@@ -35,10 +36,13 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         field_filter = self.request.GET.get('field', '')
         language_filter = self.request.GET.get('language', '')
         
+        # Base filter: only show approved content (unless staff)
+        approval_filter = {} if self.request.user.is_staff else {'approval_status': 'approved'}
+        
         querysets = []
         
         if resource_type in ['', 'article', 'thesis', 'memoir']:
-            docs = Document.objects.all()
+            docs = Document.objects.filter(**approval_filter)
             if language_filter:
                 docs = docs.filter(language=language_filter)
             if resource_type in ['article', 'thesis', 'memoir']:
@@ -46,23 +50,27 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             if search_query:
                 docs = docs.filter(
                     Q(title__icontains=search_query) | 
-                    Q(description__icontains=search_query)
+                    Q(description__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query)
                 )
             querysets.append(docs)
         
         if resource_type in ['', 'tool']:
-            tools = NLPTool.objects.all()
+            tools = NLPTool.objects.filter(**approval_filter)
             if language_filter:
                 tools = tools.filter(supported_languages__contains=language_filter)
             if search_query:
                 tools = tools.filter(
                     Q(title__icontains=search_query) | 
-                    Q(description__icontains=search_query)
+                    Q(description__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query)
                 )
             querysets.append(tools)
         
         if resource_type in ['', 'course']:
-            courses = Course.objects.all()
+            courses = Course.objects.filter(**approval_filter)
             if language_filter:
                 courses = courses.filter(language=language_filter)
             if field_filter:
@@ -70,12 +78,14 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             if search_query:
                 courses = courses.filter(
                     Q(title__icontains=search_query) | 
-                    Q(description__icontains=search_query)
+                    Q(description__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query)
                 )
             querysets.append(courses)
         
         if resource_type in ['', 'corpus']:
-            corpora = Corpus.objects.all()
+            corpora = Corpus.objects.filter(**approval_filter)
             if language_filter:
                 corpora = corpora.filter(language=language_filter)
             if field_filter:
@@ -83,7 +93,9 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             if search_query:
                 corpora = corpora.filter(
                     Q(title__icontains=search_query) | 
-                    Q(description__icontains=search_query)
+                    Q(description__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query)
                 )
             querysets.append(corpora)
 
@@ -93,7 +105,14 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
                 obj.resource_type = self.get_resource_type(obj)
                 combined.append(obj)
 
-        return sorted(combined, key=lambda x: x.creation_date, reverse=True)
+        # Handle sorting
+        sort_by = self.request.GET.get('sort', 'newest')
+        if sort_by == 'oldest':
+            return sorted(combined, key=lambda x: x.creation_date, reverse=False)
+        elif sort_by == 'popular':
+            return sorted(combined, key=lambda x: getattr(x, 'views_count', 0), reverse=True)
+        else:  # default: newest
+            return sorted(combined, key=lambda x: x.creation_date, reverse=True)
 
     def get_resource_type(self, obj):
         if isinstance(obj, Document):
@@ -115,8 +134,98 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         context['field_choices'] = FieldChoices.choices
         context['current_field'] = self.request.GET.get('field', '')
         context['current_language'] = self.request.GET.get('language', '')
+        context['current_type'] = self.request.GET.get('type', '')
+        context['current_sort'] = self.request.GET.get('sort', 'newest')
         context['page'] = 'resources'
         return context
+
+
+@login_required
+def resource_ajax_search(request):
+    """AJAX endpoint for live search with JSON response."""
+    search_query = request.GET.get('q', '').strip()
+    resource_type = request.GET.get('type', '')
+    sort_by = request.GET.get('sort', 'newest')
+    
+    approval_filter = {} if request.user.is_staff else {'approval_status': 'approved'}
+    querysets = []
+    
+    def get_resource_type_label(obj):
+        if isinstance(obj, Document):
+            return obj.document_type
+        elif isinstance(obj, NLPTool):
+            return 'tool'
+        elif isinstance(obj, Course):
+            return 'course'
+        elif isinstance(obj, Corpus):
+            return 'corpus'
+        return 'unknown'
+    
+    if resource_type in ['', 'article', 'thesis', 'memoir']:
+        docs = Document.objects.filter(**approval_filter)
+        if resource_type in ['article', 'thesis', 'memoir']:
+            docs = docs.filter(document_type=resource_type)
+        if search_query:
+            docs = docs.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(docs)
+    
+    if resource_type in ['', 'tool']:
+        tools = NLPTool.objects.filter(**approval_filter)
+        if search_query:
+            tools = tools.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(tools)
+    
+    if resource_type in ['', 'course']:
+        courses = Course.objects.filter(**approval_filter)
+        if search_query:
+            courses = courses.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(courses)
+    
+    if resource_type in ['', 'corpus']:
+        corpora = Corpus.objects.filter(**approval_filter)
+        if search_query:
+            corpora = corpora.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query) |
+                Q(title_ar__icontains=search_query) | Q(title_en__icontains=search_query) |
+                Q(keywords__icontains=search_query)
+            )
+        querysets.append(corpora)
+    
+    combined = []
+    for qs in querysets:
+        for obj in qs:
+            rtype = get_resource_type_label(obj)
+            combined.append({
+                'id': str(obj.id),
+                'title': obj.get_localized_title(),
+                'description': obj.get_localized_description()[:150],
+                'resource_type': rtype,
+                'author': obj.author.get_full_name() if obj.author else '',
+                'author_email': obj.author.email if obj.author else '',
+                'date': obj.creation_date.strftime('%b %d, %Y') if obj.creation_date else '',
+                'url': reverse('resources:resource-detail', kwargs={'type': rtype, 'pk': obj.id}),
+            })
+    
+    if sort_by == 'oldest':
+        combined.sort(key=lambda x: x['date'])
+    elif sort_by == 'popular':
+        pass  # already sorted by queryset order
+    else:
+        combined.sort(key=lambda x: x['date'], reverse=True)
+    
+    return JsonResponse({'resources': combined, 'count': len(combined)})
 
 
 class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -126,12 +235,24 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        queryset = NLPTool.objects.all()
-        search_query = self.request.GET.get('q', '').strip()
+        # Only show approved content (unless staff)
+        if self.request.user.is_staff:
+            queryset = NLPTool.objects.all()
+        else:
+            queryset = NLPTool.objects.filter(approval_status='approved')
         
+        # Filter by tool type/category
+        tool_type = self.request.GET.get('type', '').strip()
+        if tool_type:
+            queryset = queryset.filter(tool_type=tool_type)
+        
+        # Search functionality
+        search_query = self.request.GET.get('q', '').strip()
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
                 Q(tool_type__icontains=search_query) |
                 Q(keywords__icontains=search_query) |
@@ -141,36 +262,61 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
             ).distinct()
         
         return queryset.order_by('-creation_date')
+    
+    def get_template_names(self):
+        """Return partial template for AJAX requests"""
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return ['resources/_tool_cards.html']
+        return [self.template_name]
      
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         search_query = self.request.GET.get('q', '')
+        tool_type = self.request.GET.get('type', '')
+        
+        # Always use filtered queryset for count (respects approval_status)
+        context['total_count'] = self.get_queryset().count()
         
         if search_query:
-            context['total_count'] = self.get_queryset().count()
             context['search_query'] = search_query
             context['is_search'] = True
         else:
-            context['total_count'] = NLPTool.objects.count()
             context['is_search'] = False
         
+        # Tool type choices for filter chips
+        context['tool_type_choices'] = NLPTool.ToolType.choices
+        
+        context['current_type'] = tool_type
         context['page'] = 'tools'
         return context
 
 
-class CourseListView(ListView):
+class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Course
     template_name = 'resources/course_list.html'
     context_object_name = 'courses'
     paginate_by = 12
     
+    def get_template_names(self):
+        # Return partial template for AJAX requests (live search)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return ['resources/partials/course_grid.html']
+        return [self.template_name]
+    
     def get_queryset(self):
-        queryset = Course.objects.all()
-        search_query = self.request.GET.get('q', '').strip()
+        # Only show approved content to public (staff sees all)
+        if self.request.user.is_authenticated and self.request.user.is_staff:
+            queryset = Course.objects.all()
+        else:
+            queryset = Course.objects.filter(approval_status='approved')
         
+        # Search filter
+        search_query = self.request.GET.get('q', '').strip()
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
                 Q(keywords__icontains=search_query) |
                 Q(author__first_name__icontains=search_query) |
@@ -180,20 +326,41 @@ class CourseListView(ListView):
                 Q(institution__name__icontains=search_query)
             ).distinct()
         
-        return queryset.order_by('-creation_date')
+        # Level filter (Bachelor, Master, Doctorate)
+        level = self.request.GET.get('level', '').strip().lower()
+        if level in ['bachelor', 'master', 'doctorate']:
+            queryset = queryset.filter(academic_level=level)
+        
+        # Sort filter
+        sort = self.request.GET.get('sort', 'newest')
+        if sort == 'oldest':
+            queryset = queryset.order_by('creation_date')
+        elif sort == 'alphabetical':
+            queryset = queryset.order_by('title')
+        elif sort == 'popular':
+            queryset = queryset.order_by('-views_count')
+        else:  # newest (default)
+            queryset = queryset.order_by('-creation_date')
+        
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         search_query = self.request.GET.get('q', '')
+        level = self.request.GET.get('level', '')
+        sort = self.request.GET.get('sort', 'newest')
+        
+        # Always use filtered queryset for count (respects approval_status)
+        context['total_count'] = self.get_queryset().count()
         
         if search_query:
-            context['total_count'] = self.get_queryset().count()
             context['search_query'] = search_query
             context['is_search'] = True
         else:
-            context['total_count'] = Course.objects.count()
             context['is_search'] = False
         
+        context['current_level'] = level.lower() if level else ''
+        context['current_sort'] = sort
         context['page'] = 'course'
         return context
 
@@ -203,9 +370,18 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'resources/article_list.html'
     context_object_name = 'articles'
     
+    def get_queryset(self):
+        # Only show approved articles (staff sees all, users see own + approved)
+        if self.request.user.is_staff:
+            return Article.objects.all()
+        return Article.objects.filter(
+            Q(approval_status='approved') | 
+            Q(author=self.request.user)
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total_count'] = Article.objects.count()
+        context['total_count'] = self.get_queryset().count()
         return context
 
 
@@ -214,9 +390,18 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'resources/thesis_list.html'
     context_object_name = 'theses'
     
+    def get_queryset(self):
+        # Only show approved theses (staff sees all, users see own + approved)
+        if self.request.user.is_staff:
+            return Thesis.objects.all()
+        return Thesis.objects.filter(
+            Q(approval_status='approved') | 
+            Q(author=self.request.user)
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total_count'] = Thesis.objects.count()
+        context['total_count'] = self.get_queryset().count()
         return context
 
 
@@ -225,9 +410,18 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'resources/memoir_list.html'
     context_object_name = 'memoirs'
     
+    def get_queryset(self):
+        # Only show approved memoirs (staff sees all, users see own + approved)
+        if self.request.user.is_staff:
+            return Memoir.objects.all()
+        return Memoir.objects.filter(
+            Q(approval_status='approved') | 
+            Q(author=self.request.user)
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['total_count'] = Memoir.objects.count()
+        context['total_count'] = self.get_queryset().count()
         return context
 
 
@@ -238,12 +432,19 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        queryset = Corpus.objects.all()
-        search_query = self.request.GET.get('q', '').strip()
+        # Only show approved content (unless staff)
+        if self.request.user.is_staff:
+            queryset = Corpus.objects.all()
+        else:
+            queryset = Corpus.objects.filter(approval_status='approved')
         
+        # Search query
+        search_query = self.request.GET.get('q', '').strip()
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
                 Q(description__icontains=search_query) |
                 Q(keywords__icontains=search_query) |
                 Q(author__first_name__icontains=search_query) |
@@ -252,19 +453,62 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
                 Q(file_format__icontains=search_query)
             ).distinct()
         
+        # Filter by fields (categories) - supports multiple values
+        fields = self.request.GET.getlist('field')
+        if fields:
+            queryset = queryset.filter(field__in=fields)
+        
+        # Filter by file formats - supports multiple values
+        formats = self.request.GET.getlist('format')
+        if formats:
+            # Case-insensitive format matching
+            format_q = Q()
+            for fmt in formats:
+                format_q |= Q(file_format__iexact=fmt)
+            queryset = queryset.filter(format_q)
+        
+        # Filter by languages - supports multiple values
+        languages = self.request.GET.getlist('language')
+        if languages:
+            queryset = queryset.filter(language__in=languages)
+        
         return queryset.order_by('-creation_date')
+    
+    def render_to_response(self, context, **response_kwargs):
+        # Return partial HTML for AJAX requests
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return render(self.request, 'resources/_corpus_cards.html', context)
+        return super().render_to_response(context, **response_kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         search_query = self.request.GET.get('q', '')
         
+        # Always use filtered queryset for count (respects approval_status)
+        context['total_count'] = self.get_queryset().count()
+        
         if search_query:
-            context['total_count'] = self.get_queryset().count()
             context['search_query'] = search_query
             context['is_search'] = True
         else:
-            context['total_count'] = Corpus.objects.count()
             context['is_search'] = False
+        
+        # Provide field choices for the filter sidebar
+        from .models import FieldChoices
+        context['field_choices'] = FieldChoices.choices
+        
+        # Track active filters
+        context['active_fields'] = self.request.GET.getlist('field')
+        context['active_formats'] = self.request.GET.getlist('format')
+        context['active_languages'] = self.request.GET.getlist('language')
+        
+        # Check if any filters are active
+        context['has_active_filters'] = bool(
+            context['active_fields'] or 
+            context['active_formats'] or 
+            context['active_languages'] or 
+            search_query
+        )
 
         context['page'] = 'corpus'
         return context
@@ -325,6 +569,13 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                     raise Http404(f"No {resource_type.capitalize()} matches the given query.")
         else:
             obj = get_object_or_404(model, pk=pk)
+
+        # Check approval status - only allow viewing if approved, staff, or author
+        if hasattr(obj, 'approval_status'):
+            is_staff = self.request.user.is_authenticated and self.request.user.is_staff
+            is_author = self.request.user.is_authenticated and getattr(obj, 'author', None) == self.request.user
+            if obj.approval_status != 'approved' and not is_staff and not is_author:
+                raise Http404("This resource is pending approval.")
 
         return obj
 
@@ -506,6 +757,21 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         for attr, value in common_data.items():
             setattr(resource, attr, value)
         
+        # Handle bilingual fields from POST data (not in form)
+        title_ar = self.request.POST.get('title_ar', '').strip()
+        title_en = self.request.POST.get('title_en', '').strip()
+        description_ar = self.request.POST.get('description_ar', '').strip()
+        description_en = self.request.POST.get('description_en', '').strip()
+        
+        if title_ar:
+            resource.title_ar = title_ar
+        if title_en:
+            resource.title_en = title_en
+        if description_ar:
+            resource.description_ar = description_ar
+        if description_en:
+            resource.description_en = description_en
+        
         # Type-specific updates
         if resource_type == 'course' and isinstance(resource, Course):
             resource.field = form.cleaned_data['course_field']
@@ -552,8 +818,56 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 memoir.defense_year = form.cleaned_data['memoir_defense_year']
                 memoir.save()
         
-        messages.success(self.request, f"Resource '{resource.title}' updated successfully!")
+        # Handle "Approve & Publish" button
+        if self.request.POST.get('approve_and_publish') and self.request.user.is_staff:
+            # Validate bilingual fields before approving
+            missing = []
+            if not resource.title_ar:
+                missing.append(_("Title (Arabic)"))
+            if not resource.title_en:
+                missing.append(_("Title (English)"))
+            if not resource.description_ar:
+                missing.append(_("Description (Arabic)"))
+            if not resource.description_en:
+                missing.append(_("Description (English)"))
+            
+            if missing:
+                messages.error(self.request, _("Cannot approve: Missing %(fields)s") % {'fields': ", ".join(str(f) for f in missing)})
+                return redirect(self.request.get_full_path())
+            
+            resource.approval_status = 'approved'
+            resource.save()
+            
+            # Notify author
+            from notifications.models import Notification
+            author = resource.author
+            if author:
+                Notification.objects.create(
+                    recipient=author,
+                    title=_("Your submission has been approved"),
+                    message=_("Your submission '%(title)s' has been approved and is now visible to the public.") % {'title': resource.title}
+                )
+            
+            messages.success(self.request, _("'%(title)s' has been approved and published!") % {'title': resource.title})
+            # Redirect to admin page instead of detail page
+            return redirect(self.get_admin_redirect_url(resource_type))
+        
+        messages.success(self.request, _("Resource '%(title)s' updated successfully!") % {'title': resource.title})
         return super().form_valid(form)
+
+    def get_admin_redirect_url(self, resource_type):
+        """Get the admin page URL for the resource type."""
+        admin_urls = {
+            'course': 'pages:admin_courses',
+            'tool': 'pages:admin_tools',
+            'nlp_tool': 'pages:admin_tools',
+            'corpus': 'pages:admin_corpora',
+            'article': 'pages:admin_publications',
+            'thesis': 'pages:admin_publications',
+            'memoir': 'pages:admin_publications',
+        }
+        url_name = admin_urls.get(resource_type, 'pages:admin_dashboard')
+        return f"{reverse(url_name)}?tab=pending"
 
     def get_success_url(self):
         resource_type = self.kwargs['type']
@@ -569,6 +883,11 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page'] = 'resources'
+        # Check if in admin review mode
+        context['review_mode'] = self.request.GET.get('review') == '1'
+        resource = self.get_object()
+        context['is_pending'] = getattr(resource, 'approval_status', None) == 'pending'
+        context['resource'] = resource
         return context
 
 
@@ -627,18 +946,16 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
     def form_valid(self, form):
         try:
             resource = form.save()
-            messages.success(self.request, f"Resource '{resource.title}' created successfully!")
-            User = get_user_model()
-            for user in User.objects.filter(is_active=True):
-                Notification.objects.create(
-                    recipient=user,
-                    title="New resource",
-                    message=f"The resource « {resource.title} » has been added to the platform."
-                )
+            # Show pending approval message instead of success
+            messages.info(
+                self.request, 
+                _("Your submission '%(title)s' has been received and is pending admin review. It will be visible to the public once approved.") % {'title': resource.title}
+            )
+            # Don't notify all users - wait for approval
             return super().form_valid(form)
         except Exception as e:
             logger.error(f"Error creating resource: {str(e)}")
-            messages.error(self.request, f"An error occurred while creating the resource: {str(e)}")
+            messages.error(self.request, _("An error occurred while creating the resource. Please try again."))
             return self.form_invalid(form)
         
     def get_context_data(self, **kwargs):
@@ -664,7 +981,10 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
     
     def form_valid(self, form):
         resource = form.save()
-        messages.success(self.request, f"Course '{resource.title}' created successfully!")
+        messages.info(
+            self.request, 
+            _("Your course '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        )
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -690,7 +1010,10 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
     
     def form_valid(self, form):
         resource = form.save()
-        messages.success(self.request, f"Corpus '{resource.title}' created successfully!")
+        messages.info(
+            self.request, 
+            _("Your corpus '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        )
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -716,7 +1039,10 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
     
     def form_valid(self, form):
         resource = form.save()
-        messages.success(self.request, f"Tool '{resource.title}' created successfully!")
+        messages.info(
+            self.request, 
+            _("Your tool '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        )
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):

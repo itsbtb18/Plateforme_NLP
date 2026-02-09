@@ -1,10 +1,30 @@
 from django import forms
 from .models import Event
-from django.utils.translation import gettext_lazy as _
-from django.utils.translation import get_language
+from django.utils.translation import gettext_lazy as _, get_language
+
+
+def get_active_language():
+    """Get the current language, normalizing to 'ar' or 'en'."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return 'ar'
+    return 'en'
+
 
 class EventForm(forms.ModelForm):
-    """Form for creating and updating events."""
+    """
+    Context-aware event form that shows language-specific fields.
+    
+    - Title, Description, Location are shown with the current language label
+    - Data is saved to the appropriate _ar or _en field based on active language
+    """
+    
+    # Bilingual field mappings: generic_field -> (ar_field, en_field)
+    BILINGUAL_FIELDS = {
+        'title': ('title_ar', 'title_en'),
+        'description': ('description_ar', 'description_en'),
+        'location': ('location_ar', 'location_en'),
+    }
     
     class Meta:
         model = Event
@@ -29,12 +49,71 @@ class EventForm(forms.ModelForm):
             'attachment': forms.FileInput(attrs={'class': 'form-control'}),
         }
     
-  
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance', None)
+        
+        # Pre-populate from bilingual fields based on current language
+        if instance:
+            if 'initial' not in kwargs:
+                kwargs['initial'] = {}
+            lang = get_active_language()
+            for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
+                target_field = ar_field if lang == 'ar' else en_field
+                value = getattr(instance, target_field, '') or getattr(instance, generic_field, '')
+                if value:
+                    kwargs['initial'][generic_field] = value
+        
+        super().__init__(*args, **kwargs)
+        self._setup_bilingual_labels()
+    
+    def _setup_bilingual_labels(self):
+        """Set context-aware labels for bilingual fields."""
+        lang = get_active_language()
+        
+        if lang == 'ar':
+            self.fields['title'].label = _("Title (Arabic / العنوان)")
+            self.fields['title'].help_text = _("Enter the event title in Arabic")
+            self.fields['description'].label = _("Description (Arabic / الوصف)")
+            self.fields['description'].help_text = _("Enter the description in Arabic")
+            self.fields['location'].label = _("Location (Arabic / المكان)")
+            self.fields['location'].help_text = _("Enter the location in Arabic")
+        else:
+            self.fields['title'].label = _("Title (English)")
+            self.fields['title'].help_text = _("Enter the event title in English")
+            self.fields['description'].label = _("Description (English)")
+            self.fields['description'].help_text = _("Enter the description in English")
+            self.fields['location'].label = _("Location (English)")
+            self.fields['location'].help_text = _("Enter the location in English")
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Save to bilingual fields based on active language
+        lang = get_active_language()
+        for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
+            target_field = ar_field if lang == 'ar' else en_field
+            value = self.cleaned_data.get(generic_field, '')
+            # Set both the base field and the language-specific field
+            setattr(instance, generic_field, value)
+            setattr(instance, target_field, value)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class EventSearchForm(forms.Form):
     """Form for searching events."""
     
+    # Support both 'q' (standard) and 'keyword' (legacy) for search
+    q = forms.CharField(
+        required=False, 
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': ('Search by title, description, or organizer'),
+            'name': 'q'
+        })
+    )
     keyword = forms.CharField(
         required=False, 
         widget=forms.TextInput(attrs={
@@ -67,3 +146,11 @@ class EventSearchForm(forms.Form):
             'class': 'form-check-input'
         })
     )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        # Merge q and keyword fields - q takes precedence
+        q = cleaned_data.get('q', '')
+        keyword = cleaned_data.get('keyword', '')
+        cleaned_data['keyword'] = q or keyword
+        return cleaned_data

@@ -1,85 +1,344 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load i18n static %}
+
+{% block title %}{% translate "Create Chat Room" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CHATROOM NEW CSS ===== */
+:root {
+    --cn-primary: #3B82F6;
+    --cn-primary-dark: #2563eb;
+    --cn-primary-light: #60a5fa;
+    --cn-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --cn-deep: #0f172a;
+    --cn-white: #ffffff;
+    --cn-bg: #f8fafc;
+    --cn-muted: #f1f5f9;
+    --cn-subtle: #e2e8f0;
+    
+    --cn-text: #0f172a;
+    --cn-text-secondary: #475569;
+    --cn-text-muted: #94a3b8;
+    
+    --cn-border: #e2e8f0;
+    --cn-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --cn-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --cn-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --cn-success: #10b981;
+    --cn-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --cn-radius-sm: 6px;
+    --cn-radius-md: 10px;
+    --cn-radius-lg: 14px;
+    --cn-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.cn-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--cn-bg) 0%, var(--cn-muted) 100%);
+    padding: 3rem 1.5rem;
+}
+
+.cn-container {
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+/* Header */
+.cn-header { margin-bottom: 2rem; }
+
+.cn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--cn-text-secondary);
+    text-decoration: none;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.cn-back:hover { color: var(--cn-primary); }
+
+.cn-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--cn-text);
+    margin: 0 0 0.5rem;
+}
+
+.cn-subtitle { font-size: 1rem; color: var(--cn-text-muted); margin: 0; }
+
+/* Form Card */
+.cn-card {
+    background: var(--cn-white);
+    border: 1px solid var(--cn-border);
+    border-radius: var(--cn-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--cn-shadow-lg);
+}
+
+/* Topic Info */
+.cn-topic-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--cn-primary-glow);
+    border-radius: var(--cn-radius-md);
+    margin-bottom: 2rem;
+}
+
+.cn-topic-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--cn-white);
+    border-radius: var(--cn-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cn-primary);
+    font-size: 1.25rem;
+}
+
+.cn-topic-details h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--cn-text);
+    margin: 0 0 0.25rem;
+}
+
+.cn-topic-details span {
+    font-size: 0.8rem;
+    color: var(--cn-primary);
+}
+
+/* Form Sections */
+.cn-section { margin-bottom: 1.5rem; }
+.cn-section:last-child { margin-bottom: 0; }
+
+.cn-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cn-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.cn-field { margin-bottom: 1.25rem; }
+.cn-field:last-child { margin-bottom: 0; }
+
+.cn-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--cn-text);
+    margin-bottom: 0.5rem;
+}
+
+.cn-input, .cn-textarea {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--cn-muted);
+    border: 2px solid transparent;
+    border-radius: var(--cn-radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--cn-text);
+    transition: all 0.2s;
+}
+
+.cn-input:focus, .cn-textarea:focus {
+    outline: none;
+    background: var(--cn-white);
+    border-color: var(--cn-primary);
+    box-shadow: 0 0 0 4px var(--cn-primary-glow);
+}
+
+.cn-input::placeholder, .cn-textarea::placeholder { color: var(--cn-text-muted); }
+
+.cn-textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.cn-hint {
+    font-size: 0.8rem;
+    color: var(--cn-text-muted);
+    margin-top: 0.375rem;
+}
+
+/* Split Fields */
+.cn-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .cn-split { grid-template-columns: 1fr; }
+}
+
+/* Actions */
+.cn-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--cn-border);
+}
+
+.cn-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--cn-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.cn-btn-secondary {
+    background: var(--cn-muted);
+    color: var(--cn-text-secondary);
+    border-color: var(--cn-border);
+}
+
+.cn-btn-secondary:hover { background: var(--cn-subtle); color: var(--cn-text); }
+
+.cn-btn-primary {
+    background: var(--cn-primary);
+    color: var(--cn-white);
+}
+
+.cn-btn-primary:hover { background: var(--cn-primary-dark); transform: translateY(-1px); }
+
+/* Errors */
+.cn-errors {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--cn-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.cn-errors ul { margin: 0; padding-left: 1.25rem; }
+.cn-errors li { color: #dc2626; font-size: 0.875rem; margin-bottom: 0.25rem; }
+.cn-errors li:last-child { margin-bottom: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4 mb-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="h3 mb-0"><i class="fas fa-plus-circle me-2"></i>{% trans "Create a new chat room" %}</h2>
+<div class="cn-page">
+    <div class="cn-container">
+        
+        <header class="cn-header">
+            <a href="{% url 'forum:chatroom-list' topic.pk %}" class="cn-back">
+                <i class="bi bi-arrow-left"></i>
+                {% translate "Back to Chat Rooms" %}
+            </a>
+            <h1 class="cn-title">{% translate "Create Chat Room" %}</h1>
+            <p class="cn-subtitle">{% translate "Start a new conversation space for your community" %}</p>
+        </header>
+        
+        <div class="cn-card">
+            
+            <div class="cn-topic-info">
+                <div class="cn-topic-icon">
+                    <i class="bi bi-folder2-open"></i>
                 </div>
-                <div class="card-body p-4">
-                    <div class="mb-4">
-                        <span class="badge bg-info text-white p-2 mb-3">{% trans "Subject:" %} {{ topic.title }}</span>
-                        <p class="text-muted">{% trans "Please fill out the information below to create your chat room." %}</p>
-                    </div>
-                    
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            <label for="{{ form.name.id_for_label }}" class="form-label fw-bold">{% trans "Room name" %}</label>
-                            <input 
-                                type="text" 
-                                name="{{ form.name.name }}" 
-                                class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
-                                id="{{ form.name.id_for_label }}" 
-                                {% if form.name.value %}value="{{ form.name.value }}"{% endif %}
-
-                                placeholder="Enter your chat room name"
-
-                            >
-                            {% if form.name.errors %}
-                            <div class="invalid-feedback">
-                                {{ form.name.errors }}
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">{% trans "Description" %}</label>
-                            <textarea 
-                                name="{{ form.description.name }}" 
-                                class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
-                                id="{{ form.description.id_for_label }}" 
-                                rows="4" 
-
-                               placeholder="{% trans 'Briefly describe the topic of discussion in this room' %}"
-
-                            >{% if form.description.value %}{{ form.description.value }}{% endif %}</textarea>
-                            {% if form.description.errors %}
-                            <div class="invalid-feedback">
-                                {{ form.description.errors }}
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'forum:topic-list' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>{% trans "Cancel" %}
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check-circle me-1"></i>{% trans "Create the room" %}
-                            </button>
-                        </div>
-                    </form>
+                <div class="cn-topic-details">
+                    <h3>{{ topic.get_localized_title }}</h3>
+                    <span>{% translate "Creating room under this topic" %}</span>
                 </div>
             </div>
+            
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                <div class="cn-errors">
+                    <ul>
+                        {% for field in form %}
+                        {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="cn-section">
+                    <h3 class="cn-section-title">{% translate "Room Name" %}</h3>
+                    <div class="cn-split">
+                        <div class="cn-field">
+                            <label for="id_name_ar" class="cn-label">{% translate "Arabic Name" %}</label>
+                            <input type="text" name="name_ar" id="id_name_ar" 
+                                   class="cn-input" placeholder="{% translate 'Enter Arabic name' %}"
+                                   value="{{ form.name_ar.value|default:'' }}">
+                        </div>
+                        <div class="cn-field">
+                            <label for="id_name_en" class="cn-label">{% translate "English Name" %}</label>
+                            <input type="text" name="name_en" id="id_name_en" 
+                                   class="cn-input" placeholder="{% translate 'Enter English name' %}"
+                                   value="{{ form.name_en.value|default:'' }}">
+                        </div>
+                    </div>
+                    <p class="cn-hint">{% translate "Provide a clear, descriptive name for your chat room" %}</p>
+                </div>
+                
+                <div class="cn-section">
+                    <h3 class="cn-section-title">{% translate "Room Description" %}</h3>
+                    <div class="cn-split">
+                        <div class="cn-field">
+                            <label for="id_description_ar" class="cn-label">{% translate "Arabic Description" %}</label>
+                            <textarea name="description_ar" id="id_description_ar" class="cn-textarea"
+                                      placeholder="{% translate 'Describe the purpose of this room...' %}">{{ form.description_ar.value|default:'' }}</textarea>
+                        </div>
+                        <div class="cn-field">
+                            <label for="id_description_en" class="cn-label">{% translate "English Description" %}</label>
+                            <textarea name="description_en" id="id_description_en" class="cn-textarea"
+                                      placeholder="{% translate 'Describe the purpose of this room...' %}">{{ form.description_en.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    <p class="cn-hint">{% translate "Help others understand what discussions happen in this room" %}</p>
+                </div>
+                
+                <div class="cn-actions">
+                    <a href="{% url 'forum:chatroom-list' topic.pk %}" class="cn-btn cn-btn-secondary">
+                        {% translate "Cancel" %}
+                    </a>
+                    <button type="submit" class="cn-btn cn-btn-primary">
+                        <i class="bi bi-plus-lg"></i>
+                        {% translate "Create Room" %}
+                    </button>
+                </div>
+            </form>
         </div>
+        
     </div>
 </div>
-
-<script>
-    // Add simple animation to form submission
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form');
-        form.addEventListener('submit', function() {
-            const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Création en cours...';
-            submitButton.disabled = true;
-        });
-        
-        // Focus on the first input field when the page loads
-        document.getElementById('{{ form.name.id_for_label }}').focus();
-    });
-</script>
 {% endblock %}

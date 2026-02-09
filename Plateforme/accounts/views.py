@@ -8,11 +8,30 @@ from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.utils import timezone
 from django.views import View
+from django.http import HttpResponseForbidden
+from django.core.exceptions import PermissionDenied
 from projects.models import Project, ProjectMember
 from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
+from typing import TYPE_CHECKING, Any, cast
+import logging
+
+# Import allauth LoginView
+from allauth.account.views import LoginView as AllauthLoginView
+
+# Import 2FA modules
+from .two_factor_models import TwoFactorAuth
+from .two_factor_utils import generate_otp, store_otp
+from .two_factor_email import send_otp_email
+
+if TYPE_CHECKING:
+    from .models import CustomUser
+
+logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 # --------------------------
@@ -22,7 +41,9 @@ class LoginAndVerifiedRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if not request.user.is_verified and not request.user.is_staff:
+        user = request.user
+        is_verified = getattr(user, 'is_verified', True)
+        if not is_verified and not user.is_staff:
             return redirect('accounts:awaiting_verification')
         return super().dispatch(request, *args, **kwargs)
 
@@ -32,7 +53,8 @@ def login_and_verified_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('account_login')
-        if not request.user.is_verified and not request.user.is_staff:
+        user = request.user
+        if hasattr(user, 'is_verified') and not user.is_verified and not user.is_staff:
             return redirect('accounts:awaiting_verification')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
@@ -42,49 +64,179 @@ def login_and_verified_required(view_func):
 # Vue d’inscription (simplifiée)
 # --------------------------
 class SignUp(CreateView):
+    """
+    User registration view with enhanced validation, security, and 2FA.
+    """
     form_class = CustomUserCreationForm
     template_name = 'account/signup.html'
-    success_url = reverse_lazy('account_login')  # Redirige vers la page de connexion après succès
+    success_url = reverse_lazy('pages:home')
 
-    def form_valid(self, form):
-        # Vérifier si l'email existe déjà
-        email = form.cleaned_data.get('email')
-        User = get_user_model()
-        if User.objects.filter(email=email).exists():
-            messages.error(self.request, "This email is already in use. Please choose another one.")
+    def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        # Redirect authenticated users to home
+        if request.user.is_authenticated:
+            messages.info(request, _("You are already logged in."))
+            return redirect('pages:home')
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form: Any) -> Any:
+        # Get and normalize email
+        email = form.cleaned_data.get('email', '').lower().strip()
+
+        # Check for existing email (case-insensitive)
+        if User.objects.filter(email__iexact=email).exists():
+            messages.error(self.request, _("This email is already registered. Please use a different email or try logging in."))
+            logger.warning(f"Signup attempt with existing email: {email}")
             return self.form_invalid(form)
 
-        # Créer l'utilisateur
-        user = form.save(commit=False)
-        user.is_active = True  # Activer le compte directement
-        if hasattr(user, 'is_email_verified'):
-            user.is_email_verified = True
-        user.save()
+        try:
+            # Create user
+            user = form.save(commit=False)
+            user.email = email  # Ensure normalized email
+            user.is_active = True
+            if hasattr(user, 'is_verified'):
+                user.is_verified = True  # Auto-verify for now
+            if hasattr(user, 'is_email_verified'):
+                user.is_email_verified = True
+            if hasattr(user, 'status'):
+                user.status = 'active'
+            user.save()
 
-        messages.success(self.request, "Registration successful! You can now log in.")
-        return redirect(self.success_url)
+            logger.info(f"New user registered: {user.email}")
+
+            # ===== TRIGGER 2FA FOR NEW SIGNUP =====
+            try:
+                # Create TwoFactorAuth record with 2FA ENABLED
+                two_fa, created = TwoFactorAuth.objects.get_or_create(
+                    user=user,
+                    defaults={'is_enabled': True}
+                )
+                logger.info(f"TwoFactorAuth record created for {user.email}: is_enabled={two_fa.is_enabled}")
+
+                # Generate OTP and store in Redis
+                otp_code = generate_otp()
+                store_otp(str(user.id), otp_code)
+                logger.info(f"OTP stored in Redis for {user.email}")
+
+                # Send OTP email
+                send_otp_email(user.email, user.get_full_name(), otp_code)
+                logger.info(f"OTP email sent to {user.email}")
+
+                # Mark user as pending 2FA verification
+                self.request.session['pending_2fa_user_id'] = str(user.id)
+                self.request.session.modified = True
+                logger.info(f"User {user.email} marked as pending 2FA, redirecting to verify page")
+
+                # Redirect to 2FA verification instead of login
+                return redirect('accounts:verify_2fa')
+
+            except Exception as e:
+                logger.error(f"2FA setup error for {user.email}: {str(e)}")
+                # Fall back to direct login if 2FA fails
+                login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
+                messages.success(self.request, _("Welcome! Your account has been created successfully."))
+                return redirect('pages:home')
+
+        except Exception as e:
+            logger.error(f"Error creating user account: {str(e)}")
+            messages.error(self.request, _("An error occurred while creating your account. Please try again."))
+            return self.form_invalid(form)
+
+    def form_invalid(self, form: Any) -> Any:
+        messages.error(self.request, _("Please correct the errors below."))
+        return super().form_invalid(form)
 
 
 # --------------------------
-# Vue profil utilisateur
+# Custom Login View with Remember Me
+# --------------------------
+class LoginView(AllauthLoginView):
+    """
+    Custom login view that handles the "Remember Me" checkbox.
+    Extends allauth's LoginView to add session expiry control.
+    """
+
+    def form_valid(self, form: Any) -> Any:
+        """
+        Handle successful login and set session expiry based on "Remember Me" checkbox.
+        """
+        # Call parent's form_valid to perform the login
+        response = super().form_valid(form)
+
+        # Check if "Remember Me" checkbox was checked
+        remember = self.request.POST.get('remember')
+
+        if remember:
+            # User wants to be remembered - use default session age from settings
+            # SESSION_COOKIE_AGE = 1209600 (2 weeks)
+            self.request.session.set_expiry(None)  # Use settings default
+            if self.request.user.is_authenticated:
+                user = cast('CustomUser', self.request.user)
+                logger.debug(f"User {user.email} logged in with 'Remember Me' enabled")
+        else:
+            # User doesn't want to be remembered - expire session when browser closes
+            self.request.session.set_expiry(0)
+            if self.request.user.is_authenticated:
+                user = cast('CustomUser', self.request.user)
+                logger.debug(f"User {user.email} logged in without 'Remember Me'")
+
+        return response
+
+
+# --------------------------
+# Profile View
 # --------------------------
 class ProfileView(LoginRequiredMixin, DetailView):
-    model = get_user_model()
+    """
+    Display user profile with public information.
+    """
+    model = User
     template_name = 'account/profile.html'
-    context_object_name = 'user'
+    context_object_name = 'profile_user'
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        profile_user = self.get_object()
+
+        # Check if viewing own profile
+        context['is_own_profile'] = self.request.user == profile_user
+
+        # Get user's projects if viewing own profile
+        if context['is_own_profile']:
+            context['user_projects'] = Project.objects.filter(
+                members__member=profile_user,
+                members__status='accepted'
+            ).distinct()[:5]
+
+        return context
 
 
 # --------------------------
-# Vue modification du profil
+# Profile Edit View (Enhanced)
 # --------------------------
 class ProfileEditView(LoginRequiredMixin, UpdateView):
-    model = get_user_model()
+    """
+    Allow users to edit their own profile.
+    """
+    model = User
     form_class = CustomUserChangeForm
     template_name = 'account/profile_edit.html'
-    context_object_name = 'user'
+    context_object_name = 'profile_user'
 
-    def get_success_url(self):
-        return reverse_lazy('accounts:profile', kwargs={'pk': self.object.pk})
+    def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        # Ensure users can only edit their own profile
+        obj = self.get_object()
+        if obj != request.user and not request.user.is_staff:
+            messages.error(request, _("You can only edit your own profile."))
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self) -> str:
+        messages.success(self.request, _("Your profile has been updated successfully."))
+        return reverse('accounts:profile', kwargs={'pk': self.get_object().pk})
+
+    def form_invalid(self, form: Any) -> Any:
+        messages.error(self.request, _("Please correct the errors in the form."))
+        return super().form_invalid(form)
 
 
 # --------------------------
@@ -109,15 +261,18 @@ class InviteToProjectView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=user_to_invite,
                 notification_type='PROJECT_INVITE',
-                title="Invitation à rejoindre un projet",
-                message=f"Vous avez été invité(e) à rejoindre le projet « {project.title} » par {request.user.full_name}.",
+                title=_("Project Invitation"),
+                message=_("You have been invited to join the project '%(project)s' by %(user)s.") % {
+                    'project': project.title,
+                    'user': getattr(request.user, 'full_name', str(request.user))
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
 
-            messages.success(request, f"Invitation envoyée à {user_to_invite.full_name}.")
+            messages.success(request, _("Invitation sent to %(name)s.") % {'name': getattr(user_to_invite, 'full_name', str(user_to_invite))})
         else:
-            messages.warning(request, f"{user_to_invite.full_name} est déjà membre ou a déjà une invitation en attente.")
+            messages.warning(request, _("%(name)s is already a member or has a pending invitation.") % {'name': getattr(user_to_invite, 'full_name', str(user_to_invite))})
         return redirect('accounts:profile', pk=pk)
 
 
@@ -130,7 +285,7 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
         member = ProjectMember.objects.filter(project=project, member=request.user, status='pending').first()
 
         if not member:
-            messages.error(request, "Aucune invitation en attente pour ce projet.")
+            messages.error(request, _("No pending invitation for this project."))
             return redirect('projects:project_detail', pk=project_id)
 
         response = request.POST.get('response')
@@ -156,12 +311,15 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_ACCEPTED',
-                title="Invitation acceptée",
-                message=f"{request.user.full_name} a accepté l'invitation à rejoindre le projet « {project.title} ».",
+                title=_("Invitation Accepted"),
+                message=_("%(user)s has accepted the invitation to join the project '%(project)s'.") % {
+                    'user': getattr(request.user, 'full_name', str(request.user)),
+                    'project': project.title
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.success(request, f"Vous avez rejoint le projet « {project.title} ».")
+            messages.success(request, _("You have joined the project '%(project)s'.") % {'project': project.title})
 
         elif response == 'reject':
             member.status = 'rejected'
@@ -176,12 +334,15 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
             NotificationService.create_notification(
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_REJECTED',
-                title="Invitation refusée",
-                message=f"{request.user.full_name} a refusé l'invitation à rejoindre le projet « {project.title} ».",
+                title=_("Invitation Declined"),
+                message=_("%(user)s has declined the invitation to join the project '%(project)s'.") % {
+                    'user': getattr(request.user, 'full_name', str(request.user)),
+                    'project': project.title
+                },
                 project_id=project.pk,
                 sender_id=request.user.id
             )
-            messages.info(request, "Vous avez refusé l'invitation.")
+            messages.info(request, _("You have declined the invitation."))
 
         return redirect('projects:project_detail', pk=project_id)
 
@@ -202,3 +363,23 @@ def delete_account(request):
         messages.success(request, _('Votre compte a été supprimé avec succès.'))
         return redirect('pages:home')
     return render(request, 'accounts/delete_account.html')
+
+
+def custom_logout(request):
+    """
+    Custom logout view that shows logout confirmation page
+    On POST, clears 2FA session before logging out
+    """
+    if request.method == 'POST':
+        # Clear pending 2FA session
+        if 'pending_2fa_user_id' in request.session:
+            del request.session['pending_2fa_user_id']
+        
+        request.session.save()
+        logout(request)
+        messages.success(request, _('You have been logged out.'))
+        return redirect('pages:home')
+    
+    # GET request - show logout confirmation page
+    return render(request, 'account/logout.html')
+

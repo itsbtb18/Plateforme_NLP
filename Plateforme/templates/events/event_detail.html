@@ -1,546 +1,928 @@
-{% extends "base.html" %} {% load i18n %} {% block title %}{{ event.title }} | {% trans "Events" %}{% endblock %} {% block extra_css %}
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ event.get_localized_title }} | {% translate "Events" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  /* Custom CSS for enhanced event detail page */
-  .event-hero {
-    background: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 100%);
+/* ===== EVENT DETAIL CSS ===== */
+:root {
+    --ed-primary: #3B82F6;
+    --ed-primary-dark: #2563eb;
+    --ed-primary-light: #60a5fa;
+    --ed-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --ed-deep: #0f172a;
+    --ed-navy: #1e3a5f;
+    --ed-white: #ffffff;
+    --ed-bg: #f8fafc;
+    --ed-muted: #f1f5f9;
+    --ed-subtle: #e2e8f0;
+    
+    --ed-text: #0f172a;
+    --ed-text-secondary: #475569;
+    --ed-text-muted: #94a3b8;
+    
+    --ed-border: #e2e8f0;
+    --ed-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ed-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ed-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --ed-success: #10b981;
+    --ed-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --ed-warning: #f59e0b;
+    --ed-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --ed-danger: #ef4444;
+    --ed-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --ed-purple: #8b5cf6;
+    --ed-purple-bg: rgba(139, 92, 246, 0.1);
+    
+    --ed-cyan: #06b6d4;
+    --ed-cyan-bg: rgba(6, 182, 212, 0.1);
+    
+    --ed-radius-sm: 6px;
+    --ed-radius-md: 10px;
+    --ed-radius-lg: 14px;
+    --ed-radius-xl: 20px;
+    --ed-radius-full: 9999px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.ed-page {
+    min-height: 100vh;
+    background: var(--ed-bg);
+}
+
+/* Hero Banner */
+.ed-hero {
+    background: linear-gradient(135deg, var(--ed-deep) 0%, var(--ed-navy) 100%);
+    padding: 3rem 0;
     position: relative;
     overflow: hidden;
-  }
+}
 
-  .event-hero::before {
-    content: "";
+.ed-hero::before {
+    content: '';
     position: absolute;
     top: 0;
+    left: 0;
     right: 0;
     bottom: 0;
-    left: 0;
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%232564eb' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     opacity: 0.5;
-    z-index: 0;
-  }
+}
 
-  .event-hero .container {
+.ed-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
     position: relative;
     z-index: 1;
-  }
+}
 
-  .event-card {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
+.ed-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
 
-  .event-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
+.ed-breadcrumb a {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.2s;
+}
 
-  .badge-pill {
-    border-radius: 9999px;
-    padding-left: 0.85em;
-    padding-right: 0.85em;
-  }
+.ed-breadcrumb a:hover { color: var(--ed-white); }
+.ed-breadcrumb span { font-size: 0.875rem; color: rgba(255, 255, 255, 0.4); }
 
-  .badge-event-conference {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-  }
+.ed-hero-badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
 
-  .badge-event-workshop {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #059669;
-  }
+.ed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--ed-radius-full);
+}
 
-  .badge-event-call_for_papers {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: #d97706;
-  }
+.ed-badge-type {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--ed-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
 
-  .badge-event-hackathon {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-  }
+.ed-badge-status {
+    background: var(--ed-success-bg);
+    color: var(--ed-success);
+}
 
-  .badge-event-other {
-    background-color: rgba(107, 114, 128, 0.1);
-    color: #4b5563;
-  }
+.ed-badge-upcoming { background: var(--ed-cyan-bg); color: var(--ed-cyan); }
+.ed-badge-ongoing { background: var(--ed-success-bg); color: var(--ed-success); }
+.ed-badge-past { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.7); }
 
-  .icon-circle {
+.ed-badge-pending { background: var(--ed-warning-bg); color: var(--ed-warning); }
+.ed-badge-approved { background: var(--ed-success-bg); color: var(--ed-success); }
+.ed-badge-rejected { background: var(--ed-danger-bg); color: var(--ed-danger); }
+
+.ed-hero-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--ed-white);
+    margin: 0 0 1rem;
+    line-height: 1.3;
+}
+
+.ed-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ed-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ed-meta-item i { color: var(--ed-primary-light); }
+
+.ed-hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ed-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--ed-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.ed-btn-primary {
+    background: var(--ed-primary);
+    color: var(--ed-white);
+}
+
+.ed-btn-primary:hover {
+    background: var(--ed-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.ed-btn-success {
+    background: var(--ed-success);
+    color: var(--ed-white);
+}
+
+.ed-btn-success:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+.ed-btn-outline {
+    background: transparent;
+    color: var(--ed-white);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ed-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.ed-btn-danger-outline {
+    background: transparent;
+    color: var(--ed-danger);
+    border-color: var(--ed-danger);
+}
+
+.ed-btn-danger-outline:hover {
+    background: var(--ed-danger-bg);
+}
+
+/* Main Layout */
+.ed-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+}
+
+@media (max-width: 900px) {
+    .ed-main {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Main Content */
+.ed-content { display: flex; flex-direction: column; gap: 2rem; }
+
+.ed-section {
+    background: var(--ed-white);
+    border: 1px solid var(--ed-border);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.75rem;
+    box-shadow: var(--ed-shadow-sm);
+}
+
+.ed-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ed-border);
+}
+
+.ed-section-icon {
     width: 40px;
     height: 40px;
+    background: var(--ed-primary-glow);
+    border-radius: var(--ed-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-  }
+    color: var(--ed-primary);
+    font-size: 1.1rem;
+}
 
-  .bg-blue-soft {
-    background-color: rgba(59, 130, 246, 0.1);
-  }
+.ed-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ed-text);
+    margin: 0;
+}
 
-  .bg-green-soft {
-    background-color: rgba(16, 185, 129, 0.1);
-  }
+.ed-description {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--ed-text-secondary);
+}
 
-  .bg-yellow-soft {
-    background-color: rgba(245, 158, 11, 0.1);
-  }
+.ed-description p { margin: 0 0 1rem; }
+.ed-description p:last-child { margin-bottom: 0; }
 
-  .bg-red-soft {
-    background-color: rgba(239, 68, 68, 0.1);
-  }
+/* Domains */
+.ed-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
 
-  .bg-purple-soft {
-    background-color: rgba(124, 58, 237, 0.1);
-  }
-
-  .text-truncate-1 {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-  }
-
-  .event-detail-info p {
-    margin-bottom: 0.5rem;
-  }
-
-  .event-domains span {
-    display: inline-block;
-    margin-right: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .btn-outline-custom {
-    background-color: transparent;
-    transition: all 0.2s;
-  }
-
-  .btn-outline-custom:hover {
-    transform: translateY(-1px);
-  }
-
-  .btn-outline-primary {
-    border-color: #3b82f6;
-    color: #3b82f6;
-  }
-
-  .btn-outline-primary:hover {
-    background-color: rgba(59, 130, 246, 0.1);
-  }
-
-  .btn-outline-danger {
-    border-color: #ef4444;
-    color: #ef4444;
-  }
-
-  .btn-outline-danger:hover {
-    background-color: rgba(239, 68, 68, 0.1);
-  }
-
-  .btn-outline-success {
-    border-color: #10b981;
-    color: #10b981;
-  }
-
-  .btn-outline-success:hover {
-    background-color: rgba(16, 185, 129, 0.1);
-  }
-
-  .btn-success {
-    background-color: #10b981;
-    border-color: #10b981;
-  }
-
-  .btn-success:hover {
-    background-color: #059669;
-    border-color: #059669;
-  }
-
-  /* Animation */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .event-status-card {
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  .event-detail-card {
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  /* Media queries */
-  @media (max-width: 767.98px) {
-    .event-hero h1 {
-      font-size: 1.5rem;
-    }
-
-    .event-badge-container {
-      flex-wrap: wrap;
-    }
-
-    .badge-pill {
-      margin-bottom: 0.5rem;
-    }
-
-    .event-action-buttons {
-      flex-direction: column;
-    }
-
-    .event-action-buttons .btn {
-      width: 100%;
-      margin-bottom: 0.5rem;
-    }
-  }
-
-  /* Improve accessibility */
-  .skip-to-content {
-    position: absolute;
-    left: -9999px;
-  }
-
-  .skip-to-content:focus {
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
+.ed-domain-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     padding: 0.5rem 1rem;
-    background: #fff;
-    border: 1px solid #3b82f6;
-    border-radius: 4px;
-    top: 0.5rem;
-  }
+    background: var(--ed-muted);
+    border-radius: var(--ed-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ed-text-secondary);
+}
+
+.ed-domain-tag i { color: var(--ed-primary); font-size: 0.8rem; }
+
+/* Organizer */
+.ed-organizer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ed-organizer-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--ed-primary-glow);
+    border-radius: var(--ed-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-primary);
+    font-size: 1.5rem;
+}
+
+.ed-organizer-info { flex: 1; }
+
+.ed-organizer-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ed-text);
+    margin: 0 0 0.25rem;
+}
+
+.ed-organizer-contact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--ed-primary);
+}
+
+.ed-organizer-contact a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ed-organizer-contact a:hover { text-decoration: underline; }
+
+/* Sidebar */
+.ed-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+@media (min-width: 901px) {
+    .ed-sidebar { position: sticky; top: 2rem; height: fit-content; }
+}
+
+/* Logistics Card */
+.ed-logistics {
+    background: var(--ed-white);
+    border: 1px solid var(--ed-border);
+    border-radius: var(--ed-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--ed-shadow-md);
+}
+
+.ed-logistics-header {
+    background: var(--ed-primary);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.ed-logistics-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ed-logistics-day {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--ed-white);
+    line-height: 1;
+}
+
+.ed-logistics-month {
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+}
+
+.ed-logistics-body { padding: 1.5rem; }
+
+.ed-logistics-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--ed-border);
+}
+
+.ed-logistics-item:last-child { border-bottom: none; padding-bottom: 0; }
+.ed-logistics-item:first-child { padding-top: 0; }
+
+.ed-logistics-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--ed-muted);
+    border-radius: var(--ed-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-primary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.ed-logistics-content { flex: 1; min-width: 0; }
+
+.ed-logistics-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ed-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.ed-logistics-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ed-text);
+    word-break: break-word;
+}
+
+.ed-logistics-value a {
+    color: var(--ed-primary);
+    text-decoration: none;
+}
+
+.ed-logistics-value a:hover { text-decoration: underline; }
+
+/* Registration Status */
+.ed-registration {
+    padding: 1rem 1.5rem;
+    background: var(--ed-success-bg);
+    border-top: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ed-registration.closed {
+    background: var(--ed-muted);
+}
+
+.ed-registration-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ed-registration-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ed-success);
+}
+
+.ed-registration.closed .ed-registration-label { color: var(--ed-text-muted); }
+
+.ed-registration-count {
+    font-size: 0.8rem;
+    color: var(--ed-text-secondary);
+}
+
+/* Deadline Card */
+.ed-deadline {
+    background: var(--ed-warning-bg);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+}
+
+.ed-deadline-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.ed-deadline-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--ed-white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-warning);
+    font-size: 1.1rem;
+}
+
+.ed-deadline-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ed-warning);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ed-deadline-date {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--ed-text);
+    margin-bottom: 0.5rem;
+}
+
+.ed-deadline-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--ed-warning);
+    color: var(--ed-white);
+    font-size: 0.8rem;
+    font-weight: 700;
+    border-radius: var(--ed-radius-full);
+}
+
+/* Attachment Card */
+.ed-attachment {
+    background: var(--ed-white);
+    border: 1px solid var(--ed-border);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+}
+
+.ed-attachment-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.ed-attachment-link:hover { transform: translateX(4px); }
+html[dir="rtl"] .ed-attachment-link:hover { transform: translateX(-4px); }
+
+.ed-attachment-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--ed-danger-bg);
+    border-radius: var(--ed-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-danger);
+    font-size: 1.25rem;
+}
+
+.ed-attachment-info { flex: 1; }
+
+.ed-attachment-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ed-text);
+    margin-bottom: 0.125rem;
+}
+
+.ed-attachment-meta {
+    font-size: 0.75rem;
+    color: var(--ed-text-muted);
+}
+
+/* Owner Actions */
+.ed-owner-actions {
+    background: var(--ed-white);
+    border: 1px solid var(--ed-border);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+}
+
+.ed-owner-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ed-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+.ed-owner-btns { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.ed-owner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 2px solid var(--ed-border);
+    border-radius: var(--ed-radius-md);
+    background: var(--ed-white);
+    color: var(--ed-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ed-owner-btn:hover {
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+    background: var(--ed-primary-glow);
+}
+
+.ed-owner-btn.danger:hover {
+    border-color: var(--ed-danger);
+    color: var(--ed-danger);
+    background: var(--ed-danger-bg);
+}
 </style>
-{% endblock %} {% block content %}
-<!-- Hero section with event title and badge -->
-<div class="event-hero py-5 mb-4">
-  <div class="container">
-    <a href="#main-content" class="skip-to-content">{% trans "Skip to main content" %}</a>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <a href="{% url 'events:event_list' %}">{% trans "Events" %}</a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-          {{ event.title }}
-        </li>
-      </ol>
-    </nav>
+{% endblock %}
 
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <h1 class="display-5 fw-bold mb-3">{{ event.title }}</h1>
-        <div class="d-flex flex-wrap event-badge-container gap-2 mb-3">
-          <span
-            class="badge badge-pill {% if event.event_type == 'conference' %}badge-event-conference{% elif event.event_type == 'workshop' %}badge-event-workshop{% elif event.event_type == 'call_for_papers' %}badge-event-call_for_papers{% elif event.event_type == 'hackathon' %}badge-event-hackathon{% else %}badge-event-other{% endif %}"
-          >
-            <i
-              class="fas {% if event.event_type == 'conference' %}fa-users{% elif event.event_type == 'workshop' %}fa-chalkboard-teacher{% elif event.event_type == 'call_for_papers' %}fa-file-alt{% elif event.event_type == 'hackathon' %}fa-laptop-code{% else %}fa-calendar-alt{% endif %} me-1"
-            ></i>
-            {{ event.get_event_type_display }}
-          </span>
-
-          <span class="badge badge-pill bg-light text-dark">
-            <i class="fas fa-calendar-alt me-1"></i>
-            {{ event.start_date|date:"M d, Y" }} {% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }} {% endif %}
-          </span>
-
-          <span
-            class="badge badge-pill {% if event.is_virtual %}bg-info text-dark{% else %}bg-secondary text-white{% endif %}"
-          >
-            <i
-              class="fas {% if event.is_virtual %}fa-video{% else %}fa-map-marker-alt{% endif %} me-1"
-            ></i>
-            {% if event.is_virtual %}{% trans "Virtual Event" %}{% else %}{{ event.location|truncatechars:20 }}{% endif %}
-          </span>
-
-          {% if event.is_ongoing %}
-          <span class="badge badge-pill bg-success">
-            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
-          </span>
-          {% elif event.is_upcoming %}
-          <span class="badge badge-pill bg-primary">
-            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
-          </span>
-          {% else %}
-          <span class="badge badge-pill bg-secondary">
-            <i class="fas fa-calendar-times me-1"></i> {% trans "Ended" %}
-          </span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="main-content" class="container mb-5">
-  <div class="row g-4">
-    <!-- Main content -->
-    <div class="col-lg-8">
-      <div class="card event-detail-card rounded-3 border-0">
-        <div class="card-body p-4">
-          <h2 class="card-title h4 mb-4 pb-2 border-bottom">
-            {% trans "About This Event" %}
-          </h2>
-
-          <!-- Event description -->
-          <div class="event-description mb-4">
-            {{ event.description|linebreaks }}
-          </div>
-
-          <!-- Event details -->
-          <div class="row g-4 mb-4 event-detail-info">
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-blue-soft me-3">
-                  <i class="fas fa-building text-primary"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Organizer" %}</p>
-                  <p class="fw-bold">{{ event.organizer }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-green-soft me-3">
-                  <i class="fas fa-envelope text-success"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Contact" %}</p>
-                  <p class="fw-bold text-truncate-1">
-                    {{ event.contact_email }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {% if event.submission_deadline %}
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-red-soft me-3">
-                  <i class="fas fa-clock text-danger"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">
-                    {% trans "Submission Deadline" %}
-                  </p>
-                  <p class="fw-bold">
-                    {{ event.submission_deadline|date:"M d, Y" }} {% if event.days_until_deadline != None %}
-                    <span class="badge bg-warning text-dark ms-2"
-                      >{{ event.days_until_deadline }} {% trans "days left" %}</span
-                    >
+{% block content %}
+<div class="ed-page">
+    
+    <!-- Hero Banner -->
+    <section class="ed-hero">
+        <div class="ed-hero-container">
+            
+            <nav class="ed-breadcrumb">
+                <a href="{% url 'events:event_list' %}">{% translate "Events" %}</a>
+                <span>/</span>
+                <span>{{ event.get_localized_title|truncatechars:40 }}</span>
+            </nav>
+            
+            <div class="ed-hero-badges">
+                <span class="ed-badge ed-badge-type">
+                    <i class="bi bi-tag"></i>
+                    {{ event.get_event_type_display }}
+                </span>
+                {% if event.is_ongoing %}
+                <span class="ed-badge ed-badge-ongoing">
+                    <i class="bi bi-broadcast"></i>
+                    {% translate "Ongoing" %}
+                </span>
+                {% elif event.is_upcoming %}
+                <span class="ed-badge ed-badge-upcoming">
+                    <i class="bi bi-clock"></i>
+                    {% translate "Upcoming" %}
+                </span>
+                {% else %}
+                <span class="ed-badge ed-badge-past">
+                    {% translate "Past Event" %}
+                </span>
+                {% endif %}
+                {% if show_approval_status %}
+                <span class="ed-badge ed-badge-{{ event.approval_status }}">
+                    {% if event.approval_status == 'pending' %}
+                    <i class="bi bi-hourglass-split"></i> {% translate "Pending Approval" %}
+                    {% elif event.approval_status == 'approved' %}
+                    <i class="bi bi-check-circle"></i> {% translate "Approved" %}
+                    {% else %}
+                    <i class="bi bi-x-circle"></i> {% translate "Rejected" %}
                     {% endif %}
-                  </p>
-                </div>
-              </div>
+                </span>
+                {% endif %}
             </div>
-            {% endif %} {% if event.website %}
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-purple-soft me-3">
-                  <i class="fas fa-globe text-primary"></i>
+            
+            <h1 class="ed-hero-title">{{ event.get_localized_title }}</h1>
+            
+            <div class="ed-hero-meta">
+                <span class="ed-meta-item">
+                    <i class="bi bi-calendar-event"></i>
+                    {{ event.start_date|date:"F d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"F d, Y" }}{% endif %}
+                </span>
+                <span class="ed-meta-item">
+                    <i class="bi bi-geo-alt"></i>
+                    {% if event.is_virtual %}
+                    {% translate "Virtual Event" %}
+                    {% else %}
+                    {{ event.get_localized_location }}
+                    {% endif %}
+                </span>
+                <span class="ed-meta-item">
+                    <i class="bi bi-building"></i>
+                    {{ event.organizer }}
+                </span>
+            </div>
+            
+            <div class="ed-hero-actions">
+                {% if event.website %}
+                <a href="{{ event.website }}" target="_blank" class="ed-btn ed-btn-primary">
+                    <i class="bi bi-globe"></i>
+                    {% translate "Visit Website" %}
+                </a>
+                {% endif %}
+                
+                {% if user.is_authenticated %}
+                    {% if is_registered %}
+                    <form method="post" action="{% url 'events:event_unregister' event.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ed-btn ed-btn-outline">
+                            <i class="bi bi-x-circle"></i>
+                            {% translate "Cancel Registration" %}
+                        </button>
+                    </form>
+                    {% elif event.is_upcoming or event.is_ongoing %}
+                    <form method="post" action="{% url 'events:event_register' event.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ed-btn ed-btn-success">
+                            <i class="bi bi-check-circle"></i>
+                            {% translate "Register Now" %}
+                        </button>
+                    </form>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- Main Content -->
+    <main class="ed-main">
+        
+        <!-- Left Column -->
+        <div class="ed-content">
+            
+            <!-- Description -->
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "About This Event" %}</h2>
                 </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Website" %}</p>
-                  <p class="fw-bold">
-                    <a
-                      href="{{ event.website }}"
-                      target="_blank"
-                      class="text-truncate-1 d-block"
-                      style="max-width: 200px"
-                    >
-                      {{ event.website }}
-                    </a>
-                  </p>
+                <div class="ed-description">
+                    {{ event.get_localized_description|linebreaks }}
                 </div>
-              </div>
+            </section>
+            
+            <!-- Domains -->
+            {% if event.domain_list %}
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Research Domains" %}</h2>
+                </div>
+                <div class="ed-domains">
+                    {% for domain in event.domain_list %}
+                    <span class="ed-domain-tag">
+                        <i class="bi bi-hash"></i>
+                        {{ domain }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Organizer -->
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Organizer" %}</h2>
+                </div>
+                <div class="ed-organizer">
+                    <div class="ed-organizer-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="ed-organizer-info">
+                        <h3 class="ed-organizer-name">{{ event.organizer }}</h3>
+                        <div class="ed-organizer-contact">
+                            <i class="bi bi-envelope"></i>
+                            <a href="mailto:{{ event.contact_email }}">{{ event.contact_email }}</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+        </div>
+        
+        <!-- Sidebar -->
+        <aside class="ed-sidebar">
+            
+            <!-- Logistics Card -->
+            <div class="ed-logistics">
+                <div class="ed-logistics-header">
+                    <div class="ed-logistics-date">
+                        <span class="ed-logistics-day">{{ event.start_date|date:"d" }}</span>
+                        <span class="ed-logistics-month">{{ event.start_date|date:"M Y" }}</span>
+                    </div>
+                </div>
+                <div class="ed-logistics-body">
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-calendar-range"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Date & Time" %}</div>
+                            <div class="ed-logistics-value">
+                                {{ event.start_date|date:"F d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"F d, Y" }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Location" %}</div>
+                            <div class="ed-logistics-value">
+                                {% if event.is_virtual %}
+                                {% translate "Virtual Event" %}
+                                {% else %}
+                                {{ event.get_localized_location }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if event.website %}
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Website" %}</div>
+                            <div class="ed-logistics-value">
+                                <a href="{{ event.website }}" target="_blank">{% translate "Visit Event Page" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Registrations" %}</div>
+                            <div class="ed-logistics-value">{{ registration_count }} {% translate "registered" %}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ed-registration {% if event.is_past %}closed{% endif %}">
+                    <div class="ed-registration-status">
+                        <span class="ed-registration-label">
+                            {% if event.is_past %}
+                            {% translate "Registration Closed" %}
+                            {% else %}
+                            {% translate "Registration Open" %}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Deadline Card -->
+            {% if event.submission_deadline and event.days_until_deadline is not None %}
+            <div class="ed-deadline">
+                <div class="ed-deadline-header">
+                    <div class="ed-deadline-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <span class="ed-deadline-title">{% translate "Submission Deadline" %}</span>
+                </div>
+                <div class="ed-deadline-date">{{ event.submission_deadline|date:"F d, Y" }}</div>
+                <span class="ed-deadline-countdown">
+                    <i class="bi bi-clock"></i>
+                    {{ event.days_until_deadline }} {% translate "days left" %}
+                </span>
             </div>
             {% endif %}
-          </div>
-
-          <!-- Research domains -->
-          <div class="mb-4">
-            <h3 class="h6 mb-3">
-              <i class="fas fa-tags text-muted me-2"></i> {% trans "Research Domains" %}
-            </h3>
-            <div class="event-domains">
-              {% for domain in event.domain_list %}
-              <span class="badge bg-light text-dark">{{ domain }}</span>
-              {% endfor %}
+            
+            <!-- Attachment -->
+            {% if event.attachment %}
+            <div class="ed-attachment">
+                <a href="{{ event.attachment.url }}" target="_blank" class="ed-attachment-link">
+                    <div class="ed-attachment-icon">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </div>
+                    <div class="ed-attachment-info">
+                        <div class="ed-attachment-name">{% translate "Event Attachment" %}</div>
+                        <div class="ed-attachment-meta">{% translate "Click to download" %}</div>
+                    </div>
+                </a>
             </div>
-          </div>
-
-          <!-- Attachment -->
-          {% if event.attachment %}
-          <div class="border-top pt-4">
-            <a
-              href="{{ event.attachment.url }}"
-              class="btn btn-outline-secondary"
-              target="_blank"
-            >
-              <i class="fas fa-download me-2"></i> {% trans "Download Attachment" %}
-            </a>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- User action buttons -->
-      {% if user.is_authenticated %}
-      <div class="card mt-4 border-0">
-        <div class="card-body p-4 bg-light rounded-3">
-          <div
-            class="d-flex flex-wrap justify-content-between event-action-buttons gap-2"
-          >
-            <div class="d-flex flex-wrap gap-2">
-              {% if user == event.created_by or user.is_staff %}
-              <a
-                href="{% url 'events:event_update' event.pk %}"
-                class="btn btn-outline-custom btn-outline-primary"
-              >
-                <i class="fas fa-edit me-2"></i> {% trans "Edit" %}
-              </a>
-              <a
-                href="{% url 'events:event_delete' event.pk %}"
-                class="btn btn-outline-custom btn-outline-danger"
-              >
-                <i class="fas fa-trash me-2"></i> {% trans "Delete" %}
-              </a>
-              {% endif %}
+            {% endif %}
+            
+            <!-- Owner Actions -->
+            {% if user == event.created_by or user.is_staff %}
+            <div class="ed-owner-actions">
+                <div class="ed-owner-title">{% translate "Manage Event" %}</div>
+                <div class="ed-owner-btns">
+                    <a href="{% url 'events:event_update' event.pk %}" class="ed-owner-btn">
+                        <i class="bi bi-pencil"></i>
+                        {% translate "Edit Event" %}
+                    </a>
+                    <a href="{% url 'events:event_delete' event.pk %}" class="ed-owner-btn danger">
+                        <i class="bi bi-trash3"></i>
+                        {% translate "Delete Event" %}
+                    </a>
+                </div>
             </div>
-
-            <div>
-              {% if event.is_upcoming or event.is_ongoing %} {% if is_registered %}
-              <a
-                href="{% url 'events:event_unregister' event.pk %}"
-                class="btn btn-outline-custom btn-outline-danger"
-              >
-                <i class="fas fa-user-minus me-2"></i> {% trans "Unregister" %}
-              </a>
-              {% endif %} {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-      <!-- Event status card -->
-      <div class="card rounded-3 mb-4 event-status-card border-0">
-        <div class="card-header bg-light py-3">
-          <h5 class="mb-0">{% trans "Event Status" %}</h5>
-        </div>
-        <div class="card-body p-4">
-          {% if event.is_ongoing %}
-          <div
-            class="alert alert-success d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-check me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">
-                {% trans "This event is currently ongoing" %}
-              </h6>
-              <p class="mb-0 small">{% trans "Event in progress" %}</p>
-            </div>
-          </div>
-          {% elif event.is_upcoming %}
-          <div
-            class="alert alert-primary d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-alt me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">{% trans "This is an upcoming event" %}</h6>
-              <p class="mb-0 small">{% trans "Mark your calendar" %}</p>
-            </div>
-          </div>
-          {% else %}
-          <div
-            class="alert alert-secondary d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-times me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">{% trans "This event has ended" %}</h6>
-              <p class="mb-0 small">{% trans "Event completed" %}</p>
-            </div>
-          </div>
-          {% endif %} {% if user.is_authenticated and is_registered %}
-          <div
-            class="alert alert-success d-flex align-items-center mt-3"
-            role="alert"
-          >
-            <i class="fas fa-check-circle me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-0">
-                {% trans "You are registered for this event" %}
-              </h6>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- Share card -->
-      <div class="card rounded-3 mb-4 border-0">
-        <div class="card-header bg-light py-3">
-          <h5 class="mb-0">{% trans "Share This Event" %}</h5>
-        </div>
-        <div class="card-body p-4">
-          <div class="d-grid gap-2">
-            <a
-              href="mailto:?subject={{ event.title }}&body={{ request.build_absolute_uri }}"
-              class="btn btn-outline-secondary"
-            >
-              <i class="fas fa-envelope me-2"></i> {% trans "Email" %}
-            </a>
-            <a
-              href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ event.title }}"
-              target="_blank"
-              class="btn btn-outline-primary"
-            >
-              <i class="fab fa-twitter me-2"></i> {% trans "Twitter" %}
-            </a>
-            <a
-              href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ event.title }}"
-              target="_blank"
-              class="btn btn-outline-primary"
-            >
-              <i class="fab fa-linkedin me-2"></i> {% trans "LinkedIn" %}
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin actions -->
-       
-{% if show_approval_status and not event.is_approved %}
-<div class="alert alert-warning" role="alert">
-    <h4 class="alert-heading">{% trans "Pending Approval" %}</h4>
-    <p>{% trans "This event is currently pending approval and is not visible to other users." %}</p>
-    {% if user.is_staff %}
-        <hr>
-        <p class="mb-0">
-            <a href="{% url 'events:event_validate' event.pk %}" class="btn btn-success btn-sm">
-                {% trans "Approve Event" %}
-            </a>
-        </p>
-    {% endif %}
-</div>
-{% endif %}
-    </div>
-  </div>
+            {% endif %}
+            
+        </aside>
+    </main>
 </div>
 {% endblock %}
