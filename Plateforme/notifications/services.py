@@ -1,12 +1,40 @@
 ﻿from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.contrib.contenttypes.models import ContentType
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, override as translation_override
 from typing import Optional
 from .models import Notification
 
 
 class NotificationService:
+    @staticmethod
+    def _resolve_bilingual(title, message):
+        """Resolve title/message into both English and Arabic strings.
+        
+        Works with lazy translation strings: evaluates them under each
+        language override so both versions are stored in the database.
+        For plain strings (no lazy proxy), the same value is used as fallback.
+        """
+        try:
+            with translation_override('en'):
+                title_en = str(title)
+                message_en = str(message)
+        except Exception:
+            title_en = str(title)
+            message_en = str(message)
+
+        try:
+            with translation_override('ar'):
+                title_ar = str(title)
+                message_ar = str(message)
+        except Exception:
+            title_ar = ''
+            message_ar = ''
+
+        # If Arabic resolved to same as English, it means no translation exists
+        # Keep it anyway — the localized getter will fall back to English
+        return title_en, title_ar, message_en, message_ar
+
     @staticmethod
     def create_notification(
         recipient,
@@ -19,13 +47,21 @@ class NotificationService:
         action_url: Optional[str] = None,
     ):
         """
-        Crée une notification et l'envoie via WebSocket si possible
+        Crée une notification et l'envoie via WebSocket si possible.
+        Automatically stores both English and Arabic versions of
+        title/message when lazy translation strings are passed.
         """
+        title_en, title_ar, message_en, message_ar = NotificationService._resolve_bilingual(title, message)
+
         notification = Notification(
             recipient=recipient,
             type=notification_type,
-            title=title,
-            message=message,
+            title=title_en,  # legacy field gets English as default
+            title_en=title_en,
+            title_ar=title_ar,
+            message=message_en,  # legacy field gets English as default
+            message_en=message_en,
+            message_ar=message_ar,
             project_id=project_id,
             sender_id=sender_id,
         )
@@ -43,8 +79,12 @@ class NotificationService:
         notification_data = {
             'id': notification.id,
             'type': notification.get_type_display(),
-            'title': notification.title,
-            'message': notification.message,
+            'title': notification.title_en,
+            'title_en': notification.title_en,
+            'title_ar': notification.title_ar,
+            'message': notification.message_en,
+            'message_en': notification.message_en,
+            'message_ar': notification.message_ar,
             'created_at': notification.created_at.isoformat(),
             'project_id': str(notification.project_id) if notification.project_id else None,
             'sender_id': str(notification.sender_id) if notification.sender_id else None,

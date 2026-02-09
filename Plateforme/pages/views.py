@@ -445,8 +445,8 @@ def admin_user_activate(request, user_id):
     
     Notification.objects.create(
         recipient=user,
-        title="Account activated",
-        message="Your account has been activated by an administrator. You can now access all features."
+        title=_("Account activated"),
+        message=_("Your account has been activated by an administrator. You can now access all features.")
     )
     
     messages.success(request, f"The user {user.full_name} has been successfully activated.")
@@ -487,8 +487,8 @@ def admin_user_block(request, user_id):
         
         Notification.objects.create(
             recipient=user,
-            title="Blocked account",
-            message="Your account has been locked by an administrator. Please contact support if necessary."
+            title=_("Blocked account"),
+            message=_("Your account has been locked by an administrator. Please contact support if necessary.")
         )
         
         messages.success(request, f"The user {user.full_name} has been successfully blocked.")

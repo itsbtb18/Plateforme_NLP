@@ -13,8 +13,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
-  scrollbar-gutter: stable; /* Always reserve space for scrollbar */
-  overflow-y: scroll; /* Force scrollbar space */
+  overflow-x: clip;
 }
 
 body {
@@ -26,9 +25,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden; /* Prevent horizontal scroll */
+  overflow-x: clip;
+  max-width: 100vw;
 }
 
 /* ========================================
@@ -55,11 +53,11 @@ body {
   width: 100%; /* Full width of parent */
   max-width: none; /* Remove max-width constraint that could cause centering */
   margin: 0; /* Remove auto centering */
-  padding: 12px 12px; /* Minimal padding to free up space for buttons */
+  padding: 16px 48px; /* Fixed px for stable layout across machines */
   display: grid;
-  grid-template-columns: auto 1fr auto; /* Let columns size to content */
+  grid-template-columns: 1fr 2fr 1fr; /* Fixed proportions for consistent spacing */
   align-items: center;
-  gap: 12px; /* Minimal gap */
+  gap: 48px; /* Fixed gap to match reference layout */
   box-sizing: border-box; /* Ensure padding doesn't add to width */
 }
 
@@ -309,12 +307,10 @@ body {
 .guest-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 28px;
   margin: 0;
   padding: 0;
   flex-direction: row-reverse;
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 /* ===== ACTION BUTTONS - MODERN STYLE ===== */
@@ -1185,6 +1181,15 @@ html[dir="rtl"] .logo-container {
   flex-direction: row-reverse;
 }
 
+/* Header: reverse the 3-column grid so actions are on the left in RTL */
+html[dir="rtl"] .header-container {
+  direction: rtl;
+}
+
+html[dir="rtl"] .header-actions {
+  justify-self: start;
+}
+
 html[dir="rtl"] .language-dropdown-item:hover,
 html[dir="rtl"] .profile-dropdown-item:hover {
   transform: translateX(-4px);
@@ -1384,6 +1389,8 @@ html[dir="rtl"] .sidebar-menu .active {
 /* ===== CONTENT AREA ===== */
 .content {
   flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
   padding: 32px;
   min-height: calc(100vh - 80px);
   background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);

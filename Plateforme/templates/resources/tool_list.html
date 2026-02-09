@@ -61,11 +61,76 @@
     z-index: 2;
 }
 
+.hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.hero-text-block h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 0.5rem;
+}
+
 .hero-text {
     color: rgba(255, 255, 255, 0.9);
     font-size: 1.1rem;
     max-width: 600px;
     line-height: 1.6;
+    margin: 0;
+}
+
+/* Glass-style Add button (matches corpus page) */
+.btn-glass-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-glass-tool:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-glass-tool .icon-circle {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    font-size: 1rem;
+}
+
+.login-notice-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
 }
 
 .hero-stats {
@@ -514,37 +579,39 @@ mark.search-highlight {
     }
 }
 
-/* ===== RTL Support ===== */
+/* ══════════════════════════════════════════════════════════════════════ */
+/* RTL SUPPORT — direction: rtl on containers, no row-reverse needed    */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+/* Hero */
+html[dir="rtl"] .hero-section { direction: rtl; }
+html[dir="rtl"] .hero-text-block h1 { text-align: start; }
+html[dir="rtl"] .hero-text { text-align: start; }
+
+/* Search */
+html[dir="rtl"] .search-section { direction: rtl; }
 html[dir="rtl"] .search-box i {
     left: auto;
     right: 1rem;
 }
-
 html[dir="rtl"] .search-box input {
     padding: 0.875rem 2.75rem 0.875rem 1rem;
-}
-
-/* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .hero-content {
-    /* Keep flex direction normal so button stays on right */
-}
-
-html[dir="rtl"] .hero-text {
     text-align: right;
 }
+html[dir="rtl"] .search-box input::placeholder { text-align: right; }
 
-html[dir="rtl"] .hero-stats {
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-}
+/* Results header */
+html[dir="rtl"] .results-header { direction: rtl; }
+html[dir="rtl"] .results-count { text-align: start; }
 
-html[dir="rtl"] .tool-card .card-footer {
-    flex-direction: row-reverse;
-}
+/* Cards */
+html[dir="rtl"] .tool-card { direction: rtl; text-align: start; }
+html[dir="rtl"] .tool-card .card-footer { direction: rtl; }
+html[dir="rtl"] .tool-meta { direction: rtl; }
+html[dir="rtl"] .btn-view-api i { transform: scaleX(-1); }
 
-html[dir="rtl"] .tool-meta {
-    flex-direction: row-reverse;
-}
+/* Empty state */
+html[dir="rtl"] .empty-state { text-align: center; }
 </style>
 {% endblock %}
 
@@ -554,18 +621,37 @@ html[dir="rtl"] .tool-meta {
     <!-- Hero Section -->
     <section class="hero-section">
         <div class="hero-container">
-            <p class="hero-text">
-                {% trans "Discover and integrate powerful Natural Language Processing tools for Arabic and multilingual text analysis." %}
-            </p>
-            <div class="hero-stats">
-                <div class="stat-box">
-                    <span class="stat-number" id="tools-count">{{ total_count|default:"0" }}</span>
-                    <span class="stat-label">{% trans "Tools" %}</span>
+            <div class="hero-content">
+                <div class="hero-text-block">
+                    <h1>{% trans "NLP Tool Hub" %}</h1>
+                    <p class="hero-text">
+                        {% trans "Discover and integrate powerful Natural Language Processing tools for Arabic and multilingual text analysis." %}
+                    </p>
+                    <div class="hero-stats">
+                        <div class="stat-box">
+                            <span class="stat-number" id="tools-count">{{ total_count|default:"0" }}</span>
+                            <span class="stat-label">{% trans "Tools" %}</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number">6</span>
+                            <span class="stat-label">{% trans "Categories" %}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-box">
-                    <span class="stat-number">6</span>
-                    <span class="stat-label">{% trans "Categories" %}</span>
+                
+                {% if user.is_authenticated %}
+                <a href="{% url 'resources:tool-create' %}" class="btn-glass-tool">
+                    <span class="icon-circle">
+                        <i class="bi bi-plus-lg"></i>
+                    </span>
+                    <span>{% trans "Add New Tool" %}</span>
+                </a>
+                {% else %}
+                <div class="login-notice-tool">
+                    <i class="bi bi-info-circle"></i>
+                    <span>{% trans "Sign in to submit tools" %}</span>
                 </div>
+                {% endif %}
             </div>
         </div>
     </section>

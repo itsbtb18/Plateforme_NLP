@@ -72,9 +72,9 @@
     --transition-base: 250ms ease;
 }
 
-/* Font Family */
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+/* Font Family - scoped to feed page to avoid overriding base.css */
+.feed-page { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] .feed-page { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 /* ═══════════════════════════════════════
    PAGE LAYOUT
@@ -563,10 +563,10 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     border-color: var(--feed-danger);
 }
 
-/* Post Dropdown */
+/* Post Dropdown - scoped to .post-dropdown to avoid overriding Bootstrap */
 .post-dropdown { position: relative; }
 
-.dropdown-toggle {
+.post-dropdown .feed-dropdown-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -581,15 +581,15 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     text-decoration: none;
 }
 
-.dropdown-toggle:hover {
+.post-dropdown .feed-dropdown-toggle:hover {
     background: var(--feed-muted);
     color: var(--feed-text-primary);
     border-color: var(--feed-border-hover);
 }
 
-.dropdown-toggle i { font-size: 1.125rem; }
+.post-dropdown .feed-dropdown-toggle i { font-size: 1.125rem; }
 
-.dropdown-menu {
+.post-dropdown .feed-dropdown-menu {
     position: absolute;
     top: 100%;
     right: 0;
@@ -606,15 +606,15 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     z-index: 50;
 }
 
-html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
+html[dir="rtl"] .post-dropdown .feed-dropdown-menu { right: auto; left: 0; }
 
-.post-dropdown.open .dropdown-menu {
+.post-dropdown.open .feed-dropdown-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
-.dropdown-item {
+.post-dropdown .feed-dropdown-item {
     display: flex;
     align-items: center;
     gap: 0.625rem;
@@ -630,15 +630,15 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
     cursor: pointer;
 }
 
-.dropdown-item:hover {
+.post-dropdown .feed-dropdown-item:hover {
     background: var(--feed-muted);
     color: var(--feed-text-primary);
 }
 
-.dropdown-item i { font-size: 1rem; }
+.post-dropdown .feed-dropdown-item i { font-size: 1rem; }
 
-.dropdown-item.danger { color: var(--feed-danger); }
-.dropdown-item.danger:hover { background: var(--feed-danger-bg); }
+.post-dropdown .feed-dropdown-item.danger { color: var(--feed-danger); }
+.post-dropdown .feed-dropdown-item.danger:hover { background: var(--feed-danger-bg); }
 
 /* Post Content */
 .post-content { padding: 0 1.5rem 1rem; }
@@ -726,7 +726,7 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
 
 .stat-item i { font-size: 0.9rem; }
 
-/* Post Actions */
+/* Post Actions - namespaced to avoid overriding base.css .action-btn */
 .post-actions {
     display: flex;
     align-items: center;
@@ -735,7 +735,7 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
     border-top: 1px solid var(--feed-border);
 }
 
-.action-btn {
+.feed-action-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -753,18 +753,18 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
     transition: all var(--transition-fast);
 }
 
-.action-btn:hover {
+.feed-action-btn:hover {
     background: var(--feed-muted);
     color: var(--feed-text-primary);
 }
 
-.action-btn i { font-size: 1.125rem; }
+.feed-action-btn i { font-size: 1.125rem; }
 
-.action-btn.liked {
+.feed-action-btn.liked {
     color: var(--feed-danger);
 }
 
-.action-btn.liked:hover {
+.feed-action-btn.liked:hover {
     background: var(--feed-danger-bg);
 }
 
@@ -961,7 +961,7 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
         padding-right: 1rem;
     }
     
-    .action-btn span { display: none; }
+    .feed-action-btn span { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -974,6 +974,45 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
     .create-post-input { text-align: center; }
     
     .option-btn span { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RTL SUPPORT — Arabic mode: cards right-aligned, avatar first
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Page-level direction — cascades to all flex/grid containers */
+html[dir="rtl"] .feed-page { direction: rtl; text-align: right; }
+
+/* Hero: centered content is fine, just ensure text alignment */
+html[dir="rtl"] .hero-inner { text-align: center; }
+html[dir="rtl"] .hero-subtitle { text-align: center; }
+
+/* Search bar */
+html[dir="rtl"] .search-icon { padding: 0 1.5rem 0 0.25rem; }
+html[dir="rtl"] .search-input {
+    padding: 1rem 0 1rem 1.5rem;
+    text-align: right;
+}
+html[dir="rtl"] .search-input::placeholder { text-align: right; }
+
+/* Create post card */
+html[dir="rtl"] .create-post-input { text-align: right; }
+
+/* Post cards: text alignment */
+html[dir="rtl"] .post-author-info h3 { text-align: start; }
+html[dir="rtl"] .post-content { text-align: start; }
+html[dir="rtl"] .post-text { text-align: start; }
+
+/* Comments */
+html[dir="rtl"] .comment-body { text-align: start; }
+html[dir="rtl"] .comment-author { text-align: start; }
+html[dir="rtl"] .comment-text { text-align: start; }
+html[dir="rtl"] .view-comments-link i { transform: scaleX(-1); }
+
+/* Dropdown menu: flip to left side in RTL */
+html[dir="rtl"] .post-dropdown .feed-dropdown-menu {
+    right: auto;
+    left: 0;
 }
 </style>
 {% endblock %}
@@ -1030,13 +1069,13 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
             <div class="create-post-header">
                 <div class="create-post-avatar">
                     {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
+                        <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}">
                     {% else %}
-                        {{ user.full_name|slice:":1"|upper }}
+                        {{ user.get_full_name_display|slice:":1"|upper }}
                     {% endif %}
                 </div>
                 <a href="{% url 'QA:create_post' %}" class="create-post-input">
-                    {% translate "What's on your mind," %} {{ user.first_name|default:user.full_name }}?
+                    {% translate "What's on your mind," %} {{ user.get_full_name_display }}?
                 </a>
             </div>
             <div class="create-post-actions">
@@ -1075,13 +1114,13 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
                     <div class="post-author">
                         <div class="post-avatar">
                             {% if post.author.avatar %}
-                                <img src="{{ post.author.avatar.url }}" alt="{{ post.author.full_name }}">
+                                <img src="{{ post.author.avatar.url }}" alt="{{ post.author.get_full_name_display }}">
                             {% else %}
-                                {{ post.author.full_name|slice:":1"|upper }}
+                                {{ post.author.get_full_name_display|slice:":1"|upper }}
                             {% endif %}
                         </div>
                         <div class="post-author-info">
-                            <h3><a href="{% url 'accounts:profile' post.author.id %}">{{ post.author.full_name }}</a></h3>
+                            <h3><a href="{% url 'accounts:profile' post.author.id %}">{{ post.author.get_full_name_display }}</a></h3>
                             <div class="post-meta">
                                 <i class="bi bi-clock"></i>
                                 <span>{{ post.created_at|timesince }} {% translate "ago" %}</span>
@@ -1146,21 +1185,21 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
                 <!-- Post Actions -->
                 <div class="post-actions">
                     {% if user.is_authenticated %}
-                    <button type="button" class="action-btn {% if user in post.likes.all %}liked{% endif %}" onclick="toggleLike('{{ post.id }}', this)">
+                    <button type="button" class="feed-action-btn {% if user in post.likes.all %}liked{% endif %}" onclick="toggleLike('{{ post.id }}', this)">
                         <i class="bi {% if user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                         <span>{% translate "Like" %}</span>
                     </button>
                     {% else %}
-                    <a href="{% url 'account_login' %}" class="action-btn">
+                    <a href="{% url 'account_login' %}" class="feed-action-btn">
                         <i class="bi bi-heart"></i>
                         <span>{% translate "Like" %}</span>
                     </a>
                     {% endif %}
-                    <a href="{% url 'QA:post_detail' post.slug %}" class="action-btn">
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="feed-action-btn">
                         <i class="bi bi-chat-dots"></i>
                         <span>{% translate "Comment" %}</span>
                     </a>
-                    <button type="button" class="action-btn" onclick="sharePost('{{ post.slug }}')">
+                    <button type="button" class="feed-action-btn" onclick="sharePost('{{ post.slug }}')">
                         <i class="bi bi-share"></i>
                         <span>{% translate "Share" %}</span>
                     </button>
@@ -1173,10 +1212,10 @@ html[dir="rtl"] .dropdown-menu { right: auto; left: 0; }
                         {% for comment in post.comments.all|slice:":2" %}
                         <div class="comment-item">
                             <div class="comment-avatar">
-                                {{ comment.author.full_name|slice:":1"|upper }}
+                                {{ comment.author.get_full_name_display|slice:":1"|upper }}
                             </div>
                             <div class="comment-body">
-                                <p class="comment-author">{{ comment.author.full_name }}</p>
+                                <p class="comment-author">{{ comment.author.get_full_name_display }}</p>
                                 <p class="comment-text">{{ comment.content|truncatewords:20 }}</p>
                                 <span class="comment-time">{{ comment.created_at|timesince }} {% translate "ago" %}</span>
                             </div>

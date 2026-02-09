@@ -212,10 +212,12 @@ html[dir="rtl"] body {
     font-size: 1rem;
     color: var(--text-primary);
     outline: none;
+    text-align: start; /* auto-flips to right in RTL */
 }
 
 .search-input::placeholder {
     color: var(--text-muted);
+    text-align: start;
 }
 
 .search-btn {
@@ -713,6 +715,7 @@ html[dir="rtl"] body {
     min-width: 70px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    text-align: start; /* auto-flips based on dir */
 }
 
 .meta-value {
@@ -756,7 +759,7 @@ html[dir="rtl"] body {
     background: var(--surface-light);
     border-top: 1px solid var(--border-light);
     display: flex;
-    justify-content: flex-end;
+    justify-content: end; /* logical: end = right in LTR, left in RTL */
     align-items: center;
 }
 
@@ -837,101 +840,34 @@ html[dir="rtl"] body {
     color: white;
 }
 
-/* ===== RTL SUPPORT ===== */
+/* ══════════════════════════════════════════════════════════════════════════════ */
+/* RTL SUPPORT — Uses direction: rtl + CSS logical properties                     */
+/* With direction: rtl, flex-direction: row lays items right-to-left,             */
+/* text-align: start resolves to right, and flex-start means the right edge.      */
+/* ══════════════════════════════════════════════════════════════════════════════ */
+
+/* --- Content Layout: direction:rtl flips the grid columns automatically --- */
+/* Column 1 (280px filter) renders on the right, column 2 (1fr results) on the left */
 html[dir="rtl"] .content-layout {
     direction: rtl;
 }
 
-html[dir="rtl"] .header-content {
-    flex-direction: row-reverse;
+@media (max-width: 992px) {
+    html[dir="rtl"] .filter-sidebar {
+        right: -100%;
+        left: auto;
+    }
+    html[dir="rtl"] .filter-sidebar.active {
+        right: 0;
+        left: auto;
+    }
 }
 
-html[dir="rtl"] .header-text {
-    text-align: right;
-}
-
-html[dir="rtl"] .subtitle {
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-}
-
-html[dir="rtl"] .btn-glass {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .login-notice {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .card-header {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .card-title-section {
-    text-align: right;
-}
-
-html[dir="rtl"] .meta-item {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .meta-label {
-    text-align: right;
-}
-
-html[dir="rtl"] .card-footer {
-    justify-content: flex-start;
-}
-
-html[dir="rtl"] .btn-view {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .btn-view i {
-    transform: rotate(180deg);
-}
-
-html[dir="rtl"] .btn-view:hover i {
-    transform: rotate(180deg) translateX(-4px);
-}
-
-html[dir="rtl"] .search-box {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .filter-sidebar {
-    left: auto;
-    right: -100%;
-}
-
-html[dir="rtl"] .filter-sidebar.active {
-    left: auto;
-    right: 0;
-}
-
-html[dir="rtl"] .search-btn {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .search-btn i {
-    transform: rotate(180deg);
-}
-
-html[dir="rtl"] .explore-toggle {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .tag-pill {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .empty-state {
-    text-align: right;
-}
-
-html[dir="rtl"] .btn-primary-modern {
-    flex-direction: row-reverse;
-}
+/* --- Header Section: title on the right, button on the left --- */
+html[dir="rtl"] .corpus-header-section { direction: rtl; }
+html[dir="rtl"] .header-text { text-align: start; }
+html[dir="rtl"] .header-text h1 { text-align: start; }
+html[dir="rtl"] .subtitle { justify-content: flex-start; }
 
 html[dir="rtl"] .corpus-header-section::before {
     right: auto;
@@ -941,6 +877,49 @@ html[dir="rtl"] .corpus-header-section::before {
 html[dir="rtl"] .corpus-header-section::after {
     right: auto;
     left: -10%;
+}
+
+/* --- Search Bar: right-aligned placeholder, reversed element order --- */
+html[dir="rtl"] .search-section { direction: rtl; }
+html[dir="rtl"] .search-input { text-align: right; }
+html[dir="rtl"] .search-input::placeholder { text-align: right; }
+html[dir="rtl"] .search-btn i { transform: scaleX(-1); }
+
+/* --- Results Header --- */
+html[dir="rtl"] .results-header { direction: rtl; }
+html[dir="rtl"] .results-count { text-align: start; }
+
+/* --- Corpus Cards: all content right-aligned --- */
+html[dir="rtl"] .corpus-card {
+    direction: rtl;
+    text-align: start;
+}
+
+html[dir="rtl"] .card-title-section { text-align: start; }
+html[dir="rtl"] .corpus-title { text-align: start; }
+html[dir="rtl"] .meta-label { text-align: start; min-width: 75px; }
+html[dir="rtl"] .meta-value { text-align: start; }
+
+/* Tags: flex-start in RTL = right edge */
+html[dir="rtl"] .card-tags { justify-content: flex-start; }
+
+/* Card Footer: "View Details" button slides to the left */
+html[dir="rtl"] .card-footer { justify-content: flex-start; }
+html[dir="rtl"] .btn-view i { transform: scaleX(-1); }
+html[dir="rtl"] .btn-view:hover i { transform: scaleX(-1) translateX(4px); }
+
+/* --- Filter Sidebar internals --- */
+html[dir="rtl"] .filter-sidebar { direction: rtl; }
+html[dir="rtl"] .filter-section-title { text-align: start; }
+html[dir="rtl"] .filter-option-label { text-align: start; }
+
+/* --- Empty State --- */
+html[dir="rtl"] .empty-state { text-align: center; }
+
+/* --- Active Filter Tags --- */
+html[dir="rtl"] .active-filter-tag button {
+    margin-inline-start: 0.25rem;
+    margin-inline-end: 0;
 }
 
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
@@ -1126,7 +1105,10 @@ html[dir="rtl"] .corpus-header-section::after {
                 <div class="results-header">
                     <div class="results-count">
                         <i class="bi bi-collection"></i>
-                        <span>{% trans "Showing" %} <strong id="resultsCount">{{ total_count }}</strong> {% trans "results" %}</span>
+                        <span>{% trans "Showing" %}
+                             <strong id="resultsCount">{{ total_count }}</strong> 
+                             {% trans "results" %}
+                         </span>
                     </div>
                     <div class="active-filters-display" id="activeFiltersDisplay">
                         <!-- Active filter tags will be inserted here by JS -->

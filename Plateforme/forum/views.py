@@ -462,8 +462,11 @@ class TopicToggleStatusView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, 
             NotificationService.create_notification(
                 recipient=topic.creator,
                 notification_type='FORUM_TOPIC_STATUS',
-                title=f"Sujet {'fermé' if topic.is_closed else 'rouvert'}",
-                message=f"Votre sujet '{topic.title}' a été {'fermé' if topic.is_closed else 'rouvert'} par un administrateur.",
+                title=_("Topic closed") if topic.is_closed else _("Topic reopened"),
+                message=_("Your topic '%(title)s' has been %(action)s by an administrator.") % {
+                    'title': topic.title,
+                    'action': str(_("closed")) if topic.is_closed else str(_("reopened"))
+                },
                 related_object=topic
             )
         
