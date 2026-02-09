@@ -587,6 +587,11 @@ html[dir="rtl"] .ef-date-container input {
     }
     .ef-btn { width: 100%; }
 }
+
+/* 🔥 Supprimer complètement le bouton "Choose file" / "No file chosen" */
+#attachmentInput {
+    display: none !important;
+}
 </style>
 {% endblock %}
 
@@ -898,24 +903,43 @@ html[dir="rtl"] .ef-date-container input {
                     <!-- Attachment -->
                     <div class="ef-form-group">
                         <label class="ef-label">{% translate "Attachment / Poster" %}</label>
-                        <div class="ef-file-zone" onclick="document.querySelector('input[name=attachment]').click();">
-                            <input type="file" name="attachment" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" id="attachmentInput" onchange="updateFileStatus(this)">
+
+                        <div class="ef-file-zone" id="fileZone">
+                            <input
+                                type="file"
+                                name="attachment"
+                                id="attachmentInput"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            >
+
                             <div class="ef-file-icon">
                                 <i class="bi bi-upload"></i>
                             </div>
-                            <p class="ef-file-title">{% translate "Upload file" %}</p>
-                            <p class="ef-file-desc">{% translate "PDF, Word, or Image (Max 10MB)" %}</p>
+
+                            <p class="ef-file-title" id="fileTitle">
+                                {% translate "Upload file" %}
+                            </p>
+
+                            <p class="ef-file-desc">
+                                {% translate "PDF, Word, or Image (Max 10MB)" %}
+                            </p>
                         </div>
+
                         {% if form.instance.attachment %}
                         <div class="ef-file-current">
                             <div class="ef-file-current-icon">
                                 <i class="bi bi-file-earmark-check"></i>
                             </div>
-                            <span class="ef-file-current-name">{{ form.instance.attachment.name|truncatechars:40 }}</span>
+                            <span class="ef-file-current-name">
+                                {{ form.instance.attachment.name|truncatechars:40 }}
+                            </span>
                         </div>
                         {% endif %}
+
                         {% for error in form.attachment.errors %}
-                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        <div class="ef-error">
+                            <i class="bi bi-exclamation-circle"></i> {{ error }}
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
@@ -941,20 +965,21 @@ html[dir="rtl"] .ef-date-container input {
 </div>
 
 <script>
-function updateFileStatus(input) {
-    if (input.files && input.files[0]) {
-        const fileName = input.files[0].name;
-        const zone = input.closest('.ef-file-zone');
-        if (zone) {
-            const titleEl = zone.querySelector('.ef-file-title');
-            if (titleEl) {
-                titleEl.textContent = fileName;
-            }
-        }
-    }
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('attachmentInput');
+    const fileZone  = document.getElementById('fileZone');
+    const fileTitle = document.getElementById('fileTitle');
 
-document.addEventListener('DOMContentLoaded', function() {
+    fileZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileTitle.textContent = fileInput.files[0].name;
+        }
+    });
+
     // Progress steps click handlers
     const progressSteps = document.querySelectorAll('.ef-progress-step');
     
