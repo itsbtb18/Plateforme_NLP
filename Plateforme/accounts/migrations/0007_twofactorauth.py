@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0005_alter_customuser_avatar'),
+        ('accounts', '0006_customuser_bio_ar_customuser_bio_en_and_more'),
     ]
 
     operations = [
