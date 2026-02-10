@@ -1,40 +1,970 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load static %}
 {% load i18n %}
-{% load account socialaccount %}
-{% block title %}{% trans "Sign Up" %}{% endblock title %}
+
+{% block title %}{% trans "Create Account" %} - {% trans "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ===== AUTH PAGE LAYOUT ===== */
+    .auth-page-wrapper {
+        min-height: calc(100vh - 200px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f5f9ff 100%);
+    }
+
+    .auth-container {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        max-width: 1100px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(59, 130, 246, 0.05);
+        overflow: hidden;
+        animation: fadeInScale 0.5s ease-out;
+    }
+
+    @keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* ===== VISUAL SIDE ===== */
+    .visual-side {
+        background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 50%, #1E3A8A 100%);
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .visual-side::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+        animation: pulse 15s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.3; }
+    }
+
+    .visual-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .visual-icon {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 1.5rem;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .visual-icon svg {
+        width: 70px;
+        height: 70px;
+        fill: white;
+    }
+
+    .visual-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
+    }
+
+    .visual-subtitle {
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+        max-width: 300px;
+        margin-bottom: 2rem;
+    }
+
+    .visual-features {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        text-align: left;
+    }
+
+    .visual-feature {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 12px;
+        backdrop-filter: blur(5px);
+    }
+
+    html[dir="rtl"] .visual-feature {
+        text-align: right;
+    }
+
+    .visual-feature-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .visual-feature-text h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .visual-feature-text p {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0;
+    }
+
+    /* ===== FORM SIDE ===== */
+    .form-side {
+        padding: 2.5rem 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .form-side::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .form-side::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .form-side::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.3);
+        border-radius: 3px;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    /* ===== FORM STYLING ===== */
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.85rem;
+    }
+
+    .form-group label .required {
+        color: #EF4444;
+    }
+
+    .input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .input-wrapper input,
+    .input-wrapper select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        padding-left: 2.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #ffffff;
+        color: #1f2937;
+    }
+
+    html[dir="rtl"] .input-wrapper input,
+    html[dir="rtl"] .input-wrapper select {
+        padding-left: 1rem;
+        padding-right: 2.5rem;
+    }
+
+    .input-wrapper input:focus,
+    .input-wrapper select:focus {
+        border-color: #3B82F6;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .input-wrapper input::placeholder {
+        color: #9ca3af;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 0.875rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 0.9rem;
+        pointer-events: none;
+        transition: color 0.2s ease;
+    }
+
+    html[dir="rtl"] .input-icon {
+        left: auto;
+        right: 0.875rem;
+    }
+
+    .input-wrapper input:focus ~ .input-icon,
+    .input-wrapper select:focus ~ .input-icon {
+        color: #3B82F6;
+    }
+
+    /* Password field with toggle */
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .password-wrapper input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #ffffff;
+        color: #1f2937;
+    }
+
+    html[dir="rtl"] .password-wrapper input {
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+    }
+
+    .password-wrapper input:focus {
+        border-color: #3B82F6;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 0.875rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s ease;
+        z-index: 2;
+    }
+
+    html[dir="rtl"] .password-toggle {
+        right: auto;
+        left: 0.875rem;
+    }
+
+    .password-toggle:hover {
+        color: #3B82F6;
+    }
+
+    /* Password requirements */
+    .password-requirements {
+        background: #F3F4F6;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .password-requirements p {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin: 0 0 0.5rem 0;
+        font-weight: 500;
+    }
+
+    .password-requirements ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.25rem;
+    }
+
+    .password-requirements li {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .password-requirements li i {
+        font-size: 0.65rem;
+    }
+
+    .password-requirements li.valid {
+        color: #10B981;
+    }
+
+    /* ===== TERMS CHECKBOX ===== */
+    .terms-checkbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .terms-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+        accent-color: #3B82F6;
+        flex-shrink: 0;
+    }
+
+    .terms-checkbox label {
+        font-size: 0.85rem;
+        color: #4b5563;
+        line-height: 1.4;
+    }
+
+    .terms-checkbox label a {
+        color: #3B82F6;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .terms-checkbox label a:hover {
+        text-decoration: underline;
+    }
+
+    /* ===== SUBMIT BUTTON ===== */
+    .btn-submit {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        margin-top: 0.75rem;
+    }
+
+    .btn-submit:hover {
+        transform: scale(1.02) translateY(-2px);
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    }
+
+    .btn-submit:active {
+        transform: scale(0.98);
+    }
+
+    .btn-submit .spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .btn-submit.loading .spinner {
+        display: block;
+    }
+
+    .btn-submit.loading .btn-text {
+        display: none;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ===== LOGIN LINK ===== */
+    .auth-footer {
+        text-align: center;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .auth-footer p {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .auth-footer a {
+        color: #3B82F6;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .auth-footer a:hover {
+        color: #1E40AF;
+        text-decoration: underline;
+    }
+
+    /* ===== ERROR MESSAGES ===== */
+    .alert-errors {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .alert-errors ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .alert-errors li {
+        color: #DC2626;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert-errors li:last-child {
+        margin-bottom: 0;
+    }
+
+    .alert-errors li::before {
+        content: '\f071';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 0.7rem;
+    }
+
+    .field-error {
+        color: #DC2626;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .field-error::before {
+        content: '\f071';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 0.65rem;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1000px) {
+        .auth-container {
+            grid-template-columns: 1fr;
+            max-width: 550px;
+        }
+
+        .visual-side {
+            display: none;
+        }
+
+        .form-side {
+            padding: 2rem;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .auth-page-wrapper {
+            padding: 1rem;
+        }
+
+        .form-side {
+            padding: 1.5rem;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .password-requirements ul {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ===== RTL ADJUSTMENTS ===== */
+    html[dir="rtl"] .visual-features {
+        text-align: right;
+    }
+
+    html[dir="rtl"] .terms-checkbox {
+        flex-direction: row-reverse;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="text-center mb-0">{% trans "Create Your Account" %}</h2>
+{% get_current_language as LANGUAGE_CODE %}
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <!-- Visual Side -->
+        <div class="visual-side">
+            <div class="visual-content">
+                <div class="visual-icon">
+                    <!-- Arabic NLP Brain/Network Icon -->
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="30" r="8" fill="white"/>
+                        <circle cx="25" cy="50" r="6" fill="white"/>
+                        <circle cx="75" cy="50" r="6" fill="white"/>
+                        <circle cx="35" cy="75" r="5" fill="white"/>
+                        <circle cx="65" cy="75" r="5" fill="white"/>
+                        <circle cx="50" cy="55" r="10" fill="white"/>
+                        <line x1="50" y1="30" x2="50" y2="45" stroke="white" stroke-width="2"/>
+                        <line x1="25" y1="50" x2="40" y2="55" stroke="white" stroke-width="2"/>
+                        <line x1="75" y1="50" x2="60" y2="55" stroke="white" stroke-width="2"/>
+                        <line x1="35" y1="75" x2="45" y2="62" stroke="white" stroke-width="2"/>
+                        <line x1="65" y1="75" x2="55" y2="62" stroke="white" stroke-width="2"/>
+                        <text x="44" y="60" font-size="16" fill="#3B82F6" font-weight="bold" font-family="Arial">ع</text>
+                    </svg>
                 </div>
-                <div class="card-body p-4">
-                    <form method="post" class="needs-validation" novalidate>
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            {{ form|crispy }}
+                <h2 class="visual-title">{% trans "Join the Arabic NLP Community" %}</h2>
+                <p class="visual-subtitle">{% trans "Access state-of-the-art tools and datasets." %}</p>
+                
+                <div class="visual-features">
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-brain"></i>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-lg w-100">
-                            <i class="fas fa-user-plus me-2"></i>{% trans "Sign Up" %}
-                        </button>
-                    </form>
-
-                   
-                    <div class="text-center mt-4">
-                        <p class="mb-0">
-                            {% trans "Already have an account?" %} 
-                            <a href="{% url 'account_login' %}" class="text-decoration-none fw-bold">
-                                <i class="fas fa-sign-in-alt me-1"></i>{% trans "Log In" %}
-                            </a>
-                        </p>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Advanced NLP Tools" %}</h4>
+                            <p>{% trans "State-of-the-art processing tools" %}</p>
+                        </div>
+                    </div>
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Research Collaboration" %}</h4>
+                            <p>{% trans "Connect with researchers worldwide" %}</p>
+                        </div>
+                    </div>
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Rich Arabic Datasets" %}</h4>
+                            <p>{% trans "High-quality curated corpora" %}</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Form Side -->
+        <div class="form-side">
+            <div class="form-header">
+                <h1>{% trans "Create Account" %}</h1>
+                <p>{% trans "Join our research community today" %}</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert-errors">
+                <ul>
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'account_signup' %}" class="auth-form" id="signup-form">
+                {% csrf_token %}
+                
+                <!-- Name Fields - Context Aware: Arabic first if site is in Arabic -->
+                <div class="form-row">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    <!-- Arabic Name First -->
+                    <div class="form-group">
+                        <label for="id_full_name_ar">
+                            {% trans "Full Name (Arabic)" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_ar" 
+                                   id="id_full_name_ar" 
+                                   placeholder="{% trans 'الاسم الكامل بالعربية' %}"
+                                   value="{{ form.full_name_ar.value|default:'' }}"
+                                   dir="rtl"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name_ar.errors %}
+                            <span class="field-error">{{ form.full_name_ar.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_full_name">
+                            {% trans "Full Name (English)" %}
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name" 
+                                   id="id_full_name" 
+                                   placeholder="{% trans 'Full name in English' %}"
+                                   value="{{ form.full_name.value|default:'' }}"
+                                   dir="ltr">
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name.errors %}
+                            <span class="field-error">{{ form.full_name.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <!-- English Name First -->
+                    <div class="form-group">
+                        <label for="id_full_name">
+                            {% trans "Full Name" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name" 
+                                   id="id_full_name" 
+                                   placeholder="{% trans 'Enter your full name' %}"
+                                   value="{{ form.full_name.value|default:'' }}"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name.errors %}
+                            <span class="field-error">{{ form.full_name.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_full_name_ar">
+                            {% trans "Full Name (Arabic)" %}
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_ar" 
+                                   id="id_full_name_ar" 
+                                   placeholder="{% trans 'الاسم الكامل بالعربية' %}"
+                                   value="{{ form.full_name_ar.value|default:'' }}"
+                                   dir="rtl">
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name_ar.errors %}
+                            <span class="field-error">{{ form.full_name_ar.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Email Field -->
+                <div class="form-group full-width">
+                    <label for="id_email">
+                        {% trans "Email Address" %} <span class="required">*</span>
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="email" 
+                               name="email" 
+                               id="id_email" 
+                               placeholder="{% trans 'Enter your institutional email' %}"
+                               value="{{ form.email.value|default:'' }}"
+                               autocomplete="email"
+                               required>
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                    {% if form.email.errors %}
+                        <span class="field-error">{{ form.email.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Institution Field -->
+                <div class="form-group full-width">
+                    <label for="id_institution">
+                        {% trans "Institution" %}
+                    </label>
+                    <div class="input-wrapper">
+                        <select name="institution" id="id_institution">
+                            <option value="">{% trans "Select your institution" %}</option>
+                            {% for institution in form.institution.field.queryset %}
+                                <option value="{{ institution.pk }}" {% if form.institution.value == institution.pk|stringformat:'s' %}selected{% endif %}>
+                                    {{ institution }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-university input-icon"></i>
+                    </div>
+                    {% if form.institution.errors %}
+                        <span class="field-error">{{ form.institution.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Specialization Field -->
+                <div class="form-group full-width">
+                    <label for="id_ai_specialization">
+                        {% trans "Field of Specialization in AI" %}
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               name="ai_specialization" 
+                               id="id_ai_specialization" 
+                               placeholder="{% trans 'e.g., NLP, Machine Learning, Deep Learning' %}"
+                               value="{{ form.ai_specialization.value|default:'' }}">
+                        <i class="fas fa-microscope input-icon"></i>
+                    </div>
+                    {% if form.ai_specialization.errors %}
+                        <span class="field-error">{{ form.ai_specialization.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Password Fields -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_password1">
+                            {% trans "Password" %} <span class="required">*</span>
+                        </label>
+                        <div class="password-wrapper">
+                            <input type="password" 
+                                   name="password1" 
+                                   id="id_password1" 
+                                   placeholder="{% trans 'Create a password' %}"
+                                   autocomplete="new-password"
+                                   required>
+                            <i class="fas fa-lock input-icon"></i>
+                            <button type="button" class="password-toggle" onclick="togglePassword('id_password1', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        {% if form.password1.errors %}
+                            <span class="field-error">{{ form.password1.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_password2">
+                            {% trans "Confirm Password" %} <span class="required">*</span>
+                        </label>
+                        <div class="password-wrapper">
+                            <input type="password" 
+                                   name="password2" 
+                                   id="id_password2" 
+                                   placeholder="{% trans 'Confirm your password' %}"
+                                   autocomplete="new-password"
+                                   required>
+                            <i class="fas fa-lock input-icon"></i>
+                            <button type="button" class="password-toggle" onclick="togglePassword('id_password2', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        {% if form.password2.errors %}
+                            <span class="field-error">{{ form.password2.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Password Requirements -->
+                <div class="password-requirements">
+                    <p>{% trans "Password must contain:" %}</p>
+                    <ul>
+                        <li id="req-length"><i class="fas fa-circle"></i> {% trans "At least 8 characters" %}</li>
+                        <li id="req-upper"><i class="fas fa-circle"></i> {% trans "One uppercase letter" %}</li>
+                        <li id="req-lower"><i class="fas fa-circle"></i> {% trans "One lowercase letter" %}</li>
+                        <li id="req-number"><i class="fas fa-circle"></i> {% trans "One number" %}</li>
+                    </ul>
+                </div>
+
+                <!-- Terms Checkbox -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" name="terms" id="id_terms" required>
+                    <label for="id_terms">
+                        {% trans "I agree to the" %} 
+                        <a href="#" onclick="alert('{% trans "Terms of Service page coming soon" %}'); return false;">{% trans "Terms of Service" %}</a> 
+                        {% trans "and" %} 
+                        <a href="#" onclick="alert('{% trans "Privacy Policy page coming soon" %}'); return false;">{% trans "Privacy Policy" %}</a>
+                    </label>
+                </div>
+
+                <!-- Hidden next field -->
+                {% if redirect_field_value %}
+                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+                {% endif %}
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="btn-text">
+                        <i class="fas fa-user-plus"></i>
+                        {% trans "Create Account" %}
+                    </span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <!-- Login Link -->
+            <div class="auth-footer">
+                <p>
+                    {% trans "Already have an account?" %}
+                    <a href="{% url 'account_login' %}">{% trans "Sign In" %}</a>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
-{% endblock content %}
+
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Password validation visual feedback
+const password1 = document.getElementById('id_password1');
+if (password1) {
+    password1.addEventListener('input', function() {
+        const value = this.value;
+        
+        // Length check
+        const reqLength = document.getElementById('req-length');
+        if (value.length >= 8) {
+            reqLength.classList.add('valid');
+            reqLength.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqLength.classList.remove('valid');
+            reqLength.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Uppercase check
+        const reqUpper = document.getElementById('req-upper');
+        if (/[A-Z]/.test(value)) {
+            reqUpper.classList.add('valid');
+            reqUpper.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqUpper.classList.remove('valid');
+            reqUpper.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Lowercase check
+        const reqLower = document.getElementById('req-lower');
+        if (/[a-z]/.test(value)) {
+            reqLower.classList.add('valid');
+            reqLower.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqLower.classList.remove('valid');
+            reqLower.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Number check
+        const reqNumber = document.getElementById('req-number');
+        if (/[0-9]/.test(value)) {
+            reqNumber.classList.add('valid');
+            reqNumber.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqNumber.classList.remove('valid');
+            reqNumber.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+    });
+}
+
+// Form loading state
+document.getElementById('signup-form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

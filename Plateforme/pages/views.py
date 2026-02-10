@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from forum.models import Topic, ChatRoom, Message
 from django.db.models.functions import TruncDate, TruncMonth
 from notifications.models import Notification
+from notifications.services import NotificationService
 from QA.models import Post, Question
 from django.db.models import Count, Sum
 import datetime
@@ -1658,10 +1659,12 @@ def admin_approve_item(request, model_type, pk):
         title = getattr(item, 'title', str(item))
         
         if author:
-            Notification.objects.create(
+            NotificationService.create_notification(
                 recipient=author,
+                notification_type='POST_APPROVED',
                 title=_("Your submission has been approved"),
-                message=_("Your submission '%(title)s' has been approved and is now visible to the public.") % {'title': title}
+                message=_("Your submission '%(title)s' has been approved and is now visible to the public."),
+                message_kwargs={'title': title}
             )
         
         messages.success(request, _("'%(title)s' has been approved and published.") % {'title': title})
@@ -1707,10 +1710,12 @@ def admin_reject_item(request, model_type, pk):
     
     # Create notification to the author
     if author:
-        Notification.objects.create(
+        NotificationService.create_notification(
             recipient=author,
+            notification_type='POST_REJECTED',
             title=_("Your submission has been rejected"),
-            message=_("Your submission '%(title)s' has been rejected and removed.") % {'title': title}
+            message=_("Your submission '%(title)s' has been rejected and removed."),
+            message_kwargs={'title': title}
         )
     
     item.delete()

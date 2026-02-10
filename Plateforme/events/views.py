@@ -126,9 +126,11 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             NotificationService.notify_group(
                 active_users,
                 'EVENT_APPROVED',
-                _("New event approved: %(title)s") % {'title': self.object.title},
-                _("A new event has been approved: %(title)s.") % {'title': self.object.title},
-                self.object
+                _("New event approved: %(title)s"),
+                _("A new event has been approved: %(title)s."),
+                self.object,
+                title_kwargs={'title': self.object.title},
+                message_kwargs={'title': self.object.title}
             )
             return redirect(self.object.get_absolute_url())
         else:
@@ -137,8 +139,9 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
                 recipient=self.request.user,
                 notification_type='EVENT_CREATED',
                 title=_("Your event is awaiting approval"),
-                message=_("Your event '%(title)s' is awaiting approval.") % {'title': self.object.title},
-                related_object=self.object
+                message=_("Your event '%(title)s' is awaiting approval."),
+                related_object=self.object,
+                message_kwargs={'title': self.object.title}
             )
             return redirect('events:event_list')
 
@@ -240,8 +243,9 @@ def event_validate(request, pk):
         recipient=event.created_by,
         notification_type='EVENT_APPROVED',
         title=_("Your event has been approved"),
-        message=_("Your event '%(title)s' is now visible.") % {'title': event.title},
-        related_object=event
+        message=_("Your event '%(title)s' is now visible."),
+        related_object=event,
+        message_kwargs={'title': event.title}
     )
     
     User = get_user_model()
@@ -249,9 +253,11 @@ def event_validate(request, pk):
     NotificationService.notify_group(
         active_users,
         'EVENT_APPROVED',
-        _("New event approved: %(title)s") % {'title': event.title},
-        _("A new event has been approved: %(title)s.") % {'title': event.title},
-        event
+        _("New event approved: %(title)s"),
+        _("A new event has been approved: %(title)s."),
+        event,
+        title_kwargs={'title': event.title},
+        message_kwargs={'title': event.title}
     )
     
     messages.success(request, _('Event has been approved successfully!'))

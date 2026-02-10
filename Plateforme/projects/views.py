@@ -11,7 +11,7 @@ from .forms import ProjectForm
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
 from django.contrib import messages
-from notifications.services import NotificationService
+from notifications.services import NotificationService, LocalizedValue
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils.translation import gettext_lazy as _
 from typing import TYPE_CHECKING, Any
@@ -457,7 +457,8 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
                 recipient=member.member,
                 notification_type='SYSTEM',
                 title=_("Membership application accepted"),
-                message=_("Your request to join the project « %(title)s » was accepted.") % {'title': project.title}
+                message=_("Your request to join the project « %(title)s » was accepted."),
+                message_kwargs={'title': project.title}
             )
             messages.success(request, _("%(name)s was accepted into the project.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
@@ -482,7 +483,8 @@ class RejectMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
                 recipient=member.member,
                 notification_type='SYSTEM',
                 title=_("Membership application refused"),
-                message=_("Your request to join the project « %(title)s » was refused.") % {'title': project.title}
+                message=_("Your request to join the project « %(title)s » was refused."),
+                message_kwargs={'title': project.title}
             )
             messages.success(request, _("The request for %(name)s was refused.") % {'name': member.member.full_name})  # type: ignore[attr-defined]
         
@@ -539,13 +541,14 @@ class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
                 recipient=project.coordinator,
                 notification_type='LEAVE_REQUEST',
                 title=_('Leave request'),
-                message=_('%(sender_name)s wants to leave your project « %(project_title)s ».') % {
-                    'sender_name': request.user.full_name,
-                    'project_title': project.title
-                },
+                message=_('%(sender_name)s wants to leave your project « %(project_title)s ».'),
                 related_object=project,
                 project_id=project.id,  # type: ignore[attr-defined]
-                sender_id=request.user.id  # type: ignore[attr-defined]
+                sender_id=request.user.id,  # type: ignore[attr-defined]
+                message_kwargs={
+                    'sender_name': LocalizedValue.from_user(request.user),
+                    'project_title': project.title
+                }
             )
             
             messages.success(request, _('Your leave request has been sent to the project coordinator.'))
@@ -586,8 +589,9 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=leaving_user,
                     notification_type='SYSTEM',
                     title=_('Leave request approved'),
-                    message=_('Your request to leave the project « %(project_title)s » has been approved.') % {'project_title': project.title},
-                    related_object=project
+                    message=_('Your request to leave the project « %(project_title)s » has been approved.'),
+                    related_object=project,
+                    message_kwargs={'project_title': project.title}
                 )
                 
                 # Mettre à jour la notification originale
@@ -609,8 +613,9 @@ class RespondToLeaveRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMix
                     recipient=member.member,
                     notification_type='SYSTEM',
                     title=_('Leave request rejected'),
-                    message=_('Your request to leave the project « %(project_title)s » has been rejected by the coordinator.') % {'project_title': project.title},
-                    related_object=project
+                    message=_('Your request to leave the project « %(project_title)s » has been rejected by the coordinator.'),
+                    related_object=project,
+                    message_kwargs={'project_title': project.title}
                 )
                 
                 # Mettre à jour la notification originale
@@ -666,8 +671,9 @@ class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
             recipient=removed_user,
             notification_type='SYSTEM',
             title=_('Removed from project'),
-            message=_('You have been removed from the project « %(project_title)s » by the coordinator.') % {'project_title': project.title},
-            related_object=project
+            message=_('You have been removed from the project « %(project_title)s » by the coordinator.'),
+            related_object=project,
+            message_kwargs={'project_title': project.title}
         )
         
         messages.success(request, _('Member removed successfully.'))
@@ -693,9 +699,10 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Accepted'),
-                message=_('Your request to join %(project_title)s has been accepted.') % {'project_title': project.title},
+                message=_('Your request to join %(project_title)s has been accepted.'),
                 notification_type='project_request_accepted',
-                related_object=project
+                related_object=project,
+                message_kwargs={'project_title': project.title}
             )
         elif response == 'reject':
             join_request.status = 'rejected'
@@ -706,9 +713,10 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             NotificationService.create_notification(
                 recipient=join_request.member,
                 title=_('Project Request Rejected'),
-                message=_('Your request to join %(project_title)s has been rejected.') % {'project_title': project.title},
+                message=_('Your request to join %(project_title)s has been rejected.'),
                 notification_type='project_request_rejected',
-                related_object=project
+                related_object=project,
+                message_kwargs={'project_title': project.title}
             )
         
         return redirect('projects:project_detail', pk=pk)

@@ -4,7 +4,7 @@ from .forms import QuestionForm, AnswerForm, PostForm, CommentForm
 from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
-from notifications.services import NotificationService
+from notifications.services import NotificationService, LocalizedValue
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -73,8 +73,9 @@ def question_detail(request, pk):
                     recipient=question.author,
                     notification_type='QA_ANSWER',
                     title=_("New answer to your question"),
-                    message=_("%(username)s answered your question « %(title)s ».") % {'username': request.user.username, 'title': question.title},
-                    related_object=question
+                    message=_("%(username)s answered your question « %(title)s »."),
+                    related_object=question,
+                    message_kwargs={'username': request.user.username, 'title': question.title}
                 )
             return redirect('QA:question_detail', pk=pk)
     else:
@@ -211,8 +212,9 @@ def add_comment(request, post_id):
                     recipient=parent_comment.author,
                     notification_type='comment_reply',
                     title=_("New reply to your comment"),
-                    message=_("%(name)s replied to your comment.") % {'name': request.user.full_name},
-                    related_object=post
+                    message=_("%(name)s replied to your comment."),
+                    related_object=post,
+                    message_kwargs={'name': LocalizedValue.from_user(request.user)}
                 )
         
         comment.save()
@@ -223,8 +225,9 @@ def add_comment(request, post_id):
                 recipient=post.author,
                 notification_type='comment',
                 title=_("New comment"),
-                message=_("%(name)s commented on your post.") % {'name': request.user.full_name},
-                related_object=post
+                message=_("%(name)s commented on your post."),
+                related_object=post,
+                message_kwargs={'name': LocalizedValue.from_user(request.user)}
             )
         
         messages.success(request, 'Your comment has been added.')
@@ -267,8 +270,9 @@ def like_post(request, post_id):
                 recipient=post.author,
                 notification_type='like',
                 title=_("New like"),
-                message=_("%(name)s liked your post.") % {'name': request.user.full_name},
-                related_object=post
+                message=_("%(name)s liked your post."),
+                related_object=post,
+                message_kwargs={'name': LocalizedValue.from_user(request.user)}
             )
     
     response_data = {
@@ -296,8 +300,9 @@ def like_comment(request, comment_id):
                 recipient=comment.author,
                 notification_type='like',
                 title=_("New like"),
-                message=_("%(name)s liked your comment.") % {'name': request.user.full_name},
-                related_object=comment.post
+                message=_("%(name)s liked your comment."),
+                related_object=comment.post,
+                message_kwargs={'name': LocalizedValue.from_user(request.user)}
             )
     
     return JsonResponse({
