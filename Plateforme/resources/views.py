@@ -839,13 +839,15 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             resource.save()
             
             # Notify author
-            from notifications.models import Notification
+            from notifications.services import NotificationService
             author = resource.author
             if author:
-                Notification.objects.create(
+                NotificationService.create_notification(
                     recipient=author,
+                    notification_type='POST_APPROVED',
                     title=_("Your submission has been approved"),
-                    message=_("Your submission '%(title)s' has been approved and is now visible to the public.") % {'title': resource.title}
+                    message=_("Your submission '%(title)s' has been approved and is now visible to the public."),
+                    message_kwargs={'title': resource.title}
                 )
             
             messages.success(self.request, _("'%(title)s' has been approved and published!") % {'title': resource.title})

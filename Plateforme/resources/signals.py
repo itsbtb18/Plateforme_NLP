@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from resources.models import Resource, ResourceContribution
 from notifications.models import NotificationType
-from notifications.services import NotificationService
+from notifications.services import NotificationService, LocalizedValue
 
 @receiver(post_save, sender=Resource)
 def notify_new_resource(sender, instance, created, **kwargs):
@@ -20,9 +20,11 @@ def notify_new_resource(sender, instance, created, **kwargs):
         NotificationService.notify_group(
             admins,
             NotificationType.NEW_RESOURCE,
-            _("New resource: %(title)s") % {'title': instance.title},
-            _("A new resource has been added by %(author)s: %(title)s") % {'author': instance.author.username, 'title': instance.title},
-            instance
+            _("New resource: %(title)s"),
+            _("A new resource has been added by %(author)s: %(title)s"),
+            instance,
+            title_kwargs={'title': instance.title},
+            message_kwargs={'author': LocalizedValue.from_user(instance.author), 'title': instance.title}
         )
 
 @receiver(post_save, sender=ResourceContribution)
@@ -37,6 +39,7 @@ def notify_resource_contribution(sender, instance, created, **kwargs):
                 resource_author,
                 NotificationType.CORPUS_UPDATE if instance.resource.resource_type == 'corpus' else NotificationType.RESEARCH_UPDATE,
                 _("New contribution to your resource"),
-                _("%(contributor)s contributed to your resource: %(title)s") % {'contributor': instance.contributor.username, 'title': instance.resource.title},
-                instance
+                _("%(contributor)s contributed to your resource: %(title)s"),
+                instance,
+                message_kwargs={'contributor': LocalizedValue.from_user(instance.contributor), 'title': instance.resource.title}
             )

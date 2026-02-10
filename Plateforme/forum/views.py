@@ -17,7 +17,7 @@ from .forms import TopicForm, ChatRoomForm
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.template.loader import render_to_string
 from django.contrib.auth import get_user_model
-from notifications.services import NotificationService
+from notifications.services import NotificationService, LocalizedValue
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
@@ -287,10 +287,12 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             NotificationService.create_notification(
                 recipient=chatroom.topic.creator,
                 notification_type='FORUM_REPLY',
-                title=_("New reply in topic %(title)s") % {'title': chatroom.topic.title},
-                message=_("%(username)s replied in the chatroom %(name)s related to your topic.") % {'username': request.user.username, 'name': chatroom.name},
+                title=_("New reply in topic %(title)s"),
+                message=_("%(username)s replied in the chatroom %(name)s related to your topic."),
                 related_object=chatroom.topic,
-                action_url=chatroom.get_absolute_url()
+                action_url=chatroom.get_absolute_url(),
+                title_kwargs={'title': chatroom.topic.title},
+                message_kwargs={'username': LocalizedValue.from_user(request.user), 'name': chatroom.name}
             )
 
         if request.headers.get('HX-Request'):
@@ -423,9 +425,11 @@ class BanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView
         NotificationService.create_notification(
             recipient=user_to_ban,
             notification_type='BAN',
-            title=_("You have been banned from the chatroom %(name)s") % {'name': chatroom.name},
-            message=_("You have been banned from the chatroom %(name)s by %(username)s.") % {'name': chatroom.name, 'username': self.request.user.username},
-            related_object=chatroom
+            title=_("You have been banned from the chatroom %(name)s"),
+            message=_("You have been banned from the chatroom %(name)s by %(username)s."),
+            related_object=chatroom,
+            title_kwargs={'name': chatroom.name},
+            message_kwargs={'name': chatroom.name, 'username': LocalizedValue.from_user(self.request.user)}
         )
         
         return super().form_valid(form)
@@ -463,11 +467,12 @@ class TopicToggleStatusView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, 
                 recipient=topic.creator,
                 notification_type='FORUM_TOPIC_STATUS',
                 title=_("Topic closed") if topic.is_closed else _("Topic reopened"),
-                message=_("Your topic '%(title)s' has been %(action)s by an administrator.") % {
+                message=_("Your topic '%(title)s' has been %(action)s by an administrator."),
+                related_object=topic,
+                message_kwargs={
                     'title': topic.title,
                     'action': str(_("closed")) if topic.is_closed else str(_("reopened"))
-                },
-                related_object=topic
+                }
             )
         
         # Retourner une réponse JSON pour les requêtes AJAX

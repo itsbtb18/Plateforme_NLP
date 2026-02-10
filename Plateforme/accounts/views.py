@@ -262,12 +262,13 @@ class InviteToProjectView(LoginRequiredMixin, View):
                 recipient=user_to_invite,
                 notification_type='PROJECT_INVITE',
                 title=_("Project Invitation"),
-                message=_("You have been invited to join the project '%(project)s' by %(user)s.") % {
+                message=_("You have been invited to join the project '%(project)s' by %(user)s."),
+                project_id=project.pk,
+                sender_id=request.user.id,
+                message_kwargs={
                     'project': project.title,
                     'user': getattr(request.user, 'full_name', str(request.user))
-                },
-                project_id=project.pk,
-                sender_id=request.user.id
+                }
             )
 
             messages.success(request, _("Invitation sent to %(name)s.") % {'name': getattr(user_to_invite, 'full_name', str(user_to_invite))})
@@ -312,12 +313,13 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_ACCEPTED',
                 title=_("Invitation Accepted"),
-                message=_("%(user)s has accepted the invitation to join the project '%(project)s'.") % {
+                message=_("%(user)s has accepted the invitation to join the project '%(project)s'."),
+                project_id=project.pk,
+                sender_id=request.user.id,
+                message_kwargs={
                     'user': getattr(request.user, 'full_name', str(request.user)),
                     'project': project.title
-                },
-                project_id=project.pk,
-                sender_id=request.user.id
+                }
             )
             messages.success(request, _("You have joined the project '%(project)s'.") % {'project': project.title})
 
@@ -335,12 +337,13 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
                 recipient=project.coordinator,
                 notification_type='PROJECT_INVITE_REJECTED',
                 title=_("Invitation Declined"),
-                message=_("%(user)s has declined the invitation to join the project '%(project)s'.") % {
+                message=_("%(user)s has declined the invitation to join the project '%(project)s'."),
+                project_id=project.pk,
+                sender_id=request.user.id,
+                message_kwargs={
                     'user': getattr(request.user, 'full_name', str(request.user)),
                     'project': project.title
-                },
-                project_id=project.pk,
-                sender_id=request.user.id
+                }
             )
             messages.info(request, _("You have declined the invitation."))
 
