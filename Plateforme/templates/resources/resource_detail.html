@@ -1104,8 +1104,15 @@ html[dir="rtl"] .abstract-content {
                 </a>
                 {% endif %}
                 
-                {% if object.file %}
-                <a href="{{ object.file.url }}" target="_blank" class="btn-gov edit">
+                {% if object.uploaded_file %}
+                <button type="button" 
+                        class="btn-gov edit" 
+                        data-document-url="{{ object.uploaded_file.url }}"
+                        onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                    <i class="bi bi-eye"></i>
+                    {% translate "View Document" %}
+                </button>
+                <a href="{{ object.uploaded_file.url }}" download class="btn-gov edit">
                     <i class="bi bi-cloud-download"></i>
                     {% translate "Download" %}
                 </a>
@@ -1253,14 +1260,14 @@ html[dir="rtl"] .abstract-content {
                 </div>
                 
                 <!-- Download Card (if file exists) -->
-                {% if object.file %}
+                {% if object.uploaded_file %}
                 <div class="download-card">
                     <div class="download-icon-wrap">
                         <i class="bi bi-file-earmark-arrow-down"></i>
                     </div>
                     <div class="download-info">
-                        <h4>{% translate "Download Document" %}</h4>
-                        <p>{% translate "Get the complete file for this resource" %}</p>
+                        <h4>{% translate "View Document" %}</h4>
+                        <p>{% translate "Preview the document in your browser" %}</p>
                         <div class="file-meta">
                             <span class="file-meta-item">
                                 <i class="bi bi-file-earmark"></i>
@@ -1272,10 +1279,12 @@ html[dir="rtl"] .abstract-content {
                             </span>
                         </div>
                     </div>
-                    <a href="{{ object.file.url }}" target="_blank" class="btn-download">
-                        <i class="bi bi-download"></i>
-                        {% translate "Download" %}
-                    </a>
+                    <button type="button" 
+                            class="btn-download" 
+                            onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                        <i class="bi bi-eye"></i>
+                        {% translate "View" %}
+                    </button>
                 </div>
                 {% endif %}
                 
@@ -1431,4 +1440,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}

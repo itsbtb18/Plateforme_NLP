@@ -1091,14 +1091,20 @@ html[dir="rtl"] .course-detail-accordion-btn {
                                 <div class="course-detail-enroll-stat">
                                     <i class="bi bi-file-earmark-text"></i>
                                     <span class="course-detail-enroll-stat-value">
-                                        {% if object.file %}1{% else %}0{% endif %}
+                                        {% if object.uploaded_file %}1{% else %}0{% endif %}
                                     </span>
                                     <span class="course-detail-enroll-stat-label">{% translate "Resources" %}</span>
                                 </div>
                             </div>
                             
-                            {% if object.file %}
-                            <a href="{{ object.file.url }}" class="course-detail-action-btn primary" download>
+                            {% if object.uploaded_file %}
+                            <button type="button" 
+                                    class="course-detail-action-btn primary"
+                                    onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                                <i class="bi bi-eye"></i>
+                                {% translate "View Materials" %}
+                            </button>
+                            <a href="{{ object.uploaded_file.url }}" class="course-detail-action-btn secondary" download>
                                 <i class="bi bi-download"></i>
                                 {% translate "Download Materials" %}
                             </a>
@@ -1183,4 +1189,6 @@ function toggleAccordion(btn) {
     }
 }
 </script>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}

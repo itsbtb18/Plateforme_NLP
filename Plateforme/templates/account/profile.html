@@ -1,6 +1,6 @@
 {% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
-{{user.full_name }} | {% trans "Profile" %}
+{{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
  {% block extra_css %}
 <link
@@ -19,7 +19,7 @@
         <!-- Large Profile Picture -->
         <div class="profile-picture-container">
           {% if user.avatar %}
-          <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}" class="profile-picture">
+          <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="profile-picture">
           {% else %}
           <div class="profile-picture-placeholder">
             <i class="fas fa-user"></i>
@@ -29,7 +29,7 @@
 
         <!-- User Info Section -->
         <div class="profile-user-info">
-          <h1 class="profile-user-name">{{ user.full_name }}</h1>
+          <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
           <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
           
           {% if user.institution %}
@@ -181,13 +181,13 @@
       </div>
 
       <!-- Bio Section (if exists) -->
-      {% if user.bio %}
+      {% if user.get_localized_bio %}
       <div class="info-section-card bio-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-file-alt"></i>
           {% trans "Bio" %}
         </h3>
-        <p class="bio-text">{{ user.bio }}</p>
+        <p class="bio-text">{{ user.get_localized_bio }}</p>
       </div>
       {% endif %}
 

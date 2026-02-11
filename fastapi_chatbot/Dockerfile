@@ -35,8 +35,13 @@ FROM base as dependencies
 # Copy requirements first (better layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install PyTorch CPU-only version first (smaller, faster download)
+# Using extended timeout and retries for large package
+RUN pip install --no-cache-dir --timeout 300 --retries 5 \
+    torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining Python dependencies
+RUN pip install --no-cache-dir --timeout 120 --retries 3 -r requirements.txt
 
 # Download sentence-transformers model during build
 # This speeds up container startup significantly

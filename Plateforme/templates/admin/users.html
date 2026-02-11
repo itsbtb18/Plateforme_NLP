@@ -559,15 +559,15 @@
           <td>
             <div class="user-info-wrapper">
               {% if user.profile_picture %}
-              <img src="{{ user.profile_picture.url }}" alt="{{ user.full_name }}" class="user-avatar-image">
+              <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name_display }}" class="user-avatar-image">
               {% else %}
               <div class="user-avatar">
-                {{ user.full_name|slice:":1"|upper }}
+                {{ user.get_full_name_display|slice:":1"|upper }}
               </div>
               {% endif %}
               <div class="user-details">
-                <h6>{{ user.full_name }}</h6>
-                <p>{{ user.institution|default:"No institution" }}</p>
+                <h6>{{ user.get_full_name_display }}</h6>
+                <p>{% if user.institution %}{{ user.institution.get_localized_name }}{% else %}{% trans "No institution" %}{% endif %}</p>
               </div>
             </div>
           </td>

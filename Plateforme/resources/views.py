@@ -36,8 +36,9 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         field_filter = self.request.GET.get('field', '')
         language_filter = self.request.GET.get('language', '')
         
-        # Base filter: only show approved content (unless staff)
-        approval_filter = {} if self.request.user.is_staff else {'approval_status': 'approved'}
+        # STRICT: Public resources list only shows approved content
+        # Pending resources are only visible in the admin pending review panel
+        approval_filter = {'approval_status': 'approved'}
         
         querysets = []
         
@@ -147,7 +148,8 @@ def resource_ajax_search(request):
     resource_type = request.GET.get('type', '')
     sort_by = request.GET.get('sort', 'newest')
     
-    approval_filter = {} if request.user.is_staff else {'approval_status': 'approved'}
+    # STRICT: Public search only shows approved content
+    approval_filter = {'approval_status': 'approved'}
     querysets = []
     
     def get_resource_type_label(obj):
@@ -235,11 +237,9 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        # Only show approved content (unless staff)
-        if self.request.user.is_staff:
-            queryset = NLPTool.objects.all()
-        else:
-            queryset = NLPTool.objects.filter(approval_status='approved')
+        # STRICT: Only show APPROVED tools in the public section
+        # Pending tools are only visible in the admin panel
+        queryset = NLPTool.objects.filter(approval_status='approved')
         
         # Filter by tool type/category
         tool_type = self.request.GET.get('type', '').strip()
@@ -304,11 +304,9 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
         return [self.template_name]
     
     def get_queryset(self):
-        # Only show approved content to public (staff sees all)
-        if self.request.user.is_authenticated and self.request.user.is_staff:
-            queryset = Course.objects.all()
-        else:
-            queryset = Course.objects.filter(approval_status='approved')
+        # STRICT: Only show APPROVED courses in the public section
+        # Pending courses are only visible in the admin panel
+        queryset = Course.objects.filter(approval_status='approved')
         
         # Search filter
         search_query = self.request.GET.get('q', '').strip()
@@ -432,11 +430,9 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        # Only show approved content (unless staff)
-        if self.request.user.is_staff:
-            queryset = Corpus.objects.all()
-        else:
-            queryset = Corpus.objects.filter(approval_status='approved')
+        # STRICT: Only show APPROVED corpora in the public section
+        # Pending corpora are only visible in the admin panel
+        queryset = Corpus.objects.filter(approval_status='approved')
         
         # Search query
         search_query = self.request.GET.get('q', '').strip()
@@ -520,6 +516,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
     TYPE_MODELS: Dict[str, Type[models.Model]] = {
         'tool': NLPTool,
+        'nlp_tool': NLPTool,
         'course': Course,
         'article': Article,
         'thesis': Thesis,
@@ -570,11 +567,11 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         else:
             obj = get_object_or_404(model, pk=pk)
 
-        # Check approval status - only allow viewing if approved, staff, or author
+        # STRICT: Only allow viewing APPROVED resources
+        # Pending resources are only accessible through admin panel
         if hasattr(obj, 'approval_status'):
             is_staff = self.request.user.is_authenticated and self.request.user.is_staff
-            is_author = self.request.user.is_authenticated and getattr(obj, 'author', None) == self.request.user
-            if obj.approval_status != 'approved' and not is_staff and not is_author:
+            if obj.approval_status != 'approved' and not is_staff:
                 raise Http404("This resource is pending approval.")
 
         return obj
@@ -899,6 +896,7 @@ class ResourceDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Del
     
     TYPE_MODELS = {
         'tool': NLPTool,
+        'nlp_tool': NLPTool,
         'course': Course,
         'corpus': Corpus,
         'article': Document,
@@ -956,8 +954,15 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
             # Don't notify all users - wait for approval
             return super().form_valid(form)
         except Exception as e:
-            logger.error(f"Error creating resource: {str(e)}")
-            messages.error(self.request, _("An error occurred while creating the resource. Please try again."))
+            import traceback
+            error_msg = str(e)
+            logger.error(f"Error creating resource: {error_msg}\n{traceback.format_exc()}")
+            # Show detailed error in debug mode
+            from django.conf import settings
+            if settings.DEBUG:
+                messages.error(self.request, f"Error: {error_msg}")
+            else:
+                messages.error(self.request, _("An error occurred while creating the resource. Please try again."))
             return self.form_invalid(form)
         
     def get_context_data(self, **kwargs):

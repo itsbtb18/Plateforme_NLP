@@ -452,8 +452,29 @@ class ResourceForm(forms.Form):
 
         return cleaned_data
 
+    def clean_uploaded_file(self):
+        """Validate uploaded file size and type."""
+        uploaded_file = self.cleaned_data.get('uploaded_file')
+        if uploaded_file:
+            # Check file size (50MB max)
+            max_size = 50 * 1024 * 1024  # 50MB in bytes
+            if uploaded_file.size > max_size:
+                raise forms.ValidationError(_("File is too large. Maximum size is 50MB."))
+            
+            # Check file extension
+            import os
+            allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.csv', '.json', '.xml', '.zip', '.rar', '.ppt', '.pptx', '.xls', '.xlsx']
+            ext = os.path.splitext(uploaded_file.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise forms.ValidationError(_("File type not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, JSON, XML, ZIP, RAR, PPT, XLS"))
+        return uploaded_file
+
     def save(self, instance=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         resource_type = self.cleaned_data['resource_type']
+        logger.info(f"Saving resource of type: {resource_type}")
         
         # Determine which bilingual fields to populate based on active language
         lang = get_active_language()
@@ -537,66 +558,74 @@ class ResourceForm(forms.Form):
 
             return instance
         else:
-            if resource_type == 'course':
-                return Course.objects.create(
-                    **common_data,
-                    field=self.cleaned_data['course_field'],
-                    academic_level=self.cleaned_data['academic_level'],
-                    teacher=self.user,
-                    institution=self.cleaned_data['course_institution'],
-                    academic_year=self.cleaned_data['academic_year']
-                )
-            elif resource_type == 'nlp_tool':
-                return NLPTool.objects.create(
-                    **common_data,
-                    tool_type=self.cleaned_data['tool_type'],
-                    version=self.cleaned_data['tool_version'],
-                    documentation_link=self.cleaned_data['documentation'],
-                    supported_languages=self.cleaned_data['supported_languages']
-                )
-            elif resource_type == 'corpus':
-                return Corpus.objects.create(
-                    **common_data,
-                    size=self.cleaned_data['corpus_size'],
-                    field=self.cleaned_data['corpus_field'],
-                    file_format=self.cleaned_data['corpus_format']
-                )
-            elif resource_type == 'article':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.ARTICLE,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Article.objects.create(
-                    document=doc,
-                    doi=self.cleaned_data.get('doi', ''),
-                    journal=self.cleaned_data['journal'],
-                    publication_date=self.cleaned_data['publication_date']
-                )
-                return doc
-            elif resource_type == 'thesis':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.THESIS,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Thesis.objects.create(
-                    document=doc,
-                    supervisor=self.cleaned_data['supervisor'],
-                    institution=self.cleaned_data['thesis_institution'],
-                    defense_year=self.cleaned_data['defense_year']
-                )
-                return doc
-            elif resource_type == 'memoir':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.MEMOIR,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Memoir.objects.create(
-                    document=doc,
-                    academic_level=self.cleaned_data['memoir_level'],
-                    institution=self.cleaned_data['memoir_institution'],
-                    defense_year=self.cleaned_data['memoir_defense_year']
-                )
-                return doc
+            try:
+                if resource_type == 'course':
+                    return Course.objects.create(
+                        **common_data,
+                        field=self.cleaned_data['course_field'],
+                        academic_level=self.cleaned_data['academic_level'],
+                        teacher=self.user,
+                        institution=self.cleaned_data['course_institution'],
+                        academic_year=self.cleaned_data['academic_year']
+                    )
+                elif resource_type == 'nlp_tool':
+                    return NLPTool.objects.create(
+                        **common_data,
+                        tool_type=self.cleaned_data['tool_type'],
+                        version=self.cleaned_data['tool_version'],
+                        documentation_link=self.cleaned_data['documentation'],
+                        supported_languages=self.cleaned_data['supported_languages']
+                    )
+                elif resource_type == 'corpus':
+                    return Corpus.objects.create(
+                        **common_data,
+                        size=self.cleaned_data['corpus_size'],
+                        field=self.cleaned_data['corpus_field'],
+                        file_format=self.cleaned_data['corpus_format']
+                    )
+                elif resource_type == 'article':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.ARTICLE,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Article.objects.create(
+                        document=doc,
+                        doi=self.cleaned_data.get('doi', ''),
+                        journal=self.cleaned_data['journal'],
+                        publication_date=self.cleaned_data['publication_date']
+                    )
+                    return doc
+                elif resource_type == 'thesis':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.THESIS,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Thesis.objects.create(
+                        document=doc,
+                        supervisor=self.cleaned_data['supervisor'],
+                        institution=self.cleaned_data['thesis_institution'],
+                        defense_year=self.cleaned_data['defense_year']
+                    )
+                    return doc
+                elif resource_type == 'memoir':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.MEMOIR,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Memoir.objects.create(
+                        document=doc,
+                        academic_level=self.cleaned_data['memoir_level'],
+                        institution=self.cleaned_data['memoir_institution'],
+                        defense_year=self.cleaned_data['memoir_defense_year']
+                    )
+                    return doc
+                else:
+                    raise ValueError(f"Unknown resource type: {resource_type}")
+            except Exception as e:
+                logger.error(f"Error creating {resource_type}: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                raise

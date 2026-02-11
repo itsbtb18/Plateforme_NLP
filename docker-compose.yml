@@ -104,12 +104,18 @@ services:
       - ./Plateforme/media:/app/media
     ports:
       - "8888:8000"
+    user: root
     command: >
       sh -c "
-        python manage.py compilemessages --ignore=.venv &&
-        python manage.py collectstatic --noinput &&
-        python manage.py migrate &&
-        daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
+        chown -R django:django /app/media &&
+        mkdir -p /app/media/resources/files &&
+        chown -R django:django /app/media/resources &&
+        su django -c '
+          python manage.py compilemessages --ignore=.venv &&
+          python manage.py collectstatic --noinput &&
+          python manage.py migrate &&
+          daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
+        '
       "
     depends_on:
       db:

@@ -65,15 +65,12 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         def get_queryset(self) -> QuerySet[Topic]:
             qs = cast(QuerySet[Topic], super().get_queryset())
             
-            # Only show approved topics (unless staff or creator)
-            if not self.request.user.is_staff:
-                qs = qs.filter(
-                    Q(approval_status='approved') | 
-                    Q(creator=self.request.user)
-                )
+            # STRICT: Only show APPROVED topics in the community section
+            # Pending topics are only visible in the admin panel
+            qs = qs.filter(approval_status='approved')
             
-            # Filter: My Topics only
-            if self.request.GET.get('my_topics'):
+            # Filter: My Topics only - but still only approved ones
+            if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
                 qs = qs.filter(creator=self.request.user)
             
             # Backend search filtering
@@ -167,6 +164,49 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         context['topic'] = self.object
         return context
 
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST - special handling for admin review mode.
+        In review mode, form fields are different (bilingual) so we bypass normal form validation.
+        """
+        self.object = self.get_object()
+        
+        # Check if this is admin review mode
+        is_admin = request.user.is_staff or request.user.is_superuser
+        is_review_action = request.POST.get('action') == 'approve' or (
+            request.POST.get('title_en') or request.POST.get('title_ar')
+        )
+        
+        if is_admin and is_review_action:
+            topic = self.object
+            
+            # Update bilingual fields
+            if request.POST.get('title_en'):
+                topic.title_en = request.POST.get('title_en', '')
+                topic.title = request.POST.get('title_en', topic.title)
+            if request.POST.get('title_ar'):
+                topic.title_ar = request.POST.get('title_ar', '')
+            if request.POST.get('description_en'):
+                topic.description_en = request.POST.get('description_en', '')
+                topic.description = request.POST.get('description_en', topic.description)
+            if request.POST.get('description_ar'):
+                topic.description_ar = request.POST.get('description_ar', '')
+            
+            # Handle approval action
+            if request.POST.get('action') == 'approve':
+                topic.approval_status = 'approved'
+                topic.save()
+                messages.success(request, _("Topic has been approved and published."))
+                return redirect('pages:admin_forum')
+            
+            # Just saving bilingual changes
+            topic.save()
+            messages.success(request, _("Topic updated successfully."))
+            return redirect('pages:admin_forum')
+        
+        # Normal flow for non-admin or non-review mode
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
         topic = form.save(commit=False)
         
@@ -240,6 +280,15 @@ class ChatRoomListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'forum/chatroom_list.html'  # Ajout du préfixe 'forum/'
     context_object_name = 'chatrooms'
     ordering = ['-created_at']  # Tri par date de création décroissante
+    
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        # Block access to chatrooms of unapproved topics (except for admins)
+        topic = get_object_or_404(Topic, id=kwargs.get('topic_id'))
+        if topic.approval_status != 'approved' and not (request.user.is_staff or request.user.is_superuser):
+            from django.http import Http404
+            raise Http404(_("Topic not found."))
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self) -> QuerySet[ChatRoom]:
         topic_id = self.kwargs.get('topic_id')  # récupérer l'id du topic depuis l'URL
         return ChatRoom.objects.filter(topic_id=topic_id).order_by('-created_at')
@@ -266,6 +315,12 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     
     def dispatch(self, request: HttpRequest, *args, **kwargs):
         chatroom: ChatRoom = cast(ChatRoom, self.get_object())
+        
+        # Block access to chatrooms of unapproved topics (except for admins)
+        if chatroom.topic.approval_status != 'approved' and not (request.user.is_staff or request.user.is_superuser):
+            from django.http import Http404
+            raise Http404(_("Topic not found."))
+        
         # Vérifier si l'utilisateur est banni
         if BannedUser.objects.filter(chatroom=chatroom, user=request.user).exists():
             return HttpResponseForbidden("Vous avez été banni de cette salle de discussion.")

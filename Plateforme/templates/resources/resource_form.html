@@ -3,6 +3,10 @@
 
 {% block title %}{% trans "Create New Resource" %} - {% trans "NLP Platform" %}{% endblock %}
 
+{% block messages_container %}
+<!-- Messages will be shown in the form body, not as toasts -->
+{% endblock messages_container %}
+
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
@@ -529,6 +533,109 @@
     to { transform: rotate(360deg); }
 }
 
+/* ===== FORM ERROR STYLES ===== */
+.page-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.page-message i {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.page-message.message-error,
+.page-message.message-danger {
+    background-color: #fef2f2;
+    border: 2px solid #dc2626;
+    color: #991b1b;
+}
+
+.page-message.message-warning {
+    background-color: #fffbeb;
+    border: 2px solid #d97706;
+    color: #92400e;
+}
+
+.page-message.message-success {
+    background-color: #ecfdf5;
+    border: 2px solid #059669;
+    color: #065f46;
+}
+
+.page-message.message-info {
+    background-color: #eff6ff;
+    border: 2px solid #2563eb;
+    color: #1e40af;
+}
+
+.form-errors-alert {
+    background-color: #fef2f2;
+    border: 2px solid #dc2626;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.form-errors-alert .alert-icon {
+    color: #dc2626;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.form-errors-alert .alert-content {
+    flex: 1;
+}
+
+.form-errors-alert h4 {
+    color: #991b1b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+}
+
+.form-errors-alert ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #991b1b;
+}
+
+.form-errors-alert li {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.field-error {
+    color: #dc2626;
+    font-size: 0.85rem;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
+}
+
+.field-error i {
+    font-size: 0.8rem;
+}
+
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+}
+
 /* ===== CRISPY FORMS OVERRIDES ===== */
 .asteriskField {
     color: var(--eng-danger);
@@ -635,6 +742,52 @@ html[dir="rtl"] .page-header h1 {
         <form method="post" enctype="multipart/form-data" id="resource-form" novalidate>
             {% csrf_token %}
             
+            <!-- Django Messages (from view) -->
+            {% if messages %}
+            {% for message in messages %}
+            <div class="page-message {% if message.tags %}message-{{ message.tags }}{% endif %}">
+                <i class="bi {% if message.tags == 'error' or message.tags == 'danger' %}bi-exclamation-octagon-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% elif message.tags == 'success' %}bi-check-circle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            <!-- Non-field Errors -->
+            {% if form.non_field_errors %}
+            <div class="form-errors-alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please fix the following errors" %}</h4>
+                    <ul>
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Form Errors Summary -->
+            {% if form.errors %}
+            <div class="form-errors-alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please fix the following errors" %}</h4>
+                    <ul>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Section 1: Core Information -->
             <section class="section-card">
                 <div class="section-header">
@@ -649,31 +802,46 @@ html[dir="rtl"] .page-header h1 {
                 <div class="section-body">
                     
                     <!-- Resource Type -->
-                    <div class="form-group">
+                    <div class="form-group{% if form.resource_type.errors %} has-error{% endif %}">
                         <label>
                             {% trans "Resource Type" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
                         {{ form.resource_type }}
+                        {% if form.resource_type.errors %}
+                        {% for error in form.resource_type.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                     
                     <!-- Title -->
-                    <div class="form-group">
+                    <div class="form-group{% if form.title.errors %} has-error{% endif %}">
                         <label for="id_title">
                             {% trans "Title" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
                         {{ form.title }}
+                        {% if form.title.errors %}
+                        {% for error in form.title.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                         <span class="form-text">{% trans "A clear, descriptive title for your resource" %}</span>
                     </div>
                     
                     <!-- Language -->
-                    <div class="form-group">
+                    <div class="form-group{% if form.language.errors %} has-error{% endif %}">
                         <label for="id_language">
                             {% trans "Content Language" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
                         {{ form.language }}
+                        {% if form.language.errors %}
+                        {% for error in form.language.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                     
                 </div>
@@ -685,17 +853,22 @@ html[dir="rtl"] .page-header h1 {
                 <div class="section-body">
                     
                     <!-- Description -->
-                    <div class="form-group">
+                    <div class="form-group{% if form.description.errors %} has-error{% endif %}">
                         <label for="id_description">
                             {% trans "Description" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
                         {{ form.description }}
+                        {% if form.description.errors %}
+                        {% for error in form.description.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                         <span class="form-text">{% trans "Provide a detailed description of your resource" %}</span>
                     </div>
                     
                     <!-- File Upload Zone -->
-                    <div class="form-group">
+                    <div class="form-group{% if form.uploaded_file.errors %} has-error{% endif %}">
                         <label>{% trans "Upload Document" %}</label>
                         <div class="file-upload-zone" id="file-upload-zone">
                             <input type="file" name="uploaded_file" id="id_uploaded_file" 
@@ -717,6 +890,11 @@ html[dir="rtl"] .page-header h1 {
                                 </button>
                             </div>
                         </div>
+                        {% if form.uploaded_file.errors %}
+                        {% for error in form.uploaded_file.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                         <span class="form-text">{% trans "Optional: Attach a document to your resource" %}</span>
                     </div>
                     
@@ -766,23 +944,43 @@ html[dir="rtl"] .page-header h1 {
                 </div>
                 <div class="section-body">
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.course_field.errors %} has-error{% endif %}">
                             <label for="id_course_field">{% trans "Field" %}</label>
                             {{ form.course_field }}
+                            {% if form.course_field.errors %}
+                            {% for error in form.course_field.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.academic_level.errors %} has-error{% endif %}">
                             <label for="id_academic_level">{% trans "Academic Level" %}</label>
                             {{ form.academic_level }}
+                            {% if form.academic_level.errors %}
+                            {% for error in form.academic_level.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.course_institution.errors %} has-error{% endif %}">
                             <label for="id_course_institution">{% trans "Institution" %}</label>
                             {{ form.course_institution }}
+                            {% if form.course_institution.errors %}
+                            {% for error in form.course_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.academic_year.errors %} has-error{% endif %}">
                             <label for="id_academic_year">{% trans "Academic Year" %}</label>
                             {{ form.academic_year }}
+                            {% if form.academic_year.errors %}
+                            {% for error in form.academic_year.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -801,22 +999,37 @@ html[dir="rtl"] .page-header h1 {
                 </div>
                 <div class="section-body">
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.tool_type.errors %} has-error{% endif %}">
                             <label for="id_tool_type">{% trans "Tool Type" %}</label>
                             {{ form.tool_type }}
+                            {% if form.tool_type.errors %}
+                            {% for error in form.tool_type.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.tool_version.errors %} has-error{% endif %}">
                             <label for="id_tool_version">{% trans "Version" %}</label>
                             {{ form.tool_version }}
+                            {% if form.tool_version.errors %}
+                            {% for error in form.tool_version.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="id_documentation">{% trans "Documentation URL" %}</label>
                         {{ form.documentation }}
                     </div>
-                    <div class="form-group">
+                    <div class="form-group{% if form.supported_languages.errors %} has-error{% endif %}">
                         <label for="id_supported_languages">{% trans "Supported Languages" %}</label>
                         {{ form.supported_languages }}
+                        {% if form.supported_languages.errors %}
+                        {% for error in form.supported_languages.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </section>
@@ -834,18 +1047,33 @@ html[dir="rtl"] .page-header h1 {
                 </div>
                 <div class="section-body">
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.corpus_size.errors %} has-error{% endif %}">
                             <label for="id_corpus_size">{% trans "Corpus Size" %}</label>
                             {{ form.corpus_size }}
+                            {% if form.corpus_size.errors %}
+                            {% for error in form.corpus_size.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.corpus_field.errors %} has-error{% endif %}">
                             <label for="id_corpus_field">{% trans "Field" %}</label>
                             {{ form.corpus_field }}
+                            {% if form.corpus_field.errors %}
+                            {% for error in form.corpus_field.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group{% if form.corpus_format.errors %} has-error{% endif %}">
                         <label for="id_corpus_format">{% trans "Format" %}</label>
                         {{ form.corpus_format }}
+                        {% if form.corpus_format.errors %}
+                        {% for error in form.corpus_format.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </section>
@@ -863,19 +1091,34 @@ html[dir="rtl"] .page-header h1 {
                 </div>
                 <div class="section-body">
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
                             <label for="id_document_format">{% trans "Format" %}</label>
                             {{ form.document_format }}
+                            {% if form.document_format.errors %}
+                            {% for error in form.document_format.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.journal.errors %} has-error{% endif %}">
                             <label for="id_journal">{% trans "Journal" %}</label>
                             {{ form.journal }}
+                            {% if form.journal.errors %}
+                            {% for error in form.journal.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.publication_date.errors %} has-error{% endif %}">
                             <label for="id_publication_date">{% trans "Publication Date" %}</label>
                             {{ form.publication_date }}
+                            {% if form.publication_date.errors %}
+                            {% for error in form.publication_date.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="id_doi">{% trans "DOI" %}</label>
@@ -897,23 +1140,43 @@ html[dir="rtl"] .page-header h1 {
                     </div>
                 </div>
                 <div class="section-body">
-                    <div class="form-group">
+                    <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
                         <label for="id_document_format">{% trans "Format" %}</label>
                         {{ form.document_format }}
+                        {% if form.document_format.errors %}
+                        {% for error in form.document_format.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.supervisor.errors %} has-error{% endif %}">
                             <label for="id_supervisor">{% trans "Supervisor" %}</label>
                             {{ form.supervisor }}
+                            {% if form.supervisor.errors %}
+                            {% for error in form.supervisor.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.thesis_institution.errors %} has-error{% endif %}">
                             <label for="id_thesis_institution">{% trans "Institution" %}</label>
                             {{ form.thesis_institution }}
+                            {% if form.thesis_institution.errors %}
+                            {% for error in form.thesis_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group{% if form.defense_year.errors %} has-error{% endif %}">
                         <label for="id_defense_year">{% trans "Defense Year" %}</label>
                         {{ form.defense_year }}
+                        {% if form.defense_year.errors %}
+                        {% for error in form.defense_year.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </section>
@@ -930,23 +1193,43 @@ html[dir="rtl"] .page-header h1 {
                     </div>
                 </div>
                 <div class="section-body">
-                    <div class="form-group">
+                    <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
                         <label for="id_document_format">{% trans "Format" %}</label>
                         {{ form.document_format }}
+                        {% if form.document_format.errors %}
+                        {% for error in form.document_format.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                     <div class="field-grid">
-                        <div class="form-group">
+                        <div class="form-group{% if form.memoir_level.errors %} has-error{% endif %}">
                             <label for="id_memoir_level">{% trans "Level" %}</label>
                             {{ form.memoir_level }}
+                            {% if form.memoir_level.errors %}
+                            {% for error in form.memoir_level.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="form-group">
+                        <div class="form-group{% if form.memoir_institution.errors %} has-error{% endif %}">
                             <label for="id_memoir_institution">{% trans "Institution" %}</label>
                             {{ form.memoir_institution }}
+                            {% if form.memoir_institution.errors %}
+                            {% for error in form.memoir_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group{% if form.memoir_defense_year.errors %} has-error{% endif %}">
                         <label for="id_memoir_defense_year">{% trans "Defense Year" %}</label>
                         {{ form.memoir_defense_year }}
+                        {% if form.memoir_defense_year.errors %}
+                        {% for error in form.memoir_defense_year.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </section>
@@ -1092,6 +1375,12 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
         });
+    }
+    
+    // ===== Scroll to first error on page load =====
+    const firstError = document.querySelector('.form-errors-alert, .field-error, .has-error');
+    if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     
     // ===== Add form-control class to all inputs =====

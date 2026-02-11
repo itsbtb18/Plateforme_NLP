@@ -1282,8 +1282,14 @@ html[dir="rtl"] .academic-lab-card {
                 <!-- Resource Actions -->
                 <div class="academic-sidebar-card">
                     <div class="academic-action-card">
-                        {% if object.file %}
-                        <a href="{{ object.file.url }}" target="_blank" class="academic-action-primary">
+                        {% if object.uploaded_file %}
+                        <button type="button" 
+                                class="academic-action-primary"
+                                onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                            <i class="bi bi-eye"></i>
+                            {% translate "View Thesis PDF" %}
+                        </button>
+                        <a href="{{ object.uploaded_file.url }}" target="_blank" class="academic-action-secondary">
                             <i class="bi bi-file-earmark-pdf"></i>
                             {% translate "Download Thesis PDF" %}
                         </a>
@@ -1486,4 +1492,6 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeCiteModal();
 });
 </script>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}

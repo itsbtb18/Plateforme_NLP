@@ -817,8 +817,14 @@ html[dir="rtl"] .approval-badge {
     <div class="action-bar">
         <div class="action-bar-container">
             <div class="action-group">
-                {% if object.file %}
-                <a href="{{ object.file.url }}" class="btn-action btn-download" download>
+                {% if object.uploaded_file %}
+                <button type="button" 
+                        class="btn-action btn-view" 
+                        onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                    <i class="bi bi-eye"></i>
+                    <span>{% trans "View Document" %}</span>
+                </button>
+                <a href="{{ object.uploaded_file.url }}" class="btn-action btn-download" download>
                     <i class="bi bi-cloud-download"></i>
                     <span>{% trans "Download Corpus" %}</span>
                 </a>
@@ -1039,4 +1045,6 @@ html[dir="rtl"] .approval-badge {
     </div>
     
 </div>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}
