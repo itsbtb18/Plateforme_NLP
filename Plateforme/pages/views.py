@@ -1077,6 +1077,30 @@ def admin_news(request):
 
 @login_required
 @user_passes_test(is_admin)
+def admin_news_approve(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    post.approval_status = 'approved'
+    post.save(update_fields=['approval_status'])
+    return redirect('pages:admin_news')
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news_delete(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    post.delete()
+    return redirect('pages:admin_news')
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news_view(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    return render(request, 'admin/news_view.html', {'post': post})
+
+
+@login_required
+@user_passes_test(is_admin)
 def admin_calls(request):
     """Admin calls for papers and events management"""
     call_type = request.GET.get('call_type', '')

@@ -1,828 +1,200 @@
 {% extends 'base_admin.html' %}
 {% load i18n %}
-{% block title %}{% trans "Course management" %}{% endblock %}
+{% block title %}{% trans "Course Management" %}{% endblock %}
 
 {% block extra_css %}
 <style>
   :root {
     --primary-color: #4f46e5;
     --primary-hover: #4338ca;
-    --success-color: #10b981;
+    --success-color: #48bb78;
     --warning-color: #f59e0b;
-    --danger-color: #ef4444;
+    --pending-color: #ecc94b;
+    --danger-color: #e53e3e;
     --info-color: #3b82f6;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
+    --gray-100: #f7fafc;
+    --gray-200: #edf2f7;
+    --gray-300: #e2e8f0;
+    --gray-400: #cbd5e0;
+    --gray-500: #a0aec0;
+    --gray-600: #718096;
+    --gray-700: #4a5568;
+    --gray-800: #2d3748;
+    --gray-900: #1a202c;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --radius-sm: 0.25rem;
-    --radius: 0.375rem;
     --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
   }
 
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background-color: var(--gray-50);
-    color: var(--gray-700);
-  }
-
-  .container {
-    max-width: 100%;
-    padding: 1.5rem;
-  }
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .page-header h1 {
-    margin: 0;
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--gray-800);
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius);
-    font-weight: 500;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--primary-hover);
-  }
-
-  .btn-outline {
-    background-color: white;
-    color: var(--gray-700);
-    border: 1px solid var(--gray-300);
-  }
-
-  .btn-outline:hover {
-    background-color: var(--gray-50);
-  }
-
-  .btn svg {
-    width: 16px;
-    height: 16px;
-    margin-right: 0.5rem;
-  }
-
-  .filter-panel {
-    background-color: white;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow);
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .filter-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    align-items: end;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .form-group label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--gray-700);
-  }
-
-  .form-control {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius);
-    font-size: 0.875rem;
-    color: var(--gray-800);
-    width: 100%;
-  }
-
-  .form-control:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-  }
-
-  select.form-control {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 1rem;
-    padding-right: 2.5rem;
-  }
-
-  .search-input {
-    position: relative;
-    flex-grow: 1;
-  }
-
-  .search-input input {
-    padding-left: 2.5rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 0.75rem center;
-    background-size: 1rem;
-  }
-
-  .courses-table-container {
-    background-color: white;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-
-  .courses-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-
-  .courses-table th,
-  .courses-table td {
-    padding: 1rem;
-    text-align: left;
-  }
-
-  .courses-table th {
-    background-color: var(--gray-50);
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--gray-700);
-    border-bottom: 1px solid var(--gray-200);
-    position: sticky;
-    top: 0;
-  }
-
-  .courses-table tbody tr {
-    transition: background-color 0.15s ease;
-  }
-
-  .courses-table tbody tr:hover {
-    background-color: var(--gray-50);
-  }
-
-  .courses-table tbody tr:not(:last-child) {
-    border-bottom: 1px solid var(--gray-200);
-  }
-
-  .course-title {
-    font-weight: 500;
-    color: var(--gray-800);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .course-title a {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-  }
-
-  .course-title a:hover {
-    text-decoration: underline;
-  }
-
-  .course-actions {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .action-btn {
-    padding: 0.25rem;
-    border-radius: var(--radius-sm);
-    color: var(--gray-500);
-    transition: all 0.15s ease;
-    display: inline-flex;
-  }
-
-  .action-btn:hover {
-    background-color: var(--gray-100);
-    color: var(--gray-700);
-  }
-
-  .action-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .badge-success {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .badge-warning {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .badge-danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .badge-info {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: var(--info-color);
-  }
-
-  .badge-secondary {
-    background-color: var(--gray-100);
-    color: var(--gray-600);
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2.5rem;
-  }
-
-  .empty-state-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 9999px;
-    background-color: var(--gray-100);
-    color: var(--gray-500);
-    margin-bottom: 1rem;
-  }
-
-  .empty-state-icon svg {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .empty-state-title {
-    font-size: 1.125rem;
-    font-weight: 500;
-    color: var(--gray-700);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-state-description {
-    text-align: center;
-    color: var(--gray-500);
-    max-width: 24rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .stats-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .stats-card {
-    background-color: white;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow);
-    padding: 1.25rem;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .stats-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .stats-title {
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    margin-bottom: 0.5rem;
-  }
-
-  .stats-value {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--gray-800);
-  }
-
-  .stats-trend {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .stats-trend.trend-up {
-    color: var(--success-color);
-  }
-
-  .stats-trend.trend-down {
-    color: var(--danger-color);
-  }
-
-  .stats-trend.trend-neutral {
-    color: var(--gray-500);
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-    gap: 0.25rem;
-  }
-
-  .pagination-item {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 0.5rem;
-    border-radius: var(--radius);
-    font-size: 0.875rem;
-    color: var(--gray-700);
-    background-color: white;
-    border: 1px solid var(--gray-200);
-    transition: all 0.15s ease;
-  }
-
-  .pagination-item:hover {
-    background-color: var(--gray-50);
-    border-color: var(--gray-300);
-    color: var(--gray-800);
-  }
-
-  .pagination-item.active {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-  }
-
-  .pagination-item:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  .pagination-dots {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2rem;
-    height: 2rem;
-    font-size: 0.875rem;
-    color: var(--gray-500);
-  }
-
-  /* Responsive styles */
-  @media (max-width: 768px) {
-    .page-header {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .header-actions {
-      justify-content: flex-start;
-    }
-
-    .form-group {
-      grid-column: span 2;
-    }
-
-    .filter-form {
-      grid-template-columns: 1fr;
-    }
-
-    .filter-form .btn {
-      grid-column: span 1;
-    }
-
-    .courses-table-container {
-      overflow-x: auto;
-    }
-
-    .courses-table {
-      min-width: 800px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .courses-table {
-      min-width: 600px;
-    }
-
-    .header-actions {
-      flex-direction: column;
-      width: 100%;
-    }
-
-    .header-actions .btn {
-      width: 100%;
-    }
-  }
-
-  /* Approval Action Buttons */
-  .action-btn-approve {
-    padding: 0.25rem;
-    border-radius: var(--radius-sm);
-    color: var(--success-color);
-    transition: all 0.15s ease;
-    display: inline-flex;
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  .action-btn-approve:hover {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .action-btn-reject {
-    padding: 0.25rem;
-    border-radius: var(--radius-sm);
-    color: var(--danger-color);
-    transition: all 0.15s ease;
-    display: inline-flex;
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  .action-btn-reject:hover {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .action-btn-approve svg,
-  .action-btn-reject svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* Approval Tabs */
-  .approval-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--gray-200);
-    padding-bottom: 0;
-  }
-
-  .tab-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-  }
-
-  .tab-btn:hover {
-    color: var(--gray-700);
-  }
-
-  .tab-btn.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-  }
-
-  .tab-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.25rem;
-    height: 1.25rem;
-    padding: 0 0.375rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background-color: var(--gray-200);
-    color: var(--gray-600);
-  }
-
-  .tab-btn.active .tab-badge {
-    background-color: rgba(79, 70, 229, 0.1);
-    color: var(--primary-color);
-  }
-
-  .tab-btn.pending .tab-badge {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .tab-btn.pending.active .tab-badge {
-    background-color: rgba(245, 158, 11, 0.2);
-    color: var(--warning-color);
-  }
-
-  /* Status Badge */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .status-pending {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .status-approved {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
+  body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--gray-100); }
+  .container { padding: 1.5rem; max-width: 100%; margin: 0 auto; }
+
+  /* Header & Title Section */
+  .projects-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+  .projects-header h1 { margin: 0; color: var(--gray-800); font-weight: 700; font-size: 1.875rem; }
+
+  /* Summary Cards */
+  .dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .summary-card { background: white; padding: 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+  .summary-card-title { color: var(--gray-600); font-size: 0.875rem; font-weight: 500; }
+  .summary-card-value { color: var(--gray-900); font-size: 1.5rem; font-weight: 700; margin: 0.5rem 0; }
+  .summary-card-trend { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; }
+  .trend-up { background: rgba(72, 187, 120, 0.1); color: var(--success-color); }
+  .trend-neutral { background: var(--gray-100); color: var(--gray-600); }
+
+  /* Filter Bar & Tabs */
+  .filter-bar { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; align-items: center; box-shadow: var(--shadow-sm); flex-wrap: wrap; }
+  .search-box { flex: 1; min-width: 200px; }
+  .search-box input, .filter-dropdown select { width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: var(--radius-md); }
+
+  .approval-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+  .tab-btn { flex: 1; padding: 1rem; text-align: center; border-radius: var(--radius-md); color: var(--gray-600); font-weight: 600; text-decoration: none; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
+  .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+  .tab-badge { margin-left: 8px; padding: 2px 8px; border-radius: 10px; background: var(--gray-200); font-size: 0.75rem; color: var(--gray-700); }
+  .tab-btn.active .tab-badge { background: rgba(255,255,255,0.2); color: white; }
+
+  /* Table Styles */
+  .projects-table { width: 100%; border-collapse: separate; border-spacing: 0; background-color: white; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .projects-table thead th { background-color: var(--gray-100); color: var(--gray-700); font-weight: 600; font-size: 0.875rem; padding: 1rem; text-align: left; }
+  .projects-table td { padding: 1rem; vertical-align: middle; border-bottom: 1px solid var(--gray-200); }
+  
+  .project-title { color: var(--gray-900); font-weight: 600; font-size: 1rem; text-decoration: none; display: block; }
+  .project-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem; }
+
+  /* Badges & Buttons */
+  .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .status-badge-pending { background-color: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+  .status-badge-approved { background-color: rgba(72, 187, 120, 0.1); color: var(--success-color); }
+  .level-badge { background: var(--gray-100); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: var(--gray-600); }
+
+  .btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: 0.2s; border: none; text-decoration: none; gap: 0.5rem; }
+  .btn-primary { background-color: var(--primary-color); color: white; }
+  .btn-outline { background-color: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+  .btn-group { display: flex; gap: 0.5rem; }
 </style>
-{% endblock %}
+{% endblock extra_css %}
 
 {% block content %}
 <div class="container">
-  <div class="page-header">
-    <h1>{% trans "Course management" %}</h1>
-    <div class="header-actions">
-      <a href="{%url 'resources:course-create'%}" class="btn btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        {% trans "New cours" %}
-      </a>
+  <div class="projects-header">
+    <h1>{% trans "Course Management" %}</h1>
+    <a href="{% url 'resources:course-create' %}" class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
+      {% trans "New Course" %}
+    </a>
+  </div>
+
+  <div class="dashboard-summary">
+    <div class="summary-card">
+      <div class="summary-card-title">{% trans "Total Courses" %}</div>
+      <div class="summary-card-value">{{ courses.count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">{% trans "Created this month" %}</div>
+      <div class="summary-card-value">{{ courses_this_month_count }}</div>
+      <div class="summary-card-trend trend-up">{% if courses_growth > 0 %}+{% endif %}{{ courses_growth }}%</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-title">{% trans "Pending Review" %}</div>
+      <div class="summary-card-value" style="color: var(--warning-color);">{{ pending_count|default:0 }}</div>
     </div>
   </div>
 
-  <div class="stats-summary">
-    <div class="stats-card">
-      <div class="stats-title">{% trans "Total courses" %}</div>
-      <div class="stats-value">{{ courses.count }}</div>
+  <form method="get" class="filter-bar">
+    <div class="search-box">
+      <input type="text" name="search" placeholder="{% trans 'Search by title, author...' %}" value="{{ search }}">
     </div>
-    <div class="stats-card">
-      <div class="stats-title">{% trans "Created this month" %}</div>
-      <div class="stats-value">{{ courses_this_month_count }}</div>
-      <div class="stats-trend {{ courses_growth_class }}">
-        <span>{% if courses_growth > 0 %}+{% endif %}{{ courses_growth }}% {% trans "vs last month" %}</span>
-      </div>
+    <div class="filter-dropdown">
+      <select name="level">
+        <option value="">{% trans "All Levels" %}</option>
+        <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
+        <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
+        <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advanced" %}</option>
+      </select>
     </div>
-  </div>
+    <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+  </form>
 
-  <div class="filter-panel">
-    <form method="get" action="" class="filter-form">
-      <div class="form-group search-input">
-
-        <label for="search">{% trans "Research" %}</label>
-        <input type="text" id="search" name="search" class="form-control" placeholder="{% trans 'Search by title, description or author...' %}" value="{{ search }}">
-
-      </div>
-      <div class="form-group">
-        <label for="level">{% trans "Academic level" %}</label>
-        <select id="level" name="level" class="form-control">
-          <option value="">{% trans "All levels" %}</option>
-          <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
-          <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
-          <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advance" %}</option>
-          <option value="expert" {% if filter_level == 'expert' %}selected{% endif %}>{% trans "Expert" %}</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <button type="submit" class="btn btn-primary" style="width: 100%;">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          {% trans "Filter" %}
-        </button>
-      </div>
-    </form>
-  </div>
-
-  <!-- Approval Tabs -->
   <div class="approval-tabs">
-    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}{% if filter_level %}&level={{ filter_level }}{% endif %}" 
-       class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
-      {% trans "Approved" %}
-      <span class="tab-badge">{{ approved_count|default:0 }}</span>
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
+      {% trans "Approved" %} <span class="tab-badge">{{ approved_count|default:0 }}</span>
     </a>
-    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}{% if filter_level %}&level={{ filter_level }}{% endif %}" 
-       class="tab-btn pending {% if active_tab == 'pending' %}active{% endif %}">
-      {% trans "Pending Review" %}
-      <span class="tab-badge">{{ pending_count|default:0 }}</span>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
+      {% trans "Pending Review" %} <span class="tab-badge">{{ pending_count|default:0 }}</span>
     </a>
   </div>
 
-  <div class="courses-table-container">
-    {% if active_tab == 'pending' %}
-    <!-- Pending Courses Table -->
+  {% if active_tab == 'pending' %}
     {% if pending_courses %}
-    <table class="courses-table">
-      <thead>
-        <tr>
-          <th style="width: 35%;">{% trans "Title" %}</th>
-          <th>{% trans "Level" %}</th>
-          <th>{% trans "Creation date" %}</th>
-          <th>{% trans "Status" %}</th>
-          <th>{% trans "Actions" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for course in pending_courses %}
-        <tr>
-          <td>
-            <div class="course-title">
-              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
-            </div>
-          </td>
-          <td>
-            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
-          </td>
-          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
-          <td>
-            <span class="status-badge status-pending">{% trans "Pending" %}</span>
-          </td>
-          <td>
-            <div class="course-actions">
-              <a href="{% url 'pages:admin_approve_item' model_type='course' pk=course.id %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </a>
-              {% translate "Are you sure you want to reject this course?" as confirm_course_msg %}
-              <form method="post" action="{% url 'pages:admin_reject_item' model_type='course' pk=course.id %}" style="display: inline;" onsubmit="return confirm('{{ confirm_course_msg }}');">
-                {% csrf_token %}
-                <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </form>
-              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      <table class="projects-table">
+        <thead>
+          <tr>
+            <th style="width:40%;">{% trans "Course Title" %}</th>
+            <th>{% trans "Academic Level" %}</th>
+            <th>{% trans "Creation Date" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in pending_courses %}
+          <tr>
+            <td>
+              <a href="{% url 'resources:course_detail' course.id %}" class="project-title">{{ course.title }}</a>
+              <div class="project-meta"><span>{% trans "ID" %}: #{{ course.id }}</span></div>
+            </td>
+            <td><span class="level-badge">{{ course.get_academic_level_display }}</span></td>
+            <td>{{ course.creation_date|date:"d M Y" }}</td>
+            <td>
+              <div class="btn-group">
+                <a href="{% url 'pages:admin_approve_item' model_type='course' pk=course.id %}" class="btn btn-sm btn-outline">Review</a>
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type='course' pk=course.id %}" onsubmit="return confirm('{% trans "Reject this course?" %}');">
+                  {% csrf_token %}<button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger-color)">Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     {% else %}
-    <div class="empty-state">
-      <div class="empty-state-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <h3 class="empty-state-title">{% trans "No pending courses" %}</h3>
-      <p class="empty-state-description">
-        {% trans "All courses have been reviewed. Great job!" %}
-      </p>
-    </div>
+      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses pending review." %}</div>
     {% endif %}
-    {% else %}
-    <!-- Approved Courses Table -->
+  {% else %}
     {% if approved_courses %}
-    <table class="courses-table">
-      <thead>
-        <tr>
-          <th style="width: 40%;">{% trans "Title" %}</th>
-          <th>{% trans "Level" %}</th>
-          <th>{% trans "Creation date" %}</th>
-          <th>{% trans "Actions" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for course in approved_courses %}
-        <tr>
-          <td>
-            <div class="course-title">
-              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
-            </div>
-          </td>
-          <td>
-            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
-          </td>
-          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
-          <td>
-            <div class="course-actions">
-              <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Edit' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </a>
-              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </a>
-              <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Delete' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      <table class="projects-table">
+        <thead>
+          <tr>
+            <th style="width:45%;">{% trans "Course" %}</th>
+            <th>{% trans "Level" %}</th>
+            <th>{% trans "Date" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in approved_courses %}
+          <tr>
+            <td>
+              <a href="{% url 'resources:course_detail' course.id %}" class="project-title">{{ course.title }}</a>
+            </td>
+            <td><span class="level-badge">{{ course.get_academic_level_display }}</span></td>
+            <td>{{ course.creation_date|date:"d M Y" }}</td>
+            <td>
+              <div class="btn-group">
+                <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="btn btn-sm btn-outline">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                </a>
+                <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="btn btn-sm btn-outline" onclick="return confirm('{% trans "Delete course?" %}');">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     {% else %}
-    <div class="empty-state">
-      <div class="empty-state-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-      </div>
-      <h3 class="empty-state-title">{% trans "No courses found" %}</h3>
-      <p class="empty-state-description">
-        {% trans "There are no courses matching your search criteria. Try changing your filters or creating a new course." %}
-      </p>
-      <a href="{% url 'resources:course-create' %}" class="btn btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        {% trans "Create a course" %}
-      </a>
-    </div>
+      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses found." %}</div>
     {% endif %}
-    {% endif %}
-  </div>
-
-  {% if approved_courses %}
-  <div class="pagination">
-    <a href="#" class="pagination-item">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-      </svg>
-    </a>
-    <a href="#" class="pagination-item active">1</a>
-    <a href="#" class="pagination-item">2</a>
-    <a href="#" class="pagination-item">3</a>
-    <span class="pagination-dots">...</span>
-    <a href="#" class="pagination-item">10</a>
-    <a href="#" class="pagination-item">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-      </svg>
-    </a>
-  </div>
   {% endif %}
 </div>
 {% endblock %}

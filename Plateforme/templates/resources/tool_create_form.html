@@ -827,6 +827,65 @@
     transform: none;
 }
 
+/* ===== Corpus-style upload ===== */
+.upload-zone{
+    border:2px dashed var(--portal-border);
+    border-radius:16px;
+    padding:2.5rem;
+    text-align:center;
+    transition:all .3s ease;
+    cursor:pointer;
+    background:var(--portal-muted);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:0.35rem;
+}
+.upload-zone:hover{border-color:var(--portal-accent);background:rgba(37,99,235,.03)}
+.upload-zone.drag-over{border-color:var(--portal-accent);background:var(--portal-accent-glow);transform:scale(1.01)}
+.upload-zone.has-file{border-color:var(--portal-success);border-style:solid;background:var(--portal-success-bg)}
+.upload-icon{
+    width:80px;height:80px;margin:0 auto 1.5rem;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--portal-accent) 0%,var(--portal-accent-light) 100%);
+    color:white;font-size:2rem;box-shadow:0 8px 25px rgba(37,99,235,.3);
+}
+.upload-zone.has-file .upload-icon{
+    background:linear-gradient(135deg,var(--portal-success) 0%,#10b981 100%);
+    box-shadow:0 8px 25px rgba(5,150,105,.3);
+}
+.upload-title{font-size:1.05rem;font-weight:700;color:var(--portal-text);margin-bottom:.35rem}
+.upload-subtitle{display:none}
+.upload-browse{
+    display:inline-flex;align-items:center;gap:.5rem;
+    padding:.625rem 1.5rem;background:var(--portal-accent);
+    color:white;font-weight:600;font-size:.9rem;border-radius:12px;
+    transition:all .2s ease;cursor:pointer;
+}
+.upload-browse:hover{background:var(--portal-primary);transform:translateY(-2px)}
+.upload-formats{margin-top:1rem;font-size:.8rem;color:var(--portal-text-muted)}
+.upload-formats strong{color:var(--portal-text-secondary)}
+.file-preview{
+    display:none;align-items:center;gap:1rem;
+    padding:1rem;background:var(--portal-surface);border-radius:12px;margin-top:1rem;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.file-preview.visible{display:flex}
+.file-icon{
+    width:48px;height:48px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--portal-success-bg);color:var(--portal-success);font-size:1.25rem;
+}
+.file-info{flex:1}
+.file-name{font-weight:600;color:var(--portal-text);margin-bottom:.25rem}
+.file-size{font-size:.8rem;color:var(--portal-text-muted)}
+.file-remove{
+    padding:.5rem;background:none;border:none;color:var(--portal-danger);
+    cursor:pointer;border-radius:10px;transition:.2s ease;
+}
+.file-remove:hover{background:var(--portal-danger-bg)}
+
 /* Submit Button Loading */
 .btn-submit-wrap {
     position: relative;
@@ -1058,26 +1117,28 @@ html[dir="rtl"] .page-header h1 {
                                 <span class="tooltip-content">{% trans "Upload a square icon (128×128px recommended) to represent your tool in listings" %}</span>
                             </span>
                         </label>
-                        <div class="icon-upload-zone" id="icon-upload-zone">
-                            <input type="file" name="icon" id="icon-input" accept="image/*">
-                            <div class="upload-content">
-                                <div class="upload-preview" id="upload-preview">
-                                    <i class="bi bi-cpu"></i>
-                                </div>
-                                <div class="upload-text">
-                                    <h4>{% trans "Drag & Drop your icon here" %}</h4>
-                                    <p>{% trans "or click to browse files" %}</p>
-                                    <span class="file-types">PNG, JPG, SVG • {% trans "Max 2MB" %}</span>
-                                </div>
-                                <span class="upload-btn">
-                                    <i class="bi bi-upload"></i>
-                                    {% trans "Choose File" %}
-                                </span>
-                                <span class="upload-success">
-                                    <i class="bi bi-check-circle-fill"></i>
-                                    <span id="file-name">{% trans "File uploaded" %}</span>
-                                </span>
+                        <div class="upload-zone" data-upload="tool-icon">
+                            <div class="upload-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                            <div class="upload-title">{% trans "Drag & drop your icon here" %}</div>
+                            <div class="upload-subtitle">{% trans "or" %}</div>
+                            <label class="upload-browse">
+                                <input type="file" id="tool-icon" name="icon" aria-label="{% trans 'Choose File' %}" accept="image/*">
+                            </label>
+                            <div class="upload-formats">
+                                <strong>{% trans "Supported formats:" %}</strong> PNG, JPG, SVG
                             </div>
+                        </div>
+                        <div class="file-preview" data-upload="tool-icon">
+                            <div class="file-icon">
+                                <i class="bi bi-image"></i>
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name">icon.png</div>
+                                <div class="file-size">0 MB</div>
+                            </div>
+                            <button type="button" class="file-remove">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -1421,54 +1482,56 @@ document.addEventListener('DOMContentLoaded', function() {
         arabicColumn.classList.toggle('visible', this.checked);
     });
     
-    // ===== Icon Upload Drag & Drop =====
-    const uploadZone = document.getElementById('icon-upload-zone');
-    const iconInput = document.getElementById('icon-input');
-    const uploadPreview = document.getElementById('upload-preview');
-    const fileName = document.getElementById('file-name');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, preventDefaults, false);
+    // ===== Upload Zones (corpus-style) =====
+    document.querySelectorAll('.upload-zone').forEach(zone => {
+        const input = zone.querySelector('input[type=\"file\"]');
+        const key = zone.dataset.upload;
+        const preview = document.querySelector(`.file-preview[data-upload=\"${key}\"]`);
+        const nameEl = preview?.querySelector('.file-name');
+        const sizeEl = preview?.querySelector('.file-size');
+        const removeBtn = preview?.querySelector('.file-remove');
+
+        const formatSize = bytes => {
+            if (!bytes) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes','KB','MB','GB'];
+            const i = Math.floor(Math.log(bytes)/Math.log(k));
+            return `${(bytes/Math.pow(k,i)).toFixed(2)} ${sizes[i]}`;
+        };
+
+        const showFile = file => {
+            if (!preview) return;
+            nameEl.textContent = file.name;
+            sizeEl.textContent = formatSize(file.size);
+            zone.classList.add('has-file');
+            preview.classList.add('visible');
+        };
+
+        const clearFile = () => {
+            if (input) input.value = '';
+            zone.classList.remove('has-file');
+            preview?.classList.remove('visible');
+        };
+
+        ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+            zone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
+        });
+        ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, () => zone.classList.add('drag-over')));
+        ['dragleave','drop'].forEach(evt => zone.addEventListener(evt, () => zone.classList.remove('drag-over')));
+
+        zone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                input.files = files;
+                showFile(files[0]);
+            }
+        });
+
+        input.addEventListener('change', function() {
+            if (this.files.length) showFile(this.files[0]);
+        });
+
+        removeBtn?.addEventListener('click', clearFile);
     });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'));
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'));
-    });
-    
-    uploadZone.addEventListener('drop', function(e) {
-        const files = e.dataTransfer.files;
-        if (files.length) {
-            iconInput.files = files;
-            handleFileSelect(files[0]);
-        }
-    });
-    
-    iconInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            handleFileSelect(this.files[0]);
-        }
-    });
-    
-    function handleFileSelect(file) {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                uploadPreview.innerHTML = `<img src="${e.target.result}" alt="Icon preview">`;
-                uploadZone.classList.add('has-file');
-                fileName.textContent = file.name;
-            };
-            reader.readAsDataURL(file);
-        }
-    }
     
     // ===== URL Validation =====
     const repoInput = document.getElementById('id_access_link');
@@ -1562,3 +1625,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+.upload-zone input[type="file"]{
+    position:absolute;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    opacity:0;
+}

@@ -404,6 +404,11 @@ html[dir="rtl"] body {
     transition: all 0.3s ease;
     cursor: pointer;
     background: var(--surface-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
 }
 
 .upload-zone:hover {
@@ -449,28 +454,26 @@ html[dir="rtl"] body {
     margin-bottom: 0.5rem;
 }
 
-.upload-subtitle {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-}
+.upload-subtitle { display: none; }
 
 .upload-browse {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.625rem 1.5rem;
-    background: var(--primary-accent);
-    color: white;
+    background: #ffffff;
+    color: var(--primary-accent);
     font-weight: 600;
     font-size: 0.9rem;
     border-radius: var(--radius-md);
+    border: 2px solid var(--primary-accent);
     transition: all 0.3s ease;
     cursor: pointer;
 }
 
 .upload-browse:hover {
-    background: var(--primary-deep);
+    background: var(--primary-accent);
+    color: white;
     transform: translateY(-2px);
 }
 
@@ -537,6 +540,13 @@ html[dir="rtl"] body {
 
 .file-remove:hover {
     background: var(--danger-light);
+}
+.upload-zone input[type="file"]{
+    position:absolute;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    opacity:0;
 }
 
 /* ===== KEYWORDS INPUT ===== */
@@ -1051,9 +1061,7 @@ html[dir="rtl"] .btn-submit {
                         <div class="upload-title">{% trans "Drag & drop your corpus file here" %}</div>
                         <div class="upload-subtitle">{% trans "or" %}</div>
                         <label class="upload-browse">
-                            <i class="bi bi-folder2-open"></i>
-                            {% trans "Browse Files" %}
-                            <input type="file" id="file-input" name="file" hidden accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
+                            <input type="file" id="file-input" name="file" aria-label="{% trans 'Choose File' %}" accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
                         </label>
                         <div class="upload-formats">
                             <strong>{% trans "Supported formats:" %}</strong> TXT, CSV, JSON, XML, ZIP, GZ, CoNLL
