@@ -114,10 +114,28 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     form_class = EventForm
     template_name = 'events/event_form.html'
     
+    def _save_bilingual_fields(self, instance):
+        """Save bilingual fields from POST data to the model instance."""
+        bilingual_fields = {
+            'title': ('title_en', 'title_ar'),
+            'description': ('description_en', 'description_ar'),
+            'location': ('location_en', 'location_ar'),
+        }
+        for base, (en_field, ar_field) in bilingual_fields.items():
+            en_val = self.request.POST.get(en_field, '').strip()
+            ar_val = self.request.POST.get(ar_field, '').strip()
+            setattr(instance, en_field, en_val)
+            setattr(instance, ar_field, ar_val)
+            # Set the legacy base field from the English value (or Arabic as fallback)
+            if not getattr(instance, base, ''):
+                setattr(instance, base, en_val or ar_val)
+        instance.save()
+
     def form_valid(self, form):
         form.instance.is_approved = self.request.user.is_staff
         form.instance.created_by = self.request.user
         self.object = form.save()
+        self._save_bilingual_fields(self.object)
         
         if self.object.is_approved:
             messages.success(self.request, _('Event created successfully!'))
@@ -158,13 +176,31 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         event = self.get_object()
         return self.request.user == event.created_by or self.request.user.is_staff
     
+    def _save_bilingual_fields(self, instance):
+        """Save bilingual fields from POST data to the model instance."""
+        bilingual_fields = {
+            'title': ('title_en', 'title_ar'),
+            'description': ('description_en', 'description_ar'),
+            'location': ('location_en', 'location_ar'),
+        }
+        for base, (en_field, ar_field) in bilingual_fields.items():
+            en_val = self.request.POST.get(en_field, '').strip()
+            ar_val = self.request.POST.get(ar_field, '').strip()
+            setattr(instance, en_field, en_val)
+            setattr(instance, ar_field, ar_val)
+            if not getattr(instance, base, ''):
+                setattr(instance, base, en_val or ar_val)
+        instance.save()
+
     def form_valid(self, form):
         if not self.request.user.is_staff and self.get_object().is_approved:
             form.instance.is_approved = False
             messages.info(self.request, _('Your changes will be reviewed before becoming visible.'))
         else:
             messages.success(self.request, _('Event updated successfully!'))
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        self._save_bilingual_fields(self.object)
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

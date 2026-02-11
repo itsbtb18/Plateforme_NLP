@@ -10,12 +10,15 @@ from django.utils import timezone
 from django.views import View
 from django.http import HttpResponseForbidden
 from django.core.exceptions import PermissionDenied
+from typing import Any, TYPE_CHECKING, cast
 from projects.models import Project, ProjectMember
 from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
-from typing import TYPE_CHECKING, Any, cast
+from .two_factor_models import TwoFactorAuth
+from .two_factor_utils import generate_otp, store_otp
+from .two_factor_email import send_otp_email
 import logging
 
 # Import allauth LoginView
@@ -137,8 +140,8 @@ class SignUp(CreateView):
                 return redirect('pages:home')
 
         except Exception as e:
-            logger.error(f"Error creating user account: {str(e)}")
-            messages.error(self.request, _("An error occurred while creating your account. Please try again."))
+            logger.error(f"❌ User creation error: {str(e)}")
+            messages.error(self.request, _("An error occurred during registration. Please try again."))
             return self.form_invalid(form)
 
     def form_invalid(self, form: Any) -> Any:

@@ -43,14 +43,23 @@ class ResourceForm(forms.Form):
         label=_("Resource Type *"),
         widget=forms.Select(attrs={'class': 'form-select'})
     )
-    title = forms.CharField(
-        label=_("Title *"),
+    title_en = forms.CharField(
+        label=_("Title * (English)"),
         max_length=200,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Enter the title in English')})
     )
-    description = forms.CharField(
-        label=_("Description *"),
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    title_ar = forms.CharField(
+        label=_("Title * (Arabic / العنوان)"),
+        max_length=200,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl', 'placeholder': _('أدخل العنوان بالعربية')})
+    )
+    description_en = forms.CharField(
+        label=_("Description * (English)"),
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': _('Enter the description in English')})
+    )
+    description_ar = forms.CharField(
+        label=_("Description * (Arabic / الوصف)"),
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'dir': 'rtl', 'placeholder': _('أدخل الوصف بالعربية')})
     )
     keywords = forms.CharField(
         label=_("Keywords"),
@@ -107,6 +116,18 @@ class ResourceForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'}),
         help_text=_("Format: 2023-2024")
+    )
+    prerequisites = forms.CharField(
+        label=_("Prerequisites"),
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4,
+                                      'placeholder': _('List prerequisites, one per line')}),
+    )
+    syllabus = forms.CharField(
+        label=_("Syllabus & Curriculum"),
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 6,
+                                      'placeholder': _('Describe the course syllabus and curriculum')}),
     )
 
     # ==================== NLP TOOL FIELDS ====================
@@ -239,21 +260,19 @@ class ResourceForm(forms.Form):
                 kwargs['initial'] = {}
             kwargs['initial']['supported_languages'] = self.prepare_supported_languages(instance.supported_languages)
         
-        # Pre-populate bilingual fields from instance based on current language
+        # Pre-populate bilingual fields from instance
         if instance and 'initial' not in kwargs:
             kwargs['initial'] = {}
         if instance:
-            lang = get_active_language()
             for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
-                target_field = ar_field if lang == 'ar' else en_field
-                value = getattr(instance, target_field, '') or getattr(instance, generic_field, '')
-                if value:
-                    kwargs['initial'][generic_field] = value
+                ar_value = getattr(instance, ar_field, '') or ''
+                en_value = getattr(instance, en_field, '') or getattr(instance, generic_field, '') or ''
+                kwargs['initial'][f'{generic_field}_ar'] = ar_value
+                kwargs['initial'][f'{generic_field}_en'] = en_value
         
         super().__init__(*args, **kwargs)
         
-        # Set context-aware labels for bilingual fields
-        self._setup_bilingual_labels()
+
         
         self.helper = FormHelper()
         self.helper.form_method = 'post'
@@ -272,21 +291,6 @@ class ResourceForm(forms.Form):
 
         self.helper.layout = self._build_layout(resource_type)
     
-    def _setup_bilingual_labels(self):
-        """Set context-aware labels for bilingual fields."""
-        lang = get_active_language()
-        
-        if lang == 'ar':
-            self.fields['title'].label = _("Title * (Arabic / العنوان)")
-            self.fields['title'].help_text = _("Enter the title in Arabic")
-            self.fields['description'].label = _("Description * (Arabic / الوصف)")
-            self.fields['description'].help_text = _("Enter the description in Arabic")
-        else:
-            self.fields['title'].label = _("Title * (English)")
-            self.fields['title'].help_text = _("Enter the title in English")
-            self.fields['description'].label = _("Description * (English)")
-            self.fields['description'].help_text = _("Enter the description in English")
-
     def _build_layout(self, resource_type):
         layout = Layout(
             Fieldset(
@@ -295,8 +299,10 @@ class ResourceForm(forms.Form):
                     Column('resource_type', css_class='col-md-6'),
                     Column('language', css_class='col-md-6'),
                 ),
-                'title',
-                'description',
+                'title_en',
+                'title_ar',
+                'description_en',
+                'description_ar',
                 Row(Column('keywords', css_class='col-md-12')),
                 'access_link',
                 HTML("""<hr class="my-4">"""),
@@ -329,7 +335,9 @@ class ResourceForm(forms.Form):
             Row(
                 Column('course_institution', css_class='col-md-6'),
                 Column('academic_year', css_class='col-md-6')
-            )
+            ),
+            'prerequisites',
+            'syllabus',
         )
 
     def _create_tool_fields(self):
@@ -455,16 +463,18 @@ class ResourceForm(forms.Form):
     def save(self, instance=None):
         resource_type = self.cleaned_data['resource_type']
         
-        # Determine which bilingual fields to populate based on active language
-        lang = get_active_language()
-        title_field = 'title_ar' if lang == 'ar' else 'title_en'
-        desc_field = 'description_ar' if lang == 'ar' else 'description_en'
+        title_en = self.cleaned_data['title_en']
+        title_ar = self.cleaned_data['title_ar']
+        desc_en = self.cleaned_data['description_en']
+        desc_ar = self.cleaned_data['description_ar']
         
         common_data = {
-            'title': self.cleaned_data['title'],  # Legacy field
-            title_field: self.cleaned_data['title'],  # Bilingual field
-            'description': self.cleaned_data['description'],  # Legacy field
-            desc_field: self.cleaned_data['description'],  # Bilingual field
+            'title': title_en,  # Legacy field
+            'title_en': title_en,
+            'title_ar': title_ar,
+            'description': desc_en,  # Legacy field
+            'description_en': desc_en,
+            'description_ar': desc_ar,
             'author': self.user,
             'keywords': self.cleaned_data['keywords'],
             'access_link': self.cleaned_data['access_link'] or None,
@@ -473,11 +483,12 @@ class ResourceForm(forms.Form):
         }
 
         if self.is_update and instance:
-            # Update only the current language fields (don't overwrite the other language)
-            instance.title = self.cleaned_data['title']
-            setattr(instance, title_field, self.cleaned_data['title'])
-            instance.description = self.cleaned_data['description']
-            setattr(instance, desc_field, self.cleaned_data['description'])
+            instance.title = title_en
+            instance.title_en = title_en
+            instance.title_ar = title_ar
+            instance.description = desc_en
+            instance.description_en = desc_en
+            instance.description_ar = desc_ar
             instance.keywords = self.cleaned_data['keywords']
             instance.access_link = self.cleaned_data['access_link'] or None
             instance.language = self.cleaned_data['language']
@@ -492,6 +503,8 @@ class ResourceForm(forms.Form):
                 instance.academic_level = self.cleaned_data['academic_level']
                 instance.institution = self.cleaned_data['course_institution']
                 instance.academic_year = self.cleaned_data['academic_year']
+                instance.prerequisites = self.cleaned_data.get('prerequisites', '')
+                instance.syllabus = self.cleaned_data.get('syllabus', '')
                 instance.save()
             elif resource_type == 'nlp_tool':
                 instance.tool_type = self.cleaned_data['tool_type']
@@ -544,7 +557,9 @@ class ResourceForm(forms.Form):
                     academic_level=self.cleaned_data['academic_level'],
                     teacher=self.user,
                     institution=self.cleaned_data['course_institution'],
-                    academic_year=self.cleaned_data['academic_year']
+                    academic_year=self.cleaned_data['academic_year'],
+                    prerequisites=self.cleaned_data.get('prerequisites', ''),
+                    syllabus=self.cleaned_data.get('syllabus', ''),
                 )
             elif resource_type == 'nlp_tool':
                 return NLPTool.objects.create(

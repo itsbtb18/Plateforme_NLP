@@ -1077,34 +1077,44 @@ def admin_news(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_calls(request):
-    """Admin calls for papers and events management"""
+    """Admin calls for papers and events management with approval workflow"""
     call_type = request.GET.get('call_type', '')
-    is_approved = request.GET.get('is_approved', '')
     timeline = request.GET.get('timeline', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
 
-    calls = Event.objects.select_related('organizer').order_by('-start_date')
+    base_qs = Event.objects.select_related('organizer').order_by('-start_date')
+
     if call_type:
-        calls = calls.filter(event_type=call_type)
-    if is_approved:
-        calls = calls.filter(is_approved=(is_approved == 'true'))
+        base_qs = base_qs.filter(event_type=call_type)
     if timeline == 'upcoming':
-        calls = calls.filter(start_date__gte=timezone.now().date())
+        base_qs = base_qs.filter(start_date__gte=timezone.now().date())
     elif timeline == 'past':
-        calls = calls.filter(end_date__lt=timezone.now().date())
+        base_qs = base_qs.filter(end_date__lt=timezone.now().date())
     if search:
-        calls = calls.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(organizer__name__icontains=search)
         )
 
+    pending_calls = base_qs.filter(approval_status='pending')
+    approved_calls = base_qs.filter(approval_status='approved')
+
+    pending_count = pending_calls.count()
+    approved_count = approved_calls.count()
+
     context = {
-        'calls': calls,
+        'calls': approved_calls if tab == 'approved' else pending_calls,
+        'pending_calls': pending_calls,
+        'approved_calls': approved_calls,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'filter_call_type': call_type,
-        'filter_is_approved': is_approved,
         'filter_timeline': timeline,
         'search': search,
+        'model_type': 'event',
     }
     return render(request, 'admin/calls.html', context)
 
