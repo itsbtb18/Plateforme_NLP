@@ -14,6 +14,13 @@ from django.utils.translation import gettext_lazy as _
 admin.site.site_header = _('Arabic NLP Platform Administration')
 admin.site.site_title = _('Arabic NLP Admin')
 admin.site.index_title = _('Welcome to the Administration Dashboard')
+
+# URLs without language prefix
+urlpatterns = [
+    path('i18n/', include('django.conf.urls.i18n')),
+]
+
+# URLs with language prefix
 urlpatterns += i18n_patterns(
     path('search/', include('search.urls', namespace='search')),
     path('accounts/', include('accounts.urls', namespace='accounts')),
@@ -27,9 +34,11 @@ urlpatterns += i18n_patterns(
     path('notifications/', include('notifications.urls', namespace='notifications')),
     path('chatbot/', include('chatbot.urls')),
     path('', include('pages.urls')),
-    path('admin/', admin.site.urls),
     path('', include('translate.urls')),
+    path('admin/', admin.site.urls),
 )
+
+
 # Serve static and media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
