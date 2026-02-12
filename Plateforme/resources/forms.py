@@ -516,195 +516,127 @@ class ResourceForm(forms.Form):
             # Handle file upload (only update if a new file is provided)
             uploaded_file = self.cleaned_data.get('uploaded_file')
             if uploaded_file:
-                if self.is_update and instance:
-                    instance.title = title_en
-                    instance.title_en = title_en
-                    instance.title_ar = title_ar
-                    instance.description = desc_en
-                    instance.description_en = desc_en
-                    instance.description_ar = desc_ar
-                    instance.keywords = self.cleaned_data['keywords']
-                    instance.access_link = self.cleaned_data['access_link'] or None
-                    instance.language = self.cleaned_data['language']
-                    # Handle file upload (only update if a new file is provided)
-                    uploaded_file = self.cleaned_data.get('uploaded_file')
-                    if uploaded_file:
-                        instance.uploaded_file = uploaded_file
-                    instance.save()
+                instance.uploaded_file = uploaded_file
+            instance.save()
 
-                    if resource_type == 'course':
-                        instance.field = self.cleaned_data['course_field']
-                        instance.academic_level = self.cleaned_data['academic_level']
-                        instance.institution = self.cleaned_data['course_institution']
-                        instance.academic_year = self.cleaned_data['academic_year']
-                        instance.prerequisites = self.cleaned_data.get('prerequisites', '')
-                        instance.syllabus = self.cleaned_data.get('syllabus', '')
-                        instance.save()
-                    elif resource_type == 'nlp_tool':
-                        instance.tool_type = self.cleaned_data['tool_type']
-                        instance.version = self.cleaned_data['tool_version']
-                        instance.documentation_link = self.cleaned_data['documentation']
-                        instance.supported_languages = self.cleaned_data['supported_languages']
-                        instance.save()
-                    elif resource_type == 'corpus':
-                        instance.size = self.cleaned_data['corpus_size']
-                        instance.field = self.cleaned_data['corpus_field']
-                        instance.file_format = self.cleaned_data['corpus_format']
-                        instance.save()
-                    elif resource_type == 'article':
-                        instance.document_type = Document.DocumentType.ARTICLE
-                        instance.file_format = self.cleaned_data['document_format']
-                        instance.save()
-                        article = instance.article
-                        article.doi = self.cleaned_data.get('doi', '')
-                        article.journal = self.cleaned_data['journal']
-                        article.publication_date = self.cleaned_data['publication_date']
-                        article.save()
-                    elif resource_type == 'thesis':
-                        instance.document_type = Document.DocumentType.THESIS
-                        instance.file_format = self.cleaned_data['document_format']
-                        instance.save()
-                        thesis = instance.thesis
-                        thesis.supervisor = self.cleaned_data['supervisor']
-                        thesis.institution = self.cleaned_data['thesis_institution']
-                        thesis.defense_year = self.cleaned_data['defense_year']
-                        thesis.save()
-                    elif resource_type == 'memoir':
-                        instance.document_type = Document.DocumentType.MEMOIR
-                        instance.file_format = self.cleaned_data['document_format']
-                        instance.save()
-                        memoir = instance.memoir
-                        memoir.academic_level = self.cleaned_data['memoir_level']
-                        memoir.institution = self.cleaned_data['memoir_institution']
-                        memoir.defense_year = self.cleaned_data['memoir_defense_year']
-                        memoir.save()
-                    return instance
-                else:
-                    try:
-                        if resource_type == 'course':
-                            return Course.objects.create(
-                                **common_data,
-                                field=self.cleaned_data['course_field'],
-                                academic_level=self.cleaned_data['academic_level'],
-                                teacher=self.user,
-                                institution=self.cleaned_data['course_institution'],
-                                academic_year=self.cleaned_data['academic_year'],
-                                prerequisites=self.cleaned_data.get('prerequisites', ''),
-                                syllabus=self.cleaned_data.get('syllabus', ''),
-                            )
-                        elif resource_type == 'nlp_tool':
-                            return NLPTool.objects.create(
-                                **common_data,
-                                tool_type=self.cleaned_data['tool_type'],
-                                version=self.cleaned_data['tool_version'],
-                                documentation_link=self.cleaned_data['documentation'],
-                                supported_languages=self.cleaned_data['supported_languages']
-                            )
-                        elif resource_type == 'corpus':
-                            return Corpus.objects.create(
-                                **common_data,
-                                size=self.cleaned_data['corpus_size'],
-                                field=self.cleaned_data['corpus_field'],
-                                file_format=self.cleaned_data['corpus_format']
-                            )
-                        elif resource_type == 'article':
-                            doc = Document.objects.create(
-                                **common_data,
-                                document_type=Document.DocumentType.ARTICLE,
-                                file_format=self.cleaned_data['document_format']
-                            )
-                            Article.objects.create(
-                                document=doc,
-                                doi=self.cleaned_data.get('doi', ''),
-                                journal=self.cleaned_data['journal'],
-                                publication_date=self.cleaned_data['publication_date']
-                            )
-                            return doc
-                        elif resource_type == 'thesis':
-                            doc = Document.objects.create(
-                                **common_data,
-                                document_type=Document.DocumentType.THESIS,
-                                file_format=self.cleaned_data['document_format']
-                            )
-                            Thesis.objects.create(
-                                document=doc,
-                                supervisor=self.cleaned_data['supervisor'],
-                                institution=self.cleaned_data['thesis_institution'],
-                                defense_year=self.cleaned_data['defense_year']
-                            )
-                            return doc
-                        elif resource_type == 'memoir':
-                            doc = Document.objects.create(
-                                **common_data,
-                                document_type=Document.DocumentType.MEMOIR,
-                                file_format=self.cleaned_data['document_format']
-                            )
-                            Memoir.objects.create(
-                                document=doc,
-                                academic_level=self.cleaned_data['memoir_level'],
-                                institution=self.cleaned_data['memoir_institution'],
-                                defense_year=self.cleaned_data['memoir_defense_year']
-                            )
-                            return doc
-                        else:
-                            raise ValueError(f"Unknown resource type: {resource_type}")
-                    except Exception as e:
-                        logger.error(f"Error creating {resource_type}: {str(e)}")
-                        import traceback
-                        logger.error(traceback.format_exc())
-                        raise
+            if resource_type == 'course':
+                instance.field = self.cleaned_data['course_field']
+                instance.academic_level = self.cleaned_data['academic_level']
+                instance.institution = self.cleaned_data['course_institution']
+                instance.academic_year = self.cleaned_data['academic_year']
+                instance.prerequisites = self.cleaned_data.get('prerequisites', '')
+                instance.syllabus = self.cleaned_data.get('syllabus', '')
+                instance.save()
             elif resource_type == 'nlp_tool':
-                return NLPTool.objects.create(
-                    **common_data,
-                    tool_type=self.cleaned_data['tool_type'],
-                    version=self.cleaned_data['tool_version'],
-                    documentation_link=self.cleaned_data['documentation'],
-                    supported_languages=self.cleaned_data['supported_languages']
-                )
+                instance.tool_type = self.cleaned_data['tool_type']
+                instance.version = self.cleaned_data['tool_version']
+                instance.documentation_link = self.cleaned_data['documentation']
+                instance.supported_languages = self.cleaned_data['supported_languages']
+                instance.save()
             elif resource_type == 'corpus':
-                return Corpus.objects.create(
-                    **common_data,
-                    size=self.cleaned_data['corpus_size'],
-                    field=self.cleaned_data['corpus_field'],
-                    file_format=self.cleaned_data['corpus_format']
-                )
+                instance.size = self.cleaned_data['corpus_size']
+                instance.field = self.cleaned_data['corpus_field']
+                instance.file_format = self.cleaned_data['corpus_format']
+                instance.save()
             elif resource_type == 'article':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.ARTICLE,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Article.objects.create(
-                    document=doc,
-                    doi=self.cleaned_data.get('doi', ''),
-                    journal=self.cleaned_data['journal'],
-                    publication_date=self.cleaned_data['publication_date']
-                )
-                return doc
+                instance.document_type = Document.DocumentType.ARTICLE
+                instance.file_format = self.cleaned_data['document_format']
+                instance.save()
+                article = instance.article
+                article.doi = self.cleaned_data.get('doi', '')
+                article.journal = self.cleaned_data['journal']
+                article.publication_date = self.cleaned_data['publication_date']
+                article.save()
             elif resource_type == 'thesis':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.THESIS,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Thesis.objects.create(
-                    document=doc,
-                    supervisor=self.cleaned_data['supervisor'],
-                    institution=self.cleaned_data['thesis_institution'],
-                    defense_year=self.cleaned_data['defense_year']
-                )
-                return doc
+                instance.document_type = Document.DocumentType.THESIS
+                instance.file_format = self.cleaned_data['document_format']
+                instance.save()
+                thesis = instance.thesis
+                thesis.supervisor = self.cleaned_data['supervisor']
+                thesis.institution = self.cleaned_data['thesis_institution']
+                thesis.defense_year = self.cleaned_data['defense_year']
+                thesis.save()
             elif resource_type == 'memoir':
-                doc = Document.objects.create(
-                    **common_data,
-                    document_type=Document.DocumentType.MEMOIR,
-                    file_format=self.cleaned_data['document_format']
-                )
-                Memoir.objects.create(
-                    document=doc,
-                    academic_level=self.cleaned_data['memoir_level'],
-                    institution=self.cleaned_data['memoir_institution'],
-                    defense_year=self.cleaned_data['memoir_defense_year']
-                )
-                return doc
->>>>>>> origin/fixing/css
+                instance.document_type = Document.DocumentType.MEMOIR
+                instance.file_format = self.cleaned_data['document_format']
+                instance.save()
+                memoir = instance.memoir
+                memoir.academic_level = self.cleaned_data['memoir_level']
+                memoir.institution = self.cleaned_data['memoir_institution']
+                memoir.defense_year = self.cleaned_data['memoir_defense_year']
+                memoir.save()
+            return instance
+        else:
+            try:
+                if resource_type == 'course':
+                    return Course.objects.create(
+                        **common_data,
+                        field=self.cleaned_data['course_field'],
+                        academic_level=self.cleaned_data['academic_level'],
+                        teacher=self.user,
+                        institution=self.cleaned_data['course_institution'],
+                        academic_year=self.cleaned_data['academic_year'],
+                        prerequisites=self.cleaned_data.get('prerequisites', ''),
+                        syllabus=self.cleaned_data.get('syllabus', ''),
+                    )
+                elif resource_type == 'nlp_tool':
+                    return NLPTool.objects.create(
+                        **common_data,
+                        tool_type=self.cleaned_data['tool_type'],
+                        version=self.cleaned_data['tool_version'],
+                        documentation_link=self.cleaned_data['documentation'],
+                        supported_languages=self.cleaned_data['supported_languages']
+                    )
+                elif resource_type == 'corpus':
+                    return Corpus.objects.create(
+                        **common_data,
+                        size=self.cleaned_data['corpus_size'],
+                        field=self.cleaned_data['corpus_field'],
+                        file_format=self.cleaned_data['corpus_format']
+                    )
+                elif resource_type == 'article':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.ARTICLE,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Article.objects.create(
+                        document=doc,
+                        doi=self.cleaned_data.get('doi', ''),
+                        journal=self.cleaned_data['journal'],
+                        publication_date=self.cleaned_data['publication_date']
+                    )
+                    return doc
+                elif resource_type == 'thesis':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.THESIS,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Thesis.objects.create(
+                        document=doc,
+                        supervisor=self.cleaned_data['supervisor'],
+                        institution=self.cleaned_data['thesis_institution'],
+                        defense_year=self.cleaned_data['defense_year']
+                    )
+                    return doc
+                elif resource_type == 'memoir':
+                    doc = Document.objects.create(
+                        **common_data,
+                        document_type=Document.DocumentType.MEMOIR,
+                        file_format=self.cleaned_data['document_format']
+                    )
+                    Memoir.objects.create(
+                        document=doc,
+                        academic_level=self.cleaned_data['memoir_level'],
+                        institution=self.cleaned_data['memoir_institution'],
+                        defense_year=self.cleaned_data['memoir_defense_year']
+                    )
+                    return doc
+                else:
+                    raise ValueError(f"Unknown resource type: {resource_type}")
+            except Exception as e:
+                logger.error(f"Error creating {resource_type}: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
