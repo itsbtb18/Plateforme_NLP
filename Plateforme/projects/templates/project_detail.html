@@ -653,6 +653,85 @@ html[dir="rtl"] .pd-timeline-dot {
         padding: 0 1rem 3rem;
     }
 }
+/* Styles pour la carte Ressources (Style Corpus) */
+.pd-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: var(--surface-muted);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-subtle);
+    margin-top: 0.5rem;
+}
+
+.pd-file-item:hover {
+    background: var(--surface-white);
+    border-color: var(--primary-accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    color: var(--primary-accent);
+}
+
+.pd-file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pd-file-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.pd-file-action {
+    font-size: 1.2rem;
+    color: var(--primary-accent);
+}
+
+.pd-info-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pd-empty-state {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--surface-light);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+/* Bouton d'ajout style Corpus */
+.btn-add-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 1rem;
+    background: var(--surface-white);
+    border: 2px dashed var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-add-file:hover {
+    border-color: var(--primary-accent);
+    color: var(--primary-accent);
+    background: var(--type-general-bg);
+}
 </style>
 {% endblock %}
 
@@ -746,51 +825,44 @@ html[dir="rtl"] .pd-timeline-dot {
                     </div>
                 </div>
                 
-                <!-- Project Timeline -->
-                <div class="pd-card">
-                    <div class="pd-card-header">
-                        <div class="pd-card-icon">
-                            <i class="bi bi-clock-history"></i>
-                        </div>
-                        <h2 class="pd-card-title">{% translate "Project Timeline" %}</h2>
+               <article class="content-card">
+    <div class="card-header">
+        <i class="bi bi-folder2-open"></i>
+        <h2>{% translate "Project Resources" %}</h2>
+    </div>
+    <div class="card-body">
+        {% if project.attachment %}
+            <div class="pd-info-label">{% translate "Documents" %}</div>
+            
+            {% if is_coordinator or is_member %}
+                <a href="{{ project.attachment.url }}" class="pd-file-item" target="_blank">
+                    <div class="pd-file-info">
+                        <i class="bi bi-file-earmark-pdf pd-file-action"></i>
+                        <span class="pd-file-name">{% translate "Download Attachment" %}</span>
                     </div>
-                    <div class="pd-card-body">
-                        <div class="pd-timeline">
-                            {% if project.date_start %}
-                            <div class="pd-timeline-item">
-                                <div class="pd-timeline-dot active"></div>
-                                <div class="pd-timeline-date">{{ project.date_start|date:"M d, Y" }}</div>
-                                <div class="pd-timeline-title">{% translate "Project Started" %}</div>
-                                <div class="pd-timeline-desc">{% translate "Research activities began" %}</div>
-                            </div>
-                            {% endif %}
-                            
-                            <div class="pd-timeline-item">
-                                <div class="pd-timeline-dot {% if project.status == 'ongoing' %}active{% endif %}"></div>
-                                <div class="pd-timeline-date">{% translate "Current" %}</div>
-                                <div class="pd-timeline-title">
-                                    {% if project.status == 'ongoing' %}
-                                    {% translate "In Progress" %}
-                                    {% elif project.status == 'completed' %}
-                                    {% translate "Completed" %}
-                                    {% else %}
-                                    {% translate "Planned" %}
-                                    {% endif %}
-                                </div>
-                                <div class="pd-timeline-desc">{{ project.get_status_display }}</div>
-                            </div>
-                            
-                            {% if project.date_end %}
-                            <div class="pd-timeline-item">
-                                <div class="pd-timeline-dot {% if project.status == 'completed' %}active{% endif %}"></div>
-                                <div class="pd-timeline-date">{{ project.date_end|date:"M d, Y" }}</div>
-                                <div class="pd-timeline-title">{% translate "Target Completion" %}</div>
-                                <div class="pd-timeline-desc">{% translate "Expected project completion date" %}</div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+                    <i class="bi bi-download pd-file-action"></i>
+                </a>
+            {% else %}
+                <div class="pd-empty-state" style="margin-top: 0.5rem;">
+                    <i class="bi bi-lock-fill" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem; color: var(--warning);"></i>
+                    <p style="margin:0; font-size: 0.85rem; font-weight: 500;">{% translate "Files are for members only" %}</p>
                 </div>
+            {% endif %}
+        {% else %}
+            <div class="pd-empty-state">
+                <i class="bi bi-files" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                <p style="margin:0;">{% translate "No files attached to this project" %}</p>
+            </div>
+        {% endif %}
+
+        {% if is_coordinator %}
+        <a href="{% url 'projects:project_update' project.pk %}" class="btn-add-file">
+            <i class="bi bi-plus-circle"></i>
+            {% translate "Add / Update File" %}
+        </a>
+        {% endif %}
+    </div>
+</article>
                 
                 <!-- Back Link -->
                 <a href="{% url 'projects:project_list' %}" class="pd-back">
