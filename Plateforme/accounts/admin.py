@@ -1,10 +1,9 @@
 ﻿from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import CustomUser
+from .models import CustomUser, Institution
 from .two_factor_models import TwoFactorAuth
 from .forms import CustomUserCreationForm, CustomUserChangeForm
-
 
 class TwoFactorAuthAdmin(admin.ModelAdmin):
     list_display = ('user', 'is_enabled', 'created_at', 'updated_at')
@@ -15,16 +14,15 @@ class TwoFactorAuthAdmin(admin.ModelAdmin):
         (None, {
             'fields': ('user', 'is_enabled')
         }),
-        (_('Backup Codes'), {
+        ('Backup Codes', {
             'fields': ('backup_codes',),
             'classes': ('collapse',)
         }),
-        (_('Timestamps'), {
+        ('Timestamps', {
             'fields': ('id', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
-
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm

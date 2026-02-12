@@ -326,22 +326,22 @@
     <!-- Header with Gradient -->
     <div class="edit-header">
         <div class="user-avatar-large">
-            {{ user.full_name|first|upper }}
+            {{ user_obj.full_name|default:user_obj.email|first|upper }}
         </div>
         <div class="edit-header-info">
             <h1>
                 <i class="fas fa-user-edit"></i>
-                {% trans "Edit" %} {{ user.full_name }}
+                {% trans "Edit" %} {{ user_obj.full_name|default:user_obj.email }}
             </h1>
             <p>
-                <i class="fas fa-envelope me-2"></i>{{ user.email }}
+                <i class="fas fa-envelope me-2"></i>{{ user_obj.email }}
             </p>
         </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="quick-actions">
-        <a href="{% url 'pages:admin_user_history' user.id %}" class="quick-action-card info">
+        <a href="{% url 'pages:admin_user_history' user_obj.id %}" class="quick-action-card info">
             <div class="quick-action-icon">
                 <i class="fas fa-history"></i>
             </div>
@@ -355,8 +355,8 @@
             <span class="quick-action-label">{% trans "All Users" %}</span>
         </a>
 
-        {% if user.status == 'pending' %}
-        <a href="{% url 'pages:admin_user_activate' user.id %}" class="quick-action-card success">
+        {% if user_obj.status == 'pending' %}
+        <a href="{% url 'pages:admin_user_activate' user_obj.id %}" class="quick-action-card success">
             <div class="quick-action-icon">
                 <i class="fas fa-check-circle"></i>
             </div>
@@ -364,8 +364,8 @@
         </a>
         {% endif %}
 
-        {% if user.status != 'blocked' %}
-        <a href="{% url 'pages:admin_user_block' user.id %}" class="quick-action-card danger">
+        {% if user_obj.status != 'blocked' %}
+        <a href="{% url 'pages:admin_user_block' user_obj.id %}" class="quick-action-card danger">
             <div class="quick-action-icon">
                 <i class="fas fa-ban"></i>
             </div>

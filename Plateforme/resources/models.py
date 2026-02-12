@@ -310,6 +310,20 @@ class Course(ResourceBase):
         validators=[validate_academic_year]
     )
 
+    prerequisites = models.TextField(
+        verbose_name=_("Prerequisites"),
+        blank=True,
+        default='',
+        help_text=_("List the prerequisites for this course")
+    )
+
+    syllabus = models.TextField(
+        verbose_name=_("Syllabus & Curriculum"),
+        blank=True,
+        default='',
+        help_text=_("Describe the syllabus and curriculum of this course")
+    )
+
     class Meta:
         verbose_name = _("Course")
         verbose_name_plural = _("Courses")

@@ -97,7 +97,7 @@ class Event(models.Model):
         """Return title based on current language"""
         from django.utils.translation import get_language
         lang = get_language()
-        if lang == 'ar' and self.title_ar:
+        if lang and lang.startswith('ar') and self.title_ar:
             return self.title_ar
         elif self.title_en:
             return self.title_en
@@ -107,17 +107,17 @@ class Event(models.Model):
         """Return description based on current language"""
         from django.utils.translation import get_language
         lang = get_language()
-        if lang == 'ar' and self.description_ar:
+        if lang and lang.startswith('ar') and self.description_ar:
             return self.description_ar
         elif self.description_en:
             return self.description_en
         return self.description
 
     def get_localized_location(self):
-        """Return location based on current language"""
+        """Return location based on current language with fallback"""
         from django.utils.translation import get_language
         lang = get_language()
-        if lang == 'ar' and self.location_ar:
+        if lang and lang.startswith('ar') and self.location_ar:
             return self.location_ar
         elif self.location_en:
             return self.location_en

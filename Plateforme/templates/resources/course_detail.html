@@ -762,56 +762,59 @@ html[dir="rtl"] body {
 }
 
 html[dir="rtl"] .course-detail-back i {
-    transform: rotate(180deg);
-}
+    /*
+     * direction: rtl is inherited from <html dir="rtl">.
+     * Flex containers with flex-direction: row automatically flow
+     * right-to-left in RTL. Do NOT add flex-direction: row-reverse
+     * here — that double-reverses back to LTR.
+     */
 
-/* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .course-detail-hero {
-    direction: rtl;
-}
+    /* --- Breadcrumb chevron flip --- */
+    html[dir="rtl"] .course-detail-breadcrumb .bi-chevron-right {
+        transform: scaleX(-1);
+    }
 
-html[dir="rtl"] .course-detail-hero-container {
-    text-align: right;
-    direction: rtl;
-}
+    /* --- Text alignment --- */
+    html[dir="rtl"] .course-detail-title,
+    html[dir="rtl"] .course-detail-subtitle,
+    html[dir="rtl"] .course-detail-card-header h2,
+    html[dir="rtl"] .course-detail-card-body,
+    html[dir="rtl"] .course-detail-info-label,
+    html[dir="rtl"] .course-detail-info-value,
+    html[dir="rtl"] .course-detail-accordion-content,
+    html[dir="rtl"] .course-detail-syllabus-intro,
+    html[dir="rtl"] .course-detail-instructor-header h3,
+    html[dir="rtl"] .course-detail-instructor-name,
+    html[dir="rtl"] .course-detail-instructor-role {
+        text-align: right;
+    }
 
-html[dir="rtl"] .course-detail-title {
-    text-align: right;
-    direction: rtl;
-}
+    html[dir="rtl"] .course-detail-hero,
+    html[dir="rtl"] .course-detail-hero-container,
+    html[dir="rtl"] .course-detail-breadcrumb,
+    html[dir="rtl"] .course-detail-breadcrumb li,
+    html[dir="rtl"] .course-detail-badges,
+    html[dir="rtl"] .course-detail-badge,
+    html[dir="rtl"] .course-detail-hero-meta,
+    html[dir="rtl"] .course-detail-hero-meta-item {
+        direction: rtl;
+        text-align: right;
+    }
 
-html[dir="rtl"] .course-detail-breadcrumb {
-    flex-direction: row-reverse;
-    text-align: right;
-    direction: rtl;
-}
+    html[dir="rtl"] .course-detail-badges {
+        justify-content: flex-end;
+    }
 
-html[dir="rtl"] .course-detail-breadcrumb li {
-    text-align: right;
-}
-
-html[dir="rtl"] .course-detail-badges {
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-    direction: rtl;
-}
-
-html[dir="rtl"] .course-detail-badge {
+    html[dir="rtl"] .course-detail-enroll-header {
+        text-align: center;
+    }
+html[dir="rtl"] .course-detail-enroll-header {
     text-align: center;
+>>>>>>> origin/fixing/css
 }
 
-html[dir="rtl"] .course-detail-hero-meta {
-    flex-direction: row-reverse;
-    text-align: right;
-    direction: rtl;
-}
-
-html[dir="rtl"] .course-detail-hero-meta-item {
-    text-align: right;
-}
-
-html[dir="rtl"] .course-detail-accordion-btn {
-    text-align: end;
+html[dir="rtl"] .course-detail-enroll-stat {
+    text-align: center;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -1019,6 +1022,11 @@ html[dir="rtl"] .course-detail-accordion-btn {
                         <h2>{% translate "Syllabus & Curriculum" %}</h2>
                     </div>
                     <div class="course-detail-card-body">
+                        {% if object.syllabus %}
+                            <div class="course-detail-syllabus-intro">
+                                {{ object.syllabus|linebreaks }}
+                            </div>
+                        {% else %}
                         <p class="course-detail-syllabus-intro">
                             {% translate "The course is organized into modules designed to progressively build your expertise in Arabic NLP concepts and applications." %}
                         </p>
@@ -1068,6 +1076,7 @@ html[dir="rtl"] .course-detail-accordion-btn {
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </article>
                 
@@ -1078,6 +1087,11 @@ html[dir="rtl"] .course-detail-accordion-btn {
                         <h2>{% translate "Prerequisites" %}</h2>
                     </div>
                     <div class="course-detail-card-body">
+                        {% if object.prerequisites %}
+                            <div class="course-detail-prereq-list">
+                                {{ object.prerequisites|linebreaks }}
+                            </div>
+                        {% else %}
                         <ul class="course-detail-prereq-list">
                             <li class="course-detail-prereq-item">
                                 <i class="bi bi-check-circle-fill"></i>
@@ -1092,6 +1106,7 @@ html[dir="rtl"] .course-detail-accordion-btn {
                                 <span>{% translate "Access to required software and tools" %}</span>
                             </li>
                         </ul>
+                        {% endif %}
                     </div>
                 </article>
                 
