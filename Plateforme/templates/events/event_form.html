@@ -415,79 +415,88 @@ html[dir="rtl"] .ef-date-container input {
 /* File Upload */
 .ef-file-zone {
     position: relative;
-    border: 2px dashed var(--ef-border);
-    border-radius: var(--ef-radius-lg);
-    padding: 2rem;
+    border: 1px solid var(--ef-border);
+    border-radius: var(--ef-radius-md);
+    padding: 2rem 1.5rem;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    background: var(--ef-white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
     cursor: pointer;
 }
 
 .ef-file-zone:hover {
     border-color: var(--ef-primary);
-    background: var(--ef-primary-glow);
+    background: var(--ef-bg);
 }
 
 .ef-file-zone input[type="file"] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
+    display: none;
 }
 
 .ef-file-icon {
-    width: 56px;
-    height: 56px;
-    background: var(--ef-muted);
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    background: var(--ef-primary-glow);
+    border-radius: var(--ef-radius-md);
     margin: 0 auto 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--ef-text-muted);
+    color: var(--ef-primary);
     font-size: 1.5rem;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.ef-file-zone:hover .ef-file-icon {
+    background: rgba(59, 130, 246, 0.15);
 }
 
 .ef-file-title {
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--ef-text);
-    margin: 0 0 0.25rem;
+    margin: 0 0 0.5rem 0;
 }
 
 .ef-file-desc {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--ef-text-muted);
-    margin: 0;
+    margin: 0 0 1.25rem 0;
+    display: block;
 }
 
 .ef-file-current {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem;
+    padding: 0.875rem 1rem;
     background: var(--ef-muted);
     border-radius: var(--ef-radius-md);
     margin-top: 1rem;
+    border-left: 3px solid var(--ef-primary);
 }
 
 .ef-file-current-icon {
-    width: 40px;
-    height: 40px;
-    background: var(--ef-danger-bg);
+    width: 36px;
+    height: 36px;
+    background: var(--ef-primary-glow);
     border-radius: var(--ef-radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--ef-danger);
+    color: var(--ef-primary);
+    flex-shrink: 0;
 }
 
 .ef-file-current-name {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: var(--ef-text-secondary);
     overflow: hidden;
@@ -577,6 +586,11 @@ html[dir="rtl"] .ef-date-container input {
         flex-direction: column;
     }
     .ef-btn { width: 100%; }
+}
+
+/* 🔥 Supprimer complètement le bouton "Choose file" / "No file chosen" */
+#attachmentInput {
+    display: none !important;
 }
 </style>
 {% endblock %}
@@ -889,24 +903,43 @@ html[dir="rtl"] .ef-date-container input {
                     <!-- Attachment -->
                     <div class="ef-form-group">
                         <label class="ef-label">{% translate "Attachment / Poster" %}</label>
-                        <div class="ef-file-zone">
-                            <input type="file" name="attachment" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
+                        <div class="ef-file-zone" id="fileZone">
+                            <input
+                                type="file"
+                                name="attachment"
+                                id="attachmentInput"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            >
+
                             <div class="ef-file-icon">
-                                <i class="bi bi-cloud-arrow-up"></i>
+                                <i class="bi bi-upload"></i>
                             </div>
-                            <p class="ef-file-title">{% translate "Drop file here or click to upload" %}</p>
-                            <p class="ef-file-desc">{% translate "PDF, Word, or Image files. Max 10MB." %}</p>
+
+                            <p class="ef-file-title" id="fileTitle">
+                                {% translate "Upload file" %}
+                            </p>
+
+                            <p class="ef-file-desc">
+                                {% translate "PDF, Word, or Image (Max 10MB)" %}
+                            </p>
                         </div>
+
                         {% if form.instance.attachment %}
                         <div class="ef-file-current">
                             <div class="ef-file-current-icon">
-                                <i class="bi bi-file-earmark-pdf"></i>
+                                <i class="bi bi-file-earmark-check"></i>
                             </div>
-                            <span class="ef-file-current-name">{{ form.instance.attachment.name|truncatechars:40 }}</span>
+                            <span class="ef-file-current-name">
+                                {{ form.instance.attachment.name|truncatechars:40 }}
+                            </span>
                         </div>
                         {% endif %}
+
                         {% for error in form.attachment.errors %}
-                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        <div class="ef-error">
+                            <i class="bi bi-exclamation-circle"></i> {{ error }}
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
@@ -932,7 +965,21 @@ html[dir="rtl"] .ef-date-container input {
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('attachmentInput');
+    const fileZone  = document.getElementById('fileZone');
+    const fileTitle = document.getElementById('fileTitle');
+
+    fileZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileTitle.textContent = fileInput.files[0].name;
+        }
+    });
+
     // Progress steps click handlers
     const progressSteps = document.querySelectorAll('.ef-progress-step');
     
@@ -970,22 +1017,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { threshold: 0.5 });
     
     sections.forEach(section => observer.observe(section));
-    
-    // File upload visual feedback
-    const fileZone = document.querySelector('.ef-file-zone');
-    const fileInput = fileZone?.querySelector('input[type="file"]');
-    
-    if (fileZone && fileInput) {
-        fileInput.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                const fileName = this.files[0].name;
-                const title = fileZone.querySelector('.ef-file-title');
-                if (title) {
-                    title.textContent = fileName;
-                }
-            }
-        });
-    }
 });
 </script>
 {% endblock %}
