@@ -665,8 +665,10 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         
         # Common fields
         initial.update({
-            'title': resource.title,
-            'description': resource.description,
+            'title_en': resource.title_en or resource.title,
+            'title_ar': resource.title_ar or '',
+            'description_en': resource.description_en or resource.description,
+            'description_ar': resource.description_ar or '',
             'keywords': resource.keywords,
             'access_link': resource.access_link or '',
             'language': resource.language,
@@ -679,6 +681,8 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 'academic_level': resource.academic_level,
                 'course_institution': resource.institution.id if resource.institution else None,
                 'academic_year': resource.academic_year,
+                'prerequisites': resource.prerequisites,
+                'syllabus': resource.syllabus,
                 'resource_type': 'course'
             })
         elif resource_type in ['nlp_tool', 'tool'] and isinstance(resource, NLPTool):
@@ -852,6 +856,11 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             return redirect(self.get_admin_redirect_url(resource_type))
         
         messages.success(self.request, _("Resource '%(title)s' updated successfully!") % {'title': resource.title})
+        
+        # In review mode, redirect back to admin
+        if self.request.GET.get('review') == '1' and self.request.user.is_staff:
+            return redirect(self.get_admin_redirect_url(resource_type))
+        
         return super().form_valid(form)
 
     def get_admin_redirect_url(self, resource_type):

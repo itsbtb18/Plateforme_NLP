@@ -168,6 +168,17 @@
             <td>
               <a href="{% url 'projects:project_detail' project.id %}" class="project-title">{{ project.get_localized_title }}</a>
               <div class="project-desc">{{ project.get_localized_description|truncatechars:100 }}</div>
+              <div class="project-meta">
+                <div class="meta-item">{% trans "Created" %}: {{ project.created_at|date:"d M Y" }}</div>
+              </div>
+            </td>
+            <td>
+              <span class="approval-status-badge approval-status-pending">
+                <i class="fas fa-clock"></i> {% trans "Pending" %}
+              </span>
+            </td>
+            <td>
+              <span class="team-badge">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span>
             </td>
             <td><span class="status-badge status-badge-pending">{% trans "Pending" %}</span></td>
             <td><span class="team-badge">{{ project.coordinator.full_name }}</span></td>
@@ -222,26 +233,53 @@
               {% else %}
                 <span class="status-badge">{{ project.get_status_display }}</span>
               {% endif %}
-            </td>
-            <td>
-              <span class="team-badge">
-                {% for pm in project.members.all|slice:":2" %}{{ pm.member.get_full_name }}{% if not forloop.last %}, {% endif %}{% empty %}No participants{% endfor %}
-              </span>
-            </td>
-            <td>
-              <div class="btn-group">
-                <a href="{% url 'projects:project_update' project.id %}" class="btn btn-sm btn-outline">
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                </a>
-                <a href="{% url 'projects:project_delete' project.id %}" class="btn btn-sm btn-outline" onclick="return confirm('Delete this project?');">
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+</div>
+            </div>
+          </td>
+          <td>
+            {% if project.status == 'ongoing' %}
+              <span class="status-badge status-badge-in-progress">{% trans "Ongoing" %}</span>
+            {% elif project.status == 'completed' %}
+              <span class="status-badge status-badge-completed">{% trans "Completed" %}</span>
+            {% elif project.status == 'pending' %}
+              <span class="status-badge status-badge-pending">{% trans "Pending" %}</span>
+            {% else %}
+              {{ project.get_status_display }}
+            {% endif %}
+          </td>
+          <td>
+            <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
+                                    {{ pm.member.get_full_name_display|default:pm.member.email }}{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    <em>{% trans "No participants" %}</em>
+                                {% endfor %}</span>
+          </td>
+          <td>
+            <div class="btn-group">
+              <a href="{% url 'projects:project_update' project.id %}" class="btn btn-sm btn-outline">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+              </a>
+              <a href="{% url 'projects:project_delete' project.id %}" class="btn btn-sm btn-outline" onclick="return confirm('Delete this project?');">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    [Merged: All pending and approved project table rows now combine coordinator display logic, approval status, and team badge, preserving both user and collaborator changes.]
+    <div class="empty-state-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
     </div>
     {% else %}
       <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No projects found." %}</div>

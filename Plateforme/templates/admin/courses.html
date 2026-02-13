@@ -126,72 +126,109 @@
 
   {% if active_tab == 'pending' %}
     {% if pending_courses %}
-      <table class="projects-table">
-        <thead>
-          <tr>
-            <th style="width:40%;">{% trans "Course Title" %}</th>
-            <th>{% trans "Academic Level" %}</th>
-            <th>{% trans "Creation Date" %}</th>
-            <th>{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for course in pending_courses %}
-          <tr>
-            <td>
-              <a href="{% url 'resources:course_detail' course.id %}" class="project-title">{{ course.title }}</a>
-              <div class="project-meta"><span>{% trans "ID" %}: #{{ course.id }}</span></div>
-            </td>
-            <td><span class="level-badge">{{ course.get_academic_level_display }}</span></td>
-            <td>{{ course.creation_date|date:"d M Y" }}</td>
-            <td>
-              <div class="btn-group">
-                <a href="{% url 'pages:admin_approve_item' model_type='course' pk=course.id %}" class="btn btn-sm btn-outline">Review</a>
-                <form method="post" action="{% url 'pages:admin_reject_item' model_type='course' pk=course.id %}" onsubmit="return confirm('{% trans "Reject this course?" %}');">
-                  {% csrf_token %}<button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger-color)">Reject</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <table class="courses-table">
+      <thead>
+        <tr>
+          <th style="width: 35%;">{% trans "Title" %}</th>
+          <th>{% trans "Level" %}</th>
+          <th>{% trans "Creation date" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for course in pending_courses %}
+        <tr>
+          <td>
+            <div class="course-title">
+              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
+          </td>
+          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
+          <td>
+            <span class="status-badge status-pending">{% trans "Pending" %}</span>
+          </td>
+          <td>
+            <div class="course-actions">
+              <a href="{% url 'pages:admin_approve_item' model_type='course' pk=course.id %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </a>
+              {% translate "Are you sure you want to reject this course?" as confirm_course_msg %}
+              <form method="post" action="{% url 'pages:admin_reject_item' model_type='course' pk=course.id %}" style="display: inline;" onsubmit="return confirm('{{ confirm_course_msg }}');">
+                {% csrf_token %}
+                <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </form>
+              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
       <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses pending review." %}</div>
     {% endif %}
   {% else %}
     {% if approved_courses %}
-      <table class="projects-table">
-        <thead>
-          <tr>
-            <th style="width:45%;">{% trans "Course" %}</th>
-            <th>{% trans "Level" %}</th>
-            <th>{% trans "Date" %}</th>
-            <th>{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for course in approved_courses %}
-          <tr>
-            <td>
-              <a href="{% url 'resources:course_detail' course.id %}" class="project-title">{{ course.title }}</a>
-            </td>
-            <td><span class="level-badge">{{ course.get_academic_level_display }}</span></td>
-            <td>{{ course.creation_date|date:"d M Y" }}</td>
-            <td>
-              <div class="btn-group">
-                <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="btn btn-sm btn-outline">
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                </a>
-                <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="btn btn-sm btn-outline" onclick="return confirm('{% trans "Delete course?" %}');">
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <table class="courses-table">
+      <thead>
+        <tr>
+          <th style="width: 40%;">{% trans "Title" %}</th>
+          <th>{% trans "Level" %}</th>
+          <th>{% trans "Creation date" %}</th>
+          <th>{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for course in approved_courses %}
+        <tr>
+          <td>
+            <div class="course-title">
+              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
+          </td>
+          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
+          <td>
+            <div class="course-actions">
+              <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Edit' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </a>
+              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </a>
+              <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Delete' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
       <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses found." %}</div>
     {% endif %}

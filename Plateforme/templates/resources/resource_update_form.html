@@ -511,6 +511,72 @@ html[dir="rtl"] .corpus-details-table td {
     text-align: start;
 }
 
+/* ===== CHECKBOX GRID (Supported Languages) ===== */
+.checkbox-grid,
+ul.list-unstyled.checkbox-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.checkbox-grid li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--eng-muted);
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 140px;
+}
+
+.checkbox-grid li:hover {
+    border-color: var(--eng-accent);
+    background: #eff6ff;
+}
+
+.checkbox-grid li label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--eng-text);
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.checkbox-grid li input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 2px solid var(--eng-border-dark) !important;
+    border-radius: 4px !important;
+    background: white !important;
+    cursor: pointer;
+    accent-color: var(--eng-accent);
+    flex-shrink: 0;
+    -webkit-appearance: checkbox !important;
+    appearance: checkbox !important;
+    box-shadow: none !important;
+}
+
+.checkbox-grid li input[type="checkbox"]:checked {
+    border-color: var(--eng-accent) !important;
+}
+
+.checkbox-grid li:has(input:checked) {
+    border-color: var(--eng-accent);
+    background: #eff6ff;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .form-actions {
@@ -521,6 +587,14 @@ html[dir="rtl"] .corpus-details-table td {
     .btn-cancel, .btn-submit {
         width: 100%;
         justify-content: center;
+    }
+    
+    .checkbox-grid {
+        flex-direction: column;
+    }
+    
+    .checkbox-grid li {
+        min-width: unset;
     }
 }
 </style>
@@ -883,6 +957,25 @@ html[dir="rtl"] .corpus-details-table td {
             
             <!-- Form Actions -->
             <div class="form-actions">
+                {% if review_mode %}
+                <a href="{% url 'pages:admin_dashboard' %}" class="btn-cancel">
+                    <i class="bi bi-arrow-left"></i>
+                    {% trans "Back to Admin" %}
+                </a>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="submit" class="btn-submit" id="submit-btn">
+                        <span class="spinner"></span>
+                        <i class="bi bi-check2"></i>
+                        <span class="btn-text">{% trans "Save Draft" %}</span>
+                    </button>
+                    {% if is_pending %}
+                    <button type="submit" name="approve_and_publish" value="1" class="btn-submit" style="background: linear-gradient(135deg, #059669, #10b981);">
+                        <i class="bi bi-check-circle"></i>
+                        <span>{% trans "Approve & Publish" %}</span>
+                    </button>
+                    {% endif %}
+                </div>
+                {% else %}
                 <a href="{% url 'resources:list' %}" class="btn-cancel">
                     <i class="bi bi-x"></i>
                     {% trans "Cancel" %}
@@ -898,6 +991,7 @@ html[dir="rtl"] .corpus-details-table td {
                     <i class="bi bi-check2"></i>
                     <span class="btn-text">{% trans "Save Changes" %}</span>
                 </button>
+                {% endif %}
             </div>
             
         </form>
@@ -917,8 +1011,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ===== Add form-control class to all inputs =====
-    document.querySelectorAll('.section-body input, .section-body select, .section-body textarea').forEach(el => {
+    // ===== Add form-control class to all inputs (except checkboxes) =====
+    document.querySelectorAll('.section-body input:not([type="checkbox"]), .section-body select, .section-body textarea').forEach(el => {
         if (!el.classList.contains('form-control')) {
             el.classList.add('form-control');
         }

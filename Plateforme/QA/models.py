@@ -84,7 +84,7 @@ class Post(models.Model):
         # Now generate slug if needed (ID is now available)
         if not self.slug:
             self.slug = slugify(f"{self.author.full_name}-{self.pk}")  # type: ignore
-            super().save(update_fields=['slug'])
+        super().save(*args, **kwargs)
 
     def __str__(self):
         title = self.get_localized_title() or f"Post {self.id}"
