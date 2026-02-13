@@ -16,8 +16,6 @@ document.addEventListener('DOMContentLoaded', function() {
             file: 'ملف'
         },
         'en': {
-            chooseFile: 'Choose file',
-            noFileChosen: 'No file chosen',
             chooseImage: 'Choose image',
             noImageChosen: 'No image chosen',
             image: 'Image',
