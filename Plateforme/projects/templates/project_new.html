@@ -172,6 +172,85 @@ html[dir="rtl"] body {
     border-radius: var(--pf-radius-xl);
     overflow: hidden;
     box-shadow: var(--pf-shadow-lg);
+}/* ===== HARMONISATION AVEC CORPUS (CONTENT CARD) ===== */
+.content-card {
+    background: var(--pf-white);
+    border: 1px solid var(--pf-border);
+    border-radius: var(--pf-radius-lg);
+    overflow: hidden;
+    margin-top: 1rem;
+    box-shadow: var(--pf-shadow-sm);
+}
+
+.card-header {
+    background: #f8fafc; /* Une nuance légèrement différente pour détacher l'entête */
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--pf-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header i {
+    color: var(--pf-primary);
+    font-size: 1.25rem;
+}
+
+.card-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--pf-text);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Style du fichier existant (File Item) */
+.pd-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--pf-muted);
+    padding: 0.75rem 1rem;
+    border-radius: var(--pf-radius-md);
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.pd-file-item:hover {
+    background: var(--pf-subtle);
+    border-color: var(--pf-primary-light);
+}
+
+.pd-file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pd-file-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--pf-text);
+}
+
+.pd-file-action {
+    color: var(--pf-primary);
+    font-size: 1.1rem;
+}
+
+/* État vide ou verrouillé */
+.pd-empty-state {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--pf-bg);
+    border-radius: var(--pf-radius-md);
+    border: 1px dashed var(--pf-border);
+    color: var(--pf-text-muted);
 }
 
 /* Progress Steps */
@@ -580,6 +659,73 @@ html[dir="rtl"] .pf-select {
         justify-content: center;
     }
 }
+
+/* ===== Corpus-style upload ===== */
+.upload-zone{
+    border:2px dashed var(--pf-border);
+    border-radius:16px;
+    padding:2.5rem;
+    text-align:center;
+    transition:all .3s ease;
+    cursor:pointer;
+    background:#f8fafc;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:0.35rem;
+}
+.upload-zone:hover{border-color:var(--pf-primary);background:rgba(37,99,235,.02)}
+.upload-zone.drag-over{border-color:var(--pf-primary);background:rgba(37,99,235,.05);transform:scale(1.01)}
+.upload-zone.has-file{border-color:var(--pf-success);border-style:solid;background:var(--pf-success-bg)}
+.upload-icon{
+    width:80px;height:80px;margin:0 auto 1.5rem;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--pf-primary) 0%,var(--pf-primary-light) 100%);
+    color:white;font-size:2rem;box-shadow:0 8px 25px rgba(37,99,235,.3);
+}
+.upload-zone.has-file .upload-icon{
+    background:linear-gradient(135deg,var(--pf-success) 0%,#10b981 100%);
+    box-shadow:0 8px 25px rgba(5,150,105,.3);
+}
+.upload-title{font-size:1.05rem;font-weight:700;color:var(--pf-text);margin-bottom:.35rem}
+.upload-subtitle{display:none}
+.upload-zone input[type="file"]{
+    position:absolute;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    opacity:0;
+}
+.upload-browse{
+    display:inline-flex;align-items:center;gap:.5rem;
+    padding:.625rem 1.5rem;background:#ffffff;
+    color:var(--pf-primary);font-weight:600;font-size:.9rem;border-radius:12px;
+    border:2px solid var(--pf-primary);
+    transition:all .2s ease;cursor:pointer;
+}
+.upload-browse:hover{background:var(--pf-primary);color:#fff;transform:translateY(-2px)}
+.upload-formats{margin-top:1rem;font-size:.8rem;color:var(--pf-text-muted)}
+.upload-formats strong{color:var(--pf-text-secondary)}
+.file-preview{
+    display:none;align-items:center;gap:1rem;
+    padding:1rem;background:#fff;border-radius:12px;margin-top:1rem;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.file-preview.visible{display:flex}
+.file-icon{
+    width:48px;height:48px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--pf-success-bg);color:var(--pf-success);font-size:1.25rem;
+}
+.file-info{flex:1}
+.file-name{font-weight:600;color:var(--pf-text);margin-bottom:.25rem}
+.file-size{font-size:.8rem;color:var(--pf-text-muted)}
+.file-remove{
+    padding:.5rem;background:none;border:none;color:var(--pf-danger);
+    cursor:pointer;border-radius:10px;transition:.2s ease;
+}
+.file-remove:hover{background:var(--pf-danger-bg)}
 </style>
 {% endblock %}
 
@@ -648,36 +794,51 @@ html[dir="rtl"] .pf-select {
                         </div>
                     </div>
                     
-                    <!-- Section 1: Basic Information -->
                     <div class="pf-section">
-                        <div class="pf-section-header">
-                            <div class="pf-section-icon">
-                                <i class="bi bi-info-circle"></i>
-                            </div>
-                            <div>
-                                <h2 class="pf-section-title">{% translate "Basic Information" %}</h2>
-                                <p class="pf-section-subtitle">{% translate "Provide the essential details about your project." %}</p>
-                            </div>
-                        </div>
-                        
-                        <div class="pf-field {% if form.title.errors %}has-error{% endif %}">
-                            <label for="{{ form.title.id_for_label }}" class="pf-label">
-                                {{ form.title.label }} <span class="required">*</span>
-                            </label>
-                            <input type="text" 
-                                   name="{{ form.title.name }}" 
-                                   id="{{ form.title.id_for_label }}"
-                                   class="pf-input"
-                                   value="{{ form.title.value|default:'' }}"
-                                   placeholder="{% translate 'Enter project title' %}"
-                                   required>
-                            {% if form.title.help_text %}
-                            <p class="pf-help">{{ form.title.help_text }}</p>
-                            {% endif %}
-                            {% for error in form.title.errors %}
-                            <p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
-                            {% endfor %}
-                        </div>
+    <article class="content-card">
+        <div class="card-header">
+            <i class="bi bi-folder2-open"></i>
+            <h2>{% translate "Project Resources" %}</h2>
+        </div>
+        <div class="card-body">
+            <div class="upload-zone" data-upload="project-attachment">
+                <div class="upload-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                <div class="upload-title">{% translate "Drag & drop your file here" %}</div>
+                <div class="upload-subtitle">{% translate "or" %}</div>
+                <label class="upload-browse">
+                    <input type="file" id="project-attachment" name="{{ form.attachment.name }}" aria-label="{% translate 'Choose File' %}" accept=".pdf,.doc,.docx,.txt,.zip,.gz,.json,.xml">
+                </label>
+                <div class="upload-formats">
+                    <strong>{% translate "Supported formats:" %}</strong> PDF, DOC, DOCX, TXT, ZIP
+                </div>
+            </div>
+
+            <div class="file-preview" data-upload="project-attachment">
+                <div class="file-icon">
+                    <i class="bi bi-file-earmark-check"></i>
+                </div>
+                <div class="file-info">
+                    <div class="file-name">filename.pdf</div>
+                    <div class="file-size">0 MB</div>
+                </div>
+                <button type="button" class="file-remove">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            {% if project.attachment %}
+                <div class="pd-info-label" style="margin: 1rem 0 0.5rem; font-size: 0.8rem; font-weight: 600;">{% translate "Current File" %}</div>
+                <a href="{{ project.attachment.url }}" class="pd-file-item" target="_blank">
+                    <div class="pd-file-info">
+                        <i class="bi bi-file-earmark-pdf pd-file-action"></i>
+                        <span class="pd-file-name">{% translate "Download Attachment" %}</span>
+                    </div>
+                    <i class="bi bi-download pd-file-action"></i>
+                </a>
+            {% endif %}
+        </div>
+    </article>
+</div>
                         
                         <div class="pf-field {% if form.institution.errors %}has-error{% endif %}">
                             <label for="{{ form.institution.id_for_label }}" class="pf-label">
@@ -780,7 +941,7 @@ html[dir="rtl"] .pf-select {
                     </div>
                     
                     <!-- Section 3: Attachments -->
-                    <div class="pf-section">
+                        <div class="pf-section">
                         <div class="pf-section-header">
                             <div class="pf-section-icon">
                                 <i class="bi bi-paperclip"></i>
@@ -792,16 +953,32 @@ html[dir="rtl"] .pf-select {
                         </div>
                         
                         <div class="pf-field">
-                            <div class="pf-file-zone" id="fileDropZone">
-                                <input type="file" 
-                                       name="{{ form.attachment.name }}" 
-                                       id="{{ form.attachment.id_for_label }}"
-                                       accept=".pdf,.doc,.docx,.txt">
-                                <div class="pf-file-icon">
-                                    <i class="bi bi-cloud-arrow-up"></i>
+                            <div class="upload-zone" data-upload="project-doc">
+                                <div class="upload-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                                <div class="upload-title">{% translate "Drag & drop your file here" %}</div>
+                                <div class="upload-subtitle">{% translate "or" %}</div>
+                                <label class="upload-browse">
+                                    <input type="file" 
+                                           id="project-doc" 
+                                           name="{{ form.attachment.name }}" 
+                                           aria-label="{% translate 'Choose File' %}" 
+                                           accept=".pdf,.doc,.docx,.txt">
+                                </label>
+                                <div class="upload-formats">
+                                    <strong>{% translate "Supported formats:" %}</strong> PDF, DOC, DOCX, TXT
                                 </div>
-                                <p class="pf-file-text">{% translate "Drop files here or click to upload" %}</p>
-                                <p class="pf-file-hint">{% translate "PDF, DOC, DOCX up to 10MB" %}</p>
+                            </div>
+                            <div class="file-preview" data-upload="project-doc">
+                                <div class="file-icon">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">filename.pdf</div>
+                                    <div class="file-size">0 MB</div>
+                                </div>
+                                <button type="button" class="file-remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                             {% for error in form.attachment.errors %}
                             <p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
@@ -831,48 +1008,58 @@ html[dir="rtl"] .pf-select {
 </div>
 
 <script>
-// File Drop Zone Enhancement
 document.addEventListener('DOMContentLoaded', function() {
-    const dropZone = document.getElementById('fileDropZone');
-    const fileInput = dropZone.querySelector('input[type="file"]');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
+    const zones = document.querySelectorAll('.upload-zone');
+
+    zones.forEach(zone => {
+        const input = zone.querySelector('input[type="file"]');
+        const key = zone.dataset.upload;
+        const preview = document.querySelector(`.file-preview[data-upload="${key}"]`);
+        const nameEl = preview?.querySelector('.file-name');
+        const sizeEl = preview?.querySelector('.file-size');
+        const removeBtn = preview?.querySelector('.file-remove');
+
+        const formatSize = bytes => {
+            if (!bytes) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes','KB','MB','GB'];
+            const i = Math.floor(Math.log(bytes)/Math.log(k));
+            return `${(bytes/Math.pow(k,i)).toFixed(2)} ${sizes[i]}`;
+        };
+
+        const showFile = file => {
+            if (!preview) return;
+            nameEl.textContent = file.name;
+            sizeEl.textContent = formatSize(file.size);
+            zone.classList.add('has-file');
+            preview.classList.add('visible');
+        };
+
+        const clearFile = () => {
+            if (input) input.value = '';
+            zone.classList.remove('has-file');
+            preview?.classList.remove('visible');
+        };
+
+        ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+            zone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
+        });
+        ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, () => zone.classList.add('drag-over')));
+        ['dragleave','drop'].forEach(evt => zone.addEventListener(evt, () => zone.classList.remove('drag-over')));
+
+        zone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                input.files = files;
+                showFile(files[0]);
+            }
+        });
+
+        input.addEventListener('change', function() {
+            if (this.files.length) showFile(this.files[0]);
+        });
+
+        removeBtn?.addEventListener('click', clearFile);
     });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-    });
-    
-    dropZone.addEventListener('drop', function(e) {
-        const files = e.dataTransfer.files;
-        if (files.length) {
-            fileInput.files = files;
-            updateFileDisplay(files[0].name);
-        }
-    });
-    
-    fileInput.addEventListener('change', function() {
-        if (this.files.length) {
-            updateFileDisplay(this.files[0].name);
-        }
-    });
-    
-    function updateFileDisplay(fileName) {
-        const textEl = dropZone.querySelector('.pf-file-text');
-        textEl.textContent = fileName;
-        dropZone.style.borderColor = 'var(--pf-success)';
-        dropZone.style.background = 'var(--pf-success-bg)';
-    }
 });
 </script>
 {% endblock %}

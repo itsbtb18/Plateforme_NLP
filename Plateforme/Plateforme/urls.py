@@ -15,9 +15,14 @@ admin.site.site_header = _('Arabic NLP Platform Administration')
 admin.site.site_title = _('Arabic NLP Admin')
 admin.site.index_title = _('Welcome to the Administration Dashboard')
 
+# URLs without language prefix
 urlpatterns = [
-    path('search/', include('search.urls', namespace='search')),  # MOVE THIS TO THE TOP
     path('i18n/', include('django.conf.urls.i18n')),
+]
+
+# URLs with language prefix
+urlpatterns += i18n_patterns(
+    path('search/', include('search.urls', namespace='search')),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('accounts/', include('allauth.urls')),
     path('projects/', include('projects.urls', namespace='projects')),
@@ -28,10 +33,11 @@ urlpatterns = [
     path('QA/', include('QA.urls')),
     path('notifications/', include('notifications.urls', namespace='notifications')),
     path('chatbot/', include('chatbot.urls')),
-    path('', include('pages.urls')),      # Custom admin pages - BEFORE Django admin
-    path('admin/', admin.site.urls),      # Django admin after custom pages
+    path('', include('pages.urls')),
     path('', include('translate.urls')),
-]
+    path('admin/', admin.site.urls),
+)
+
 
 # Serve static and media files in development
 if settings.DEBUG:
