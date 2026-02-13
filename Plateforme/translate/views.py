@@ -1,5 +1,6 @@
 
 
+import re
 
 from django.shortcuts import redirect
 from django.utils import translation
@@ -13,17 +14,17 @@ def switch_language(request):
     next_url = request.META.get('HTTP_REFERER', '/')
 
     if lang_code in dict(settings.LANGUAGES).keys():
-        # Active la langue immédiatement
         translation.activate(lang_code)
 
-        # Crée une réponse de redirection
+        # Replace the language prefix in the URL so i18n_patterns picks up the new language
+        lang_codes = '|'.join(dict(settings.LANGUAGES).keys())
+        next_url = re.sub(r'^(https?://[^/]+)?/(' + lang_codes + r')/', r'\1/' + lang_code + '/', next_url)
+
         response = HttpResponseRedirect(next_url)
 
-        # Sauvegarde la langue dans la session
         if hasattr(request, 'session'):
             request.session[settings.LANGUAGE_COOKIE_NAME] = lang_code
 
-        # Sauvegarde aussi dans le cookie pour que le middleware le retrouve
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, lang_code)
 
         return response
