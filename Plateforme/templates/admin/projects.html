@@ -233,22 +233,9 @@
               {% else %}
                 <span class="status-badge">{{ project.get_status_display }}</span>
               {% endif %}
-</div>
-            </div>
-          </td>
-          <td>
-            {% if project.status == 'ongoing' %}
-              <span class="status-badge status-badge-in-progress">{% trans "Ongoing" %}</span>
-            {% elif project.status == 'completed' %}
-              <span class="status-badge status-badge-completed">{% trans "Completed" %}</span>
-            {% elif project.status == 'pending' %}
-              <span class="status-badge status-badge-pending">{% trans "Pending" %}</span>
-            {% else %}
-              {{ project.get_status_display }}
-            {% endif %}
-          </td>
-          <td>
-            <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
+            </td>
+            <td>
+              <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
                                     {{ pm.member.get_full_name_display|default:pm.member.email }}{% if not forloop.last %}, {% endif %}
                                 {% empty %}
                                     <em>{% trans "No participants" %}</em>
@@ -275,15 +262,14 @@
   </div>
   {% else %}
   <div class="empty-state">
-    [Merged: All pending and approved project table rows now combine coordinator display logic, approval status, and team badge, preserving both user and collaborator changes.]
     <div class="empty-state-icon">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     </div>
-    {% else %}
-      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No projects found." %}</div>
-    {% endif %}
+    <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No projects found." %}</div>
+  </div>
+  {% endif %}
   {% endif %}
 </div>
 {% endblock content %}
