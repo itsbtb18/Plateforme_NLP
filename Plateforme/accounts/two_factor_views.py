@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
+from django.utils.translation import gettext as _
 from .two_factor_utils import generate_otp, store_otp, verify_otp, clear_otp, get_otp_expiry
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
@@ -66,14 +67,24 @@ class OTPVerificationView(View):
             try:
                 user = User.objects.get(id=user_id)
                 
-                # Clear session
+                # Retrieve remember-me preference
+                remember = request.session.get('pending_2fa_remember', False)
+
+                # Clear 2FA session keys
                 del request.session['pending_2fa_user_id']
-                request.session.save()  # Explicitly save session to avoid middleware redirect loop
+                request.session.pop('pending_2fa_remember', None)
+                request.session.save()
                 
                 # Log user in
                 auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+                # Apply remember-me preference
+                if remember:
+                    request.session.set_expiry(None)
+                else:
+                    request.session.set_expiry(0)
                 
-                messages.success(request, "✅ Two-factor authentication successful!")
+                messages.success(request, _("Two-factor authentication successful!"))
                 return JsonResponse({'success': True, 'redirect_url': '/'})
             
             except User.DoesNotExist:

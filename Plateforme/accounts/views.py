@@ -24,11 +24,6 @@ import logging
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
 
-# Import 2FA modules
-from .two_factor_models import TwoFactorAuth
-from .two_factor_utils import generate_otp, store_otp
-from .two_factor_email import send_otp_email
-
 if TYPE_CHECKING:
     from .models import CustomUser
 
@@ -92,7 +87,7 @@ class SignUp(CreateView):
             return self.form_invalid(form)
 
         try:
-            # Create user
+            # Create user (commit=False to prepare, then save separately)
             user = form.save(commit=False)
             user.email = email  # Ensure normalized email
             user.is_active = True
@@ -102,7 +97,16 @@ class SignUp(CreateView):
                 user.is_email_verified = True
             if hasattr(user, 'status'):
                 user.status = 'active'
-            user.save()
+
+            # Save user — catch ES indexing errors (user still saved to DB)
+            try:
+                user.save()
+            except Exception as save_err:
+                # post_save ES signal may raise even though DB write succeeded
+                if User.objects.filter(pk=user.pk).exists():
+                    logger.warning(f"ES indexing error (user saved OK): {save_err}")
+                else:
+                    raise
 
             logger.info(f"New user registered: {user.email}")
 
@@ -140,7 +144,7 @@ class SignUp(CreateView):
                 return redirect('pages:home')
 
         except Exception as e:
-            logger.error(f"❌ User creation error: {str(e)}")
+            logger.error(f"User creation error: {str(e)}")
             messages.error(self.request, _("An error occurred during registration. Please try again."))
             return self.form_invalid(form)
 
@@ -154,33 +158,41 @@ class SignUp(CreateView):
 # --------------------------
 class LoginView(AllauthLoginView):
     """
-    Custom login view that handles the "Remember Me" checkbox.
-    Extends allauth's LoginView to add session expiry control.
+    Custom login view with 2FA and Remember Me support.
+    After password check, if 2FA is enabled, redirect to OTP verification
+    instead of completing the login.
     """
 
     def form_valid(self, form: Any) -> Any:
-        """
-        Handle successful login and set session expiry based on "Remember Me" checkbox.
-        """
-        # Call parent's form_valid to perform the login
+        user = form.user  # allauth form provides authenticated user
+
+        # Check if 2FA is enabled for this user
+        try:
+            two_fa = TwoFactorAuth.objects.get(user=user)
+            if two_fa.is_enabled:
+                # Generate OTP, store, and send email
+                otp_code = generate_otp()
+                store_otp(str(user.id), otp_code)
+                send_otp_email(user.email, user.get_full_name(), otp_code)
+
+                # Save pending state and remember-me preference
+                self.request.session['pending_2fa_user_id'] = str(user.id)
+                self.request.session['pending_2fa_remember'] = bool(self.request.POST.get('remember'))
+                self.request.session.modified = True
+
+                logger.info(f"2FA triggered for login: {user.email}")
+                return redirect('accounts:verify_2fa')
+        except TwoFactorAuth.DoesNotExist:
+            pass
+
+        # No 2FA — proceed with normal login
         response = super().form_valid(form)
 
-        # Check if "Remember Me" checkbox was checked
         remember = self.request.POST.get('remember')
-
         if remember:
-            # User wants to be remembered - use default session age from settings
-            # SESSION_COOKIE_AGE = 1209600 (2 weeks)
-            self.request.session.set_expiry(None)  # Use settings default
-            if self.request.user.is_authenticated:
-                user = cast('CustomUser', self.request.user)
-                logger.debug(f"User {user.email} logged in with 'Remember Me' enabled")
+            self.request.session.set_expiry(None)
         else:
-            # User doesn't want to be remembered - expire session when browser closes
             self.request.session.set_expiry(0)
-            if self.request.user.is_authenticated:
-                user = cast('CustomUser', self.request.user)
-                logger.debug(f"User {user.email} logged in without 'Remember Me'")
 
         return response
 

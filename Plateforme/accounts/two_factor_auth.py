@@ -63,12 +63,9 @@ def trigger_2fa_flow(request, user):
 def check_2fa_on_login(sender, request, user, **kwargs):
     """
     Signal handler called after successful login.
-    2FA is DISABLED for login - only used for signup.
-    This ensures users can log in normally without 2FA verification.
+    Ensures user has a TwoFactorAuth record (2FA interception is handled in LoginView).
     """
-    logger.info(f"📝 user_logged_in signal fired for: {user.email}")
-    # Simply ensure user has a TwoFactorAuth record (for future use)
-    TwoFactorAuth.objects.get_or_create(user=user)
+    TwoFactorAuth.objects.get_or_create(user=user, defaults={'is_enabled': True})
 
 
 @receiver(user_signed_up)
@@ -105,10 +102,11 @@ class TwoFactorAuthenticationMiddleware:
         self.get_response = get_response
         # Paths that should not be blocked for 2FA verification
         self.exempt_paths = [
-            '/',
             '/accounts/verify-2fa/',
             '/accounts/resend-otp/',
             '/accounts/logout/',
+            '/accounts/login/',
+            '/accounts/signup/',
             '/api/',
             '/admin/',
             '/static/',
@@ -124,18 +122,17 @@ class TwoFactorAuthenticationMiddleware:
         # 2. Current path is not exempt
         if pending_user_id:
             # Check if current path is exempt from 2FA check
-            is_exempt = False
+            # Strip language prefix (e.g., /en/, /ar/) for matching
+            path = request.path
+            import re
+            path_no_lang = re.sub(r'^/[a-z]{2}(-[a-z]{2})?/', '/', path)
             
-            for path in self.exempt_paths:
-                if path == '/':
-                    # Only match exact root path, not all paths starting with /
-                    is_exempt = request.path == '/'
-                else:
-                    # For other paths, use startswith
-                    is_exempt = request.path.startswith(path)
-                
-                if is_exempt:
-                    break
+            is_exempt = path == '/'
+            if not is_exempt:
+                for exempt in self.exempt_paths:
+                    if path_no_lang.startswith(exempt) or path.startswith(exempt):
+                        is_exempt = True
+                        break
             
             if not is_exempt:
                 # Redirect to 2FA verification
