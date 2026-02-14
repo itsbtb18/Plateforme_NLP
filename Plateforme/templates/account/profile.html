@@ -215,6 +215,114 @@
         </form>
       </div>
       {% endif %}
+
+      <!-- ===== CONTRIBUTIONS SECTIONS ===== -->
+
+      <!-- Posts -->
+      {% if user_posts %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-newspaper"></i>
+          {% trans "Posts" %}
+        </h3>
+        <div class="contrib-list">
+          {% for post in user_posts %}
+          <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
+            <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ post.get_localized_title|truncatechars:60 }}</span>
+              <span class="contrib-date">{{ post.created_at|date:"M d, Y" }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Courses -->
+      {% if user_courses %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-graduation-cap"></i>
+          {% trans "Courses" %}
+        </h3>
+        <div class="contrib-list">
+          {% for course in user_courses %}
+          <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
+            <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+              <span class="contrib-date">{{ course.creation_date|date:"M d, Y" }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Resources -->
+      {% if user_resources %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-archive"></i>
+          {% trans "Resources" %}
+        </h3>
+        <div class="contrib-list">
+          {% for resource in user_resources %}
+          <a href="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}" class="contrib-item">
+            <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ resource.get_localized_title|truncatechars:60 }}</span>
+              <span class="contrib-date">{{ resource.creation_date|date:"M d, Y" }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Projects -->
+      {% if user_projects %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-project-diagram"></i>
+          {% trans "Projects" %}
+        </h3>
+        <div class="contrib-list">
+          {% for project in user_projects %}
+          <a href="{% url 'projects:project_detail' project.pk %}" class="contrib-item">
+            <div class="contrib-icon project-icon"><i class="fas fa-diagram-project"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ project.title|truncatechars:60 }}</span>
+              <span class="contrib-date">{{ project.created_at|date:"M d, Y" }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Forum Topics -->
+      {% if user_topics %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-comments"></i>
+          {% trans "Discussions" %}
+        </h3>
+        <div class="contrib-list">
+          {% for topic in user_topics %}
+          <a href="{% url 'forum:chatroom-list' topic.id %}" class="contrib-item">
+            <div class="contrib-icon topic-icon"><i class="fas fa-comment-dots"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ topic.get_localized_title|truncatechars:60 }}</span>
+              <span class="contrib-date">{{ topic.created_at|date:"M d, Y" }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </div>
@@ -770,6 +878,125 @@
 
   .info-section-card:nth-child(4) {
     animation-delay: 0.5s;
+  }
+
+  /* ===== CONTRIBUTIONS SECTIONS ===== */
+  .contrib-card .section-title {
+    margin-bottom: 16px;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .contrib-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--bg-light);
+    text-decoration: none;
+    transition: var(--transition);
+    border: 1px solid transparent;
+  }
+
+  .contrib-item:hover {
+    background: var(--primary-lightest);
+    border-color: var(--primary);
+    transform: translateX(4px);
+  }
+
+  .contrib-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    flex-shrink: 0;
+  }
+
+  .contrib-icon.post-icon { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+  .contrib-icon.course-icon { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+  .contrib-icon.resource-icon { background: linear-gradient(135deg, #059669, #10b981); }
+  .contrib-icon.project-icon { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .contrib-icon.topic-icon { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+
+  .contrib-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .contrib-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contrib-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  /* ===== RTL SUPPORT ===== */
+  html[dir="rtl"] .profile-container-new {
+    direction: rtl;
+  }
+
+  html[dir="rtl"] .profile-user-info,
+  html[dir="rtl"] .profile-user-name,
+  html[dir="rtl"] .profile-user-title {
+    text-align: center;
+  }
+
+  html[dir="rtl"] .info-row {
+    direction: rtl;
+  }
+
+  html[dir="rtl"] .info-label {
+    text-align: right;
+  }
+
+  html[dir="rtl"] .info-value {
+    text-align: left;
+  }
+
+  html[dir="rtl"] .section-title {
+    direction: rtl;
+    text-align: right;
+  }
+
+  html[dir="rtl"] .bio-text {
+    direction: rtl;
+    text-align: right;
+  }
+
+  html[dir="rtl"] .contrib-item {
+    direction: rtl;
+    text-align: right;
+  }
+
+  html[dir="rtl"] .contrib-item:hover {
+    transform: translateX(-4px);
+  }
+
+  html[dir="rtl"] .contrib-title {
+    text-align: right;
+  }
+
+  html[dir="rtl"] .contrib-date {
+    text-align: right;
   }
 </style>
 {% endblock content %} 

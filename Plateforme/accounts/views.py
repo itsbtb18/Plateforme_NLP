@@ -200,27 +200,51 @@ class LoginView(AllauthLoginView):
 # --------------------------
 # Profile View
 # --------------------------
-class ProfileView(LoginRequiredMixin, DetailView):
+class ProfileView(DetailView):
     """
-    Display user profile with public information.
+    Public user profile view showing user information and contributions.
     """
     model = User
     template_name = 'account/profile.html'
-    context_object_name = 'profile_user'
+    context_object_name = 'user'
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         profile_user = self.get_object()
 
-        # Check if viewing own profile
-        context['is_own_profile'] = self.request.user == profile_user
+        context['is_own_profile'] = (
+            self.request.user.is_authenticated and self.request.user == profile_user
+        )
 
-        # Get user's projects if viewing own profile
-        if context['is_own_profile']:
-            context['user_projects'] = Project.objects.filter(
-                members__member=profile_user,
-                members__status='accepted'
-            ).distinct()[:5]
+        # User's projects
+        context['user_projects'] = Project.objects.filter(
+            members__member=profile_user,
+            members__status='accepted'
+        ).distinct()[:6]
+
+        # User's posts (QA)
+        from QA.models import Post
+        context['user_posts'] = Post.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-created_at')[:6]
+
+        # User's courses (as teacher)
+        from resources.models import Course
+        context['user_courses'] = Course.objects.filter(
+            teacher=profile_user, approval_status='approved'
+        ).order_by('-creation_date')[:6]
+
+        # User's documents (as author) - articles, theses, memoirs
+        from resources.models import Document
+        context['user_resources'] = Document.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-creation_date')[:6]
+
+        # User's forum topics
+        from forum.models import Topic
+        context['user_topics'] = Topic.objects.filter(
+            creator=profile_user, approval_status='approved'
+        ).order_by('-created_at')[:6]
 
         return context
 

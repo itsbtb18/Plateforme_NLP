@@ -389,6 +389,12 @@ class SearchAutocompleteView(View):
             'title_field': 'title',
             'fields': ['title', 'title.arabic', 'title.english'],
         },
+        'user': {
+            'document': UserDocument,
+            'url_name': 'accounts:profile',
+            'title_field': 'full_name',
+            'fields': ['full_name', 'full_name.arabic', 'full_name.english', 'full_name.phonetic'],
+        },
     }
     
     def get(self, request, *args, **kwargs):
