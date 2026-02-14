@@ -160,9 +160,9 @@ class CustomUserCreationForm(UserCreationForm):
                 raise forms.ValidationError(list(e.messages))
         return password1
 
-    def try_save(self, request):
+    def save(self, commit=True):
         """
-        Custom method expected by the modified SignupView.
+        Standard save method. Honors commit=False.
         """
         user = super().save(commit=False)
         user.email = self.cleaned_data.get('email', '').lower().strip()
@@ -171,14 +171,8 @@ class CustomUserCreationForm(UserCreationForm):
         user.full_name_en = self.cleaned_data.get('full_name_en', '').strip()
         user.institution = self.cleaned_data.get('institution')
         user.speciality = self.cleaned_data.get('speciality')
-        user.save()
-        return user, True
-
-    def save(self, commit=True):
-        """
-        Standard method expected by django-allauth.
-        """
-        user, _ = self.try_save(None)
+        if commit:
+            user.save()
         return user
 
 
