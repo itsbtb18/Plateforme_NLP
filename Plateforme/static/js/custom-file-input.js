@@ -37,6 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     
     fileInputs.forEach(function(input) {
+        // Skip inputs that are intentionally hidden (e.g. avatar input on profile page)
+        if (input.style.display === 'none' || input.hidden || input.closest('.custom-file-input-wrapper')) {
+            return;
+        }
+
         // Créer un wrapper personnalisé
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-file-input-wrapper';
