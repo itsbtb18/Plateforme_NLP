@@ -106,7 +106,7 @@
         /* ── Avatar Section – Instagram Style ── */
         .pe-avatar-section {
             text-align: center;
-            margin-bottom: 35px;
+            margin-bottom: 50px;
             margin-top: -50px;
             position: relative;
             z-index: 15;
@@ -135,12 +135,19 @@
             height: 130px;
             border-radius: 50%;
             border: 4px solid white;
-            background: linear-gradient(135deg, #e8eef7 0%, #d1ddf0 100%);
+            background: #c7c7c7;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
-            color: #9aa0a6;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .pe-avatar-ring .pe-avatar-placeholder svg {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            bottom: -10px;
         }
 
         .pe-camera-btn {
@@ -451,16 +458,16 @@
         }
 
         /* ── Hide native file input & legacy fields ── */
-        input[type="file"],
-        .pe-hidden-fields,
-        .pe-hidden-fields * {
-            display: none !important;
+        .pe-hidden-fields {
+            display: block !important;
             width: 0 !important;
             height: 0 !important;
             overflow: hidden !important;
             position: absolute !important;
             opacity: 0 !important;
             pointer-events: none !important;
+            z-index: -9999 !important;
+            clip: rect(0, 0, 0, 0) !important;
         }
 
         /* ── Responsive ── */
@@ -522,7 +529,7 @@
         <div class="pe-hidden-fields">
             {{ form.full_name }}
             {{ form.bio }}
-            {{ form.avatar }}
+
         </div>
 
         <!-- ── Instagram-Style Avatar ── -->
@@ -532,7 +539,7 @@
                     <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" id="avatarPreview">
                 {% else %}
                     <div class="pe-avatar-placeholder" id="avatarPreview">
-                        <i class="fas fa-user"></i>
+                        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><circle cx="60" cy="42" r="22" fill="#fff"/><ellipse cx="60" cy="106" rx="38" ry="30" fill="#fff"/></svg>
                     </div>
                 {% endif %}
                 {% if user.is_verified %}
@@ -545,7 +552,6 @@
                 </div>
             </div>
             <!-- ABSOLUTELY NO buttons here -->
-            <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none">
         </div>
 
         <!-- ── Avatar Modal ── -->
@@ -570,6 +576,7 @@
         <div class="pe-form-container">
             <form method="post" enctype="multipart/form-data" novalidate id="profileForm">
                 {% csrf_token %}
+                <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none">
 
                 {% if messages %}
                     {% for message in messages %}
@@ -813,7 +820,7 @@
                 var placeholder = document.createElement('div');
                 placeholder.className = 'pe-avatar-placeholder';
                 placeholder.id = 'avatarPreview';
-                placeholder.innerHTML = '<i class="fas fa-user"></i>';
+                placeholder.innerHTML = '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><circle cx="60" cy="42" r="22" fill="#fff"/><ellipse cx="60" cy="106" rx="38" ry="30" fill="#fff"/></svg>';
 
                 var current = document.getElementById('avatarPreview');
                 if (current) ring.replaceChild(placeholder, current);

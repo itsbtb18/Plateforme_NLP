@@ -273,6 +273,33 @@ class ProfileEditView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, _("Your profile has been updated successfully."))
         return reverse('accounts:profile', kwargs={'pk': self.get_object().pk})
 
+    def form_valid(self, form):
+        import os as _os
+        user = form.save(commit=False)
+        # Avatar removal
+        if self.request.POST.get('avatar-clear') == 'on':
+            if user.avatar:
+                if user.avatar.storage.exists(user.avatar.name):
+                    user.avatar.storage.delete(user.avatar.name)
+                user.avatar = None
+        # Avatar upload
+        avatar_file = self.request.FILES.get('avatar')
+        if avatar_file:
+            if avatar_file.size > 2 * 1024 * 1024:
+                form.add_error(None, _("Image file size must be less than 2MB."))
+                return self.form_invalid(form)
+            allowed = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+            ext = _os.path.splitext(avatar_file.name)[1].lstrip('.').lower()
+            if ext not in allowed:
+                form.add_error(None, _("Allowed image formats: %(formats)s") % {'formats': ', '.join(sorted(allowed))})
+                return self.form_invalid(form)
+            if user.avatar:
+                if user.avatar.storage.exists(user.avatar.name):
+                    user.avatar.storage.delete(user.avatar.name)
+            user.avatar = avatar_file
+        user.save()
+        return redirect(self.get_success_url())
+
     def form_invalid(self, form: Any) -> Any:
         messages.error(self.request, _("Please correct the errors in the form."))
         return super().form_invalid(form)

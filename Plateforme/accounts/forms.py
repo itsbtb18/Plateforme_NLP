@@ -263,21 +263,11 @@ class CustomUserChangeForm(UserChangeForm):
         help_text=_("Your Facebook profile URL")
     )
     
-    avatar = forms.ImageField(
-        required=False,
-        widget=forms.FileInput(attrs={
-            'class': 'form-control',
-            'accept': 'image/*'
-        }),
-        label=_("Profile Picture"),
-        help_text=_("Recommended size: 200x200 pixels. Max file size: 2MB")
-    )
-
     class Meta:
         model = CustomUser
         fields = [
             'full_name', 'full_name_ar', 'full_name_en', 
-            'email', 'institution', 'bio', 'bio_ar', 'bio_en', 'avatar',
+            'email', 'institution', 'bio', 'bio_ar', 'bio_en',
             'speciality', 'linkedin_url', 'twitter_url', 'facebook_url'
         ]
 
@@ -350,23 +340,6 @@ class CustomUserChangeForm(UserChangeForm):
         if url and 'facebook.com' not in url.lower():
             raise forms.ValidationError(_("Please enter a valid Facebook URL."))
         return url
-
-    def clean_avatar(self):
-        """Validate avatar image."""
-        avatar = self.cleaned_data.get('avatar')
-        if avatar:
-            # Check file size (2MB limit)
-            if avatar.size > 2 * 1024 * 1024:
-                raise forms.ValidationError(_("Image file size must be less than 2MB."))
-            
-            # Check file extension
-            allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-            file_ext = avatar.name.split('.')[-1].lower()
-            if file_ext not in allowed_extensions:
-                raise forms.ValidationError(
-                    _("Allowed image formats: %(formats)s") % {'formats': ', '.join(allowed_extensions)}
-                )
-        return avatar
 
     def save(self, commit=True):
         """Save the user with normalized data."""
