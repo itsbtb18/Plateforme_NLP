@@ -97,7 +97,7 @@ class UserStatusHistory(models.Model):
         
     def __str__(self):
         """Représentation textuelle de l'entrée d'historique."""
-        return f"{self.user.username}: {self.old_status} → {self.new_status}"
+        return f"{self.user.email}: {self.old_status} → {self.new_status}"
     
     def get_old_status_display(self):
         """Retourne l'affichage formaté de l'ancien statut."""
@@ -252,7 +252,7 @@ class ContactMessage(models.Model):
     def save(self, *args, **kwargs):
         # Si l'utilisateur est connecté, préremplir les informations
         if self.user and not self.name:
-            self.name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
+            self.name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.email
         if self.user and not self.email:
             self.email = self.user.email
         super().save(*args, **kwargs)

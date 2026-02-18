@@ -400,8 +400,23 @@ def awaiting_verification_view(request):
 def delete_account(request):
     if request.method == 'POST':
         user = request.user
+        # Soft delete: anonymize user data instead of hard delete
+        user.email = f"deleted_{user.id}@deleted.local"
+        user.full_name = ''
+        user.full_name_ar = ''
+        user.full_name_en = ''
+        user.bio = ''
+        user.bio_ar = ''
+        user.bio_en = ''
+        user.avatar = None
+        user.linkedin_url = None
+        user.twitter_url = None
+        user.facebook_url = None
+        user.is_active = False
+        user.status = 'blocked'
+        user.set_unusable_password()
+        user.save()
         logout(request)
-        user.delete()
         messages.success(request, _('Votre compte a été supprimé avec succès.'))
         return redirect('pages:home')
     return render(request, 'accounts/delete_account.html')

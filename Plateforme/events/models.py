@@ -207,4 +207,4 @@ class EventRegistration(models.Model):
         verbose_name_plural = _('Event Registrations')
     
     def __str__(self):
-        return f"{self.user.username} - {self.event.title}"
+        return f"{self.user.email} - {self.event.title}"

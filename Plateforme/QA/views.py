@@ -75,7 +75,7 @@ def question_detail(request, pk):
                     title=_("New answer to your question"),
                     message=_("%(username)s answered your question « %(title)s »."),
                     related_object=question,
-                    message_kwargs={'username': request.user.username, 'title': question.title}
+                    message_kwargs={'username': request.user.email, 'title': question.title}
                 )
             return redirect('QA:question_detail', pk=pk)
     else:
@@ -313,6 +313,9 @@ def like_comment(request, comment_id):
 @login_required
 @login_and_verified_required
 def delete_post(request, post_id):
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request method.')
+        return redirect('QA:feed')
     post = get_object_or_404(Post, id=post_id, author=request.user)
     post.delete()
     messages.success(request, 'The post has been deleted.')
@@ -321,6 +324,9 @@ def delete_post(request, post_id):
 @login_required
 @login_and_verified_required
 def delete_comment(request, comment_id):
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request method.')
+        return redirect('QA:feed')
     comment = get_object_or_404(Comment, id=comment_id, author=request.user)
     post_slug = comment.post.slug
     comment.delete()

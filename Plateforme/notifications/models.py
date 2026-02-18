@@ -134,7 +134,7 @@ class Notification(models.Model):
         return self.message
 
     def __str__(self):
-        return f"{self.title} - {self.recipient.username}"
+        return f"{self.title} - {self.recipient.email}"
         
     def get_type_display(self):
         """Retourne l'affichage du type de notification"""

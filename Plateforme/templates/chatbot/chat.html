@@ -1,10 +1,11 @@
 {% load static %}
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot - Plateforme NLP</title>
+    <title>{% trans "Chatbot - Plateforme NLP" %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -694,11 +695,11 @@
             <div class="sidebar-header">
                 <button class="new-chat-btn" onclick="newChat()">
                     <i class="fas fa-plus"></i>
-                    <span>New Chat</span>
+                    <span>{% trans "New Chat" %}</span>
                 </button>
             </div>
 
-            <div class="conversations-label">Conversations</div>
+            <div class="conversations-label">{% trans "Conversations" %}</div>
             <div class="conversations-list" id="conversations-list"></div>
         </div>
 
@@ -707,7 +708,7 @@
             <!-- TOP HEADER -->
             <div class="chat-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="{% url 'pages:home' %}" class="header-btn" title="Back to Home" style="text-decoration: none; color: #5f6368;">
+                    <a href="{% url 'pages:home' %}" class="header-btn" title="{% trans 'Back to Home' %}" style="text-decoration: none; color: #5f6368;">
                         <i class="fas fa-arrow-left"></i>
                     </a>
                     <div class="header-profile">
@@ -719,20 +720,20 @@
                             {% endif %}
                         </div>
                         <div class="profile-info">
-                            <h3>{% if user.is_authenticated %}{{ user.full_name|default:user.email }}{% else %}Guest User{% endif %}</h3>
-                            <p>Online</p>
+                            <h3>{% if user.is_authenticated %}{{ user.full_name|default:user.email }}{% else %}{% trans "Guest User" %}{% endif %}</h3>
+                            <p>{% trans "Online" %}</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="header-actions">
-                    <button class="header-btn" title="Search conversations" onclick="openSearch()">
+                    <button class="header-btn" title="{% trans 'Search conversations' %}" onclick="openSearch()">
                         <i class="fas fa-search"></i>
                     </button>
-                    <button class="header-btn" title="Settings" onclick="openSettings()">
+                    <button class="header-btn" title="{% trans 'Settings' %}" onclick="openSettings()">
                         <i class="fas fa-sliders-h"></i>
                     </button>
-                    <button class="header-btn" title="More options" onclick="openMenu()">
+                    <button class="header-btn" title="{% trans 'More options' %}" onclick="openMenu()">
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                 </div>
@@ -744,29 +745,29 @@
                     <div class="empty-icon">
                         <i class="fas fa-comments"></i>
                     </div>
-                    <div class="greeting-text">Hello! 👋</div>
-                    <div class="greeting-subtext">Let's start talking!</div>
+                    <div class="greeting-text">{% trans "Hello!" %} 👋</div>
+                    <div class="greeting-subtext">{% trans "Let's start talking!" %}</div>
 
                     <div class="features-grid">
                         <div class="feature-card">
                             <div class="feature-icon">🖼️</div>
-                            <p class="feature-name">Generate Images</p>
-                            <p class="feature-desc">AI-powered image creation</p>
+                            <p class="feature-name">{% trans "Generate Images" %}</p>
+                            <p class="feature-desc">{% trans "AI-powered image creation" %}</p>
                         </div>
                         <div class="feature-card">
                             <div class="feature-icon">🔍</div>
-                            <p class="feature-name">Deep Search</p>
-                            <p class="feature-desc">Advanced web search</p>
+                            <p class="feature-name">{% trans "Deep Search" %}</p>
+                            <p class="feature-desc">{% trans "Advanced web search" %}</p>
                         </div>
                         <div class="feature-card">
                             <div class="feature-icon">📎</div>
-                            <p class="feature-name">Upload Files</p>
-                            <p class="feature-desc">PDF, Docs & more</p>
+                            <p class="feature-name">{% trans "Upload Files" %}</p>
+                            <p class="feature-desc">{% trans "PDF, Docs & more" %}</p>
                         </div>
                         <div class="feature-card">
                             <div class="feature-icon">🎤</div>
-                            <p class="feature-name">Voice Input</p>
-                            <p class="feature-desc">Talk naturally</p>
+                            <p class="feature-name">{% trans "Voice Input" %}</p>
+                            <p class="feature-desc">{% trans "Talk naturally" %}</p>
                         </div>
                     </div>
                 </div>
@@ -777,16 +778,16 @@
             <!-- INPUT AREA -->
             <div class="chat-input-area">
                 <div class="input-actions">
-                    <button class="action-btn" title="Add image" onclick="addImage()">
+                    <button class="action-btn" title="{% trans 'Add image' %}" onclick="addImage()">
                         <i class="fas fa-image"></i>
                     </button>
-                    <button class="action-btn" title="Upload file" onclick="addFile()">
+                    <button class="action-btn" title="{% trans 'Upload file' %}" onclick="addFile()">
                         <i class="fas fa-paperclip"></i>
                     </button>
-                    <button class="action-btn mic-btn" title="Voice message" onclick="toggleMic()" id="mic-btn">
+                    <button class="action-btn mic-btn" title="{% trans 'Voice message' %}" onclick="toggleMic()" id="mic-btn">
                         <i class="fas fa-microphone"></i>
                     </button>
-                    <button class="action-btn" title="Deep search" onclick="toggleDeepSearch()">
+                    <button class="action-btn" title="{% trans 'Deep search' %}" onclick="toggleDeepSearch()">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
@@ -796,7 +797,7 @@
                         type="text" 
                         class="chat-input" 
                         id="chat-input" 
-                        placeholder="Type your message here..."
+                        placeholder="{% trans 'Type your message here...' %}"
                         onkeypress="handleKeyPress(event)"
                     >
                     <button class="send-btn" onclick="sendMessage()" id="send-btn">
@@ -820,7 +821,7 @@
                 const listContainer = document.getElementById('conversations-list');
                 
                 if (!data.sessions || data.sessions.length === 0) {
-                    listContainer.innerHTML = '<div style="padding: 20px; color: rgba(255,255,255,0.5); text-align: center; font-size: 0.9rem;">No conversations yet</div>';
+                    listContainer.innerHTML = '<div style="padding: 20px; color: rgba(255,255,255,0.5); text-align: center; font-size: 0.9rem;">{% trans "No conversations yet" %}</div>';
                     return;
                 }
                 
@@ -831,7 +832,7 @@
                 `).join('');
             } catch (error) {
                 console.error('Error loading conversations:', error);
-                document.getElementById('conversations-list').innerHTML = '<div style="padding: 20px; color: rgba(255,255,255,0.5); text-align: center;">Error loading</div>';
+                document.getElementById('conversations-list').innerHTML = '<div style="padding: 20px; color: rgba(255,255,255,0.5); text-align: center;">{% trans "Error loading" %}</div>';
             }
         }
         
@@ -857,17 +858,17 @@
             switch(type) {
                 case 'image':
                     addImage();
-                    document.getElementById('chat-input').placeholder = 'Describe the image you want to generate...';
+                    document.getElementById('chat-input').placeholder = '{% trans "Describe the image you want to generate..." %}';
                     break;
                 case 'search':
                     toggleDeepSearch();
-                    document.getElementById('chat-input').placeholder = 'What would you like to search for?';
+                    document.getElementById('chat-input').placeholder = '{% trans "What would you like to search for?" %}';
                     break;
                 case 'file':
                     addFile();
                     break;
                 case 'analyze':
-                    document.getElementById('chat-input').placeholder = 'Paste or describe the text to analyze...';
+                    document.getElementById('chat-input').placeholder = '{% trans "Paste or describe the text to analyze..." %}';
                     break;
             }
             document.getElementById('chat-input').focus();

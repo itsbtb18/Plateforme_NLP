@@ -352,7 +352,7 @@ class CustomUserChangeForm(UserChangeForm):
         return url
 
     def clean_avatar(self):
-        """Validate avatar image."""
+        """Validate avatar image with content-based verification."""
         avatar = self.cleaned_data.get('avatar')
         if avatar:
             # Check file size (2MB limit)
@@ -365,6 +365,28 @@ class CustomUserChangeForm(UserChangeForm):
             if file_ext not in allowed_extensions:
                 raise forms.ValidationError(
                     _("Allowed image formats: %(formats)s") % {'formats': ', '.join(allowed_extensions)}
+                )
+            
+            # Content-based validation: verify actual image data using Pillow
+            try:
+                from PIL import Image
+                avatar.seek(0)
+                img = Image.open(avatar)
+                img.verify()  # Verify it's a valid image
+                avatar.seek(0)
+                
+                # Re-open to strip EXIF/metadata (security measure)
+                img = Image.open(avatar)
+                if img.format and img.format.lower() not in ['jpeg', 'png', 'gif', 'webp']:
+                    raise forms.ValidationError(
+                        _("Invalid image content. Allowed formats: JPEG, PNG, GIF, WebP.")
+                    )
+                avatar.seek(0)
+            except forms.ValidationError:
+                raise
+            except Exception:
+                raise forms.ValidationError(
+                    _("The uploaded file is not a valid image.")
                 )
         return avatar
 

@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, cast
 
 from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
+from django.utils.html import escape
 import json
 from .models import ChatRoom, Message, BannedUser
 
@@ -78,9 +79,9 @@ class ChatroomConsumer(WebsocketConsumer):
                 {
                     'type': 'chat_message',
                     'message_id': str(message.id),
-                    'content': message.content,
+                    'content': escape(message.content),
                     'user_id': str(self.user.id),
-                    'user_name': user_name,
+                    'user_name': escape(user_name),
                     'timestamp': message.timestamp.strftime('%d/%m/%Y %H:%M'),
                     'is_edited': message.is_edited,
                     'profile_url': f'/accounts/profile/{self.user.id}/'

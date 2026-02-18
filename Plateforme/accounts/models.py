@@ -78,7 +78,7 @@ class CustomUser(AbstractUser):
     )
     institution = models.ForeignKey(
         Institution,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_('institution')

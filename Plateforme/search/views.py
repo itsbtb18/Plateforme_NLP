@@ -6,7 +6,7 @@ from django.views.generic import TemplateView
 from django.http import JsonResponse
 from django.views import View
 from django.urls import reverse
-from django.utils.html import mark_safe
+from django.utils.html import mark_safe, escape as html_escape
 
 from elasticsearch_dsl import Q, Search
 from elasticsearch.exceptions import ConnectionError, NotFoundError
@@ -242,6 +242,20 @@ class GlobalSearchView(TemplateView):
         
         return results, aggregations, total_count
 
+    @staticmethod
+    def _sanitize_highlight(fragment: str) -> str:
+        """
+        Sanitize Elasticsearch highlight fragments to prevent XSS.
+        Preserves only <mark> and </mark> tags, escapes everything else.
+        """
+        # Temporarily replace ES highlight tags
+        safe = fragment.replace('<mark>', '\x00MARK_OPEN\x00').replace('</mark>', '\x00MARK_CLOSE\x00')
+        # Escape all HTML in the remaining content
+        safe = html_escape(safe)
+        # Restore the highlight tags
+        safe = safe.replace('\x00MARK_OPEN\x00', '<mark>').replace('\x00MARK_CLOSE\x00', '</mark>')
+        return safe
+
     def _format_result(self, hit, doc_type: str, config: Dict) -> Optional[Dict]:
         try:
             highlight = {}
@@ -249,7 +263,7 @@ class GlobalSearchView(TemplateView):
                 for field, fragments in hit.meta.highlight.to_dict().items():
                     base_field = field.split('.')[0]
                     if base_field not in highlight:
-                        highlight[base_field] = mark_safe(fragments[0])
+                        highlight[base_field] = mark_safe(self._sanitize_highlight(fragments[0]))
             
             title = ''
             if doc_type == 'institution': title = highlight.get('name') or getattr(hit, 'name', '')
