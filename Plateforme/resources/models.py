@@ -298,7 +298,7 @@ class Course(ResourceBase):
 
     institution = models.ForeignKey(
         Institution,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         verbose_name=_("Institution"),
         help_text=_("University or school offering the course")
     )
@@ -426,7 +426,7 @@ class Thesis(models.Model):
     )
     institution = models.ForeignKey(
         Institution,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         verbose_name=_("Institution")
     )
     defense_year = models.IntegerField(
@@ -467,7 +467,7 @@ class Memoir(models.Model):
     )
     institution = models.ForeignKey(
         Institution,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         verbose_name=_("Institution")
     )
     defense_year = models.IntegerField(

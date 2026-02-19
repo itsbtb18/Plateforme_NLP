@@ -7,6 +7,13 @@ from django.conf.urls.static import static
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.utils.translation import gettext_lazy as _
+from django.http import JsonResponse
+
+# ============================================
+# HEALTH CHECK (lightweight, no DB/template)
+# ============================================
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 # ============================================
 # ADMIN SITE CUSTOMIZATION
@@ -17,6 +24,7 @@ admin.site.index_title = _('Welcome to the Administration Dashboard')
 
 # URLs without language prefix
 urlpatterns = [
+    path('healthz/', health_check, name='health_check'),
     path('i18n/', include('django.conf.urls.i18n')),
 ]
 

@@ -133,6 +133,7 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.is_approved = self.request.user.is_staff
+        form.instance.approval_status = 'approved' if self.request.user.is_staff else 'pending'
         form.instance.created_by = self.request.user
         self.object = form.save()
         self._save_bilingual_fields(self.object)
@@ -198,6 +199,7 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
     def form_valid(self, form):
         if not self.request.user.is_staff and self.get_object().is_approved:
             form.instance.is_approved = False
+            form.instance.approval_status = 'pending'
             messages.info(self.request, _('Your changes will be reviewed before becoming visible.'))
         else:
             messages.success(self.request, _('Event updated successfully!'))
@@ -233,15 +235,25 @@ class EventDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Delete
 
 
 def register_for_event(request, pk):
-    """Function view for registering - Now checks for verification."""
+    """Function view for registering - Now checks for verification and deadline."""
     # Check if user is authenticated AND verified
     if not request.user.is_authenticated or not getattr(request.user, 'is_verified', False):
         messages.error(request, _('You must be logged in and verified to register for events.'))
         return redirect('account_login')
     
-    event = get_object_or_404(Event, pk=pk, is_approved=True)
+    # Only allow POST for state-changing operations
+    if request.method != 'POST':
+        messages.error(request, _('Invalid request method.'))
+        return redirect('events:event_detail', pk=pk)
+    
+    event = get_object_or_404(Event, pk=pk, approval_status='approved')
     if event.is_past:
         messages.error(request, _('Registration for past events is not allowed.'))
+        return redirect('events:event_detail', pk=pk)
+    
+    # Check submission deadline
+    if event.submission_deadline and event.submission_deadline < timezone.now().date():
+        messages.error(request, _('The registration deadline for this event has passed.'))
         return redirect('events:event_detail', pk=pk)
     
     if EventRegistration.objects.filter(event=event, user=request.user).exists():
@@ -253,9 +265,14 @@ def register_for_event(request, pk):
 
 
 def unregister_from_event(request, pk):
-    """Function view for unregistering - Now checks for verification."""
+    """Function view for unregistering - Now checks for verification and requires POST."""
     if not request.user.is_authenticated or not getattr(request.user, 'is_verified', False):
         return redirect('account_login')
+    
+    # Only allow POST for state-changing operations
+    if request.method != 'POST':
+        messages.error(request, _('Invalid request method.'))
+        return redirect('events:event_detail', pk=pk)
     
     event = get_object_or_404(Event, pk=pk)
     if event.is_past:
@@ -273,6 +290,7 @@ def event_validate(request, pk):
     """Admin view for event approval."""
     event = get_object_or_404(Event, pk=pk)
     event.is_approved = True
+    event.approval_status = 'approved'
     event.save()
     
     NotificationService.create_notification(

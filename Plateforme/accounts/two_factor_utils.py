@@ -2,11 +2,14 @@
 2FA OTP Utilities - Redis-based OTP storage and verification
 """
 import redis
-import random
+import secrets
 import string
 from django.conf import settings
 from datetime import datetime, timedelta
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Redis connection
 redis_client = redis.StrictRedis(
@@ -17,15 +20,40 @@ redis_client = redis.StrictRedis(
     decode_responses=True
 )
 
+# Cooldown period between OTP requests (seconds)
+OTP_COOLDOWN_SECONDS = 60
+
 def generate_otp(length=6):
     """
-    Generate a random 6-digit OTP
+    Generate a cryptographically secure random 6-digit OTP
     """
-    return ''.join(random.choices(string.digits, k=length))
+    return ''.join(secrets.choice(string.digits) for _ in range(length))
+
+def _get_cooldown_key(user_id):
+    """Get Redis key for OTP cooldown tracking."""
+    return f"otp_cooldown:{user_id}"
+
+def check_otp_cooldown(user_id):
+    """
+    Check if user is still in cooldown period for OTP requests.
+    
+    Returns:
+        dict: {'can_request': bool, 'remaining_seconds': int}
+    """
+    cooldown_key = _get_cooldown_key(user_id)
+    try:
+        ttl = redis_client.ttl(cooldown_key)
+        if ttl > 0:
+            return {'can_request': False, 'remaining_seconds': ttl}
+        return {'can_request': True, 'remaining_seconds': 0}
+    except Exception as e:
+        logger.error(f"Error checking OTP cooldown: {e}")
+        return {'can_request': True, 'remaining_seconds': 0}
 
 def store_otp(user_id, otp_code, ttl_minutes=5):
     """
-    Store OTP in Redis with TTL (Time To Live)
+    Store OTP in Redis with TTL (Time To Live).
+    Also sets a cooldown to prevent rapid re-requests.
     
     Args:
         user_id: UUID of the user
@@ -36,6 +64,7 @@ def store_otp(user_id, otp_code, ttl_minutes=5):
         bool: True if stored successfully
     """
     key = f"otp:{user_id}"
+    cooldown_key = _get_cooldown_key(user_id)
     ttl_seconds = ttl_minutes * 60
     
     data = {
@@ -46,9 +75,11 @@ def store_otp(user_id, otp_code, ttl_minutes=5):
     
     try:
         redis_client.setex(key, ttl_seconds, json.dumps(data))
+        # Set cooldown to prevent requesting another OTP too quickly
+        redis_client.setex(cooldown_key, OTP_COOLDOWN_SECONDS, '1')
         return True
     except Exception as e:
-        print(f"Error storing OTP: {e}")
+        logger.error(f"Error storing OTP: {e}")
         return False
 
 def verify_otp(user_id, submitted_code):
@@ -99,7 +130,7 @@ def verify_otp(user_id, submitted_code):
             }
     
     except Exception as e:
-        print(f"Error verifying OTP: {e}")
+        logger.error(f"Error verifying OTP: {e}")
         return {
             'valid': False,
             'message': 'An error occurred. Please try again.'
@@ -129,7 +160,7 @@ def get_otp_expiry(user_id):
             'remaining_seconds': ttl
         }
     except Exception as e:
-        print(f"Error getting OTP expiry: {e}")
+        logger.error(f"Error getting OTP expiry: {e}")
         return {'expiry': None, 'remaining_seconds': 0}
 
 def clear_otp(user_id):
@@ -141,5 +172,5 @@ def clear_otp(user_id):
         redis_client.delete(key)
         return True
     except Exception as e:
-        print(f"Error clearing OTP: {e}")
+        logger.error(f"Error clearing OTP: {e}")
         return False

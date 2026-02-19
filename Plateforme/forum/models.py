@@ -136,7 +136,7 @@ class Message(models.Model):
         ordering = ['timestamp']  # Tri par défaut des messages par ordre chronologique
 
     def __str__(self):
-        return f"Message de {self.user.username} à {self.timestamp.strftime('%H:%M:%S')}"
+        return f"Message de {self.user.email} à {self.timestamp.strftime('%H:%M:%S')}"
 
 class BannedUser(models.Model):
     id = models.UUIDField(
@@ -155,4 +155,4 @@ class BannedUser(models.Model):
         ordering = ['-banned_at']
 
     def __str__(self):
-        return f"{self.user.username} banni de {self.chatroom.name}"
+        return f"{self.user.email} banni de {self.chatroom.name}"

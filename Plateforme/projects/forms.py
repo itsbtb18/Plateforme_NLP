@@ -81,3 +81,36 @@ class ProjectForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+    def clean_attachment(self):
+        """Validate project attachment: max 5MB, PDF/Word only."""
+        attachment = self.cleaned_data.get('attachment')
+        if attachment:
+            # File size validation (5MB max)
+            max_size = 5 * 1024 * 1024
+            if attachment.size > max_size:
+                raise forms.ValidationError(
+                    _("File size must be less than 5MB. Current size: %(size).1fMB.") %
+                    {'size': attachment.size / (1024 * 1024)}
+                )
+            
+            # File type validation (PDF and Word only)
+            allowed_extensions = ['pdf', 'doc', 'docx']
+            file_ext = attachment.name.rsplit('.', 1)[-1].lower() if '.' in attachment.name else ''
+            if file_ext not in allowed_extensions:
+                raise forms.ValidationError(
+                    _("Only PDF and Word documents are allowed. Allowed formats: %(formats)s.") %
+                    {'formats': ', '.join(allowed_extensions)}
+                )
+            
+            # MIME type validation
+            allowed_mimes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ]
+            if hasattr(attachment, 'content_type') and attachment.content_type not in allowed_mimes:
+                raise forms.ValidationError(
+                    _("Invalid file type. Only PDF and Word documents are allowed.")
+                )
+        return attachment

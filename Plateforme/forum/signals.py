@@ -1,53 +1,41 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from forum.models import ForumPost, ForumComment
-from notifications.models import NotificationType
+from forum.models import Topic, ChatRoom, Message
+from notifications.models import Notification
 from notifications.services import NotificationService
 
-@receiver(post_save, sender=ForumPost)
-def notify_new_forum_post(sender, instance, created, **kwargs):
-    """Signal déclenché quand un nouveau post est créé dans le forum"""
+User = get_user_model()
+
+
+@receiver(post_save, sender=Topic)
+def notify_new_forum_topic(sender, instance, created, **kwargs):
+    """Signal triggered when a new topic is created in the forum"""
     if created:
         admins = User.objects.filter(is_staff=True)
         
         NotificationService.notify_group(
             admins, 
-            NotificationType.NEW_FORUM_POST,
+            'FORUM_TOPIC',
             _("New topic in the forum: %(title)s") % {'title': instance.title},
-            _("%(username)s created a new topic in the forum: %(title)s") % {'username': instance.author.username, 'title': instance.title},
+            _("%(user)s created a new topic in the forum: %(title)s") % {'user': instance.creator.email, 'title': instance.title},
             instance
         )
 
-@receiver(post_save, sender=ForumComment)
-def notify_new_comment(sender, instance, created, **kwargs):
-    """Signal déclenché quand un nouveau commentaire est créé sur un post du forum"""
-    if created:
-        post_author = instance.post.author
+
+@receiver(post_save, sender=Message)
+def notify_new_message(sender, instance, created, **kwargs):
+    """Signal triggered when a new message is created in a chatroom"""
+    if created and instance.chatroom and instance.chatroom.topic:
+        topic_creator = instance.chatroom.topic.creator
         
-        if post_author.id != instance.author.id:
+        if topic_creator.id != instance.user.id:
             NotificationService.create_notification(
-                post_author,
-                NotificationType.NEW_COMMENT,
-                _("New comment on your topic"),
-                _("%(username)s commented on your topic: %(title)s") % {'username': instance.author.username, 'title': instance.post.title},
+                topic_creator,
+                'FORUM_TOPIC',
+                _("New message in your topic"),
+                _("%(user)s posted a message in a chatroom related to your topic: %(title)s") % {'user': instance.user.email, 'title': instance.chatroom.topic.title},
                 instance
             )
-        
-        participants = ForumComment.objects.filter(post=instance.post) \
-                                        .exclude(author=instance.author) \
-                                        .exclude(author=post_author) \
-                                        .values_list('author', flat=True) \
-                                        .distinct()
-        
-        participant_users = User.objects.filter(id__in=participants)
-        
-        NotificationService.notify_group(
-            participant_users,
-            NotificationType.NEW_COMMENT,
-            _("New comment in a discussion"),
-            _("%(username)s commented on the topic: %(title)s") % {'username': instance.author.username, 'title': instance.post.title},
-            instance
-        )

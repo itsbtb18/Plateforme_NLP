@@ -15,6 +15,12 @@ class AccountsConfig(AppConfig):
         Import signals when app is ready
         """
         try:
+            from . import signals  # noqa: F401
+            logger.info("Account signals registered successfully")
+        except ImportError as e:
+            logger.error(f"Failed to import account signals: {str(e)}")
+        
+        try:
             from . import two_factor_auth  # noqa: F401
             logger.info("2FA signals registered successfully")
         except ImportError as e:

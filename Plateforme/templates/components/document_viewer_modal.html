@@ -10,6 +10,8 @@
      role="dialog" 
      aria-modal="true" 
      aria-labelledby="docViewerTitle"
+     data-resource-id="{{ object.pk }}"
+     data-convert-url="{% url 'resources:convert-to-text' object.pk %}"
      style="display: none;">
     
     <!-- Animated Backdrop -->
@@ -328,6 +330,72 @@
             </svg>
             <span>{% trans "Exit" %}</span>
         </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CONVERT TO TEXT — Overlay Modal
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="convertTextOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal">
+            <!-- Header -->
+            <div class="ctt-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 7 4 4 20 4 20 7"/>
+                        <line x1="9" y1="20" x2="15" y2="20"/>
+                        <line x1="12" y1="4" x2="12" y2="20"/>
+                    </svg>
+                    <h3 class="ctt-title">{% trans "Extracted Text" %}</h3>
+                </div>
+                <button id="closeConvertOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Spinner -->
+            <div id="convertTextSpinner" class="ctt-spinner" style="display:flex;">
+                <div class="ctt-spinner-ring"></div>
+                <p class="ctt-spinner-text">{% trans "Extracting text from document..." %}</p>
+                <p class="ctt-spinner-sub">{% trans "This may take a moment for large or image-based documents." %}</p>
+            </div>
+
+            <!-- Error state -->
+            <div id="convertTextError" class="ctt-error" style="display:none;">
+                <svg class="ctt-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p id="convertTextErrorMsg" class="ctt-error-text"></p>
+                <button onclick="DocViewer.convertToText()" class="ctt-retry-btn">{% trans "Retry" %}</button>
+            </div>
+
+            <!-- Result -->
+            <div id="convertTextResult" class="ctt-result" style="display:none;">
+                <div class="ctt-meta" id="convertTextMeta"></div>
+                <textarea id="convertedTextArea" class="ctt-textarea" readonly dir="auto"></textarea>
+                <div class="ctt-actions">
+                    <button id="copyExtractedTextBtn" class="ctt-btn ctt-btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        {% trans "Copy to Clipboard" %}
+                    </button>
+                    <button id="downloadExtractedTextBtn" class="ctt-btn ctt-btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        {% trans "Download .txt" %}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1389,6 +1457,230 @@ html[dir="rtl"] .docviewer-exit-btn {
     right: 24px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONVERT TO TEXT — Overlay Modal Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+.ctt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10010;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: cttFadeIn 0.2s ease;
+}
+@keyframes cttFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.ctt-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 760px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    animation: cttSlideUp 0.25s ease;
+    overflow: hidden;
+}
+@keyframes cttSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ctt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.ctt-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ctt-header-icon {
+    width: 22px;
+    height: 22px;
+    color: #6366f1;
+}
+.ctt-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+.ctt-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 6px;
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+.ctt-close-btn:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+.ctt-close-btn svg {
+    width: 20px;
+    height: 20px;
+}
+/* Spinner */
+.ctt-spinner {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    gap: 16px;
+}
+.ctt-spinner-ring {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: cttSpin 0.8s linear infinite;
+}
+@keyframes cttSpin {
+    to { transform: rotate(360deg); }
+}
+.ctt-spinner-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: #334155;
+    margin: 0;
+}
+.ctt-spinner-sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0;
+}
+/* Error */
+.ctt-error {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    gap: 12px;
+}
+.ctt-error-icon {
+    width: 48px;
+    height: 48px;
+    color: #ef4444;
+}
+.ctt-error-text {
+    font-size: 14px;
+    color: #64748b;
+    text-align: center;
+    max-width: 400px;
+    margin: 0;
+    line-height: 1.6;
+}
+.ctt-retry-btn {
+    margin-top: 8px;
+    padding: 8px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ctt-retry-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+/* Result */
+.ctt-result {
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+}
+.ctt-meta {
+    padding: 10px 24px;
+    font-size: 12px;
+    color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+    font-family: 'Inter', sans-serif;
+}
+.ctt-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 340px;
+    max-height: 55vh;
+    padding: 20px 24px;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Consolas', 'Courier New', 'Noto Naskh Arabic', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #1e293b;
+    background: #fff;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+.ctt-textarea::-webkit-scrollbar {
+    width: 6px;
+}
+.ctt-textarea::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.ctt-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.ctt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ctt-btn-primary {
+    background: #6366f1;
+    color: #fff;
+}
+.ctt-btn-primary:hover {
+    background: #4f46e5;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.ctt-btn-secondary {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #e5e7eb;
+}
+.ctt-btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+/* RTL support */
+html[dir="rtl"] .ctt-header { flex-direction: row-reverse; }
+html[dir="rtl"] .ctt-header-left { flex-direction: row-reverse; }
+html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
+
 </style>
 
 <!-- PDF.js Library -->
@@ -1448,6 +1740,12 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('summarizeDocBtn')?.addEventListener('click', () => this.summarizeDoc());
             document.getElementById('translateDocBtn')?.addEventListener('click', () => this.translateDoc());
             document.getElementById('askChatbotBtn')?.addEventListener('click', () => this.askChatbot());
+
+            // Convert-to-text overlay close
+            document.getElementById('closeConvertOverlay')?.addEventListener('click', () => this.closeConvertOverlay());
+            document.getElementById('convertTextOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'convertTextOverlay') this.closeConvertOverlay();
+            });
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -1756,8 +2054,76 @@ if (typeof pdfjsLib !== 'undefined') {
         },
         
         // NLP Feature Placeholders
+        // ══════════════════════════════════════════════
+        // Convert to Text — real implementation
+        // ══════════════════════════════════════════════
         convertToText() {
-            alert('{% trans "Convert to Text feature coming soon! This will extract all text content from the document." %}');
+            const modal     = document.getElementById('documentViewerModal');
+            const overlay   = document.getElementById('convertTextOverlay');
+            const resultBox = document.getElementById('convertTextResult');
+            const textArea  = document.getElementById('convertedTextArea');
+            const spinner   = document.getElementById('convertTextSpinner');
+            const errorBox  = document.getElementById('convertTextError');
+            const errorMsg  = document.getElementById('convertTextErrorMsg');
+            const metaInfo  = document.getElementById('convertTextMeta');
+            const copyBtn   = document.getElementById('copyExtractedTextBtn');
+            const downloadBtn = document.getElementById('downloadExtractedTextBtn');
+
+            // Reset UI
+            overlay.style.display   = 'flex';
+            spinner.style.display   = 'flex';
+            resultBox.style.display = 'none';
+            errorBox.style.display  = 'none';
+            if (copyBtn) copyBtn.textContent = '{% trans "Copy to Clipboard" %}';
+
+            const apiUrl = modal.dataset.convertUrl;
+
+            fetch(apiUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                spinner.style.display = 'none';
+                if (data.success) {
+                    textArea.value = data.text;
+                    metaInfo.textContent = data.filename
+                        + '  •  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words" %}'
+                        + '  •  ' + (data.char_count || 0).toLocaleString() + ' {% trans "chars" %}';
+                    resultBox.style.display = 'flex';
+
+                    // Copy button
+                    copyBtn.onclick = () => {
+                        navigator.clipboard.writeText(data.text).then(() => {
+                            copyBtn.textContent = '{% trans "Copied!" %}';
+                            setTimeout(() => copyBtn.textContent = '{% trans "Copy to Clipboard" %}', 2000);
+                        });
+                    };
+
+                    // Download as .txt
+                    downloadBtn.onclick = () => {
+                        const blob = new Blob([data.text], { type: 'text/plain;charset=utf-8' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = (data.filename || 'extracted') + '.txt';
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                    };
+                } else {
+                    errorMsg.textContent = data.error || '{% trans "Unknown error" %}';
+                    errorBox.style.display = 'flex';
+                }
+            })
+            .catch(err => {
+                spinner.style.display = 'none';
+                errorMsg.textContent = '{% trans "Network error. Please try again." %}';
+                errorBox.style.display = 'flex';
+                console.error('Convert to text error:', err);
+            });
+        },
+
+        closeConvertOverlay() {
+            document.getElementById('convertTextOverlay').style.display = 'none';
         },
         
         summarizeDoc() {
