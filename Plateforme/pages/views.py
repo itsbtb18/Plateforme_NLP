@@ -44,11 +44,11 @@ class HomePageView(TemplateView):
         # Compteurs pour les statistiques
         context['corpus_count'] = Corpus.objects.count()
         context['tools_count'] = NLPTool.objects.count()
-        context['projects_count'] = Project.objects.count()
+        context['projects_count'] = Project.objects.filter(approval_status='approved').count()
         context['members_count'] = User.objects.count()
         
-        # Posts populaires (les plus likés)
-        context['popular_posts'] = Post.objects.annotate(
+        # Posts populaires (les plus likés) - only approved
+        context['popular_posts'] = Post.objects.filter(approval_status='approved').annotate(
             like_count=Count('likes')
         ).order_by('-like_count', '-created_at')[:3]
 

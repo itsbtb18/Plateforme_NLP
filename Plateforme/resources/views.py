@@ -17,7 +17,9 @@ from .models import Document, NLPTool, Article, Thesis, Memoir, Course, Corpus, 
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_GET
 import logging
+import os
 from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
 
 logger = logging.getLogger(__name__)
@@ -1065,3 +1067,152 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context['page'] = 'resources'
         return context
+
+
+# =============================================================================
+# Convert to Text — PDF / DOCX / TXT text extraction (with OCR fallback)
+# =============================================================================
+
+def _extract_text_from_pdf(file_path: str) -> str:
+    """
+    Extract text from PDF using PyMuPDF.
+    Falls back to Tesseract OCR for image-based pages.
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(file_path)
+    pages_text: list[str] = []
+
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        text = page.get_text("text")
+
+        # If a page yields very little text, it's likely an image-based page → OCR
+        if len(text.strip()) < 30:
+            text = _ocr_page(page) or text
+
+        if text.strip():
+            pages_text.append(f"--- Page {page_num + 1} ---\n{text.strip()}")
+
+    doc.close()
+    return "\n\n".join(pages_text)
+
+
+def _ocr_page(page) -> Optional[str]:
+    """Run Tesseract OCR on a PDF page rendered as an image."""
+    try:
+        from PIL import Image
+        import pytesseract
+        import io
+
+        # Render page at 300 DPI for good OCR quality
+        pix = page.get_pixmap(dpi=300)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+
+        # Support Arabic + English + French
+        text = pytesseract.image_to_string(img, lang="ara+eng+fra")
+        return text.strip() if text.strip() else None
+    except Exception as e:
+        logger.warning(f"OCR failed for page: {e}")
+        return None
+
+
+def _extract_text_from_docx(file_path: str) -> str:
+    """Extract text from DOCX using python-docx."""
+    from docx import Document as DocxDocument
+
+    doc = DocxDocument(file_path)
+    paragraphs: list[str] = []
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if text:
+            paragraphs.append(text)
+
+    # Also extract text from tables
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = "\t".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+            if row_text:
+                paragraphs.append(row_text)
+
+    return "\n\n".join(paragraphs)
+
+
+def _extract_text_from_txt(file_path: str) -> str:
+    """Read plain text files with encoding detection."""
+    for encoding in ("utf-8", "utf-8-sig", "cp1256", "iso-8859-6", "latin-1"):
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                return f.read()
+        except (UnicodeDecodeError, LookupError):
+            continue
+    # Last resort — binary read and ignore errors
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        return f.read()
+
+
+@login_required
+@require_GET
+def convert_to_text(request, pk):
+    """
+    API endpoint: extract raw text from a resource's uploaded file.
+    Supports PDF (with OCR fallback), DOCX, and plain text files.
+
+    Returns JSON: { success, text, filename, pages } or { success, error }
+    """
+    # Find the resource across all concrete models
+    resource = None
+    for Model in (Course, Corpus, Document, NLPTool, Article, Thesis, Memoir):
+        try:
+            resource = Model.objects.get(pk=pk)
+            break
+        except Model.DoesNotExist:
+            continue
+
+    if resource is None:
+        return JsonResponse({"success": False, "error": _("Resource not found.")}, status=404)
+
+    if not resource.uploaded_file:
+        return JsonResponse({"success": False, "error": _("This resource has no uploaded file.")}, status=400)
+
+    file_path = resource.uploaded_file.path
+    if not os.path.isfile(file_path):
+        return JsonResponse({"success": False, "error": _("The file could not be found on the server.")}, status=404)
+
+    filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        if ext == ".pdf":
+            text = _extract_text_from_pdf(file_path)
+        elif ext in (".docx", ".doc"):
+            text = _extract_text_from_docx(file_path)
+        elif ext in (".txt", ".md", ".csv", ".json", ".xml", ".log"):
+            text = _extract_text_from_txt(file_path)
+        else:
+            return JsonResponse(
+                {"success": False, "error": _("Unsupported file format: %(ext)s") % {"ext": ext}},
+                status=400,
+            )
+
+        if not text or not text.strip():
+            return JsonResponse(
+                {"success": False, "error": _("No text could be extracted from this document. It may be empty or contain only images without recognisable text.")},
+                status=200,
+            )
+
+        return JsonResponse({
+            "success": True,
+            "text": text,
+            "filename": filename,
+            "char_count": len(text),
+            "word_count": len(text.split()),
+        })
+
+    except Exception as e:
+        logger.exception(f"Text extraction failed for resource {pk}")
+        return JsonResponse(
+            {"success": False, "error": _("An error occurred while processing the document: %(err)s") % {"err": str(e)}},
+            status=500,
+        )

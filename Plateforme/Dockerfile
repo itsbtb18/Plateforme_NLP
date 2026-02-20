@@ -19,6 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     gettext \
     curl \
+    tesseract-ocr \
+    tesseract-ocr-ara \
+    tesseract-ocr-eng \
+    tesseract-ocr-fra \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user

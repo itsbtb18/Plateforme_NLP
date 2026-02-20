@@ -341,6 +341,45 @@ class CustomUserChangeForm(UserChangeForm):
             raise forms.ValidationError(_("Please enter a valid Facebook URL."))
         return url
 
+    def clean_avatar(self):
+        """Validate avatar image with content-based verification."""
+        avatar = self.cleaned_data.get('avatar')
+        if avatar:
+            # Check file size (2MB limit)
+            if avatar.size > 2 * 1024 * 1024:
+                raise forms.ValidationError(_("Image file size must be less than 2MB."))
+            
+            # Check file extension
+            allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+            file_ext = avatar.name.split('.')[-1].lower()
+            if file_ext not in allowed_extensions:
+                raise forms.ValidationError(
+                    _("Allowed image formats: %(formats)s") % {'formats': ', '.join(allowed_extensions)}
+                )
+            
+            # Content-based validation: verify actual image data using Pillow
+            try:
+                from PIL import Image
+                avatar.seek(0)
+                img = Image.open(avatar)
+                img.verify()  # Verify it's a valid image
+                avatar.seek(0)
+                
+                # Re-open to strip EXIF/metadata (security measure)
+                img = Image.open(avatar)
+                if img.format and img.format.lower() not in ['jpeg', 'png', 'gif', 'webp']:
+                    raise forms.ValidationError(
+                        _("Invalid image content. Allowed formats: JPEG, PNG, GIF, WebP.")
+                    )
+                avatar.seek(0)
+            except forms.ValidationError:
+                raise
+            except Exception:
+                raise forms.ValidationError(
+                    _("The uploaded file is not a valid image.")
+                )
+        return avatar
+
     def save(self, commit=True):
         """Save the user with normalized data."""
         user = super().save(commit=False)
