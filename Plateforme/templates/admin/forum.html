@@ -544,12 +544,16 @@
             </td>
             <td class="p-3">
               <div class="d-flex justify-content-center gap-1">
-                <!-- Review & Edit -->
-                <a href="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
-                  <i class="fas fa-edit"></i>
-                </a>
+                <!-- Direct Approve -->
+                {% translate "Approve this topic?" as confirm_approve_topic %}
+                <form method="post" action="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}" style="display: inline;" onsubmit="return confirm('{{ confirm_approve_topic }}');">
+                  {% csrf_token %}
+                  <button type="submit" class="action-btn-approve" title="{% trans 'Approve' %}">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </form>
                 <!-- Reject -->
-                {% translate "Are you sure you want to reject this topic?" as confirm_topic_msg %}
+                {% translate "Reject and delete this topic?" as confirm_topic_msg %}
                 <form method="post" action="{% url 'pages:admin_reject_item' model_type='topic' pk=topic.pk %}" style="display: inline;" onsubmit="return confirm('{{ confirm_topic_msg }}');">
                   {% csrf_token %}
                   <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">

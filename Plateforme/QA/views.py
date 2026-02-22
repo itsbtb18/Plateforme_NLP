@@ -155,16 +155,39 @@ def feed(request):
 @login_and_verified_required
 def create_post(request):
     """Dedicated page for creating a new post."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            # All posts require admin approval - no exceptions
-            post.approval_status = 'pending'
-            post.save()
-            messages.info(request, _('Your post has been submitted and is pending admin approval.'))
-            return redirect('QA:feed')
+            try:
+                post = form.save(commit=False)
+                post.author = request.user
+                # All posts require admin approval - no exceptions
+                post.approval_status = 'pending'
+                
+                logger.info(
+                    f"[POST_CREATE] Creating post by user: {request.user.email}, "
+                    f"title: {post.get_localized_title()[:50]}"
+                )
+                
+                post.save()
+                
+                logger.info(
+                    f"[POST_CREATE] ✓ Post created successfully "
+                    f"(ID: {post.id}, Status: {post.approval_status})"
+                )
+                
+                messages.info(request, _('Your post has been submitted and is pending admin approval.'))
+                return redirect('QA:feed')
+                
+            except Exception as e:
+                logger.error(f"[POST_CREATE] ✗ Error creating post: {str(e)}", exc_info=True)
+                messages.error(request, _('An error occurred while creating your post. Please try again.'))
+        else:
+            logger.warning(f"[POST_CREATE] Form validation failed: {form.errors.as_json()}")
+            messages.error(request, _('Please correct the errors in the form.'))
     else:
         form = PostForm()
     

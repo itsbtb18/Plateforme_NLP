@@ -1,0 +1,19 @@
+{% comment %}
+templates/includes/share_btn.html
+Usage:
+  {% include "includes/share_btn.html" with content_type="tool" object_id=tool.id title=tool.title %}
+Optional: btn_class="btn-sm"  (default: btn-sm)
+          show_label=True to show text label
+{% endcomment %}
+{% load i18n %}
+{% if user.is_authenticated %}
+<button type="button"
+        class="btn btn-outline-primary {{ btn_class|default:'btn-sm' }} rounded-pill d-inline-flex align-items-center gap-1 share-trigger-btn"
+        title="{% trans 'Share' %}"
+        data-share-type="{{ content_type }}"
+        data-share-id="{{ object_id }}"
+        data-share-title="{{ title|default:'' }}">
+  <i class="fas fa-share-alt"></i>
+  {% if show_label %}<span>{% trans "Share" %}</span>{% endif %}
+</button>
+{% endif %}

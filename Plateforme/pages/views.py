@@ -752,43 +752,57 @@ def admin_tools(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_projects(request):
-    """Admin projects management"""
+    """Admin projects management with approval workflow"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
 
-    projects = Project.objects.select_related('institution', 'coordinator').order_by('-created_at')
-    if status:
-        projects = projects.filter(status=status)
+    # Base split by approval status — search applies to both
+    pending_base = Project.objects.select_related('institution', 'coordinator').filter(
+        approval_status='pending'
+    ).order_by('-created_at')
+    approved_base = Project.objects.select_related('institution', 'coordinator').filter(
+        approval_status='approved'
+    ).order_by('-created_at')
+
     if search:
-        projects = projects.filter(
-            Q(title__icontains=search) |
-            Q(description__icontains=search)
+        pending_base = pending_base.filter(
+            Q(title__icontains=search) | Q(description__icontains=search)
+        )
+        approved_base = approved_base.filter(
+            Q(title__icontains=search) | Q(description__icontains=search)
         )
 
-    base_qs = Project.objects.all()
-    total_count = base_qs.count()
-    in_progress_count = base_qs.filter(status='ongoing').count()
-    completed_count = base_qs.filter(status='completed').count()
+    # Status filter (ongoing/completed/planned) only applies to approved projects
+    if status:
+        approved_base = approved_base.filter(status=status)
+
+    pending_projects = pending_base
+    approved_projects = approved_base
+
+    all_qs = Project.objects.all()
+    total_count = all_qs.count()
+    in_progress_count = all_qs.filter(status='ongoing').count()
+    completed_count = all_qs.filter(status='completed').count()
 
     today = timezone.now().date()
     last_month = today - timedelta(days=30)
     two_months_ago = today - timedelta(days=60)
 
-    projects_this_month = base_qs.filter(created_at__gte=last_month).count()
-    projects_last_month = base_qs.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    projects_this_month = all_qs.filter(created_at__gte=last_month).count()
+    projects_last_month = all_qs.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
     projects_growth = ((projects_this_month - projects_last_month) / projects_last_month * 100) if projects_last_month else (100 if projects_this_month else 0)
 
-    completed_this_month = base_qs.filter(status='completed', created_at__gte=last_month).count()
-    completed_last_month = base_qs.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    completed_this_month = all_qs.filter(status='completed', created_at__gte=last_month).count()
+    completed_last_month = all_qs.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
     completed_growth = ((completed_this_month - completed_last_month) / completed_last_month * 100) if completed_last_month else (100 if completed_this_month else 0)
 
-    recent_completed = base_qs.filter(
+    recent_completed = all_qs.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
         date_end__gte=last_month
     )
-    previous_completed = base_qs.filter(
+    previous_completed = all_qs.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
@@ -821,11 +835,10 @@ def admin_projects(request):
         duration_trend_class = 'trend-neutral'
 
     context = {
-        'projects': projects,
-        'pending_projects': Project.objects.filter(approval_status='pending'),
-        'approved_projects': Project.objects.filter(approval_status='approved'),
-        'pending_count': Project.objects.filter(approval_status='pending').count(),
-        'approved_count': Project.objects.filter(approval_status='approved').count(),
+        'pending_projects': pending_projects,
+        'approved_projects': approved_projects,
+        'pending_count': pending_projects.count(),
+        'approved_count': approved_projects.count(),
         'active_tab': request.GET.get('tab', 'approved'),
         'filter_status': status,
         'search': search,
@@ -845,30 +858,36 @@ def admin_projects(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_courses(request):
-    """Admin courses management"""
+    """Admin courses management with approval workflow"""
     level = request.GET.get('level', '')
     field = request.GET.get('field', '')
     search = request.GET.get('search', '').strip()
 
-    courses = Course.objects.select_related('teacher', 'institution').order_by('-creation_date')
+    base_qs = Course.objects.select_related('teacher', 'institution').order_by('-creation_date')
     if level:
-        courses = courses.filter(academic_level=level)
+        base_qs = base_qs.filter(academic_level=level)
     if field:
-        courses = courses.filter(field=field)
+        base_qs = base_qs.filter(field=field)
     if search:
-        courses = courses.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(teacher__full_name__icontains=search)
         )
 
+    pending_courses = base_qs.filter(approval_status='pending')
+    approved_courses = base_qs.filter(approval_status='approved')
+    pending_count = pending_courses.count()
+    approved_count = approved_courses.count()
+
     today = timezone.now().date()
     last_month = today - timedelta(days=30)
     two_months_ago = today - timedelta(days=60)
 
-    total_courses_count = Course.objects.count()
-    courses_this_month_count = Course.objects.filter(creation_date__gte=last_month).count()
-    courses_last_month_count = Course.objects.filter(creation_date__gte=two_months_ago, creation_date__lt=last_month).count()
+    all_courses = Course.objects.all()
+    total_courses_count = all_courses.count()
+    courses_this_month_count = all_courses.filter(creation_date__gte=last_month).count()
+    courses_last_month_count = all_courses.filter(creation_date__gte=two_months_ago, creation_date__lt=last_month).count()
     courses_growth = ((courses_this_month_count - courses_last_month_count) / courses_last_month_count * 100) if courses_last_month_count else (100 if courses_this_month_count else 0)
 
     if courses_growth > 0:
@@ -879,11 +898,10 @@ def admin_courses(request):
         growth_class = 'trend-neutral'
 
     context = {
-        'courses': courses,
-        'pending_courses': Course.objects.filter(approval_status='pending'),
-        'approved_courses': Course.objects.filter(approval_status='approved'),
-        'pending_count': Course.objects.filter(approval_status='pending').count(),
-        'approved_count': Course.objects.filter(approval_status='approved').count(),
+        'pending_courses': pending_courses,
+        'approved_courses': approved_courses,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
         'active_tab': request.GET.get('tab', 'approved'),
         'filter_level': level,
         'filter_field': field,
@@ -900,40 +918,53 @@ def admin_courses(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_forum(request):
-    """Admin forum management"""
+    """Admin forum management with approval workflow"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
     page_number = request.GET.get('page')
 
-    topics = Topic.objects.prefetch_related('chatrooms__messages').annotate(
+    base_qs = Topic.objects.prefetch_related('chatrooms__messages').annotate(
         total_messages=Count('chatrooms__messages')
     ).order_by('-created_at')
 
-    if status == 'open':
-        topics = topics.filter(is_closed=False)
-    elif status == 'closed':
-        topics = topics.filter(is_closed=True)
-
     if search:
-        topics = topics.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(creator__full_name__icontains=search)
         )
 
-    paginator = Paginator(topics, 10)
+    pending_topics = base_qs.filter(approval_status='pending')
+    approved_base = base_qs.filter(approval_status='approved')
+
+    # open/closed filter applies only to approved topics
+    if status == 'open':
+        approved_base = approved_base.filter(is_closed=False)
+    elif status == 'closed':
+        approved_base = approved_base.filter(is_closed=True)
+
+    approved_topics = approved_base
+    pending_count = pending_topics.count()
+    approved_count = approved_topics.count()
+
+    # Paginate based on active tab
+    if tab == 'pending':
+        paginator = Paginator(pending_topics, 10)
+    else:
+        paginator = Paginator(approved_topics, 10)
     page_obj = paginator.get_page(page_number)
 
     context = {
         'topics': page_obj,
-        'pending_topics': Topic.objects.filter(approval_status='pending'),
-        'approved_topics': Topic.objects.filter(approval_status='approved'),
-        'pending_count': Topic.objects.filter(approval_status='pending').count(),
-        'approved_count': Topic.objects.filter(approval_status='approved').count(),
-        'active_tab': request.GET.get('tab', 'approved'),
+        'pending_topics': pending_topics,
+        'approved_topics': approved_topics,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'total_topics_count': Topic.objects.count(),
-        'open_topics_count': Topic.objects.filter(is_closed=False).count(),
-        'closed_topics_count': Topic.objects.filter(is_closed=True).count(),
+        'open_topics_count': Topic.objects.filter(is_closed=False, approval_status='approved').count(),
+        'closed_topics_count': Topic.objects.filter(is_closed=True, approval_status='approved').count(),
         'total_messages_count': Message.objects.count(),
         'filter_status': status,
         'search': search,
@@ -1004,22 +1035,36 @@ def admin_topic_toggle_status(request, pk):
 @login_required
 @user_passes_test(is_admin)
 def admin_institutions(request):
-    """Admin institutions management"""
+    """Admin institutions management with approval workflow"""
     country_id = request.GET.get('country', '')
     institution_type = request.GET.get('type', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
 
-    institutions = Institution.objects.select_related('country').order_by('name')
+    base_qs = Institution.objects.select_related('country').order_by('name')
     if country_id:
-        institutions = institutions.filter(country__id=country_id)
+        base_qs = base_qs.filter(country__id=country_id)
     if institution_type:
-        institutions = institutions.filter(type=institution_type)
+        base_qs = base_qs.filter(type=institution_type)
     if search:
-        institutions = institutions.filter(
+        base_qs = base_qs.filter(
             Q(name__icontains=search) |
             Q(acronym__icontains=search) |
             Q(description__icontains=search)
         )
+
+    # Support approval_status if the field exists on the model
+    has_approval = hasattr(Institution, 'approval_status')
+    if has_approval:
+        pending_institutions = base_qs.filter(approval_status='pending')
+        approved_institutions = base_qs.filter(approval_status='approved')
+        pending_count = pending_institutions.count()
+        approved_count = approved_institutions.count()
+    else:
+        pending_institutions = Institution.objects.none()
+        approved_institutions = base_qs
+        pending_count = 0
+        approved_count = base_qs.count()
 
     countries = Institution.objects.values(
         'country_id',
@@ -1028,11 +1073,18 @@ def admin_institutions(request):
     ).distinct()
 
     context = {
-        'institutions': institutions,
+        'institutions': approved_institutions if tab == 'approved' else pending_institutions,
+        'pending_institutions': pending_institutions,
+        'approved_institutions': approved_institutions,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'countries': countries,
         'filter_country': country_id,
         'filter_type': institution_type,
         'search': search,
+        'has_approval': has_approval,
+        'model_type': 'institution',
     }
     return render(request, 'admin/institutions.html', context)
 
@@ -1576,6 +1628,7 @@ MODEL_MAP = {
     'topic': Topic,
     'event': Event,
     'post': Post,
+    'institution': Institution,
 }
 
 REDIRECT_MAP = {
@@ -1587,6 +1640,7 @@ REDIRECT_MAP = {
     'topic': 'pages:admin_forum',
     'event': 'pages:admin_calls',
     'post': 'pages:admin_news',
+    'institution': 'pages:admin_institutions',
 }
 
 # Translation field requirements for each model
@@ -1598,11 +1652,12 @@ TRANSLATION_FIELDS = {
     'project': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
     'topic': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
     'event': {
-        'title': ('title_ar', 'title_en'), 
+        'title': ('title_ar', 'title_en'),
         'description': ('description_ar', 'description_en'),
         'location': ('location_ar', 'location_en')
     },
     'post': {'title': ('title_ar', 'title_en'), 'content': ('content_ar', 'content_en')},
+    'institution': {'name': ('name_ar', 'name_en'), 'description': ('description_ar', 'description_en')},
 }
 
 
@@ -1637,6 +1692,7 @@ EDIT_URL_MAP = {
     'topic': ('forum:topic-update', {}),
     'event': ('events:event_update', {}),
     'post': ('QA:edit_post', {'post_id': None}),  # post_id will be set separately
+    'institution': ('institutions:institution_update', {}),
 }
 
 
@@ -1674,17 +1730,15 @@ def admin_approve_item(request, model_type, pk):
         Model = MODEL_MAP[model_type]
         item = get_object_or_404(Model, pk=pk)
         
-        # TRANSLATION GATE: Validate that all translations are complete
+        # TRANSLATION CHECK: Warn if translations are incomplete, but do not block approval
         is_valid, missing_fields = validate_translations(item, model_type)
         if not is_valid:
             missing_str = ", ".join(missing_fields)
-            messages.error(
-                request, 
-                _("Cannot approve: Missing translations for %(fields)s. Please fill in all bilingual fields.") % {'fields': missing_str}
+            messages.warning(
+                request,
+                _("Approved with incomplete translations (%(fields)s). Please complete bilingual fields later.") % {'fields': missing_str}
             )
-            # Redirect back to edit page
-            return redirect(get_edit_url(model_type, pk))
-        
+
         item.approval_status = 'approved'
         item.save(update_fields=['approval_status'])
         

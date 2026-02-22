@@ -357,14 +357,58 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     success_url = reverse_lazy('projects:project_list')
 
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Set coordinator and approval status
         form.instance.coordinator = self.request.user
-        response = super().form_valid(form)
-        # Show pending approval message - don't notify all users until approved
-        messages.info(
+        
+        # CRITICAL: Explicitly set approval_status (staff auto-approve, others pending)
+        if self.request.user.is_staff:
+            form.instance.approval_status = 'approved'
+            logger.info(f"[PROJECT_CREATE] Auto-approving project by staff user: {self.request.user.email}")
+        else:
+            form.instance.approval_status = 'pending'
+            logger.info(f"[PROJECT_CREATE] Setting project to pending by user: {self.request.user.email}")
+        
+        try:
+            response = super().form_valid(form)
+            logger.info(
+                f"[PROJECT_CREATE] ✓ Project created successfully "
+                f"(ID: {form.instance.id}, Title: {form.instance.title}, "
+                f"Status: {form.instance.approval_status})"
+            )
+            
+            # Show appropriate message
+            if form.instance.approval_status == 'approved':
+                messages.success(
+                    self.request,
+                    _("Your project '%(title)s' has been published successfully!") % {'title': form.instance.title}
+                )
+            else:
+                messages.info(
+                    self.request,
+                    _("Your project '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+                )
+            return response
+            
+        except Exception as e:
+            logger.error(f"[PROJECT_CREATE] ✗ Error creating project: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the project. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[PROJECT_CREATE] Form validation failed: {form.errors.as_json()}")
+        messages.error(
             self.request,
-            _("Your project '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            _("Please correct the errors in the form and try again.")
         )
-        return response
+        return super().form_invalid(form)
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

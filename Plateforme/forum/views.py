@@ -122,20 +122,49 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     context_object_name = 'topic'
       
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         form.instance.creator = self.request.user
+        
         # Auto-approve for staff, pending for regular users
         if self.request.user.is_staff:
             form.instance.approval_status = 'approved'
-            response = super().form_valid(form)
-            messages.success(self.request, _("Your topic has been published."))
+            logger.info(f"[TOPIC_CREATE] Auto-approving topic by staff: {self.request.user.email}")
         else:
             form.instance.approval_status = 'pending'
+            logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
+        
+        try:
             response = super().form_valid(form)
-            messages.info(
-                self.request,
-                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            logger.info(
+                f"[TOPIC_CREATE] ✓ Topic created successfully "
+                f"(ID: {form.instance.id}, Title: {form.instance.title}, Status: {form.instance.approval_status})"
             )
-        return response
+            
+            if self.request.user.is_staff:
+                messages.success(self.request, _("Your topic has been published."))
+            else:
+                messages.info(
+                    self.request,
+                    _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+                )
+            return response
+            
+        except Exception as e:
+            logger.error(f"[TOPIC_CREATE] ✗ Error creating topic: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the topic. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[TOPIC_CREATE] Form validation failed: {form.errors.as_json()}")
+        messages.error(self.request, _('Please correct the errors in the form.'))
+        return super().form_invalid(form)
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  

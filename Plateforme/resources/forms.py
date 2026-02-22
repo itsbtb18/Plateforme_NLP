@@ -482,7 +482,7 @@ class ResourceForm(forms.Form):
         logger = logging.getLogger(__name__)
         
         resource_type = self.cleaned_data['resource_type']
-        logger.info(f"Saving resource of type: {resource_type}")
+        logger.info(f"[RESOURCE_CREATE] Starting save for resource type: {resource_type}, user: {self.user.email if self.user else 'None'}")
         
         title_en = self.cleaned_data['title_en']
         title_ar = self.cleaned_data['title_ar']
@@ -501,7 +501,11 @@ class ResourceForm(forms.Form):
             'access_link': self.cleaned_data['access_link'] or None,
             'language': self.cleaned_data['language'],
             'uploaded_file': self.cleaned_data.get('uploaded_file'),
+            # CRITICAL: Explicitly set approval_status to ensure pending review
+            'approval_status': 'pending',
         }
+        
+        logger.info(f"[RESOURCE_CREATE] Common data prepared: author={self.user.email if self.user else 'None'}, approval_status=pending")
 
         if self.is_update and instance:
             instance.title = title_en
@@ -568,8 +572,10 @@ class ResourceForm(forms.Form):
             return instance
         else:
             try:
+                logger.info(f"[RESOURCE_CREATE] Creating new {resource_type}")
+                
                 if resource_type == 'course':
-                    return Course.objects.create(
+                    course = Course.objects.create(
                         **common_data,
                         field=self.cleaned_data['course_field'],
                         academic_level=self.cleaned_data['academic_level'],
@@ -579,21 +585,30 @@ class ResourceForm(forms.Form):
                         prerequisites=self.cleaned_data.get('prerequisites', ''),
                         syllabus=self.cleaned_data.get('syllabus', ''),
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ Course created successfully (ID: {course.id}, Status: {course.approval_status})")
+                    return course
+                    
                 elif resource_type == 'nlp_tool':
-                    return NLPTool.objects.create(
+                    tool = NLPTool.objects.create(
                         **common_data,
                         tool_type=self.cleaned_data['tool_type'],
                         version=self.cleaned_data['tool_version'],
                         documentation_link=self.cleaned_data['documentation'],
                         supported_languages=self.cleaned_data['supported_languages']
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ NLP Tool created successfully (ID: {tool.id}, Status: {tool.approval_status})")
+                    return tool
+                    
                 elif resource_type == 'corpus':
-                    return Corpus.objects.create(
+                    corpus = Corpus.objects.create(
                         **common_data,
                         size=self.cleaned_data['corpus_size'],
                         field=self.cleaned_data['corpus_field'],
                         file_format=self.cleaned_data['corpus_format']
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ Corpus created successfully (ID: {corpus.id}, Status: {corpus.approval_status})")
+                    return corpus
+                    
                 elif resource_type == 'article':
                     doc = Document.objects.create(
                         **common_data,
@@ -606,7 +621,9 @@ class ResourceForm(forms.Form):
                         journal=self.cleaned_data['journal'],
                         publication_date=self.cleaned_data['publication_date']
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ Article created successfully (ID: {doc.id}, Status: {doc.approval_status})")
                     return doc
+                    
                 elif resource_type == 'thesis':
                     doc = Document.objects.create(
                         **common_data,
@@ -619,7 +636,9 @@ class ResourceForm(forms.Form):
                         institution=self.cleaned_data['thesis_institution'],
                         defense_year=self.cleaned_data['defense_year']
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ Thesis created successfully (ID: {doc.id}, Status: {doc.approval_status})")
                     return doc
+                    
                 elif resource_type == 'memoir':
                     doc = Document.objects.create(
                         **common_data,
@@ -632,11 +651,15 @@ class ResourceForm(forms.Form):
                         institution=self.cleaned_data['memoir_institution'],
                         defense_year=self.cleaned_data['memoir_defense_year']
                     )
+                    logger.info(f"[RESOURCE_CREATE] ✓ Memoir created successfully (ID: {doc.id}, Status: {doc.approval_status})")
                     return doc
+                    
                 else:
+                    logger.error(f"[RESOURCE_CREATE] ✗ Unknown resource type: {resource_type}")
                     raise ValueError(f"Unknown resource type: {resource_type}")
+                    
             except Exception as e:
-                logger.error(f"Error creating {resource_type}: {str(e)}")
+                logger.error(f"[RESOURCE_CREATE] ✗ Error creating {resource_type}: {str(e)}", exc_info=True)
                 import traceback
-                logger.error(traceback.format_exc())
+                logger.error(f"[RESOURCE_CREATE] Stack trace:\n{traceback.format_exc()}")
                 raise

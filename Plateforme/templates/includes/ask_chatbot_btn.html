@@ -1,0 +1,24 @@
+{% comment %}
+templates/includes/ask_chatbot_btn.html
+Usage:
+  {% include "includes/ask_chatbot_btn.html" with content_type="tool" object_id=tool.id title=tool.title description=tool.description|truncatewords:40 url=request.build_absolute_uri %}
+Optional: btn_class, show_label=True
+{% endcomment %}
+{% load i18n %}
+{% if user.is_authenticated %}
+<button type="button"
+        class="btn btn-sm btn-outline-secondary {{ btn_class|default:'' }} rounded-pill d-inline-flex align-items-center gap-1 ask-chatbot-btn"
+        style="border-color:#6366f1;color:#6366f1;"
+        title="{% trans 'Ask chatbot about this' %}"
+        data-ct="{{ content_type }}"
+        data-oid="{{ object_id }}"
+        data-title="{{ title|default:''|truncatechars:200 }}"
+        data-description="{{ description|default:''|truncatechars:400 }}"
+        data-url="{{ url|default:'' }}"
+        data-tags="{{ tags|default:'' }}">
+  <i class="fas fa-robot"></i>
+  {% if show_label %}<span>{% trans "Ask chatbot" %}</span>{% endif %}
+</button>
+
+{% block ask_chatbot_script %}{% endblock %}
+{% endif %}

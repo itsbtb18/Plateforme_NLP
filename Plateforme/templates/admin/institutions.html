@@ -533,15 +533,27 @@
     }
 
     @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
+
+    /* Approval tabs */
+    .approval-tabs { display: flex; gap: .75rem; margin: 1.5rem 0; flex-wrap: wrap; }
+    .tab-btn { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1.25rem; border-radius: 2rem; font-weight: 600; font-size: .875rem; border: 1.5px solid var(--border-color); background: white; color: var(--text-secondary); text-decoration: none; transition: all .2s; }
+    .tab-btn.active { background: var(--primary-color); border-color: var(--primary-color); color: white; }
+    .tab-badge { background: rgba(0,0,0,.08); border-radius: 1rem; padding: .1rem .5rem; font-size: .75rem; }
+    .tab-btn.active .tab-badge { background: rgba(255,255,255,.25); }
+
+    /* Action button group (approve/reject/view) */
+    .ab-group { display: flex; gap: .375rem; align-items: center; justify-content: center; }
+    .ab { width: 2.25rem; height: 2.25rem; border-radius: .75rem; border: 1.5px solid; background: white; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .18s ease; text-decoration: none; }
+    .ab svg { width: 1rem; height: 1rem; stroke: currentColor; fill: none; }
+    .ab-approve { border-color: #48bb78; color: #48bb78; }
+    .ab-approve:hover { background: rgba(72,187,120,.12); transform: scale(1.08); }
+    .ab-reject  { border-color: #e53e3e; color: #e53e3e; }
+    .ab-reject:hover  { background: rgba(229,62,62,.12); transform: scale(1.08); }
+    .ab-view    { border-color: #cbd5e0; color: #718096; }
+    .ab-view:hover    { background: rgba(113,128,150,.1); transform: scale(1.08); }
 </style>
 {% endblock %}
 
@@ -592,13 +604,86 @@
         </form>
     </div>
 
-    <!-- Table Section -->
+    <!-- Approval Tabs -->
+  {% if has_approval %}
+  <div class="approval-tabs" style="display:flex;gap:.75rem;margin:1.5rem 0;">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}"
+       class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
+      {% trans "Approved" %} <span class="tab-badge">{{ approved_count }}</span>
+    </a>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}"
+       class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
+      {% trans "Pending Review" %} <span class="tab-badge">{{ pending_count }}</span>
+    </a>
+  </div>
+
+  {% if active_tab == 'pending' %}
+    <!-- Pending Institutions Table -->
+    {% if pending_institutions %}
     <div class="table-section animate-fade-in">
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>{% trans "Institution" %}</th>
+              <th>{% trans "Acronym" %}</th>
+              <th>{% trans "Country" %}</th>
+              <th>{% trans "Submitted by" %}</th>
+              <th class="text-center">{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for institution in pending_institutions %}
+            <tr>
+              <td class="institution-name">{{ institution.get_localized_name }}</td>
+              <td class="institution-acronym">{{ institution.acronym }}</td>
+              <td><span class="country-badge"><i class="fas fa-flag me-1"></i>{{ institution.country.get_localized_name }}</span></td>
+              <td>{{ institution.created_by.get_full_name_display|default:institution.created_by.email|default:"—" }}</td>
+              <td class="text-center">
+                <div class="ab-group" style="justify-content:center;">
+                  {% translate "Approve this institution?" as confirm_approve_inst %}
+                  <form method="post" action="{% url 'pages:admin_approve_item' model_type='institution' pk=institution.pk %}" style="display:contents;" onsubmit="return confirm('{{ confirm_approve_inst }}');">
+                    {% csrf_token %}
+                    <button type="submit" class="ab ab-approve" title="{% trans 'Approve' %}">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                  </form>
+                  {% translate "Reject and delete this institution?" as confirm_rej_inst %}
+                  <form method="post" action="{% url 'pages:admin_reject_item' model_type='institution' pk=institution.pk %}" style="display:contents;" onsubmit="return confirm('{{ confirm_rej_inst }}');">
+                    {% csrf_token %}
+                    <button type="submit" class="ab ab-reject" title="{% trans 'Reject' %}">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </form>
+                  <a href="{% url 'institutions:institution_detail' institution.pk %}" class="ab ab-view" title="{% trans 'View' %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="summary-card" style="text-align:center;padding:3rem;">{% trans "No institutions pending review." %}</div>
+    {% endif %}
+
+  {% else %}
+  {% endif %}
+
+  {% else %}
+  <!-- No approval system (field missing) — show all institutions -->
+  {% endif %}
+
+    <!-- Table Section -->
+    <div class="table-section animate-fade-in {% if has_approval and active_tab == 'pending' %}d-none{% endif %}">
         <div class="table-header">
             <h3 class="table-title">
                 <i class="fas fa-list me-2"></i>{% trans "List of Institutions" %}
             </h3>
-            <div class="table-count">{{ institutions|length }} {% trans "institutions" %}</div>
+            <div class="table-count">{{ approved_count|default:institutions|length }} {% trans "institutions" %}</div>
         </div>
 
         <!-- Desktop Table View -->
