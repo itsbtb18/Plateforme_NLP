@@ -849,13 +849,16 @@ html[dir="rtl"] .course-hub-card-cta:hover i {
             <div class="course-hub-grid" id="courses-grid">
                 {% for course in courses %}
                 <article class="course-hub-card">
-                    <div class="course-hub-card-header">
+                    <div class="course-hub-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
                         <div class="course-hub-card-icon">
                             <i class="bi bi-journal-bookmark"></i>
                         </div>
                         <span class="course-hub-level-badge {{ course.academic_level }}">
                             {{ course.get_academic_level_display }}
                         </span>
+                        </div>
+                        {% include "includes/card_top_actions.html" with content_type="course" object_id=course.id title=course.get_localized_title description=course.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
                     </div>
                     
                     <div class="course-hub-card-body">
@@ -885,10 +888,6 @@ html[dir="rtl"] .course-hub-card-cta:hover i {
                             <i class="bi bi-play-circle"></i>
                             {% translate "Start Learning" %}
                         </a>
-                        <div class="d-flex gap-2 flex-wrap" style="margin-top:.75rem;">
-                            {% include "includes/share_btn.html" with content_type="course" object_id=course.id title=course.get_localized_title %}
-                            {% include "includes/ask_chatbot_btn.html" with content_type="course" object_id=course.id title=course.get_localized_title description=course.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
-                        </div>
                     </div>
                 </article>
                 {% endfor %}

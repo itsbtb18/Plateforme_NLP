@@ -1032,6 +1032,45 @@ html[dir="rtl"] .page-header h1 {
     justify-content: center;
 }
 
+/* ===== ERROR ALERT ===== */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alert-error {
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    color: #991B1B;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.alert-content h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #DC2626;
+}
+
+.alert-content ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+}
+
+.alert-content li {
+    margin-bottom: 0.25rem;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .page-header h1 {
@@ -1093,6 +1132,36 @@ html[dir="rtl"] .page-header h1 {
         <form method="post" enctype="multipart/form-data" id="tool-form" novalidate>
             {% csrf_token %}
             <input type="hidden" name="resource_type" value="nlp_tool">
+            
+            <!-- Error Display -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    {% if form.non_field_errors %}
+                        <ul>
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if form.errors %}
+                        <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% if field != '__all__' %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             
             <div class="form-card">
                 
@@ -1288,20 +1357,23 @@ html[dir="rtl"] .page-header h1 {
                         
                         <!-- Supported Languages -->
                         <div class="floating-field">
-                            <select name="supported_languages" id="id_supported_languages">
-                                <option value="">{% trans "Select languages" %}</option>
+                            <select name="supported_languages" id="id_supported_languages" multiple style="height: auto; min-height: 120px; padding: 0.5rem;">
                                 <option value="ar" {% if 'ar' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "Arabic" %}</option>
                                 <option value="en" {% if 'en' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "English" %}</option>
                                 <option value="fr" {% if 'fr' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "French" %}</option>
                                 <option value="es" {% if 'es' in form.supported_languages.value|default:'' %}selected{% endif %}>{% trans "Spanish" %}</option>
                             </select>
-                            <label for="id_supported_languages">
+                            <label for="id_supported_languages" style="position: static; transform: none; font-size: 0.9rem; font-weight: 600; color: var(--portal-text); margin-bottom: 0.5rem; display: flex; align-items: center;">
                                 {% trans "Supported Languages" %}
                                 <span class="tooltip-trigger">
                                     <i class="bi bi-question"></i>
-                                    <span class="tooltip-content">{% trans "Natural languages that your tool can process or analyze" %}</span>
+                                    <span class="tooltip-content">{% trans "Natural languages that your tool can process or analyze (hold Ctrl/Cmd to select multiple)" %}</span>
                                 </span>
                             </label>
+                            <div class="field-help" style="margin-top: 0.5rem;">
+                                <i class="bi bi-info-circle"></i>
+                                <span>{% trans "Hold Ctrl (Windows) or Cmd (Mac) to select multiple languages" %}</span>
+                            </div>
                         </div>
                     </div>
                     

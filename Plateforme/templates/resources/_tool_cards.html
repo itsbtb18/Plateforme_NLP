@@ -1,116 +1,112 @@
 {% load i18n %}
+{% load static %}
 
-<div class="results-header">
-    <span class="results-count">
-        {% trans "Showing" %} <strong>{{ tools|length }}</strong> {% trans "tools" %}
-    </span>
-    {% if search_query %}
-    <span class="search-term-badge">
-        <i class="bi bi-search"></i>
-        "{{ search_query }}"
-    </span>
-    {% endif %}
-</div>
-
+<!-- ===== NLP TOOL CARDS PARTIAL ===== -->
 {% if tools %}
-<div class="tools-grid">
+<div class="corpus-grid">
     {% for tool in tools %}
-    <article class="tool-card" data-category="{{ tool.tool_type }}">
-        <div class="card-top-accent"></div>
-        <div class="card-header">
-            <span class="category-badge {{ tool.tool_type }}">
+    <article class="tool-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start; flex: 1;">
+            <!-- Dynamic Icon based on tool type -->
+            <div class="corpus-icon {% if tool.tool_type == 'tokenization' %}type-tokenization{% elif tool.tool_type == 'stemming' %}type-stemming{% elif tool.tool_type == 'ner' %}type-ner{% elif tool.tool_type == 'pos_tagging' %}type-pos{% elif tool.tool_type == 'sentiment_analysis' %}type-sentiment{% elif tool.tool_type == 'machine_translation' %}type-translation{% else %}type-general{% endif %}">
                 {% if tool.tool_type == 'tokenization' %}
-                    <i class="bi bi-scissors"></i>
+                    <i class="bi bi-segmented-nav"></i>
                 {% elif tool.tool_type == 'stemming' %}
-                    <i class="bi bi-tree"></i>
+                    <i class="bi bi-scissors"></i>
                 {% elif tool.tool_type == 'ner' %}
-                    <i class="bi bi-tag"></i>
+                    <i class="bi bi-person-badge"></i>
                 {% elif tool.tool_type == 'pos_tagging' %}
-                    <i class="bi bi-diagram-3"></i>
+                    <i class="bi bi-tags"></i>
                 {% elif tool.tool_type == 'sentiment_analysis' %}
                     <i class="bi bi-emoji-smile"></i>
                 {% elif tool.tool_type == 'machine_translation' %}
                     <i class="bi bi-translate"></i>
                 {% else %}
-                    <i class="bi bi-cpu"></i>
+                    <i class="bi bi-gear"></i>
                 {% endif %}
-                {{ tool.get_tool_type_display }}
-            </span>
+            </div>
+            <div class="card-title-section">
+                <h3 class="tool-title">{{ tool.get_localized_title }}</h3>
+                <span class="corpus-type-badge {% if tool.tool_type == 'tokenization' %}type-tokenization{% elif tool.tool_type == 'stemming' %}type-stemming{% elif tool.tool_type == 'ner' %}type-ner{% elif tool.tool_type == 'pos_tagging' %}type-pos{% elif tool.tool_type == 'sentiment_analysis' %}type-sentiment{% elif tool.tool_type == 'machine_translation' %}type-translation{% else %}type-general{% endif %}">
+                    {{ tool.get_tool_type_display }}
+                </span>
+            </div>
+            </div>
+            {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
         </div>
         
         <div class="card-body">
-            <h3 class="tool-title" data-text="{{ tool.get_localized_title }}">{{ tool.get_localized_title }}</h3>
-            <p class="tool-description" data-text="{% if tool.get_localized_description %}{{ tool.get_localized_description|truncatewords:15 }}{% else %}{% trans 'No description available' %}{% endif %}">
-                {% if tool.get_localized_description %}
-                    {{ tool.get_localized_description|truncatewords:15 }}
-                {% else %}
-                    {% trans "No description available" %}
-                {% endif %}
-            </p>
+            <div class="meta-list">
+                <div class="meta-item">
+                    <span class="meta-label">{% trans "Version" %}</span>
+                    <span class="meta-value">{{ tool.version|default:"1.0" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">{% trans "Author" %}</span>
+                    <span class="meta-value">
+                        {% if tool.author %}
+                            {{ tool.author.get_full_name_display }}
+                        {% else %}
+                            {% trans "Unknown" %}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">{% trans "Last Updated" %}</span>
+                    <span class="meta-value">{{ tool.last_updated|date:"M d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-tags">
+            {% if tool.supported_languages %}
+            <span class="tag-pill {% if tool.supported_languages == 'ar' %}lang-ar{% elif tool.supported_languages == 'en' %}lang-en{% elif tool.supported_languages == 'fr' %}lang-fr{% elif tool.supported_languages == 'es' %}lang-es{% endif %}">
+                <i class="bi bi-globe"></i>
+                {% for lang_display in tool.get_supported_languages_display %}
+                    {{ lang_display }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </span>
+            {% endif %}
+            
+            {% if tool.documentation_link %}
+            <span class="tag-pill">
+                <i class="bi bi-book"></i>
+                {% trans "Documentation" %}
+            </span>
+            {% endif %}
+            
+            {% if tool.keywords %}
+            <span class="tag-pill">
+                <i class="bi bi-tag"></i>
+                {{ tool.get_keywords_list.0 }}
+            </span>
+            {% endif %}
         </div>
         
         <div class="card-footer">
-            <div class="tool-meta">
-                {% if tool.supported_languages %}
-                <span class="meta-item">
-                    <i class="bi bi-globe"></i>
-                    {{ tool.get_supported_languages_display|join:", "|default:tool.supported_languages }}
-                </span>
-                {% endif %}
-                {% if tool.version %}
-                <span class="meta-item">
-                    <i class="bi bi-tag"></i>
-                    v{{ tool.version }}
-                </span>
-                {% endif %}
-            </div>
-            <a href="{% url 'resources:tool_detail' tool.id %}" class="btn-view-api">
-                <i class="bi bi-code-slash"></i>
-                {% trans "View API" %}
+            <a href="{% url 'resources:tool_detail' tool.id %}" class="btn-view">
+                <span>{% trans "View Details" %}</span>
+                <i class="bi bi-arrow-right"></i>
             </a>
-            <div class="d-flex gap-2 flex-wrap" style="margin-top:.75rem;">
-                {% include "includes/share_btn.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title %}
-                {% include "includes/ask_chatbot_btn.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
-            </div>
         </div>
     </article>
     {% endfor %}
 </div>
 
-<!-- Pass search query to JS for highlighting -->
-<script>
-(function() {
-    const searchQuery = "{{ search_query|escapejs }}";
-    if (searchQuery && searchQuery.length > 0) {
-        highlightMatches(searchQuery);
-    }
-    
-    function highlightMatches(query) {
-        const titles = document.querySelectorAll('.tool-title');
-        const descriptions = document.querySelectorAll('.tool-description');
-        
-        [...titles, ...descriptions].forEach(el => {
-            const originalText = el.dataset.text || el.textContent;
-            if (!originalText) return;
-            
-            const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
-            if (regex.test(originalText)) {
-                el.innerHTML = originalText.replace(regex, '<mark class="search-highlight">$1</mark>');
-            }
-        });
-    }
-    
-    function escapeRegex(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-})();
-</script>
 {% else %}
+<!-- Empty State -->
 <div class="empty-state">
     <div class="empty-icon">
-        <i class="bi bi-tools"></i>
+        <i class="bi bi-gear"></i>
     </div>
-    <h3>{% trans "No tools found" %}</h3>
-    <p>{% trans "Try adjusting your search query" %}</p>
+    <h3>{% trans "No tools available yet" %}</h3>
+    <p>{% trans "Be the first to share your NLP tools with the community" %}</p>
+    {% if user.is_authenticated %}
+    <a href="{% url 'resources:tool-create' %}" class="btn-primary-modern">
+        <i class="bi bi-plus-lg"></i>
+        <span>{% trans "Add Your First Tool" %}</span>
+    </a>
+    {% endif %}
 </div>
 {% endif %}

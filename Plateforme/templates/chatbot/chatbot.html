@@ -230,7 +230,7 @@
 /* Messages */
 .message {
     max-width: 75%;
-    padding: 1.125rem 1.5rem;
+    padding: 0; /* Remove padding as we'll add it to inner elements */
     border-radius: 18px;
     line-height: 1.7;
     word-wrap: break-word;
@@ -240,6 +240,9 @@
     transform: translateY(15px) scale(0.95);
     animation: fadeInMessage 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Ensure footer stays within rounded corners */
 }
 
 @keyframes fadeInMessage {
@@ -257,6 +260,7 @@
     box-shadow: 0 6px 18px rgba(102, 126, 234, 0.35),
                 0 2px 6px rgba(118, 75, 162, 0.25);
     animation-delay: 0.05s;
+    padding: 1.125rem 1.5rem; /* User messages keep traditional padding */
 }
 
 .message.user::after {
@@ -277,6 +281,328 @@
     border-bottom-left-radius: 4px;
     border: 1px solid rgba(102, 126, 234, 0.15);
     animation-delay: 0.1s;
+    transition: all 0.3s ease;
+    /* No padding - handled by inner elements */
+}
+
+.message.bot:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12),
+                0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Bot Message Content Area */
+.message.bot .message-content {
+    padding: 1.125rem 1.5rem;
+    flex: 1;
+}
+
+/* Bot Message Footer with Action Buttons */
+.message.bot .message-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.25rem;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-top: 1px solid rgba(102, 126, 234, 0.1);
+    margin-top: auto;
+    animation: slideInFooter 0.4s ease-out 0.2s both;
+}
+
+@keyframes slideInFooter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+html[dir="rtl"] .message.bot .message-footer {
+    justify-content: flex-start;
+}
+
+/* Action Buttons in Footer */
+.message-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    border: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.message-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-action-btn:active {
+    transform: translateY(0);
+}
+
+/* View Details Button */
+.message-action-btn.btn-view-details {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.message-action-btn.btn-view-details:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #65408b 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Share Button */
+.message-action-btn.btn-share {
+    background: white;
+    color: #667eea;
+    border: 1.5px solid #667eea;
+    padding: 0.5rem; /* Icon only, make it square */
+    min-width: 36px;
+    justify-content: center;
+    position: relative;
+}
+
+.message-action-btn.btn-share:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.message-action-btn.btn-share.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* Instagram-Style Share Menu Popup */
+.chatbot-share-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    min-width: 280px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.94);
+    transform-origin: bottom right;
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.chatbot-share-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+html[dir="rtl"] .chatbot-share-menu {
+    right: auto;
+    left: 0;
+    transform-origin: bottom left;
+}
+
+html[dir="rtl"] .chatbot-share-menu.show {
+    transform: translateY(0) scale(1);
+}
+
+/* Share Menu Header */
+.chatbot-share-menu-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: linear-gradient(135deg, #fafbfc 0%, #f3f4f6 100%);
+}
+
+.chatbot-share-menu-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+/* Share Menu Options */
+.chatbot-share-options {
+    padding: 0.5rem;
+}
+
+.chatbot-share-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+html[dir="rtl"] .chatbot-share-option {
+    text-align: right;
+}
+
+.chatbot-share-option:hover {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e5e7eb 100%);
+    transform: translateX(-2px);
+}
+
+html[dir="rtl"] .chatbot-share-option:hover {
+    transform: translateX(2px);
+}
+
+.chatbot-share-option:active {
+    transform: scale(0.98);
+}
+
+.chatbot-share-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    transition: all 0.22s ease;
+}
+
+/* Primary - Send as Message */
+.chatbot-share-option.primary .chatbot-share-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.chatbot-share-option.primary:hover .chatbot-share-icon {
+    transform: scale(1.1) rotate(-8deg);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+}
+
+/* Secondary - More Options */
+.chatbot-share-option.secondary .chatbot-share-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.chatbot-share-option.secondary:hover .chatbot-share-icon {
+    transform: scale(1.1) rotate(8deg);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+}
+
+/* Tertiary - Copy Link */
+.chatbot-share-option.tertiary .chatbot-share-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.chatbot-share-option.tertiary:hover .chatbot-share-icon {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+}
+
+.chatbot-share-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    flex: 1;
+}
+
+.chatbot-share-label {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.925rem;
+}
+
+.chatbot-share-sublabel {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+/* Backdrop */
+.chatbot-share-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 999;
+    display: none;
+}
+
+.chatbot-share-backdrop.active {
+    display: block;
+}
+
+/* Toast Notification */
+.chatbot-share-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #1e293b;
+    color: white;
+    padding: 0.875rem 1.75rem;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.chatbot-share-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.chatbot-share-toast i {
+    color: #10b981;
+    font-size: 1.1rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .chatbot-share-menu {
+        min-width: 260px;
+        bottom: calc(100% + 8px);
+    }
+    
+    .chatbot-share-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+    
+    .chatbot-share-option {
+        padding: 0.75rem 0.875rem;
+    }
+    
+    .chatbot-share-menu-header {
+        padding: 0.875rem 1rem;
+    }
 }
 
 .message.bot::after {
@@ -302,6 +628,7 @@
     padding: 1rem 1.5rem;
     font-weight: 600;
     box-shadow: 0 3px 10px rgba(30, 64, 175, 0.15);
+    flex-direction: row; /* Override for system messages */
 }
 
 .message.error-message {
@@ -316,6 +643,7 @@
     padding: 1rem 1.5rem;
     font-weight: 700;
     box-shadow: 0 3px 10px rgba(153, 27, 27, 0.2);
+    flex-direction: row; /* Override for error messages */
 }
 
 .message strong {
@@ -370,6 +698,7 @@
     border: 1px solid rgba(102, 126, 234, 0.2);
     padding: 1rem 1.5rem;
     display: flex;
+    flex-direction: row; /* Override for loading */
     justify-content: center;
     align-items: center;
     gap: 0.75rem;
@@ -593,6 +922,25 @@
         padding: 1rem 1.25rem;
         font-size: 0.95rem;
     }
+    
+    .message.bot .message-content {
+        padding: 1rem 1.25rem;
+    }
+    
+    .message.bot .message-footer {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+    }
+    
+    .message-action-btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .message-action-btn.btn-share {
+        min-width: 32px;
+        padding: 0.4rem;
+    }
 
     .chat-input-area {
         padding: 1.25rem;
@@ -776,6 +1124,65 @@ document.addEventListener('DOMContentLoaded', function() {
     setActiveModeButton(currentMode);
     updatePlaceholderAndUI(currentMode);
 
+    // Check for content context (from card "Ask Chatbot" button)
+    {% if content_metadata %}
+    const contentMetadata = {{ content_metadata|safe }};
+    if (contentMetadata) {
+        // Display context banner
+        const contextBanner = document.createElement('div');
+        contextBanner.className = 'system-message';
+        contextBanner.style.cssText = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;';
+        contextBanner.innerHTML = `
+            <strong>📋 ${contentMetadata.contentType.charAt(0).toUpperCase() + contentMetadata.contentType.slice(1)}:</strong> ${contentMetadata.title}
+            ${contentMetadata.link ? `<br><a href="${contentMetadata.link}" target="_blank" style="color: #ffd700; text-decoration: underline;">{% translate "View Details" %}</a>` : ''}
+        `;
+        chatBox.appendChild(contextBanner);
+        
+        // Auto-send initial question
+        setTimeout(() => {
+            const initialQuestion = `{% translate "Tell me about:" %} ${contentMetadata.title}`;
+            displayMessage(initialQuestion, 'user-message');
+            
+            // Send to backend
+            const formData = new FormData();
+            formData.append('mode', 'conversation');
+            formData.append('question', initialQuestion);
+            formData.append('session_id', sessionId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            isLoading = true;
+            loadingMessageDiv = displayLoadingIndicator();
+            
+            fetch('{% url "chatbot:ask_bot" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (loadingMessageDiv && loadingMessageDiv.parentNode) {
+                    loadingMessageDiv.remove();
+                }
+                loadingMessageDiv = null;
+                isLoading = false;
+                
+                if (data.error) {
+                    displayMessage(data.error, 'error-message');
+                } else if (data.answer) {
+                    displayMessage(data.answer, 'bot-message', data.source, data.lang, data.metadata);
+                }
+            })
+            .catch(error => {
+                if (loadingMessageDiv && loadingMessageDiv.parentNode) {
+                    loadingMessageDiv.remove();
+                }
+                loadingMessageDiv = null;
+                isLoading = false;
+                displayMessage('{% translate "Error communicating with the server." %}', 'error-message');
+            });
+        }, 500);
+    }
+    {% endif %}
+
     // Mode button event listeners
     for (const modeKey in modeButtons) {
         modeButtons[modeKey].addEventListener('click', () => {
@@ -833,11 +1240,200 @@ document.addEventListener('DOMContentLoaded', function() {
         return csrfInput ? csrfInput.value : '';
     }
 
+    // Create Instagram-style share menu for chatbot
+    function createChatbotShareMenu(shareBtn) {
+        const menu = document.createElement('div');
+        menu.className = 'chatbot-share-menu';
+        
+        const isRTL = document.documentElement.getAttribute('dir') === 'rtl';
+        
+        menu.innerHTML = `
+            <div class="chatbot-share-menu-header">
+                <h4 class="chatbot-share-menu-title">${isRTL ? 'خيارات المشاركة' : 'Share Options'}</h4>
+            </div>
+            <div class="chatbot-share-options">
+                <button class="chatbot-share-option primary" data-action="send-message">
+                    <div class="chatbot-share-icon">
+                        <i class="bi bi-send-fill"></i>
+                    </div>
+                    <div class="chatbot-share-text">
+                        <span class="chatbot-share-label">${isRTL ? 'إرسال كرسالة' : 'Send as Message'}</span>
+                        <span class="chatbot-share-sublabel">${isRTL ? 'مشاركة مع أصدقائك في المنصة' : 'Share with friends on platform'}</span>
+                    </div>
+                </button>
+                <button class="chatbot-share-option secondary" data-action="more-options">
+                    <div class="chatbot-share-icon">
+                        <i class="bi bi-share"></i>
+                    </div>
+                    <div class="chatbot-share-text">
+                        <span class="chatbot-share-label">${isRTL ? 'خيارات إضافية' : 'More Options'}</span>
+                        <span class="chatbot-share-sublabel">${isRTL ? 'مشاركة عبر التطبيقات الأخرى' : 'Share via Instagram, Twitter, etc.'}</span>
+                    </div>
+                </button>
+                <button class="chatbot-share-option tertiary" data-action="copy-link">
+                    <div class="chatbot-share-icon">
+                        <i class="bi bi-link-45deg"></i>
+                    </div>
+                    <div class="chatbot-share-text">
+                        <span class="chatbot-share-label">${isRTL ? 'نسخ الرابط' : 'Copy Link'}</span>
+                        <span class="chatbot-share-sublabel">${isRTL ? 'انسخ رابط الرد المباشر' : 'Copy direct response link'}</span>
+                    </div>
+                </button>
+            </div>
+        `;
+        
+        // Attach event listeners to options
+        menu.querySelectorAll('.chatbot-share-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = option.dataset.action;
+                handleChatbotShareAction(action, shareBtn);
+                closeAllChatbotShareMenus();
+            });
+        });
+        
+        return menu;
+    }
+
+    // Toggle chatbot share menu
+    function toggleChatbotShareMenu(shareBtn) {
+        const menu = shareBtn.querySelector('.chatbot-share-menu');
+        const isOpen = menu.classList.contains('show');
+        
+        // Close all other menus
+        closeAllChatbotShareMenus();
+        
+        if (!isOpen) {
+            menu.classList.add('show');
+            shareBtn.classList.add('active');
+            
+            // Show backdrop
+            let backdrop = document.querySelector('.chatbot-share-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'chatbot-share-backdrop';
+                document.body.appendChild(backdrop);
+                backdrop.addEventListener('click', closeAllChatbotShareMenus);
+            }
+            backdrop.classList.add('active');
+        }
+    }
+
+    // Close all chatbot share menus
+    function closeAllChatbotShareMenus() {
+        document.querySelectorAll('.chatbot-share-menu.show').forEach(menu => {
+            menu.classList.remove('show');
+        });
+        document.querySelectorAll('.btn-share.active').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const backdrop = document.querySelector('.chatbot-share-backdrop');
+        if (backdrop) {
+            backdrop.classList.remove('active');
+        }
+    }
+
+    // Handle chatbot share actions
+    function handleChatbotShareAction(action, shareBtn) {
+        const messageText = shareBtn.dataset.messageText || '';
+        const shareLink = shareBtn.dataset.shareLink || window.location.href;
+        const shareTitle = shareBtn.dataset.shareTitle || 'AI Research Response';
+        const isRTL = document.documentElement.getAttribute('dir') === 'rtl';
+        
+        switch(action) {
+            case 'send-message':
+                // Open internal share modal
+                const shareEvent = new CustomEvent('openShareModal', {
+                    detail: {
+                        type: 'chatbot',
+                        id: Date.now(),
+                        title: shareTitle,
+                        description: messageText.substring(0, 200) + (messageText.length > 200 ? '...' : ''),
+                        url: shareLink
+                    }
+                });
+                document.dispatchEvent(shareEvent);
+                break;
+                
+            case 'more-options':
+                // Use native share API
+                if (navigator.share) {
+                    navigator.share({
+                        title: shareTitle,
+                        text: messageText.substring(0, 200) + (messageText.length > 200 ? '...' : ''),
+                        url: shareLink
+                    })
+                    .then(() => showChatbotToast(isRTL ? 'تمت المشاركة بنجاح' : 'Shared successfully'))
+                    .catch((error) => {
+                        if (error.name !== 'AbortError') {
+                            console.log('Share cancelled');
+                        }
+                    });
+                } else {
+                    // Fallback: Open Twitter share
+                    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(messageText.substring(0, 200))}&url=${encodeURIComponent(shareLink)}`;
+                    window.open(twitterUrl, '_blank', 'width=600,height=400');
+                }
+                break;
+                
+            case 'copy-link':
+                // Copy link to clipboard
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareLink)
+                        .then(() => showChatbotToast(isRTL ? '✓ تم نسخ الرابط' : '✓ Link copied'))
+                        .catch(() => showChatbotToast(isRTL ? '✗ فشل النسخ' : '✗ Copy failed'));
+                } else {
+                    // Fallback
+                    const tempInput = document.createElement('input');
+                    tempInput.value = shareLink;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    showChatbotToast(isRTL ? '✓ تم نسخ الرابط' : '✓ Link copied');
+                }
+                break;
+        }
+    }
+
+    // Show toast notification
+    function showChatbotToast(message) {
+        // Remove existing toast
+        const existing = document.querySelector('.chatbot-share-toast');
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'chatbot-share-toast';
+        toast.innerHTML = `<i class="bi bi-check-circle-fill"></i><span>${message}</span>`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 350);
+        }, 3000);
+    }
+
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.btn-share')) {
+            closeAllChatbotShareMenus();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllChatbotShareMenus();
+        }
+    });
+
     // Display message with formatting
-    function displayMessage(text, type = 'bot', source = 'bot', lang = 'en') {
+    function displayMessage(text, type = 'bot', source = 'bot', lang = 'en', metadata = {}) {
         const messageDiv = document.createElement('div');
         const validTypes = ['user', 'bot', 'system-message', 'error-message', 'loading'];
         messageDiv.classList.add('message', validTypes.includes(type) ? type : 'bot');
+        messageDiv.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
         
         // Escape HTML and apply formatting
         let htmlText = text.toString()
@@ -864,8 +1460,63 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/`(.*?)`/g, '<code>$1</code>')
             .replace(/\n/g, '<br>');
         
-        messageDiv.innerHTML = htmlText;
-        messageDiv.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        // For bot messages, create actionable card structure with footer
+        if (type === 'bot') {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = htmlText;
+            
+            const footerDiv = document.createElement('div');
+            footerDiv.className = 'message-footer';
+            
+            // Share button (always show for bot messages)
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'message-action-btn btn-share';
+            shareBtn.title = '{% translate "Share" %}';
+            shareBtn.innerHTML = '<i class="bi bi-send"></i>';
+            
+            // Store metadata for sharing
+            shareBtn.dataset.messageText = text;
+            shareBtn.dataset.messageSource = source;
+            shareBtn.dataset.messageLang = lang;
+            if (metadata.contentType) shareBtn.dataset.shareType = metadata.contentType;
+            if (metadata.objectId) shareBtn.dataset.shareId = metadata.objectId;
+            if (metadata.title) shareBtn.dataset.shareTitle = metadata.title;
+            if (metadata.link) shareBtn.dataset.shareLink = metadata.link;
+            
+            // Create and attach share menu
+            const shareMenu = createChatbotShareMenu(shareBtn);
+            shareBtn.appendChild(shareMenu);
+            
+            // Handle share button click
+            shareBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleChatbotShareMenu(this);
+            });
+            
+            // View Details button (only show if we have a link)
+            if (metadata.link) {
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'message-action-btn btn-view-details';
+                viewBtn.innerHTML = '<i class="bi bi-info-circle"></i> <span>{% translate "View Details" %}</span>';
+                viewBtn.onclick = function() {
+                    window.open(metadata.link, '_blank');
+                };
+                
+                footerDiv.appendChild(shareBtn);
+                footerDiv.appendChild(viewBtn);
+            } else {
+                // If no link, just show share button
+                footerDiv.appendChild(shareBtn);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            messageDiv.appendChild(footerDiv);
+        } else {
+            // For user, system, error messages - keep simple structure
+            messageDiv.innerHTML = htmlText;
+        }
+        
         chatBox.appendChild(messageDiv);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -995,6 +1646,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let botResponseText = responseData.answer || responseData.message || "";
             let responseSource = responseData.source || 'bot';
             let responseLang = responseData.lang || 'en';
+            let responseMetadata = {};
 
             // Handle database responses
             if (responseSource === 'database' && responseData.title) {
@@ -1002,9 +1654,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (responseData.description) {
                     botResponseText += `<br>${responseData.description}`;
                 }
-                if (responseData.link) {
-                    botResponseText += `<br><a href="${responseData.link}" target="_blank">{% translate "Access here" %}</a>`;
-                }
+                
+                // Store metadata for action buttons
+                responseMetadata = {
+                    contentType: responseData.type || 'resource',
+                    objectId: responseData.id || '',
+                    title: responseData.title || '',
+                    link: responseData.link || ''
+                };
             } else if (!botResponseText && !responseData.system_message_after_upload) {
                 botResponseText = "{% translate 'Received an empty response from the assistant.' %}";
                 responseSource = 'system-message';
@@ -1014,7 +1671,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (botResponseText) {
                 const messageType = responseSource === 'system' ? 'system-message' : 
                                   (responseSource === 'error' ? 'error-message' : 'bot');
-                displayMessage(botResponseText, messageType, responseSource, responseLang);
+                displayMessage(botResponseText, messageType, responseSource, responseLang, responseMetadata);
             }
             
             // Update PDF context

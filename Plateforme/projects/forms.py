@@ -30,8 +30,8 @@ class ProjectForm(forms.ModelForm):
         fields = ['title', 'institution', 'description', 
                   'status', 'date_start', 'date_end', 'attachment']
         widgets = {
-            'date_start': forms.DateInput(attrs={'type': 'text'}),
-            'date_end': forms.DateInput(attrs={'type': 'text'}),
+            'date_start': forms.DateInput(attrs={'type': 'date'}),
+            'date_end': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 4}),
             'objectives': forms.Textarea(attrs={'rows': 4}),
         }
@@ -76,7 +76,9 @@ class ProjectForm(forms.ModelForm):
         for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
             target_field = ar_field if lang == 'ar' else en_field
             value = self.cleaned_data.get(generic_field, '')
+            # Set both the language-specific field AND the main field
             setattr(instance, target_field, value)
+            setattr(instance, generic_field, value)
         
         if commit:
             instance.save()

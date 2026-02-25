@@ -15,6 +15,7 @@ urlpatterns = [
     path('profile/<uuid:pk>/edit/', ProfileEditView.as_view(), name='profile-edit'),
     path('profile/<uuid:pk>/invite/', InviteToProjectView.as_view(), name='invite_to_project'),
     path('project/<uuid:project_id>/respond-invite/', RespondToProjectInviteView.as_view(), name='respond_project_invite'),
+    # path('my-content/', my_content_view, name='my_content'),  # TODO: Fix import issue
     path('awaiting-verification/', awaiting_verification_view, name='awaiting_verification'),
     path('delete-account/', delete_account, name='delete_account'),
     path('logout/', custom_logout, name='account_logout'),

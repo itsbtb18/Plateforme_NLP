@@ -335,12 +335,15 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
         <div class="ip-grid">
             {% for institution in institutions %}
             <article class="ip-card">
-                <div class="ip-card-header">
+                <div class="ip-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem;">
+                    <div style="flex: 1; display: flex; justify-content: center;">
                     {% if institution.logo %}
                     <img src="{{ institution.logo.url }}" alt="{{ institution.get_localized_name }}" class="ip-card-logo">
                     {% else %}
                     <div style="font-size: 2.5rem; color: #3b82f6;"><i class="bi bi-building"></i></div>
                     {% endif %}
+                    </div>
+                    {% include "includes/card_top_actions.html" with content_type="institution" object_id=institution.pk title=institution.get_localized_name description=institution.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
                 </div>
                 <div class="ip-card-body">
                     <h3 class="ip-card-name">{{ institution.get_localized_name }}</h3>
@@ -351,10 +354,6 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
                             <span>{% translate "Show Details" %}</span>
                             <i class="bi bi-arrow-right"></i>
                         </a>
-                        <div class="d-flex gap-2 flex-wrap" style="margin-top:.75rem;">
-                            {% include "includes/share_btn.html" with content_type="institution" object_id=institution.pk title=institution.get_localized_name %}
-                            {% include "includes/ask_chatbot_btn.html" with content_type="institution" object_id=institution.pk title=institution.get_localized_name description=institution.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
-                        </div>
                     </div>
                 </div>
             </article>

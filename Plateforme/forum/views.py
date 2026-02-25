@@ -130,9 +130,11 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         # Auto-approve for staff, pending for regular users
         if self.request.user.is_staff:
             form.instance.approval_status = 'approved'
+            form.instance.is_approved = True  # Legacy field
             logger.info(f"[TOPIC_CREATE] Auto-approving topic by staff: {self.request.user.email}")
         else:
             form.instance.approval_status = 'pending'
+            form.instance.is_approved = False  # Legacy field
             logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
         
         try:
@@ -163,7 +165,30 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"[TOPIC_CREATE] Form validation failed: {form.errors.as_json()}")
-        messages.error(self.request, _('Please correct the errors in the form.'))
+        
+        # Log each field error for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                logger.warning(f"[TOPIC_CREATE] Field '{field}': {error}")
+        
+        # Create user-friendly error message
+        error_summary = []
+        for field, errors in form.errors.items():
+            if field == '__all__':
+                error_summary.extend(errors)
+            else:
+                field_label = form.fields.get(field).label if field in form.fields else field
+                for error in errors:
+                    error_summary.append(f"{field_label}: {error}")
+        
+        if error_summary:
+            messages.error(
+                self.request,
+                _("Form validation failed:\n") + "\n".join(error_summary[:5])  # Show first 5 errors
+            )
+        else:
+            messages.error(self.request, _('Please correct the errors in the form.'))
+        
         return super().form_invalid(form)
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

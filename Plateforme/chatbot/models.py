@@ -17,6 +17,11 @@ class ChatSession(models.Model):
     pdf_uploaded = models.BooleanField(default=False, verbose_name=_("Has PDF Context"))
     pdf_filename = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("PDF Filename"))
     
+    # Content context - what the chat is about
+    content_type = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Content Type"))
+    object_id = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Object ID"))
+    content_title = models.CharField(max_length=500, blank=True, null=True, verbose_name=_("Content Title"))
+    
     class Meta:
         verbose_name = _("Chat Session")
         verbose_name_plural = _("Chat Sessions")

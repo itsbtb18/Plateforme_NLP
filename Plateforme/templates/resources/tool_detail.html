@@ -860,6 +860,177 @@ html[dir="rtl"] ol {
     animation-delay: 0.2s;
 }
 
+/* ===== ACTION CARD (Course-Style) ===== */
+.tool-action-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.tool-action-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--eng-primary), #1e40af);
+    color: white;
+    text-align: center;
+}
+
+.tool-action-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin: 0 0 0.25rem;
+}
+
+.tool-action-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.tool-action-body {
+    padding: 1.5rem;
+}
+
+.tool-action-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.tool-action-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.875rem 0.5rem;
+    background: var(--eng-muted);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.tool-action-stat i {
+    font-size: 1.25rem;
+    color: var(--eng-accent);
+    margin-bottom: 0.375rem;
+}
+
+.tool-action-stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.tool-action-stat-label {
+    font-size: 0.7rem;
+    color: var(--eng-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.tool-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: none;
+    margin-bottom: 0.75rem;
+}
+
+.tool-action-btn.primary {
+    background: linear-gradient(135deg, var(--eng-accent), var(--eng-accent-light));
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.tool-action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+    color: white;
+}
+
+.tool-action-btn.secondary {
+    background: var(--eng-muted);
+    color: var(--eng-text);
+    border: 1px solid var(--eng-border);
+}
+
+.tool-action-btn.secondary:hover {
+    background: rgba(37, 99, 235, 0.06);
+    border-color: var(--eng-accent);
+    color: var(--eng-accent);
+}
+
+.tool-action-btn.ai-chatbot {
+    background: white;
+    color: #1e3a5f;
+    border: 2px solid #e5e7eb;
+    position: relative;
+    overflow: hidden;
+    margin-top: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tool-action-btn.ai-chatbot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+    transition: left 0.5s ease;
+}
+
+.tool-action-btn.ai-chatbot:hover::before {
+    left: 100%;
+}
+
+.tool-action-btn.ai-chatbot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(30, 58, 95, 0.15);
+    border-color: #3b82f6;
+    color: #1e3a5f;
+}
+
+.tool-action-btn.ai-chatbot i {
+    color: #3b82f6;
+    font-size: 1.125rem;
+}
+
+.tool-action-btn i {
+    font-size: 1rem;
+}
+
+.ai-badge-inline {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 0.25rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+}
+
+html[dir="rtl"] .ai-badge-inline {
+    margin-left: 0;
+    margin-right: 0.25rem;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .tool-hero {
@@ -993,6 +1164,34 @@ html[dir="rtl"] ol {
     <div class="action-bar">
         <div class="action-bar-container">
             <div class="action-group">
+                {% if object.uploaded_file %}
+                <button type="button" 
+                        class="btn-action btn-view" 
+                        onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                    <i class="bi bi-eye"></i>
+                    <span>{% trans "View Document" %}</span>
+                </button>
+                <a href="{{ object.uploaded_file.url }}" class="btn-action btn-download" download>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% trans "Download Document" %}</span>
+                </a>
+                {% else %}
+                <button type="button" 
+                        class="btn-action btn-view" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-eye"></i>
+                    <span>{% trans "View Document" %}</span>
+                </button>
+                <button type="button" 
+                        class="btn-action btn-download" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% trans "Download Document" %}</span>
+                </button>
+                {% endif %}
+                
                 {% if object.documentation_link %}
                 <a href="{{ object.documentation_link }}" class="btn-action btn-docs" target="_blank">
                     <i class="bi bi-book"></i>
@@ -1104,6 +1303,64 @@ result = <span class="function">process</span>(text)
             <!-- Sidebar -->
             <aside class="sidebar-column">
                 
+                <!-- Action Card (Course Style) -->
+                <div class="tool-action-card">
+                    <div class="tool-action-header">
+                        <p class="tool-action-label">{% trans "NLP Tool" %}</p>
+                        <h3 class="tool-action-title">{{ object.get_tool_type_display }}</h3>
+                    </div>
+                    <div class="tool-action-body">
+                        <div class="tool-action-stats">
+                            <div class="tool-action-stat">
+                                <i class="bi bi-tag"></i>
+                                <span class="tool-action-stat-value">{{ object.version|default:"1.0" }}</span>
+                                <span class="tool-action-stat-label">{% trans "Version" %}</span>
+                            </div>
+                            <div class="tool-action-stat">
+                                <i class="bi bi-globe"></i>
+                                <span class="tool-action-stat-value">{{ object.supported_languages_count|default:"1" }}</span>
+                                <span class="tool-action-stat-label">{% trans "Languages" %}</span>
+                            </div>
+                        </div>
+                        
+                        {% if object.uploaded_file %}
+                        <button type="button" 
+                                class="tool-action-btn primary"
+                                onclick="openDocumentViewer('{{ object.uploaded_file.url }}')">
+                            <i class="bi bi-eye"></i>
+                            {% trans "View Document" %}
+                        </button>
+                        <a href="{{ object.uploaded_file.url }}" class="tool-action-btn secondary" download>
+                            <i class="bi bi-download"></i>
+                            {% trans "Download Docs" %}
+                        </a>
+                        {% elif object.documentation_link %}
+                        <a href="{{ object.documentation_link }}" target="_blank" class="tool-action-btn primary">
+                            <i class="bi bi-book"></i>
+                            {% trans "Documentation" %}
+                        </a>
+                        {% endif %}
+                        
+                        {% if object.access_link %}
+                        <a href="{{ object.access_link }}" target="_blank" class="tool-action-btn secondary">
+                            <i class="bi bi-github"></i>
+                            {% trans "Repository" %}
+                        </a>
+                        {% endif %}
+                        
+                        <button type="button" class="tool-action-btn secondary" onclick="window.print()">
+                            <i class="bi bi-printer"></i>
+                            {% trans "Print Info" %}
+                        </button>
+                        
+                        <a href="{% url 'chatbot:chatbot_interface' %}?context=tool&id={{ object.id }}" class="tool-action-btn ai-chatbot">
+                            <i class="bi bi-robot"></i>
+                            {% trans "Ask AI Robot" %}
+                            <span class="ai-badge-inline">AI</span>
+                        </a>
+                    </div>
+                </div>
+                
                 <!-- Technical Specs Card -->
                 <div class="specs-card">
                     <div class="specs-header">
@@ -1211,4 +1468,6 @@ function copyCode(button) {
     });
 }
 </script>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}

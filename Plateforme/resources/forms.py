@@ -414,8 +414,14 @@ class ResourceForm(forms.Form):
         return []
 
     def clean(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         cleaned_data = super().clean()
         resource_type = cleaned_data.get('resource_type')
+        
+        logger.info(f"[RESOURCE_FORM] Validating form for resource_type: {resource_type}")
+        logger.info(f"[RESOURCE_FORM] User: {self.user.email if self.user else 'None'}")
 
         required_fields = []
         if resource_type == 'course':
@@ -431,32 +437,46 @@ class ResourceForm(forms.Form):
         elif resource_type == 'memoir':
             required_fields = ['document_format', 'memoir_level', 'memoir_institution', 'memoir_defense_year']
 
+        logger.info(f"[RESOURCE_FORM] Required fields for {resource_type}: {required_fields}")
+        
         for field in required_fields:
             if not cleaned_data.get(field):
+                logger.warning(f"[RESOURCE_FORM] Missing required field: {field}")
                 self.add_error(field, _("This field is required for this resource type"))
 
         if resource_type == 'course' and cleaned_data.get('academic_year'):
             try:
                 start, end = map(int, cleaned_data['academic_year'].split('-'))
                 if end != start + 1:
+                    logger.warning(f"[RESOURCE_FORM] Invalid academic year: {cleaned_data['academic_year']}")
                     self.add_error('academic_year', _("End year must be start year + 1"))
             except (ValueError, AttributeError):
+                logger.warning(f"[RESOURCE_FORM] Invalid academic year format: {cleaned_data.get('academic_year')}")
                 self.add_error('academic_year', _("Invalid format (ex: 2023-2024)"))
 
         if resource_type == 'course':
             field_value = cleaned_data.get('course_field')
             if field_value and field_value not in dict(FieldChoices.choices):
+                logger.warning(f"[RESOURCE_FORM] Invalid course field: {field_value}")
                 self.add_error('course_field', _("Invalid field choice"))
         elif resource_type == 'corpus':
             field_value = cleaned_data.get('corpus_field')
             if field_value and field_value not in dict(FieldChoices.choices):
+                logger.warning(f"[RESOURCE_FORM] Invalid corpus field: {field_value}")
                 self.add_error('corpus_field', _("Invalid field choice"))
 
         language_value = cleaned_data.get('language')
         if not language_value:
+            logger.warning("[RESOURCE_FORM] Language field is missing")
             self.add_error('language', _("Language is required"))
         elif language_value not in dict(ResourceBase.LanguageChoices.choices):
+            logger.warning(f"[RESOURCE_FORM] Invalid language value: {language_value}")
             self.add_error('language', _("Invalid language choice"))
+        
+        if self.errors:
+            logger.warning(f"[RESOURCE_FORM] Form validation failed with errors: {self.errors}")
+        else:
+            logger.info("[RESOURCE_FORM] ✓ Form validation passed")
 
         return cleaned_data
 
@@ -501,8 +521,10 @@ class ResourceForm(forms.Form):
             'access_link': self.cleaned_data['access_link'] or None,
             'language': self.cleaned_data['language'],
             'uploaded_file': self.cleaned_data.get('uploaded_file'),
-            # CRITICAL: Explicitly set approval_status to ensure pending review
+            # CRITICAL: Explicitly set approval fields
             'approval_status': 'pending',
+            'is_approved': False,  # Legacy field - must be set for database compatibility
+            'rejection_reason': '',  # Initialize to empty string to avoid NOT NULL errors
         }
         
         logger.info(f"[RESOURCE_CREATE] Common data prepared: author={self.user.email if self.user else 'None'}, approval_status=pending")

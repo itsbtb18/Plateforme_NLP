@@ -663,7 +663,8 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
         <div class="eh-events-grid">
             {% for event in events %}
             <article class="eh-event-card">
-                <div class="eh-card-header">
+                <div class="eh-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                    <div style="display: flex; gap: 1rem; flex: 1;">
                     <div class="eh-date-badge">
                         <span class="eh-date-day">{{ event.start_date|date:"d" }}</span>
                         <span class="eh-date-month">{{ event.start_date|date:"M" }}</span>
@@ -691,6 +692,8 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                         </div>
                         <h3 class="eh-card-title">{{ event.get_localized_title }}</h3>
                     </div>
+                    </div>
+                    {% include "includes/card_top_actions.html" with content_type="event" object_id=event.pk title=event.get_localized_title description=event.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
                 </div>
                 
                 <div class="eh-card-body">
@@ -737,10 +740,6 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                         {% translate "View Details" %}
                         <i class="bi bi-arrow-right"></i>
                     </a>
-                    <div class="d-flex gap-2 flex-wrap" style="margin-top:.75rem;">
-                        {% include "includes/share_btn.html" with content_type="event" object_id=event.pk title=event.get_localized_title %}
-                        {% include "includes/ask_chatbot_btn.html" with content_type="event" object_id=event.pk title=event.get_localized_title description=event.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
-                    </div>
                 </div>
             </article>
             {% endfor %}

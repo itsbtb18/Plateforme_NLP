@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "search",
     "chatbot",
     "translate",
+    "sharing",
 
     # Allauth
     "allauth",
@@ -297,7 +298,9 @@ ELASTICSEARCH_DSL = {
         "sniff_on_start": False,  # Disable sniffing to prevent connection errors in Docker
     },
 }
-ELASTICSEARCH_DSL_AUTOSYNC = True
+# Disable autosync to prevent creation failures when Elasticsearch is unavailable
+# Resources can be manually indexed later using: python manage.py search_index --rebuild
+ELASTICSEARCH_DSL_AUTOSYNC = os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
@@ -321,6 +324,21 @@ LOGGING = {
     },
     "loggers": {
         "chatbot": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "resources": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "projects": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "forum": {
             "handlers": ["console"],
             "level": "DEBUG",
             "propagate": True,

@@ -13,6 +13,7 @@ import json
 import logging
 
 from .models import ChatSession, ChatMessage
+from .content_helpers import get_content_object, build_context_prompt, get_content_metadata
 
 logger = logging.getLogger('chatbot')
 
@@ -65,6 +66,21 @@ def save_message(session_id, message_type, content, source='bot', language='en')
 def chatbot_interface(request):
     """Main chatbot interface with session management"""
     session_id = None
+    content_metadata = None
+    
+    # Check for content context from URL parameters
+    content_type = request.GET.get('type')
+    object_id = request.GET.get('id')
+    content_obj = None
+    
+    if content_type and object_id:
+        # Fetch the content object
+        content_obj, error = get_content_object(content_type, object_id)
+        if content_obj:
+            logger.info(f"Content context loaded: {content_type} #{object_id}")
+            content_metadata = get_content_metadata(content_obj, content_type)
+        else:
+            logger.warning(f"Failed to load content context: {error}")
     
     try:
         # Warmup FastAPI models on first access (with extended timeout)
@@ -87,6 +103,15 @@ def chatbot_interface(request):
         
         if existing_session:
             session_id = existing_session.fastapi_session_id
+            
+            # Update content context if provided
+            if content_obj:
+                existing_session.content_type = content_type
+                existing_session.object_id = str(object_id)
+                existing_session.content_title = content_metadata.get('title', '')
+                existing_session.save(update_fields=['content_type', 'object_id', 'content_title', 'updated_at'])
+                logger.info(f"Updated session {session_id} with content context")
+            
             logger.info(f"Reusing existing session {session_id} for user {request.user.email}")
         else:
             # Create new session via FastAPI
@@ -98,11 +123,18 @@ def chatbot_interface(request):
             response.raise_for_status()
             session_id = response.json().get("session_id")
             
-            # Store in database
-            ChatSession.objects.create(
-                user=request.user,
-                fastapi_session_id=session_id
-            )
+            # Store in database with content context
+            session_data = {
+                'user': request.user,
+                'fastapi_session_id': session_id,
+            }
+            
+            if content_obj:
+                session_data['content_type'] = content_type
+                session_data['object_id'] = str(object_id)
+                session_data['content_title'] = content_metadata.get('title', '')
+            
+            ChatSession.objects.create(**session_data)
             logger.info(f"Created new session {session_id} for user {request.user.email}")
             
     except requests.RequestException as e:
@@ -110,11 +142,18 @@ def chatbot_interface(request):
         # Create fallback session
         session_id = str(uuid.uuid4())
         try:
-            ChatSession.objects.create(
-                user=request.user,
-                fastapi_session_id=session_id,
-                is_active=False  # Mark as fallback
-            )
+            session_data = {
+                'user': request.user,
+                'fastapi_session_id': session_id,
+                'is_active': False  # Mark as fallback
+            }
+            
+            if content_obj:
+                session_data['content_type'] = content_type
+                session_data['object_id'] = str(object_id)
+                session_data['content_title'] = content_metadata.get('title', '')
+            
+            ChatSession.objects.create(**session_data)
         except Exception as db_error:
             logger.error(f"Database error creating fallback session: {str(db_error)}")
     
@@ -122,6 +161,7 @@ def chatbot_interface(request):
         'session_id': session_id,
         'max_file_size': CHATBOT_MAX_FILE_SIZE,
         'user_name': request.user.get_full_name() or request.user.email,
+        'content_metadata': json.dumps(content_metadata) if content_metadata else None,
     }
     return render(request, "chatbot/chatbot.html", context=context)
 
@@ -365,12 +405,41 @@ def ask_bot(request):
             
             save_message(session_id, 'user', question, source='user')
             
+            # Check for content context
+            system_prompt = None
+            try:
+                chat_session = ChatSession.objects.get(fastapi_session_id=session_id)
+                
+                # If has content context and this is first real question
+                if chat_session.content_type and chat_session.object_id:
+                    message_count = ChatMessage.objects.filter(session=chat_session, message_type='user').count()
+                    
+                    if message_count <= 1:  # First question
+                        # Fetch content and build system prompt
+                        content_obj, error = get_content_object(
+                            chat_session.content_type, 
+                            chat_session.object_id
+                        )
+                        
+                        if content_obj:
+                            system_prompt = build_context_prompt(content_obj, chat_session.content_type)
+                            logger.info(f"Injecting content context for {chat_session.content_type} #{chat_session.object_id}")
+            except ChatSession.DoesNotExist:
+                logger.warning(f"Session {session_id} not found in database")
+            except Exception as e:
+                logger.error(f"Error building content context: {str(e)}")
+            
             conv_payload = {
                 "question": question,
                 "session_id": session_id,
                 "max_history": CHATBOT_MAX_HISTORY,
                 "max_tokens": CHATBOT_MAX_TOKENS
             }
+            
+            # Add system prompt if we have content context
+            if system_prompt:
+                conv_payload["system_prompt"] = system_prompt
+            
             conv_resp = requests.post(
                 f"{FASTAPI_URL}/conversation",
                 json=conv_payload,

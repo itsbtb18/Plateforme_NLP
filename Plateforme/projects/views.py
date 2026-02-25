@@ -404,10 +404,32 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"[PROJECT_CREATE] Form validation failed: {form.errors.as_json()}")
-        messages.error(
-            self.request,
-            _("Please correct the errors in the form and try again.")
-        )
+        
+        # Log each field error for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                logger.warning(f"[PROJECT_CREATE] Field '{field}': {error}")
+        
+        # Create user-friendly error message
+        error_summary = []
+        for field, errors in form.errors.items():
+            if field == '__all__':
+                error_summary.extend(errors)
+            else:
+                field_label = form.fields.get(field).label if field in form.fields else field
+                for error in errors:
+                    error_summary.append(f"{field_label}: {error}")
+        
+        if error_summary:
+            messages.error(
+                self.request,
+                _("Form validation failed:\n") + "\n".join(error_summary[:5])  # Show first 5 errors
+            )
+        else:
+            messages.error(
+                self.request,
+                _("Please correct the errors in the form and try again.")
+            )
         return super().form_invalid(form)
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:

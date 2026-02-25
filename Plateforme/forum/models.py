@@ -32,6 +32,8 @@ class Topic(models.Model):
         default='pending',
         verbose_name=_('Approval Status')
     )
+    # Legacy field for backward compatibility
+    is_approved = models.BooleanField(default=False, verbose_name=_('Is Approved'))
 
     def __str__(self):
         return self.title

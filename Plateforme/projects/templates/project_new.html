@@ -781,6 +781,26 @@ html[dir="rtl"] .pf-select {
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
+                <!-- Form Errors Display -->
+                {% if form.errors or form.non_field_errors %}
+                <div class="pf-alert pf-alert-error" style="margin-bottom: 1.5rem;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                        <strong>{% translate "Please correct the following errors:" %}</strong>
+                        <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div class="pf-form-body">
                     
                     <!-- Translation Notice -->
@@ -839,6 +859,25 @@ html[dir="rtl"] .pf-select {
         </div>
     </article>
 </div>
+                        
+                        <div class="pf-field {% if form.title.errors %}has-error{% endif %}">
+                            <label for="{{ form.title.id_for_label }}" class="pf-label">
+                                {{ form.title.label }} <span class="required">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="{{ form.title.name }}" 
+                                   id="{{ form.title.id_for_label }}"
+                                   class="pf-input"
+                                   value="{{ form.title.value|default:'' }}"
+                                   placeholder="{% translate 'Enter the project title' %}"
+                                   required>
+                            {% if form.title.help_text %}
+                            <p class="pf-help">{{ form.title.help_text }}</p>
+                            {% endif %}
+                            {% for error in form.title.errors %}
+                            <p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
+                            {% endfor %}
+                        </div>
                         
                         <div class="pf-field {% if form.institution.errors %}has-error{% endif %}">
                             <label for="{{ form.institution.id_for_label }}" class="pf-label">
@@ -912,12 +951,11 @@ html[dir="rtl"] .pf-select {
                                 <label for="{{ form.date_start.id_for_label }}" class="pf-label">
                                     {% translate "Start Date" %}
                                 </label>
-                                <input type="text" 
+                                <input type="date" 
                                        name="{{ form.date_start.name }}" 
                                        id="{{ form.date_start.id_for_label }}"
                                        class="pf-input"
-                                       value="{{ form.date_start.value|default:'' }}"
-                                       placeholder="{% translate 'YYYY-MM-DD' %}">
+                                       value="{{ form.date_start.value|date:'Y-m-d'|default:'' }}">
                                 {% for error in form.date_start.errors %}
                                 <p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
                                 {% endfor %}
@@ -927,12 +965,11 @@ html[dir="rtl"] .pf-select {
                                 <label for="{{ form.date_end.id_for_label }}" class="pf-label">
                                     {% translate "End Date" %}
                                 </label>
-                                <input type="text" 
+                                <input type="date" 
                                        name="{{ form.date_end.name }}" 
                                        id="{{ form.date_end.id_for_label }}"
                                        class="pf-input"
-                                       value="{{ form.date_end.value|default:'' }}"
-                                       placeholder="{% translate 'YYYY-MM-DD' %}">
+                                       value="{{ form.date_end.value|date:'Y-m-d'|default:'' }}">
                                 {% for error in form.date_end.errors %}
                                 <p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
                                 {% endfor %}

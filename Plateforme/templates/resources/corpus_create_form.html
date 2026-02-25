@@ -7,320 +7,241 @@
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-/* ===== CSS VARIABLES ===== */
+/* ===== CSS VARIABLES - SaaS PREMIUM PALETTE ===== */
 :root {
-    --primary-deep: #1e3a5f;
-    --primary-accent: #2563eb;
-    --primary-light: #3b82f6;
-    --teal-accent: #0d9488;
+    --primary-accent: #4F46E5;
+    --primary-hover: #4338CA;
     --surface-white: #ffffff;
-    --surface-light: #f8fafc;
-    --surface-muted: #f1f5f9;
-    --border-subtle: #e2e8f0;
-    --border-focus: #3b82f6;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --danger: #dc2626;
-    --danger-light: #fef2f2;
-    --success: #059669;
-    --success-light: #ecfdf5;
-    --warning: #d97706;
-    --warning-light: #fffbeb;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --surface-bg: #F9FAFB;
+    --border-subtle: #E5E7EB;
+    --border-focus: #4F46E5;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+    --radius: 8px;
+    --success: #10B981;
+    --success-light: #D1FAE5;
+    --danger: #EF4444;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 html[dir="rtl"] body {
     font-family: 'Tajawal', 'Inter', sans-serif;
 }
 
-/* ===== PAGE LAYOUT ===== */
+/* ===== PAGE LAYOUT - SIDE-BY-SIDE DESIGN ===== */
 .corpus-form-page {
-    min-height: calc(100vh - 200px);
-    background: var(--surface-light);
-    padding: 2rem 0 4rem;
+    min-height: 100vh;
+    background: var(--surface-bg);
+    padding: 2rem 1rem;
 }
 
 .form-container {
-    max-width: 900px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 1.5rem;
 }
 
-/* ===== PAGE HEADER ===== */
+/* ===== MINIMAL PAGE HEADER ===== */
 .page-header {
     margin-bottom: 2rem;
-    text-align: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .page-header h1 {
-    font-size: 2rem;
-    font-weight: 800;
+    font-size: 1.875rem;
+    font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-}
-
-.page-header h1 i {
-    color: var(--primary-accent);
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.025em;
 }
 
 .page-header p {
     color: var(--text-secondary);
-    font-size: 1rem;
+    font-size: 0.9375rem;
     margin: 0;
+    font-weight: 400;
 }
 
-/* ===== PROGRESS INDICATOR ===== */
-.form-progress {
-    display: flex;
-    justify-content: center;
+/* ===== 2-COLUMN GRID LAYOUT ===== */
+.form-grid {
+    display: grid;
+    grid-template-columns: 35% 1fr;
     gap: 2rem;
-    margin-bottom: 2rem;
-    padding: 1rem 0;
+    align-items: start;
 }
 
-.progress-step {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+@media (max-width: 1024px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
-.progress-step.active {
-    color: var(--primary-accent);
-}
-
-.progress-step.completed {
-    color: var(--success);
-}
-
-.step-number {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-muted);
-    border: 2px solid var(--border-subtle);
-    font-weight: 700;
-    font-size: 0.875rem;
-    transition: all 0.3s ease;
-}
-
-.progress-step.active .step-number {
-    background: var(--primary-accent);
-    border-color: var(--primary-accent);
-    color: white;
-}
-
-.progress-step.completed .step-number {
-    background: var(--success);
-    border-color: var(--success);
-    color: white;
-}
-
-/* ===== SECTION CARDS ===== */
-.section-card {
+/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+.card {
     background: var(--surface-white);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    margin-bottom: 1.5rem;
-    overflow: hidden;
-    animation: slideUp 0.4s ease-out forwards;
-    opacity: 0;
+    border-radius: var(--radius);
+    /* Multi-level shadow for depth */
+    box-shadow: 
+        0 1px 2px 0 rgba(0, 0, 0, 0.03),
+        0 2px 4px 0 rgba(0, 0, 0, 0.04),
+        0 4px 8px 0 rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-subtle);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.section-card:nth-child(1) { animation-delay: 0.1s; }
-.section-card:nth-child(2) { animation-delay: 0.2s; }
-.section-card:nth-child(3) { animation-delay: 0.3s; }
-.section-card:nth-child(4) { animation-delay: 0.4s; }
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.card:hover {
+    box-shadow: 
+        0 2px 4px 0 rgba(0, 0, 0, 0.04),
+        0 4px 8px 0 rgba(0, 0, 0, 0.06),
+        0 8px 16px 0 rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
 }
 
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+.card-header {
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, var(--surface-light) 0%, var(--surface-muted) 100%);
     border-bottom: 1px solid var(--border-subtle);
+    background: linear-gradient(180deg, var(--surface-white) 0%, #FAFBFC 100%);
 }
 
-.section-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-}
-
-.section-icon.basic { background: #dbeafe; color: #1e40af; }
-.section-icon.technical { background: #f3e8ff; color: #6b21a8; }
-.section-icon.content { background: #dcfce7; color: #166534; }
-.section-icon.upload { background: #fef3c7; color: #92400e; }
-
-.section-header h2 {
+.card-header h2 {
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 600;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
-.section-header p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-muted);
+.card-header p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 400;
 }
 
-.section-body {
+.card-body {
     padding: 1.5rem;
 }
-
-/* ===== STANDARD FORM FIELDS ===== */
+/* ===== FORM FIELDS - MODERN CLEAN STYLE ===== */
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 
 .form-group label {
     display: block;
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
 }
 
-.form-group label .required-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.5rem;
-    background: var(--danger-light);
+.form-group label .required {
     color: var(--danger);
-    font-size: 0.7rem;
-    font-weight: 600;
-    border-radius: 50px;
-    margin-left: 0.5rem;
+    margin-left: 0.125rem;
 }
 
-.form-group input,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
 .form-group textarea,
 .form-group select {
     width: 100%;
-    padding: 0.875rem 1rem;
-    font-size: 1rem;
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    /* Fine grey border - NOT thick black */
+    border: 1px solid #E5E7EB;
+    border-radius: var(--radius);
     background: var(--surface-white);
-    transition: all 0.3s ease;
+    /* Smooth transition 0.3s */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--text-primary);
+    font-family: inherit;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
     outline: none;
-    border-color: var(--primary-accent);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    /* Blue border on focus */
+    border-color: var(--border-focus);
+    /* Soft blue glow */
+    box-shadow: 
+        0 0 0 3px rgba(79, 70, 229, 0.08),
+        0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover {
+    border-color: #D1D5DB;
 }
 
 .form-group textarea {
-    min-height: 120px;
+    min-height: 100px;
     resize: vertical;
+    line-height: 1.5;
 }
 
-.form-group .form-text {
+.form-text {
     display: block;
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
     color: var(--text-muted);
 }
 
-/* ===== CHARACTER COUNTER ===== */
-.char-counter {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.char-counter.warning { color: var(--warning); }
-.char-counter.danger { color: var(--danger); }
-
-/* ===== FIELD GRID ===== */
-.field-grid {
+/* Field Grid for Side-by-Side Inputs */
+.field-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
-@media (max-width: 576px) {
-    .field-grid {
+@media (max-width: 768px) {
+    .field-row {
         grid-template-columns: 1fr;
     }
 }
 
-/* ===== TRANSLATION TOGGLE ===== */
+/* ===== TRANSLATION TOGGLE - MINIMALIST ===== */
 .translation-toggle {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, var(--surface-light) 0%, var(--surface-muted) 100%);
-    border-radius: var(--radius-md);
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: var(--surface-bg);
+    border-radius: var(--radius);
     margin-bottom: 1.5rem;
     border: 1px solid var(--border-subtle);
 }
 
-.translation-toggle i {
-    font-size: 1.5rem;
-    color: var(--teal-accent);
-}
-
-.translation-toggle-content {
-    flex: 1;
-}
-
-.translation-toggle-content h4 {
-    margin: 0 0 0.25rem;
-    font-size: 0.95rem;
-    font-weight: 600;
+.translation-toggle-label {
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--text-primary);
-}
-
-.translation-toggle-content p {
-    margin: 0;
-    font-size: 0.8rem;
-    color: var(--text-muted);
 }
 
 .toggle-switch {
     position: relative;
-    width: 50px;
-    height: 28px;
+    width: 44px;
+    height: 24px;
 }
 
 .toggle-switch input {
@@ -336,89 +257,71 @@ html[dir="rtl"] body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--border-subtle);
-    border-radius: 50px;
-    transition: all 0.3s ease;
+    background: #D1D5DB;
+    border-radius: 999px;
+    transition: all 0.2s ease;
 }
 
 .toggle-slider::before {
     position: absolute;
     content: "";
-    height: 22px;
-    width: 22px;
+    height: 18px;
+    width: 18px;
     left: 3px;
     bottom: 3px;
     background: white;
     border-radius: 50%;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-    background: var(--teal-accent);
+    background: var(--primary-accent);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(22px);
+    transform: translateX(20px);
 }
 
-/* Translation Fields */
 .translation-fields {
     display: none;
-    padding: 1rem;
-    background: var(--surface-light);
-    border-radius: var(--radius-md);
     margin-top: 1rem;
-    border: 1px dashed var(--teal-accent);
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
 }
 
 .translation-fields.visible {
     display: block;
-    animation: fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* ===== UPLOAD ZONE - CLEAN & MINIMAL ===== */
+.upload-area {
+    position: sticky;
+    top: 2rem;
 }
 
-.translation-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.25rem 0.625rem;
-    background: var(--teal-accent);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 600;
-    border-radius: 50px;
-    margin-bottom: 0.5rem;
-}
-
-/* ===== DRAG & DROP UPLOAD ===== */
 .upload-zone {
-    border: 2px dashed var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: 2.5rem;
+    /* Very fine dashed border - not thick */
+    border: 1px dashed #E5E7EB;
+    border-radius: var(--radius);
+    padding: 2rem 1.5rem;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    background: var(--surface-light);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
+    /* Off-white background */
+    background: #FAFBFC;
 }
 
 .upload-zone:hover {
     border-color: var(--primary-accent);
-    background: rgba(37, 99, 235, 0.02);
+    background: rgba(79, 70, 229, 0.02);
+    box-shadow: 0 2px 8px 0 rgba(79, 70, 229, 0.08);
 }
 
 .upload-zone.drag-over {
     border-color: var(--primary-accent);
-    background: rgba(37, 99, 235, 0.05);
+    background: rgba(79, 70, 229, 0.05);
+    border-style: solid;
     transform: scale(1.01);
 }
 
@@ -429,72 +332,62 @@ html[dir="rtl"] body {
 }
 
 .upload-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1.5rem;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
-    color: white;
-    font-size: 2rem;
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+    background: var(--surface-white);
+    border: 1px solid #E5E7EB;
+    color: var(--primary-accent);
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover .upload-icon {
+    border-color: var(--primary-accent);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
 }
 
 .upload-zone.has-file .upload-icon {
-    background: linear-gradient(135deg, var(--success) 0%, #10b981 100%);
-    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.3);
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
 }
 
 .upload-title {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 0.9375rem;
+    font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 0.5rem;
 }
 
-.upload-subtitle { display: none; }
-
-.upload-browse {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.5rem;
-    background: #ffffff;
-    color: var(--primary-accent);
-    font-weight: 600;
-    font-size: 0.9rem;
-    border-radius: var(--radius-md);
-    border: 2px solid var(--primary-accent);
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.upload-browse:hover {
-    background: var(--primary-accent);
-    color: white;
-    transform: translateY(-2px);
-}
-
-.upload-formats {
-    margin-top: 1rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.upload-formats strong {
+.upload-subtitle {
+    font-size: 0.8125rem;
     color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.upload-zone input[type="file"] {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
 }
 
 .file-preview {
     display: none;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
     background: var(--surface-white);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius);
     margin-top: 1rem;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .file-preview.visible {
@@ -502,88 +395,81 @@ html[dir="rtl"] body {
 }
 
 .file-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--success-light);
     color: var(--success);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
 }
 
 .file-info {
     flex: 1;
+    min-width: 0;
 }
 
 .file-name {
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 0.875rem;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .file-size {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
 }
 
 .file-remove {
-    padding: 0.5rem;
+    padding: 0.375rem;
     background: none;
     border: none;
-    color: var(--danger);
+    color: var(--text-secondary);
     cursor: pointer;
-    border-radius: var(--radius-md);
-    transition: all 0.2s ease;
+    border-radius: var(--radius);
+    transition: all 0.15s ease;
 }
 
 .file-remove:hover {
-    background: var(--danger-light);
-}
-.upload-zone input[type="file"]{
-    position:absolute;
-    left:-9999px;
-    width:1px;
-    height:1px;
-    opacity:0;
+    background: var(--surface-bg);
+    color: var(--danger);
 }
 
-/* ===== KEYWORDS INPUT ===== */
+/* ===== KEYWORDS INPUT - CLEAN TAGS ===== */
 .keywords-container {
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
     padding: 0.5rem;
-    min-height: 50px;
+    min-height: 48px;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
     background: var(--surface-white);
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
 }
 
 .keywords-container:focus-within {
-    border-color: var(--primary-accent);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
 }
 
 .keyword-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.375rem 0.75rem;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
     background: var(--primary-accent);
     color: white;
-    font-size: 0.85rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    border-radius: 50px;
-    animation: popIn 0.2s ease;
-}
-
-@keyframes popIn {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    border-radius: 4px;
 }
 
 .keyword-pill .remove-keyword {
@@ -592,88 +478,82 @@ html[dir="rtl"] body {
     justify-content: center;
     width: 16px;
     height: 16px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .keyword-pill .remove-keyword:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .keyword-input {
     flex: 1;
-    min-width: 120px;
+    min-width: 140px;
     border: none;
     outline: none;
-    font-size: 0.9rem;
-    padding: 0.375rem;
+    font-size: 0.875rem;
+    padding: 0.25rem;
     background: transparent;
 }
 
-/* ===== FORM ACTIONS ===== */
-.form-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+/* ===== SUBMIT BUTTON - FULL WIDTH PREMIUM WITH GRADIENT ===== */
+.btn-submit-wrapper {
+    margin-top: 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-subtle);
-    margin-top: 1rem;
-}
-
-.btn-cancel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: transparent;
-    color: var(--text-secondary);
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.btn-cancel:hover {
-    border-color: var(--text-secondary);
-    color: var(--text-primary);
 }
 
 .btn-submit {
+    width: 100%;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 2rem;
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
+    padding: 0.875rem 1.5rem;
+    /* Subtle gradient for premium look */
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
     color: white;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9375rem;
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius);
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    /* Smooth transitions */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Elevated shadow */
+    box-shadow: 
+        0 2px 4px 0 rgba(79, 70, 229, 0.15),
+        0 4px 8px 0 rgba(79, 70, 229, 0.1);
 }
 
 .btn-submit:hover {
+    background: linear-gradient(135deg, #4338CA 0%, #5B21B6 100%);
+    box-shadow: 
+        0 4px 8px 0 rgba(79, 70, 229, 0.2),
+        0 8px 16px 0 rgba(79, 70, 229, 0.15);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+/* Scale effect on click for tactile feedback */
+.btn-submit:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 
+        0 1px 2px 0 rgba(79, 70, 229, 0.15),
+        0 2px 4px 0 rgba(79, 70, 229, 0.1);
 }
 
 .btn-submit:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
 
 .btn-submit .spinner {
     display: none;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-top-color: white;
     border-radius: 50%;
@@ -692,129 +572,83 @@ html[dir="rtl"] body {
     to { transform: rotate(360deg); }
 }
 
-/* ===== TOOLTIPS ===== */
-.tooltip-trigger {
-    position: relative;
+.btn-cancel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    background: var(--surface-muted);
-    border-radius: 50%;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    cursor: help;
-    margin-left: 0.5rem;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    width: 100%;
 }
 
-.tooltip-trigger:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 0.5rem 0.75rem;
-    background: var(--text-primary);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: normal;
-    border-radius: 6px;
-    white-space: nowrap;
-    z-index: 100;
-    margin-bottom: 0.5rem;
+.btn-cancel:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+    background: var(--surface-bg);
+}
+
+/* ===== ERROR ALERT ===== */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alert-error {
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    color: #991B1B;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.alert-content h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #DC2626;
+}
+
+.alert-content ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+}
+
+.alert-content li {
+    margin-bottom: 0.25rem;
 }
 
 /* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .page-header {
-    text-align: right;
-}
-
-html[dir="rtl"] .page-header h1 {
-    flex-direction: row-reverse;
-    justify-content: center;
-}
-
-html[dir="rtl"] .form-progress {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .progress-step {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .section-header {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .section-header > div {
-    text-align: right;
-}
-
 html[dir="rtl"] .form-group label {
     text-align: right;
-    flex-direction: row-reverse;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
 }
 
-html[dir="rtl"] .required-badge {
-    margin-left: 0;
-    margin-right: 0.5rem;
-}
-
-html[dir="rtl"] .tooltip-trigger {
-    margin-left: 0;
-    margin-right: 0.5rem;
-}
-
-html[dir="rtl"] .tooltip-trigger:hover::after {
-    left: auto;
-    right: 50%;
-    transform: translateX(50%);
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select {
+    direction: rtl;
+    text-align: right;
 }
 
 html[dir="rtl"] .translation-toggle {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .translation-toggle-content {
-    text-align: right;
-}
-
-html[dir="rtl"] .translation-label {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .form-group .form-text {
-    text-align: right;
-}
-
-html[dir="rtl"] .form-control,
-html[dir="rtl"] .form-group input[type="text"],
-html[dir="rtl"] .form-group input[type="url"],
-html[dir="rtl"] .form-group input[type="number"],
-html[dir="rtl"] .form-group textarea,
-html[dir="rtl"] .form-group select {
-    text-align: right;
-    direction: rtl;
-}
-
-html[dir="rtl"] .section-header > div p,
-html[dir="rtl"] .section-header > div h2 {
-    text-align: right;
-}
-
-html[dir="rtl"] .char-counter {
-    justify-content: flex-start;
-}
-
-html[dir="rtl"] .upload-zone {
-    text-align: right;
-}
-
-html[dir="rtl"] .upload-browse {
     flex-direction: row-reverse;
 }
 
@@ -827,37 +661,18 @@ html[dir="rtl"] .file-info {
 }
 
 html[dir="rtl"] .keywords-container {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .keyword-pill {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .form-actions {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .btn-cancel,
-html[dir="rtl"] .btn-submit {
-    flex-direction: row-reverse;
+    direction: rtl;
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .form-progress {
-        flex-direction: column;
-        gap: 1rem;
+    .form-grid {
+        grid-template-columns: 1fr;
     }
     
-    .form-actions {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .btn-cancel, .btn-submit {
-        width: 100%;
-        justify-content: center;
+    .upload-area {
+        position: static;
+        order: -1;
     }
 }
 </style>
@@ -867,234 +682,202 @@ html[dir="rtl"] .btn-submit {
 <div class="corpus-form-page">
     <div class="form-container">
         
-        <!-- Page Header -->
+        <!-- Minimal Page Header -->
         <header class="page-header">
-            <h1>
-                <i class="bi bi-folder2-open"></i>
-                {% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New Corpus" %}{% endif %}
-            </h1>
-            <p>{% trans "Fill in the details below to add a new corpus to the resource library" %}</p>
+            <h1>{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New Corpus" %}{% endif %}</h1>
+            <p>{% trans "Upload your corpus file and provide key metadata" %}</p>
         </header>
-        
-        <!-- Progress Indicator -->
-        <div class="form-progress">
-            <div class="progress-step active" data-step="1">
-                <span class="step-number">1</span>
-                <span>{% trans "Basic Info" %}</span>
-            </div>
-            <div class="progress-step" data-step="2">
-                <span class="step-number">2</span>
-                <span>{% trans "Technical Specs" %}</span>
-            </div>
-            <div class="progress-step" data-step="3">
-                <span class="step-number">3</span>
-                <span>{% trans "Upload" %}</span>
-            </div>
-        </div>
         
         <form method="post" enctype="multipart/form-data" id="corpus-form" novalidate>
             {% csrf_token %}
             <input type="hidden" name="resource_type" value="corpus">
             
-            <!-- Section 1: Basic Information -->
-            <section class="section-card" data-section="1">
-                <div class="section-header">
-                    <div class="section-icon basic">
-                        <i class="bi bi-card-heading"></i>
-                    </div>
-                    <div>
-                        <h2>{% trans "Basic Information" %}</h2>
-                        <p>{% trans "Title, description, and keywords" %}</p>
-                    </div>
+            <!-- Error Display -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
                 </div>
-                <div class="section-body">
-                    
-                    <!-- Translation Toggle -->
-                    <div class="translation-toggle">
-                        <i class="bi bi-translate"></i>
-                        <div class="translation-toggle-content">
-                            <h4>{% trans "Add Arabic Translation" %}</h4>
-                            <p>{% trans "Enable to provide bilingual title and description" %}</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="translation-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    
-                    <!-- Title (English) -->
-                    <div class="form-group">
-                        <label for="id_title_en">
-                            {% trans "Title (English)" %}
-                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
-                        </label>
-                        {{ form.title_en }}
-                        <span class="form-text">{% trans "Enter a clear, descriptive title for the corpus" %}</span>
-                    </div>
-                    
-                    <!-- Title (Arabic) - Conditional -->
-                    <div class="translation-fields" id="title-arabic">
-                        <span class="translation-label"><i class="bi bi-translate"></i> {% trans "Arabic" %}</span>
-                        <div class="form-group">
-                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
-                            {{ form.title_ar }}
-                        </div>
-                    </div>
-                    
-                    <!-- Language -->
-                    <div class="form-group">
-                        <label for="id_language">
-                            {% trans "Corpus Language" %}
-                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
-                            <span class="tooltip-trigger" data-tooltip="{% trans 'The primary language of the corpus content' %}">?</span>
-                        </label>
-                        {{ form.language }}
-                    </div>
-                    
-                    <!-- Description (English) -->
-                    <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
-                        {{ form.description_en }}
-                        <div class="char-counter"><span id="desc-count">0</span>/2000</div>
-                    </div>
-                    
-                    <!-- Description (Arabic) - Conditional -->
-                    <div class="translation-fields" id="desc-arabic">
-                        <span class="translation-label"><i class="bi bi-translate"></i> {% trans "Arabic" %}</span>
-                        <div class="form-group">
-                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
-                            {{ form.description_ar }}
-                        </div>
-                    </div>
-                    
-                    <!-- Keywords -->
-                    <div class="form-group">
-                        <label for="id_keywords">
-                            {% trans "Keywords" %}
-                            <span class="tooltip-trigger" data-tooltip="{% trans 'Press Enter or comma to add keywords' %}">?</span>
-                        </label>
-                        <div class="keywords-container" id="keywords-container">
-                            <input type="text" class="keyword-input" id="keyword-input" placeholder="{% trans 'Type and press Enter...' %}">
-                        </div>
-                        {{ form.keywords }}
-                        <span class="form-text">{% trans "Add relevant keywords to help users find this corpus" %}</span>
-                    </div>
-                    
-                    <!-- Access Link -->
-                    <div class="form-group">
-                        <label for="id_access_link">
-                            {% trans "Access Link" %}
-                            <span class="tooltip-trigger" data-tooltip="{% trans 'External URL if corpus is hosted elsewhere' %}">?</span>
-                        </label>
-                        {{ form.access_link }}
-                        <span class="form-text">{% trans "Optional: Provide if the corpus is hosted on an external platform" %}</span>
-                    </div>
-                    
+                <div class="alert-content">
+                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    {% if form.non_field_errors %}
+                        <ul>
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if form.errors %}
+                        <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% if field != '__all__' %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
                 </div>
-            </section>
+            </div>
+            {% endif %}
             
-            <!-- Section 2: Technical Specifications -->
-            <section class="section-card" data-section="2">
-                <div class="section-header">
-                    <div class="section-icon technical">
-                        <i class="bi bi-gear"></i>
-                    </div>
-                    <div>
-                        <h2>{% trans "Technical Specifications" %}</h2>
-                        <p>{% trans "Size, field of study, and format details" %}</p>
+            <!-- 2-Column Grid Layout -->
+            <div class="form-grid">
+                
+                <!-- LEFT COLUMN: Upload Area (35%) -->
+                <div class="upload-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% trans "Upload Document" %}</h2>
+                            <p>{% trans "Drag & drop or browse" %}</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-zone" id="upload-zone">
+                                <div class="upload-icon">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                </div>
+                                <div class="upload-title">{% trans "Drop file here" %}</div>
+                                <div class="upload-subtitle">{% trans "or click to browse" %}</div>
+                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
+                            </div>
+                            
+                            <div class="file-preview" id="file-preview">
+                                <div class="file-icon">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name" id="file-name">filename.txt</div>
+                                    <div class="file-size" id="file-size">2.5 MB</div>
+                                </div>
+                                <button type="button" class="file-remove" id="file-remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="section-body">
-                    
-                    <div class="field-grid">
-                        <!-- Size -->
-                        <div class="form-group">
-                            <label for="id_corpus_size">
-                                {% trans "Corpus Size" %}
-                                <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
-                            </label>
-                            {{ form.corpus_size }}
-                            <span class="form-text">{% trans "Number of words or documents" %}</span>
+                
+                <!-- RIGHT COLUMN: Metadata Form (65%) -->
+                <div class="metadata-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% trans "Academic Metadata" %}</h2>
+                            <p>{% trans "Provide essential information" %}</p>
                         </div>
-                        
-                        <!-- Field -->
-                        <div class="form-group">
-                            <label for="id_corpus_field">
-                                {% trans "Field of Study" %}
-                                <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
-                            </label>
-                            {{ form.corpus_field }}
+                        <div class="card-body">
+                            
+                            <!-- Translation Toggle -->
+                            <div class="translation-toggle">
+                                <span class="translation-toggle-label">
+                                    <i class="bi bi-translate"></i> {% trans "Add Arabic Translation" %}
+                                </span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="translation-toggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- Title (English) -->
+                            <div class="form-group">
+                                <label for="id_title_en">
+                                    {% trans "Title (English)" %} <span class="required">*</span>
+                                </label>
+                                {{ form.title_en }}
+                            </div>
+                            
+                            <!-- Title (Arabic) - Conditional -->
+                            <div class="translation-fields" id="title-arabic">
+                                <div class="form-group">
+                                    <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
+                                    {{ form.title_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Language & Size Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_language">
+                                        {% trans "Language" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.language }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_corpus_size">
+                                        {% trans "Size" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.corpus_size }}
+                                    <span class="form-text">{% trans "Words or documents" %}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Field & Format Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_corpus_field">
+                                        {% trans "Field of Study" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.corpus_field }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_corpus_format">
+                                        {% trans "File Format" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.corpus_format }}
+                                    <span class="form-text">{% trans "e.g., TXT, CSV, JSON" %}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Description (English) -->
+                            <div class="form-group">
+                                <label for="id_description_en">{% trans "Description (English)" %}</label>
+                                {{ form.description_en }}
+                            </div>
+                            
+                            <!-- Description (Arabic) - Conditional -->
+                            <div class="translation-fields" id="desc-arabic">
+                                <div class="form-group">
+                                    <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                                    {{ form.description_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Keywords -->
+                            <div class="form-group">
+                                <label for="id_keywords">{% trans "Keywords" %}</label>
+                                <div class="keywords-container" id="keywords-container">
+                                    <input type="text" class="keyword-input" id="keyword-input" placeholder="{% trans 'Type and press Enter...' %}">
+                                </div>
+                                {{ form.keywords }}
+                                <span class="form-text">{% trans "Press Enter or comma to add" %}</span>
+                            </div>
+                            
+                            <!-- Access Link -->
+                            <div class="form-group">
+                                <label for="id_access_link">{% trans "Access Link" %}</label>
+                                {{ form.access_link }}
+                                <span class="form-text">{% trans "External URL (optional)" %}</span>
+                            </div>
+                            
+                            <!-- Submit Button -->
+                            <div class="btn-submit-wrapper">
+                                <button type="submit" class="btn-submit" id="submit-btn">
+                                    <span class="spinner"></span>
+                                    <i class="bi bi-check2"></i>
+                                    <span class="btn-text">{% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Create Corpus" %}{% endif %}</span>
+                                </button>
+                                <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
+                                    <i class="bi bi-x"></i>
+                                    {% trans "Cancel" %}
+                                </a>
+                            </div>
+                            
                         </div>
                     </div>
-                    
-                    <!-- Format -->
-                    <div class="form-group">
-                        <label for="id_corpus_format">
-                            {% trans "File Format" %}
-                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
-                            <span class="tooltip-trigger" data-tooltip="{% trans 'e.g., TXT, CSV, JSON, XML, CoNLL' %}">?</span>
-                        </label>
-                        {{ form.corpus_format }}
-                        <span class="form-text">{% trans "Specify the data format (TXT, CSV, JSON, XML, etc.)" %}</span>
-                    </div>
-                    
                 </div>
-            </section>
-            
-            <!-- Section 3: File Upload -->
-            <section class="section-card" data-section="3">
-                <div class="section-header">
-                    <div class="section-icon upload">
-                        <i class="bi bi-cloud-upload"></i>
-                    </div>
-                    <div>
-                        <h2>{% trans "Upload Corpus File" %}</h2>
-                        <p>{% trans "Drag and drop or browse to upload" %}</p>
-                    </div>
-                </div>
-                <div class="section-body">
-                    
-                    <div class="upload-zone" id="upload-zone">
-                        <div class="upload-icon">
-                            <i class="bi bi-cloud-arrow-up"></i>
-                        </div>
-                        <div class="upload-title">{% trans "Drag & drop your corpus file here" %}</div>
-                        <div class="upload-subtitle">{% trans "or" %}</div>
-                        <label class="upload-browse">
-                            <input type="file" id="file-input" name="file" aria-label="{% trans 'Choose File' %}" accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
-                        </label>
-                        <div class="upload-formats">
-                            <strong>{% trans "Supported formats:" %}</strong> TXT, CSV, JSON, XML, ZIP, GZ, CoNLL
-                        </div>
-                    </div>
-                    
-                    <div class="file-preview" id="file-preview">
-                        <div class="file-icon">
-                            <i class="bi bi-file-earmark-check"></i>
-                        </div>
-                        <div class="file-info">
-                            <div class="file-name" id="file-name">filename.txt</div>
-                            <div class="file-size" id="file-size">2.5 MB</div>
-                        </div>
-                        <button type="button" class="file-remove" id="file-remove">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                    
-                </div>
-            </section>
-            
-            <!-- Form Actions -->
-            <div class="form-actions">
-                <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
-                    <i class="bi bi-x"></i>
-                    {% trans "Cancel" %}
-                </a>
-                <button type="submit" class="btn-submit" id="submit-btn">
-                    <span class="spinner"></span>
-                    <i class="bi bi-check2"></i>
-                    <span class="btn-text">{% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Create Corpus" %}{% endif %}</span>
-                </button>
+                
             </div>
             
         </form>
@@ -1108,26 +891,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const translationToggle = document.getElementById('translation-toggle');
     const translationFields = document.querySelectorAll('.translation-fields');
     
-    translationToggle.addEventListener('change', function() {
-        translationFields.forEach(field => {
-            field.classList.toggle('visible', this.checked);
+    if (translationToggle) {
+        translationToggle.addEventListener('change', function() {
+            translationFields.forEach(field => {
+                field.classList.toggle('visible', this.checked);
+            });
         });
-    });
-    
-    // ===== Character Counter =====
-    const descField = document.querySelector('[name="description_en"]');
-    const descCount = document.getElementById('desc-count');
-    
-    if (descField && descCount) {
-        const updateCounter = () => {
-            const count = descField.value.length;
-            descCount.textContent = count;
-            descCount.parentElement.classList.remove('warning', 'danger');
-            if (count > 1800) descCount.parentElement.classList.add('danger');
-            else if (count > 1500) descCount.parentElement.classList.add('warning');
-        };
-        descField.addEventListener('input', updateCounter);
-        updateCounter();
     }
     
     // ===== Keywords Input =====
@@ -1149,18 +918,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function renderKeywords() {
         // Remove existing pills
-        keywordsContainer.querySelectorAll('.keyword-pill').forEach(p => p.remove());
-        
-        // Add pills
-        keywords.forEach((keyword, index) => {
-            const pill = document.createElement('span');
-            pill.className = 'keyword-pill';
-            pill.innerHTML = `
-                ${keyword}
-                <span class="remove-keyword" data-index="${index}"><i class="bi bi-x"></i></span>
-            `;
-            keywordsContainer.insertBefore(pill, keywordInput);
-        });
+        if (keywordsContainer) {
+            keywordsContainer.querySelectorAll('.keyword-pill').forEach(p => p.remove());
+            
+            // Add pills
+            keywords.forEach((keyword, index) => {
+                const pill = document.createElement('span');
+                pill.className = 'keyword-pill';
+                pill.innerHTML = `
+                    ${keyword}
+                    <span class="remove-keyword" data-index="${index}"><i class="bi bi-x"></i></span>
+                `;
+                keywordsContainer.insertBefore(pill, keywordInput);
+            });
+        }
         
         // Update hidden field
         if (hiddenKeywords) {
@@ -1168,30 +939,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    keywordInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            const value = this.value.trim().replace(',', '');
-            if (value && !keywords.includes(value)) {
-                keywords.push(value);
+    if (keywordInput) {
+        keywordInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const value = this.value.trim().replace(',', '');
+                if (value && !keywords.includes(value)) {
+                    keywords.push(value);
+                    renderKeywords();
+                }
+                this.value = '';
+            }
+            if (e.key === 'Backspace' && !this.value && keywords.length) {
+                keywords.pop();
                 renderKeywords();
             }
-            this.value = '';
-        }
-        if (e.key === 'Backspace' && !this.value && keywords.length) {
-            keywords.pop();
-            renderKeywords();
-        }
-    });
+        });
+    }
     
-    keywordsContainer.addEventListener('click', function(e) {
-        const removeBtn = e.target.closest('.remove-keyword');
-        if (removeBtn) {
-            const index = parseInt(removeBtn.dataset.index);
-            keywords.splice(index, 1);
-            renderKeywords();
-        }
-    });
+    if (keywordsContainer) {
+        keywordsContainer.addEventListener('click', function(e) {
+            const removeBtn = e.target.closest('.remove-keyword');
+            if (removeBtn) {
+                const index = parseInt(removeBtn.dataset.index);
+                keywords.splice(index, 1);
+                renderKeywords();
+            }
+        });
+    }
     
     // ===== Drag & Drop Upload =====
     const uploadZone = document.getElementById('upload-zone');
@@ -1210,83 +985,74 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showFile(file) {
-        fileName.textContent = file.name;
-        fileSize.textContent = formatFileSize(file.size);
-        uploadZone.classList.add('has-file');
-        filePreview.classList.add('visible');
+        if (fileName && fileSize && uploadZone && filePreview) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            uploadZone.classList.add('has-file');
+            filePreview.classList.add('visible');
+        }
     }
     
     function clearFile() {
-        fileInput.value = '';
-        uploadZone.classList.remove('has-file');
-        filePreview.classList.remove('visible');
+        if (fileInput && uploadZone && filePreview) {
+            fileInput.value = '';
+            uploadZone.classList.remove('has-file');
+            filePreview.classList.remove('visible');
+        }
     }
     
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, e => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    });
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, () => uploadZone.classList.add('drag-over'));
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('drag-over'));
-    });
-    
-    uploadZone.addEventListener('drop', e => {
-        const files = e.dataTransfer.files;
-        if (files.length) {
-            fileInput.files = files;
-            showFile(files[0]);
-        }
-    });
-    
-    fileInput.addEventListener('change', function() {
-        if (this.files.length) {
-            showFile(this.files[0]);
-        }
-    });
-    
-    fileRemove.addEventListener('click', clearFile);
-    
-    // ===== Form Progress =====
-    const sections = document.querySelectorAll('.section-card');
-    const progressSteps = document.querySelectorAll('.progress-step');
-    
-    function updateProgress() {
-        sections.forEach((section, index) => {
-            const inputs = section.querySelectorAll('input[required], select[required], textarea[required]');
-            let filled = true;
-            inputs.forEach(input => {
-                if (!input.value) filled = false;
+    if (uploadZone && fileInput) {
+        // File drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
             });
-            
-            if (filled && progressSteps[index]) {
-                progressSteps[index].classList.add('completed');
-                if (progressSteps[index + 1]) {
-                    progressSteps[index + 1].classList.add('active');
-                }
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('drag-over'));
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('drag-over'));
+        });
+        
+        uploadZone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                fileInput.files = files;
+                showFile(files[0]);
+            }
+        });
+        
+        // Click to upload
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files.length) {
+                showFile(this.files[0]);
             }
         });
     }
     
-    document.querySelectorAll('input, select, textarea').forEach(field => {
-        field.addEventListener('change', updateProgress);
-        field.addEventListener('input', updateProgress);
-    });
+    if (fileRemove) {
+        fileRemove.addEventListener('click', function(e) {
+            e.stopPropagation();
+            clearFile();
+        });
+    }
     
-    // ===== Submit Loading =====
+    // ===== Submit Loading State =====
     const form = document.getElementById('corpus-form');
     const submitBtn = document.getElementById('submit-btn');
     
-    form.addEventListener('submit', function() {
-        submitBtn.classList.add('loading');
-        submitBtn.disabled = true;
-    });
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
     
     // ===== Hide non-corpus fields =====
     const nonCorpusFields = [

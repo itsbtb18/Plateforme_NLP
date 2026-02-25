@@ -1466,6 +1466,21 @@
             </div>
             {% endblock messages_container %}
             
+            <script>
+            // Auto-show Django message toasts
+            document.addEventListener('DOMContentLoaded', function() {
+                var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+                var toastList = toastElList.map(function(toastEl) {
+                    var toast = new bootstrap.Toast(toastEl, {
+                        autohide: true,
+                        delay: 5000
+                    });
+                    toast.show();
+                    return toast;
+                });
+            });
+            </script>
+            
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -2499,6 +2514,40 @@
     <!-- ══════════════════════════════════════════════════════════════════════ -->
     <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
     <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Instagram-Style Share Modal -->
+    {% include "includes/share_modal_modern.html" %}
+
+    <!-- Chatbot Button Handler -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // Handle chatbot button clicks
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.ask-chatbot-btn');
+            if (!btn) return;
+            
+            e.preventDefault();
+            
+            const contentType = btn.dataset.ct || '';
+            const objectId = btn.dataset.oid || '';
+            const title = btn.dataset.title || '';
+            const description = btn.dataset.description || '';
+            const url = btn.dataset.url || '';
+            const tags = btn.dataset.tags || '';
+            
+            // Navigate to chatbot page with content context as URL parameters
+            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
+            if (contentType && objectId) {
+                chatbotUrl.searchParams.set('type', contentType);
+                chatbotUrl.searchParams.set('id', objectId);
+            }
+            
+            window.location.href = chatbotUrl.toString();
+        });
+    })();
+    </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>
