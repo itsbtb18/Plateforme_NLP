@@ -1651,6 +1651,15 @@ def get_edit_url(model_type, pk):
     # Handle special case for posts which use post_id instead of pk
     if model_type == 'post':
         kwargs = {'post_id': pk}
+    elif model_type == 'document':
+        # Determine the actual document subtype instead of hardcoding 'article'
+        from resources.models import Document
+        try:
+            doc = Document.objects.get(pk=pk)
+            doc_type = doc.document_type or 'article'
+        except Document.DoesNotExist:
+            doc_type = 'article'
+        kwargs = {'pk': pk, 'type': doc_type}
     else:
         kwargs = {'pk': pk}
         kwargs.update(extra_kwargs)

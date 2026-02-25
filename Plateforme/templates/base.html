@@ -542,7 +542,7 @@
                                name="q" 
                                id="search-input"
                                class="cmd-input"
-                               placeholder="search..."
+                               placeholder="{% trans 'Search...' %}"
                                autocomplete="off"
                                spellcheck="false"
                                aria-label="{% trans 'Search' %}"
@@ -2489,6 +2489,10 @@
         
         // Get CSRF token
         function getCsrfToken() {
+            // First try from a hidden input (works even with CSRF_COOKIE_HTTPONLY)
+            const input = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (input) return input.value;
+            // Fallback to cookie
             const cookieValue = document.cookie
                 .split('; ')
                 .find(row => row.startsWith('csrftoken='));

@@ -650,8 +650,12 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         # Get the Document for article, thesis, memoir
         if resource_type in ['article', 'thesis', 'memoir']:
             document = get_object_or_404(Document, pk=pk)
-            # Verify the document has the correct subtype
+            # Verify the document has the correct subtype; if not, try to find the actual subtype
             if not hasattr(document, resource_type):
+                # Fallback: check other subtypes
+                for subtype in ['article', 'thesis', 'memoir']:
+                    if hasattr(document, subtype):
+                        return document
                 raise Http404(f"{resource_type.capitalize()} not found for document ID {pk}")
             return document
         else:
