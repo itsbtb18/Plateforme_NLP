@@ -169,7 +169,7 @@ ACCOUNT_FORMS = {
 }
 
 # Remember Me Configuration
-ACCOUNT_SESSION_REMEMBER = True  # Enable remember me functionality
+ACCOUNT_SESSION_REMEMBER = None  # Let the checkbox control remember me
 ACCOUNT_REMEMBER_ME_EXPIRY = 604800  # 1 week in seconds (7 days)
 
 LOGIN_REDIRECT_URL = "pages:home"
@@ -301,12 +301,12 @@ ELASTICSEARCH_DSL_AUTOSYNC = True
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://nlp_fastapi:8000")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
-CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "24000"))
+CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))
 CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
-CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "10485760"))  # 10MB
+CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
 
 # Logging
 LOGGING = {

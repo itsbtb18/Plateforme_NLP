@@ -45,10 +45,9 @@ RUN pip install --no-cache-dir --timeout 120 --retries 3 -r requirements.txt
 
 # Download sentence-transformers model during build
 # This speeds up container startup significantly
-# Commented out to speed up builds - model will download on first use
-# RUN python -c "from sentence_transformers import SentenceTransformer; \
-#     model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2'); \
-#     print('Model downloaded successfully')"
+RUN python -c "from sentence_transformers import SentenceTransformer; \
+    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2'); \
+    print('Model downloaded successfully')"
 
 # ============================================
 # PRODUCTION STAGE
@@ -58,7 +57,8 @@ FROM base as production
 # Copy installed packages from dependencies stage
 COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=dependencies /usr/local/bin /usr/local/bin
-# Cache copy removed - not needed for production
+# Copy pre-downloaded model cache
+COPY --from=dependencies /root/.cache /home/fastapi/.cache
 
 # Copy application code
 COPY --chown=fastapi:fastapi . .

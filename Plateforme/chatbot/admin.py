@@ -6,18 +6,18 @@ from .models import ChatSession, ChatMessage, ChatFeedback
 
 @admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):
-    list_display = ('display_session_id', 'user_email', 'pdf_status', 'is_active', 'message_count', 'created_at', 'updated_at')
-    list_filter = ('is_active', 'pdf_uploaded', 'created_at')
-    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'fastapi_session_id', 'pdf_filename')
+    list_display = ('display_session_id', 'user_email', 'title', 'doc_status', 'is_active', 'message_count', 'created_at', 'updated_at')
+    list_filter = ('is_active', 'has_documents', 'created_at')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'fastapi_session_id', 'title', 'document_filename')
     readonly_fields = ('id', 'fastapi_session_id', 'created_at', 'updated_at', 'display_messages')
     date_hierarchy = 'created_at'
     
     fieldsets = (
         (_('Session Info'), {
-            'fields': ('id', 'fastapi_session_id', 'user', 'is_active')
+            'fields': ('id', 'fastapi_session_id', 'user', 'title', 'is_active')
         }),
-        (_('PDF Context'), {
-            'fields': ('pdf_uploaded', 'pdf_filename')
+        (_('Document Context'), {
+            'fields': ('has_documents', 'document_filename')
         }),
         (_('Timestamps'), {
             'fields': ('created_at', 'updated_at')
@@ -37,14 +37,14 @@ class ChatSessionAdmin(admin.ModelAdmin):
     user_email.short_description = _('User')
     user_email.admin_order_field = 'user__email'
     
-    def pdf_status(self, obj):
-        if obj.pdf_uploaded:
+    def doc_status(self, obj):
+        if obj.has_documents:
             return format_html(
                 '<span style="color: green;">✓ {}</span>',
-                obj.pdf_filename or _('Uploaded')
+                obj.document_filename or _('Uploaded')
             )
-        return format_html('<span style="color: gray;">✗ {}</span>', _('No PDF'))
-    pdf_status.short_description = _('PDF Status')
+        return format_html('<span style="color: gray;">✗ {}</span>', _('No Document'))
+    doc_status.short_description = _('Document Status')
     
     def message_count(self, obj):
         count = obj.messages.count()

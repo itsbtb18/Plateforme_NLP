@@ -40,9 +40,31 @@ services:
       - nlp_network
     restart: unless-stopped
 
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: nlp_qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: "6334"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
   # Elasticsearch for search functionality
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    build:
+      context: ./elasticsearch
+      dockerfile: Dockerfile
     container_name: nlp_elasticsearch
     environment:
       - discovery.type=single-node
@@ -95,7 +117,14 @@ services:
       ELASTICSEARCH_HOST: http://elasticsearch:9200
       
       # FastAPI Chatbot
-      FASTAPI_URL: http://host.docker.internal:8000
+      FASTAPI_URL: http://fastapi:8000
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+      
+      # Chatbot Settings
+      CHATBOT_MAX_HISTORY: ${CHATBOT_MAX_HISTORY:-20}
+      CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
+      CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
+      CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
     volumes:
       - ./Plateforme:/app
       - static_volume:/app/staticfiles
@@ -133,28 +162,31 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_fastapi
     environment:
-      # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
-      
-      # Groq API
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
-      
-      # Embedding Model
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
-      
-      # Environment
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      
-      # Elasticsearch
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      QDRANT_GRPC_PORT: "6334"
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
@@ -165,6 +197,47 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Celery Worker for background document processing
+  celery_worker:
+    build:
+      context: ./fastapi_chatbot
+      dockerfile: Dockerfile
+    container_name: nlp_celery_worker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      QDRANT_GRPC_PORT: "6334"
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+    volumes:
+      - ./fastapi_chatbot:/app
+      - fastapi_cache:/app/.cache
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     networks:
       - nlp_network
     restart: unless-stopped
@@ -205,6 +278,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  qdrant_data:
     driver: local
   elasticsearch_data:
     driver: local
