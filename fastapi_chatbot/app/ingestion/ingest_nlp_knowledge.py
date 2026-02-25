@@ -1,5 +1,7 @@
 """
-Ingestion script for Arabic NLP knowledge base
+Ingestion script for Arabic NLP knowledge base.
+
+Persists structured data in PostgreSQL, embeddings in Qdrant.
 """
 import asyncio
 import sys
@@ -7,219 +9,138 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import AsyncSessionLocal
 from app.models import NLPKnowledge
-from app.services.embeddings import get_embedding_service
+from app.services.documents.embeddings import get_embedding_service
+from app.services.qdrant import get_qdrant_service, COLLECTION_NLP_KNOWLEDGE
+from qdrant_client.models import PointStruct
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Arabic NLP knowledge base
 NLP_KNOWLEDGE = [
     {
         "topic": "Arabic Stemming",
         "language": "en",
-        "content": """Stemming is the process of reducing Arabic words to their root form (stem).
-Arabic stemming is challenging due to:
-- Rich morphology with prefixes, suffixes, and infixes
-- Derivational and inflectional morphology
-- Agglutinative nature
-
-Common stemming algorithms:
-1. Light Stemming: Removes common prefixes/suffixes (Al-, -at, -un)
-2. Root-based Stemming: Extracts tri-literal/quad-literal roots
-3. Khoja Stemmer: Popular root-based stemmer
-4. ISRI Stemmer: Information Science Research Institute stemmer
-
-Applications:
-- Information retrieval
-- Text classification
-- Machine translation""",
+        "content": (
+            "Stemming is the process of reducing Arabic words to their root form (stem).\n"
+            "Arabic stemming is challenging due to:\n"
+            "- Rich morphology with prefixes, suffixes, and infixes\n"
+            "- Derivational and inflectional morphology\n"
+            "- Agglutinative nature\n\n"
+            "Common stemming algorithms:\n"
+            "1. Light Stemming: Removes common prefixes/suffixes (Al-, -at, -un)\n"
+            "2. Root-based Stemming: Extracts tri-literal/quad-literal roots\n"
+            "3. Khoja Stemmer: Popular root-based stemmer\n"
+            "4. ISRI Stemmer: Information Science Research Institute stemmer\n\n"
+            "Applications:\n"
+            "- Information retrieval\n"
+            "- Text classification\n"
+            "- Machine translation"
+        ),
         "keywords": ["stemming", "morphology", "root", "Arabic"],
-        "difficulty": "intermediate"
-    },
-    {
-        "topic": "الجذعنة العربية (Stemming)",
-        "language": "ar",
-        "content": """الجذعنة هي عملية تحويل الكلمات العربية إلى جذورها الأساسية.
-تحديات الجذعنة العربية:
-- الصرف الغني بالسوابق واللواحق والحشوات
-- الصرف الاشتقاقي والتصريفي
-- الطبيعة الإلصاقية
-
-خوارزميات الجذعنة الشائعة:
-1. الجذعنة الخفيفة: إزالة السوابق/اللواحق الشائعة (ال-، -ات، -ون)
-2. الجذعنة القائمة على الجذر: استخراج الجذور الثلاثية/الرباعية
-3. خوجة (Khoja): جذعنة شائعة قائمة على الجذر
-4. ISRI: جذعنة معهد بحوث علوم المعلومات
-
-التطبيقات:
-- استرجاع المعلومات
-- تصنيف النصوص
-- الترجمة الآلية""",
-        "keywords": ["جذعنة", "صرف", "جذر", "عربي"],
-        "difficulty": "intermediate"
+        "difficulty": "intermediate",
     },
     {
         "topic": "Named Entity Recognition (NER) for Arabic",
         "language": "en",
-        "content": """NER identifies and classifies named entities in Arabic text.
-
-Entity types:
-- Person names (PERSON)
-- Locations (LOCATION)
-- Organizations (ORGANIZATION)
-- Dates/Times (DATE, TIME)
-- Monetary values (MONEY)
-
-Challenges for Arabic NER:
-- Lack of capitalization
-- Name ambiguity
-- Dialect variations
-- Limited annotated corpora
-
-Approaches:
-1. Rule-based: Gazetteers, patterns
-2. Machine Learning: CRF, SVM
-3. Deep Learning: BiLSTM-CRF, BERT (AraBERT, CAMeL BERT)
-
-Tools:
-- CAMeL Tools
-- Stanford NER
-- spaCy with Arabic models""",
+        "content": (
+            "NER identifies and classifies named entities in Arabic text.\n\n"
+            "Entity types: PERSON, LOCATION, ORGANIZATION, DATE, TIME, MONEY.\n\n"
+            "Challenges for Arabic NER:\n"
+            "- Lack of capitalization\n"
+            "- Name ambiguity\n"
+            "- Dialect variations\n"
+            "- Limited annotated corpora\n\n"
+            "Approaches:\n"
+            "1. Rule-based: Gazetteers, patterns\n"
+            "2. Machine Learning: CRF, SVM\n"
+            "3. Deep Learning: BiLSTM-CRF, BERT (AraBERT, CAMeL BERT)\n\n"
+            "Tools: CAMeL Tools, Stanford NER, spaCy with Arabic models"
+        ),
         "keywords": ["NER", "entities", "Arabic", "BERT"],
-        "difficulty": "advanced"
+        "difficulty": "advanced",
     },
     {
         "topic": "Arabic Diacritization",
         "language": "en",
-        "content": """Diacritization adds vowel marks (diacritics) to Arabic text.
-
-Arabic diacritics:
-- Fatha (َ): Short 'a' sound
-- Damma (ُ): Short 'u' sound
-- Kasra (ِ): Short 'i' sound
-- Sukun (ْ): No vowel
-- Shadda (ّ): Gemination
-- Tanwin: Nunation marks
-
-Importance:
-- Resolves ambiguity
-- Essential for TTS and ASR
-- Helps learners
-- Improves machine translation
-
-Methods:
-1. Rule-based: Morphological analysis
-2. Statistical: HMM, CRF
-3. Neural: RNN, Transformer models
-
-State-of-the-art:
-- Shakkala
-- Mishkal
-- Farasa""",
+        "content": (
+            "Diacritization adds vowel marks (diacritics) to Arabic text.\n\n"
+            "Arabic diacritics: Fatha, Damma, Kasra, Sukun, Shadda, Tanwin.\n\n"
+            "Importance:\n"
+            "- Resolves ambiguity\n"
+            "- Essential for TTS and ASR\n"
+            "- Helps learners\n"
+            "- Improves machine translation\n\n"
+            "Methods:\n"
+            "1. Rule-based: Morphological analysis\n"
+            "2. Statistical: HMM, CRF\n"
+            "3. Neural: RNN, Transformer models\n\n"
+            "State-of-the-art: Shakkala, Mishkal, Farasa"
+        ),
         "keywords": ["diacritization", "tashkeel", "harakat", "vowels"],
-        "difficulty": "intermediate"
-    },
-    {
-        "topic": "التشكيل العربي (Arabic Diacritization)",
-        "language": "ar",
-        "content": """التشكيل يضيف علامات الحركات للنص العربي.
-
-الحركات العربية:
-- الفتحة (َ): صوت 'a' قصير
-- الضمة (ُ): صوت 'u' قصير
-- الكسرة (ِ): صوت 'i' قصير
-- السكون (ْ): بدون حركة
-- الشدة (ّ): تضعيف
-- التنوين: نون ساكنة
-
-الأهمية:
-- حل الغموض اللغوي
-- ضروري لتحويل النص إلى كلام
-- مساعدة المتعلمين
-- تحسين الترجمة الآلية
-
-الطرق:
-1. قائمة على القواعد: تحليل صرفي
-2. إحصائية: HMM, CRF
-3. عصبية: RNN, Transformer
-
-أحدث الأدوات:
-- شكّلة
-- مشكال
-- فرسا""",
-        "keywords": ["تشكيل", "حركات", "ضبط", "تطويع"],
-        "difficulty": "intermediate"
+        "difficulty": "intermediate",
     },
     {
         "topic": "Arabic Word Embeddings",
         "language": "en",
-        "content": """Word embeddings are dense vector representations of words.
-
-Types:
-1. Static embeddings:
-   - Word2Vec (Skip-gram, CBOW)
-   - GloVe
-   - FastText (handles morphology well)
-
-2. Contextual embeddings:
-   - AraBERT
-   - CAMeL BERT
-   - AraGPT
-   - mBERT (multilingual)
-
-Pretrained Arabic models:
-- AraBERT v1/v2
-- CAMeL-BERT (MSA, dialects)
-- AraELECTRA
-- MARBERT
-
-Training corpora:
-- Arabic Wikipedia
-- OSIAN
-- Arabic Gigaword
-- Common Crawl
-
-Applications:
-- Semantic similarity
-- Text classification
-- Machine translation
-- Question answering""",
+        "content": (
+            "Word embeddings are dense vector representations of words.\n\n"
+            "Types:\n"
+            "1. Static: Word2Vec (Skip-gram, CBOW), GloVe, FastText\n"
+            "2. Contextual: AraBERT, CAMeL BERT, AraGPT, mBERT\n\n"
+            "Pretrained Arabic models: AraBERT v1/v2, CAMeL-BERT, AraELECTRA, MARBERT.\n\n"
+            "Training corpora: Arabic Wikipedia, OSIAN, Arabic Gigaword, Common Crawl.\n\n"
+            "Applications: Semantic similarity, text classification, machine translation, QA"
+        ),
         "keywords": ["embeddings", "BERT", "word2vec", "vectors"],
-        "difficulty": "advanced"
-    }
+        "difficulty": "advanced",
+    },
 ]
 
+
 async def ingest_nlp_knowledge():
-    """Ingest NLP knowledge base with embeddings"""
+    """Ingest NLP knowledge base into PostgreSQL + Qdrant."""
     embedding_service = get_embedding_service()
-    
+    qdrant = get_qdrant_service()
+    qdrant.ensure_collections()
+
     async with AsyncSessionLocal() as db:
-        logger.info("🚀 Starting NLP knowledge ingestion...")
-        
-        for knowledge_data in NLP_KNOWLEDGE:
-            # Generate embedding
-            text_for_embedding = f"{knowledge_data['topic']} {knowledge_data['content']}"
-            embedding = embedding_service.encode_single(text_for_embedding)
-            
-            # Create knowledge entry
-            knowledge = NLPKnowledge(
-                topic=knowledge_data['topic'],
-                language=knowledge_data['language'],
-                content=knowledge_data['content'],
-                keywords=knowledge_data['keywords'],
-                difficulty=knowledge_data['difficulty'],
-                embedding=embedding
+        logger.info("Starting NLP knowledge ingestion...")
+        points: list[PointStruct] = []
+
+        for kd in NLP_KNOWLEDGE:
+            text = f"{kd['topic']} {kd['content']}"
+            embedding = embedding_service.encode_single(text)
+
+            entry = NLPKnowledge(
+                topic=kd["topic"],
+                language=kd["language"],
+                content=kd["content"],
+                keywords=kd["keywords"],
+                difficulty=kd["difficulty"],
             )
-            
-            db.add(knowledge)
-            logger.info(f"✅ Added: {knowledge_data['topic']}")
-        
+            db.add(entry)
+            await db.flush()
+
+            points.append(
+                PointStruct(
+                    id=entry.id,
+                    vector=embedding,
+                    payload={
+                        "type": "nlp_knowledge",
+                        "language": entry.language,
+                        "difficulty": entry.difficulty or "",
+                    },
+                )
+            )
+            logger.info("Added: %s (id=%d)", entry.topic, entry.id)
+
         await db.commit()
-        logger.info(f"🎉 Ingested {len(NLP_KNOWLEDGE)} knowledge entries")
+        qdrant.upsert_batch(COLLECTION_NLP_KNOWLEDGE, points)
+        logger.info("Ingested %d knowledge entries", len(NLP_KNOWLEDGE))
+
 
 if __name__ == "__main__":
     asyncio.run(ingest_nlp_knowledge())
