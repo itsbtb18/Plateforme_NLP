@@ -4,6 +4,7 @@ Groq API client — LLM inference layer.
 Handles chat completion, RAG-augmented generation, and quick answers.
 API key is NEVER logged.
 """
+
 from groq import Groq
 from groq.types.chat import ChatCompletionMessageParam, ChatCompletion
 from app.config import get_settings
@@ -13,6 +14,7 @@ from app.services.llm.prompts import (
     source_rules,
     rag_prompt,
 )
+import asyncio
 import logging
 from typing import List, Dict, Optional, Any
 
@@ -27,13 +29,36 @@ class GroqClient:
         api_key = settings.GROQ_API_KEY
         if not api_key:
             raise ValueError("GROQ_API_KEY not configured")
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=api_key, timeout=60.0)
         self.model = settings.GROQ_MODEL
         logger.info("Groq client initialised – model: %s", self.model)
 
     # ------------------------------------------------------------------
     # Core completion
     # ------------------------------------------------------------------
+
+    def _sync_chat_completion(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+    ) -> str:
+        """Synchronous Groq API call — runs in a thread pool via asyncio."""
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=False,
+        )
+        if not isinstance(response, ChatCompletion):
+            raise ValueError("Unexpected response type from Groq API")
+        content = response.choices[0].message.content
+        if not content:
+            return self._fallback_message("en")
+        return content
 
     async def chat_completion(
         self,
@@ -42,21 +67,12 @@ class GroqClient:
         max_tokens: int = 2048,
     ) -> str:
         try:
-            if not messages:
-                raise ValueError("Messages list cannot be empty")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False,
+            return await asyncio.to_thread(
+                self._sync_chat_completion,
+                messages,
+                temperature,
+                max_tokens,
             )
-            if not isinstance(response, ChatCompletion):
-                raise ValueError("Unexpected response type from Groq API")
-            content = response.choices[0].message.content
-            if not content:
-                return self._fallback_message("en")
-            return content
         except Exception as e:
             logger.error("Groq API error: %s", type(e).__name__)
             fb_lang = "en"
@@ -117,9 +133,33 @@ class GroqClient:
         """Answer without retrieved context.
 
         Phase 10 — Safety: critical rules are included even without RAG.
+        Phase 13 — Anti-hallucination: domain-scoped guardrail.
+        The LLM is reminded it has no retrieved documents and must stay
+        within its domain expertise (Arabic NLP) or admit uncertainty.
         """
         system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
         system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+
+        # Anti-hallucination guardrail for no-context answers
+        guardrails = {
+            "ar": (
+                "\n\n⚠️ تنبيه: لا تتوفر لديك وثائق مرجعية لهذا السؤال. "
+                "أجب فقط إذا كانت الإجابة ضمن تخصصك في معالجة اللغات الطبيعية أو استخدام المنصة. "
+                "إذا لم تكن متأكداً، قل بوضوح أنك لا تملك معلومات كافية بدلاً من الاختراع."
+            ),
+            "fr": (
+                "\n\n⚠️ Attention : vous n'avez aucun document de référence pour cette question. "
+                "Répondez uniquement si la réponse relève de votre expertise en NLP ou de l'utilisation de la plateforme. "
+                "Si vous n'êtes pas sûr, dites clairement que vous ne disposez pas d'informations suffisantes plutôt que d'inventer."
+            ),
+            "en": (
+                "\n\n⚠️ Note: You have NO reference documents for this question. "
+                "Only answer if the question falls within your expertise in NLP, Arabic language processing, or platform usage. "
+                "If you are unsure or the question is outside your domain, clearly state that you don't have enough information rather than guessing or fabricating an answer."
+            ),
+        }
+        system += guardrails.get(language, guardrails["en"])
+
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system},
             {"role": "user", "content": question},

@@ -11,6 +11,7 @@ Pipeline per conversation turn:
 Session CRUD, document management, and message storage are handled by
 SessionService and DocumentService respectively.
 """
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.llm import get_groq_client
 from app.services.retrieval import (
@@ -37,23 +38,27 @@ class ChatLogic:
     """
 
     def __init__(self):
-        self.groq = get_groq_client()            # LLM (isolated)
+        self.groq = get_groq_client()  # LLM (isolated)
         self.classifier = get_query_classifier()  # Step 1-2
-        self.router = get_query_router()          # Step 3
-        self.sessions = get_session_service()     # PostgreSQL session ops
+        self.router = get_query_router()  # Step 3
+        self.sessions = get_session_service()  # PostgreSQL session ops
 
     # ------------------------------------------------------------------
     # Conversation handler (full RAG pipeline)
     # ------------------------------------------------------------------
 
     async def handle_conversation(
-        self, request: ConversationRequest, db: AsyncSession,
+        self,
+        request: ConversationRequest,
+        db: AsyncSession,
     ) -> ChatResponse:
         # Check if the user actually has uploaded documents (not just a session)
         has_docs = False
         if request.user_id:
             doc_count = await db.execute(
-                select(sqlfunc.count()).select_from(UserDocument).where(
+                select(sqlfunc.count())
+                .select_from(UserDocument)
+                .where(
                     UserDocument.user_id == request.user_id,
                     UserDocument.status == "completed",
                 )
@@ -69,7 +74,9 @@ class ChatLogic:
 
         logger.info(
             "Classification: intent=%s lang=%s confidence=%.2f",
-            classification.intent, language, classification.confidence,
+            classification.intent,
+            language,
+            classification.confidence,
         )
 
         # Step 3: Route to correct data source(s)
@@ -81,12 +88,40 @@ class ChatLogic:
             user_id=request.user_id,
             user_country=request.user_country,
             user_city=request.user_city,
+            user_email=getattr(request, "user_email", None),
         )
 
         # Step 4: Build context from routing result
         # Phase 9: Platform data (PostgreSQL facts) is labelled with higher
         # priority so the LLM knows to prefer it over semantic results.
         context = self._build_context(routing.retrieved_docs)
+
+        # Inject current user profile so the LLM knows who is asking
+        # Skip for general_knowledge intent (e.g. "who are you") to avoid
+        # confusing the LLM into answering with user identity
+        user_ctx = ""
+        if classification.intent != "general_knowledge":
+            user_ctx = self._build_user_context(request)
+        logger.info(
+            "User profile injection: user_name=%s, user_email=%s, ctx_len=%d",
+            getattr(request, "user_name", None),
+            getattr(request, "user_email", None),
+            len(user_ctx) if user_ctx else 0,
+        )
+        if user_ctx:
+            context = (
+                (
+                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    + user_ctx
+                    + "\n\n"
+                    + context
+                )
+                if context
+                else (
+                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    + user_ctx
+                )
+            )
 
         if routing.platform_results:
             platform_ctx = self._build_platform_context(routing.platform_results)
@@ -107,7 +142,9 @@ class ChatLogic:
 
         if routing.nav_hints and routing.nav_hints.get("suggestions"):
             nav_ctx = self._build_nav_context(routing.nav_hints)
-            context = (context + "\n\n--- Navigation ---\n" + nav_ctx) if context else nav_ctx
+            context = (
+                (context + "\n\n--- Navigation ---\n" + nav_ctx) if context else nav_ctx
+            )
 
         # Conversation memory
         chat_history = await self.sessions.get_recent_messages(request.session_id, db)
@@ -115,11 +152,15 @@ class ChatLogic:
 
         # Step 5: Groq reasoning & generation
         source = routing.primary_source
-        if context and not routing.skip_retrieval:
+        # If we have context (including user profile), always use RAG path
+        # so the LLM can see the user's identity even for general questions
+        if context and (not routing.skip_retrieval or user_ctx):
             # Phase 9: pass source_type so Groq gets specialised rules
             logger.info(
                 "RAG generation: source=%s context_len=%d docs=%d",
-                source, len(context), len(routing.retrieved_docs),
+                source,
+                len(context),
+                len(routing.retrieved_docs),
             )
             answer = await self.groq.generate_answer_with_context(
                 question=request.question,
@@ -134,15 +175,23 @@ class ChatLogic:
         else:
             logger.info(
                 "Direct LLM (no retrieval): skip=%s context_empty=%s",
-                routing.skip_retrieval, not context,
+                routing.skip_retrieval,
+                not context,
             )
             answer = await self.groq.quick_answer(request.question, language)
             source = "groq"
 
         # Step 6: Persist messages
-        await self.sessions.save_message(request.session_id, "user", request.question, None, language, db)
         await self.sessions.save_message(
-            request.session_id, "assistant", answer, source, language, db,
+            request.session_id, "user", request.question, None, language, db
+        )
+        await self.sessions.save_message(
+            request.session_id,
+            "assistant",
+            answer,
+            source,
+            language,
+            db,
             retrieved_count=len(routing.retrieved_docs),
         )
         await self.sessions.auto_title(request.session_id, request.question, db)
@@ -155,19 +204,25 @@ class ChatLogic:
             session_id=request.session_id,
             lang=language,
             retrieved_docs=self._to_schema(routing.retrieved_docs),
-            platform_results=routing.platform_results if routing.platform_results else None,
+            platform_results=routing.platform_results
+            if routing.platform_results
+            else None,
         )
 
     # ------------------------------------------------------------------
     # Quick query (no context / no session)
     # ------------------------------------------------------------------
 
-    async def handle_quick_query(self, question: str, language: Optional[str] = None) -> ChatResponse:
+    async def handle_quick_query(
+        self, question: str, language: Optional[str] = None
+    ) -> ChatResponse:
         lang = language or self.classifier.classify(question).language
         answer = await self.groq.quick_answer(question, lang)
         return ChatResponse(
-            answer=answer, source="groq",
-            session_id="quick_query", lang=lang,
+            answer=answer,
+            source="groq",
+            session_id="quick_query",
+            lang=lang,
         )
 
     # ------------------------------------------------------------------
@@ -175,7 +230,10 @@ class ChatLogic:
     # ------------------------------------------------------------------
 
     async def handle_pdf_question(
-        self, question: str, session_id: str, db: AsyncSession,
+        self,
+        question: str,
+        session_id: str,
+        db: AsyncSession,
     ) -> ChatResponse:
         language = self.classifier.classify(question).language
 
@@ -188,17 +246,25 @@ class ChatLogic:
         chat_history = await self.sessions.get_recent_messages(session_id, db)
         session_summary = await self.sessions.get_summary(session_id, db)
         answer = await self.groq.generate_answer_with_context(
-            question=question, context=pdf_ctx,
-            language=language, chat_history=chat_history,
+            question=question,
+            context=pdf_ctx,
+            language=language,
+            chat_history=chat_history,
             session_summary=session_summary,
         )
 
-        await self.sessions.save_message(session_id, "user", question, "pdf", language, db)
-        await self.sessions.save_message(session_id, "assistant", answer, "pdf", language, db)
+        await self.sessions.save_message(
+            session_id, "user", question, "pdf", language, db
+        )
+        await self.sessions.save_message(
+            session_id, "assistant", answer, "pdf", language, db
+        )
 
         return ChatResponse(
-            answer=answer, source="pdf",
-            session_id=session_id, lang=language,
+            answer=answer,
+            source="pdf",
+            session_id=session_id,
+            lang=language,
         )
 
     # ------------------------------------------------------------------
@@ -206,18 +272,24 @@ class ChatLogic:
     # ------------------------------------------------------------------
 
     async def handle_user_doc_question(
-        self, question: str, session_id: str, db: AsyncSession,
+        self,
+        question: str,
+        session_id: str,
+        db: AsyncSession,
         document_id: Optional[int] = None,
         user_id: Optional[str] = None,
     ) -> ChatResponse:
         language = self.classifier.classify(question).language
 
         # Phase 7: owner_id is mandatory — users can ONLY retrieve their own docs
+        # Phase 12: use higher top_k for better multi-document coverage
         docs = await search_user_documents(
-            query=question, db=db,
+            query=question,
+            db=db,
             session_id=session_id,
             document_id=document_id,
             owner_id=user_id,
+            top_k=8,
         )
 
         if not docs:
@@ -237,19 +309,33 @@ class ChatLogic:
             chat_history = await self.sessions.get_recent_messages(session_id, db)
             session_summary = await self.sessions.get_summary(session_id, db)
             answer = await self.groq.generate_answer_with_context(
-                question=question, context=context,
-                language=language, chat_history=chat_history,
+                question=question,
+                context=context,
+                language=language,
+                chat_history=chat_history,
                 session_summary=session_summary,
                 source_type="user_document",
             )
             source = "user_document"
 
-        await self.sessions.save_message(session_id, "user", question, source, language, db)
-        await self.sessions.save_message(session_id, "assistant", answer, source, language, db, retrieved_count=len(docs))
+        await self.sessions.save_message(
+            session_id, "user", question, source, language, db
+        )
+        await self.sessions.save_message(
+            session_id,
+            "assistant",
+            answer,
+            source,
+            language,
+            db,
+            retrieved_count=len(docs),
+        )
 
         return ChatResponse(
-            answer=answer, source=source,
-            session_id=session_id, lang=language,
+            answer=answer,
+            source=source,
+            session_id=session_id,
+            lang=language,
             retrieved_docs=self._to_schema(docs),
         )
 
@@ -258,7 +344,9 @@ class ChatLogic:
     # ------------------------------------------------------------------
 
     async def handle_legal_question(
-        self, question: str, db: AsyncSession,
+        self,
+        question: str,
+        db: AsyncSession,
         jurisdiction: Optional[str] = None,
         category: Optional[str] = None,
         language: Optional[str] = None,
@@ -267,7 +355,8 @@ class ChatLogic:
 
         # Phase 6: pass language so same-language laws are prioritised
         docs = await search_legal_documents(
-            query=question, db=db,
+            query=question,
+            db=db,
             jurisdiction=jurisdiction,
             category=category,
             language=lang,
@@ -287,14 +376,18 @@ class ChatLogic:
         else:
             context = self._build_context(docs)
             answer = await self.groq.generate_answer_with_context(
-                question=question, context=context, language=lang,
+                question=question,
+                context=context,
+                language=lang,
                 source_type="legal",
             )
             source = "legal"
 
         return ChatResponse(
-            answer=answer, source=source,
-            session_id="legal_query", lang=lang,
+            answer=answer,
+            source=source,
+            session_id="legal_query",
+            lang=lang,
             retrieved_docs=self._to_schema(docs),
         )
 
@@ -305,23 +398,67 @@ class ChatLogic:
     def _build_context(self, docs: List[Dict]) -> str:
         if not docs:
             return ""
+
+        # Check if these are user-uploaded document chunks
+        is_user_doc = any(d.get("source") == "user_document" for d in docs)
+
+        if is_user_doc:
+            # Group chunks by filename for clearer LLM context
+            from collections import defaultdict
+
+            by_file: dict[str, list[str]] = defaultdict(list)
+            for doc in docs[:10]:
+                fname = doc.get("title", "Untitled")
+                content = doc.get("content", "")[:600]
+                by_file[fname].append(content)
+
+            parts = []
+            for fname, chunks in by_file.items():
+                combined = "\n\n".join(chunks)
+                parts.append(f"[File: {fname}]\n{combined}\n")
+            return "\n---\n".join(parts)
+
+        # Default: labelled documents for non-user-doc sources.
+        # Each doc gets a clear title + source label so the LLM can cite it.
         parts = []
         for i, doc in enumerate(docs[:5], 1):
             src = doc.get("source", "unknown")
             title = doc.get("title", "Untitled")
             content = doc.get("content", "")[:600]
-            sim = doc.get("similarity", 0.0)
+            url = doc.get("url", "")
+            url_line = f"\nURL: {url}" if url else ""
             parts.append(
-                f"[Document {i} | source: {src} | similarity: {sim:.2f}]\n"
-                f"Title: {title}\n{content}\n"
+                f'[Source {i}: "{title}" (type: {src})]\n{content}{url_line}\n'
             )
         return "\n---\n".join(parts)
+
+    @staticmethod
+    def _build_user_context(request) -> str:
+        """Build a concise text block describing the current logged-in user.
+
+        NOTE: email is deliberately EXCLUDED for privacy/security.
+        """
+        parts: list[str] = []
+        if getattr(request, "user_name", None):
+            parts.append(f"Name: {request.user_name}")
+        if getattr(request, "user_bio", None):
+            parts.append(f"Bio: {request.user_bio}")
+        if getattr(request, "user_institution", None):
+            parts.append(f"Institution: {request.user_institution}")
+        if getattr(request, "user_speciality", None):
+            parts.append(f"Speciality: {request.user_speciality}")
+        return "\n".join(parts)
 
     @staticmethod
     def _build_platform_context(results: List[Dict[str, Any]]) -> str:
         """Format platform query results as context for the LLM."""
         if not results:
             return ""
+
+        # Check for my_contributions special structure
+        if len(results) == 1 and results[0].get("type") == "my_contributions":
+            return ChatLogic._format_my_contributions(results[0])
+
         parts = []
         for i, r in enumerate(results[:8], 1):
             rtype = r.get("type", "unknown")
@@ -329,10 +466,23 @@ class ChatLogic:
             desc = r.get("description", "")[:200]
             url = r.get("url", "")
             extras = []
-            for key in ("document_type", "field", "level", "event_type",
-                        "institution_type", "status", "language",
-                        "start_date", "end_date", "journal", "doi",
-                        "city", "country", "website", "author"):
+            for key in (
+                "document_type",
+                "field",
+                "level",
+                "event_type",
+                "institution_type",
+                "status",
+                "language",
+                "start_date",
+                "end_date",
+                "journal",
+                "doi",
+                "city",
+                "country",
+                "website",
+                "author",
+            ):
                 val = r.get(key)
                 if val:
                     extras.append(f"{key}: {val}")
@@ -343,6 +493,46 @@ class ChatLogic:
                 f"Title: {title}\n{desc}\n{extra_str}{url_line}"
             )
         return "\n---\n".join(parts)
+
+    @staticmethod
+    def _format_my_contributions(data: Dict[str, Any]) -> str:
+        """Format the user's own contributions into readable context."""
+        category_labels = {
+            "tools": "NLP Tools",
+            "courses": "Courses",
+            "documents": "Documents",
+            "corpora": "Corpora",
+            "posts": "Posts",
+            "questions": "QA Questions",
+            "answers": "QA Answers",
+            "projects": "Projects",
+            "events": "Events",
+            "forum_topics": "Forum Topics",
+        }
+        sections = []
+        for key, label in category_labels.items():
+            items = data.get(key)
+            if not items:
+                continue
+            lines = [f"📂 {label} ({len(items)}):"]
+            for item in items:
+                title = item.get("title") or item.get("question") or "Untitled"
+                date = item.get("date", "")
+                extras = []
+                if item.get("type"):
+                    extras.append(item["type"])
+                if item.get("status"):
+                    extras.append(item["status"])
+                suffix = f" ({', '.join(extras)})" if extras else ""
+                date_str = f" [{date}]" if date else ""
+                lines.append(f"  • {title}{suffix}{date_str}")
+            sections.append("\n".join(lines))
+
+        if not sections:
+            return "You have no contributions on the platform yet."
+        return "Here are your contributions on the platform:\n\n" + "\n\n".join(
+            sections
+        )
 
     @staticmethod
     def _build_nav_context(nav_hints: Dict[str, Any]) -> str:

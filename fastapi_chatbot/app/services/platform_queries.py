@@ -5,6 +5,7 @@ Provides resource lookup, metadata queries, author lookup, event search,
 and navigation assistance by querying the Django platform's actual tables
 (resources_*, events_*, institutions_*, projects_*, QA_*, accounts_*).
 """
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional
@@ -33,8 +34,18 @@ class PlatformQueryService:
 
         if not resource_type or resource_type in ("course", "courses"):
             results.extend(await self._search_courses(db, keyword, language, limit))
-        if not resource_type or resource_type in ("document", "documents", "article", "thesis", "memoir"):
-            results.extend(await self._search_documents(db, keyword, resource_type, language, limit))
+        if not resource_type or resource_type in (
+            "document",
+            "documents",
+            "article",
+            "thesis",
+            "memoir",
+        ):
+            results.extend(
+                await self._search_documents(
+                    db, keyword, resource_type, language, limit
+                )
+            )
         if not resource_type or resource_type in ("tool", "tools", "nlptool"):
             results.extend(await self._search_tools(db, keyword, language, limit))
         if not resource_type or resource_type in ("corpus", "corpora"):
@@ -44,8 +55,11 @@ class PlatformQueryService:
         return results[:limit]
 
     async def _search_courses(
-        self, db: AsyncSession, keyword: Optional[str],
-        language: Optional[str], limit: int,
+        self,
+        db: AsyncSession,
+        keyword: Optional[str],
+        language: Optional[str],
+        limit: int,
     ) -> List[Dict]:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
@@ -73,10 +87,12 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "course",
+                "id": r["id"],
+                "type": "course",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
-                "field": r["field"], "level": r["academic_level"],
+                "field": r["field"],
+                "level": r["academic_level"],
                 "academic_year": r["academic_year"],
                 "language": r["language"],
                 "created_at": str(r["creation_date"]) if r["creation_date"] else None,
@@ -86,8 +102,12 @@ class PlatformQueryService:
         ]
 
     async def _search_documents(
-        self, db: AsyncSession, keyword: Optional[str],
-        doc_type: Optional[str], language: Optional[str], limit: int,
+        self,
+        db: AsyncSession,
+        keyword: Optional[str],
+        doc_type: Optional[str],
+        language: Optional[str],
+        limit: int,
     ) -> List[Dict]:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
@@ -118,7 +138,8 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "document",
+                "id": r["id"],
+                "type": "document",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
                 "document_type": r["document_type"],
@@ -131,8 +152,11 @@ class PlatformQueryService:
         ]
 
     async def _search_tools(
-        self, db: AsyncSession, keyword: Optional[str],
-        language: Optional[str], limit: int,
+        self,
+        db: AsyncSession,
+        keyword: Optional[str],
+        language: Optional[str],
+        limit: int,
     ) -> List[Dict]:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
@@ -160,7 +184,8 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "tool",
+                "id": r["id"],
+                "type": "tool",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
                 "tool_type": r["tool_type"],
@@ -174,8 +199,11 @@ class PlatformQueryService:
         ]
 
     async def _search_corpora(
-        self, db: AsyncSession, keyword: Optional[str],
-        language: Optional[str], limit: int,
+        self,
+        db: AsyncSession,
+        keyword: Optional[str],
+        language: Optional[str],
+        limit: int,
     ) -> List[Dict]:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
@@ -203,10 +231,12 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "corpus",
+                "id": r["id"],
+                "type": "corpus",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
-                "size": r["size"], "field": r["field"],
+                "size": r["size"],
+                "field": r["field"],
                 "format": r["file_format"],
                 "language": r["language"],
                 "created_at": str(r["creation_date"]) if r["creation_date"] else None,
@@ -256,7 +286,8 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "event",
+                "id": r["id"],
+                "type": "event",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
                 "event_type": r["event_type"],
@@ -264,7 +295,9 @@ class PlatformQueryService:
                 "location": r["location"],
                 "start_date": str(r["start_date"]) if r["start_date"] else None,
                 "end_date": str(r["end_date"]) if r["end_date"] else None,
-                "submission_deadline": str(r["submission_deadline"]) if r["submission_deadline"] else None,
+                "submission_deadline": str(r["submission_deadline"])
+                if r["submission_deadline"]
+                else None,
                 "website": r["website"],
             }
             for r in rows
@@ -313,7 +346,8 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "institution",
+                "id": r["id"],
+                "type": "institution",
                 "name": r["name_en"] or r["name_ar"] or r["name"],
                 "institution_type": r["type"],
                 "city": r["city_en"] or r["city_ar"] or r["city"],
@@ -364,7 +398,8 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "project",
+                "id": r["id"],
+                "type": "project",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "description": (r["description"] or "")[:300],
                 "status": r["status"],
@@ -391,15 +426,16 @@ class PlatformQueryService:
         if keyword:
             conditions.append(
                 "(u.full_name ILIKE :kw OR u.full_name_ar ILIKE :kw "
-                "OR u.full_name_en ILIKE :kw OR u.email ILIKE :kw)"
+                "OR u.full_name_en ILIKE :kw OR u.email ILIKE :kw "
+                "OR SPLIT_PART(u.email, '@', 1) ILIKE :kw)"
             )
             params["kw"] = f"%{keyword}%"
 
         where = " AND ".join(conditions)
         query = text(f"""
             SELECT u.id::text, u.full_name, u.full_name_ar, u.full_name_en,
-                   u.email, u.bio,
-                   i.name AS institution_name
+                   u.email, u.bio, u.bio_en, u.bio_ar, u.speciality,
+                   i.name AS institution_name, i.name_en AS institution_name_en
             FROM accounts_customuser u
             LEFT JOIN institutions_institution i ON u.institution_id = i.id
             WHERE {where}
@@ -409,21 +445,444 @@ class PlatformQueryService:
         rows = (await db.execute(query, params)).mappings().all()
         return [
             {
-                "id": r["id"], "type": "author",
+                "id": r["id"],
+                "type": "author",
                 "name": r["full_name_en"] or r["full_name_ar"] or r["full_name"] or "",
-                "email": r["email"],
-                "bio": (r["bio"] or "")[:200],
-                "institution": r["institution_name"],
+                "bio": (r["bio_en"] or r["bio_ar"] or r["bio"] or "")[:300],
+                "institution": r["institution_name_en"] or r["institution_name"],
+                "speciality": r["speciality"],
             }
             for r in rows
         ]
+
+    # ------------------------------------------------------------------
+    # Detailed user profile (with contributions)
+    # ------------------------------------------------------------------
+
+    async def get_user_profile_detail(
+        self,
+        db: AsyncSession,
+        keyword: str,
+    ) -> Optional[Dict]:
+        """Look up a single user and return their full profile + contributions."""
+        # Try exact match first (email prefix), then ILIKE
+        query = text("""
+            SELECT u.id::text, u.full_name, u.full_name_ar, u.full_name_en,
+                   u.email, u.bio, u.bio_en, u.bio_ar, u.speciality,
+                   u.date_joined,
+                   i.name AS institution_name, i.name_en AS institution_name_en,
+                   i.city AS institution_city, i.city_en AS institution_city_en
+            FROM accounts_customuser u
+            LEFT JOIN institutions_institution i ON u.institution_id = i.id
+            WHERE u.is_active = true
+              AND (u.full_name ILIKE :kw OR u.full_name_ar ILIKE :kw
+                   OR u.full_name_en ILIKE :kw OR u.email ILIKE :kw
+                   OR SPLIT_PART(u.email, '@', 1) ILIKE :kw)
+            ORDER BY
+                CASE WHEN SPLIT_PART(u.email, '@', 1) ILIKE :exact THEN 0
+                     WHEN u.full_name_en ILIKE :exact THEN 1
+                     ELSE 2 END
+            LIMIT 1
+        """)
+        row = (
+            (await db.execute(query, {"kw": f"%{keyword}%", "exact": f"%{keyword}%"}))
+            .mappings()
+            .first()
+        )
+        if not row:
+            return None
+
+        user_id = row["id"]
+        profile: Dict = {
+            "type": "user_profile",
+            "id": user_id,
+            "name": row["full_name_en"]
+            or row["full_name_ar"]
+            or row["full_name"]
+            or "",
+            "name_ar": row["full_name_ar"] or "",
+            "bio": row["bio_en"] or row["bio_ar"] or row["bio"] or "",
+            "speciality": row["speciality"] or "",
+            "institution": row["institution_name_en"] or row["institution_name"] or "",
+            "institution_city": row["institution_city_en"]
+            or row["institution_city"]
+            or "",
+            "date_joined": str(row["date_joined"]) if row["date_joined"] else None,
+        }
+
+        # Contributions: resources authored
+        contributions = await self._get_user_contributions(db, user_id)
+        profile["contributions"] = contributions
+
+        return profile
+
+    async def _get_user_contributions(self, db: AsyncSession, user_id: str) -> Dict:
+        """Fetch a user's contributions across all content types."""
+        contribs: Dict = {}
+
+        # Courses
+        q = text("""
+            SELECT id::text, title, title_en, title_ar, creation_date
+            FROM resources_course
+            WHERE author_id = :uid AND approval_status = 'approved'
+            ORDER BY creation_date DESC LIMIT 10
+        """)
+        rows = (await db.execute(q, {"uid": user_id})).mappings().all()
+        if rows:
+            contribs["courses"] = [
+                {
+                    "title": r["title_en"] or r["title_ar"] or r["title"],
+                    "date": str(r["creation_date"]) if r["creation_date"] else None,
+                }
+                for r in rows
+            ]
+
+        # Documents (articles, theses, memoirs)
+        q = text("""
+            SELECT id::text, title, title_en, title_ar, document_type, creation_date
+            FROM resources_document
+            WHERE author_id = :uid AND approval_status = 'approved'
+            ORDER BY creation_date DESC LIMIT 10
+        """)
+        rows = (await db.execute(q, {"uid": user_id})).mappings().all()
+        if rows:
+            contribs["documents"] = [
+                {
+                    "title": r["title_en"] or r["title_ar"] or r["title"],
+                    "type": r["document_type"],
+                    "date": str(r["creation_date"]) if r["creation_date"] else None,
+                }
+                for r in rows
+            ]
+
+        # Tools
+        q = text("""
+            SELECT id::text, title, title_en, title_ar, creation_date
+            FROM resources_nlptool
+            WHERE author_id = :uid AND approval_status = 'approved'
+            ORDER BY creation_date DESC LIMIT 10
+        """)
+        rows = (await db.execute(q, {"uid": user_id})).mappings().all()
+        if rows:
+            contribs["tools"] = [
+                {
+                    "title": r["title_en"] or r["title_ar"] or r["title"],
+                    "date": str(r["creation_date"]) if r["creation_date"] else None,
+                }
+                for r in rows
+            ]
+
+        # Corpora
+        q = text("""
+            SELECT id::text, title, title_en, title_ar, creation_date
+            FROM resources_corpus
+            WHERE author_id = :uid AND approval_status = 'approved'
+            ORDER BY creation_date DESC LIMIT 10
+        """)
+        rows = (await db.execute(q, {"uid": user_id})).mappings().all()
+        if rows:
+            contribs["corpora"] = [
+                {
+                    "title": r["title_en"] or r["title_ar"] or r["title"],
+                    "date": str(r["creation_date"]) if r["creation_date"] else None,
+                }
+                for r in rows
+            ]
+
+        # Projects (as member or coordinator)
+        q = text("""
+            SELECT p.id::text, p.title, p.title_en, p.title_ar, p.status
+            FROM projects_project p
+            LEFT JOIN projects_projectmember pm ON pm.project_id = p.id AND pm.member_id = :uid
+            WHERE (p.coordinator_id = :uid OR pm.member_id IS NOT NULL)
+              AND p.approval_status = 'approved'
+            ORDER BY p.date_start DESC NULLS LAST LIMIT 5
+        """)
+        try:
+            async with db.begin_nested():
+                rows = (await db.execute(q, {"uid": user_id})).mappings().all()
+                if rows:
+                    contribs["projects"] = [
+                        {
+                            "title": r["title_en"] or r["title_ar"] or r["title"],
+                            "status": r["status"],
+                        }
+                        for r in rows
+                    ]
+        except Exception:
+            pass  # table may not exist
+
+        return contribs
+
+    # ------------------------------------------------------------------
+    # Current user's full contributions (by email)
+    # ------------------------------------------------------------------
+
+    async def get_current_user_contributions(
+        self,
+        db: AsyncSession,
+        user_email: str,
+        content_type: Optional[str] = None,
+    ) -> Optional[Dict]:
+        """Fetch the current user's contributions across ALL content types.
+
+        Parameters
+        ----------
+        user_email : str
+            The logged-in user's email.
+        content_type : str, optional
+            If given, only fetch that type (tool, course, post, project, etc.).
+        """
+        # Resolve user_id from email
+        row = (
+            (
+                await db.execute(
+                    text(
+                        "SELECT id::text FROM accounts_customuser WHERE email = :em LIMIT 1"
+                    ),
+                    {"em": user_email},
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if not row:
+            return None
+
+        uid = row["id"]
+        contribs: Dict = {}
+        fetch_all = content_type is None
+
+        # --- Tools ---
+        if fetch_all or content_type == "tool":
+            q = text("""
+                SELECT id::text, title, title_en, title_ar, creation_date
+                FROM resources_nlptool
+                WHERE author_id = :uid AND approval_status = 'approved'
+                ORDER BY creation_date DESC LIMIT 20
+            """)
+            rows = (await db.execute(q, {"uid": uid})).mappings().all()
+            if rows:
+                contribs["tools"] = [
+                    {
+                        "title": r["title_en"] or r["title_ar"] or r["title"],
+                        "date": str(r["creation_date"]) if r["creation_date"] else None,
+                    }
+                    for r in rows
+                ]
+
+        # --- Courses ---
+        if fetch_all or content_type == "course":
+            q = text("""
+                SELECT id::text, title, title_en, title_ar, creation_date
+                FROM resources_course
+                WHERE author_id = :uid AND approval_status = 'approved'
+                ORDER BY creation_date DESC LIMIT 20
+            """)
+            rows = (await db.execute(q, {"uid": uid})).mappings().all()
+            if rows:
+                contribs["courses"] = [
+                    {
+                        "title": r["title_en"] or r["title_ar"] or r["title"],
+                        "date": str(r["creation_date"]) if r["creation_date"] else None,
+                    }
+                    for r in rows
+                ]
+
+        # --- Documents (articles, theses, memoirs) ---
+        if fetch_all or content_type in ("document", "article", "thesis", "memoir"):
+            q = text("""
+                SELECT id::text, title, title_en, title_ar, document_type, creation_date
+                FROM resources_document
+                WHERE author_id = :uid AND approval_status = 'approved'
+                ORDER BY creation_date DESC LIMIT 20
+            """)
+            rows = (await db.execute(q, {"uid": uid})).mappings().all()
+            if rows:
+                contribs["documents"] = [
+                    {
+                        "title": r["title_en"] or r["title_ar"] or r["title"],
+                        "type": r["document_type"],
+                        "date": str(r["creation_date"]) if r["creation_date"] else None,
+                    }
+                    for r in rows
+                ]
+
+        # --- Corpora ---
+        if fetch_all or content_type == "corpus":
+            q = text("""
+                SELECT id::text, title, title_en, title_ar, creation_date
+                FROM resources_corpus
+                WHERE author_id = :uid AND approval_status = 'approved'
+                ORDER BY creation_date DESC LIMIT 20
+            """)
+            rows = (await db.execute(q, {"uid": uid})).mappings().all()
+            if rows:
+                contribs["corpora"] = [
+                    {
+                        "title": r["title_en"] or r["title_ar"] or r["title"],
+                        "date": str(r["creation_date"]) if r["creation_date"] else None,
+                    }
+                    for r in rows
+                ]
+
+        # --- Posts ---
+        if fetch_all or content_type == "post":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT id::text, title, title_en, title_ar, created_at
+                        FROM "QA_post"
+                        WHERE author_id = :uid AND approval_status = 'approved'
+                        ORDER BY created_at DESC LIMIT 20
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["posts"] = [
+                            {
+                                "title": r["title_en"] or r["title_ar"] or r["title"],
+                                "date": str(r["created_at"])
+                                if r["created_at"]
+                                else None,
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        # --- QA Questions ---
+        if fetch_all or content_type == "question":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT id::text, title, created_at
+                        FROM "QA_question"
+                        WHERE author_id = :uid
+                        ORDER BY created_at DESC LIMIT 20
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["questions"] = [
+                            {
+                                "title": r["title"],
+                                "date": str(r["created_at"])
+                                if r["created_at"]
+                                else None,
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        # --- QA Answers ---
+        if fetch_all or content_type == "answer":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT a.id::text, q.title AS question_title, a.created_at
+                        FROM "QA_answer" a
+                        JOIN "QA_question" q ON q.id = a.question_id
+                        WHERE a.author_id = :uid
+                        ORDER BY a.created_at DESC LIMIT 20
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["answers"] = [
+                            {
+                                "question": r["question_title"],
+                                "date": str(r["created_at"])
+                                if r["created_at"]
+                                else None,
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        # --- Projects ---
+        if fetch_all or content_type == "project":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT p.id::text, p.title, p.title_en, p.title_ar, p.status
+                        FROM projects_project p
+                        LEFT JOIN projects_projectmember pm ON pm.project_id = p.id AND pm.member_id = :uid
+                        WHERE (p.coordinator_id = :uid OR pm.member_id IS NOT NULL)
+                          AND p.approval_status = 'approved'
+                        ORDER BY p.date_start DESC NULLS LAST LIMIT 10
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["projects"] = [
+                            {
+                                "title": r["title_en"] or r["title_ar"] or r["title"],
+                                "status": r["status"],
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        # --- Events created ---
+        if fetch_all or content_type == "event":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT id::text, title, title_en, title_ar, event_type, start_date
+                        FROM events_event
+                        WHERE created_by_id = :uid AND approval_status = 'approved'
+                        ORDER BY start_date DESC NULLS LAST LIMIT 10
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["events"] = [
+                            {
+                                "title": r["title_en"] or r["title_ar"] or r["title"],
+                                "type": r["event_type"],
+                                "date": str(r["start_date"])
+                                if r["start_date"]
+                                else None,
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        # --- Forum topics ---
+        if fetch_all or content_type == "topic":
+            try:
+                async with db.begin_nested():
+                    q = text("""
+                        SELECT id::text, title, title_en, title_ar, created_at
+                        FROM forum_topic
+                        WHERE creator_id = :uid AND approval_status = 'approved'
+                        ORDER BY created_at DESC LIMIT 10
+                    """)
+                    rows = (await db.execute(q, {"uid": uid})).mappings().all()
+                    if rows:
+                        contribs["forum_topics"] = [
+                            {
+                                "title": r["title_en"] or r["title_ar"] or r["title"],
+                                "date": str(r["created_at"])
+                                if r["created_at"]
+                                else None,
+                            }
+                            for r in rows
+                        ]
+            except Exception:
+                pass
+
+        return contribs if contribs else None
 
     # ------------------------------------------------------------------
     # Article-specific queries (timestamps, DOI, journal)
     # ------------------------------------------------------------------
 
     async def get_article_details(
-        self, db: AsyncSession, keyword: str, limit: int = 5,
+        self,
+        db: AsyncSession,
+        keyword: str,
+        limit: int = 5,
     ) -> List[Dict]:
         """Look up articles by title keyword with publication metadata."""
         query = text("""
@@ -439,13 +898,20 @@ class PlatformQueryService:
             ORDER BY a.publication_date DESC NULLS LAST
             LIMIT :lim
         """)
-        rows = (await db.execute(query, {"kw": f"%{keyword}%", "lim": limit})).mappings().all()
+        rows = (
+            (await db.execute(query, {"kw": f"%{keyword}%", "lim": limit}))
+            .mappings()
+            .all()
+        )
         return [
             {
-                "id": r["id"], "type": "article",
+                "id": r["id"],
+                "type": "article",
                 "title": r["title_en"] or r["title_ar"] or r["title"],
                 "created_at": str(r["creation_date"]) if r["creation_date"] else None,
-                "publication_date": str(r["publication_date"]) if r["publication_date"] else None,
+                "publication_date": str(r["publication_date"])
+                if r["publication_date"]
+                else None,
                 "journal": r["journal"],
                 "doi": r["doi"],
             }
@@ -494,7 +960,10 @@ class PlatformQueryService:
 
         mapping = {
             "course": {"section": "Resources > Courses", "url": "/resources/courses/"},
-            "article": {"section": "Resources > Articles", "url": "/resources/articles/"},
+            "article": {
+                "section": "Resources > Articles",
+                "url": "/resources/articles/",
+            },
             "thesis": {"section": "Resources > Theses", "url": "/resources/theses/"},
             "memoir": {"section": "Resources > Memoirs", "url": "/resources/memoirs/"},
             "tool": {"section": "Resources > NLP Tools", "url": "/resources/tools/"},
@@ -527,6 +996,168 @@ class PlatformQueryService:
         return nav
 
     # ------------------------------------------------------------------
+    # Forum search
+    # ------------------------------------------------------------------
+
+    async def search_forum_topics(
+        self,
+        db: AsyncSession,
+        keyword: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search approved forum topics by keyword (title + description).
+
+        When the keyword looks like a full sentence, extract meaningful
+        words and search with OR logic so broad queries like
+        "Show me forum topics about NLP" still find results.
+        """
+        STOP_WORDS = {
+            "show",
+            "me",
+            "find",
+            "list",
+            "give",
+            "get",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "about",
+            "for",
+            "in",
+            "on",
+            "of",
+            "to",
+            "and",
+            "or",
+            "with",
+            "what",
+            "which",
+            "how",
+            "my",
+            "all",
+            "any",
+            "forum",
+            "topic",
+            "topics",
+            "discussion",
+            "discussions",
+            "montrer",
+            "trouver",
+            "lister",
+            "les",
+            "des",
+            "un",
+            "une",
+            "le",
+            "la",
+            "du",
+            "de",
+            "sur",
+            "pour",
+            "dans",
+            "et",
+            "ou",
+            "sujet",
+            "sujets",
+            "منتدى",
+            "موضوع",
+            "مواضيع",
+            "أعرض",
+            "اعثر",
+            "قائمة",
+        }
+        try:
+            if keyword:
+                # Extract meaningful search terms from the query
+                words = [
+                    w
+                    for w in keyword.lower().split()
+                    if w not in STOP_WORDS and len(w) > 2
+                ]
+                if words:
+                    # Build OR conditions for each meaningful word
+                    conditions = []
+                    params: dict = {"lim": limit}
+                    for i, w in enumerate(words[:5]):  # max 5 keywords
+                        p = f"kw{i}"
+                        params[p] = f"%{w}%"
+                        conditions.append(
+                            f"(title ILIKE :{p} OR title_en ILIKE :{p}"
+                            f" OR title_ar ILIKE :{p}"
+                            f" OR description ILIKE :{p} OR description_en ILIKE :{p}"
+                            f" OR description_ar ILIKE :{p})"
+                        )
+                    where = " OR ".join(conditions)
+                else:
+                    # No useful words — return latest topics
+                    where = None
+                    params = {"lim": limit}
+
+                if where:
+                    rows = (
+                        await db.execute(
+                            text(f"""
+                                SELECT id, title, title_en, title_ar,
+                                       description, description_en, description_ar,
+                                       created_at, is_closed
+                                FROM forum_topic
+                                WHERE approval_status = 'approved'
+                                  AND ({where})
+                                ORDER BY created_at DESC
+                                LIMIT :lim
+                            """),
+                            params,
+                        )
+                    ).fetchall()
+                else:
+                    rows = (
+                        await db.execute(
+                            text("""
+                                SELECT id, title, title_en, title_ar,
+                                       description, description_en, description_ar,
+                                       created_at, is_closed
+                                FROM forum_topic
+                                WHERE approval_status = 'approved'
+                                ORDER BY created_at DESC
+                                LIMIT :lim
+                            """),
+                            {"lim": limit},
+                        )
+                    ).fetchall()
+            else:
+                rows = (
+                    await db.execute(
+                        text("""
+                            SELECT id, title, title_en, title_ar,
+                                   description, description_en, description_ar,
+                                   created_at, is_closed
+                            FROM forum_topic
+                            WHERE approval_status = 'approved'
+                            ORDER BY created_at DESC
+                            LIMIT :lim
+                        """),
+                        {"lim": limit},
+                    )
+                ).fetchall()
+
+            return [
+                {
+                    "type": "forum_topic",
+                    "title": r.title_en or r.title or "",
+                    "description": (r.description_en or r.description or "")[:300],
+                    "url": f"/forum/",
+                    "status": "closed" if r.is_closed else "open",
+                    "date": r.created_at.isoformat() if r.created_at else "",
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Forum search error: %s", e, exc_info=True)
+            return []
+
+    # ------------------------------------------------------------------
     # Unified search (combine all sources)
     # ------------------------------------------------------------------
 
@@ -550,9 +1181,14 @@ class PlatformQueryService:
             return await self.search_projects(db, keyword=keyword, limit=limit)
         if resource_type in ("author", "researcher"):
             return await self.search_authors(db, keyword=keyword, limit=limit)
+        if resource_type in ("topic", "forum", "forum_topic"):
+            return await self.search_forum_topics(db, keyword=keyword, limit=limit)
         return await self.search_resources(
-            db, keyword=keyword, resource_type=resource_type,
-            language=language, limit=limit,
+            db,
+            keyword=keyword,
+            resource_type=resource_type,
+            language=language,
+            limit=limit,
         )
 
     async def unified_search(
@@ -575,6 +1211,9 @@ class PlatformQueryService:
 
         projects = await self.search_projects(db, keyword=keyword, limit=3)
         results.extend(projects)
+
+        forum_topics = await self.search_forum_topics(db, keyword=keyword, limit=3)
+        results.extend(forum_topics)
 
         return results[:limit]
 

@@ -1,10 +1,70 @@
 """
 Trilingual regex pattern banks for intent classification.
 
-Six intent categories: conceptual_question, platform_query, legal_query,
-document_query, bug_query, metadata_query.
+Seven intent categories: conceptual_question, platform_query, legal_query,
+document_query, bug_query, metadata_query, user_query.
 """
+
 import re
+
+# --- User identity / profile queries ---
+USER_QUERY_PATTERNS = [
+    # English: "what is my name", "who am I", "my profile", "my info"
+    re.compile(
+        r"\b(?:what(?:'?s| is) my (?:name|email|bio|profile|info|institution|speciality|specialization))\b",
+        re.I,
+    ),
+    re.compile(r"\bwho am i\b", re.I),
+    re.compile(r"\b(?:my (?:name|profile|account|details|information))\b", re.I),
+    re.compile(r"\btell me about (?:myself|me)\b", re.I),
+    re.compile(r"\bwhats my\b", re.I),
+    # "my tools/posts/resources/courses" — asking about own contributions
+    re.compile(
+        r"\b(?:my |i (?:posted|shared|created|published|uploaded|wrote|made))\b.*"
+        r"(?:tool|post|resource|course|document|article|corpus|corpora|project|event|question|answer|topic|contribution|publication)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:tool|post|resource|course|document|article|corpus|corpora|project|event|topic|contribution)"
+        r"s?\s+(?:i |that i |by me|posted by me|shared by me|created by me|i(?:'ve| have) (?:posted|shared|created|published|uploaded))",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:give|show|list|tell|get)\b.*\b(?:my )(?:tool|post|resource|course|document|project|event|question|answer|contribution|publication)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:what|which)\b.*\b(?:did i|have i|i(?:'ve| have))\b.*\b(?:post|share|create|publish|upload|write)",
+        re.I,
+    ),
+    # French: "mes outils", "mes publications"
+    re.compile(
+        r"\bmes (?:outils|publications|ressources|cours|projets|articles|posts)", re.I
+    ),
+    re.compile(r"\bque j'ai (?:posté|partagé|publié|créé)", re.I),
+    # Arabic: "أدواتي", "منشوراتي", "مواردي"
+    re.compile(r"(?:أدواتي|منشوراتي|مواردي|مشاريعي|دوراتي|مقالاتي|مساهماتي)"),
+    re.compile(r"(?:التي نشرتها|التي شاركتها|التي أنشأتها)"),
+    # English: "who is X", "tell me about X", "find user X"
+    re.compile(r"\bwho is (?!this|that|it\b)\w+", re.I),
+    re.compile(
+        r"\b(?:find|search|lookup|look up|info about) (?:user|member|researcher|author|person)\b",
+        re.I,
+    ),
+    re.compile(r"\btell me about (?:user |member )?(?!yourself\b|you\b)\w+", re.I),
+    # French
+    re.compile(r"\bquel est mon (?:nom|profil|email)\b", re.I),
+    re.compile(r"\bqui suis[- ]je\b", re.I),
+    re.compile(r"\bqui est \w+", re.I),
+    re.compile(r"\bmon (?:nom|profil|compte)\b", re.I),
+    # Arabic
+    re.compile(r"\b(?:ما (?:هو )?اسمي|من أنا)\b"),
+    re.compile(r"\bمن هو \w+"),
+    re.compile(r"\bمن هي \w+"),
+    re.compile(r"\bمعلومات(?:ي| عن)\b"),
+    re.compile(r"\bملفي الشخصي\b"),
+    re.compile(r"\bحسابي\b"),
+]
 
 # --- Metadata queries (stats, counts, navigation) ---
 METADATA_PATTERNS = [
@@ -31,35 +91,90 @@ PLATFORM_PATTERNS = [
     re.compile(r"\bمن كتب\b"),
     re.compile(
         r"\b(?:list|show me|find)\b.*\b(?:courses?|articles?|thes[ei]s|"
-        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?)\b",
+        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?|forum|topics?)\b",
         re.I,
     ),
     re.compile(
         r"\b(?:trouver|montrer|lister)\b.*\b(?:cours|articles?|thèses?|"
-        r"mémoires?|outils?|corpus|événements?|institutions?|projets?)\b",
+        r"mémoires?|outils?|corpus|événements?|institutions?|projets?|forum|sujets?)\b",
         re.I,
     ),
     re.compile(
         r"\b(?:أعرض|اعثر|قائمة)\b.*\b(?:دورة|مقال|أطروحة|مذكرة|أداة|"
-        r"مجموعة|حدث|مؤسسة|مشروع)\b",
+        r"مجموعة|حدث|مؤسسة|مشروع|منتدى|موضوع)\b",
     ),
 ]
 
 PLATFORM_KEYWORDS = {
     # English
-    "course", "courses", "article", "articles", "thesis", "theses",
-    "memoir", "memoirs", "tool", "tools", "corpus", "corpora",
-    "event", "events", "conference", "workshop", "seminar",
-    "institution", "university", "project", "author", "researcher",
+    "course",
+    "courses",
+    "article",
+    "articles",
+    "thesis",
+    "theses",
+    "memoir",
+    "memoirs",
+    "tool",
+    "tools",
+    "corpus",
+    "corpora",
+    "event",
+    "events",
+    "conference",
+    "workshop",
+    "seminar",
+    "institution",
+    "university",
+    "project",
+    "author",
+    "researcher",
     # French
-    "cours", "thèse", "thèses", "mémoire", "mémoires", "outil",
-    "outils", "événement", "événements", "conférence", "atelier",
-    "séminaire", "institution", "université", "projet", "auteur",
+    "cours",
+    "thèse",
+    "thèses",
+    "mémoire",
+    "mémoires",
+    "outil",
+    "outils",
+    "événement",
+    "événements",
+    "conférence",
+    "atelier",
+    "séminaire",
+    "institution",
+    "université",
+    "projet",
+    "auteur",
     "chercheur",
     # Arabic
-    "دورة", "مقال", "أطروحة", "مذكرة", "أداة", "مجموعة بيانات",
-    "حدث", "مؤتمر", "ورشة", "ندوة", "مؤسسة", "جامعة", "مشروع",
-    "مؤلف", "باحث",
+    "دورة",
+    "مقال",
+    "أطروحة",
+    "مذكرة",
+    "أداة",
+    "مجموعة بيانات",
+    "حدث",
+    "مؤتمر",
+    "ورشة",
+    "ندوة",
+    "مؤسسة",
+    "جامعة",
+    "مشروع",
+    "مؤلف",
+    "باحث",
+    # Forum
+    "forum",
+    "topic",
+    "topics",
+    "discussion",
+    "discussions",
+    "sujet",
+    "sujets",
+    "منتدى",
+    "موضوع",
+    "مواضيع",
+    "نقاش",
 }
 
 # --- Legal queries ---
@@ -107,6 +222,15 @@ BUG_PATTERNS = [
 
 # --- General knowledge / advice queries (should go directly to LLM) ---
 GENERAL_KNOWLEDGE_PATTERNS = [
+    # Chatbot self-identity ("who are you", "what are you", etc.)
+    re.compile(r"\bwho are you\b", re.I),
+    re.compile(r"\bwhat are you\b", re.I),
+    re.compile(r"\btell me about yourself\b", re.I),
+    re.compile(r"\bintroduce yourself\b", re.I),
+    re.compile(r"\bqui es[- ]tu\b", re.I),
+    re.compile(r"\bqu'es[- ]tu\b", re.I),
+    re.compile(r"\bprésentez?[- ](?:toi|vous)\b", re.I),
+    re.compile(r"(?:من أنت|ما أنت|عرّف (?:عن )?نفسك)"),
     # English
     re.compile(
         r"\b(?:suggest|recommend|give me|create|make|build|design|write)\b"
@@ -173,3 +297,116 @@ SOFT_DOCUMENT_PATTERN = re.compile(
     r"résumer|expliquer|analyser|لخص|اشرح)\b",
     re.I,
 )
+
+
+# ---------------------------------------------------------------------------
+# Resource type extraction — maps query keywords to platform resource types
+# ---------------------------------------------------------------------------
+
+RESOURCE_TYPE_MAP = {
+    # English
+    "tool": "tool",
+    "tools": "tool",
+    "nlp tool": "tool",
+    "nlp tools": "tool",
+    "course": "course",
+    "courses": "course",
+    "article": "article",
+    "articles": "article",
+    "paper": "article",
+    "papers": "article",
+    "thesis": "thesis",
+    "theses": "thesis",
+    "memoir": "memoir",
+    "memoirs": "memoir",
+    "corpus": "corpus",
+    "corpora": "corpus",
+    "dataset": "corpus",
+    "datasets": "corpus",
+    "event": "event",
+    "events": "event",
+    "conference": "event",
+    "conferences": "event",
+    "workshop": "event",
+    "workshops": "event",
+    "seminar": "event",
+    "seminars": "event",
+    "institution": "institution",
+    "institutions": "institution",
+    "university": "institution",
+    "universities": "institution",
+    "project": "project",
+    "projects": "project",
+    "researcher": "author",
+    "researchers": "author",
+    "author": "author",
+    "authors": "author",
+    "user": "author",
+    "users": "author",
+    "member": "author",
+    "members": "author",
+    # French
+    "outil": "tool",
+    "outils": "tool",
+    "cours": "course",
+    "thèse": "thesis",
+    "thèses": "thesis",
+    "mémoire": "memoir",
+    "mémoires": "memoir",
+    "événement": "event",
+    "événements": "event",
+    "conférence": "event",
+    "atelier": "event",
+    "séminaire": "event",
+    "projet": "project",
+    "projets": "project",
+    "auteur": "author",
+    "chercheur": "author",
+    # Arabic
+    "أداة": "tool",
+    "أدوات": "tool",
+    "دورة": "course",
+    "دورات": "course",
+    "مقال": "article",
+    "مقالات": "article",
+    "أطروحة": "thesis",
+    "مذكرة": "memoir",
+    "مجموعة بيانات": "corpus",
+    "حدث": "event",
+    "أحداث": "event",
+    "مؤتمر": "event",
+    "ورشة": "event",
+    "ندوة": "event",
+    "مؤسسة": "institution",
+    "جامعة": "institution",
+    "مشروع": "project",
+    "مشاريع": "project",
+    "باحث": "author",
+    "مؤلف": "author",
+    # Forum / Topics
+    "forum": "topic",
+    "topic": "topic",
+    "topics": "topic",
+    "discussion": "topic",
+    "discussions": "topic",
+    "sujet": "topic",
+    "sujets": "topic",
+    "منتدى": "topic",
+    "موضوع": "topic",
+    "مواضيع": "topic",
+    "نقاش": "topic",
+}
+
+
+def extract_resource_type(query: str) -> str | None:
+    """Extract the target resource type from a user query.
+
+    Returns one of: tool, course, article, thesis, memoir, corpus,
+    event, institution, project, author, or None.
+    """
+    q = query.lower().strip()
+    # Check longer phrases first, then single words
+    for phrase in sorted(RESOURCE_TYPE_MAP.keys(), key=len, reverse=True):
+        if phrase in q:
+            return RESOURCE_TYPE_MAP[phrase]
+    return None

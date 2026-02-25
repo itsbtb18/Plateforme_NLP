@@ -1,9 +1,10 @@
 """
 Document processor — text extraction and intelligent chunking.
 
-Supports PDF and TXT.  Chunks are sized to fit within embedding
-model context windows while preserving sentence boundaries.
+Supports PDF, TXT, DOCX and XLSX.  Chunks are sized to fit within
+embedding model context windows while preserving sentence boundaries.
 """
+
 import io
 import logging
 import re
@@ -43,6 +44,62 @@ class DocumentProcessor:
             text = self._normalise(text)
             if text.strip():
                 pages.append({"page": idx, "content": text})
+        return pages
+
+    def extract_docx_text(self, docx_bytes: bytes) -> List[Dict]:
+        """Extract text from a DOCX file, returning list of {page, content}.
+
+        Each paragraph becomes part of a single logical 'page' because
+        DOCX files don't have physical page breaks we can reliably detect.
+        We split on every ~3000 chars to create manageable chunks.
+        """
+        from docx import Document as DocxDocument
+
+        doc = DocxDocument(io.BytesIO(docx_bytes))
+        full_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        # Also extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = "\t".join(
+                    cell.text.strip() for cell in row.cells if cell.text.strip()
+                )
+                if row_text:
+                    full_text += "\n" + row_text
+
+        full_text = self._normalise(full_text)
+        if not full_text.strip():
+            return []
+
+        # Split into virtual pages (~3000 chars each)
+        pages: List[Dict] = []
+        chunk_size = 3000
+        for i in range(0, len(full_text), chunk_size):
+            segment = full_text[i : i + chunk_size].strip()
+            if segment:
+                pages.append({"page": len(pages) + 1, "content": segment})
+        return pages
+
+    def extract_xlsx_text(self, xlsx_bytes: bytes) -> List[Dict]:
+        """Extract text from an XLSX file, one 'page' per sheet."""
+        import openpyxl
+
+        wb = openpyxl.load_workbook(
+            io.BytesIO(xlsx_bytes), read_only=True, data_only=True
+        )
+        pages: List[Dict] = []
+        for idx, sheet_name in enumerate(wb.sheetnames, start=1):
+            ws = wb[sheet_name]
+            rows_text: List[str] = []
+            for row in ws.iter_rows(values_only=True):
+                cells = [
+                    str(c).strip() for c in row if c is not None and str(c).strip()
+                ]
+                if cells:
+                    rows_text.append("\t".join(cells))
+            if rows_text:
+                content = f"Sheet: {sheet_name}\n" + "\n".join(rows_text)
+                pages.append({"page": idx, "content": self._normalise(content)})
+        wb.close()
         return pages
 
     def extract_text(self, raw_text: str) -> List[Dict]:

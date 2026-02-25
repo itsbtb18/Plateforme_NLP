@@ -6,6 +6,7 @@ Text extraction happens here (sync, before Celery takes over).
 Celery handles the heavy work (chunking + embedding).
 Qdrant stores the resulting vectors.
 """
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models import ChatSession, UserDocument
@@ -39,9 +40,12 @@ class DocumentService:
     ) -> DocumentUploadResponse:
         """Validate, extract text, persist metadata, dispatch Celery task."""
         fname = filename.lower()
+        SUPPORTED = (".pdf", ".txt", ".docx", ".doc", ".xlsx")
 
-        if not fname.endswith((".pdf", ".txt")):
-            raise ValueError("Only PDF and TXT files are supported")
+        if not fname.endswith(SUPPORTED):
+            raise ValueError(
+                "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, XLSX."
+            )
 
         file_size = len(file_bytes)
         max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -49,12 +53,22 @@ class DocumentService:
             raise ValueError(f"File exceeds {settings.MAX_UPLOAD_SIZE_MB} MB limit")
 
         # Extract text (lightweight — heavy chunking+embedding goes to Celery)
-        if fname.endswith(".pdf"):
-            from app.services.documents.processor import get_document_processor
+        from app.services.documents.processor import get_document_processor
 
-            pages = get_document_processor().extract_pdf_text(file_bytes)
+        processor = get_document_processor()
+
+        if fname.endswith(".pdf"):
+            pages = processor.extract_pdf_text(file_bytes)
             raw_text = "\n\n".join(p["content"] for p in pages)
             file_type = "pdf"
+        elif fname.endswith((".docx", ".doc")):
+            pages = processor.extract_docx_text(file_bytes)
+            raw_text = "\n\n".join(p["content"] for p in pages)
+            file_type = "docx"
+        elif fname.endswith(".xlsx"):
+            pages = processor.extract_xlsx_text(file_bytes)
+            raw_text = "\n\n".join(p["content"] for p in pages)
+            file_type = "xlsx"
         else:
             raw_text = file_bytes.decode("utf-8", errors="replace")
             file_type = "txt"
@@ -71,9 +85,62 @@ class DocumentService:
         if not sess:
             raise LookupError("Session not found")
 
+        effective_user = user_id or sess.user_id
+
+        # --- Deduplication: if same filename already exists for this user,
+        #     remove old document + its Qdrant chunks before re-uploading ---
+        if effective_user:
+            existing = (
+                (
+                    await db.execute(
+                        select(UserDocument).where(
+                            UserDocument.user_id == effective_user,
+                            UserDocument.filename == filename,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if existing:
+                from app.services.qdrant import (
+                    get_qdrant_service,
+                    COLLECTION_DOCUMENT_CHUNKS,
+                )
+
+                qdrant = get_qdrant_service()
+                for old_doc in existing:
+                    # Delete Qdrant vectors for old document
+                    try:
+                        qdrant.delete_by_filter(
+                            COLLECTION_DOCUMENT_CHUNKS,
+                            "document_id",
+                            old_doc.id,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to delete Qdrant chunks for doc %d: %s",
+                            old_doc.id,
+                            e,
+                        )
+                    # Delete DB chunks
+                    from app.models import DocumentChunk
+                    from sqlalchemy import delete as sql_delete
+
+                    await db.execute(
+                        sql_delete(DocumentChunk).where(
+                            DocumentChunk.document_id == old_doc.id
+                        )
+                    )
+                    await db.delete(old_doc)
+                await db.commit()
+                logger.info(
+                    "Replaced %d existing copy/copies of '%s'", len(existing), filename
+                )
+
         # PostgreSQL: document metadata + ownership
         doc = UserDocument(
-            user_id=user_id or sess.user_id,
+            user_id=effective_user,
             session_id=session_id,
             filename=filename,
             file_type=file_type,
@@ -111,9 +178,7 @@ class DocumentService:
         (Phase 7 ownership enforcement).
         """
         doc = (
-            await db.execute(
-                select(UserDocument).where(UserDocument.id == document_id)
-            )
+            await db.execute(select(UserDocument).where(UserDocument.id == document_id))
         ).scalar_one_or_none()
         if not doc:
             raise LookupError("Document not found")
@@ -159,7 +224,9 @@ class DocumentService:
             for d in docs
         ]
         return DocumentListResponse(
-            session_id=session_id, documents=items, total=len(items),
+            session_id=session_id,
+            documents=items,
+            total=len(items),
         )
 
 

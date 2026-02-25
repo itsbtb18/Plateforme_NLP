@@ -3,18 +3,27 @@ FastAPI chatbot service — Arabic NLP Research Platform.
 
 Thin controller layer. All business logic lives in services/.
 """
+
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db, init_db
 from app.config import get_settings
 from app.schemas import (
-    ConversationRequest, QuickQueryRequest, PDFQuestionRequest,
-    UserDocQuestionRequest, LegalSearchRequest, PlatformSearchRequest,
+    ConversationRequest,
+    QuickQueryRequest,
+    PDFQuestionRequest,
+    UserDocQuestionRequest,
+    LegalSearchRequest,
+    PlatformSearchRequest,
     SessionRenameRequest,
-    ChatResponse, SessionResponse,
-    SessionListResponse, ChatHistoryResponse,
-    DocumentUploadResponse, DocumentStatusResponse, DocumentListResponse,
+    ChatResponse,
+    SessionResponse,
+    SessionListResponse,
+    ChatHistoryResponse,
+    DocumentUploadResponse,
+    DocumentStatusResponse,
+    DocumentListResponse,
     PlatformSearchResponse,
 )
 from app.services.chat_logic import get_chat_logic
@@ -37,17 +46,33 @@ settings = get_settings()
 # Lifespan
 # ------------------------------------------------------------------
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting FastAPI chatbot service...")
     await init_db()
     from app.services.qdrant import get_qdrant_service
+
     get_qdrant_service().ensure_collections()
     logger.info("Qdrant collections ready")
+
+    # Preload the embedding model so it's ready before the first request
+    from app.services.documents.embeddings import get_embedding_service
+
+    get_embedding_service()
+    logger.info("Embedding model preloaded")
+
+    # Preload the Groq client
+    from app.services.llm.client import get_groq_client
+
+    get_groq_client()
+    logger.info("Groq client preloaded")
+
     logger.info("FastAPI chatbot service ready")
     yield
     logger.info("Shutting down FastAPI chatbot service...")
     from app.services.elasticsearch_service import get_elasticsearch_service
+
     await get_elasticsearch_service().close()
 
 
@@ -58,7 +83,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Arabic NLP Platform - Chatbot API",
     description="RAG-based chatbot with knowledge retrieval, platform queries, "
-                "user documents, conversation management, and multilingual support.",
+    "user documents, conversation management, and multilingual support.",
     version="4.0.0",
     lifespan=lifespan,
 )
@@ -76,6 +101,7 @@ app.add_middleware(
 # Health & warmup
 # ==================================================================
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "fastapi-chatbot", "version": "4.0.0"}
@@ -85,6 +111,7 @@ async def health_check():
 async def warmup():
     try:
         from app.services.embeddings import get_embedding_service
+
         get_embedding_service().encode_single("warmup")
         return {"status": "ready"}
     except Exception as e:
@@ -96,8 +123,11 @@ async def warmup():
 # A) Knowledge Retrieval  (RAG — chat_logic)
 # ==================================================================
 
+
 @app.post("/conversation", response_model=ChatResponse)
-async def conversation(request: ConversationRequest, db: AsyncSession = Depends(get_db)):
+async def conversation(
+    request: ConversationRequest, db: AsyncSession = Depends(get_db)
+):
     try:
         return await get_chat_logic().handle_conversation(request, db)
     except Exception as e:
@@ -108,7 +138,9 @@ async def conversation(request: ConversationRequest, db: AsyncSession = Depends(
 @app.post("/query", response_model=ChatResponse)
 async def quick_query(request: QuickQueryRequest):
     try:
-        return await get_chat_logic().handle_quick_query(request.question, request.language)
+        return await get_chat_logic().handle_quick_query(
+            request.question, request.language
+        )
     except Exception as e:
         logger.error("Quick query error: %s", e)
         raise HTTPException(status_code=500, detail="Failed to process query")
@@ -118,7 +150,8 @@ async def quick_query(request: QuickQueryRequest):
 async def legal_search(request: LegalSearchRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await get_chat_logic().handle_legal_question(
-            question=request.question, db=db,
+            question=request.question,
+            db=db,
             jurisdiction=request.jurisdiction,
             category=request.category,
             language=request.language,
@@ -132,18 +165,24 @@ async def legal_search(request: LegalSearchRequest, db: AsyncSession = Depends(g
 # B) Platform Queries  (PostgreSQL — platform_queries service)
 # ==================================================================
 
+
 @app.post("/platform/search", response_model=PlatformSearchResponse)
-async def platform_search(request: PlatformSearchRequest, db: AsyncSession = Depends(get_db)):
+async def platform_search(
+    request: PlatformSearchRequest, db: AsyncSession = Depends(get_db)
+):
     try:
         pqs = get_platform_query_service()
         results = await pqs.search_by_type(
-            db, keyword=request.query,
+            db,
+            keyword=request.query,
             resource_type=request.resource_type,
             language=request.language,
             limit=request.limit,
         )
         nav = await pqs.get_navigation_help(request.query)
-        return PlatformSearchResponse(results=results, total=len(results), navigation=nav)
+        return PlatformSearchResponse(
+            results=results, total=len(results), navigation=nav
+        )
     except Exception as e:
         logger.error("Platform search error: %s", e)
         raise HTTPException(status_code=500, detail="Failed to search platform")
@@ -165,7 +204,9 @@ async def article_lookup(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        results = await get_platform_query_service().get_article_details(db, keyword=keyword, limit=limit)
+        results = await get_platform_query_service().get_article_details(
+            db, keyword=keyword, limit=limit
+        )
         return {"results": results, "total": len(results)}
     except Exception as e:
         logger.error("Article lookup error: %s", e)
@@ -175,6 +216,7 @@ async def article_lookup(
 # ==================================================================
 # C) User Documents  (document_service + Celery)
 # ==================================================================
+
 
 @app.post("/upload_document", response_model=DocumentUploadResponse)
 async def upload_document(
@@ -188,8 +230,11 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="Filename required")
         file_bytes = await file.read()
         return await get_document_service().upload(
-            db=db, file_bytes=file_bytes, filename=file.filename,
-            session_id=session_id, user_id=user_id,
+            db=db,
+            file_bytes=file_bytes,
+            filename=file.filename,
+            session_id=session_id,
+            user_id=user_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -226,21 +271,28 @@ async def list_documents(
 
 
 @app.post("/ask_document", response_model=ChatResponse)
-async def ask_document(request: UserDocQuestionRequest, db: AsyncSession = Depends(get_db)):
+async def ask_document(
+    request: UserDocQuestionRequest, db: AsyncSession = Depends(get_db)
+):
     try:
         return await get_chat_logic().handle_user_doc_question(
-            question=request.question, session_id=request.session_id,
-            db=db, document_id=request.document_id,
+            question=request.question,
+            session_id=request.session_id,
+            db=db,
+            document_id=request.document_id,
             user_id=request.user_id,
         )
     except Exception as e:
         logger.error("Ask document error: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to process document question")
+        raise HTTPException(
+            status_code=500, detail="Failed to process document question"
+        )
 
 
 # ==================================================================
 # D) Conversation System  (session_service)
 # ==================================================================
+
 
 @app.post("/sessions", response_model=SessionResponse)
 async def create_session(
@@ -251,7 +303,10 @@ async def create_session(
 ):
     try:
         sid = await get_session_service().create(
-            db=db, user_id=user_id, user_country=user_country, user_city=user_city,
+            db=db,
+            user_id=user_id,
+            user_country=user_country,
+            user_city=user_city,
         )
         return SessionResponse(session_id=sid)
     except Exception as e:
@@ -275,11 +330,15 @@ async def get_session_history(
     db: AsyncSession = Depends(get_db),
 ):
     messages = await get_session_service().get_history(session_id, db, limit)
-    return ChatHistoryResponse(session_id=session_id, messages=messages, total=len(messages))
+    return ChatHistoryResponse(
+        session_id=session_id, messages=messages, total=len(messages)
+    )
 
 
 @app.patch("/sessions/{session_id}/title")
-async def rename_session(session_id: str, request: SessionRenameRequest, db: AsyncSession = Depends(get_db)):
+async def rename_session(
+    session_id: str, request: SessionRenameRequest, db: AsyncSession = Depends(get_db)
+):
     await get_session_service().rename(session_id, request.title, db)
     return {"session_id": session_id, "title": request.title}
 
@@ -300,6 +359,7 @@ async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
 # Legacy endpoints (backward-compatible)
 # ==================================================================
 
+
 @app.post("/start_conversation", response_model=SessionResponse, deprecated=True)
 async def start_conversation_legacy(
     user_id: Optional[str] = None,
@@ -316,20 +376,29 @@ async def end_conversation_legacy(session_id: str, db: AsyncSession = Depends(ge
 
 
 @app.post("/upload_pdf", deprecated=True)
-async def upload_pdf_legacy(file: UploadFile = File(...), session_id: str = Form(...), db: AsyncSession = Depends(get_db)):
+async def upload_pdf_legacy(
+    file: UploadFile = File(...),
+    session_id: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
     return await upload_document(file=file, session_id=session_id, db=db)
 
 
 @app.post("/ask", response_model=ChatResponse, deprecated=True)
-async def ask_pdf_question_legacy(request: PDFQuestionRequest, db: AsyncSession = Depends(get_db)):
+async def ask_pdf_question_legacy(
+    request: PDFQuestionRequest, db: AsyncSession = Depends(get_db)
+):
     return await get_chat_logic().handle_pdf_question(
-        question=request.question, session_id=request.session_id, db=db,
+        question=request.question,
+        session_id=request.session_id,
+        db=db,
     )
 
 
 # ==================================================================
 # Root
 # ==================================================================
+
 
 @app.get("/")
 async def root():
@@ -361,6 +430,7 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host=settings.API_HOST,

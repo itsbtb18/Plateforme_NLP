@@ -1,6 +1,7 @@
 """
 Heuristic-based intent classifier for routing queries.
 """
+
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -15,6 +16,8 @@ from app.services.classifier.patterns import (
     BUG_PATTERNS,
     GENERAL_KNOWLEDGE_PATTERNS,
     SOFT_DOCUMENT_PATTERN,
+    USER_QUERY_PATTERNS,
+    extract_resource_type,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,13 +26,17 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QueryClassification:
     """Immutable classification output."""
-    intent: str                                 # one of the 6 intents
-    language: str                               # ar | fr | en
-    confidence: float = 1.0                     # 0.0–1.0
+
+    intent: str  # one of the 7 intents
+    language: str  # ar | fr | en
+    confidence: float = 1.0  # 0.0–1.0
     qdrant_collections: List[str] = field(default_factory=list)
-    qdrant_type_filter: Optional[str] = None    # payload "type" value
+    qdrant_type_filter: Optional[str] = None  # payload "type" value
     use_postgresql: bool = False
     use_llm_direct: bool = False
+    detected_resource_type: Optional[str] = (
+        None  # extracted resource type (tool, course, …)
+    )
 
 
 class QueryClassifier:
@@ -62,7 +69,16 @@ class QueryClassifier:
         language = self.lang_service.detect(question)
         q = question.strip()
 
-        # --- 1. Metadata query (stats, navigation) ---
+        # --- 1. User identity / profile query ---
+        if self._matches(q, USER_QUERY_PATTERNS):
+            return QueryClassification(
+                intent="user_query",
+                language=language,
+                confidence=0.90,
+                use_postgresql=True,
+            )
+
+        # --- 2. Metadata query (stats, navigation) ---
         if self._matches(q, METADATA_PATTERNS):
             return QueryClassification(
                 intent="metadata_query",
@@ -71,7 +87,7 @@ class QueryClassifier:
                 use_postgresql=True,
             )
 
-        # --- 2. Document query (user uploads) ---
+        # --- 3. Document query (user uploads) ---
         if self._matches(q, DOCUMENT_PATTERNS) or (
             has_session_docs and self._soft_document_hint(q)
         ):
@@ -83,7 +99,7 @@ class QueryClassifier:
                 qdrant_type_filter="document",
             )
 
-        # --- 3. Legal query ---
+        # --- 4. Legal query ---
         if self._matches(q, LEGAL_PATTERNS):
             return QueryClassification(
                 intent="legal_query",
@@ -93,7 +109,7 @@ class QueryClassifier:
                 qdrant_type_filter="law",
             )
 
-        # --- 4. Bug query ---
+        # --- 5. Bug query ---
         if self._matches(q, BUG_PATTERNS):
             return QueryClassification(
                 intent="bug_query",
@@ -103,16 +119,18 @@ class QueryClassifier:
                 qdrant_type_filter="bug",
             )
 
-        # --- 5. Platform / structured query ---
+        # --- 6. Platform / structured query ---
         if self._matches(q, PLATFORM_PATTERNS) or self._has_platform_keywords(q):
+            res_type = extract_resource_type(q)
             return QueryClassification(
                 intent="platform_query",
                 language=language,
                 confidence=0.85,
                 use_postgresql=True,
+                detected_resource_type=res_type,
             )
 
-        # --- 6. General knowledge (advice, plans, recommendations) → direct LLM ---
+        # --- 7. General knowledge (advice, plans, recommendations) → direct LLM ---
         if self._matches(q, GENERAL_KNOWLEDGE_PATTERNS):
             return QueryClassification(
                 intent="general_knowledge",
@@ -121,7 +139,7 @@ class QueryClassifier:
                 use_llm_direct=True,
             )
 
-        # --- 7. Default: conceptual question → LLM with optional RAG ---
+        # --- 8. Default: conceptual question → LLM with optional RAG ---
         return QueryClassification(
             intent="conceptual_question",
             language=language,
