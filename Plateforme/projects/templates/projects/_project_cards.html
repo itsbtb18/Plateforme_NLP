@@ -21,7 +21,7 @@
         </span>
         {% endif %}
         </div>
-        {% include "includes/card_top_actions.html" with content_type="project" object_id=project.pk title=project.get_localized_title description=project.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
+        {% include "includes/card_top_actions.html" with content_type="project" object_id=project.pk title=project.get_localized_title description=project.get_localized_description|truncatewords:40 category=project.get_status_display author=project.coordinator.get_full_name_display url=request.build_absolute_uri %}
     </div>
     
     <div class="rp-card-body">
@@ -71,10 +71,17 @@
                 {% endwith %}
             </div>
         </div>
-        <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
-            {% translate "View" %}
-            <i class="bi bi-arrow-right"></i>
-        </a>
+        {% if project.approval_status == 'pending' and project.coordinator == request.user %}
+            <a href="{% url 'projects:project_update' project.pk %}" class="rp-card-action" title="{% translate 'Edit Form' %}">
+                {% translate "Edit Form" %}
+                <i class="bi bi-file-earmark-text"></i>
+            </a>
+        {% else %}
+            <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
+                {% translate "View" %}
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        {% endif %}
     </div>
 </article>
 {% empty %}

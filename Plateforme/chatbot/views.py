@@ -162,6 +162,7 @@ def chatbot_interface(request):
         'max_file_size': CHATBOT_MAX_FILE_SIZE,
         'user_name': request.user.get_full_name() or request.user.email,
         'content_metadata': json.dumps(content_metadata) if content_metadata else None,
+        'card_context_json': json.dumps(request.session.get('chatbot_card_context', {})),
     }
     return render(request, "chatbot/chatbot.html", context=context)
 
@@ -539,15 +540,86 @@ def start_new_session(request):
 
 
 @login_required
-def chatbot_interface(request):
-    """
-    Main chatbot interface/UI view
-    """
-    context = {
-        'user': request.user,
-        'page_title': _('Chatbot'),
+@require_http_methods(["POST"])
+def set_card_context(request):
+    """Set or update active chatbot content context from card actions (AJAX)."""
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "error": _("Invalid JSON payload.")}, status=400)
+
+    content_type = (payload.get("type") or "").strip().lower()
+    object_id = str(payload.get("id") or "").strip()
+    title = (payload.get("title") or "").strip()
+    category = (payload.get("category") or "").strip()
+    author = (payload.get("author") or "").strip()
+    description = (payload.get("description") or "").strip()
+    file_content = (payload.get("file_content") or "").strip()
+    content_url = (payload.get("url") or "").strip()
+    tags = (payload.get("tags") or "").strip()
+    start_new = bool(payload.get("start_new"))
+
+    active_session = ChatSession.objects.filter(
+        user=request.user,
+        is_active=True
+    ).order_by('-updated_at').first()
+
+    if start_new and active_session:
+        try:
+            requests.post(
+                f"{FASTAPI_URL}/end_conversation/{active_session.fastapi_session_id}",
+                headers=get_api_headers(),
+                timeout=10
+            )
+        except Exception:
+            pass
+        active_session.is_active = False
+        active_session.save(update_fields=["is_active", "updated_at"])
+        active_session = None
+
+    if not active_session:
+        session_id = str(uuid.uuid4())
+        try:
+            response = requests.post(
+                f"{FASTAPI_URL}/start_conversation",
+                headers=get_api_headers(),
+                timeout=10
+            )
+            response.raise_for_status()
+            session_id = response.json().get("session_id", session_id)
+        except Exception:
+            logger.warning("Falling back to UUID session in set_card_context")
+
+        active_session = ChatSession.objects.create(
+            user=request.user,
+            fastapi_session_id=session_id,
+            is_active=True
+        )
+
+    active_session.content_type = content_type or active_session.content_type
+    active_session.object_id = object_id or active_session.object_id
+    active_session.content_title = title or active_session.content_title
+    active_session.save(update_fields=["content_type", "object_id", "content_title", "updated_at"])
+
+    request.session["chatbot_card_context"] = {
+        "type": content_type,
+        "id": object_id,
+        "title": title,
+        "category": category,
+        "author": author,
+        "description": description,
+        "file_content": file_content,
+        "url": content_url,
+        "tags": tags,
     }
-    return render(request, 'chatbot/chat.html', context)
+    request.session.modified = True
+
+    return JsonResponse({
+        "ok": True,
+        "session_id": active_session.fastapi_session_id,
+        "content_title": active_session.content_title or "",
+        "start_new": start_new,
+    })
 
 
 @login_required
@@ -560,7 +632,7 @@ def chat_history(request):
     data = {
         'sessions': [{
             'id': str(session.id),
-            'title': session.title or f"Chat {session.created_at.strftime('%Y-%m-%d %H:%M')}",
+            'title': session.content_title or f"Chat {session.created_at.strftime('%Y-%m-%d %H:%M')}",
             'created_at': session.created_at.isoformat(),
             'message_count': session.messages.count()
         } for session in sessions]

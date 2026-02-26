@@ -50,7 +50,6 @@
                 </span>
             </div>
             </div>
-            {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
         </div>
         
         <div class="card-body">
@@ -96,10 +95,20 @@
         </div>
         
         <div class="card-footer">
-            <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
-                <span>{% trans "View Details" %}</span>
-                <i class="bi bi-arrow-right"></i>
-            </a>
+            {% if corpus.approval_status == 'pending' and corpus.author == request.user %}
+                <a href="{% url 'resources:resource-update' type='corpus' pk=corpus.id %}" class="btn-view" title="{% trans 'Edit Form' %}">
+                    <span>{% trans "Edit Form" %}</span>
+                    <i class="bi bi-file-earmark-text"></i>
+                </a>
+            {% else %}
+                <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
+                    <span>{% trans "View Details" %}</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            {% endif %}
+            <div class="card-footer-actions">
+                {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 category=corpus.get_field_display author=corpus.author.get_full_name_display url=request.build_absolute_uri %}
+            </div>
         </div>
     </article>
     {% endfor %}

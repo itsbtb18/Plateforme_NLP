@@ -1,15 +1,17 @@
 {% load i18n %}
 {% load static %}
 
-<!-- ===== NLP TOOL CARDS PARTIAL ===== -->
+<!-- ===== COMPACT NLP TOOL MINI-CARDS ===== -->
 {% if tools %}
-<div class="corpus-grid">
+<div class="tools-mini-grid">
     {% for tool in tools %}
-    <article class="tool-card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
-            <div style="display: flex; gap: 1rem; align-items: flex-start; flex: 1;">
-            <!-- Dynamic Icon based on tool type -->
-            <div class="corpus-icon {% if tool.tool_type == 'tokenization' %}type-tokenization{% elif tool.tool_type == 'stemming' %}type-stemming{% elif tool.tool_type == 'ner' %}type-ner{% elif tool.tool_type == 'pos_tagging' %}type-pos{% elif tool.tool_type == 'sentiment_analysis' %}type-sentiment{% elif tool.tool_type == 'machine_translation' %}type-translation{% else %}type-general{% endif %}">
+    <article class="tool-minicard" data-type="{{ tool.tool_type }}">
+        <!-- Accent Top Border -->
+        <div class="minicard-accent"></div>
+        
+        <!-- Header: Icon + Title + Badge -->
+        <div class="minicard-header">
+            <div class="tool-icon-mini {% if tool.tool_type == 'tokenization' %}icon-tokenization{% elif tool.tool_type == 'stemming' %}icon-stemming{% elif tool.tool_type == 'ner' %}icon-ner{% elif tool.tool_type == 'pos_tagging' %}icon-pos{% elif tool.tool_type == 'sentiment_analysis' %}icon-sentiment{% elif tool.tool_type == 'machine_translation' %}icon-translation{% else %}icon-general{% endif %}">
                 {% if tool.tool_type == 'tokenization' %}
                     <i class="bi bi-segmented-nav"></i>
                 {% elif tool.tool_type == 'stemming' %}
@@ -26,69 +28,65 @@
                     <i class="bi bi-gear"></i>
                 {% endif %}
             </div>
-            <div class="card-title-section">
-                <h3 class="tool-title">{{ tool.get_localized_title }}</h3>
-                <span class="corpus-type-badge {% if tool.tool_type == 'tokenization' %}type-tokenization{% elif tool.tool_type == 'stemming' %}type-stemming{% elif tool.tool_type == 'ner' %}type-ner{% elif tool.tool_type == 'pos_tagging' %}type-pos{% elif tool.tool_type == 'sentiment_analysis' %}type-sentiment{% elif tool.tool_type == 'machine_translation' %}type-translation{% else %}type-general{% endif %}">
+            <div class="tool-info-mini">
+                <h3 class="tool-title-mini">{{ tool.get_localized_title|truncatechars:35 }}</h3>
+                <span class="tool-badge-mini {% if tool.tool_type == 'tokenization' %}badge-tokenization{% elif tool.tool_type == 'stemming' %}badge-stemming{% elif tool.tool_type == 'ner' %}badge-ner{% elif tool.tool_type == 'pos_tagging' %}badge-pos{% elif tool.tool_type == 'sentiment_analysis' %}badge-sentiment{% elif tool.tool_type == 'machine_translation' %}badge-translation{% else %}badge-general{% endif %}">
                     {{ tool.get_tool_type_display }}
                 </span>
             </div>
-            </div>
-            {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 url=request.build_absolute_uri %}
         </div>
         
-        <div class="card-body">
-            <div class="meta-list">
-                <div class="meta-item">
-                    <span class="meta-label">{% trans "Version" %}</span>
-                    <span class="meta-value">{{ tool.version|default:"1.0" }}</span>
+        <!-- Body: Compact Meta Info -->
+        <div class="minicard-body">
+            <div class="tool-meta-mini">
+                <div class="meta-mini">
+                    <i class="bi bi-code"></i>
+                    <span>{{ tool.version|default:"1.0" }}</span>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">{% trans "Author" %}</span>
-                    <span class="meta-value">
-                        {% if tool.author %}
-                            {{ tool.author.get_full_name_display }}
+                <div class="meta-mini">
+                    <i class="bi bi-globe"></i>
+                    <span>
+                        {% if tool.supported_languages %}
+                            {% for lang_display in tool.get_supported_languages_display %}
+                                {{ lang_display|truncatechars:3 }}{% if not forloop.last %},{% endif %}
+                            {% endfor %}
                         {% else %}
-                            {% trans "Unknown" %}
+                            Multi
                         {% endif %}
                     </span>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">{% trans "Last Updated" %}</span>
-                    <span class="meta-value">{{ tool.last_updated|date:"M d, Y" }}</span>
+                <div class="meta-mini">
+                    <i class="bi bi-clock"></i>
+                    <span>{{ tool.last_updated|date:"M d" }}</span>
                 </div>
+            </div>
+            
+            <div class="tool-author-mini">
+                <i class="bi bi-person"></i>
+                {% if tool.author %}
+                    {{ tool.author.get_full_name_display|truncatechars:20 }}
+                {% else %}
+                    {% trans "Unknown" %}
+                {% endif %}
             </div>
         </div>
         
-        <div class="card-tags">
-            {% if tool.supported_languages %}
-            <span class="tag-pill {% if tool.supported_languages == 'ar' %}lang-ar{% elif tool.supported_languages == 'en' %}lang-en{% elif tool.supported_languages == 'fr' %}lang-fr{% elif tool.supported_languages == 'es' %}lang-es{% endif %}">
-                <i class="bi bi-globe"></i>
-                {% for lang_display in tool.get_supported_languages_display %}
-                    {{ lang_display }}{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-            </span>
+        <!-- Footer: Actions with RTL/LTR Support -->
+        <div class="minicard-footer">
+            {% if tool.approval_status == 'pending' and tool.author == request.user %}
+                <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}" class="btn-details-mini" title="{% trans 'Edit Form' %}">
+                    <span>{% trans "Edit Form" %}</span>
+                    <i class="bi bi-file-earmark-text"></i>
+                </a>
+            {% else %}
+                <a href="{% url 'resources:tool_detail' tool.id %}" class="btn-details-mini">
+                    <span>{% trans "View Details" %}</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
             {% endif %}
-            
-            {% if tool.documentation_link %}
-            <span class="tag-pill">
-                <i class="bi bi-book"></i>
-                {% trans "Documentation" %}
-            </span>
-            {% endif %}
-            
-            {% if tool.keywords %}
-            <span class="tag-pill">
-                <i class="bi bi-tag"></i>
-                {{ tool.get_keywords_list.0 }}
-            </span>
-            {% endif %}
-        </div>
-        
-        <div class="card-footer">
-            <a href="{% url 'resources:tool_detail' tool.id %}" class="btn-view">
-                <span>{% trans "View Details" %}</span>
-                <i class="bi bi-arrow-right"></i>
-            </a>
+            <div class="minicard-actions">
+                {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 category=tool.get_tool_type_display author=tool.author.get_full_name_display url=request.build_absolute_uri %}
+            </div>
         </div>
     </article>
     {% endfor %}

@@ -318,7 +318,7 @@ html[dir="rtl"] .results-header { flex-direction: row-reverse; }
     border-top: none; border-inline-start: 1px solid var(--hub-border);
     display: flex; align-items: center;
 }
-.resource-grid.list-view .btn-view-details { padding: 1rem; white-space: nowrap; }
+.resource-grid.list-view .btn-view-details { padding: 0.625rem 1rem; white-space: nowrap; }
 .resource-grid.list-view .btn-view-details::after { display: none; }
 
 @media (max-width: 768px) {
@@ -391,10 +391,20 @@ html[dir="rtl"] .results-header { flex-direction: row-reverse; }
 }
 .meta-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--hub-text-muted); }
 .meta-item i { font-size: 0.85rem; }
-.card-action { padding: 0; border-top: 1px solid var(--hub-border); }
+.card-action {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--hub-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-action .card-top-actions {
+    margin-inline-start: auto;
+}
 .btn-view-details {
     display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-    width: 100%; padding: 1rem 1.5rem;
+    width: auto; padding: 0.625rem 1rem;
     background: transparent; color: var(--hub-text-secondary);
     font-weight: 600; font-size: 0.875rem;
     text-decoration: none; transition: all var(--transition-fast);
@@ -651,11 +661,21 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                         </div>
                     </div>
                     <div class="card-action">
-                        <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}"
-                           class="btn-view-details">
-                            <span>{% translate "View Details" %}</span>
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
+                        {% if resource.approval_status == 'pending' and resource.author == request.user %}
+                            <a href="{% url 'resources:resource-update' type=resource.resource_type pk=resource.id %}"
+                               class="btn-view-details"
+                               title="{% translate 'Edit Form' %}">
+                                <span>{% translate "Edit Form" %}</span>
+                                <i class="bi bi-file-earmark-text"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}"
+                               class="btn-view-details">
+                                <span>{% translate "View Details" %}</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        {% endif %}
+                        {% include "includes/card_top_actions.html" with content_type=resource.resource_type object_id=resource.id title=resource.get_localized_title description=resource.get_localized_description|truncatewords:40 category=resource.get_resource_type_display author=resource.author.get_full_name_display url=request.build_absolute_uri %}
                     </div>
                 </article>
                 {% endfor %}

@@ -1,0 +1,198 @@
+{% load i18n %}
+{# Reusable card bottom actions component #}
+{# Parameters: content_type, object_id, title, description, url, detail_url, detail_text #}
+
+<div class="card-bottom-actions">
+    {# Ask Chatbot Button #}
+    <button type="button" 
+            class="btn-card-action btn-chatbot compact" 
+            data-content-type="{{ content_type }}" 
+            data-object-id="{{ object_id }}"
+            data-title="{{ title|default:'' }}"
+            data-description="{{ description|default:'' }}"
+            onclick="openChatbotWithContext(this)"
+            title="{% translate 'Ask AI about this' %}">
+        <i class="bi bi-robot"></i>
+        <span class="btn-text">{% translate "Ask AI" %}</span>
+    </button>
+    
+    {# Share Button #}
+    <button type="button" 
+            class="btn-card-action btn-share compact" 
+            data-content-type="{{ content_type }}" 
+            data-object-id="{{ object_id }}"
+            data-title="{{ title|default:'' }}"
+            data-url="{{ url|default:'' }}"
+            onclick="openShareModal(this)"
+            title="{% translate 'Share with a friend' %}">
+        <i class="bi bi-share"></i>
+        <span class="btn-text">{% translate "Share" %}</span>
+    </button>
+    
+    {# View Details Link #}
+    <a href="{{ detail_url }}" class="btn-card-action btn-view-details">
+        <i class="bi bi-arrow-right"></i>
+        <span class="btn-text">{{ detail_text|default:_("View Details") }}</span>
+    </a>
+</div>
+
+<style>
+.card-bottom-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.02));
+    border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.btn-card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    border: none;
+}
+
+.btn-chatbot {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25);
+    order: 1;
+}
+
+.btn-chatbot:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(139, 92, 246, 0.35);
+}
+
+.btn-share {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    order: 2;
+}
+
+.btn-share:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+}
+
+.btn-view-details {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+    order: 3;
+    margin-left: auto;
+}
+
+.btn-view-details:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    color: white;
+}
+
+.btn-card-action i {
+    font-size: 1rem;
+}
+
+.btn-card-action.compact {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+}
+
+/* RTL Support - Mirror layout */
+html[dir="rtl"] .card-bottom-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .btn-card-action {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .btn-chatbot {
+    order: 3;
+}
+
+html[dir="rtl"] .btn-share {
+    order: 2;
+}
+
+html[dir="rtl"] .btn-view-details {
+    order: 1;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .card-bottom-actions {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .btn-card-action {
+        flex: 1;
+        justify-content: center;
+        min-width: calc(50% - 0.25rem);
+    }
+    
+    .btn-view-details {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+    
+    html[dir="rtl"] .btn-view-details {
+        margin-right: 0;
+    }
+}
+</style>
+
+<script>
+function openChatbotWithContext(button) {
+    const contentType = button.dataset.contentType;
+    const objectId = button.dataset.objectId;
+    const title = button.dataset.title || '';
+    const description = button.dataset.description || '';
+    
+    const url = `/chatbot/?type=${encodeURIComponent(contentType)}&id=${encodeURIComponent(objectId)}`;
+    
+    sessionStorage.setItem('chatbot_context', JSON.stringify({
+        content_type: contentType,
+        object_id: objectId,
+        title: title,
+        description: description,
+        timestamp: new Date().toISOString()
+    }));
+    
+    window.open(url, '_blank', 'width=900,height=700,menubar=no,toolbar=no');
+}
+
+function openShareModal(button) {
+    const contentType = button.dataset.contentType;
+    const objectId = button.dataset.objectId;
+    const title = button.dataset.title || '';
+    const url = button.dataset.url || '';
+    
+    // Trigger the existing share modal
+    const event = new CustomEvent('openShareModal', {
+        detail: {
+            content_type: contentType,
+            object_id: objectId,
+            title: title,
+            url: url
+        }
+    });
+    document.dispatchEvent(event);
+}
+</script>

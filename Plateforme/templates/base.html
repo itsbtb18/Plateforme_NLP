@@ -2518,33 +2518,285 @@
     <!-- Instagram-Style Share Modal -->
     {% include "includes/share_modal_modern.html" %}
 
-    <!-- Chatbot Button Handler -->
+    <!-- Card Chatbot Context Handler -->
     <script>
     (function() {
         'use strict';
-        
-        // Handle chatbot button clicks
+
+        function getCsrfToken() {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            if (cookieValue) return cookieValue.split('=')[1];
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrfInput && csrfInput.value) return csrfInput.value;
+            return '';
+        }
+
+        function parseContext(btn) {
+            const raw = btn.dataset.context || '';
+            let parsed = null;
+            if (raw) {
+                try {
+                    parsed = JSON.parse(raw);
+                } catch (e) {
+                    parsed = null;
+                }
+            }
+
+            return {
+                type: btn.dataset.ct || btn.dataset.contentType || parsed?.type || '',
+                id: btn.dataset.oid || btn.dataset.objectId || parsed?.id || '',
+                title: btn.dataset.title || parsed?.title || '',
+                category: btn.dataset.category || parsed?.category || '',
+                author: btn.dataset.author || parsed?.author || '',
+                description: btn.dataset.description || parsed?.description || '',
+                file_content: btn.dataset.fileContent || parsed?.file_content || '',
+                url: btn.dataset.url || parsed?.url || '',
+                tags: btn.dataset.tags || ''
+            };
+        }
+
+        function extractContextFromDOM(btn, context) {
+            const scopedRoot = btn.closest('article, .card, .post-card, .tool-card, .rp-card, .eh-card, .ip-card, .course-hub-card, .corpus-card, .resource-card, .topic-card, form');
+            const findText = (selectors) => {
+                if (!scopedRoot) return '';
+                for (const selector of selectors) {
+                    const el = scopedRoot.querySelector(selector);
+                    const text = (el?.textContent || '').trim();
+                    if (text) return text.replace(/\s+/g, ' ');
+                }
+                return '';
+            };
+            const findValue = (selectors) => {
+                if (!scopedRoot) return '';
+                for (const selector of selectors) {
+                    const el = scopedRoot.querySelector(selector);
+                    const val = (el?.value || '').trim();
+                    if (val) return val;
+                }
+                return '';
+            };
+
+            const title = context.title || findText(['.tool-title-mini', '.corpus-title', '.rp-card-title', '.eh-card-title', '.ip-card-name', '.course-hub-card-title', '.card-title', 'h3', 'h2']) || findValue(['input[name*="title"]']);
+            const author = context.author || findText(['.tool-author-mini', '.meta-item .meta-value', '.rp-meta-item', '.eh-info-row span', '.author-name']) || findValue(['input[name*="author"]', 'input[name*="creator"]']);
+            const category = context.category || findText(['.tool-badge-mini', '.corpus-type-badge', '.rp-status-badge', '.eh-category-badge', '.badge', '.tag-pill']) || findValue(['select[name*="category"]', 'select[name*="field"]']);
+            const description = context.description || findText(['.rp-card-summary', '.eh-card-desc', '.ip-card-desc', '.post-text', '.card-description', 'p']) || findValue(['textarea[name*="description"]', 'textarea[name*="content"]']);
+
+            return {
+                ...context,
+                title,
+                author,
+                category,
+                description,
+                file_content: context.file_content || findValue(['textarea[name*="content"]', 'textarea[name*="text"]']) || ''
+            };
+        }
+
+        function buildContextMessages(context) {
+            const title = context.title || 'this resource';
+            const author = context.author || 'Unknown';
+            const category = context.category || 'General';
+            return {
+                title,
+                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. Catégorie : ${category}.`,
+                autoReply: `Je suis prêt à vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
+            };
+        }
+
+        function forceInjectInChatUI(context, targetWindow) {
+            try {
+                const hostWindow = targetWindow || window;
+                const doc = hostWindow.document;
+                if (!doc) return false;
+
+                const { systemContextMessage } = buildContextMessages(context);
+                const input = doc.querySelector('#user-input, #chat-input, textarea[name="message"], input[name="message"]');
+                if (!input) return false;
+
+                input.focus();
+                input.value = systemContextMessage;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const sendBtn = doc.querySelector('#send-button, .input-btn, .chat-send-btn, button[type="submit"]');
+                if (sendBtn) {
+                    sendBtn.click();
+                } else {
+                    input.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true
+                    }));
+                }
+                console.log('Données transférées au chatbot');
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function buildChatbotUrl(context, startNew) {
+            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
+            if (context.type && context.id) {
+                chatbotUrl.searchParams.set('type', context.type);
+                chatbotUrl.searchParams.set('id', context.id);
+            }
+            chatbotUrl.searchParams.set('source', 'card');
+            if (startNew) chatbotUrl.searchParams.set('new_analysis', '1');
+            return chatbotUrl.toString();
+        }
+
+        function openChatbotPopupWithContext(context, startNew) {
+            const chatbotUrl = buildChatbotUrl(context, startNew);
+
+            const popup = window.open(chatbotUrl, 'nlpChatbotWindow', 'width=1100,height=820,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes');
+            if (popup) {
+                popup.focus();
+                let attempts = 0;
+                const timer = setInterval(() => {
+                    attempts += 1;
+                    if (forceInjectInChatUI(context, popup) || attempts >= 30) {
+                        clearInterval(timer);
+                    }
+                }, 300);
+            }
+            return popup;
+        }
+
+        function pushContextToLocalChatbot(context, startNew) {
+            window.chatbotContext = context;
+            window.dispatchEvent(new CustomEvent('chatbot:set-context', { detail: { context, startNew } }));
+
+            const { systemContextMessage, autoReply } = buildContextMessages(context);
+
+            let bridged = false;
+            if (window.chat) {
+                try {
+                    if (typeof window.chat.setContext === 'function') {
+                        window.chat.setContext(context, { startNew });
+                    }
+                    if (typeof window.chat.open === 'function') {
+                        window.chat.open();
+                    }
+                    if (typeof window.chat.sendMessage === 'function') {
+                        window.chat.sendMessage(autoReply);
+                    }
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (window.myChatbot && typeof window.myChatbot.sendMessage === 'function') {
+                try {
+                    window.myChatbot.sendMessage(systemContextMessage, { role: 'system', hidden: true, silent: true, context: true, preserveHistory: !startNew });
+                    window.myChatbot.sendMessage(autoReply, { role: 'assistant', auto: true });
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (!bridged && typeof window.appendMessage === 'function') {
+                try {
+                    window.appendMessage(systemContextMessage, 'system', { hidden: true, context: true, preserveHistory: !startNew });
+                    window.appendMessage(autoReply, 'assistant', { auto: true });
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (!bridged) {
+                window.dispatchEvent(new CustomEvent('chatbot:append-message', {
+                    detail: {
+                        messages: [
+                            { role: 'system', content: systemContextMessage, hidden: true, context: true, preserveHistory: !startNew },
+                            { role: 'assistant', content: autoReply, auto: true }
+                        ]
+                    }
+                }));
+            }
+
+            if (!bridged) {
+                bridged = forceInjectInChatUI(context, window);
+            }
+            if (bridged) {
+                console.log('Données transférées au chatbot');
+            }
+            return bridged;
+        }
+
+        function handleAskChatbot(btn) {
+            const context = extractContextFromDOM(btn, parseContext(btn));
+            const previousContextTitle = sessionStorage.getItem('chatbot_last_context_title') || '';
+            let startNew = false;
+
+            if (previousContextTitle && context.title && previousContextTitle !== context.title) {
+                const keepHistory = confirm("{% trans 'A previous chatbot context exists. Click OK to keep the same conversation and update context, or Cancel to start a new analysis.' %}");
+                startNew = !keepHistory;
+            }
+
+            sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
+                ...context,
+                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
+            }));
+            sessionStorage.setItem('chatbot_last_context_title', context.title || '');
+
+            // Open immediately on user click to avoid popup blockers.
+            const eagerPopup = openChatbotPopupWithContext(context, startNew);
+            if (!eagerPopup) {
+                window.location.assign(buildChatbotUrl(context, startNew));
+                return;
+            }
+
+            const finalizeBridge = () => {
+                sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
+                    ...context,
+                    system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
+                }));
+                sessionStorage.setItem('chatbot_last_context_title', context.title || '');
+
+                const bridged = pushContextToLocalChatbot(context, startNew);
+                if (!bridged) {
+                    forceInjectInChatUI(context, eagerPopup);
+                }
+            };
+
+            fetch("{% url 'chatbot:set_card_context' %}", {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    ...context,
+                    start_new: startNew
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to set chatbot context');
+                return response.json();
+            })
+            .then(() => {
+                finalizeBridge();
+            })
+            .catch(err => {
+                console.warn('Chatbot context endpoint failed, fallback bridge used:', err);
+                finalizeBridge();
+            });
+        }
+
+        // Backward-compatible global API for old onclick handlers
+        window.openChatbotWithContext = function(button) {
+            if (!button) return;
+            handleAskChatbot(button);
+        };
+
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('.ask-chatbot-btn');
             if (!btn) return;
-            
             e.preventDefault();
-            
-            const contentType = btn.dataset.ct || '';
-            const objectId = btn.dataset.oid || '';
-            const title = btn.dataset.title || '';
-            const description = btn.dataset.description || '';
-            const url = btn.dataset.url || '';
-            const tags = btn.dataset.tags || '';
-            
-            // Navigate to chatbot page with content context as URL parameters
-            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
-            if (contentType && objectId) {
-                chatbotUrl.searchParams.set('type', contentType);
-                chatbotUrl.searchParams.set('id', objectId);
-            }
-            
-            window.location.href = chatbotUrl.toString();
+            handleAskChatbot(btn);
         });
     })();
     </script>

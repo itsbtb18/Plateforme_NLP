@@ -5,751 +5,804 @@
 {% block title %}{% translate "Create Post" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <style>
-/* ══════════════════════════════════════════════════════════════════════════════
-   CREATE POST PAGE - Premium Academic Portal
-   Modern form design for research post creation
-   ══════════════════════════════════════════════════════════════════════════════ */
-
+/* ===== VARIABLES ===== */
 :root {
-    --cp-bg: #f8fafc;
-    --cp-card: #ffffff;
-    --cp-border: #e2e8f0;
-    --cp-border-light: #f1f5f9;
-    --text-primary: #0f172a;
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --primary-light: #3B82F6;
+    --primary-glow: rgba(37, 99, 235, 0.08);
+    --primary-pale: #EFF6FF;
+
+    --white: #ffffff;
+    --bg: #F8FAFC;
+    --muted: #F1F5F9;
+    --subtle: #E2E8F0;
+    --border: #E2E8F0;
+    --border-dark: #CBD5E1;
+
+    --text: #0F172A;
     --text-secondary: #475569;
-    --text-muted: #64748b;
-    --text-light: #94a3b8;
-    --accent-blue: #2563eb;
-    --accent-blue-hover: #1d4ed8;
-    --accent-blue-light: #dbeafe;
-    --accent-blue-pale: #eff6ff;
-    --success: #10b981;
-    --success-light: #d1fae5;
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-2xl: 1.5rem;
-    --radius-full: 9999px;
-    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --text-muted: #64748B;
+    --text-light: #94A3B8;
+
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --success-border: rgba(5, 150, 105, 0.2);
+    --danger: #DC2626;
+
+    --radius: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
 }
 
-.create-post-page {
-    min-height: 100vh;
-    background: var(--cp-bg);
-    padding: 2rem 1rem;
+* { box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.post-page { min-height: 100vh; background: var(--bg); }
+
+/* ===== DARK HERO — identical to corpus/tools pages ===== */
+.page-hero {
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
+    padding: 2.5rem 0 3.5rem;
+    position: relative;
+    overflow: hidden;
 }
 
-.create-post-container {
-    max-width: 48rem;
+.page-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 40%, rgba(99,102,241,0.18) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.hero-inner {
+    width: 100%;
+    max-width: 1100px;
     margin: 0 auto;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    padding: 0 2.5rem;
+    position: relative;
+    z-index: 1;
 }
 
-html[lang="ar"] .create-post-container,
-[dir="rtl"] .create-post-container {
-    font-family: 'Tajawal', 'Inter', -apple-system, sans-serif;
-}
-
-/* Back Link */
-.back-link {
-    display: inline-flex;
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 500;
     margin-bottom: 1.5rem;
-    transition: var(--transition-base);
+    font-size: 0.875rem;
+    list-style: none;
+    padding: 0;
 }
+.breadcrumb a { color: rgba(255,255,255,0.65); text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: white; }
+.breadcrumb .sep { color: rgba(255,255,255,0.3); font-size: 0.75rem; }
+.breadcrumb .current { color: rgba(255,255,255,0.9); font-weight: 500; }
 
-.back-link:hover {
-    color: var(--accent-blue);
-}
+/* Hero body */
+.hero-body { display: flex; align-items: center; gap: 1.5rem; }
 
-.back-link svg {
-    width: 18px;
-    height: 18px;
-}
-
-[dir="rtl"] .back-link svg {
-    transform: rotate(180deg);
-}
-
-/* Page Header */
-.page-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.page-header-icon {
-    display: inline-flex;
+.hero-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
+    border-radius: var(--radius-lg);
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 72px;
-    height: 72px;
-    background: linear-gradient(135deg, var(--accent-blue) 0%, #7c3aed 100%);
-    border-radius: var(--radius-xl);
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-lg);
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(37,99,235,0.4);
 }
+.hero-icon i { font-size: 1.875rem; color: white; }
 
-.page-header-icon svg {
-    width: 36px;
-    height: 36px;
-    color: white;
-}
-
-.page-header h1 {
-    font-size: 1.75rem;
+.hero-text h1 {
+    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
     font-weight: 800;
-    color: var(--text-primary);
-    margin: 0 0 0.5rem;
+    color: white;
+    margin: 0 0 0.375rem;
     letter-spacing: -0.025em;
 }
+.hero-text p { font-size: 0.9375rem; color: rgba(255,255,255,0.65); margin: 0; }
 
-.page-header p {
-    font-size: 1rem;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.6;
+/* Steps bar */
+.steps-bar {
+    display: flex;
+    align-items: center;
+    margin-top: 2rem;
+    background: rgba(255,255,255,0.07);
+    border-radius: 999px;
+    padding: 0.375rem;
+    width: fit-content;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+}
+.step-item.active { background: white; color: var(--primary); font-weight: 600; }
+.step-number {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+}
+.step-item.active .step-number { background: var(--primary); color: white; }
+
+/* ===== PAGE BODY ===== */
+.page-body {
+    width: 100%;
+    max-width: 1100px;
+    margin: -2rem auto 0;
+    padding: 0 2.5rem 4rem;
+    position: relative;
+    z-index: 10;
 }
 
-/* Form Card */
-.form-card {
-    background: var(--cp-card);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    border: 1px solid var(--cp-border-light);
-}
-
-.form-card-header {
+/* ===== AUTHOR BAR ===== */
+.author-bar {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--cp-border-light);
-    background: linear-gradient(to right, var(--accent-blue-pale), white);
+    padding: 1.125rem 1.5rem;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-bottom: 1px solid var(--muted);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .author-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-full);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1.125rem;
     flex-shrink: 0;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+}
+.author-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.author-name { font-size: 0.9375rem; font-weight: 600; color: var(--text); margin: 0 0 0.125rem; }
+.author-role { font-size: 0.8125rem; color: var(--text-muted); margin: 0; }
+
+/* ===== FORM CARD ===== */
+.form-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    overflow: hidden;
+    box-shadow:
+        0 4px 6px -1px rgba(0,0,0,0.05),
+        0 10px 20px -5px rgba(0,0,0,0.06),
+        0 20px 40px -10px rgba(0,0,0,0.07);
 }
 
-.author-avatar img {
+.form-body { padding: 2rem 2.5rem; }
+
+/* ===== SECTION LABEL ===== */
+.section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.section-label-text { font-size: 0.9375rem; font-weight: 600; color: var(--text); }
+.badge-required {
+    font-size: 0.75rem; font-weight: 600;
+    padding: 0.2rem 0.6rem; border-radius: 999px;
+    background: #FEF2F2; color: var(--danger);
+}
+.badge-optional {
+    font-size: 0.75rem; font-weight: 500;
+    padding: 0.2rem 0.6rem; border-radius: 999px;
+    background: var(--muted); color: var(--text-light);
+}
+
+/* ===== CONTENT TEXTAREA ===== */
+.content-field { margin-bottom: 2rem; }
+
+.content-textarea {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    min-height: 200px;
+    padding: 1rem 1.125rem;
+    background: var(--muted);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-lg);
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.75;
+    resize: vertical;
+    transition: all 0.2s ease;
+}
+.content-textarea:focus {
+    outline: none;
+    background: var(--white);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow), 0 1px 2px rgba(0,0,0,0.05);
+}
+.content-textarea:hover { border-color: var(--border-dark); background: #EEF2F7; }
+.content-textarea::placeholder { color: var(--text-light); }
+
+.char-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.char-count {
+    font-size: 0.8125rem; color: var(--text-light);
+    padding: 0.2rem 0.5rem; background: var(--muted); border-radius: 4px;
+}
+.char-count.warn { color: #D97706; background: #FFFBEB; }
+.char-count.over { color: var(--danger); background: #FEF2F2; }
+
+/* ===== UPLOAD SECTION — corpus style ===== */
+.upload-section { margin-bottom: 1rem; }
+
+/* Drop zone */
+.upload-zone {
+    border: 2px dashed var(--subtle);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--muted);
+    transition: all 0.25s ease;
+    cursor: pointer;
+    position: relative;
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: var(--primary);
+    background: #EEF2FF;
+}
+.upload-zone.has-files {
+    border-color: var(--success);
+    border-style: solid;
+    background: var(--success-light);
 }
 
-.author-info h3 {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.125rem;
+/* Big gradient icon */
+.upload-zone-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.125rem;
+    font-size: 1.625rem;
+    color: white;
+    box-shadow: 0 8px 24px rgba(37,99,235,0.3);
+    transition: all 0.25s ease;
+}
+.upload-zone:hover .upload-zone-icon,
+.upload-zone.drag-over .upload-zone-icon {
+    transform: scale(1.08);
+    box-shadow: 0 10px 30px rgba(37,99,235,0.4);
+}
+.upload-zone.has-files .upload-zone-icon {
+    background: linear-gradient(135deg, var(--success) 0%, #10B981 100%);
+    box-shadow: 0 8px 24px rgba(5,150,105,0.3);
 }
 
-.author-info p {
+.upload-zone-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.375rem;
+}
+.upload-zone-hint {
     font-size: 0.8125rem;
     color: var(--text-muted);
-    margin: 0;
-}
-
-.form-card-body {
-    padding: 1.5rem;
-}
-
-/* Form Fields */
-.form-group {
     margin-bottom: 1.5rem;
 }
 
-.form-group:last-child {
-    margin-bottom: 0;
-}
-
-.form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-
-.form-label span {
-    color: var(--text-muted);
-    font-weight: 400;
-}
-
-.form-textarea {
-    width: 100%;
-    min-height: 180px;
-    padding: 1rem 1.25rem;
-    border: 2px solid var(--cp-border);
-    border-radius: var(--radius-xl);
-    font-size: 1rem;
-    line-height: 1.7;
-    color: var(--text-primary);
-    resize: vertical;
-    transition: var(--transition-base);
-    font-family: inherit;
-    background: var(--cp-border-light);
-}
-
-.form-textarea:focus {
-    outline: none;
-    border-color: var(--accent-blue);
-    background: white;
-    box-shadow: 0 0 0 4px var(--accent-blue-light);
-}
-
-.form-textarea::placeholder {
-    color: var(--text-light);
-}
-
-/* Upload Zone */
-.upload-zone {
-    border: 2px dashed var(--cp-border);
-    border-radius: var(--radius-xl);
-    padding: 2rem;
-    text-align: center;
-    transition: var(--transition-base);
-    background: var(--cp-border-light);
-    cursor: pointer;
-}
-
-.upload-zone:hover,
-.upload-zone.dragover {
-    border-color: var(--accent-blue);
-    background: var(--accent-blue-pale);
-}
-
-.upload-zone-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 1rem;
+/* Two pick buttons inside the zone */
+.upload-btns {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
-    border-radius: var(--radius-lg);
-    color: var(--accent-blue);
-    box-shadow: var(--shadow-sm);
-}
-
-.upload-zone-icon svg {
-    width: 28px;
-    height: 28px;
-}
-
-.upload-zone-text {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.25rem;
-}
-
-.upload-zone-hint {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    margin: 0;
-}
-
-.upload-zone input[type="file"] {
-    display: none;
-}
-
-/* File Preview */
-.file-preview {
-    display: flex;
+    gap: 0.875rem;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1rem;
 }
 
-.file-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--accent-blue-light);
-    color: var(--accent-blue);
-    border-radius: var(--radius-full);
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.file-chip-icon {
-    font-size: 1rem;
-}
-
-.file-chip-remove {
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent-blue);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: var(--transition-base);
-}
-
-.file-chip-remove:hover {
-    background: var(--accent-blue-hover);
-}
-
-/* Attach Buttons */
-.attach-buttons {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
-
-.attach-btn {
+.upload-pick-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.625rem 1.25rem;
-    background: white;
-    border: 1px solid var(--cp-border);
-    border-radius: var(--radius-lg);
-    color: var(--text-secondary);
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
+    color: var(--primary);
     cursor: pointer;
-    transition: var(--transition-base);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+    min-width: 140px;
+    justify-content: center;
+}
+.upload-pick-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+.upload-pick-btn input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+.upload-pick-btn.selected {
+    border-color: var(--success);
+    color: var(--success);
+    background: var(--success-light);
+}
+.upload-pick-btn.selected:hover {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
 }
 
-.attach-btn:hover {
-    background: var(--cp-border-light);
-    border-color: var(--text-light);
+/* File chips list */
+.file-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 1.25rem;
 }
 
-.attach-btn svg {
-    width: 20px;
-    height: 20px;
+.file-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--success-light);
+    border: 1px solid var(--success-border);
+    border-radius: var(--radius);
 }
+.file-chip-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(5,150,105,0.1);
+    border: 1px solid var(--success-border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--success);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.file-chip-info { flex: 1; min-width: 0; }
+.file-chip-name { font-size: 0.875rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-chip-size { font-size: 0.8125rem; color: var(--text-muted); }
+.file-chip-remove {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none;
+    color: var(--text-light);
+    cursor: pointer; border-radius: 6px;
+    transition: all 0.15s; flex-shrink: 0; font-size: 1rem;
+}
+.file-chip-remove:hover { background: #FEF2F2; color: var(--danger); }
 
-.attach-btn.image svg { color: var(--success); }
-.attach-btn.file svg { color: #6366f1; }
-
-/* Form Actions */
-.form-actions {
+/* ===== FORM FOOTER ===== */
+.form-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1.25rem 1.5rem;
-    border-top: 1px solid var(--cp-border-light);
-    background: var(--cp-border-light);
+    padding: 1.5rem 2.5rem;
+    background: var(--muted);
+    border-top: 1px solid var(--border);
 }
+html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
 
-.cancel-btn {
+.btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: white;
-    border: 1px solid var(--cp-border);
-    border-radius: var(--radius-xl);
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: var(--transition-base);
-}
-
-.cancel-btn:hover {
-    background: var(--cp-border-light);
-    color: var(--text-primary);
-}
-
-.submit-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.875rem 2.5rem;
-    background: var(--accent-blue);
-    color: white;
-    border: none;
-    border-radius: var(--radius-xl);
-    font-size: 1rem;
+    padding: 0.875rem 1.75rem;
     font-weight: 600;
+    font-size: 0.9375rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    border: none;
     cursor: pointer;
-    transition: var(--transition-base);
-    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
 }
 
-.submit-btn:hover {
-    background: var(--accent-blue-hover);
+.btn-publish {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.btn-publish:hover {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
+    color: white;
+    box-shadow: 0 6px 18px rgba(37,99,235,0.4);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
 }
+.btn-publish:active { transform: translateY(0) scale(0.98); }
+.btn-publish:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-.submit-btn svg {
-    width: 22px;
-    height: 22px;
+.btn-publish .spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
+.btn-publish.loading .spinner { display: block; }
+.btn-publish.loading .btn-label { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Guidelines Card */
+.btn-cancel {
+    background: var(--white);
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border);
+}
+.btn-cancel:hover { background: var(--subtle); color: var(--text); border-color: var(--border-dark); }
+
+/* ===== GUIDELINES ===== */
 .guidelines-card {
     margin-top: 1.5rem;
-    background: var(--accent-blue-pale);
-    border: 1px solid var(--accent-blue-light);
+    background: var(--primary-pale);
+    border: 1px solid #BFDBFE;
     border-radius: var(--radius-xl);
     padding: 1.25rem 1.5rem;
 }
-
 .guidelines-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--accent-blue);
-    margin: 0 0 0.75rem;
+    font-weight: 700;
+    color: var(--primary-hover);
+    margin: 0 0 0.875rem;
 }
-
-.guidelines-title svg {
-    width: 20px;
-    height: 20px;
-}
-
 .guidelines-list {
     margin: 0;
     padding: 0 0 0 1.25rem;
     color: var(--text-secondary);
     font-size: 0.875rem;
-    line-height: 1.8;
+    line-height: 1.9;
 }
+html[dir="rtl"] .guidelines-list { padding: 0 1.25rem 0 0; }
 
-[dir="rtl"] .guidelines-list {
-    padding: 0 1.25rem 0 0;
+/* ===== RTL ===== */
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; }
+html[dir="rtl"] .hero-body { flex-direction: row-reverse; }
+html[dir="rtl"] .author-bar { flex-direction: row-reverse; }
+html[dir="rtl"] .section-label { flex-direction: row-reverse; }
+html[dir="rtl"] .file-chip { flex-direction: row-reverse; }
+html[dir="rtl"] .guidelines-title { flex-direction: row-reverse; }
+html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .hero-inner, .page-body { max-width: 100%; padding-left: 1.5rem; padding-right: 1.5rem; }
 }
-
-/* RTL Support */
-[dir="rtl"] .form-card-header,
-[dir="rtl"] .form-actions {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .attach-buttons {
-    flex-direction: row-reverse;
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-    .create-post-page {
-        padding: 1rem 0.75rem;
-    }
-
-    .page-header h1 {
-        font-size: 1.5rem;
-    }
-
-    .form-card-body {
-        padding: 1rem;
-    }
-
-    .form-actions {
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .cancel-btn,
-    .submit-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .attach-buttons {
-        flex-direction: column;
-    }
-
-    .attach-btn {
-        justify-content: center;
-    }
+@media (max-width: 768px) {
+    .page-hero { padding: 1.5rem 0 3rem; }
+    .form-body { padding: 1.5rem; }
+    .form-footer { flex-direction: column-reverse; padding: 1.25rem 1.5rem; }
+    .btn { width: 100%; justify-content: center; }
+    .upload-btns { flex-direction: column; }
+    .upload-pick-btn { width: 100%; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="create-post-page">
-    <div class="create-post-container">
-        <!-- Back Link -->
-        <a href="{% url 'QA:feed' %}" class="back-link">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-            {% translate "Back to Feed" %}
-        </a>
+<div class="post-page">
 
-        <!-- Page Header -->
-        <header class="page-header">
-            <div class="page-header-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                </svg>
+    <!-- ===== DARK HERO ===== -->
+    <header class="page-hero">
+        <div class="hero-inner">
+            <nav class="breadcrumb">
+                <a href="{% url 'QA:feed' %}">{% translate "الأخبار" %}</a>
+                <span class="sep"><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{% translate "إنشاء منشور" %}</span>
+            </nav>
+
+            <div class="hero-body">
+                <div class="hero-icon">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
+                <div class="hero-text">
+                    <h1>{% translate "إنشاء منشور" %}</h1>
+                    <p>{% translate "شارك أبحاثك أو بياناتك أو تحديثاتك مع مجتمع معالجة اللغة العربية" %}</p>
+                </div>
             </div>
-            <h1>{% translate "Create a Post" %}</h1>
-            <p>{% translate "Share your research, datasets, or updates with the Arabic NLP community" %}</p>
-        </header>
 
-        <!-- Form Card -->
+            <div class="steps-bar">
+                <div class="step-item active">
+                    <span class="step-number">1</span>
+                    {% translate "المحتوى" %}
+                </div>
+                <div class="step-item">
+                    <span class="step-number">2</span>
+                    {% translate "المرفقات" %}
+                </div>
+                <div class="step-item">
+                    <span class="step-number">3</span>
+                    {% translate "النشر" %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN ===== -->
+    <main class="page-body">
+
+        <!-- Author bar -->
+        <div class="author-bar">
+            <div class="author-avatar">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
+                {% else %}
+                    {{ user.full_name|slice:":1"|upper }}
+                {% endif %}
+            </div>
+            <div>
+                <p class="author-name">{{ user.full_name }}</p>
+                <p class="author-role">{% translate "النشر في موجز البحث" %}</p>
+            </div>
+        </div>
+
+        <!-- Form card -->
         <div class="form-card">
-            <div class="form-card-header">
-                <div class="author-avatar">
-                    {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
-                    {% else %}
-                        {{ user.full_name|slice:":1"|upper }}
-                    {% endif %}
-                </div>
-                <div class="author-info">
-                    <h3>{{ user.full_name }}</h3>
-                    <p>{% translate "Posting to Research Feed" %}</p>
-                </div>
-            </div>
-
             <form method="POST" action="{% url 'QA:create_post' %}" enctype="multipart/form-data" id="createPostForm">
                 {% csrf_token %}
-                <div class="form-card-body">
-                    <!-- Content Field -->
-                    <div class="form-group">
-                        <label class="form-label">
-                            {% translate "Post Content" %}
-                            <span>— {% translate "required" %}</span>
-                        </label>
-                        <textarea 
-                            name="content" 
-                            class="form-textarea" 
-                            placeholder="{% translate "Share your research findings, announce a new dataset, ask for collaboration, or discuss the latest in Arabic NLP..." %}"
-                            required
+
+                <div class="form-body">
+
+                    <!-- Content -->
+                    <div class="content-field">
+                        <div class="section-label">
+                            <span class="section-label-text">{% translate "محتوى المنشور" %}</span>
+                            <span class="badge-required">{% translate "مطلوب" %}</span>
+                        </div>
+                        <textarea
+                            name="content"
+                            class="content-textarea"
                             id="postContent"
-                        >{{ form.content.value|default:'' }}</textarea>
-                    </div>
-
-                    <!-- Upload Zone -->
-                    <div class="form-group">
-                        <label class="form-label">
-                            {% translate "Attachments" %}
-                            <span>— {% translate "optional" %}</span>
-                        </label>
-                        <label class="upload-zone" id="uploadZone">
-                            <div class="upload-zone-icon">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                </svg>
-                            </div>
-                            <p class="upload-zone-text">{% translate "Drop files here or click to upload" %}</p>
-                            <p class="upload-zone-hint">{% translate "Supports images (PNG, JPG, GIF) and documents (PDF, CSV, JSON)" %}</p>
-                            <input type="file" name="image" accept="image/*" id="imageUpload">
-                            <input type="file" name="file" id="fileUpload">
-                        </label>
-
-                        <!-- File Preview -->
-                        <div class="file-preview" id="filePreview"></div>
-
-                        <!-- Quick Attach Buttons -->
-                        <div class="attach-buttons">
-                            <label class="attach-btn image">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
-                                {% translate "Add Image" %}
-                                <input type="file" accept="image/*" id="quickImageInput" style="display:none">
-                            </label>
-                            <label class="attach-btn file">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                                </svg>
-                                {% translate "Attach File" %}
-                                <input type="file" id="quickFileInput" style="display:none">
-                            </label>
+                            placeholder="{% translate 'شارك نتائج بحثك، أعلن عن مجموعة بيانات جديدة، اطلب التعاون، أو ناقش آخر مستجدات معالجة اللغة العربية...' %}"
+                            required>{{ form.content.value|default:'' }}</textarea>
+                        <div class="char-row">
+                            <span class="char-count" id="charCount">0</span>
                         </div>
                     </div>
+
+                    <!-- Upload -->
+                    <div class="upload-section">
+                        <div class="section-label">
+                            <span class="section-label-text">{% translate "المرفقات" %}</span>
+                            <span class="badge-optional">{% translate "اختياري" %}</span>
+                        </div>
+
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-zone-icon">
+                                <i class="bi bi-cloud-arrow-up" id="zoneIcon"></i>
+                            </div>
+                            <div class="upload-zone-title">{% translate "أسقط الملفات هنا أو انقر للرفع" %}</div>
+                            <div class="upload-zone-hint">{% translate "يدعم الصور (PNG، JPG، GIF) والمستندات (PDF، CSV، JSON)" %}</div>
+
+                            <!-- Single image button + single file button -->
+                            <div class="upload-btns">
+                                <label class="upload-pick-btn" id="imgPickBtn">
+                                    <i class="bi bi-image"></i>
+                                    <span id="imgBtnLabel">{% translate "اختر صورة" %}</span>
+                                    <input type="file" name="image" id="imageInput" accept="image/*">
+                                </label>
+                                <label class="upload-pick-btn" id="filePickBtn">
+                                    <i class="bi bi-paperclip"></i>
+                                    <span id="fileBtnLabel">{% translate "اختر ملف" %}</span>
+                                    <input type="file" name="file" id="fileInput">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Chips preview -->
+                        <div class="file-chips" id="fileChips"></div>
+                    </div>
+
                 </div>
 
-                <!-- Form Actions -->
-                <div class="form-actions">
-                    <a href="{% url 'QA:feed' %}" class="cancel-btn">
-                        {% translate "Cancel" %}
+                <!-- Footer -->
+                <div class="form-footer">
+                    <a href="{% url 'QA:feed' %}" class="btn btn-cancel">
+                        <i class="bi bi-x-lg"></i>
+                        {% translate "يلغي" %}
                     </a>
-                    <button type="submit" class="submit-btn">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                        </svg>
-                        {% translate "Publish Post" %}
+                    <button type="submit" class="btn btn-publish" id="submitBtn">
+                        <span class="spinner"></span>
+                        <span class="btn-label">
+                            <i class="bi bi-send-fill"></i>
+                            {% translate "نشر المنشور" %}
+                        </span>
                     </button>
                 </div>
+
             </form>
         </div>
 
-        <!-- Guidelines Card -->
+        <!-- Guidelines -->
         <div class="guidelines-card">
             <h4 class="guidelines-title">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                {% translate "Posting Guidelines" %}
+                <i class="bi bi-info-circle-fill"></i>
+                {% translate "إرشادات النشر" %}
             </h4>
             <ul class="guidelines-list">
-                <li>{% translate "Share content relevant to Arabic NLP research and development" %}</li>
-                <li>{% translate "Include proper citations when referencing other work" %}</li>
-                <li>{% translate "Be respectful and constructive in your discussions" %}</li>
-                <li>{% translate "Posts are reviewed before publication to maintain quality" %}</li>
+                <li>{% translate "شارك محتوى ذا صلة ببحث وتطوير معالجة اللغة العربية" %}</li>
+                <li>{% translate "تضمين الاستشهادات المناسبة عند الإشارة إلى عمل الآخرين" %}</li>
+                <li>{% translate "كن محترمًا وبناءً في نقاشاتك" %}</li>
+                <li>{% translate "تتم مراجعة المنشورات قبل النشر للحفاظ على الجودة" %}</li>
             </ul>
         </div>
-    </div>
-</div>
-{% endblock %}
 
-{% block extra_scripts %}
+    </main>
+</div>
+
 <script>
-(function() {
+(function () {
     'use strict';
 
-    const uploadZone = document.getElementById('uploadZone');
-    const imageUpload = document.getElementById('imageUpload');
-    const fileUpload = document.getElementById('fileUpload');
-    const filePreview = document.getElementById('filePreview');
-    const quickImageInput = document.getElementById('quickImageInput');
-    const quickFileInput = document.getElementById('quickFileInput');
+    const zone      = document.getElementById('uploadZone');
+    const imgInput  = document.getElementById('imageInput');
+    const fileInput = document.getElementById('fileInput');
+    const chips     = document.getElementById('fileChips');
+    const zoneIcon  = document.getElementById('zoneIcon');
+    const imgBtn    = document.getElementById('imgPickBtn');
+    const fileBtn   = document.getElementById('filePickBtn');
+    const imgLabel  = document.getElementById('imgBtnLabel');
+    const fileLabel = document.getElementById('fileBtnLabel');
+    const charCount = document.getElementById('charCount');
+    const textarea  = document.getElementById('postContent');
+    const submitBtn = document.getElementById('submitBtn');
+    const createPostForm = document.getElementById('createPostForm');
 
-    // Create file chip
-    function createFileChip(name, type, inputId) {
+    if (!zone || !imgInput || !fileInput || !chips || !zoneIcon || !imgBtn || !fileBtn || !imgLabel || !fileLabel || !charCount || !textarea || !submitBtn || !createPostForm) {
+        return;
+    }
+
+    /* ── Char counter + auto-expand ── */
+    function updateCounter() {
+        const n = textarea.value.length;
+        charCount.textContent = n;
+        charCount.className = 'char-count' + (n > 1000 ? ' over' : n > 800 ? ' warn' : '');
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 500) + 'px';
+    }
+    textarea.addEventListener('input', updateCounter);
+    updateCounter();
+
+    /* ── File size formatter ── */
+    function fmt(b) {
+        if (!b) return '';
+        const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b) / Math.log(1024));
+        return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+    }
+
+    /* ── Add a chip ── */
+    function addChip(file, type, inputId) {
+        chips.querySelectorAll(`[data-type="${type}"]`).forEach(el => el.remove());
         const chip = document.createElement('div');
         chip.className = 'file-chip';
-        chip.setAttribute('data-type', type);
+        chip.dataset.type = type;
         chip.innerHTML = `
-            <span class="file-chip-icon">${type === 'image' ? '📷' : '📎'}</span>
-            <span>${name}</span>
-            <button type="button" class="file-chip-remove" onclick="removeFile('${inputId}', this)">×</button>
-        `;
-        return chip;
+            <div class="file-chip-icon">
+                <i class="bi bi-${type === 'image' ? 'image' : 'file-earmark-check'}"></i>
+            </div>
+            <div class="file-chip-info">
+                <div class="file-chip-name">${file.name}</div>
+                <div class="file-chip-size">${fmt(file.size)}</div>
+            </div>
+            <button type="button" class="file-chip-remove" data-input="${inputId}" data-type="${type}">
+                <i class="bi bi-x-lg"></i>
+            </button>`;
+        chips.appendChild(chip);
+        refreshZoneState();
     }
 
-    window.removeFile = function(inputId, btn) {
-        const input = document.getElementById(inputId);
+    /* ── Remove chip ── */
+    chips.addEventListener('click', function (e) {
+        const btn = e.target.closest('.file-chip-remove');
+        if (!btn) return;
+        const input = document.getElementById(btn.dataset.input);
         if (input) input.value = '';
         btn.closest('.file-chip').remove();
-    };
-
-    // Drag and drop
-    if (uploadZone) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
+        // Reset button label
+        if (btn.dataset.type === 'image') {
+            imgLabel.textContent = 'اختر صورة';
+            imgBtn.classList.remove('selected');
+        } else {
+            fileLabel.textContent = 'اختر ملف';
+            fileBtn.classList.remove('selected');
         }
+        refreshZoneState();
+    });
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
-        });
-
-        uploadZone.addEventListener('drop', function(e) {
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const file = files[0];
-                if (file.type.startsWith('image/')) {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    imageUpload.files = dt.files;
-                    updateFilePreview(file, 'image', 'imageUpload');
-                } else {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    fileUpload.files = dt.files;
-                    updateFilePreview(file, 'file', 'fileUpload');
-                }
-            }
-        });
+    /* ── Zone state based on selections ── */
+    function refreshZoneState() {
+        const hasAny = chips.children.length > 0;
+        zone.classList.toggle('has-files', hasAny);
+        zoneIcon.className = hasAny ? 'bi bi-check2-circle' : 'bi bi-cloud-arrow-up';
     }
 
-    function updateFilePreview(file, type, inputId) {
-        if (filePreview) {
-            filePreview.querySelectorAll(`[data-type="${type}"]`).forEach(c => c.remove());
-            filePreview.appendChild(createFileChip(file.name, type, inputId));
+    /* ── Image selected ── */
+    imgInput.addEventListener('change', function () {
+        const f = this.files[0];
+        if (!f) return;
+        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        imgBtn.classList.add('selected');
+        addChip(f, 'image', 'imageInput');
+    });
+
+    /* ── File selected ── */
+    fileInput.addEventListener('change', function () {
+        const f = this.files[0];
+        if (!f) return;
+        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        fileBtn.classList.add('selected');
+        addChip(f, 'file', 'fileInput');
+    });
+
+    /* ── Drag & drop ── */
+    ['dragenter','dragover','dragleave','drop'].forEach(ev =>
+        zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
+    );
+    ['dragenter','dragover'].forEach(ev =>
+        zone.addEventListener(ev, () => zone.classList.add('drag-over'))
+    );
+    ['dragleave','drop'].forEach(ev =>
+        zone.addEventListener(ev, () => zone.classList.remove('drag-over'))
+    );
+    zone.addEventListener('drop', function (e) {
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        if (f.type.startsWith('image/')) {
+            imgInput.files = dt.files;
+            imgInput.dispatchEvent(new Event('change'));
+        } else {
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
         }
-    }
+    });
 
-    // File input change handlers
-    if (imageUpload) {
-        imageUpload.addEventListener('change', function() {
-            if (this.files[0]) {
-                updateFilePreview(this.files[0], 'image', 'imageUpload');
-            }
-        });
-    }
+    /* ── Submit loading ── */
+    createPostForm.addEventListener('submit', function () {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+    });
 
-    if (fileUpload) {
-        fileUpload.addEventListener('change', function() {
-            if (this.files[0]) {
-                updateFilePreview(this.files[0], 'file', 'fileUpload');
-            }
-        });
-    }
-
-    // Quick attach buttons
-    if (quickImageInput) {
-        quickImageInput.addEventListener('change', function() {
-            if (this.files[0]) {
-                const dt = new DataTransfer();
-                dt.items.add(this.files[0]);
-                if (imageUpload) imageUpload.files = dt.files;
-                updateFilePreview(this.files[0], 'image', 'imageUpload');
-            }
-        });
-    }
-
-    if (quickFileInput) {
-        quickFileInput.addEventListener('change', function() {
-            if (this.files[0]) {
-                const dt = new DataTransfer();
-                dt.items.add(this.files[0]);
-                if (fileUpload) fileUpload.files = dt.files;
-                updateFilePreview(this.files[0], 'file', 'fileUpload');
-            }
-        });
-    }
-
-    // Auto-expand textarea
-    const textarea = document.getElementById('postContent');
-    if (textarea) {
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 400) + 'px';
-        });
-    }
-})();
+}());
 </script>
 {% endblock %}

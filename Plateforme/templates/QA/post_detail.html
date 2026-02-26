@@ -220,6 +220,93 @@
 .pd-post-action.liked { color: var(--pd-danger); }
 .pd-post-action.liked:hover { background: var(--pd-danger-bg); }
 
+.pd-action-like { order: 1; }
+.pd-action-comment { order: 2; }
+
+.pd-share-dropdown {
+    position: relative;
+    flex: 1;
+    order: 3;
+}
+
+.pd-share-trigger {
+    width: 100%;
+}
+
+.pd-share-menu {
+    position: absolute;
+    inset-block-start: calc(100% + 8px);
+    inset-inline-end: 0;
+    min-width: 220px;
+    background: var(--pd-white);
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-lg);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    padding: 0.4rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: all 0.18s;
+    z-index: 30;
+}
+
+.pd-share-dropdown.open .pd-share-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.pd-share-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: start;
+    color: var(--pd-text-secondary);
+    border-radius: var(--pd-radius-md);
+    padding: 0.6rem 0.75rem;
+    font-size: 0.86rem;
+    cursor: pointer;
+}
+
+.pd-share-item:hover {
+    background: var(--pd-muted);
+    color: var(--pd-text);
+}
+
+.pd-share-social {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.3rem 0.2rem 0.15rem;
+}
+
+.pd-share-social-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-md);
+    color: var(--pd-text-secondary);
+    text-decoration: none;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.8rem;
+    background: var(--pd-white);
+}
+
+.pd-share-social-btn:hover {
+    background: var(--pd-muted);
+    color: var(--pd-text);
+}
+
+html[dir="rtl"] .pd-share-menu {
+    inset-inline-end: auto;
+    inset-inline-start: 0;
+}
+
 /* Comments Section */
 .pd-comments-card {
     background: var(--pd-white);
@@ -599,18 +686,42 @@
             </div>
             
             <div class="pd-post-actions">
-                <button type="button" class="pd-post-action {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}">
+                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}">
                     <i class="bi {% if request.user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                     <span>{% trans "Like" %}</span>
                 </button>
-                <a href="#comments" class="pd-post-action">
+                <a href="#comments" class="pd-post-action pd-action-comment">
                     <i class="bi bi-chat-dots"></i>
                     <span>{% trans "Comment" %}</span>
                 </a>
-                <button type="button" class="pd-post-action" onclick="sharePost()">
-                    <i class="bi bi-share"></i>
-                    <span>{% trans "Share" %}</span>
-                </button>
+                <div class="pd-share-dropdown"
+                     data-post-id="{{ post.id }}"
+                     data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
+                    <button type="button" class="pd-post-action pd-share-trigger" onclick="togglePostShareMenu(this)">
+                        <i class="bi bi-share"></i>
+                        <span>{% trans "Share" %}</span>
+                    </button>
+                    <div class="pd-share-menu">
+                        <button type="button" class="pd-share-item" onclick="sendPostDetailToFriends(this)">
+                            <i class="bi bi-people-fill"></i>
+                            <span>{% trans "Send to Friends" %}</span>
+                        </button>
+                        <button type="button" class="pd-share-item" onclick="copyPostDetailLink(this)">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>{% trans "Copy Link" %}</span>
+                        </button>
+                        <div class="pd-share-social">
+                            <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('whatsapp', this); return false;">
+                                <i class="bi bi-whatsapp"></i>
+                                <span>WhatsApp</span>
+                            </a>
+                            <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('linkedin', this); return false;">
+                                <i class="bi bi-linkedin"></i>
+                                <span>LinkedIn</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -864,17 +975,67 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Share
-    window.sharePost = function() {
-        const url = window.location.href;
-        if (navigator.share) {
-            navigator.share({ title: document.title, url: url }).catch(() => {});
-        } else if (navigator.clipboard) {
+    function getPostDetailUrl() {
+        return window.location.href;
+    }
+
+    window.togglePostShareMenu = function(btn) {
+        const dropdown = btn.closest('.pd-share-dropdown');
+        if (!dropdown) return;
+        const wasOpen = dropdown.classList.contains('open');
+
+        document.querySelectorAll('.pd-share-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!wasOpen) dropdown.classList.add('open');
+    };
+
+    window.sendPostDetailToFriends = function(node) {
+        const dropdown = node.closest('.pd-share-dropdown');
+        if (!dropdown) return;
+
+        document.dispatchEvent(new CustomEvent('openShareModal', {
+            detail: {
+                type: 'post',
+                id: dropdown.dataset.postId || '',
+                title: dropdown.dataset.postTitle || ''
+            }
+        }));
+
+        dropdown.classList.remove('open');
+    };
+
+    window.copyPostDetailLink = function() {
+        const url = getPostDetailUrl();
+        if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(url).then(() => {
                 alert('{% trans "Link copied to clipboard!" %}');
             });
+            return;
         }
+        const tmp = document.createElement('input');
+        tmp.value = url;
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand('copy');
+        document.body.removeChild(tmp);
+        alert('{% trans "Link copied to clipboard!" %}');
     };
+
+    window.sharePostDetailSocial = function(platform) {
+        const url = encodeURIComponent(getPostDetailUrl());
+        let targetUrl = '';
+        if (platform === 'whatsapp') {
+            targetUrl = `https://wa.me/?text=${url}`;
+        } else if (platform === 'linkedin') {
+            targetUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+        }
+        if (targetUrl) window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.pd-share-dropdown')) {
+            document.querySelectorAll('.pd-share-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
 });
 </script>
 {% endblock %}

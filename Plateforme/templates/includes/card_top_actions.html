@@ -12,6 +12,9 @@ Required Parameters:
 
 Optional Parameters:
   - description: Object description (for chatbot context)
+  - category: Object category/field/type label
+  - author: Object author/owner/organizer
+  - file_content: Optional extracted file content preview
   - url: Full URL to the object
   - tags: Comma-separated tags
 {% endcomment %}
@@ -36,9 +39,13 @@ Optional Parameters:
             data-ct="{{ content_type }}"
             data-oid="{{ object_id }}"
             data-title="{{ title|default:''|truncatechars:200 }}"
+            data-category="{{ category|default:content_type }}"
+            data-author="{{ author|default:''|truncatechars:120 }}"
             data-description="{{ description|default:''|truncatechars:400 }}"
+            data-file-content="{{ file_content|default:''|truncatechars:1200 }}"
             data-url="{{ url|default:'' }}"
             data-tags="{{ tags|default:'' }}"
+            data-context='{"title":"{{ title|default:""|truncatechars:200|escapejs }}","category":"{{ category|default:content_type|escapejs }}","author":"{{ author|default:""|truncatechars:120|escapejs }}","description":"{{ description|default:""|truncatechars:400|escapejs }}","file_content":"{{ file_content|default:""|truncatechars:1200|escapejs }}","url":"{{ url|default:""|escapejs }}","type":"{{ content_type|escapejs }}","id":"{{ object_id|escapejs }}"}'
             aria-label="{% trans 'Ask chatbot' %}">
         <i class="fas fa-robot"></i>
     </button>
@@ -50,11 +57,6 @@ Optional Parameters:
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    direction: ltr; /* Always LTR for icon buttons */
-}
-
-html[dir="rtl"] .card-top-actions {
-    flex-direction: row-reverse;
 }
 
 /* Modern Icon-Only Action Buttons */
@@ -62,24 +64,24 @@ html[dir="rtl"] .card-top-actions {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border: none;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.24);
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 16px;
-    color: #6b7280;
+    color: #ffffff;
     position: relative;
     overflow: visible;
 }
 
 .card-action-icon:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+    border-color: rgba(99, 102, 241, 0.45);
 }
 
 .card-action-icon:active {
@@ -87,26 +89,22 @@ html[dir="rtl"] .card-top-actions {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Share Button - Instagram Blue */
+/* Share Button */
 .card-action-icon.share-trigger-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
 }
 
 .card-action-icon.share-trigger-btn:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #63408b 100%);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
 }
 
-/* Chatbot Button - Indigo */
+/* Chatbot Button */
 .card-action-icon.ask-chatbot-btn {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
 }
 
 .card-action-icon.ask-chatbot-btn:hover {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
 }
 
 /* Pulse Animation on Click */
@@ -150,7 +148,7 @@ html[dir="rtl"] .card-top-actions {
 
 /* Accessibility - Focus States */
 .card-action-icon:focus {
-    outline: 2px solid #667eea;
+    outline: 2px solid #6366f1;
     outline-offset: 2px;
 }
 

@@ -21,6 +21,36 @@ CONTENT_TYPE_MAP = {
     'event': ('events', 'Event'),
 }
 
+def _safe_person_display(person):
+    """
+    Return a display name for a user/person object whether
+    get_full_name_display is a method or a plain attribute.
+    """
+    if not person:
+        return ''
+
+    display = getattr(person, 'get_full_name_display', None)
+    if callable(display):
+        try:
+            value = display()
+            if value:
+                return str(value)
+        except Exception:
+            pass
+    elif display:
+        return str(display)
+
+    full_name = getattr(person, 'get_full_name', None)
+    if callable(full_name):
+        try:
+            value = full_name()
+            if value:
+                return str(value)
+        except Exception:
+            pass
+
+    return str(person)
+
 
 def get_content_object(content_type, object_id):
     """
@@ -129,7 +159,7 @@ def build_context_prompt(content_obj, content_type):
             if hasattr(content_obj, 'academic_year'):
                 prompt_parts.append(f"Year: {content_obj.academic_year}")
             if hasattr(content_obj, 'teacher'):
-                prompt_parts.append(f"Instructor: {content_obj.teacher.get_full_name_display() if hasattr(content_obj.teacher, 'get_full_name_display') else str(content_obj.teacher)}")
+                prompt_parts.append(f"Instructor: {_safe_person_display(content_obj.teacher)}")
                 
         elif content_type == 'project':
             if hasattr(content_obj, 'status'):
@@ -165,7 +195,10 @@ def get_content_metadata(content_obj, content_type):
         'contentType': content_type,
         'objectId': str(content_obj.pk),
         'title': 'Untitled',
-        'link': ''
+        'link': '',
+        'category': '',
+        'author': '',
+        'description': ''
     }
     
     # Get title
@@ -183,5 +216,38 @@ def get_content_metadata(content_obj, content_type):
             metadata['link'] = content_obj.get_absolute_url()
         except:
             pass
+
+    # Get description
+    for attr in ['get_localized_description', 'description', 'get_localized_summary', 'summary']:
+        if hasattr(content_obj, attr):
+            val = getattr(content_obj, attr)
+            description = val() if callable(val) else val
+            if description:
+                metadata['description'] = str(description)[:500]
+                break
+
+    # Get category/type display (best effort)
+    if hasattr(content_obj, 'get_tool_type_display'):
+        metadata['category'] = content_obj.get_tool_type_display()
+    elif hasattr(content_obj, 'get_field_display'):
+        metadata['category'] = content_obj.get_field_display()
+    elif hasattr(content_obj, 'get_event_type_display'):
+        metadata['category'] = content_obj.get_event_type_display()
+    elif hasattr(content_obj, 'get_status_display'):
+        metadata['category'] = content_obj.get_status_display()
+    elif hasattr(content_obj, 'get_type_display'):
+        metadata['category'] = content_obj.get_type_display()
+    elif hasattr(content_obj, 'resource_type'):
+        metadata['category'] = str(content_obj.resource_type)
+
+    # Get author/owner (best effort)
+    if hasattr(content_obj, 'author') and getattr(content_obj, 'author', None):
+        author_obj = getattr(content_obj, 'author')
+        metadata['author'] = _safe_person_display(author_obj)
+    elif hasattr(content_obj, 'coordinator') and getattr(content_obj, 'coordinator', None):
+        coordinator = getattr(content_obj, 'coordinator')
+        metadata['author'] = _safe_person_display(coordinator)
+    elif hasattr(content_obj, 'organizer'):
+        metadata['author'] = str(getattr(content_obj, 'organizer'))
     
     return metadata
