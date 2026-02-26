@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "accounts",
     "pages",
     "projects",
+    "project_chatroom",
     "forum",
     "events",
     "QA",

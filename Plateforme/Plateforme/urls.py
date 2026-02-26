@@ -34,6 +34,7 @@ urlpatterns += i18n_patterns(
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('accounts/', include('allauth.urls')),
     path('projects/', include('projects.urls', namespace='projects')),
+    path('project-chat/', include('project_chatroom.urls', namespace='project_chatroom')),
     path('forum/', include('forum.urls', namespace='forum')),
     path('events/', include('events.urls', namespace='events')),
     path('resources/', include('resources.urls', namespace='resources')),
