@@ -16,9 +16,6 @@ from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
-from .two_factor_models import TwoFactorAuth
-from .two_factor_utils import generate_otp, store_otp
-from .two_factor_email import send_otp_email
 import logging
 
 # Import allauth LoginView
@@ -110,38 +107,10 @@ class SignUp(CreateView):
 
             logger.info(f"New user registered: {user.email}")
 
-            # ===== TRIGGER 2FA FOR NEW SIGNUP =====
-            try:
-                # Create TwoFactorAuth record with 2FA ENABLED
-                two_fa, created = TwoFactorAuth.objects.get_or_create(
-                    user=user,
-                    defaults={'is_enabled': True}
-                )
-                logger.info(f"TwoFactorAuth record created for {user.email}: is_enabled={two_fa.is_enabled}")
-
-                # Generate OTP and store in Redis
-                otp_code = generate_otp()
-                store_otp(str(user.id), otp_code)
-                logger.info(f"OTP stored in Redis for {user.email}")
-
-                # Send OTP email
-                send_otp_email(user.email, user.get_full_name(), otp_code)
-                logger.info(f"OTP email sent to {user.email}")
-
-                # Mark user as pending 2FA verification
-                self.request.session['pending_2fa_user_id'] = str(user.id)
-                self.request.session.modified = True
-                logger.info(f"User {user.email} marked as pending 2FA, redirecting to verify page")
-
-                # Redirect to 2FA verification instead of login
-                return redirect('accounts:verify_2fa')
-
-            except Exception as e:
-                logger.error(f"2FA setup error for {user.email}: {str(e)}")
-                # Fall back to direct login if 2FA fails
-                login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
-                messages.success(self.request, _("Welcome! Your account has been created successfully."))
-                return redirect('pages:home')
+            # Log the user in directly after signup
+            login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
+            messages.success(self.request, _("Welcome! Your account has been created successfully."))
+            return redirect('pages:home')
 
         except Exception as e:
             logger.error(f"User creation error: {str(e)}")
@@ -158,41 +127,17 @@ class SignUp(CreateView):
 # --------------------------
 class LoginView(AllauthLoginView):
     """
-    Custom login view with 2FA and Remember Me support.
-    After password check, if 2FA is enabled, redirect to OTP verification
-    instead of completing the login.
+    Custom login view with Remember Me support.
     """
 
     def form_valid(self, form: Any) -> Any:
-        user = form.user  # allauth form provides authenticated user
-
-        # Check if 2FA is enabled for this user
-        try:
-            two_fa = TwoFactorAuth.objects.get(user=user)
-            if two_fa.is_enabled:
-                # Generate OTP, store, and send email
-                otp_code = generate_otp()
-                store_otp(str(user.id), otp_code)
-                send_otp_email(user.email, user.get_full_name(), otp_code)
-
-                # Save pending state and remember-me preference
-                self.request.session['pending_2fa_user_id'] = str(user.id)
-                self.request.session['pending_2fa_remember'] = bool(self.request.POST.get('remember'))
-                self.request.session.modified = True
-
-                logger.info(f"2FA triggered for login: {user.email}")
-                return redirect('accounts:verify_2fa')
-        except TwoFactorAuth.DoesNotExist:
-            pass
-
-        # No 2FA — proceed with normal login
         response = super().form_valid(form)
 
         remember = self.request.POST.get('remember')
         if remember:
-            self.request.session.set_expiry(None)
+            self.request.session.set_expiry(None)  # Use SESSION_COOKIE_AGE (2 weeks)
         else:
-            self.request.session.set_expiry(0)
+            self.request.session.set_expiry(0)  # Expire when browser closes
 
         return response
 
