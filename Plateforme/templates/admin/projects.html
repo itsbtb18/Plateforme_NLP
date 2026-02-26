@@ -1,6 +1,6 @@
 {% extends 'base_admin.html' %}
 {% load i18n %}
-{% block title %}Projects Management{% endblock %}
+{% block title %}{% trans "Projects Management" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -8,8 +8,8 @@
     --primary-color: #4f46e5;
     --primary-hover: #4338ca;
     --success-color: #48bb78;
-    --warning-color: #f59e0b; /* Orange pour Planned */
-    --pending-color: #ecc94b; /* Jaune pour Pending */
+    --warning-color: #f59e0b;
+    --pending-color: #ecc94b;
     --danger-color: #e53e3e;
     --gray-100: #f7fafc;
     --gray-200: #edf2f7;
@@ -26,55 +26,36 @@
   }
 
   body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--gray-100); }
-  .container { padding: 1.5rem; max-width: 100%; margin: 0 auto; }
+  .pm-container { padding: 1.5rem; max-width: 100%; margin: 0 auto; }
 
-  /* Header & Legends */
-  .projects-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-  .projects-header h1 { margin: 0; color: var(--gray-800); font-weight: 700; font-size: 1.875rem; }
-  .status-legends { display: flex; align-items: center; gap: 1rem; margin-left: 1rem; flex-wrap: wrap; }
-  .status-item { display: flex; align-items: center; font-size: 0.875rem; color: var(--gray-700); }
-  .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; }
-  
-  .status-in-progress { background-color: var(--primary-color); }
-  .status-completed { background-color: var(--success-color); }
-  .status-planned { background-color: var(--warning-color); }
-  .status-pending { background-color: var(--pending-color); }
-
-  /* Badges Styles */
-  .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-  .status-badge-in-progress { background-color: rgba(79, 70, 229, 0.1); color: var(--primary-color); }
-  .status-badge-completed { background-color: rgba(72, 187, 120, 0.1); color: var(--success-color); }
-  .status-badge-planned { background-color: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
-  .status-badge-pending { background-color: rgba(236, 201, 75, 0.1); color: var(--pending-color); }
-
-  /* UI Elements */
-  .projects-table { width: 100%; border-collapse: separate; border-spacing: 0; background-color: white; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
-  .projects-table thead th { background-color: var(--gray-100); color: var(--gray-700); font-weight: 600; font-size: 0.875rem; padding: 1rem; text-align: left; }
-  .projects-table td { padding: 1rem; vertical-align: middle; border-bottom: 1px solid var(--gray-200); }
-  
-  .project-title { color: var(--gray-900); font-weight: 600; font-size: 1rem; text-decoration: none; display: block; }
-  .project-desc { color: var(--gray-600); font-size: 0.875rem; margin-top: 0.25rem; line-height: 1.4; }
-  .project-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem; }
-
-  .btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: 0.2s; border: none; text-decoration: none; gap: 0.5rem; }
-  .btn-primary { background-color: var(--primary-color); color: white; }
-  .btn-outline { background-color: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
-  .btn-group { display: flex; gap: 0.5rem; }
+  /* Header */
+  .pm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+  .pm-header h1 { margin: 0; color: var(--gray-800); font-weight: 700; font-size: 1.875rem; }
+  .pm-legends { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .pm-legend-item { display: flex; align-items: center; font-size: 0.875rem; color: var(--gray-700); gap: 0.4rem; }
+  .pm-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+  .pm-legend-dot.ongoing { background-color: var(--primary-color); }
+  .pm-legend-dot.completed { background-color: var(--success-color); }
+  .pm-legend-dot.planned { background-color: var(--warning-color); }
+  .pm-legend-dot.pending { background-color: var(--pending-color); }
 
   /* Summary Cards */
-  .dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-  .summary-card { background: white; padding: 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
-  .summary-card-title { color: var(--gray-600); font-size: 0.875rem; font-weight: 500; }
-  .summary-card-value { color: var(--gray-900); font-size: 1.5rem; font-weight: 700; margin: 0.5rem 0; }
-  .summary-card-trend { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; }
+  .pm-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .pm-summary-card { background: white; padding: 1.25rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+  .pm-summary-title { color: var(--gray-600); font-size: 0.85rem; font-weight: 500; }
+  .pm-summary-value { color: var(--gray-900); font-size: 1.5rem; font-weight: 700; margin: 0.4rem 0; }
+  .pm-summary-trend { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; }
   .trend-up { background: rgba(72, 187, 120, 0.1); color: var(--success-color); }
   .trend-neutral { background: var(--gray-100); color: var(--gray-600); }
 
-  /* Filters & Tabs */
-  .filter-bar { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; align-items: center; box-shadow: var(--shadow-sm); flex-wrap: wrap; }
-  .search-box { flex: 1; min-width: 200px; }
-  .search-box input, .filter-dropdown select { width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: var(--radius-md); }
+  /* Badges */
+  .pm-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; gap: 0.3rem; }
+  .pm-badge-ongoing { background: rgba(79, 70, 229, 0.1); color: var(--primary-color); }
+  .pm-badge-completed { background: rgba(72, 187, 120, 0.1); color: var(--success-color); }
+  .pm-badge-planned { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+  .pm-badge-pending { background: rgba(236, 201, 75, 0.15); color: #b7791f; }
 
+<<<<<<< HEAD
   .approval-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
   .tab-btn { flex: 1; padding: 1rem; text-align: center; border-radius: var(--radius-md); color: var(--gray-600); font-weight: 600; text-decoration: none; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
   .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
@@ -97,102 +78,187 @@
   .ab-edit:hover   { background: rgba(79,70,229,0.08); color: #4338ca; transform: scale(1.08); }
   .ab-delete { border-color: #e53e3e; color: #e53e3e; }
   .ab-delete:hover { background: rgba(229,62,62,0.10); color: #c53030; transform: scale(1.08); }
+=======
+  /* Filter Bar */
+  .pm-filter-bar { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; align-items: center; box-shadow: var(--shadow-sm); flex-wrap: wrap; }
+  .pm-search-box { flex: 1; min-width: 200px; }
+  .pm-search-box input, .pm-filter-select select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-300); border-radius: var(--radius-md); font-size: 0.875rem; }
+
+  /* Tabs */
+  .pm-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+  .pm-tab { flex: 1; padding: 0.875rem; text-align: center; border-radius: var(--radius-md); color: var(--gray-600); font-weight: 600; text-decoration: none; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .pm-tab:hover { background: var(--gray-100); color: var(--gray-800); }
+  .pm-tab.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+  .pm-tab-badge { padding: 2px 8px; border-radius: 10px; background: var(--gray-200); font-size: 0.75rem; color: var(--gray-700); }
+  .pm-tab.active .pm-tab-badge { background: rgba(255,255,255,0.2); color: white; }
+
+  /* Table */
+  .pm-table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .pm-table thead th { background: var(--gray-100); color: var(--gray-700); font-weight: 600; font-size: 0.85rem; padding: 0.875rem 1rem; text-align: start; white-space: nowrap; }
+  .pm-table td { padding: 0.875rem 1rem; vertical-align: middle; border-bottom: 1px solid var(--gray-200); text-align: start; }
+  .pm-table tbody tr:hover { background: var(--gray-100); }
+
+  .pm-project-title { color: var(--gray-900); font-weight: 600; font-size: 0.95rem; text-decoration: none; display: block; }
+  .pm-project-title:hover { color: var(--primary-color); }
+  .pm-project-desc { color: var(--gray-600); font-size: 0.8rem; margin-top: 0.25rem; line-height: 1.5; }
+  .pm-project-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--gray-500); margin-top: 0.4rem; flex-wrap: wrap; }
+  .pm-team-badge { background: var(--gray-100); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: var(--gray-700); }
+
+  /* Translation Status */
+  .pm-trans-status { display: flex; gap: 0.3rem; align-items: center; }
+  .pm-trans-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .pm-trans-dot.filled { background: var(--success-color); }
+  .pm-trans-dot.empty { background: var(--gray-300); }
+  .pm-trans-label { font-size: 0.7rem; color: var(--gray-500); }
+
+  /* Buttons */
+  .pm-btn { display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.8rem; cursor: pointer; transition: 0.2s; border: none; text-decoration: none; gap: 0.4rem; }
+  .pm-btn-primary { background: var(--primary-color); color: white; }
+  .pm-btn-primary:hover { background: var(--primary-hover); color: white; }
+  .pm-btn-outline { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+  .pm-btn-outline:hover { background: var(--gray-100); color: var(--gray-800); }
+  .pm-btn-success { background: var(--success-color); color: white; }
+  .pm-btn-success:hover { background: #38a169; color: white; }
+  .pm-btn-danger { color: var(--danger-color); background: transparent; border: 1px solid var(--danger-color); }
+  .pm-btn-danger:hover { background: var(--danger-color); color: white; }
+  .pm-btn-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+  /* Empty State */
+  .pm-empty { text-align: center; padding: 3rem; background: white; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); color: var(--gray-500); }
+  .pm-empty i { font-size: 2.5rem; margin-bottom: 1rem; display: block; color: var(--gray-400); }
+>>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
 </style>
 {% endblock extra_css %}
 
 {% block content %}
-<div class="container">
-  <div class="projects-header">
+<div class="pm-container">
+  <!-- Header -->
+  <div class="pm-header">
     <div>
       <h1>{% trans "Projects Management" %}</h1>
-      <div class="status-legends">
-        <div class="status-item"><span class="status-dot status-in-progress"></span> {% trans "Ongoing" %}</div>
-        <div class="status-item"><span class="status-dot status-completed"></span> {% trans "Completed" %}</div>
-        <div class="status-item"><span class="status-dot status-planned"></span> {% trans "Planned" %}</div>
-        <div class="status-item"><span class="status-dot status-pending"></span> {% trans "Pending" %}</div>
+      <div class="pm-legends">
+        <div class="pm-legend-item"><span class="pm-legend-dot ongoing"></span> {% trans "Ongoing" %}</div>
+        <div class="pm-legend-item"><span class="pm-legend-dot completed"></span> {% trans "Completed" %}</div>
+        <div class="pm-legend-item"><span class="pm-legend-dot planned"></span> {% trans "Planned" %}</div>
+        <div class="pm-legend-item"><span class="pm-legend-dot pending"></span> {% trans "Pending" %}</div>
       </div>
     </div>
-    <a href="{% url 'projects:project_new' %}" class="btn btn-primary">
-      <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
-      {% trans "New Project" %}
+    <a href="{% url 'projects:project_new' %}" class="pm-btn pm-btn-primary">
+      <i class="fas fa-plus"></i> {% trans "New Project" %}
     </a>
   </div>
 
-  <div class="dashboard-summary">
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Total Projects" %}</div>
-      <div class="summary-card-value">{{ total_count }}</div>
-      <div class="summary-card-trend trend-up">{% if projects_growth > 0 %}+{% endif %}{{ projects_growth }}% {% trans "this month" %}</div>
+  <!-- Summary Cards -->
+  <div class="pm-summary">
+    <div class="pm-summary-card">
+      <div class="pm-summary-title">{% trans "Total Projects" %}</div>
+      <div class="pm-summary-value">{{ total_count }}</div>
+      <div class="pm-summary-trend trend-up">{% if projects_growth > 0 %}+{% endif %}{{ projects_growth }}% {% trans "this month" %}</div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Ongoing" %}</div>
-      <div class="summary-card-value">{{ in_progress_count }}</div>
-      <div class="summary-card-trend trend-neutral">{% trans "Stable" %}</div>
+    <div class="pm-summary-card">
+      <div class="pm-summary-title">{% trans "Ongoing" %}</div>
+      <div class="pm-summary-value">{{ in_progress_count }}</div>
+      <div class="pm-summary-trend trend-neutral">{% trans "Stable" %}</div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Completed" %}</div>
-      <div class="summary-card-value">{{ completed_count }}</div>
-      <div class="summary-card-trend trend-up">{% if completed_growth > 0 %}+{% endif %}{{ completed_growth }}%</div>
+    <div class="pm-summary-card">
+      <div class="pm-summary-title">{% trans "Completed" %}</div>
+      <div class="pm-summary-value">{{ completed_count }}</div>
+      <div class="pm-summary-trend trend-up">{% if completed_growth > 0 %}+{% endif %}{{ completed_growth }}%</div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Average Time" %}</div>
-      <div class="summary-card-value">{{ average_duration_display_days }}d</div>
+    <div class="pm-summary-card">
+      <div class="pm-summary-title">{% trans "Pending Review" %}</div>
+      <div class="pm-summary-value">{{ pending_count }}</div>
     </div>
   </div>
 
-  <form method="get" class="filter-bar">
-    <div class="search-box">
-      <input type="text" name="search" placeholder="{% trans 'Search for a project...' %}" value="{{ search }}">
+  <!-- Filter Bar -->
+  <form method="get" class="pm-filter-bar">
+    {% if active_tab %}<input type="hidden" name="tab" value="{{ active_tab }}">{% endif %}
+    <div class="pm-search-box">
+      <input type="text" name="search" placeholder="{% trans 'Search projects...' %}" value="{{ search }}">
     </div>
-    <div class="filter-dropdown">
+    <div class="pm-filter-select">
       <select name="status">
         <option value="">{% trans "All Statuses" %}</option>
         <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>{% trans "Ongoing" %}</option>
         <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>{% trans "Completed" %}</option>
         <option value="planned" {% if filter_status == 'planned' %}selected{% endif %}>{% trans "Planned" %}</option>
-        <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
       </select>
     </div>
-    <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+    <button type="submit" class="pm-btn pm-btn-primary">{% trans "Filter" %}</button>
   </form>
 
-  <div class="approval-tabs">
-    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab == 'approved' %}active{% endif %}">
-      {% trans "Approved" %} <span class="tab-badge">{{ approved_count }}</span>
+  <!-- Approval Tabs -->
+  <div class="pm-tabs">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" class="pm-tab {% if active_tab == 'approved' %}active{% endif %}">
+      <i class="fas fa-check-circle"></i> {% trans "Approved" %} <span class="pm-tab-badge">{{ approved_count }}</span>
     </a>
-    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
-      {% trans "Pending Review" %} <span class="tab-badge">{{ pending_count }}</span>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" class="pm-tab {% if active_tab == 'pending' %}active{% endif %}">
+      <i class="fas fa-clock"></i> {% trans "Pending Review" %} <span class="pm-tab-badge">{{ pending_count }}</span>
     </a>
   </div>
 
+  <!-- Pending Tab -->
   {% if active_tab == 'pending' %}
-    {% if pending_projects %}
+    {% if projects %}
     <div class="table-responsive">
-      <table class="projects-table">
+      <table class="pm-table">
         <thead>
           <tr>
+<<<<<<< HEAD
             <th style="width:40%;">{% trans "Project" %}</th>
             <th>{% trans "Approval Status" %}</th>
             <th>{% trans "Coordinator" %}</th>
+=======
+            <th style="width:35%;">{% trans "Project" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Translation" %}</th>
+            <th>{% trans "Coordinator" %}</th>
+            <th>{% trans "Date" %}</th>
+>>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
             <th>{% trans "Actions" %}</th>
           </tr>
         </thead>
         <tbody>
-          {% for project in pending_projects %}
+          {% for project in projects %}
           <tr>
             <td>
-              <a href="{% url 'projects:project_detail' project.id %}" class="project-title">{{ project.get_localized_title }}</a>
-              <div class="project-desc">{{ project.get_localized_description|truncatechars:100 }}</div>
-              <div class="project-meta">
-                <div class="meta-item">{% trans "Created" %}: {{ project.created_at|date:"d M Y" }}</div>
+              <a href="{% url 'projects:project_detail' project.id %}" class="pm-project-title">{{ project.get_localized_title }}</a>
+              <div class="pm-project-desc">{{ project.get_localized_description|truncatechars:80 }}</div>
+            </td>
+            <td>
+              {% if project.status == 'ongoing' %}
+                <span class="pm-badge pm-badge-ongoing"><i class="fas fa-play-circle"></i> {% trans "Ongoing" %}</span>
+              {% elif project.status == 'completed' %}
+                <span class="pm-badge pm-badge-completed"><i class="fas fa-check-circle"></i> {% trans "Completed" %}</span>
+              {% elif project.status == 'planned' %}
+                <span class="pm-badge pm-badge-planned"><i class="fas fa-calendar"></i> {% trans "Planned" %}</span>
+              {% else %}
+                <span class="pm-badge">{{ project.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="pm-trans-status" title="{% trans 'Arabic' %}">
+                <span class="pm-trans-dot {% if project.title_ar %}filled{% else %}empty{% endif %}"></span>
+                <span class="pm-trans-label">AR</span>
+              </div>
+              <div class="pm-trans-status" title="{% trans 'English' %}">
+                <span class="pm-trans-dot {% if project.title_en %}filled{% else %}empty{% endif %}"></span>
+                <span class="pm-trans-label">EN</span>
               </div>
             </td>
             <td>
+<<<<<<< HEAD
               <span class="status-badge status-badge-pending">
                 <i class="fas fa-clock" style="margin-inline-end:.35rem;"></i> {% trans "Pending" %}
               </span>
+=======
+              <span class="pm-team-badge">{{ project.coordinator.full_name }}</span>
+>>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
             </td>
+            <td style="font-size:0.8rem; color:var(--gray-600);">{{ project.created_at|date:"d M Y" }}</td>
             <td>
+<<<<<<< HEAD
               <span class="team-badge">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span>
             </td>
             <td>
@@ -203,6 +269,16 @@
                   {% csrf_token %}
                   <button type="submit" class="ab ab-approve" title="{% trans 'Approve' %}">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+=======
+              <div class="pm-btn-group">
+                <a href="{% url 'pages:admin_approve_item' model_type='project' pk=project.id %}" class="pm-btn pm-btn-success" title="{% trans 'Review & Approve' %}">
+                  <i class="fas fa-eye"></i> {% trans "Review" %}
+                </a>
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type='project' pk=project.id %}" style="display:inline;" onsubmit="return confirm('{% trans "Are you sure you want to reject this project?" %}');">
+                  {% csrf_token %}
+                  <button type="submit" class="pm-btn pm-btn-danger" title="{% trans 'Reject' %}">
+                    <i class="fas fa-times"></i> {% trans "Reject" %}
+>>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
                   </button>
                 </form>
                 {# Reject #}
@@ -225,16 +301,22 @@
       </table>
     </div>
     {% else %}
-      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No pending review projects." %}</div>
+      <div class="pm-empty">
+        <i class="fas fa-clipboard-check"></i>
+        {% trans "No pending projects to review." %}
+      </div>
     {% endif %}
+
+  <!-- Approved Tab -->
   {% else %}
     {% if approved_projects %}
     <div class="table-responsive">
-      <table class="projects-table">
+      <table class="pm-table">
         <thead>
           <tr>
-            <th style="width:45%;">{% trans "Project" %}</th>
+            <th style="width:40%;">{% trans "Project" %}</th>
             <th>{% trans "Status" %}</th>
+            <th>{% trans "Translation" %}</th>
             <th>{% trans "Team" %}</th>
             <th>{% trans "Actions" %}</th>
           </tr>
@@ -244,27 +326,28 @@
           {% for project in approved_projects %}
           <tr>
             <td>
-              <a href="{% url 'projects:project_detail' project.id %}" class="project-title">{{ project.get_localized_title }}</a>
-              <div class="project-desc">{{ project.get_localized_description|truncatechars:120 }}</div>
-              <div class="project-meta">
-                <span>{% trans "Created" %}: {{ project.created_at|date:"d M Y" }}</span>
-                <span>{% trans "Deadline" %}: {{ project.date_end|date:"d/m/Y"|default:"N/A" }}</span>
+              <a href="{% url 'projects:project_detail' project.id %}" class="pm-project-title">{{ project.get_localized_title }}</a>
+              <div class="pm-project-desc">{{ project.get_localized_description|truncatechars:100 }}</div>
+              <div class="pm-project-meta">
+                <span><i class="fas fa-calendar-alt"></i> {{ project.created_at|date:"d M Y" }}</span>
+                {% if project.date_end %}
+                <span><i class="fas fa-flag-checkered"></i> {{ project.date_end|date:"d M Y" }}</span>
+                {% endif %}
               </div>
             </td>
             <td>
               {% if project.status == 'ongoing' %}
-                <span class="status-badge status-badge-in-progress">{% trans "Ongoing" %}</span>
+                <span class="pm-badge pm-badge-ongoing"><i class="fas fa-play-circle"></i> {% trans "Ongoing" %}</span>
               {% elif project.status == 'completed' %}
-                <span class="status-badge status-badge-completed">{% trans "Completed" %}</span>
+                <span class="pm-badge pm-badge-completed"><i class="fas fa-check-circle"></i> {% trans "Completed" %}</span>
               {% elif project.status == 'planned' %}
-                <span class="status-badge status-badge-planned">{% trans "Planned" %}</span>
-              {% elif project.status == 'pending' %}
-                <span class="status-badge status-badge-pending">{% trans "Pending" %}</span>
+                <span class="pm-badge pm-badge-planned"><i class="fas fa-calendar"></i> {% trans "Planned" %}</span>
               {% else %}
-                <span class="status-badge">{{ project.get_status_display }}</span>
+                <span class="pm-badge">{{ project.get_status_display }}</span>
               {% endif %}
             </td>
             <td>
+<<<<<<< HEAD
               <span class="team-badge">{% for pm in project.members.all|slice:":3" %}
                                     {{ pm.member.get_full_name_display|default:pm.member.email }}{% if not forloop.last %}, {% endif %}
                                 {% empty %}
@@ -299,6 +382,44 @@
     <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No approved projects found." %}</div>
   </div>
   {% endif %}
+=======
+              <div class="pm-trans-status" title="{% trans 'Arabic' %}">
+                <span class="pm-trans-dot {% if project.title_ar %}filled{% else %}empty{% endif %}"></span>
+                <span class="pm-trans-label">AR</span>
+              </div>
+              <div class="pm-trans-status" title="{% trans 'English' %}">
+                <span class="pm-trans-dot {% if project.title_en %}filled{% else %}empty{% endif %}"></span>
+                <span class="pm-trans-label">EN</span>
+              </div>
+            </td>
+            <td>
+              <span class="pm-team-badge">{{ project.coordinator.full_name }}</span>
+              {% for pm in project.members.all|slice:":2" %}
+                <span class="pm-team-badge" style="margin-top:0.2rem;">{{ pm.member.full_name }}</span>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="pm-btn-group">
+                <a href="{% url 'projects:project_update' project.id %}" class="pm-btn pm-btn-outline" title="{% trans 'Edit' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <a href="{% url 'projects:project_delete' project.id %}" class="pm-btn pm-btn-danger" title="{% trans 'Delete' %}" onclick="return confirm('{% trans "Are you sure you want to delete this project?" %}');">
+                  <i class="fas fa-trash-alt"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="pm-empty">
+        <i class="fas fa-folder-open"></i>
+        {% trans "No projects found." %}
+      </div>
+    {% endif %}
+>>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
   {% endif %}
 </div>
-{% endblock content %}
+{% endblock %}

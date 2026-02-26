@@ -63,7 +63,8 @@ def trigger_2fa_flow(request, user):
 def check_2fa_on_login(sender, request, user, **kwargs):
     """
     Signal handler called after successful login.
-    Ensures user has a TwoFactorAuth record (2FA interception is handled in LoginView).
+    Ensures user has a TwoFactorAuth record.
+    No 2FA challenge on login — verification is only required during signup.
     """
     TwoFactorAuth.objects.get_or_create(user=user, defaults={'is_enabled': True})
 
@@ -71,25 +72,15 @@ def check_2fa_on_login(sender, request, user, **kwargs):
 @receiver(user_signed_up)
 def check_2fa_on_signup(sender, request, user, **kwargs):
     """
-    Signal handler called after successful signup (user account created).
-    New users have 2FA ENABLED by default for security.
-    They will need to verify 2FA code immediately after signup.
+    Signal handler for allauth's user_signed_up signal.
+    Note: Our SignUp view uses Django's CreateView (not allauth), so this signal
+    does not fire from normal registration. The 2FA flow is handled directly
+    in SignUp.form_valid(). This handler is kept as a safety net only.
     """
-    logger.info(f"🚨 user_signed_up signal FIRED FOR SIGNUP: {user.email}")
-    
-    # Create 2FA record with is_enabled=True by default
-    two_fa, created = TwoFactorAuth.objects.get_or_create(
+    TwoFactorAuth.objects.get_or_create(
         user=user,
-        defaults={'is_enabled': True}  # 2FA ENABLED for all new signups
+        defaults={'is_enabled': True}
     )
-    
-    if created:
-        # Trigger 2FA flow for new signup
-        logger.info(f"🔐 Triggering 2FA flow for new user: {user.email}")
-        trigger_2fa_flow(request, user)
-        logger.info(f"✅ New user signed up with 2FA: {user.email}")
-    else:
-        logger.info(f"⚠️ User already exists: {user.email}")
 
 
 class TwoFactorAuthenticationMiddleware:
@@ -117,12 +108,19 @@ class TwoFactorAuthenticationMiddleware:
         # Check if user has pending 2FA verification
         pending_user_id = request.session.get('pending_2fa_user_id')
         
-        # Only redirect to 2FA if:
-        # 1. User has pending_2fa_user_id in session AND
-        # 2. Current path is not exempt
         if pending_user_id:
-            # Check if current path is exempt from 2FA check
-            # Strip language prefix (e.g., /en/, /ar/) for matching
+            # Verify the referenced user still exists; clear stale session if not
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            if not User.objects.filter(id=pending_user_id).exists():
+                request.session.pop('pending_2fa_user_id', None)
+                request.session.pop('pending_2fa_is_signup', None)
+                request.session.pop('pending_2fa_remember', None)
+                request.session.modified = True
+                pending_user_id = None
+        
+        if pending_user_id:
+            # Strip language prefix (e.g., /en/, /ar/) for path matching
             path = request.path
             import re
             path_no_lang = re.sub(r'^/[a-z]{2}(-[a-z]{2})?/', '/', path)
@@ -135,7 +133,6 @@ class TwoFactorAuthenticationMiddleware:
                         break
             
             if not is_exempt:
-                # Redirect to 2FA verification
                 return redirect('accounts:verify_2fa')
         
         response = self.get_response(request)

@@ -44,11 +44,11 @@ class HomePageView(TemplateView):
         # Compteurs pour les statistiques
         context['corpus_count'] = Corpus.objects.count()
         context['tools_count'] = NLPTool.objects.count()
-        context['projects_count'] = Project.objects.count()
+        context['projects_count'] = Project.objects.filter(approval_status='approved').count()
         context['members_count'] = User.objects.count()
         
-        # Posts populaires (les plus likés)
-        context['popular_posts'] = Post.objects.annotate(
+        # Posts populaires (les plus likés) - only approved
+        context['popular_posts'] = Post.objects.filter(approval_status='approved').annotate(
             like_count=Count('likes')
         ).order_by('-like_count', '-created_at')[:3]
 
@@ -755,54 +755,55 @@ def admin_projects(request):
     """Admin projects management with approval workflow"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
+    active_tab = request.GET.get('tab', 'approved')
 
-    # Base split by approval status — search applies to both
-    pending_base = Project.objects.select_related('institution', 'coordinator').filter(
-        approval_status='pending'
-    ).order_by('-created_at')
-    approved_base = Project.objects.select_related('institution', 'coordinator').filter(
-        approval_status='approved'
-    ).order_by('-created_at')
+    base_qs = Project.objects.select_related('institution', 'coordinator')
 
-    if search:
-        pending_base = pending_base.filter(
-            Q(title__icontains=search) | Q(description__icontains=search)
-        )
-        approved_base = approved_base.filter(
-            Q(title__icontains=search) | Q(description__icontains=search)
-        )
+    # Build filtered queryset based on active tab
+    if active_tab == 'pending':
+        projects = base_qs.filter(approval_status='pending')
+    else:
+        projects = base_qs.filter(approval_status='approved')
 
-    # Status filter (ongoing/completed/planned) only applies to approved projects
     if status:
-        approved_base = approved_base.filter(status=status)
+        projects = projects.filter(status=status)
+    if search:
+        projects = projects.filter(
+            Q(title__icontains=search) |
+            Q(title_ar__icontains=search) |
+            Q(title_en__icontains=search) |
+            Q(description__icontains=search) |
+            Q(coordinator__full_name__icontains=search)
+        )
 
-    pending_projects = pending_base
-    approved_projects = approved_base
+    projects = projects.order_by('-created_at')
 
-    all_qs = Project.objects.all()
-    total_count = all_qs.count()
-    in_progress_count = all_qs.filter(status='ongoing').count()
-    completed_count = all_qs.filter(status='completed').count()
+    all_projects = Project.objects.all()
+    total_count = all_projects.count()
+    in_progress_count = all_projects.filter(status='ongoing').count()
+    completed_count = all_projects.filter(status='completed').count()
+    pending_count = all_projects.filter(approval_status='pending').count()
+    approved_count = all_projects.filter(approval_status='approved').count()
 
     today = timezone.now().date()
     last_month = today - timedelta(days=30)
     two_months_ago = today - timedelta(days=60)
 
-    projects_this_month = all_qs.filter(created_at__gte=last_month).count()
-    projects_last_month = all_qs.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    projects_this_month = all_projects.filter(created_at__gte=last_month).count()
+    projects_last_month = all_projects.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
     projects_growth = ((projects_this_month - projects_last_month) / projects_last_month * 100) if projects_last_month else (100 if projects_this_month else 0)
 
-    completed_this_month = all_qs.filter(status='completed', created_at__gte=last_month).count()
-    completed_last_month = all_qs.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    completed_this_month = all_projects.filter(status='completed', created_at__gte=last_month).count()
+    completed_last_month = all_projects.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
     completed_growth = ((completed_this_month - completed_last_month) / completed_last_month * 100) if completed_last_month else (100 if completed_this_month else 0)
 
-    recent_completed = all_qs.filter(
+    recent_completed = all_projects.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
         date_end__gte=last_month
     )
-    previous_completed = all_qs.filter(
+    previous_completed = all_projects.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
@@ -831,15 +832,14 @@ def admin_projects(request):
         duration_trend_text = f"{duration_diff_days}j {_('vs previous period')}"
         duration_trend_class = 'trend-up'
     else:
-        duration_trend_text = "Stable"
+        duration_trend_text = _("Stable")
         duration_trend_class = 'trend-neutral'
 
     context = {
-        'pending_projects': pending_projects,
-        'approved_projects': approved_projects,
-        'pending_count': pending_projects.count(),
-        'approved_count': approved_projects.count(),
-        'active_tab': request.GET.get('tab', 'approved'),
+        'projects': projects,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': active_tab,
         'filter_status': status,
         'search': search,
         'projects_growth': round(projects_growth, 2),
@@ -1707,6 +1707,15 @@ def get_edit_url(model_type, pk):
     # Handle special case for posts which use post_id instead of pk
     if model_type == 'post':
         kwargs = {'post_id': pk}
+    elif model_type == 'document':
+        # Determine the actual document subtype instead of hardcoding 'article'
+        from resources.models import Document
+        try:
+            doc = Document.objects.get(pk=pk)
+            doc_type = doc.document_type or 'article'
+        except Document.DoesNotExist:
+            doc_type = 'article'
+        kwargs = {'pk': pk, 'type': doc_type}
     else:
         kwargs = {'pk': pk}
         kwargs.update(extra_kwargs)

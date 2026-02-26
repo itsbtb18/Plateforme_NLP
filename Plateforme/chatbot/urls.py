@@ -5,18 +5,18 @@ from . import views
 app_name = 'chatbot'
 
 urlpatterns = [
-    # Pour charger l'interface HTML principale du chatbot
+    # Main UI
     path("", views.chatbot_interface, name="chatbot_interface"),
 
-    # Point d'entrée principal pour toutes les interactions AJAX du chatbot depuis le JavaScript
+    # Chat interaction (all modes go through this)
     path("ask/", views.ask_bot, name="ask"),
     path("ask_bot/", views.ask_bot, name="ask_bot"),
     path("set_card_context/", views.set_card_context, name="set_card_context"),
 
-    # Utilisé par chatbot_interface pour obtenir un session_id initial via FastAPI
-    # Peut aussi être appelé explicitement par JS si un reset complet de session est nécessaire sans passer par 'ask_bot'
-    path("start_new_session/", views.start_new_session, name="start_new_session"),
-    
-    # Get all chat history/sessions for current user
-    path("history/", views.chat_history, name="chat_history"),
+    # Session management
+    path("sessions/create/", views.create_session, name="create_session"),
+    path("sessions/", views.list_sessions, name="list_sessions"),
+    path("sessions/rename/", views.rename_session, name="rename_session"),
+    path("sessions/delete/", views.delete_session, name="delete_session"),
+    path("sessions/<str:session_id>/history/", views.session_history, name="session_history"),
 ]

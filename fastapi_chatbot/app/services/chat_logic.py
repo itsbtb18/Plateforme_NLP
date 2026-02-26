@@ -1,318 +1,576 @@
+"""
+Chat logic — pure RAG orchestration (v5.0 — Retrieval Strategy).
+
+Pipeline per conversation turn:
+  1. Classify intent  (query_classifier)
+  2. Route retrieval   (query_router)
+  3. Build context     (this module)
+  4. Generate answer   (groq_client)
+  5. Persist messages  (session_service)
+
+Session CRUD, document management, and message storage are handled by
+SessionService and DocumentService respectively.
+"""
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models import ChatSession, ChatMessage
-from app.services.groq_client import get_groq_client
-from app.services.retrieval import get_retrieval_service
+from app.services.llm import get_groq_client
+from app.services.retrieval import (
+    search_legal_documents,
+    search_user_documents,
+)
+from app.services.classifier import get_query_classifier, QueryClassification
+from app.services.router import get_query_router, RoutingResult
+from app.services.memory import get_session_service
 from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc
-from typing import List, Dict, Optional, Tuple
+from app.models import ChatSession, UserDocument
+from sqlalchemy import select, func as sqlfunc
+from typing import List, Dict, Optional, Any
 import logging
-from langdetect import detect, LangDetectException
-import uuid
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class ChatLogic:
-    """Main chat logic orchestrating RAG pipeline"""
-    
+    """RAG orchestration — classify → route → generate → persist.
+
+    Delegates session management to SessionService.
+    Delegates document management to DocumentService.
+    """
+
     def __init__(self):
-        self.groq_client = get_groq_client()
-        self.retrieval_service = get_retrieval_service()
-    
-    def detect_language(self, text: str) -> str:
-        """Detect language of text (ar, en, fr) with improved accuracy"""
-        try:
-            if not text or len(text.strip()) < 3:
-                return 'en'
-            
-            lang = detect(text)
-            
-            # Map to our supported languages
-            if lang == 'ar':
-                return 'ar'
-            elif lang == 'en':
-                return 'en'
-            elif lang == 'fr':
-                return 'fr'
-            # Fallbacks for similar languages
-            elif lang in ['es', 'it', 'pt', 'ro']:
-                return 'fr'
-            else:
-                return 'en'
-        except (LangDetectException, Exception) as e:
-            logger.warning(f"Language detection failed: {str(e)}, defaulting to English")
-            return 'en'
-    
+        self.groq = get_groq_client()  # LLM (isolated)
+        self.classifier = get_query_classifier()  # Step 1-2
+        self.router = get_query_router()  # Step 3
+        self.sessions = get_session_service()  # PostgreSQL session ops
+
+    # ------------------------------------------------------------------
+    # Conversation handler (full RAG pipeline)
+    # ------------------------------------------------------------------
+
     async def handle_conversation(
         self,
         request: ConversationRequest,
-        db: AsyncSession
+        db: AsyncSession,
     ) -> ChatResponse:
-        """Handle conversation mode with RAG"""
-        
-        # Detect language
-        language = self.detect_language(request.question)
-        logger.info(f"Detected language: {language}")
-        
-        # Perform hybrid search
-        retrieved_docs, primary_source = await self.retrieval_service.hybrid_search(
-            query=request.question,
-            db=db,
-            user_country=request.user_country,
-            user_city=request.user_city
+        # Check if the user actually has uploaded documents (not just a session)
+        has_docs = False
+        if request.user_id:
+            doc_count = await db.execute(
+                select(sqlfunc.count())
+                .select_from(UserDocument)
+                .where(
+                    UserDocument.user_id == request.user_id,
+                    UserDocument.status == "completed",
+                )
+            )
+            has_docs = (doc_count.scalar() or 0) > 0
+
+        # Step 1-2: Detect language + classify intent
+        classification = self.classifier.classify(
+            request.question,
+            has_session_docs=has_docs,
         )
-        
-        # Build context from retrieved documents
-        context = self._build_context(retrieved_docs)
-        
-        # Get chat history from database
-        chat_history = await self._get_chat_history(request.session_id, db)
-        
-        # Generate answer with context
-        if context:
-            answer = await self.groq_client.generate_answer_with_context(
+        language = classification.language
+
+        logger.info(
+            "Classification: intent=%s lang=%s confidence=%.2f",
+            classification.intent,
+            language,
+            classification.confidence,
+        )
+
+        # Step 3: Route to correct data source(s)
+        routing: RoutingResult = await self.router.route(
+            question=request.question,
+            classification=classification,
+            db=db,
+            session_id=request.session_id,
+            user_id=request.user_id,
+            user_country=request.user_country,
+            user_city=request.user_city,
+            user_email=getattr(request, "user_email", None),
+        )
+
+        # Step 4: Build context from routing result
+        # Phase 9: Platform data (PostgreSQL facts) is labelled with higher
+        # priority so the LLM knows to prefer it over semantic results.
+        context = self._build_context(routing.retrieved_docs)
+
+        # Inject current user profile so the LLM knows who is asking
+        # Only inject for intents that genuinely need it (user_query,
+        # metadata_query).  For everything else (greetings, conceptual
+        # questions, general knowledge, etc.) the profile is unnecessary
+        # and can cause the LLM to proactively reveal the user's name.
+        _profile_intents = {"user_query", "metadata_query"}
+        user_ctx = ""
+        if classification.intent in _profile_intents:
+            user_ctx = self._build_user_context(request)
+        logger.info(
+            "User profile injection: user_name=%s, user_email=%s, ctx_len=%d",
+            getattr(request, "user_name", None),
+            getattr(request, "user_email", None),
+            len(user_ctx) if user_ctx else 0,
+        )
+        if user_ctx:
+            context = (
+                (
+                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    + user_ctx
+                    + "\n\n"
+                    + context
+                )
+                if context
+                else (
+                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    + user_ctx
+                )
+            )
+
+        if routing.platform_results:
+            platform_ctx = self._build_platform_context(routing.platform_results)
+            if platform_ctx:
+                # Prepend platform data BEFORE semantic results so it appears first
+                if context:
+                    context = (
+                        "=== ✅ Platform Data (verified facts from database) ===\n"
+                        + platform_ctx
+                        + "\n\n=== Semantic Search Results ===\n"
+                        + context
+                    )
+                else:
+                    context = (
+                        "=== ✅ Platform Data (verified facts from database) ===\n"
+                        + platform_ctx
+                    )
+
+        if routing.nav_hints and routing.nav_hints.get("suggestions"):
+            nav_ctx = self._build_nav_context(routing.nav_hints)
+            context = (
+                (context + "\n\n--- Navigation ---\n" + nav_ctx) if context else nav_ctx
+            )
+
+        # Conversation memory
+        chat_history = await self.sessions.get_recent_messages(request.session_id, db)
+        session_summary = await self.sessions.get_summary(request.session_id, db)
+
+        # Step 5: Groq reasoning & generation
+        source = routing.primary_source
+        # If we have context (including user profile), always use RAG path
+        # so the LLM can see the user's identity even for general questions
+        if context and (not routing.skip_retrieval or user_ctx):
+            # Phase 9: pass source_type so Groq gets specialised rules
+            logger.info(
+                "RAG generation: source=%s context_len=%d docs=%d",
+                source,
+                len(context),
+                len(routing.retrieved_docs),
+            )
+            answer = await self.groq.generate_answer_with_context(
                 question=request.question,
                 context=context,
                 language=language,
-                chat_history=chat_history
+                chat_history=chat_history,
+                session_summary=session_summary,
+                source_type=source,
             )
-            source = primary_source if primary_source != "none" else "groq"
+            if source == "none":
+                source = "groq"
         else:
-            # No relevant context found, use pure LLM
-            answer = await self.groq_client.quick_answer(request.question, language)
-            source = "groq"
-        
-        # Save to database
-        await self._save_message(
-            session_id=request.session_id,
-            role="user",
-            content=request.question,
-            source=None,
-            language=language,
-            db=db
-        )
-        
-        await self._save_message(
-            session_id=request.session_id,
-            role="assistant",
-            content=answer,
-            source=source,
-            language=language,
-            db=db
-        )
-        
-        # Build response
-        retrieved_docs_schema = [
-            RetrievedDoc(
-                id=doc['id'],
-                title=doc.get('title', 'N/A'),
-                content=doc['content'][:200] + "...",
-                source=doc['source'],
-                similarity=doc['similarity']
+            logger.info(
+                "Direct LLM (no retrieval): skip=%s context_empty=%s",
+                routing.skip_retrieval,
+                not context,
             )
-            for doc in retrieved_docs[:3]
-        ]
-        
+            answer = await self.groq.quick_answer(request.question, language)
+            source = "groq"
+
+        # Step 6: Persist messages
+        await self.sessions.save_message(
+            request.session_id, "user", request.question, None, language, db
+        )
+        await self.sessions.save_message(
+            request.session_id,
+            "assistant",
+            answer,
+            source,
+            language,
+            db,
+            retrieved_count=len(routing.retrieved_docs),
+        )
+        await self.sessions.auto_title(request.session_id, request.question, db)
+        await self.sessions.maybe_trigger_summarisation(request.session_id, db)
+        await self.sessions.update_language(request.session_id, language, db)
+
         return ChatResponse(
             answer=answer,
             source=source,
             session_id=request.session_id,
             lang=language,
-            retrieved_docs=retrieved_docs_schema if retrieved_docs else None
+            retrieved_docs=self._to_schema(routing.retrieved_docs),
+            platform_results=routing.platform_results
+            if routing.platform_results
+            else None,
         )
-    
+
+    # ------------------------------------------------------------------
+    # Quick query (no context / no session)
+    # ------------------------------------------------------------------
+
     async def handle_quick_query(
-        self,
-        question: str
+        self, question: str, language: Optional[str] = None
     ) -> ChatResponse:
-        """Handle quick question without context"""
-        
-        language = self.detect_language(question)
-        answer = await self.groq_client.quick_answer(question, language)
-        
+        lang = language or self.classifier.classify(question).language
+        answer = await self.groq.quick_answer(question, lang)
         return ChatResponse(
             answer=answer,
             source="groq",
             session_id="quick_query",
-            lang=language,
-            retrieved_docs=None
+            lang=lang,
         )
-    
+
+    # ------------------------------------------------------------------
+    # PDF question (legacy – uses raw pdf_context on session)
+    # ------------------------------------------------------------------
+
     async def handle_pdf_question(
         self,
         question: str,
         session_id: str,
-        db: AsyncSession
+        db: AsyncSession,
     ) -> ChatResponse:
-        """Handle question about uploaded PDF"""
-        
-        language = self.detect_language(question)
-        
-        # Get PDF context from session
+        language = self.classifier.classify(question).language
+
         stmt = select(ChatSession).where(ChatSession.session_id == session_id)
-        result = await db.execute(stmt)
-        session = result.scalar_one_or_none()
-        
-        if not session:
+        session = (await db.execute(stmt)).scalar_one_or_none()
+        if not session or not session.pdf_context:
             raise ValueError("No PDF context found for this session")
-        
-        # Check if pdf_context exists and is not None
-        pdf_context_value = session.pdf_context
-        if pdf_context_value is None:
-            raise ValueError("No PDF context found for this session")
-        
-        # Generate answer with PDF context
-        pdf_context_str = str(pdf_context_value)[:10000]
-        answer = await self.groq_client.generate_answer_with_context(
+
+        pdf_ctx = str(session.pdf_context)[:10000]
+        chat_history = await self.sessions.get_recent_messages(session_id, db)
+        session_summary = await self.sessions.get_summary(session_id, db)
+        answer = await self.groq.generate_answer_with_context(
             question=question,
-            context=pdf_context_str,  # Ensure it's a string
+            context=pdf_ctx,
             language=language,
-            chat_history=None
+            chat_history=chat_history,
+            session_summary=session_summary,
         )
-        
-        # Save to database
-        await self._save_message(
-            session_id=session_id,
-            role="user",
-            content=question,
-            source="pdf",
-            language=language,
-            db=db
+
+        await self.sessions.save_message(
+            session_id, "user", question, "pdf", language, db
         )
-        
-        await self._save_message(
-            session_id=session_id,
-            role="assistant",
-            content=answer,
-            source="pdf",
-            language=language,
-            db=db
+        await self.sessions.save_message(
+            session_id, "assistant", answer, "pdf", language, db
         )
-        
+
         return ChatResponse(
             answer=answer,
             source="pdf",
             session_id=session_id,
             lang=language,
-            retrieved_docs=None
         )
-    
-    async def create_session(
+
+    # ------------------------------------------------------------------
+    # User-document question (vector-searched chunks)
+    # ------------------------------------------------------------------
+
+    async def handle_user_doc_question(
         self,
-        user_id: Optional[str],
-        user_country: Optional[str],
-        user_city: Optional[str],
-        db: AsyncSession
-    ) -> str:
-        """Create new chat session"""
-        
-        session_id = str(uuid.uuid4())
-        
-        session = ChatSession(
-            session_id=session_id,
-            user_id=user_id,
-            user_country=user_country,
-            user_city=user_city
-        )
-        
-        db.add(session)
-        await db.commit()
-        
-        logger.info(f"✅ Created session: {session_id}")
-        return session_id
-    
-    async def end_session(self, session_id: str, db: AsyncSession):
-        """End chat session (soft delete)"""
-        from sqlalchemy import update
-        
-        stmt = select(ChatSession).where(ChatSession.session_id == session_id)
-        result = await db.execute(stmt)
-        session = result.scalar_one_or_none()
-        
-        if session:
-            # We don't delete, just mark as ended
-            update_stmt = (
-                update(ChatSession)
-                .where(ChatSession.session_id == session_id)
-                .values(last_activity=datetime.utcnow())
-            )
-            await db.execute(update_stmt)
-            await db.commit()
-            logger.info(f"✅ Ended session: {session_id}")
-    
-    def _build_context(self, docs: List[Dict]) -> str:
-        """Build context string from retrieved documents with better formatting"""
-        if not docs:
-            return ""
-        
-        context_parts = []
-        for i, doc in enumerate(docs[:5], 1):  # Top 5
-            source_type = doc.get('source', 'unknown')
-            title = doc.get('title', 'بدون عنوان' if source_type else 'Untitled')
-            content = doc.get('content', '')[:600]  # Increased limit for better context
-            similarity = doc.get('similarity', 0.0)
-            
-            # Format the document nicely
-            header = f"[مستند {i} - المصدر: {source_type} - التطابق: {similarity:.2f}]" if source_type else f"[Document {i} - Source: {source_type} - Match: {similarity:.2f}]"
-            context_parts.append(f"{header}\nالعنوان: {title}\nالمحتوى: {content}\n")
-        
-        return "\n" + "="*50 + "\n".join(context_parts) + "\n" + "="*50
-    
-    async def _get_chat_history(
-        self,
+        question: str,
         session_id: str,
         db: AsyncSession,
-        limit: int = 6
-    ) -> List[Dict[str, str]]:
-        """Get recent chat history for context"""
-        
-        stmt = select(ChatMessage).where(
-            ChatMessage.session_id == session_id
-        ).order_by(
-            ChatMessage.created_at.desc()
-        ).limit(limit)
-        
-        result = await db.execute(stmt)
-        messages = result.scalars().all()
-        
-        # Reverse to get chronological order
-        history = []
-        for msg in reversed(messages):
-            if msg.role in ["user", "assistant"]:
-                history.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-        
-        return history
-    
-    async def _save_message(
-        self,
-        session_id: str,
-        role: str,
-        content: str,
-        source: Optional[str],
-        language: str,
-        db: AsyncSession
-    ):
-        """Save chat message to database"""
-        
-        message = ChatMessage(
-            session_id=session_id,
-            role=role,
-            content=content,
-            source=source,
-            language=language
-        )
-        
-        db.add(message)
-        await db.commit()
+        document_id: Optional[int] = None,
+        document_ids: Optional[List[int]] = None,
+        user_id: Optional[str] = None,
+    ) -> ChatResponse:
+        language = self.classifier.classify(question).language
 
-# Singleton instance
+        # Phase 7: owner_id is mandatory — users can ONLY retrieve their own docs
+        # Phase 12: use higher top_k for better multi-document coverage
+        docs = await search_user_documents(
+            query=question,
+            db=db,
+            session_id=session_id,
+            document_id=document_id,
+            document_ids=document_ids,
+            owner_id=user_id,
+            top_k=8,
+        )
+
+        if not docs:
+            # Phase 10 — Safety: do NOT fall back to general LLM.
+            # Without owner-matched documents, answering with open-ended
+            # knowledge could mislead the user into thinking the answer
+            # came from their private document.
+            _no_doc = {
+                "ar": "لم أجد محتوى مطابقاً في مستنداتك. يرجى التأكد من رفع المستند وأنه تمت معالجته بنجاح.",
+                "fr": "Aucun contenu correspondant n'a été trouvé dans vos documents. Veuillez vérifier que le document a été téléversé et traité avec succès.",
+                "en": "No matching content was found in your documents. Please make sure the document has been uploaded and processed successfully.",
+            }
+            answer = _no_doc.get(language, _no_doc["en"])
+            source = "none"
+        else:
+            context = self._build_context(docs)
+            chat_history = await self.sessions.get_recent_messages(session_id, db)
+            session_summary = await self.sessions.get_summary(session_id, db)
+            answer = await self.groq.generate_answer_with_context(
+                question=question,
+                context=context,
+                language=language,
+                chat_history=chat_history,
+                session_summary=session_summary,
+                source_type="user_document",
+            )
+            source = "user_document"
+
+        await self.sessions.save_message(
+            session_id, "user", question, source, language, db
+        )
+        await self.sessions.save_message(
+            session_id,
+            "assistant",
+            answer,
+            source,
+            language,
+            db,
+            retrieved_count=len(docs),
+        )
+
+        return ChatResponse(
+            answer=answer,
+            source=source,
+            session_id=session_id,
+            lang=language,
+            retrieved_docs=self._to_schema(docs),
+        )
+
+    # ------------------------------------------------------------------
+    # Legal search + answer
+    # ------------------------------------------------------------------
+
+    async def handle_legal_question(
+        self,
+        question: str,
+        db: AsyncSession,
+        jurisdiction: Optional[str] = None,
+        category: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> ChatResponse:
+        lang = language or self.classifier.classify(question).language
+
+        # Phase 6: pass language so same-language laws are prioritised
+        docs = await search_legal_documents(
+            query=question,
+            db=db,
+            jurisdiction=jurisdiction,
+            category=category,
+            language=lang,
+        )
+
+        if not docs:
+            # Phase 10 — Safety: NEVER fall back to general LLM for legal
+            # questions.  Without retrieved legal texts, the model could
+            # hallucinate laws, provisions, or article numbers.
+            _no_legal = {
+                "ar": "لم أجد نصوصاً قانونية ذات صلة بسؤالك في قاعدة البيانات. لا يمكنني الإجابة على أسئلة قانونية بدون مصادر موثوقة.",
+                "fr": "Je n'ai trouvé aucun texte juridique pertinent dans la base de données. Je ne peux pas répondre à des questions juridiques sans sources fiables.",
+                "en": "I could not find any relevant legal texts in the database. I cannot answer legal questions without verified sources.",
+            }
+            answer = _no_legal.get(lang, _no_legal["en"])
+            source = "none"
+        else:
+            context = self._build_context(docs)
+            answer = await self.groq.generate_answer_with_context(
+                question=question,
+                context=context,
+                language=lang,
+                source_type="legal",
+            )
+            source = "legal"
+
+        return ChatResponse(
+            answer=answer,
+            source=source,
+            session_id="legal_query",
+            lang=lang,
+            retrieved_docs=self._to_schema(docs),
+        )
+
+    # ------------------------------------------------------------------
+    # Internals (context formatting only — no DB, no sessions)
+    # ------------------------------------------------------------------
+
+    def _build_context(self, docs: List[Dict]) -> str:
+        if not docs:
+            return ""
+
+        # Check if these are user-uploaded document chunks
+        is_user_doc = any(d.get("source") == "user_document" for d in docs)
+
+        if is_user_doc:
+            # Group chunks by filename for clearer LLM context
+            from collections import defaultdict
+
+            by_file: dict[str, list[str]] = defaultdict(list)
+            for doc in docs[:10]:
+                fname = doc.get("title", "Untitled")
+                content = doc.get("content", "")[:600]
+                by_file[fname].append(content)
+
+            parts = []
+            for fname, chunks in by_file.items():
+                combined = "\n\n".join(chunks)
+                parts.append(f"[File: {fname}]\n{combined}\n")
+            return "\n---\n".join(parts)
+
+        # Default: labelled documents for non-user-doc sources.
+        # Each doc gets a clear title + source label so the LLM can cite it.
+        parts = []
+        for i, doc in enumerate(docs[:5], 1):
+            src = doc.get("source", "unknown")
+            title = doc.get("title", "Untitled")
+            content = doc.get("content", "")[:600]
+            url = doc.get("url", "")
+            url_line = f"\nURL: {url}" if url else ""
+            parts.append(
+                f'[Source {i}: "{title}" (type: {src})]\n{content}{url_line}\n'
+            )
+        return "\n---\n".join(parts)
+
+    @staticmethod
+    def _build_user_context(request) -> str:
+        """Build a concise text block describing the current logged-in user.
+
+        NOTE: email is deliberately EXCLUDED for privacy/security.
+        """
+        parts: list[str] = []
+        if getattr(request, "user_name", None):
+            parts.append(f"Name: {request.user_name}")
+        if getattr(request, "user_bio", None):
+            parts.append(f"Bio: {request.user_bio}")
+        if getattr(request, "user_institution", None):
+            parts.append(f"Institution: {request.user_institution}")
+        if getattr(request, "user_speciality", None):
+            parts.append(f"Speciality: {request.user_speciality}")
+        return "\n".join(parts)
+
+    @staticmethod
+    def _build_platform_context(results: List[Dict[str, Any]]) -> str:
+        """Format platform query results as context for the LLM."""
+        if not results:
+            return ""
+
+        # Check for my_contributions special structure
+        if len(results) == 1 and results[0].get("type") == "my_contributions":
+            return ChatLogic._format_my_contributions(results[0])
+
+        parts = []
+        for i, r in enumerate(results[:8], 1):
+            rtype = r.get("type", "unknown")
+            title = r.get("title") or r.get("name", "N/A")
+            desc = r.get("description", "")[:200]
+            url = r.get("url", "")
+            extras = []
+            for key in (
+                "document_type",
+                "field",
+                "level",
+                "event_type",
+                "institution_type",
+                "status",
+                "language",
+                "start_date",
+                "end_date",
+                "journal",
+                "doi",
+                "city",
+                "country",
+                "website",
+                "author",
+            ):
+                val = r.get(key)
+                if val:
+                    extras.append(f"{key}: {val}")
+            extra_str = " | ".join(extras)
+            url_line = f"\nLink: {url}" if url else ""
+            parts.append(
+                f"[Platform item {i} | type: {rtype}]\n"
+                f"Title: {title}\n{desc}\n{extra_str}{url_line}"
+            )
+        return "\n---\n".join(parts)
+
+    @staticmethod
+    def _format_my_contributions(data: Dict[str, Any]) -> str:
+        """Format the user's own contributions into readable context."""
+        category_labels = {
+            "tools": "NLP Tools",
+            "courses": "Courses",
+            "documents": "Documents",
+            "corpora": "Corpora",
+            "posts": "Posts",
+            "questions": "QA Questions",
+            "answers": "QA Answers",
+            "projects": "Projects",
+            "events": "Events",
+            "forum_topics": "Forum Topics",
+        }
+        sections = []
+        for key, label in category_labels.items():
+            items = data.get(key)
+            if not items:
+                continue
+            lines = [f"📂 {label} ({len(items)}):"]
+            for item in items:
+                title = item.get("title") or item.get("question") or "Untitled"
+                date = item.get("date", "")
+                extras = []
+                if item.get("type"):
+                    extras.append(item["type"])
+                if item.get("status"):
+                    extras.append(item["status"])
+                suffix = f" ({', '.join(extras)})" if extras else ""
+                date_str = f" [{date}]" if date else ""
+                lines.append(f"  • {title}{suffix}{date_str}")
+            sections.append("\n".join(lines))
+
+        if not sections:
+            return "You have no contributions on the platform yet."
+        return "Here are your contributions on the platform:\n\n" + "\n\n".join(
+            sections
+        )
+
+    @staticmethod
+    def _build_nav_context(nav_hints: Dict[str, Any]) -> str:
+        """Format navigation hints for the LLM."""
+        suggestions = nav_hints.get("suggestions", [])
+        if not suggestions:
+            return ""
+        lines = ["The user may be looking for these platform sections:"]
+        for s in suggestions:
+            lines.append(f"  • {s.get('section', '')} — {s.get('url', '')}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _to_schema(docs: List[Dict]) -> Optional[List[RetrievedDoc]]:
+        if not docs:
+            return None
+        return [
+            RetrievedDoc(
+                id=d.get("id", 0),
+                title=d.get("title", "N/A"),
+                content=d.get("content", "")[:200] + "...",
+                source=d.get("source", "unknown"),
+                similarity=d.get("similarity", 0.0),
+            )
+            for d in docs[:5]
+        ]
+
+
+# Singleton
 _chat_logic = None
 
+
 def get_chat_logic() -> ChatLogic:
-    """Get or create chat logic instance"""
     global _chat_logic
     if _chat_logic is None:
         _chat_logic = ChatLogic()
