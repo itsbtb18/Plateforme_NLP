@@ -49,8 +49,9 @@ class ResourceForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Enter the title in English')})
     )
     title_ar = forms.CharField(
-        label=_("Title * (Arabic / العنوان)"),
+        label=_("Title (Arabic / العنوان)"),
         max_length=200,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl', 'placeholder': _('أدخل العنوان بالعربية')})
     )
     description_en = forms.CharField(
@@ -58,7 +59,8 @@ class ResourceForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': _('Enter the description in English')})
     )
     description_ar = forms.CharField(
-        label=_("Description * (Arabic / الوصف)"),
+        label=_("Description (Arabic / الوصف)"),
+        required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'dir': 'rtl', 'placeholder': _('أدخل الوصف بالعربية')})
     )
     keywords = forms.CharField(
@@ -485,9 +487,9 @@ class ResourceForm(forms.Form):
         logger.info(f"Saving resource of type: {resource_type}")
         
         title_en = self.cleaned_data['title_en']
-        title_ar = self.cleaned_data['title_ar']
+        title_ar = self.cleaned_data.get('title_ar') or ''
         desc_en = self.cleaned_data['description_en']
-        desc_ar = self.cleaned_data['description_ar']
+        desc_ar = self.cleaned_data.get('description_ar') or ''
         
         common_data = {
             'title': title_en,  # Legacy field

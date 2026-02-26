@@ -6,7 +6,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from .models import Project, ProjectMember
 from django.db.models import Q
 from django.db.models import Exists, OuterRef
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from .forms import ProjectForm  
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
@@ -14,6 +14,7 @@ from django.contrib import messages
 from notifications.services import NotificationService, LocalizedValue
 from accounts.views import LoginAndVerifiedRequiredMixin
 from django.utils.translation import gettext_lazy as _
+from django.db import transaction
 from typing import TYPE_CHECKING, Any
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
@@ -201,13 +202,9 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             )
             
             projects_qs = Project.objects.filter(pk__in=project_ids)
-            
-            # Apply approval status filter for non-staff
-            if not request.user.is_staff:
-                projects_qs = projects_qs.filter(
-                    Q(approval_status='approved') | 
-                    Q(coordinator=request.user)
-                )
+
+            # Public list: strictly approved only
+            projects_qs = projects_qs.filter(approval_status='approved')
             
             projects_qs = projects_qs.annotate(is_member=Exists(membership))
             
@@ -231,23 +228,21 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
-        
-        # Only show approved projects (unless staff or coordinator)
-        if not self.request.user.is_staff:
+
+        # Show approved projects + user's own projects (including pending)
+        if self.request.GET.get('my_projects'):
+            qs = qs.filter(coordinator=self.request.user)
+        else:
             qs = qs.filter(
-                Q(approval_status='approved') | 
+                Q(approval_status='approved') |
                 Q(coordinator=self.request.user)
             )
-        
+
         membership = ProjectMember.objects.filter(
             project=OuterRef('pk'),
             member=self.request.user
         )
-        
-        # Filtrer les projets créés par l'utilisateur si le paramètre my_projects est présent
-        if self.request.GET.get('my_projects'):
-            qs = qs.filter(coordinator=self.request.user)
-            
+
         # Ajouter le filtre par statut
         status_filter = self.request.GET.get('status')
         if status_filter:
@@ -296,16 +291,16 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Project
     template_name = 'project_detail.html'
     context_object_name = 'project'
-    
+
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
-        # Only show approved projects (unless staff or coordinator)
-        if not self.request.user.is_staff:
-            qs = qs.filter(
-                Q(approval_status='approved') | 
-                Q(coordinator=self.request.user)
-            )
-        return qs
+        # Approved projects visible to everyone; coordinators/staff can see their own
+        if self.request.user.is_staff:
+            return qs
+        return qs.filter(
+            Q(approval_status='approved') |
+            Q(coordinator=self.request.user)
+        )
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -358,7 +353,15 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
 
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         form.instance.coordinator = self.request.user
-        response = super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+        except Exception as e:
+            # post_save ES signal may raise BulkIndexError even though DB write succeeded
+            if Project.objects.filter(pk=form.instance.pk).exists():
+                logger.warning("ES indexing error during project creation (project saved OK): %s", e)
+                response = redirect(self.success_url)
+            else:
+                raise
         # Show pending approval message - don't notify all users until approved
         messages.info(
             self.request,
@@ -385,10 +388,93 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
             or self.request.user.is_superuser
             or obj.coordinator == self.request.user
         )
+
+    def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
+        project = form.instance
+
+        try:
+            response = super().form_valid(form)
+        except Exception as e:
+            if Project.objects.filter(pk=project.pk).exists():
+                logger.warning("ES indexing error during project update (project saved OK): %s", e)
+                response = redirect(self.success_url)
+            else:
+                raise
+
+        # Handle bilingual fields from POST AFTER form save
+        # (form.save() overwrites current-language bilingual field from generic field)
+        if self.request.user.is_staff:
+            bilingual_updates = {}
+            for field_name in ('title_ar', 'title_en', 'description_ar', 'description_en'):
+                value = self.request.POST.get(field_name, '').strip()
+                if value:
+                    bilingual_updates[field_name] = value
+            if bilingual_updates:
+                project.refresh_from_db()
+                for field_name, value in bilingual_updates.items():
+                    setattr(project, field_name, value)
+                try:
+                    project.save(update_fields=list(bilingual_updates.keys()))
+                except Exception as e:
+                    logger.warning("ES indexing error during bilingual update (saved OK): %s", e)
+
+        # Handle "Approve & Publish" button
+        if self.request.POST.get('approve_and_publish') and self.request.user.is_staff:
+            project.refresh_from_db()
+            missing = []
+            if not (project.title_ar or '').strip():
+                missing.append(str(_("Title (Arabic)")))
+            if not (project.title_en or '').strip():
+                missing.append(str(_("Title (English)")))
+            if not (project.description_ar or '').strip():
+                missing.append(str(_("Description (Arabic)")))
+            if not (project.description_en or '').strip():
+                missing.append(str(_("Description (English)")))
+
+            if missing:
+                messages.error(
+                    self.request,
+                    _("Cannot approve: Missing translations for %(fields)s.") % {'fields': ', '.join(missing)}
+                )
+                return redirect(self.request.get_full_path())
+
+            project.approval_status = 'approved'
+            try:
+                project.save(update_fields=['approval_status'])
+            except Exception as e:
+                logger.warning("ES indexing error during project approval (saved OK): %s", e)
+
+            # Notify coordinator
+            coordinator = project.coordinator
+            if coordinator:
+                NotificationService.create_notification(
+                    recipient=coordinator,
+                    notification_type='POST_APPROVED',
+                    title=_("Your project has been approved"),
+                    message=_("Your project '%(title)s' has been approved and is now visible to the public."),
+                    message_kwargs={'title': project.title}
+                )
+
+            messages.success(
+                self.request,
+                _("'%(title)s' has been approved and published.") % {'title': project.title}
+            )
+            return redirect(f"{reverse('pages:admin_projects')}?tab=pending")
+
+        # In review mode, redirect back to admin after save draft
+        if self.request.GET.get('review') == '1' and self.request.user.is_staff:
+            messages.success(self.request, _("Draft saved successfully."))
+            return redirect(f"{reverse('pages:admin_projects')}?tab=pending")
+
+        return response
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context['page'] = 'research_projects'  
+        context['page'] = 'research_projects'
+        context['review_mode'] = self.request.GET.get('review') == '1'
+        project = self.get_object()
+        context['is_pending'] = project.approval_status == 'pending'
+        context['project'] = project
         return context
 
 
@@ -638,17 +724,19 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     model = Project
     template_name = 'project_search.html'
     context_object_name = 'projects'
-    
+
     def get_queryset(self) -> QuerySet[Project]:
+        qs = Project.objects.filter(approval_status='approved')
         query = self.request.GET.get('q')
         if query:
-            return Project.objects.filter(
+            qs = qs.filter(
                 Q(title__icontains=query) |
+                Q(title_ar__icontains=query) |
+                Q(title_en__icontains=query) |
                 Q(institution__name__icontains=query) |
                 Q(coordinator__full_name__icontains=query)
             )
-        else:
-            return Project.objects.all()
+        return qs
 
 
 class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):
