@@ -1,6 +1,7 @@
 """
 Document processing tasks — chunking + embedding user uploads.
 """
+
 import logging
 from app.celery_app import celery
 
@@ -10,7 +11,11 @@ logger = logging.getLogger(__name__)
 def _make_celery_session():
     """Create a fresh async engine+session for use inside a Celery task
     (the module-level engine is bound to FastAPI's event loop)."""
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+    from sqlalchemy.ext.asyncio import (
+        create_async_engine,
+        AsyncSession,
+        async_sessionmaker,
+    )
     from app.config import get_settings
 
     settings = get_settings()
@@ -34,6 +39,7 @@ def _make_celery_session():
 def process_document(self, document_id: int):
     """Chunk a user-uploaded document and generate embeddings."""
     import asyncio
+
     asyncio.run(_process_document_async(document_id))
 
 
@@ -79,7 +85,9 @@ async def _process_document_async(document_id: int):
                 all_embeddings = []
                 for i in range(0, len(chunks), batch_size):
                     batch_texts = [c["content"] for c in chunks[i : i + batch_size]]
-                    batch_emb = embedding_service.encode(batch_texts, batch_size=batch_size)
+                    batch_emb = embedding_service.encode(
+                        batch_texts, batch_size=batch_size
+                    )
                     all_embeddings.extend(batch_emb.tolist())
 
                 # Persist chunk text in PostgreSQL, embeddings in Qdrant
@@ -111,14 +119,18 @@ async def _process_document_async(document_id: int):
                         )
                     )
 
+                # Upsert to Qdrant FIRST so chunks are searchable
+                # before the status poller sees "completed"
+                qdrant.upsert_batch(COLLECTION_DOCUMENT_CHUNKS, qdrant_points)
+
                 doc.total_chunks = len(chunks)
                 doc.status = "completed"
                 await db.commit()
-
-                qdrant.upsert_batch(COLLECTION_DOCUMENT_CHUNKS, qdrant_points)
                 logger.info(
                     "Document %d processed: %d chunks, lang=%s",
-                    document_id, len(chunks), doc_language,
+                    document_id,
+                    len(chunks),
+                    doc_language,
                 )
 
             except Exception as exc:

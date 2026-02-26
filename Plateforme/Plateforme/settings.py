@@ -9,22 +9,26 @@ import dj_database_url
 
 # Load environment variables
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Base Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-default-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*', cast=lambda v: [s.strip() for s in v.split(',')])
+SECRET_KEY = config("SECRET_KEY", default="django-insecure-your-default-key")
+DEBUG = config("DEBUG", default=True, cast=bool)
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1,*",
+    cast=lambda v: [s.strip() for s in v.split(",")],
+)
 
 # Applications
 INSTALLED_APPS = [
     # ASGI / Channels
     "daphne",
     "channels",
-
     # Django core
     "django.contrib.admin",
     "django.contrib.auth",
@@ -32,11 +36,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.sites",
-    'django.contrib.staticfiles',
-
+    "django.contrib.staticfiles",
     # Elasticsearch
     "django_elasticsearch_dsl",
-
     # Apps projet
     "resources",
     "institutions",
@@ -50,13 +52,12 @@ INSTALLED_APPS = [
     "search",
     "chatbot",
     "translate",
-
+    "scraping",
     # Allauth
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
-
     # UI
     "crispy_forms",
     "crispy_bootstrap5",
@@ -119,37 +120,40 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "PARSER_KWARGS": {"decode_responses": True},
-            "CONNECTION_POOL_KWARGS": {"max_connections": 50}
-        }
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
+        },
     }
 }
 
 # Parse REDIS_URL for 2FA utilities
 from urllib.parse import urlparse
+
 parsed_redis = urlparse(redis_url)
-REDIS_HOST = parsed_redis.hostname or '127.0.0.1'
+REDIS_HOST = parsed_redis.hostname or "127.0.0.1"
 REDIS_PORT = parsed_redis.port or 6379
-REDIS_DB = int(parsed_redis.path.split('/')[-1] or 0)
+REDIS_DB = int(parsed_redis.path.split("/")[-1] or 0)
 REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
-DATABASE_URL = config('DATABASE_URL', default='', cast=str)
+DATABASE_URL = config("DATABASE_URL", default="", cast=str)
 
 # Only parse DATABASE_URL if it's provided (allows Docker build to succeed)
 if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.parse(str(DATABASE_URL), conn_max_age=600, conn_health_checks=True)
+        "default": dj_database_url.parse(
+            str(DATABASE_URL), conn_max_age=600, conn_health_checks=True
+        )
     }
 else:
     # Fallback for Docker build (will be overridden by env vars at runtime)
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'nlp_platform',
-            'USER': 'nlp_admin',
-            'PASSWORD': '1008',
-            'HOST': 'db',
-            'PORT': '5432',
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "nlp_platform",
+            "USER": "nlp_admin",
+            "PASSWORD": "1008",
+            "HOST": "db",
+            "PORT": "5432",
         }
     }
 
@@ -162,8 +166,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_FORMS = {
     "signup": "accounts.forms.CustomUserCreationForm",
 }
@@ -178,22 +182,22 @@ ACCOUNT_LOGOUT_REDIRECT = "pages:home"
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-        'OPTIONS': {
-            'user_attributes': ('email', 'full_name', 'full_name_en', 'full_name_ar'),
-        }
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "OPTIONS": {
+            "user_attributes": ("email", "full_name", "full_name_en", "full_name_ar"),
+        },
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 8,
-        }
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,
+        },
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -201,20 +205,20 @@ AUTH_PASSWORD_VALIDATORS = [
 SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds (14 days)
 SESSION_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
-SESSION_COOKIE_SAMESITE = 'Lax'  # Protect against CSRF
+SESSION_COOKIE_SAMESITE = "Lax"  # Protect against CSRF
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Don't expire at browser close by default
 SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 
 # CSRF Security
 CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # Security Headers (for production)
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
+    X_FRAME_OPTIONS = "DENY"
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -236,7 +240,7 @@ USE_L10N = False  # Désactiver pour utiliser nos formats personnalisés
 
 # Formats de date pour chaque langue
 FORMAT_MODULE_PATH = [
-    'Plateforme.formats',
+    "Plateforme.formats",
 ]
 
 # ============================================
@@ -250,7 +254,7 @@ STATIC_ROOT = str(BASE_DIR / "staticfiles")
 
 # Media files configuration - Local storage
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / "media"
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
@@ -292,7 +296,9 @@ else:
 # Elasticsearch
 ELASTICSEARCH_DSL = {
     "default": {
-        "hosts": os.getenv("ELASTICSEARCH_HOST", os.getenv("ELASTIC_URL", "http://localhost:9200")),
+        "hosts": os.getenv(
+            "ELASTICSEARCH_HOST", os.getenv("ELASTIC_URL", "http://localhost:9200")
+        ),
         "timeout": 120,
         "sniff_on_start": False,  # Disable sniffing to prevent connection errors in Docker
     },

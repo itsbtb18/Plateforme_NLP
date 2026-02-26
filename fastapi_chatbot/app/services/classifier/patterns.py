@@ -26,11 +26,17 @@ USER_QUERY_PATTERNS = [
     ),
     re.compile(
         r"\b(?:tool|post|resource|course|document|article|corpus|corpora|project|event|topic|contribution)"
-        r"s?\s+(?:i |that i |by me|posted by me|shared by me|created by me|i(?:'ve| have) (?:posted|shared|created|published|uploaded))",
+        r"s?\b.*\b(?:(?:created|posted|shared|published|uploaded|made|written) by me|by me|that i |i (?:created|posted|shared|published|uploaded|made|wrote))",
         re.I,
     ),
     re.compile(
-        r"\b(?:give|show|list|tell|get)\b.*\b(?:my )(?:tool|post|resource|course|document|project|event|question|answer|contribution|publication)",
+        r"\b(?:give|show|list|tell|get)\b.*\bmy\b.*(?:tool|post|resource|course|document|project|event|question|answer|contribution|publication)",
+        re.I,
+    ),
+    # "give me all the tools created by me" — requires "by me" or "i" self-ref
+    re.compile(
+        r"\b(?:give|show|list|tell|get)\b.*(?:tool|post|resource|course|document|project|event|question|answer|contribution|publication)"
+        r"s?\b.*\b(?:(?:created|posted|shared|published|uploaded|made|written) by me|by me|that i |i (?:created|posted|shared|published|uploaded|made|wrote))",
         re.I,
     ),
     re.compile(
@@ -90,8 +96,8 @@ PLATFORM_PATTERNS = [
     re.compile(r"\bqui a (?:écrit|créé)\b", re.I),
     re.compile(r"\bمن كتب\b"),
     re.compile(
-        r"\b(?:list|show me|find)\b.*\b(?:courses?|articles?|thes[ei]s|"
-        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?|forum|topics?)\b",
+        r"\b(?:list|show me|find|give|get)\b.*\b(?:courses?|articles?|thes[ei]s|"
+        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?|resources?|forum|topics?)\b",
         re.I,
     ),
     re.compile(
@@ -129,6 +135,8 @@ PLATFORM_KEYWORDS = {
     "project",
     "author",
     "researcher",
+    "resource",
+    "resources",
     # French
     "cours",
     "thèse",

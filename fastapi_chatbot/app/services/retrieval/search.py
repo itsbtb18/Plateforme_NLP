@@ -327,6 +327,21 @@ async def search_user_documents(
         qe = embedding_svc.encode_single(query)
         qf = build_user_doc_filter(session_id, owner_id, document_id, document_ids)
 
+        logger.info(
+            "search_user_documents: session=%s owner=%s doc_id=%s doc_ids=%s filter=%s",
+            session_id,
+            owner_id,
+            document_id,
+            document_ids,
+            qf,
+        )
+
+        # When the user explicitly targets specific documents (upload-then-ask
+        # flow), use a very low threshold so vague queries like "explain this"
+        # still return chunks.  For open searches across all user docs, keep
+        # the normal threshold to avoid noise.
+        threshold = 0.05 if (document_ids or document_id) else 0.15
+
         # Retrieve more chunks than needed so we can balance across docs
         fetch_k = max(k * 3, 15)
 
@@ -335,8 +350,9 @@ async def search_user_documents(
             query_vector=qe,
             limit=fetch_k,
             query_filter=qf,
-            score_threshold=0.15,
+            score_threshold=threshold,
         )
+        logger.info("search_user_documents: %d hits returned", len(hits) if hits else 0)
         if not hits:
             return []
 

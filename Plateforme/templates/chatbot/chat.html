@@ -6,6 +6,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{% trans "Chatbot" %} — {% trans "Arabic NLP Platform" %}</title>
     <link rel="icon" href="{% static 'images/logo.png' %}" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -295,9 +298,11 @@ html[dir="rtl"] .lang-panel{right:auto;left:0}
 
 /* — Empty state — */
 .empty-state{
+    display:block !important;
     margin:auto;text-align:center;padding:48px 32px;max-width:640px;
     animation:fadeUp .6s var(--transition-base) both;
 }
+.empty-state.hidden{display:none !important}
 @keyframes fadeUp{
     from{opacity:0;transform:translateY(24px)}
     to{opacity:1;transform:translateY(0)}
@@ -384,7 +389,8 @@ html[dir="rtl"] .msg-bubble{border-radius:var(--radius-xl) var(--radius-xl) var(
 .answer-block{animation:msgIn .35s ease both;padding:20px 0}
 
 /* Sources */
-.sources-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.sources-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;padding-left:36px}
+html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
 .source-pill{
     display:inline-flex;align-items:center;gap:7px;
     padding:6px 14px;background:var(--hub-surface);
@@ -463,10 +469,10 @@ html[dir="rtl"] .answer-body blockquote{border-left:none;border-right:3px solid 
 .answer-body h2{font-size:1.1rem}
 .answer-body h3{font-size:1rem}
 
-/* Source citations (small bold text under the answer) */
+/* Source citations (small bold text between header and body) */
 .answer-citations{
     display:flex;flex-wrap:wrap;gap:6px;
-    margin-top:10px;padding-left:36px;
+    margin-bottom:6px;padding-left:36px;
 }
 html[dir="rtl"] .answer-citations{padding-left:0;padding-right:36px}
 .answer-cite{
@@ -1121,7 +1127,11 @@ input[type="file"]{display:none}
             var question=chatInput.value.trim();
             var mode=platformActive?'platform':'conversation';
             if(selectedFiles.length>0) mode='upload';
-            else if(hasDocuments&&!platformActive) mode='ask_document';
+            /* Note: we no longer auto-route to ask_document just because
+               documents were uploaded.  The backend intent classifier
+               already detects document_query intents in conversation mode,
+               so general questions ("search for tools") are handled
+               correctly instead of being forced into the document pipeline. */
             if(mode==='upload'&&selectedFiles.length===0&&!question){addSystem("{% trans 'Please attach a file or type a question.' %}",'error');return}
             if(mode!=='upload'&&!question)return;
 
@@ -1191,13 +1201,8 @@ input[type="file"]{display:none}
 
             try{
                 var body,headers={'X-CSRFToken':csrf()};
-                if(mode==='ask_document'){
-                    headers['Content-Type']='application/json';
-                    body=JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_ids:activeDocumentId?[activeDocumentId]:null});
-                }else{
-                    headers['Content-Type']='application/json';
-                    body=JSON.stringify({mode:mode,question:question,session_id:currentSessionId||''});
-                }
+                headers['Content-Type']='application/json';
+                body=JSON.stringify({mode:mode,question:question,session_id:currentSessionId||''});
                 var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
                 thinkEl.remove();
                 var ct=resp.headers.get('content-type');
@@ -1220,8 +1225,8 @@ input[type="file"]{display:none}
         /* ============================================================
            MESSAGE RENDERING
            ============================================================ */
-        function showMsgs(){emptyState.style.display='none';msgsArea.style.display='flex'}
-        function clearChat(){msgsArea.innerHTML='';msgsArea.style.display='none';emptyState.style.display='flex';hasDocuments=false;activeDocumentId=null}
+        function showMsgs(){emptyState.classList.add('hidden');msgsArea.style.display='flex'}
+        function clearChat(){msgsArea.innerHTML='';msgsArea.style.display='none';emptyState.classList.remove('hidden');hasDocuments=false;activeDocumentId=null}
 
         function addUserMsg(text,scroll,files){
             if(scroll===undefined)scroll=true;
@@ -1275,12 +1280,8 @@ input[type="file"]{display:none}
             var citations=extracted.citations;
 
             html+='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>';
-            html+='<div class="answer-body">';
-            if(animate) html+='<span class="typing-cursor"></span>';
-            else html+=renderMd(cleanText);
-            html+='</div>';
 
-            /* Source citations rendered as small bold text under the answer */
+            /* Source citations rendered between header and body */
             if(citations.length>0){
                 html+='<div class="answer-citations">';
                 citations.forEach(function(c){
@@ -1289,7 +1290,7 @@ input[type="file"]{display:none}
                 html+='</div>';
             }
 
-            /* Source pills row (retrieved docs) below citations */
+            /* Source pills row (retrieved docs) between header and body */
             if(srcs.length>0){
                 html+='<div class="sources-row">';
                 srcs.forEach(function(s){
@@ -1299,6 +1300,11 @@ input[type="file"]{display:none}
                 });
                 html+='</div>';
             }
+
+            html+='<div class="answer-body">';
+            if(animate) html+='<span class="typing-cursor"></span>';
+            else html+=renderMd(cleanText);
+            html+='</div>';
 
             if(platResults&&platResults.length>0) html+=buildCards(platResults);
             block.innerHTML=html;msgsArea.appendChild(block);
@@ -1336,7 +1342,7 @@ input[type="file"]{display:none}
                     out.push({cls:s.cls,label:s.label,sim:simLabel});
                 });
             }
-            if(out.length===0&&source){var m=map[source]||{cls:'default',label:source};out.push({cls:m.cls,label:m.label,sim:null})}
+            if(out.length===0&&source&&source!=='none'&&source!=='error'&&source!=='system'){var m=map[source]||{cls:'default',label:source};out.push({cls:m.cls,label:m.label,sim:null})}
             return out;
         }
 

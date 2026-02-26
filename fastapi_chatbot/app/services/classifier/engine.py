@@ -87,10 +87,8 @@ class QueryClassifier:
                 use_postgresql=True,
             )
 
-        # --- 3. Document query (user uploads) ---
-        if self._matches(q, DOCUMENT_PATTERNS) or (
-            has_session_docs and self._soft_document_hint(q)
-        ):
+        # --- 3. Document query (user uploads) — explicit patterns only ---
+        if self._matches(q, DOCUMENT_PATTERNS):
             return QueryClassification(
                 intent="document_query",
                 language=language,
@@ -128,6 +126,19 @@ class QueryClassifier:
                 confidence=0.85,
                 use_postgresql=True,
                 detected_resource_type=res_type,
+            )
+
+        # --- 6b. Soft document hint (explain/summarize when docs exist) ---
+        # Checked AFTER platform patterns so "explain the tools" still goes
+        # to platform_query, but "explain this" when docs exist goes to
+        # document_query.
+        if has_session_docs and self._soft_document_hint(q):
+            return QueryClassification(
+                intent="document_query",
+                language=language,
+                confidence=0.75,
+                qdrant_collections=["document_chunks"],
+                qdrant_type_filter="document",
             )
 
         # --- 7. General knowledge (advice, plans, recommendations) → direct LLM ---

@@ -589,11 +589,11 @@ def ask_bot(request):
                     pending_docs = [
                         d
                         for d in docs_data.get("documents", [])
-                        if d.get("status") == "processing"
+                        if d.get("status") in ("pending", "processing")
                     ]
                     if pending_docs:
-                        # Poll until all docs are processed (max 90s)
-                        for _attempt in range(45):
+                        # Poll until all docs are processed (max 120s)
+                        for _attempt in range(60):
                             time.sleep(2)
                             try:
                                 check = requests.get(
@@ -607,7 +607,7 @@ def ask_bot(request):
                                     still_pending = [
                                         d
                                         for d in check_data.get("documents", [])
-                                        if d.get("status") == "processing"
+                                        if d.get("status") in ("pending", "processing")
                                     ]
                                     if not still_pending:
                                         break

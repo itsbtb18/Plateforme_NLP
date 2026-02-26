@@ -137,6 +137,20 @@ class QueryRouter:
                             {"type": "my_contributions", **contribs}
                         ]
                         result.primary_source = "platform"
+                    else:
+                        # Inform the LLM that the user has no contributions
+                        type_label = content_type or "content"
+                        result.platform_results = [
+                            {
+                                "type": "no_data",
+                                "message": (
+                                    f"The current user has not created any {type_label}s "
+                                    f"on the platform yet. The database returned zero results "
+                                    f"for this user's contributions."
+                                ),
+                            }
+                        ]
+                        result.primary_source = "platform"
             # If no data found, LLM answers using user profile context
             if not result.platform_results:
                 result.primary_source = "platform"
@@ -252,8 +266,24 @@ class QueryRouter:
                         limit=10,
                     )
 
-            result.platform_results = platform
-            result.primary_source = "platform" if platform else "none"
+            if platform:
+                result.platform_results = platform
+                result.primary_source = "platform"
+            else:
+                # Tell the LLM explicitly that the platform has no matching data
+                type_label = res_type or "content"
+                result.platform_results = [
+                    {
+                        "type": "no_data",
+                        "message": (
+                            f"No {type_label}s were found on the platform. "
+                            f"The database and search indices returned zero results "
+                            f"for this query. The platform may not have any "
+                            f"{type_label}s added yet."
+                        ),
+                    }
+                ]
+                result.primary_source = "platform"
             docs, _ = await self._semantic_targeted(
                 question,
                 db,
