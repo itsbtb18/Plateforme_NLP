@@ -306,6 +306,7 @@ async def search_user_documents(
     db: AsyncSession,
     session_id: Optional[str] = None,
     document_id: Optional[int] = None,
+    document_ids: Optional[List[int]] = None,
     top_k: Optional[int] = None,
     owner_id: Optional[str] = None,
 ) -> List[Dict]:
@@ -324,7 +325,7 @@ async def search_user_documents(
         qdrant = get_qdrant_service()
 
         qe = embedding_svc.encode_single(query)
-        qf = build_user_doc_filter(session_id, owner_id, document_id)
+        qf = build_user_doc_filter(session_id, owner_id, document_id, document_ids)
 
         # Retrieve more chunks than needed so we can balance across docs
         fetch_k = max(k * 3, 15)

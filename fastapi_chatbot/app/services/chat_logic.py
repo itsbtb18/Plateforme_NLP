@@ -97,10 +97,13 @@ class ChatLogic:
         context = self._build_context(routing.retrieved_docs)
 
         # Inject current user profile so the LLM knows who is asking
-        # Skip for general_knowledge intent (e.g. "who are you") to avoid
-        # confusing the LLM into answering with user identity
+        # Only inject for intents that genuinely need it (user_query,
+        # metadata_query).  For everything else (greetings, conceptual
+        # questions, general knowledge, etc.) the profile is unnecessary
+        # and can cause the LLM to proactively reveal the user's name.
+        _profile_intents = {"user_query", "metadata_query"}
         user_ctx = ""
-        if classification.intent != "general_knowledge":
+        if classification.intent in _profile_intents:
             user_ctx = self._build_user_context(request)
         logger.info(
             "User profile injection: user_name=%s, user_email=%s, ctx_len=%d",
@@ -277,6 +280,7 @@ class ChatLogic:
         session_id: str,
         db: AsyncSession,
         document_id: Optional[int] = None,
+        document_ids: Optional[List[int]] = None,
         user_id: Optional[str] = None,
     ) -> ChatResponse:
         language = self.classifier.classify(question).language
@@ -288,6 +292,7 @@ class ChatLogic:
             db=db,
             session_id=session_id,
             document_id=document_id,
+            document_ids=document_ids,
             owner_id=user_id,
             top_k=8,
         )

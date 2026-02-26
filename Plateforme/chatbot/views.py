@@ -538,7 +538,7 @@ def ask_bot(request):
                                 "question": question,
                                 "session_id": session_id,
                                 "user_id": user_id,
-                                # No document_id — search ALL user docs
+                                "document_ids": [doc_id] if doc_id else None,
                             },
                             headers=get_api_headers(),
                             timeout=CHATBOT_TIMEOUT,
@@ -616,14 +616,22 @@ def ask_bot(request):
             except requests.RequestException:
                 pass
 
+            # Build document filter — document_ids (list) takes precedence
+            doc_ids = data.get("document_ids")  # list from frontend
+            single_id = data.get("document_id")  # legacy single ID
+            ask_payload = {
+                "question": question,
+                "session_id": session_id,
+                "user_id": user_id,
+            }
+            if doc_ids:
+                ask_payload["document_ids"] = doc_ids
+            elif single_id:
+                ask_payload["document_id"] = single_id
+
             resp = requests.post(
                 f"{FASTAPI_URL}/ask_document",
-                json={
-                    "question": question,
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    "document_id": data.get("document_id"),
-                },
+                json=ask_payload,
                 headers=get_api_headers(),
                 timeout=CHATBOT_TIMEOUT,
             )

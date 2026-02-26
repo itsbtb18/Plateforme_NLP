@@ -222,6 +222,18 @@ BUG_PATTERNS = [
 
 # --- General knowledge / advice queries (should go directly to LLM) ---
 GENERAL_KNOWLEDGE_PATTERNS = [
+    # Greetings — short social messages that need no context/profile injection
+    re.compile(
+        r"^\s*(?:hi|hello|hey|yo|hiya|howdy|greetings|good\s*(?:morning|afternoon|evening|day)|thanks?(?:\s*you)?|thank\s*u|welcome)\s*[!?.]*\s*$",
+        re.I,
+    ),
+    re.compile(
+        r"^\s*(?:bonjour|salut|bonsoir|coucou|bonne\s*(?:journée|soirée)|merci)\s*[!?.]*\s*$",
+        re.I,
+    ),
+    re.compile(
+        r"^\s*(?:مرحبا|مرحبًا|سلام|أهلا|السلام عليكم|صباح الخير|مساء الخير|أهلاً|هلا|شكرا|شكراً)\s*[!?.]*\s*$"
+    ),
     # Chatbot self-identity ("who are you", "what are you", etc.)
     re.compile(r"\bwho are you\b", re.I),
     re.compile(r"\bwhat are you\b", re.I),

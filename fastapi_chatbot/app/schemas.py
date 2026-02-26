@@ -56,6 +56,7 @@ class UserDocQuestionRequest(BaseModel):
     session_id: str
     user_id: str = Field(..., description="Owner — only their documents are searched")
     document_id: Optional[int] = None  # None = search all user docs in session
+    document_ids: Optional[List[int]] = None  # Filter to specific document(s)
 
 
 class LegalSearchRequest(BaseModel):

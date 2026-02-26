@@ -280,6 +280,7 @@ async def ask_document(
             session_id=request.session_id,
             db=db,
             document_id=request.document_id,
+            document_ids=request.document_ids,
             user_id=request.user_id,
         )
     except Exception as e:

@@ -4,7 +4,8 @@ Qdrant filter builders — reusable filter construction helpers.
 Centralises filter building so search methods don't duplicate
 FieldCondition boilerplate.
 """
-from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
 from typing import List, Optional
 
 
@@ -49,12 +50,15 @@ def build_user_doc_filter(
     session_id: Optional[str] = None,
     owner_id: Optional[str] = None,
     document_id: Optional[int] = None,
+    document_ids: Optional[List[int]] = None,
 ) -> Filter:
     """Build filter for user-uploaded document chunk search.
 
     When *owner_id* is available, it becomes the primary filter so
     documents are accessible across sessions.  Falls back to
     *session_id* for anonymous users.
+
+    *document_ids* (list) takes precedence over *document_id* (single).
     """
     conditions: List[FieldCondition] = []
     if owner_id:
@@ -65,7 +69,11 @@ def build_user_doc_filter(
         conditions.append(
             FieldCondition(key="session_id", match=MatchValue(value=session_id))
         )
-    if document_id:
+    if document_ids:
+        conditions.append(
+            FieldCondition(key="document_id", match=MatchAny(any=document_ids))
+        )
+    elif document_id:
         conditions.append(
             FieldCondition(key="document_id", match=MatchValue(value=document_id))
         )

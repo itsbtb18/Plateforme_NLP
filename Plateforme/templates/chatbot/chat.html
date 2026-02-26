@@ -463,6 +463,20 @@ html[dir="rtl"] .answer-body blockquote{border-left:none;border-right:3px solid 
 .answer-body h2{font-size:1.1rem}
 .answer-body h3{font-size:1rem}
 
+/* Source citations (small bold text under the answer) */
+.answer-citations{
+    display:flex;flex-wrap:wrap;gap:6px;
+    margin-top:10px;padding-left:36px;
+}
+html[dir="rtl"] .answer-citations{padding-left:0;padding-right:36px}
+.answer-cite{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:.72rem;font-weight:700;
+    color:var(--hub-text-muted);
+    letter-spacing:.01em;
+}
+.answer-cite i{font-size:.6rem;color:var(--hub-accent);opacity:.6}
+
 /* Typing cursor */
 .typing-cursor{
     display:inline-block;width:2px;height:1em;
@@ -920,6 +934,24 @@ input[type="file"]{display:none}
             return h;
         }
 
+        /**
+         * Extract inline source citations from the LLM answer text.
+         * Returns {body, citations} where body has citations stripped
+         * and citations is an array of unique citation strings.
+         */
+        function extractCitations(text){
+            var citationRe=/\s*\((?:Source|المصدر|R[eé]f[eé]rence)\s*:\s*["«»\u201c\u201d]?([^"«»\u201c\u201d)]+)["«»\u201c\u201d]?\)\.?\s*/gi;
+            var citations=[];
+            var seen={};
+            var match;
+            while((match=citationRe.exec(text))!==null){
+                var cite=match[1].trim();
+                if(!seen[cite]){citations.push(cite);seen[cite]=true}
+            }
+            var body=text.replace(citationRe,' ').replace(/  +/g,' ').trim();
+            return {body:body,citations:citations};
+        }
+
         /* ============================================================
            LANGUAGE DROPDOWN
            ============================================================ */
@@ -1109,6 +1141,7 @@ input[type="file"]{display:none}
                 setLoading(true);
                 var thinkEl=addThinking();
                 var lastDocId=null;
+                var uploadedDocIds=[];
                 try{
                     /* Upload all files WITHOUT question first */
                     for(var fi=0;fi<selectedFiles.length;fi++){
@@ -1122,7 +1155,7 @@ input[type="file"]{display:none}
                         var udata=await uresp.json();
                         if(!uresp.ok) throw new Error(udata.error||'Upload failed: '+sf.name);
                         if(udata.session_id) currentSessionId=udata.session_id;
-                        if(udata.document_id) lastDocId=udata.document_id;
+                        if(udata.document_id){lastDocId=udata.document_id;uploadedDocIds.push(udata.document_id)}
                         hasDocuments=true;
                     }
                     activeDocumentId=selectedFiles.length>1?null:lastDocId;
@@ -1133,7 +1166,7 @@ input[type="file"]{display:none}
                         var askResp=await fetch('{% url "chatbot:ask" %}',{
                             method:'POST',
                             headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
-                            body:JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_id:null})
+                            body:JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_ids:uploadedDocIds.length?uploadedDocIds:null})
                         });
                         thinkEl.remove();
                         var askData=await askResp.json();
@@ -1160,7 +1193,7 @@ input[type="file"]{display:none}
                 var body,headers={'X-CSRFToken':csrf()};
                 if(mode==='ask_document'){
                     headers['Content-Type']='application/json';
-                    body=JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_id:activeDocumentId});
+                    body=JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_ids:activeDocumentId?[activeDocumentId]:null});
                 }else{
                     headers['Content-Type']='application/json';
                     body=JSON.stringify({mode:mode,question:question,session_id:currentSessionId||''});
@@ -1235,6 +1268,28 @@ input[type="file"]{display:none}
             if(lang==='ar') block.setAttribute('dir','rtl');
             var html='';
             var srcs=buildSources(source,docs,platResults);
+
+            /* Extract inline citations from LLM text */
+            var extracted=extractCitations(text);
+            var cleanText=extracted.body;
+            var citations=extracted.citations;
+
+            html+='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>';
+            html+='<div class="answer-body">';
+            if(animate) html+='<span class="typing-cursor"></span>';
+            else html+=renderMd(cleanText);
+            html+='</div>';
+
+            /* Source citations rendered as small bold text under the answer */
+            if(citations.length>0){
+                html+='<div class="answer-citations">';
+                citations.forEach(function(c){
+                    html+='<span class="answer-cite"><i class="fas fa-bookmark"></i> '+esc(c)+'</span>';
+                });
+                html+='</div>';
+            }
+
+            /* Source pills row (retrieved docs) below citations */
             if(srcs.length>0){
                 html+='<div class="sources-row">';
                 srcs.forEach(function(s){
@@ -1244,14 +1299,10 @@ input[type="file"]{display:none}
                 });
                 html+='</div>';
             }
-            html+='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>';
-            html+='<div class="answer-body">';
-            if(animate) html+='<span class="typing-cursor"></span>';
-            else html+=renderMd(text);
-            html+='</div>';
+
             if(platResults&&platResults.length>0) html+=buildCards(platResults);
             block.innerHTML=html;msgsArea.appendChild(block);
-            if(animate) typewriter(block.querySelector('.answer-body'),text);
+            if(animate) typewriter(block.querySelector('.answer-body'),cleanText);
             scrollBottom();
         }
 
