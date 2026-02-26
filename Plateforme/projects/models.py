@@ -78,8 +78,8 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-date_start', 'title']
-        verbose_name = 'Project'
-        verbose_name_plural = 'Projects'
+        verbose_name = _('Project')
+        verbose_name_plural = _('Projects')
 
     def __str__(self):
         return self.title
@@ -171,8 +171,8 @@ class ProjectMember(models.Model):
     class Meta:
         unique_together = ('project', 'member')
         ordering = ['project', 'member']
-        verbose_name = 'Project Member'
-        verbose_name_plural = 'Project Members'
+        verbose_name = _('Project Member')
+        verbose_name_plural = _('Project Members')
 
     def __str__(self):
         return f"{self.member.full_name} - {self.project.title}"

@@ -745,81 +745,13 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def form_valid(self, form):
         resource = cast(ResourceBase, self.get_object())
         resource_type = self.kwargs['type']
-        current_time = now()
         
-        # Common data update
-        common_data = {
-            'title': form.cleaned_data['title'],
-            'description': form.cleaned_data['description'],
-            'keywords': form.cleaned_data['keywords'],
-            'access_link': form.cleaned_data['access_link'],
-            'language': form.cleaned_data['language'],
-            'update_date': current_time
-        }
-        
-        for attr, value in common_data.items():
-            setattr(resource, attr, value)
-        
-        # Handle bilingual fields from POST data (not in form)
-        title_ar = self.request.POST.get('title_ar', '').strip()
-        title_en = self.request.POST.get('title_en', '').strip()
-        description_ar = self.request.POST.get('description_ar', '').strip()
-        description_en = self.request.POST.get('description_en', '').strip()
-        
-        if title_ar:
-            resource.title_ar = title_ar
-        if title_en:
-            resource.title_en = title_en
-        if description_ar:
-            resource.description_ar = description_ar
-        if description_en:
-            resource.description_en = description_en
-        
-        # Type-specific updates
-        if resource_type == 'course' and isinstance(resource, Course):
-            resource.field = form.cleaned_data['course_field']
-            resource.academic_level = form.cleaned_data['academic_level']
-            resource.institution = form.cleaned_data['course_institution']
-            resource.academic_year = form.cleaned_data['academic_year']
-            resource.save()
-        elif resource_type in ['nlp_tool', 'tool'] and isinstance(resource, NLPTool):
-            resource.tool_type = form.cleaned_data['tool_type']
-            resource.version = form.cleaned_data['tool_version']
-            resource.documentation_link = form.cleaned_data['documentation']
-            resource.supported_languages = form.cleaned_data['supported_languages']
-            resource.save()
-        elif resource_type == 'corpus' and isinstance(resource, Corpus):
-            resource.size = form.cleaned_data['corpus_size']
-            resource.field = form.cleaned_data['corpus_field']
-            resource.file_format = form.cleaned_data['corpus_format']
-            resource.save()
-        elif resource_type == 'article' and isinstance(resource, Document):
-            resource.file_format = form.cleaned_data['document_format']
-            resource.save()
-            article = getattr(resource, 'article', None)
-            if article:
-                article.doi = form.cleaned_data.get('doi', '')
-                article.journal = form.cleaned_data['journal']
-                article.publication_date = form.cleaned_data['publication_date']
-                article.save()
-        elif resource_type == 'thesis' and isinstance(resource, Document):
-            resource.file_format = form.cleaned_data['document_format']
-            resource.save()
-            thesis = getattr(resource, 'thesis', None)
-            if thesis:
-                thesis.supervisor = form.cleaned_data['supervisor']
-                thesis.institution = form.cleaned_data['thesis_institution']
-                thesis.defense_year = form.cleaned_data['defense_year']
-                thesis.save()
-        elif resource_type == 'memoir' and isinstance(resource, Document):
-            resource.file_format = form.cleaned_data['document_format']
-            resource.save()
-            memoir = getattr(resource, 'memoir', None)
-            if memoir:
-                memoir.academic_level = form.cleaned_data['memoir_level']
-                memoir.institution = form.cleaned_data['memoir_institution']
-                memoir.defense_year = form.cleaned_data['memoir_defense_year']
-                memoir.save()
+        # Use form.save() which correctly handles all fields and type-specific logic
+        try:
+            resource = form.save(instance=resource)
+        except Exception as e:
+            logger.warning("Error during resource save (may be ES indexing): %s", e)
+            resource.refresh_from_db()
         
         # Handle "Approve & Publish" button
         if self.request.POST.get('approve_and_publish') and self.request.user.is_staff:
@@ -839,7 +771,10 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 return redirect(self.request.get_full_path())
             
             resource.approval_status = 'approved'
-            resource.save()
+            try:
+                resource.save(update_fields=['approval_status'])
+            except Exception as e:
+                logger.warning("ES indexing error during resource approval (saved OK): %s", e)
             
             # Notify author
             from notifications.services import NotificationService
@@ -861,6 +796,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         
         # In review mode, redirect back to admin
         if self.request.GET.get('review') == '1' and self.request.user.is_staff:
+            messages.success(self.request, _("Draft saved successfully."))
             return redirect(self.get_admin_redirect_url(resource_type))
         
         return super().form_valid(form)

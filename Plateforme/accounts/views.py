@@ -16,6 +16,9 @@ from notifications.models import Notification
 from notifications.services import NotificationService
 from functools import wraps
 from django.contrib.auth.decorators import login_required
+from .two_factor_utils import generate_otp, store_otp
+from .two_factor_email import send_otp_email
+from .two_factor_models import TwoFactorAuth
 import logging
 
 # Import allauth LoginView
@@ -77,40 +80,54 @@ class SignUp(CreateView):
         # Get and normalize email
         email = form.cleaned_data.get('email', '').lower().strip()
 
-        # Check for existing email (case-insensitive)
-        if User.objects.filter(email__iexact=email).exists():
-            messages.error(self.request, _("This email is already registered. Please use a different email or try logging in."))
-            logger.warning(f"Signup attempt with existing email: {email}")
-            return self.form_invalid(form)
+        # Handle existing users: allow re-registration if inactive & unverified
+        existing = User.objects.filter(email__iexact=email).first()
+        if existing:
+            if existing.is_active:
+                messages.error(self.request, _("This email is already registered. Please use a different email or try logging in."))
+                logger.warning(f"Signup attempt with existing active email: {email}")
+                return self.form_invalid(form)
+            else:
+                # Inactive, unverified account — delete so user can re-register
+                logger.info(f"Removing inactive account for re-registration: {email}")
+                existing.delete()
 
         try:
-            # Create user (commit=False to prepare, then save separately)
+            # Create user with is_active=False (activated after 2FA verification)
             user = form.save(commit=False)
-            user.email = email  # Ensure normalized email
-            user.is_active = True
+            user.email = email
+            user.is_active = False
             if hasattr(user, 'is_verified'):
-                user.is_verified = True  # Auto-verify for now
+                user.is_verified = False
             if hasattr(user, 'is_email_verified'):
-                user.is_email_verified = True
+                user.is_email_verified = False
             if hasattr(user, 'status'):
-                user.status = 'active'
+                user.status = 'pending'
 
-            # Save user — catch ES indexing errors (user still saved to DB)
             try:
                 user.save()
             except Exception as save_err:
-                # post_save ES signal may raise even though DB write succeeded
                 if User.objects.filter(pk=user.pk).exists():
                     logger.warning(f"ES indexing error (user saved OK): {save_err}")
                 else:
                     raise
 
-            logger.info(f"New user registered: {user.email}")
+            logger.info(f"New user registered (pending 2FA): {user.email}")
 
-            # Log the user in directly after signup
-            login(self.request, user, backend='allauth.account.auth_backends.AuthenticationBackend')
-            messages.success(self.request, _("Welcome! Your account has been created successfully."))
-            return redirect('pages:home')
+            # Create TwoFactorAuth record
+            TwoFactorAuth.objects.get_or_create(user=user, defaults={'is_enabled': True})
+
+            # Generate OTP, store in Redis, and send email
+            otp_code = generate_otp()
+            store_otp(str(user.id), otp_code)
+            send_otp_email(user.email, user.get_full_name(), otp_code)
+
+            # Store user ID in session for 2FA verification
+            self.request.session['pending_2fa_user_id'] = str(user.id)
+            self.request.session['pending_2fa_is_signup'] = True
+            self.request.session.modified = True
+
+            return redirect('accounts:verify_2fa')
 
         except Exception as e:
             logger.error(f"User creation error: {str(e)}")

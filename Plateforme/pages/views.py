@@ -755,40 +755,55 @@ def admin_projects(request):
     """Admin projects management"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
+    active_tab = request.GET.get('tab', 'approved')
 
-    projects = Project.objects.select_related('institution', 'coordinator').order_by('-created_at')
+    base_qs = Project.objects.select_related('institution', 'coordinator')
+
+    # Build filtered queryset based on active tab
+    if active_tab == 'pending':
+        projects = base_qs.filter(approval_status='pending')
+    else:
+        projects = base_qs.filter(approval_status='approved')
+
     if status:
         projects = projects.filter(status=status)
     if search:
         projects = projects.filter(
             Q(title__icontains=search) |
-            Q(description__icontains=search)
+            Q(title_ar__icontains=search) |
+            Q(title_en__icontains=search) |
+            Q(description__icontains=search) |
+            Q(coordinator__full_name__icontains=search)
         )
 
-    base_qs = Project.objects.all()
-    total_count = base_qs.count()
-    in_progress_count = base_qs.filter(status='ongoing').count()
-    completed_count = base_qs.filter(status='completed').count()
+    projects = projects.order_by('-created_at')
+
+    all_projects = Project.objects.all()
+    total_count = all_projects.count()
+    in_progress_count = all_projects.filter(status='ongoing').count()
+    completed_count = all_projects.filter(status='completed').count()
+    pending_count = all_projects.filter(approval_status='pending').count()
+    approved_count = all_projects.filter(approval_status='approved').count()
 
     today = timezone.now().date()
     last_month = today - timedelta(days=30)
     two_months_ago = today - timedelta(days=60)
 
-    projects_this_month = base_qs.filter(created_at__gte=last_month).count()
-    projects_last_month = base_qs.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    projects_this_month = all_projects.filter(created_at__gte=last_month).count()
+    projects_last_month = all_projects.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()
     projects_growth = ((projects_this_month - projects_last_month) / projects_last_month * 100) if projects_last_month else (100 if projects_this_month else 0)
 
-    completed_this_month = base_qs.filter(status='completed', created_at__gte=last_month).count()
-    completed_last_month = base_qs.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
+    completed_this_month = all_projects.filter(status='completed', created_at__gte=last_month).count()
+    completed_last_month = all_projects.filter(status='completed', created_at__gte=two_months_ago, created_at__lt=last_month).count()
     completed_growth = ((completed_this_month - completed_last_month) / completed_last_month * 100) if completed_last_month else (100 if completed_this_month else 0)
 
-    recent_completed = base_qs.filter(
+    recent_completed = all_projects.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
         date_end__gte=last_month
     )
-    previous_completed = base_qs.filter(
+    previous_completed = all_projects.filter(
         status='completed',
         date_end__isnull=False,
         date_start__isnull=False,
@@ -817,16 +832,14 @@ def admin_projects(request):
         duration_trend_text = f"{duration_diff_days}j {_('vs previous period')}"
         duration_trend_class = 'trend-up'
     else:
-        duration_trend_text = "Stable"
+        duration_trend_text = _("Stable")
         duration_trend_class = 'trend-neutral'
 
     context = {
         'projects': projects,
-        'pending_projects': Project.objects.filter(approval_status='pending'),
-        'approved_projects': Project.objects.filter(approval_status='approved'),
-        'pending_count': Project.objects.filter(approval_status='pending').count(),
-        'approved_count': Project.objects.filter(approval_status='approved').count(),
-        'active_tab': request.GET.get('tab', 'approved'),
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': active_tab,
         'filter_status': status,
         'search': search,
         'projects_growth': round(projects_growth, 2),
