@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "notifications",
     "search",
     "chatbot",
+    "sharing",
     "translate",
     "scraping",
     # Allauth

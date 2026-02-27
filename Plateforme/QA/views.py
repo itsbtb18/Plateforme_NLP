@@ -13,6 +13,7 @@ from django.db import models
 from django.urls import reverse
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from accounts.blocking import exclude_hidden_users
 
 User = get_user_model()
 
@@ -93,18 +94,30 @@ def search_questions(request):
 
 def qa_home(request):
     # Posts populaires (les plus likés) - only approved
-    popular_posts = Post.objects.filter(approval_status='approved').annotate(
+    popular_posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    ).annotate(
         like_count=models.Count('likes')
     ).order_by('-like_count', '-created_at')[:5]
 
     # Posts récents - only approved
-    recent_posts = Post.objects.filter(approval_status='approved').order_by('-created_at')[:5]
+    recent_posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    ).order_by('-created_at')[:5]
 
     # Questions récentes
     recent_questions = Question.objects.order_by('-created_at')[:5]
 
     # Ressources (posts avec des images)
-    resources = Post.objects.exclude(image='').order_by('-created_at')[:5]
+    resources = exclude_hidden_users(
+        Post.objects.exclude(image=''),
+        request.user,
+        ('author',)
+    ).order_by('-created_at')[:5]
 
     context = {
         'popular_posts': popular_posts,
@@ -126,7 +139,11 @@ def feed(request):
     filter_type = request.GET.get('filter', 'all')
     
     # Only show approved posts - strict approval workflow
-    posts = Post.objects.filter(approval_status='approved')
+    posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    )
     
     # Apply filters
     if filter_type == 'my_posts':
@@ -203,7 +220,10 @@ def create_post(request):
 @login_and_verified_required
 def post_detail(request, slug):
     # Only allow viewing approved posts - pending posts only visible in Admin
-    post = get_object_or_404(Post, slug=slug, approval_status='approved')
+    post = get_object_or_404(
+        exclude_hidden_users(Post.objects.filter(approval_status='approved'), request.user, ('author',)),
+        slug=slug
+    )
     
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {

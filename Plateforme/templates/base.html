@@ -1362,6 +1362,7 @@
                                 aria-expanded="false"
                                 title="{% trans 'Profile' %}">
                             <i class="fas fa-user-circle"></i>
+                            <span class="notification-badge" id="profileInvBadge"></span>
                             <span class="btn-label d-none d-xl-inline"></span>
                             <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                         </button>
@@ -1369,6 +1370,11 @@
                             <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-user"></i>
                                 <span>{% trans "Profile" %}</span>
+                            </a>
+                            <a href="{% url 'accounts:network_invitations' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-user-friends"></i>
+                                <span>{% trans "Invitations" %}</span>
+                                <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
                             </a>
                             <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
                                 <i class="fas fa-sign-out-alt"></i>
@@ -1529,6 +1535,7 @@
     <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
         <i class="fas fa-robot"></i>
     </a>
+    <div id="profileMiniToast" class="profile-mini-toast" aria-live="polite"></div>
     {% endif %}
 
     <style>
@@ -1556,6 +1563,200 @@
     html[dir="rtl"] .chatbot-button {
         left: 30px;
         right: auto;
+    }
+
+    .profile-dropdown-pro {
+        width: 280px;
+        overflow: hidden;
+    }
+
+    .profile-dropdown-header {
+        display: flex;
+        justify-content: flex-end;
+        padding: 8px 10px 2px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .profile-settings-gear {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        color: #6b7280;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-settings-gear:hover {
+        color: #1D4ED8;
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+
+    .profile-menu-panels {
+        position: relative;
+        min-height: 170px;
+    }
+
+    .profile-menu-panel {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transform: translateX(16px);
+        pointer-events: none;
+        transition: transform 0.22s ease, opacity 0.22s ease;
+        padding: 4px 0 6px;
+    }
+
+    html[dir="rtl"] .profile-menu-panel {
+        transform: translateX(-16px);
+    }
+
+    .profile-menu-panel.is-active {
+        opacity: 1;
+        transform: translateX(0);
+        pointer-events: auto;
+    }
+
+    .profile-setting-toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .profile-setting-toggle-row span {
+        flex: 1;
+    }
+
+    .profile-switch {
+        width: 40px;
+        height: 22px;
+        border-radius: 999px;
+        border: none;
+        background: #d1d5db;
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.2s ease;
+    }
+
+    .profile-switch .profile-switch-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+        transition: transform 0.2s ease;
+    }
+
+    .profile-switch.is-on {
+        background: #1D4ED8;
+    }
+
+    .profile-switch.is-on .profile-switch-knob {
+        transform: translateX(18px);
+    }
+
+    .blocked-users-container {
+        margin: 4px 12px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #f8fafc;
+        max-height: 180px;
+        overflow: auto;
+    }
+
+    .blocked-user-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .blocked-user-row:last-child {
+        border-bottom: none;
+    }
+
+    .blocked-user-row.removing {
+        opacity: 0;
+        transform: translateX(10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .blocked-user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #e2e8f0;
+    }
+
+    .blocked-user-name {
+        flex: 1;
+        color: #334155;
+        font-size: 0.86rem;
+    }
+
+    .unblock-btn {
+        border: 1px solid #fecaca;
+        background: #fff5f5;
+        color: #b91c1c;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 4px 10px;
+        line-height: 1.2;
+    }
+
+    .unblock-btn:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
+    .blocked-empty {
+        font-size: 0.82rem;
+        color: #6b7280;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .profile-mini-toast {
+        position: fixed;
+        bottom: 18px;
+        inset-inline-end: 18px;
+        background: #0f172a;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        z-index: 1600;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .profile-mini-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .profile-inv-count {
+        margin-inline-start: 8px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
     }
     </style>
 
@@ -1629,6 +1830,120 @@
             // Profile icon dropdown toggle
             const profileIconBtn = document.getElementById('profileIconBtn');
             const profileDropdown = document.getElementById('profileDropdown');
+            const profileInvBadge = document.getElementById('profileInvBadge');
+            const profileInvCount = document.getElementById('profileInvCount');
+            const profileSettingsGear = document.getElementById('profileSettingsGear');
+            const profileSettingsBack = document.getElementById('profileSettingsBack');
+            const profileMainPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="main"]') : null;
+            const profileSettingsPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="settings"]') : null;
+            const onlineStatusSwitch = document.getElementById('onlineStatusSwitch');
+            const chatNotificationsSwitch = document.getElementById('chatNotificationsSwitch');
+            const blockedListToggleBtn = document.getElementById('blockedListToggleBtn');
+            const blockedUsersContainer = document.getElementById('blockedUsersContainer');
+            const blockedUsersList = document.getElementById('blockedUsersList');
+            const blockedUsersEmpty = document.getElementById('blockedUsersEmpty');
+            const messageInvitesBtn = document.getElementById('messageInvitesBtn');
+            const profileMiniToast = document.getElementById('profileMiniToast');
+
+            function showProfileToast(message) {
+                if (!profileMiniToast) return;
+                profileMiniToast.textContent = message;
+                profileMiniToast.classList.add('show');
+                setTimeout(() => profileMiniToast.classList.remove('show'), 1400);
+            }
+
+            function getCsrfToken() {
+                const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+                if (match && match[1] && match[1] !== 'NOTPROVIDED') return decodeURIComponent(match[1]);
+                return "{{ csrf_token }}" !== "NOTPROVIDED" ? "{{ csrf_token }}" : '';
+            }
+
+            function currentLangPrefix() {
+                const seg = window.location.pathname.split('/').filter(Boolean)[0];
+                return seg ? `/${seg}` : '';
+            }
+
+            function updateProfileInvBadge(count) {
+                const value = Number(count || 0);
+                const text = value > 99 ? '99+' : String(value);
+                if (profileInvBadge) {
+                    profileInvBadge.textContent = value > 0 ? text : '';
+                }
+                if (profileInvCount) {
+                    profileInvCount.textContent = text;
+                    profileInvCount.hidden = value <= 0;
+                }
+            }
+
+            async function loadProfileInvitationsCount() {
+                if (!profileInvBadge) return;
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+                    updateProfileInvBadge(data.count);
+                } catch (_) {
+                    // Keep silent to avoid noisy UI for transient network errors.
+                }
+            }
+
+            function setProfilePanel(target) {
+                if (!profileMainPanel || !profileSettingsPanel) return;
+                profileMainPanel.classList.toggle('is-active', target === 'main');
+                profileSettingsPanel.classList.toggle('is-active', target === 'settings');
+            }
+
+            function resetProfileSubMenu() {
+                setProfilePanel('main');
+                if (blockedUsersContainer) blockedUsersContainer.hidden = true;
+            }
+
+            function setSwitchState(el, isOn, key) {
+                if (!el) return;
+                el.classList.toggle('is-on', Boolean(isOn));
+                el.setAttribute('aria-pressed', String(Boolean(isOn)));
+                if (key) localStorage.setItem(key, isOn ? '1' : '0');
+            }
+
+            function loadSwitches() {
+                setSwitchState(onlineStatusSwitch, localStorage.getItem('ui_online_status') !== '0', 'ui_online_status');
+                setSwitchState(chatNotificationsSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
+            }
+
+            async function loadBlockedUsers() {
+                if (!blockedUsersList || !blockedUsersEmpty || !blockedUsersContainer) return;
+                blockedUsersList.innerHTML = '';
+                blockedUsersEmpty.textContent = '...';
+                blockedUsersContainer.hidden = false;
+
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/accounts/network/blocked/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+                    const items = Array.isArray(data.items) ? data.items : [];
+                    if (!items.length) {
+                        blockedUsersEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+                        return;
+                    }
+                    blockedUsersEmpty.textContent = '';
+                    blockedUsersList.innerHTML = items.map((u) => `
+                        <div class="blocked-user-row" data-user-id="${u.id}">
+                            ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
+                            <span class="blocked-user-name">${u.name}</span>
+                            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">إلغاء الحظر</button>
+                        </div>
+                    `).join('');
+                } catch (_) {
+                    blockedUsersEmpty.textContent = 'تعذر تحميل القائمة';
+                }
+            }
 
             if (profileIconBtn && profileDropdown) {
                 profileIconBtn.addEventListener('click', function(e) {
@@ -1647,7 +1962,12 @@
                     }
                     
                     // Toggle profile dropdown
-                    profileDropdown.classList.toggle('show');
+                    const opened = profileDropdown.classList.toggle('show');
+                    profileIconBtn.setAttribute('aria-expanded', String(opened));
+                    if (opened) {
+                        resetProfileSubMenu();
+                        loadSwitches();
+                    }
                 });
 
                 // Prevent dropdown from closing when clicking links inside
@@ -1655,6 +1975,93 @@
                     // Don't prevent navigation for links
                     if (e.target.tagName !== 'A' && !e.target.closest('a')) {
                         e.stopPropagation();
+                    }
+                });
+            }
+
+            loadProfileInvitationsCount();
+            setInterval(loadProfileInvitationsCount, 60000);
+
+            if (profileSettingsGear) {
+                profileSettingsGear.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setProfilePanel('settings');
+                });
+            }
+
+            if (profileSettingsBack) {
+                profileSettingsBack.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setProfilePanel('main');
+                });
+            }
+
+            [onlineStatusSwitch, chatNotificationsSwitch].forEach(function(sw, idx) {
+                if (!sw) return;
+                sw.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const isOn = !sw.classList.contains('is-on');
+                    const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
+                    setSwitchState(sw, isOn, key);
+                });
+            });
+
+            if (messageInvitesBtn) {
+                messageInvitesBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = "{% url 'notifications:list' %}";
+                });
+            }
+
+            if (blockedListToggleBtn) {
+                blockedListToggleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const open = blockedUsersContainer ? blockedUsersContainer.hidden : true;
+                    if (blockedUsersContainer) blockedUsersContainer.hidden = !open;
+                    if (open) loadBlockedUsers();
+                });
+            }
+
+            if (blockedUsersList) {
+                blockedUsersList.addEventListener('click', async function(e) {
+                    const btn = e.target.closest('[data-unblock-id]');
+                    if (!btn) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const userId = btn.dataset.unblockId;
+                    const row = btn.closest('.blocked-user-row');
+                    btn.disabled = true;
+
+                    try {
+                        const res = await fetch(`${currentLangPrefix()}/accounts/network/${userId}/unblock/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': getCsrfToken(),
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+                        if (row) {
+                            row.classList.add('removing');
+                            setTimeout(() => row.remove(), 200);
+                        }
+                        setTimeout(() => {
+                            if (!blockedUsersList.querySelector('.blocked-user-row') && blockedUsersEmpty) {
+                                blockedUsersEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+                            }
+                        }, 230);
+                        showProfileToast('تم إلغاء الحظر');
+                    } catch (_) {
+                        btn.disabled = false;
+                        showProfileToast('تعذر إلغاء الحظر');
                     }
                 });
             }
@@ -1706,6 +2113,7 @@
                     !profileIconBtn.contains(e.target)) {
                     profileDropdown.classList.remove('show');
                     if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+                    resetProfileSubMenu();
                 }
                 
                 // Add language dropdown closing
@@ -2645,23 +3053,6 @@
             return chatbotUrl.toString();
         }
 
-        function openChatbotPopupWithContext(context, startNew) {
-            const chatbotUrl = buildChatbotUrl(context, startNew);
-
-            const popup = window.open(chatbotUrl, 'nlpChatbotWindow', 'width=1100,height=820,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes');
-            if (popup) {
-                popup.focus();
-                let attempts = 0;
-                const timer = setInterval(() => {
-                    attempts += 1;
-                    if (forceInjectInChatUI(context, popup) || attempts >= 30) {
-                        clearInterval(timer);
-                    }
-                }, 300);
-            }
-            return popup;
-        }
-
         function pushContextToLocalChatbot(context, startNew) {
             window.chatbotContext = context;
             window.dispatchEvent(new CustomEvent('chatbot:set-context', { detail: { context, startNew } }));
@@ -2736,24 +3127,8 @@
             }));
             sessionStorage.setItem('chatbot_last_context_title', context.title || '');
 
-            // Open immediately on user click to avoid popup blockers.
-            const eagerPopup = openChatbotPopupWithContext(context, startNew);
-            if (!eagerPopup) {
-                window.location.assign(buildChatbotUrl(context, startNew));
-                return;
-            }
-
             const finalizeBridge = () => {
-                sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
-                    ...context,
-                    system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
-                }));
-                sessionStorage.setItem('chatbot_last_context_title', context.title || '');
-
-                const bridged = pushContextToLocalChatbot(context, startNew);
-                if (!bridged) {
-                    forceInjectInChatUI(context, eagerPopup);
-                }
+                window.location.assign(buildChatbotUrl(context, startNew));
             };
 
             fetch("{% url 'chatbot:set_card_context' %}", {

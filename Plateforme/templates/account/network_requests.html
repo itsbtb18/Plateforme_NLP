@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Invitations" %}{% endblock %}
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="nr-page">
+  <input type="hidden" id="nrCsrfToken" value="{{ csrf_token }}">
+  <div class="nr-shell">
+    <div class="nr-header">
+      <h1>{% trans "Manage Network Requests" %}</h1>
+      <p>{% trans "Incoming and outgoing invitations in one professional dashboard." %}</p>
+    </div>
+
+    <div class="nr-tabs" role="tablist" aria-label="{% trans 'Invitation tabs' %}">
+      <button class="nr-tab active" data-target="incoming" role="tab" aria-selected="true">{% trans "Received" %}</button>
+      <button class="nr-tab" data-target="outgoing" role="tab" aria-selected="false">{% trans "Sent" %}</button>
+    </div>
+
+    <div id="incoming" class="nr-pane active">
+      {% for rel in incoming_requests %}
+      <article class="nr-card" id="card-{{ rel.requester.id }}">
+        <div class="nr-user">
+          <div class="nr-avatar">
+            {% if rel.requester.avatar %}
+              <img src="{{ rel.requester.avatar.url }}" alt="{{ rel.requester.get_full_name_display }}">
+            {% else %}
+              <span>{{ rel.requester.get_full_name_display|slice:":1"|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="nr-meta">
+            <a href="{% url 'accounts:profile' rel.requester.id %}">{{ rel.requester.get_full_name_display }}</a>
+            <small>{{ rel.requester.institution|default:_("No institution") }}</small>
+          </div>
+        </div>
+        <div class="nr-actions">
+          <button class="nr-btn primary" data-action="accept" data-user="{{ rel.requester.id }}">{% trans "Accept" %}</button>
+          <button class="nr-btn outline" data-action="reject" data-user="{{ rel.requester.id }}">{% trans "Refuse" %}</button>
+        </div>
+      </article>
+      {% empty %}
+      <div class="nr-empty">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="20" r="10"/><path d="M12 52c2-10 10-16 20-16s18 6 20 16"/></svg>
+        <h3>{% trans "No incoming requests" %}</h3>
+        <p>{% trans "Keep sharing your work, your network will grow." %}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="outgoing" class="nr-pane">
+      {% for rel in outgoing_requests %}
+      <article class="nr-card" id="card-{{ rel.addressee.id }}">
+        <div class="nr-user">
+          <div class="nr-avatar">
+            {% if rel.addressee.avatar %}
+              <img src="{{ rel.addressee.avatar.url }}" alt="{{ rel.addressee.get_full_name_display }}">
+            {% else %}
+              <span>{{ rel.addressee.get_full_name_display|slice:":1"|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="nr-meta">
+            <a href="{% url 'accounts:profile' rel.addressee.id %}">{{ rel.addressee.get_full_name_display }}</a>
+            <small>{{ rel.addressee.institution|default:_("No institution") }}</small>
+          </div>
+        </div>
+        <div class="nr-actions">
+          <button class="nr-btn outline" data-action="cancel" data-user="{{ rel.addressee.id }}">{% trans "Cancel invitation" %}</button>
+        </div>
+      </article>
+      {% empty %}
+      <div class="nr-empty">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 48h44"/><path d="M14 18h28"/><path d="M44 14l10 10-10 10"/></svg>
+        <h3>{% trans "No outgoing requests" %}</h3>
+        <p>{% trans "You can invite professionals from suggestions below." %}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <section class="nr-suggest">
+      <h2>{% trans "Suggestions" %}</h2>
+      <div class="nr-grid">
+        {% for u in suggestions %}
+        <article class="nr-card compact" id="card-{{ u.id }}">
+          <div class="nr-user">
+            <div class="nr-avatar">
+              {% if u.avatar %}
+                <img src="{{ u.avatar.url }}" alt="{{ u.get_full_name_display }}">
+              {% else %}
+                <span>{{ u.get_full_name_display|slice:":1"|upper }}</span>
+              {% endif %}
+            </div>
+            <div class="nr-meta">
+              <a href="{% url 'accounts:profile' u.id %}">{{ u.get_full_name_display }}</a>
+              <small>{{ u.institution|default:_("No institution") }}</small>
+            </div>
+          </div>
+          <div class="nr-actions">
+            <button class="nr-btn primary" data-action="add" data-user="{{ u.id }}">+ {% trans "Add" %}</button>
+          </div>
+        </article>
+      {% empty %}
+      <div class="nr-empty">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="20" cy="22" r="8"/><circle cx="42" cy="22" r="8"/><path d="M8 52c1.5-8 8-13 15-13"/><path d="M41 39c7 0 13.5 5 15 13"/></svg>
+        <h3>{% trans "No suggestions available" %}</h3>
+        <p>{% trans "Try again later for new contacts." %}</p>
+      </div>
+      {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<style>
+.nr-page {
+  background: radial-gradient(circle at 18% 10%, #2f3f66 0%, #1b2946 44%, #13213b 100%);
+  min-height: 100vh;
+  padding: 38px 24px;
+  font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
+}
+.nr-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  direction: rtl;
+  text-align: right;
+  background: rgba(23, 34, 58, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 24px;
+}
+[dir="ltr"] .nr-shell { direction: ltr; text-align: left; }
+.nr-header { margin-bottom: 20px; }
+.nr-header h1 {
+  color: #f8fafc;
+  font-size: 1.8rem;
+  margin: 0 0 6px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.nr-header p { color: #94a3b8; margin: 0; font-size: 0.96rem; }
+
+.nr-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 86px;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+}
+.nr-tab {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.6);
+  color: #cbd5e1;
+  padding: 10px 26px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: all .24s ease;
+}
+.nr-tab.active {
+  color: #e2e8f0;
+  border-color: rgba(96, 165, 250, 0.72);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.44), 0 0 22px rgba(59, 130, 246, 0.28);
+}
+.nr-pane { display: none; }
+.nr-pane.active { display: block; }
+
+.nr-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.28);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+.nr-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.34);
+}
+.nr-card.compact { margin-bottom: 12px; }
+.nr-card.removing { opacity: 0; transform: translateY(-6px) scale(.98); }
+.nr-user { display: flex; align-items: center; gap: 10px; }
+.nr-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #334155, #1e293b);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.nr-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.nr-meta a { color: #f8fafc; text-decoration: none; font-weight: 700; display: block; }
+.nr-meta small { color: #a7b4c7; font-size: 0.86rem; }
+.nr-actions { display: flex; gap: 8px; }
+.nr-btn {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 8px 14px;
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.55);
+  color: #dbeafe;
+}
+.nr-btn.primary {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  border-color: rgba(96, 165, 250, 0.72);
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.28);
+}
+.nr-btn.outline {
+  background: transparent;
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.nr-empty {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px dashed rgba(148, 163, 184, 0.34);
+  color: #a7b4c7;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.nr-empty svg { width: 46px; height: 46px; stroke: #64748b; fill: none; stroke-width: 1.8; }
+.nr-empty h3 { margin: 0; color: #dbeafe; font-size: 1rem; }
+.nr-empty p { margin: 0; font-size: 0.9rem; color: #94a3b8; }
+.nr-suggest { margin-top: 22px; }
+.nr-suggest h2 { font-size: 1.1rem; color: #e2e8f0; margin: 0 0 10px; }
+.nr-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+.nr-grid .nr-card.compact { grid-column: auto; }
+
+@media (max-width: 700px) {
+  .nr-page { padding: 16px; }
+  .nr-shell { padding: 16px; }
+  .nr-tabs { gap: 24px; }
+  .nr-card { flex-direction: column; align-items: stretch; gap: 12px; }
+  .nr-actions { justify-content: stretch; }
+  .nr-btn { flex: 1; }
+}
+</style>
+
+<script>
+(function(){
+  const tabs = document.querySelectorAll('.nr-tab');
+  const panes = document.querySelectorAll('.nr-pane');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    panes.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(t.dataset.target)?.classList.add('active');
+  }));
+
+  function csrf() {
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    const cookieToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+    if (cookieToken && cookieToken !== 'NOTPROVIDED') return cookieToken;
+    const hidden = document.getElementById('nrCsrfToken')?.value || '';
+    return hidden && hidden !== 'NOTPROVIDED' ? hidden : '';
+  }
+
+  function buildActionUrl(userId, action) {
+    const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+    return `/${lang}/accounts/network/${userId}/${action}/`;
+  }
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.nr-btn[data-action][data-user]');
+    if (!btn) return;
+    e.preventDefault();
+    const action = btn.dataset.action;
+    const userId = btn.dataset.user;
+    const card = document.getElementById(`card-${userId}`);
+    if (!card) return;
+
+    btn.disabled = true;
+    try {
+      const res = await fetch(buildActionUrl(userId, action), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
+
+      card.classList.add('removing');
+      setTimeout(() => card.remove(), 220);
+    } catch (err) {
+      btn.disabled = false;
+      console.error(err);
+    }
+  });
+})();
+</script>
+{% endblock %}

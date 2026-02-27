@@ -32,7 +32,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -83,8 +83,7 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 5
     networks:
       - nlp_network
     restart: unless-stopped
@@ -134,9 +133,8 @@ services:
       - "8888:8000"
     command: >
       sh -c "
-        python manage.py compilemessages --ignore=.venv &&
         python manage.py collectstatic --noinput &&
-        python manage.py migrate &&
+        python manage.py migrate --noinput &&
         daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
       "
     depends_on:
@@ -191,7 +189,7 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --timeout-keep-alive 120
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

@@ -66,6 +66,81 @@ def _get_user_id(user):
     return str(user.id)
 
 
+def _build_card_context_prompt(context):
+    """Build a compact prompt from selected card/resource context."""
+    if not isinstance(context, dict):
+        return ""
+
+    title = str(context.get("title", "")).strip()
+    category = str(context.get("category", "")).strip()
+    author = str(context.get("author", "")).strip()
+    description = str(context.get("description", "")).strip()
+    content_type = str(context.get("type", "")).strip()
+    content_url = str(context.get("url", "")).strip()
+
+    if not any([title, category, author, description, content_type]):
+        return ""
+
+    prompt_parts = ["The user is asking about a specific platform content item."]
+    if content_type:
+        prompt_parts.append(f"Content type: {content_type}")
+    if title:
+        prompt_parts.append(f"Title: {title}")
+    if category:
+        prompt_parts.append(f"Category: {category}")
+    if author:
+        prompt_parts.append(f"Author/Owner: {author}")
+    if description:
+        prompt_parts.append(f"Description: {description[:800]}")
+    if content_url:
+        prompt_parts.append(f"URL: {content_url}")
+    prompt_parts.append(
+        "Use this context as ground truth and answer specifically about this item when relevant."
+    )
+    return "\n".join(prompt_parts)
+
+
+def _get_request_content_context(request):
+    """
+    Resolve content context from query params (?context|type + id),
+    then fallback to session context from set_card_context.
+    """
+    content_type = (request.GET.get("context") or request.GET.get("type") or "").strip()
+    object_id = (request.GET.get("id") or request.GET.get("object_id") or "").strip()
+
+    if content_type and object_id:
+        obj, err = get_content_object(content_type, object_id)
+        if not err and obj:
+            metadata = get_content_metadata(obj, content_type)
+            prompt = build_context_prompt(obj, content_type)
+            request.session["chatbot_card_context"] = metadata
+            request.session["chatbot_context_prompt"] = prompt
+            request.session.modified = True
+            return prompt, metadata
+
+    session_prompt = request.session.get("chatbot_context_prompt")
+    session_context = request.session.get("chatbot_card_context")
+    if session_prompt:
+        return str(session_prompt), session_context if isinstance(session_context, dict) else {}
+
+    if isinstance(session_context, dict):
+        return _build_card_context_prompt(session_context), session_context
+
+    return "", {}
+
+
+def _inject_context_into_question(question, context_prompt):
+    """Prefix question with resource context before forwarding to FastAPI."""
+    if not question or not context_prompt:
+        return question
+    return (
+        "[CONTEXT]\n"
+        f"{context_prompt}\n\n"
+        "[USER QUESTION]\n"
+        f"{question}"
+    )
+
+
 def _create_fastapi_session(user):
     """Create a new session via FastAPI and store in Django DB."""
     resp = requests.post(
@@ -96,6 +171,8 @@ def _create_fastapi_session(user):
 
 @login_required
 def chatbot_interface(request):
+    # Persist context when opening chatbot from detail/card links.
+    _get_request_content_context(request)
     context = {
         "user": request.user,
         "page_title": _("Chatbot"),
@@ -286,6 +363,18 @@ def ask_bot(request):
         question = data.get("question", "").strip()
         session_id = data.get("session_id", "")
         user_id = _get_user_id(request.user)
+        context_prompt = ""
+        context_metadata = {}
+
+        payload_context = data.get("context")
+        if isinstance(payload_context, dict):
+            context_prompt = _build_card_context_prompt(payload_context)
+            context_metadata = payload_context
+            request.session["chatbot_card_context"] = payload_context
+            request.session["chatbot_context_prompt"] = context_prompt
+            request.session.modified = True
+        else:
+            context_prompt, context_metadata = _get_request_content_context(request)
 
         # Auto-create session if missing
         if not session_id:
@@ -305,11 +394,12 @@ def ask_bot(request):
                     {"error": _("Please type a message."), "source": "error"},
                     status=400,
                 )
+            effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/conversation",
                 json={
-                    "question": question,
+                    "question": effective_question,
                     "session_id": session_id,
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
@@ -335,6 +425,8 @@ def ask_bot(request):
             _auto_title_session(session_id, question)
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         # ----- Mode: quick -----
@@ -344,10 +436,11 @@ def ask_bot(request):
                     {"error": _("Please type a question."), "source": "error"},
                     status=400,
                 )
+            effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/query",
-                json={"question": question},
+                json={"question": effective_question},
                 headers=get_api_headers(),
                 timeout=CHATBOT_TIMEOUT,
             )
@@ -364,6 +457,8 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         # ----- Mode: legal -----
@@ -618,10 +713,11 @@ def ask_bot(request):
                 pass
 
             # Build document filter — document_ids (list) takes precedence
+            effective_question = _inject_context_into_question(question, context_prompt)
             doc_ids = data.get("document_ids")  # list from frontend
             single_id = data.get("document_id")  # legacy single ID
             ask_payload = {
-                "question": question,
+                "question": effective_question,
                 "session_id": session_id,
                 "user_id": user_id,
             }
@@ -649,6 +745,8 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         else:
@@ -711,6 +809,46 @@ def ask_bot(request):
             },
             status=500,
         )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def set_card_context(request):
+    """
+    Store the currently selected card/resource context in user session.
+    This is used by the chatbot bridge from cards without reloading the page.
+    """
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "error": _("Invalid request format.")}, status=400)
+
+    # Accept both {"context": {...}} and flat payload {...}
+    raw_context = payload.get("context") if isinstance(payload.get("context"), dict) else payload
+    if isinstance(raw_context, str):
+        try:
+            raw_context = json.loads(raw_context)
+        except json.JSONDecodeError:
+            raw_context = {"title": raw_context}
+
+    if not isinstance(raw_context, dict):
+        return JsonResponse({"ok": False, "error": _("Invalid context payload.")}, status=400)
+
+    context = {
+        "title": str(raw_context.get("title", "")).strip()[:500],
+        "author": str(raw_context.get("author", "")).strip()[:255],
+        "category": str(raw_context.get("category", "")).strip()[:255],
+        "description": str(raw_context.get("description", "")).strip()[:2000],
+        "type": str(raw_context.get("type", "")).strip()[:100],
+        "id": str(raw_context.get("id", "")).strip()[:255],
+        "url": str(raw_context.get("url", "")).strip()[:1000],
+    }
+
+    request.session["chatbot_card_context"] = context
+    request.session["chatbot_context_prompt"] = _build_card_context_prompt(context)
+    request.session.modified = True
+    return JsonResponse({"ok": True, "context": context})
 
 
 def _build_user_profile(user):

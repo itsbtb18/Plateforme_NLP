@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET
 import logging
 import os
 from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
+from accounts.blocking import exclude_hidden_users, blocked_user_ids_for
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         querysets = []
         
         if resource_type in ['', 'article', 'thesis', 'memoir']:
-            docs = Document.objects.filter(**approval_filter)
+            docs = exclude_hidden_users(Document.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 docs = docs.filter(language=language_filter)
             if resource_type in ['article', 'thesis', 'memoir']:
@@ -60,7 +61,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(docs)
         
         if resource_type in ['', 'tool']:
-            tools = NLPTool.objects.filter(**approval_filter)
+            tools = exclude_hidden_users(NLPTool.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 tools = tools.filter(supported_languages__contains=language_filter)
             if search_query:
@@ -73,7 +74,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(tools)
         
         if resource_type in ['', 'course']:
-            courses = Course.objects.filter(**approval_filter)
+            courses = exclude_hidden_users(Course.objects.filter(**approval_filter), self.request.user, ('author', 'teacher'))
             if language_filter:
                 courses = courses.filter(language=language_filter)
             if field_filter:
@@ -88,7 +89,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(courses)
         
         if resource_type in ['', 'corpus']:
-            corpora = Corpus.objects.filter(**approval_filter)
+            corpora = exclude_hidden_users(Corpus.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 corpora = corpora.filter(language=language_filter)
             if field_filter:
@@ -166,7 +167,7 @@ def resource_ajax_search(request):
         return 'unknown'
     
     if resource_type in ['', 'article', 'thesis', 'memoir']:
-        docs = Document.objects.filter(**approval_filter)
+        docs = exclude_hidden_users(Document.objects.filter(**approval_filter), request.user, ('author',))
         if resource_type in ['article', 'thesis', 'memoir']:
             docs = docs.filter(document_type=resource_type)
         if search_query:
@@ -178,7 +179,7 @@ def resource_ajax_search(request):
         querysets.append(docs)
     
     if resource_type in ['', 'tool']:
-        tools = NLPTool.objects.filter(**approval_filter)
+        tools = exclude_hidden_users(NLPTool.objects.filter(**approval_filter), request.user, ('author',))
         if search_query:
             tools = tools.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -188,7 +189,7 @@ def resource_ajax_search(request):
         querysets.append(tools)
     
     if resource_type in ['', 'course']:
-        courses = Course.objects.filter(**approval_filter)
+        courses = exclude_hidden_users(Course.objects.filter(**approval_filter), request.user, ('author', 'teacher'))
         if search_query:
             courses = courses.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -198,7 +199,7 @@ def resource_ajax_search(request):
         querysets.append(courses)
     
     if resource_type in ['', 'corpus']:
-        corpora = Corpus.objects.filter(**approval_filter)
+        corpora = exclude_hidden_users(Corpus.objects.filter(**approval_filter), request.user, ('author',))
         if search_query:
             corpora = corpora.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -241,7 +242,11 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Only show APPROVED tools in the public section
         # Pending tools are only visible in the admin panel
-        queryset = NLPTool.objects.filter(approval_status='approved')
+        queryset = exclude_hidden_users(
+            NLPTool.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('author',)
+        )
         
         # Filter by tool type/category
         tool_type = self.request.GET.get('type', '').strip()
@@ -308,7 +313,11 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Only show APPROVED courses in the public section
         # Pending courses are only visible in the admin panel
-        queryset = Course.objects.filter(approval_status='approved')
+        queryset = exclude_hidden_users(
+            Course.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('author', 'teacher')
+        )
         
         # Search filter
         search_query = self.request.GET.get('q', '').strip()
@@ -374,10 +383,10 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved articles (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Article.objects.all()
-        return Article.objects.filter(
+        return exclude_hidden_users(Article.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -394,10 +403,10 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved theses (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Thesis.objects.all()
-        return Thesis.objects.filter(
+        return exclude_hidden_users(Thesis.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -414,10 +423,10 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved memoirs (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Memoir.objects.all()
-        return Memoir.objects.filter(
+        return exclude_hidden_users(Memoir.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -437,10 +446,10 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
         if self.request.user.is_staff:
             queryset = Corpus.objects.all()
         else:
-            queryset = Corpus.objects.filter(
+            queryset = exclude_hidden_users(Corpus.objects.filter(
                 Q(approval_status='approved') | 
                 Q(author=self.request.user)
-            )
+            ), self.request.user, ('author',))
         
         # Search query
         search_query = self.request.GET.get('q', '').strip()
@@ -581,6 +590,12 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             is_staff = self.request.user.is_authenticated and self.request.user.is_staff
             if obj.approval_status != 'approved' and not is_staff:
                 raise Http404("This resource is pending approval.")
+
+        hidden_ids = blocked_user_ids_for(self.request.user)
+        if hidden_ids:
+            owner_id = getattr(obj, 'author_id', None) or getattr(obj, 'teacher_id', None)
+            if owner_id in hidden_ids:
+                raise Http404("Resource not found.")
 
         return obj
 

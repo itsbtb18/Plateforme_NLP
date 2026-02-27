@@ -62,6 +62,15 @@ class Project(models.Model):
         default='pending',
         verbose_name=_('Approval Status')
     )
+    rejection_reason = models.TextField(
+        verbose_name=_('Rejection Reason'),
+        blank=True,
+        null=True,
+        default='',
+        help_text=_('Reason for rejection (only filled when status is rejected)')
+    )
+    # Kept for DB compatibility: some deployments still have a NOT NULL is_approved column.
+    is_approved = models.BooleanField(default=False, verbose_name=_('Is Approved'))
     coordinator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

@@ -716,9 +716,9 @@ html[dir="rtl"] .post-dropdown .feed-dropdown-menu { right: auto; left: 0; }
 
 /* Post Actions - namespaced to avoid overriding base.css .action-btn */
 .post-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
     flex-wrap: nowrap;
     gap: 1rem;
     padding: 0.5rem 1.5rem;
@@ -732,8 +732,13 @@ html[dir="rtl"] .post-actions { direction: rtl; }
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 2.5rem;
+    gap: 0.5rem;
     min-width: 0;
+    justify-self: start;
+}
+
+.post-actions .comment-center {
+    justify-self: center;
 }
 
 .feed-action-btn {
@@ -781,7 +786,8 @@ html[dir="rtl"] .post-actions { direction: rtl; }
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-inline-start: auto;
+    margin-inline-end: 15px;
+    justify-self: end;
 }
 
 .feed-share-dropdown {
@@ -1081,9 +1087,9 @@ html[dir="rtl"] .post-actions { direction: rtl; }
         padding-right: 1rem;
     }
     
-    .post-actions-social { gap: 1.2rem; }
+    .post-actions-social { gap: 0.35rem; }
     .feed-action-btn span { display: none; }
-    .post-tools { gap: 0.35rem; }
+    .post-tools { gap: 0.35rem; margin-inline-end: 8px; }
 }
 
 @media (max-width: 480px) {
@@ -1334,11 +1340,11 @@ html[dir="rtl"] .share-dropdown-menu {
                             <span>{% translate "Like" %}</span>
                         </a>
                         {% endif %}
-                        <a href="{% url 'QA:post_detail' post.slug %}" class="feed-action-btn">
-                            <i class="bi bi-chat-dots" data-outline-icon="bi-chat-dots" data-solid-icon="bi-chat-dots-fill"></i>
-                            <span>{% translate "Comment" %}</span>
-                        </a>
                     </div>
+                    <a href="{% url 'QA:post_detail' post.slug %}" class="feed-action-btn comment-btn comment-center">
+                        <i class="bi bi-chat-dots" data-outline-icon="bi-chat-dots" data-solid-icon="bi-chat-dots-fill"></i>
+                        <span>{% translate "Comment" %}</span>
+                    </a>
                     <div class="post-tools">
                         <button type="button"
                                 class="feed-action-btn feed-tool-btn feed-chatbot-btn"

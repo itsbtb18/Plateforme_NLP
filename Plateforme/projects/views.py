@@ -21,6 +21,7 @@ from django.http import HttpRequest, HttpResponse
 from django.template.loader import render_to_string
 import logging
 import re
+from accounts.blocking import exclude_hidden_users
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             )
             
             projects_qs = Project.objects.filter(pk__in=project_ids)
+            projects_qs = exclude_hidden_users(projects_qs, request.user, ('coordinator',))
 
             # Public list: strictly approved only
             projects_qs = projects_qs.filter(approval_status='approved')
@@ -228,6 +230,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
+        qs = exclude_hidden_users(qs, self.request.user, ('coordinator',))
 
         # Show approved projects + user's own projects (including pending)
         if self.request.GET.get('my_projects'):
@@ -294,6 +297,7 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
+        qs = exclude_hidden_users(qs, self.request.user, ('coordinator',))
         # Approved projects visible to everyone; coordinators/staff can see their own
         if self.request.user.is_staff:
             return qs
@@ -730,7 +734,11 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = 'projects'
 
     def get_queryset(self) -> QuerySet[Project]:
-        qs = Project.objects.filter(approval_status='approved')
+        qs = exclude_hidden_users(
+            Project.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('coordinator',)
+        )
         query = self.request.GET.get('q')
         if query:
             qs = qs.filter(

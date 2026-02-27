@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
+from accounts.blocking import exclude_hidden_users
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         model = Topic
@@ -68,6 +69,7 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
             # STRICT: Only show APPROVED topics in the community section
             # Pending topics are only visible in the admin panel
             qs = qs.filter(approval_status='approved')
+            qs = exclude_hidden_users(qs, self.request.user, ('creator',))
             
             # Filter: My Topics only - but still only approved ones
             if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
@@ -320,6 +322,7 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                 Q(approval_status='approved') | 
                 Q(creator=self.request.user)
             )
+        qs = exclude_hidden_users(qs, self.request.user, ('creator',))
         return qs
 
     def get_context_data(self, **kwargs):
