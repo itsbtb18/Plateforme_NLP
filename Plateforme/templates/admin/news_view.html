@@ -5,61 +5,127 @@
 
 {% block extra_css %}
 <style>
+.review-wrap{
+  max-width:1400px;
+  margin:0 auto;
+}
 .review-card{
   background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:16px;
-  padding:24px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+  border:1px solid #dbe3ee;
+  border-radius:18px;
+  padding:26px;
+  box-shadow:0 12px 28px rgba(15,23,42,0.08);
 }
-.review-field{margin-bottom:16px;}
-.review-label{font-weight:700;color:#111827;margin-bottom:6px;}
-.review-value{color:#374151;white-space:pre-wrap;}
-.actions{display:flex;gap:10px;margin-top:18px;}
-.icon-btn{
-  width:40px;height:40px;border:1px solid #e5e7eb;
-  border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;
-  transition:0.2s;
+.review-title{
+  margin:0 0 14px;
+  font-size:1.65rem;
+  font-weight:800;
+  color:#0f172a;
 }
-.icon-btn.approve{color:#059669;}
-.icon-btn.reject{color:#dc2626;}
-.icon-btn.view{color:#2563eb;}
-.icon-btn:hover{box-shadow:0 8px 18px rgba(0,0,0,0.08);transform:translateY(-1px);}
+.review-grid{
+  display:grid;
+  grid-template-columns: 180px 1fr;
+  gap:14px 18px;
+}
+.review-label{
+  font-weight:800;
+  color:#0f172a;
+}
+.review-value{
+  color:#334155;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.review-divider{
+  margin:22px 0 16px;
+  border:0;
+  border-top:1px solid #e2e8f0;
+}
+.review-bottom-actions{
+  display:flex;
+  gap:12px;
+  flex-wrap:nowrap;
+  justify-content:flex-end;
+  align-items:center;
+}
+.btn-review{
+  border:1px solid transparent;
+  border-radius:12px;
+  padding:11px 16px;
+  font-weight:700;
+  color:#fff;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  line-height:1;
+  box-shadow:0 6px 16px rgba(15,23,42,0.14);
+  transition:all .18s ease;
+}
+.btn-review:hover{
+  transform:translateY(-1px);
+  color:#fff;
+}
+.btn-back{background:#475569;}
+.btn-edit{background:#1d4ed8;}
+.btn-accept{background:#047857;}
+.btn-reject{background:#b91c1c;}
+.review-bottom-actions form{
+  display:inline-flex !important;
+  flex:0 0 auto;
+  margin:0 !important;
+  width:auto !important;
+}
+.review-bottom-actions > *{
+  flex:0 0 auto;
+}
+@media (max-width: 900px){
+  .review-bottom-actions{flex-wrap:wrap;}
+  .review-grid{grid-template-columns:1fr;}
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-4 review-wrap">
   <div class="review-card">
-    <h3 class="mb-3">{% trans "Review Post" %}</h3>
+    <h3 class="review-title">{% trans "Review Post" %}</h3>
 
-    <div class="review-field">
+    <div class="review-grid">
       <div class="review-label">{% trans "Title" %}</div>
-      <div class="review-value">{{ post.title }}</div>
-    </div>
+      <div class="review-value">{{ post.get_localized_title|default:post.title_en|default:post.title_ar|default:post.title|default:post.id }}</div>
 
-    <div class="review-field">
       <div class="review-label">{% trans "Content" %}</div>
-      <div class="review-value">{{ post.content }}</div>
-    </div>
+      <div class="review-value">{{ post.get_localized_content|default:post.content }}</div>
 
-    <div class="review-field">
       <div class="review-label">{% trans "Author" %}</div>
       <div class="review-value">{{ post.author.full_name|default:post.author.username|default:post.author }}</div>
-    </div>
 
-    <div class="review-field">
       <div class="review-label">{% trans "Status" %}</div>
       <div class="review-value">{{ post.approval_status }}</div>
     </div>
 
-    <div class="actions">
-      <a class="icon-btn approve" href="{% url 'pages:admin_news_approve' post.id %}" title="{% trans 'Approve' %}"><i class="fas fa-check"></i></a>
-      <form action="{% url 'pages:admin_news_delete' post.id %}" method="post" style="display:inline;">
+    <hr class="review-divider">
+
+    <div class="review-bottom-actions">
+      <a class="btn-review btn-back" href="{% url 'pages:admin_news' %}?tab=pending">
+        <i class="fas fa-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% trans "Back" %}{% endif %}
+      </a>
+      <a class="btn-review btn-edit" href="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}?mode=edit">
+        <i class="fas fa-edit"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% trans "Edit Form" %}{% endif %}
+      </a>
+      <form action="{% url 'pages:admin_reject_item' model_type='post' pk=post.id %}" method="post" style="display:inline;">
         {% csrf_token %}
-        <button type="submit" class="icon-btn reject" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></button>
+        <button type="submit" class="btn-review btn-reject">
+          <i class="fas fa-times"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% trans "Refuse" %}{% endif %}
+        </button>
       </form>
-      <a class="icon-btn view" href="{% url 'QA:post_detail' post.slug %}" title="{% trans 'Open in feed' %}"><i class="fas fa-eye"></i></a>
+      <form action="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn-review btn-accept">
+          <i class="fas fa-check"></i>{% trans "Approve & Publish" %}
+        </button>
+      </form>
     </div>
   </div>
 </div>

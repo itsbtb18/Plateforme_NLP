@@ -511,6 +511,15 @@
         margin-right: auto;
         margin-left: 0;
       }
+
+      /* Respect online visibility preference from the profile switch */
+      html.user-online-hidden .cd-online-dot,
+      html.user-online-hidden .share-friend-online {
+        display: none !important;
+      }
+      html.user-online-hidden .share-friend-status {
+        display: none !important;
+      }
     </style>
 </head>
 <body>
@@ -1373,7 +1382,13 @@
                             </a>
                             <a href="{% url 'accounts:network_invitations' %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-user-friends"></i>
-                                <span>{% trans "Invitations" %}</span>
+                                <span>
+                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        طلبات الصداقة
+                                    {% else %}
+                                        Friend requests
+                                    {% endif %}
+                                </span>
                                 <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
                             </a>
                             <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
@@ -1908,10 +1923,26 @@
                 if (key) localStorage.setItem(key, isOn ? '1' : '0');
             }
 
+            function applyOnlineVisibilityPreference(isOn) {
+                document.documentElement.classList.toggle('user-online-hidden', !isOn);
+                document.documentElement.classList.toggle('user-online-visible', !!isOn);
+            }
+
             function loadSwitches() {
-                setSwitchState(onlineStatusSwitch, localStorage.getItem('ui_online_status') !== '0', 'ui_online_status');
+                const onlineVisible = localStorage.getItem('ui_online_status') !== '0';
+                setSwitchState(onlineStatusSwitch, onlineVisible, 'ui_online_status');
+                applyOnlineVisibilityPreference(onlineVisible);
                 setSwitchState(chatNotificationsSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
             }
+
+            const isArabicUi = document.documentElement.lang && document.documentElement.lang.toLowerCase().startsWith('ar');
+            const profileUiText = {
+                noBlockedUsers: isArabicUi ? 'لا يوجد مستخدمون محظورون حالياً' : 'No blocked users currently',
+                unblock: isArabicUi ? 'إلغاء الحظر' : 'Unblock',
+                blockedListLoadError: isArabicUi ? 'تعذر تحميل القائمة' : 'Unable to load list',
+                unblockDone: isArabicUi ? 'تم إلغاء الحظر' : 'Unblocked successfully',
+                unblockFailed: isArabicUi ? 'تعذر إلغاء الحظر' : 'Unblock failed'
+            };
 
             async function loadBlockedUsers() {
                 if (!blockedUsersList || !blockedUsersEmpty || !blockedUsersContainer) return;
@@ -1929,7 +1960,7 @@
 
                     const items = Array.isArray(data.items) ? data.items : [];
                     if (!items.length) {
-                        blockedUsersEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+                        blockedUsersEmpty.textContent = profileUiText.noBlockedUsers;
                         return;
                     }
                     blockedUsersEmpty.textContent = '';
@@ -1937,11 +1968,11 @@
                         <div class="blocked-user-row" data-user-id="${u.id}">
                             ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
                             <span class="blocked-user-name">${u.name}</span>
-                            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">إلغاء الحظر</button>
+                            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">${profileUiText.unblock}</button>
                         </div>
                     `).join('');
                 } catch (_) {
-                    blockedUsersEmpty.textContent = 'تعذر تحميل القائمة';
+                    blockedUsersEmpty.textContent = profileUiText.blockedListLoadError;
                 }
             }
 
@@ -2006,8 +2037,12 @@
                     const isOn = !sw.classList.contains('is-on');
                     const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
                     setSwitchState(sw, isOn, key);
+                    if (key === 'ui_online_status') applyOnlineVisibilityPreference(isOn);
                 });
             });
+
+            // Apply preference even when the settings dropdown is not opened.
+            applyOnlineVisibilityPreference(localStorage.getItem('ui_online_status') !== '0');
 
             if (messageInvitesBtn) {
                 messageInvitesBtn.addEventListener('click', function(e) {
@@ -2055,13 +2090,13 @@
                         }
                         setTimeout(() => {
                             if (!blockedUsersList.querySelector('.blocked-user-row') && blockedUsersEmpty) {
-                                blockedUsersEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+                                blockedUsersEmpty.textContent = profileUiText.noBlockedUsers;
                             }
                         }, 230);
-                        showProfileToast('تم إلغاء الحظر');
+                        showProfileToast(profileUiText.unblockDone);
                     } catch (_) {
                         btn.disabled = false;
-                        showProfileToast('تعذر إلغاء الحظر');
+                        showProfileToast(profileUiText.unblockFailed);
                     }
                 });
             }

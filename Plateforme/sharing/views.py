@@ -7,9 +7,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django.db.models import Q
 
 from .models import Share, ShareReply
 from .services import ShareService
+from accounts.models import Friendship
 
 
 # ---------------------------------------------------------------------------
@@ -17,21 +19,41 @@ from .services import ShareService
 # ---------------------------------------------------------------------------
 @login_required
 def user_search(request):
-    """Return JSON list of users matching the 'q' query (excluding self)."""
+    """Return the current user's accepted friends, optionally filtered by query."""
     q = request.GET.get('q', '').strip()
-    if len(q) < 2:
+
+    # Build the accepted friendship graph for the current user.
+    accepted_links = Friendship.objects.filter(
+        Q(requester=request.user) | Q(addressee=request.user),
+        status=Friendship.Status.ACCEPTED,
+    ).values_list('requester_id', 'addressee_id')
+
+    friend_ids = set()
+    for requester_id, addressee_id in accepted_links:
+        friend_ids.add(addressee_id if requester_id == request.user.id else requester_id)
+
+    if not friend_ids:
         return JsonResponse({'users': []})
+
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    qs = (
-        User.objects
-        .filter(full_name__icontains=q, is_active=True)
-        .exclude(pk=request.user.pk)[:10]
-    )
+    qs = User.objects.filter(pk__in=friend_ids, is_active=True)
+
+    # When query exists, filter by common identity fields. Without query:
+    # return the latest friends directly so the modal is populated on open.
+    if q:
+        qs = qs.filter(
+            Q(full_name__icontains=q)
+            | Q(full_name_ar__icontains=q)
+            | Q(full_name_en__icontains=q)
+            | Q(email__icontains=q)
+        )
+
+    qs = qs.order_by('-date_joined')[:50]
     users = [
         {
             'id': str(u.pk),
-            'name': u.full_name or u.email,
+            'name': u.get_full_name_display if hasattr(u, 'get_full_name_display') else (u.full_name or u.email),
             'avatar': u.avatar.url if getattr(u, 'avatar', None) and u.avatar else None,
         }
         for u in qs

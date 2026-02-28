@@ -30,6 +30,47 @@
         vertical-align: middle !important;
         text-align: center !important;
       }
+
+      /* Global dual-action buttons for pending admin rows (except courses) */
+      .admin-global-eye-btn,
+      .admin-global-edit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 0.62rem;
+        text-decoration: none;
+        border: 1.5px solid #3b82f6;
+        background: #ffffff;
+        color: #2563eb;
+        transition: all 0.2s ease;
+      }
+      .admin-global-eye-btn:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+        transform: translateY(-1px);
+      }
+      .admin-global-edit-btn {
+        border-color: #4f46e5;
+        color: #4338ca;
+      }
+      .admin-global-edit-btn:hover {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+        transform: translateY(-1px);
+      }
+      .admin-global-eye-btn i,
+      .admin-global-edit-btn i {
+        font-size: 0.88rem;
+      }
+      .admin-global-action-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -167,6 +208,132 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const actionContainerSelectors = [
+          '.ab-group',
+          '.pm-btn-group',
+          '.action-buttons',
+          '.course-actions',
+          '.review-actions',
+          '.table-actions',
+          '.actions'
+        ];
+
+        function normalizeUrl(url) {
+          try {
+            return new URL(url, window.location.origin).pathname.replace(/\/+$/, '');
+          } catch (e) {
+            return (url || '').replace(/\/+$/, '');
+          }
+        }
+
+        function getOrCreateActionContainer(row) {
+          for (const selector of actionContainerSelectors) {
+            const container = row.querySelector(selector);
+            if (container) return container;
+          }
+          const cells = row.querySelectorAll('td');
+          if (!cells.length) return null;
+          const targetCell = cells[cells.length - 1];
+          const wrapper = document.createElement('div');
+          wrapper.className = 'admin-global-action-wrap';
+          targetCell.prepend(wrapper);
+          return wrapper;
+        }
+
+        function createEyeButton(url) {
+          const eye = document.createElement('a');
+          eye.href = url;
+          eye.className = 'admin-global-eye-btn';
+          eye.title = 'Visualiser';
+          eye.setAttribute('aria-label', 'Visualiser');
+          eye.innerHTML = '<i class="fas fa-eye"></i>';
+          return eye;
+        }
+
+        function createEditButton(url) {
+          const edit = document.createElement('a');
+          edit.href = url;
+          edit.className = 'admin-global-edit-btn';
+          edit.title = 'Modifier';
+          edit.setAttribute('aria-label', 'Modifier');
+          edit.innerHTML = '<i class="fas fa-edit"></i>';
+          return edit;
+        }
+
+        function extractModelType(url) {
+          const p = normalizeUrl(url);
+          const m = p.match(/\/admin\/approve\/([^/]+)\//);
+          return m ? m[1] : null;
+        }
+
+        function toViewUrlFromApprove(approveUrl) {
+          return approveUrl.replace('/admin/approve/', '/admin/view/');
+        }
+
+        document.querySelectorAll('main tr').forEach(function (row) {
+          const approveForm = row.querySelector('form[action*="/admin/approve/"]');
+          const reviewApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            return normalizeUrl(a.href).indexOf('/admin/approve/') !== -1;
+          });
+          const newsApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            return normalizeUrl(a.href).indexOf('/admin/news/') !== -1 && normalizeUrl(a.href).indexOf('/approve') !== -1;
+          });
+          const newsViewLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            const p = normalizeUrl(a.href);
+            return p.indexOf('/admin/news/') !== -1 && p.indexOf('/view') !== -1;
+          });
+
+          let targetUrl = null;
+          let modelType = null;
+          if (approveForm && approveForm.action) {
+            targetUrl = approveForm.action;
+          } else if (reviewApproveLink) {
+            targetUrl = reviewApproveLink.href;
+          } else if (newsViewLink && newsApproveLink) {
+            const newsPath = normalizeUrl(newsApproveLink.href);
+            const newsIdMatch = newsPath.match(/(.*)\/admin\/news\/([^/]+)\/approve$/);
+            if (newsIdMatch && newsIdMatch[2]) {
+              const localePrefix = newsIdMatch[1] || '';
+              targetUrl = `${localePrefix}/admin/approve/post/${newsIdMatch[2]}/`;
+            } else {
+              targetUrl = newsViewLink.href;
+            }
+            modelType = 'post';
+          }
+
+          if (!targetUrl) return;
+          if (!modelType) modelType = extractModelType(targetUrl);
+          const allowedModels = new Set(['document', 'corpus', 'nlptool', 'project', 'topic', 'event', 'post']);
+          if (!allowedModels.has(modelType)) return;
+
+          const actionContainer = getOrCreateActionContainer(row);
+          if (!actionContainer) return;
+
+          const reviewUrl = targetUrl;
+          const viewUrl = toViewUrlFromApprove(reviewUrl);
+          const editUrl = reviewUrl + (reviewUrl.indexOf('?') === -1 ? '?mode=edit' : '&mode=edit');
+          const keepEye = createEyeButton(viewUrl);
+          const keepEdit = createEditButton(editUrl);
+          actionContainer.innerHTML = '';
+          actionContainer.appendChild(keepEye);
+          actionContainer.appendChild(keepEdit);
+
+          // Hide direct approve/reject controls in this row to keep only edit/review actions.
+          row.querySelectorAll('form[action*="/admin/approve/"], form[action*="/admin/reject/"]').forEach(function (formEl) {
+            formEl.style.display = 'none';
+          });
+          row.querySelectorAll('a[href*="/admin/approve/"], a[href*="/admin/reject/"], a.icon-btn.approve').forEach(function (aEl) {
+            if (aEl.classList.contains('admin-global-eye-btn')) return;
+            aEl.style.display = 'none';
+          });
+          row.querySelectorAll('button.action-btn-approve, button.action-btn-reject, .ab-approve, .ab-reject').forEach(function (btn) {
+            btn.style.display = 'none';
+          });
+        });
+      });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

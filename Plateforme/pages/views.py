@@ -19,6 +19,7 @@ from QA.models import Post, Question
 from django.db.models import Count, Sum
 import datetime
 import json
+from urllib.parse import urlencode
 from datetime import timedelta
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -309,8 +310,257 @@ def admin_dashboard(request):
         'forum_topics_data': json.dumps(forum_topics_data),
         'forum_messages_data': json.dumps(forum_messages_data),
     }
+
+    def _pending_queryset(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return model.objects.filter(approval_status='pending')
+        if 'status' in field_names:
+            return model.objects.filter(status='pending')
+        return model.objects.none()
+
+    def _title_for(item):
+        for attr in ('get_localized_title', 'title', 'name'):
+            value = getattr(item, attr, None)
+            if callable(value):
+                try:
+                    value = value()
+                except Exception:
+                    value = None
+            if value:
+                return str(value)
+        return str(item)
+
+    def _author_for(item):
+        for attr in ('author', 'coordinator', 'creator', 'teacher', 'created_by'):
+            u = getattr(item, attr, None)
+            if not u:
+                continue
+            display = getattr(u, 'get_full_name_display', None)
+            if callable(display):
+                try:
+                    return str(display())
+                except Exception:
+                    pass
+            for name_attr in ('full_name', 'username', 'email'):
+                v = getattr(u, name_attr, None)
+                if v:
+                    return str(v)
+        return '-'
+
+    def _created_for(item):
+        for attr in ('created_at', 'creation_date'):
+            v = getattr(item, attr, None)
+            if v:
+                return v
+        return timezone.now()
+
+    section_defs = [
+        ('corpus', _('Corpus'), Corpus),
+        ('nlptool', _('Tools'), NLPTool),
+        ('document', _('Resources'), Document),
+        ('project', _('Projects'), Project),
+        ('topic', _('Topics'), Topic),
+        ('post', _('News'), Post),
+        ('course', _('Courses'), Course),
+        ('event', _('Events'), Event),
+    ]
+    pending_review_items = []
+    for model_type, section_label, model in section_defs:
+        for item in _pending_queryset(model).order_by('-created_at' if hasattr(model, 'created_at') else '-creation_date')[:10]:
+            pending_review_items.append({
+                'id': str(item.pk),
+                'model_type': model_type,
+                'section': section_label,
+                'title': _title_for(item),
+                'author': _author_for(item),
+                'created': _created_for(item),
+            })
+    pending_review_items.sort(key=lambda x: x['created'], reverse=True)
+    context['pending_review_items'] = pending_review_items[:80]
+
+    def _status_counts(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return (
+                model.objects.filter(approval_status='pending').count(),
+                model.objects.filter(approval_status='approved').count(),
+            )
+        if 'status' in field_names:
+            return (
+                model.objects.filter(status='pending').count(),
+                model.objects.exclude(status='pending').count(),
+            )
+        return (0, model.objects.count())
+
+    corpus_pending, corpus_approved = _status_counts(Corpus)
+    tools_pending, tools_approved = _status_counts(NLPTool)
+    resources_pending, resources_approved = _status_counts(Document)
+    projects_pending_approval, projects_approved = _status_counts(Project)
+    topics_pending, topics_approved = _status_counts(Topic)
+    news_pending, news_approved = _status_counts(Post)
+    courses_pending, courses_approved = _status_counts(Course)
+    events_pending, events_approved = _status_counts(Event)
+
+    context['approval_sections'] = [
+        {
+            'title': _('Corpus'),
+            'owner': _('Corpus Team'),
+            'pending': corpus_pending,
+            'approved': corpus_approved,
+            'url': reverse('pages:admin_corpora'),
+            'active': corpus_pending == 0,
+        },
+        {
+            'title': _('Tools'),
+            'owner': _('Tools Team'),
+            'pending': tools_pending,
+            'approved': tools_approved,
+            'url': reverse('pages:admin_tools'),
+            'active': tools_pending == 0,
+        },
+        {
+            'title': _('Resources'),
+            'owner': _('Resources Team'),
+            'pending': resources_pending,
+            'approved': resources_approved,
+            'url': reverse('pages:admin_publications'),
+            'active': resources_pending == 0,
+        },
+        {
+            'title': _('Projects'),
+            'owner': _('Projects Team'),
+            'pending': projects_pending_approval,
+            'approved': projects_approved,
+            'url': reverse('pages:admin_projects'),
+            'active': projects_pending_approval == 0,
+        },
+        {
+            'title': _('Topics'),
+            'owner': _('Forum Team'),
+            'pending': topics_pending,
+            'approved': topics_approved,
+            'url': reverse('pages:admin_forum'),
+            'active': topics_pending == 0,
+        },
+        {
+            'title': _('News'),
+            'owner': _('Editorial Team'),
+            'pending': news_pending,
+            'approved': news_approved,
+            'url': reverse('pages:admin_news'),
+            'active': news_pending == 0,
+        },
+        {
+            'title': _('Courses'),
+            'owner': _('Courses Team'),
+            'pending': courses_pending,
+            'approved': courses_approved,
+            'url': reverse('pages:admin_courses'),
+            'active': courses_pending == 0,
+        },
+        {
+            'title': _('Events'),
+            'owner': _('Events Team'),
+            'pending': events_pending,
+            'approved': events_approved,
+            'url': reverse('events:event_list'),
+            'active': events_pending == 0,
+        },
+    ]
     
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_review_item_api(request, model_type, pk):
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+    if model_type not in MODEL_MAP:
+        return JsonResponse({'ok': False, 'error': 'Invalid model type'}, status=400)
+
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+
+    def _get_first(names):
+        for name in names:
+            if hasattr(item, name):
+                value = getattr(item, name)
+                if value is not None:
+                    return str(value)
+        return ''
+
+    author_name = '-'
+    for attr in ('author', 'coordinator', 'creator', 'teacher', 'created_by'):
+        u = getattr(item, attr, None)
+        if not u:
+            continue
+        display = getattr(u, 'get_full_name_display', None)
+        if callable(display):
+            author_name = str(display())
+            break
+        author_name = str(getattr(u, 'full_name', None) or getattr(u, 'username', None) or getattr(u, 'email', '-'))
+        break
+
+    return JsonResponse({
+        'ok': True,
+        'item': {
+            'id': str(item.pk),
+            'model_type': model_type,
+            'title': _get_first(['title', 'name']),
+            'description': _get_first(['description', 'content']),
+            'category': _get_first(['category', 'field', 'tool_type', 'document_type']),
+            'author': author_name,
+        }
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_review_save_api(request, model_type, pk):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+    if model_type not in MODEL_MAP:
+        return JsonResponse({'ok': False, 'error': 'Invalid model type'}, status=400)
+
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    updated_fields = []
+
+    title = (payload.get('title') or '').strip()
+    if title and hasattr(item, 'title'):
+        setattr(item, 'title', title)
+        updated_fields.append('title')
+    elif title and hasattr(item, 'name'):
+        setattr(item, 'name', title)
+        updated_fields.append('name')
+
+    description = (payload.get('description') or '').strip()
+    if description and hasattr(item, 'description'):
+        setattr(item, 'description', description)
+        updated_fields.append('description')
+    elif description and hasattr(item, 'content'):
+        setattr(item, 'content', description)
+        updated_fields.append('content')
+
+    category = (payload.get('category') or '').strip()
+    for field_name in ('category', 'field', 'tool_type', 'document_type'):
+        if category and hasattr(item, field_name):
+            setattr(item, field_name, category)
+            updated_fields.append(field_name)
+            break
+
+    if updated_fields:
+        item.save(update_fields=list(dict.fromkeys(updated_fields)))
+
+    return JsonResponse({'ok': True, 'updated_fields': updated_fields})
 
 
 @login_required
@@ -875,9 +1125,10 @@ def admin_courses(request):
             Q(teacher__full_name__icontains=search)
         )
 
-    pending_courses = base_qs.filter(approval_status='pending')
-    approved_courses = base_qs.filter(approval_status='approved')
-    pending_count = pending_courses.count()
+    # Courses admin section: no approval workflow (manage all courses directly)
+    pending_courses = Course.objects.none()
+    approved_courses = base_qs
+    pending_count = 0
     approved_count = approved_courses.count()
 
     today = timezone.now().date()
@@ -902,7 +1153,7 @@ def admin_courses(request):
         'approved_courses': approved_courses,
         'pending_count': pending_count,
         'approved_count': approved_count,
-        'active_tab': request.GET.get('tab', 'approved'),
+        'active_tab': 'approved',
         'filter_level': level,
         'filter_field': field,
         'search': search,
@@ -1035,11 +1286,11 @@ def admin_topic_toggle_status(request, pk):
 @login_required
 @user_passes_test(is_admin)
 def admin_institutions(request):
-    """Admin institutions management with approval workflow"""
+    """Admin institutions management (approval workflow disabled, like courses)."""
     country_id = request.GET.get('country', '')
     institution_type = request.GET.get('type', '')
     search = request.GET.get('search', '').strip()
-    tab = request.GET.get('tab', 'approved')
+    tab = 'approved'
 
     base_qs = Institution.objects.select_related('country').order_by('name')
     if country_id:
@@ -1053,18 +1304,12 @@ def admin_institutions(request):
             Q(description__icontains=search)
         )
 
-    # Support approval_status if the field exists on the model
-    has_approval = hasattr(Institution, 'approval_status')
-    if has_approval:
-        pending_institutions = base_qs.filter(approval_status='pending')
-        approved_institutions = base_qs.filter(approval_status='approved')
-        pending_count = pending_institutions.count()
-        approved_count = approved_institutions.count()
-    else:
-        pending_institutions = Institution.objects.none()
-        approved_institutions = base_qs
-        pending_count = 0
-        approved_count = base_qs.count()
+    # Approval workflow disabled for institutions in admin section.
+    has_approval = False
+    pending_institutions = Institution.objects.none()
+    approved_institutions = base_qs
+    pending_count = 0
+    approved_count = base_qs.count()
 
     countries = Institution.objects.values(
         'country_id',
@@ -1723,6 +1968,58 @@ def get_edit_url(model_type, pk):
     return reverse(url_name, kwargs=kwargs)
 
 
+def get_view_url(model_type, pk):
+    """Get the details/read-only URL for a given model type and pk."""
+    if model_type == 'document':
+        from resources.models import Document
+        try:
+            doc = Document.objects.get(pk=pk)
+            doc_type = doc.document_type or 'article'
+        except Document.DoesNotExist:
+            doc_type = 'article'
+        return reverse('resources:resource-detail', kwargs={'type': doc_type, 'pk': pk})
+
+    if model_type == 'corpus':
+        return reverse('resources:resource-detail', kwargs={'type': 'corpus', 'pk': pk})
+
+    if model_type == 'nlptool':
+        return reverse('resources:resource-detail', kwargs={'type': 'tool', 'pk': pk})
+
+    if model_type == 'course':
+        return reverse('resources:resource-detail', kwargs={'type': 'course', 'pk': pk})
+
+    if model_type == 'project':
+        return reverse('projects:project_detail', kwargs={'pk': pk})
+
+    if model_type == 'event':
+        return reverse('events:event_detail', kwargs={'pk': pk})
+
+    if model_type == 'post':
+        return reverse('pages:admin_news_view', kwargs={'post_id': pk})
+
+    # Topic has no dedicated detail template; keep review mode (read-only in template)
+    if model_type == 'topic':
+        return reverse('pages:admin_approve_item', kwargs={'model_type': model_type, 'pk': pk})
+
+    return reverse('pages:admin_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_view_item(request, model_type, pk):
+    if model_type not in MODEL_MAP:
+        messages.error(request, _("Invalid model type."))
+        return redirect('pages:admin_dashboard')
+    view_url = get_view_url(model_type, pk)
+    review_qs = urlencode({
+        'admin_review': '1',
+        'review_model': model_type,
+        'review_pk': str(pk),
+    })
+    separator = '&' if '?' in view_url else '?'
+    return redirect(f"{view_url}{separator}{review_qs}")
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_approve_item(request, model_type, pk):
@@ -1777,11 +2074,30 @@ def admin_approve_item(request, model_type, pk):
     item = get_object_or_404(Model, pk=pk)
     title = getattr(item, 'title', str(item))
     
-    messages.info(request, _("Review and edit '%(title)s'. Click 'Approve & Publish' when ready.") % {'title': title})
-    
-    # Redirect to the edit page with a flag indicating admin review mode
+    edit_mode = request.GET.get('mode') == 'edit'
+    if edit_mode:
+        messages.info(request, _("Edit '%(title)s' and save your changes.") % {'title': title})
+    else:
+        messages.info(request, _("Review and edit '%(title)s'. Click 'Approve & Publish' when ready.") % {'title': title})
+
+    # Redirect to the edit page with review context (or edit-only mode)
     edit_url = get_edit_url(model_type, pk)
-    return redirect(f"{edit_url}?review=1")
+    if edit_mode:
+        review_qs = urlencode({
+            'edit_only': '1',
+            'review_model': model_type,
+            'review_pk': str(pk),
+        })
+    else:
+        review_qs = urlencode({
+            'review': '1',
+            'review_model': model_type,
+            'review_pk': str(pk),
+            'review_approve_url': reverse('pages:admin_approve_item', kwargs={'model_type': model_type, 'pk': pk}),
+            'review_reject_url': reverse('pages:admin_reject_item', kwargs={'model_type': model_type, 'pk': pk}),
+        })
+    separator = '&' if '?' in edit_url else '?'
+    return redirect(f"{edit_url}{separator}{review_qs}")
 
 
 @login_required

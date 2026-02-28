@@ -900,6 +900,35 @@ html[dir="rtl"] .pd-timeline-dot {
     color: var(--pd-text);
 }
 
+.pd-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: var(--pd-radius-md);
+    border: 1px solid transparent;
+    font-weight: 700;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+}
+
+.pd-review-btn:hover {
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.pd-review-btn.back { background: #475569; }
+.pd-review-btn.edit { background: #1d4ed8; }
+.pd-review-btn.reject { background: #b91c1c; }
+.pd-review-btn.approve { background: #047857; }
+
+.pd-review-form {
+    display: inline-flex;
+    margin: 0;
+}
+
 /* Empty State */
 .pd-empty {
     text-align: center;
@@ -1132,7 +1161,26 @@ html[dir="rtl"] .pd-timeline-dot {
                 </button>
                 {% endif %}
                 
-                {% if is_coordinator %}
+                {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                <a class="pd-review-btn back" href="{% url 'pages:admin_projects' %}?tab=pending">
+                    <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
+                </a>
+                <a class="pd-review-btn edit" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
+                    <i class="bi bi-pencil-square"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}
+                </a>
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="pd-review-form">
+                    {% csrf_token %}
+                    <button type="submit" class="pd-review-btn reject">
+                        <i class="bi bi-x-circle"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% translate "Refuse" %}{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="pd-review-form">
+                    {% csrf_token %}
+                    <button type="submit" class="pd-review-btn approve">
+                        <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
+                    </button>
+                </form>
+                {% elif is_coordinator %}
                 <a href="{% url 'projects:project_update' pk=project.pk %}" class="pd-btn-action btn-edit">
                     <i class="bi bi-pencil"></i>
                     <span>{% translate "Edit" %}</span>

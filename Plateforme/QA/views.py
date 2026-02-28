@@ -219,11 +219,12 @@ def create_post(request):
 @login_required
 @login_and_verified_required
 def post_detail(request, slug):
-    # Only allow viewing approved posts - pending posts only visible in Admin
-    post = get_object_or_404(
-        exclude_hidden_users(Post.objects.filter(approval_status='approved'), request.user, ('author',)),
-        slug=slug
-    )
+    # Staff/admin can view any post status. Regular users only approved posts.
+    base_qs = exclude_hidden_users(Post.objects.all(), request.user, ('author',))
+    if request.user.is_staff or request.user.is_superuser:
+        post = get_object_or_404(base_qs, slug=slug)
+    else:
+        post = get_object_or_404(base_qs.filter(approval_status='approved'), slug=slug)
     
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {
@@ -387,11 +388,17 @@ def edit_post(request, post_id):
         messages.error(request, 'You do not have permission to edit this post.')
         return redirect('QA:post_detail', slug=post.slug)
     
-    # Admin review mode
+    # Admin modes
     review_mode = request.GET.get('review') == '1' and is_admin
+    edit_only = request.GET.get('edit_only') == '1' and is_admin
+    read_only_review = review_mode and not edit_only
     is_pending = post.approval_status == 'pending'
 
     if request.method == 'POST':
+        if read_only_review:
+            messages.warning(request, _('This form is read-only in review mode. Use Edit mode to modify fields.'))
+            return redirect(request.get_full_path())
+
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
             # Gestion de la suppression d'image
@@ -427,6 +434,13 @@ def edit_post(request, post_id):
             
             post.save()
             messages.success(request, 'Your post has been successfully edited.')
+
+            if edit_only and request.GET.get('review_model') and request.GET.get('review_pk'):
+                return redirect(
+                    'pages:admin_view_item',
+                    model_type=request.GET.get('review_model'),
+                    pk=request.GET.get('review_pk'),
+                )
             
             if review_mode:
                 return redirect('pages:admin_news')
@@ -439,6 +453,8 @@ def edit_post(request, post_id):
         'post': post,
         'page': 'feed',
         'review_mode': review_mode,
+        'edit_only': edit_only,
+        'read_only_review': read_only_review,
         'is_pending': is_pending,
     })
 

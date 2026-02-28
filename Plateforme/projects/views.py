@@ -474,6 +474,19 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
             messages.success(self.request, _("Draft saved successfully."))
             return redirect(f"{reverse('pages:admin_projects')}?tab=pending")
 
+        # In admin edit-only mode, return to review detail page for approve/reject actions.
+        if (
+            self.request.user.is_staff
+            and self.request.GET.get('edit_only') == '1'
+            and self.request.GET.get('review_model')
+            and self.request.GET.get('review_pk')
+        ):
+            return redirect(
+                'pages:admin_view_item',
+                model_type=self.request.GET.get('review_model'),
+                pk=self.request.GET.get('review_pk'),
+            )
+
         return response
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:

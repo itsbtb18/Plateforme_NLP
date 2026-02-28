@@ -235,6 +235,9 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         
         if is_admin and is_review_action:
             topic = self.object
+            edit_only = request.GET.get('edit_only') == '1'
+            review_model = request.GET.get('review_model')
+            review_pk = request.GET.get('review_pk')
             
             # Update bilingual fields
             if request.POST.get('title_en'):
@@ -258,6 +261,8 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             # Just saving bilingual changes
             topic.save()
             messages.success(request, _("Topic updated successfully."))
+            if edit_only and review_model and review_pk:
+                return redirect('pages:admin_view_item', model_type=review_model, pk=review_pk)
             return redirect('pages:admin_forum')
         
         # Normal flow for non-admin or non-review mode

@@ -32,6 +32,7 @@
   /* Header & Title Section */
   .projects-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
   .projects-header h1 { margin: 0; color: var(--gray-800); font-weight: 700; font-size: 1.875rem; }
+  .header-actions { display: inline-flex; gap: 0.5rem; align-items: center; }
 
   /* Summary Cards */
   .dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
@@ -131,12 +132,20 @@
 <div class="container">
   <div class="projects-header">
     <h1>{% trans "Course Management" %}</h1>
+    <div class="header-actions">
+      <a href="{% url 'resources:course-create' %}" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
+        </svg>
+        {% trans "Add Course" %}
+      </a>
+    </div>
   </div>
 
   <div class="dashboard-summary">
     <div class="summary-card">
       <div class="summary-card-title">{% trans "Total Courses" %}</div>
-      <div class="summary-card-value">{{ courses.count }}</div>
+      <div class="summary-card-value">{{ total_courses_count }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-card-title">{% trans "Created this month" %}</div>
@@ -164,16 +173,9 @@
     <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
   </form>
 
-  <div class="approval-tabs">
-    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
-      {% trans "Approved" %} <span class="tab-badge">{{ approved_count|default:0 }}</span>
-    </a>
-    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
-      {% trans "Pending Review" %} <span class="tab-badge">{{ pending_count|default:0 }}</span>
-    </a>
-  </div>
+  {# Approval workflow disabled for courses in admin section #}
 
-  {% if active_tab == 'pending' %}
+  {% if False %}
     {% if pending_courses %}
     <table class="courses-table">
       <thead>

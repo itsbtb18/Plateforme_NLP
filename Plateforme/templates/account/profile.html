@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load static %} {% load i18n %}
+﻿{% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
 {{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
@@ -32,50 +32,52 @@
           <div class="profile-menu-dropdown" hidden>
             <button type="button" class="profile-menu-item profile-menu-block" data-user-id="{{ user.id }}">
               <i class="fas fa-ban"></i>
-              <span>حظر</span>
+              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حظر{% else %}Block{% endif %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-report" data-user-id="{{ user.id }}">
               <i class="fas fa-flag"></i>
-              <span>إبلاغ</span>
+              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إبلاغ{% else %}Report{% endif %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-copy-link">
               <i class="fas fa-link"></i>
-              <span>نسخ الرابط</span>
+              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}Copy link{% endif %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-share-message">
               <i class="fas fa-paper-plane"></i>
-              <span>مشاركة في رسالة</span>
+              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة في رسالة{% else %}Share in message{% endif %}</span>
             </button>
             <div class="profile-menu-separator"></div>
             <button type="button" class="profile-menu-item profile-menu-more">
               <i class="fas fa-ellipsis-h"></i>
-              <span>خيارات أخرى</span>
+              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}خيارات أخرى{% else %}More options{% endif %}</span>
             </button>
           </div>
         </div>
         {% endif %}
-        <!-- Large Profile Picture -->
-        <div class="profile-picture-container">
-          {% if user.avatar %}
-          <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="profile-picture">
-          {% else %}
-          <div class="profile-picture-placeholder">
-            <i class="fas fa-user"></i>
+        <div class="profile-identity-head">
+          <!-- Large Profile Picture -->
+          <div class="profile-picture-container">
+            {% if user.avatar %}
+            <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="profile-picture">
+            {% else %}
+            <div class="profile-picture-placeholder">
+              <i class="fas fa-user"></i>
+            </div>
+            {% endif %}
           </div>
-          {% endif %}
-        </div>
 
-        <!-- User Info Section -->
-        <div class="profile-user-info">
-          <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
-          <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
-          
-          {% if user.institution %}
-          <p class="profile-user-location">
-            <i class="fas fa-map-marker-alt"></i>
-            {{ user.institution }}
-          </p>
-          {% endif %}
+          <!-- User Info Section -->
+          <div class="profile-user-info">
+            <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
+            
+            {% if user.institution %}
+            <p class="profile-user-location">
+              <i class="fas fa-map-marker-alt"></i>
+              {{ user.institution }}
+            </p>
+            {% endif %}
+          </div>
         </div>
 
         <!-- Verification Badge -->
@@ -85,6 +87,21 @@
           {% trans "Verified User" %}
         </div>
         {% endif %}
+
+        <div class="profile-head-stats">
+          <div class="head-stat-item">
+            <span class="head-stat-value">{{ user_projects_count|default:0 }}</span>
+            <span class="head-stat-label">{% trans "Projects" %}</span>
+          </div>
+          <div class="head-stat-item">
+            <span class="head-stat-value">{{ user_corpus_count|default:0 }}</span>
+            <span class="head-stat-label">{% trans "Corpus" %}</span>
+          </div>
+          <div class="head-stat-item">
+            <span class="head-stat-value">{{ user_news_count|default:0 }}</span>
+            <span class="head-stat-label">{% trans "News" %}</span>
+          </div>
+        </div>
 
         <!-- Action Buttons -->
         <div class="profile-actions-new">
@@ -105,10 +122,10 @@
                   data-state="{{ relation_state }}">
             <i class="fas fa-user-plus"></i>
             <span class="friend-action-label">
-              {% if relation_state == 'AMIS' %}صديق
-              {% elif relation_state == 'EN_ATTENTE_ENVOYE' %}إلغاء الطلب
-              {% elif relation_state == 'EN_ATTENTE_RECU' %}تأكيد
-              {% else %}إضافة صديق{% endif %}
+              {% if relation_state == 'AMIS' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صديق{% else %}Friend{% endif %}
+              {% elif relation_state == 'EN_ATTENTE_ENVOYE' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء الطلب{% else %}Cancel request{% endif %}
+              {% elif relation_state == 'EN_ATTENTE_RECU' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تأكيد{% else %}Confirm{% endif %}
+              {% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}{% endif %}
             </span>
           </button>
           {% if relation_state == 'EN_ATTENTE_RECU' %}
@@ -116,13 +133,13 @@
                   class="btn-action-secondary friend-reject-btn"
                   data-user-id="{{ user.id }}">
             <i class="fas fa-user-times"></i>
-            <span>حذف</span>
+            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حذف{% else %}Delete{% endif %}</span>
           </button>
           {% endif %}
           {% else %}
           <a href="{% url 'account_login' %}" class="btn-action-primary">
             <i class="fas fa-user-plus"></i>
-            <span>إضافة صديق</span>
+            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}</span>
           </a>
           {% endif %}
         </div>
@@ -196,27 +213,27 @@
           </div>
 
           <div class="profile-settings-row">
-            <span><i class="fas fa-circle"></i> حالة الاتصال</span>
+            <span><i class="fas fa-circle"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حالة الاتصال{% else %}Online status{% endif %}</span>
             <button type="button" class="profile-switch" id="profileOnlineSwitch" aria-pressed="true">
               <span class="profile-switch-knob"></span>
             </button>
           </div>
 
           <button type="button" class="profile-settings-row profile-settings-btn" id="profileMessageInvitesBtn">
-            <span><i class="fas fa-envelope-open-text"></i> طلبات الرسائل</span>
+            <span><i class="fas fa-envelope-open-text"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طلبات الرسائل{% else %}Message requests{% endif %}</span>
           </button>
 
           <button type="button" class="profile-settings-row profile-settings-btn" id="profileBlockedListToggleBtn">
-            <span><i class="fas fa-user-lock"></i> قائمة المحظورين</span>
+            <span><i class="fas fa-user-lock"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قائمة المحظورين{% else %}Blocked users{% endif %}</span>
           </button>
 
           <div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
             <div class="blocked-users-list" id="profileBlockedUsersList"></div>
-            <div class="blocked-empty" id="profileBlockedUsersEmpty">لا يوجد مستخدمون محظورون حالياً</div>
+            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مستخدمون محظورون حالياً{% else %}No blocked users currently{% endif %}</div>
           </div>
 
           <div class="profile-settings-row">
-            <span><i class="fas fa-bell"></i> تنبيهات الدردشة</span>
+            <span><i class="fas fa-bell"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تنبيهات الدردشة{% else %}Chat notifications{% endif %}</span>
             <button type="button" class="profile-switch" id="profileChatSwitch" aria-pressed="true">
               <span class="profile-switch-knob"></span>
             </button>
@@ -334,7 +351,7 @@
 
       <!-- Posts -->
       {% if user_posts %}
-      {% if can_view_full_profile %}
+      {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-newspaper"></i>
@@ -357,7 +374,7 @@
 
       <!-- Courses -->
       {% if user_courses %}
-      {% if can_view_full_profile %}
+      {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-graduation-cap"></i>
@@ -401,7 +418,7 @@
 
       <!-- Projects -->
       {% if user_projects %}
-      {% if can_view_full_profile %}
+      {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-project-diagram"></i>
@@ -421,20 +438,20 @@
       </div>
       {% endif %}
 
-      {% if not can_view_full_profile and request.user.is_authenticated and request.user != user %}
+      {% if not can_view_contributions and request.user.is_authenticated and request.user != user %}
       <div class="info-section-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-user-lock"></i>
           {% trans "Private Content" %}
         </h3>
-        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et événements.</p>
+        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et Ã©vÃ©nements.</p>
       </div>
       {% endif %}
       {% endif %}
 
       <!-- Forum Topics -->
       {% if user_topics %}
-      {% if can_view_full_profile %}
+      {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-comments"></i>
@@ -455,7 +472,7 @@
       {% endif %}
       {% endif %}
 
-      {% if can_view_full_profile and upcoming_events %}
+      {% if can_view_contributions and upcoming_events %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-calendar-check"></i>
@@ -475,7 +492,7 @@
       </div>
       {% endif %}
 
-      {% if can_view_full_profile and past_events %}
+      {% if can_view_contributions and past_events %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-history"></i>
@@ -1403,6 +1420,105 @@
     color: var(--text-muted);
   }
 
+  /* ===== Profile White Bento Override ===== */
+  .profile-page-new {
+    background: #ffffff;
+  }
+
+  .profile-container-new {
+    max-width: 1240px;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+  }
+
+  .profile-card,
+  .info-section-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+  }
+
+  .profile-identity-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 16px 0;
+  }
+
+  .profile-identity-head .profile-picture-container {
+    width: 118px;
+    height: 118px;
+    border-radius: 999px;
+    border: 3px solid #dbeafe;
+    background: #f1f5f9;
+    flex-shrink: 0;
+  }
+
+  .profile-identity-head .profile-user-info {
+    padding: 0;
+    text-align: start;
+  }
+
+  .profile-identity-head .profile-user-name {
+    margin: 0 0 6px;
+    font-size: 1.55rem;
+    font-weight: 800;
+  }
+
+  .profile-identity-head .profile-user-location {
+    justify-content: flex-start;
+  }
+
+  .profile-head-stats {
+    margin: 8px 16px 12px;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #f8fafc;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .head-stat-item {
+    text-align: center;
+  }
+
+  .head-stat-value {
+    display: block;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .head-stat-label {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 0.78rem;
+  }
+
+  @media (max-width: 900px) {
+    .profile-container-new {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-identity-head {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .profile-identity-head .profile-user-info,
+    .profile-identity-head .profile-user-name {
+      text-align: center;
+    }
+
+    .profile-identity-head .profile-user-location {
+      justify-content: center;
+    }
+  }
+
   /* ===== RTL SUPPORT ===== */
   html[dir="rtl"] .profile-container-new {
     direction: rtl;
@@ -1457,6 +1573,26 @@
 {% block extra_scripts %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    const langIsArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar";
+    const uiText = {
+      friend: langIsArabic ? "صديق" : "Friend",
+      blocked: langIsArabic ? "محظور" : "Blocked",
+      cancelRequest: langIsArabic ? "إلغاء الطلب" : "Cancel request",
+      confirm: langIsArabic ? "تأكيد" : "Confirm",
+      addFriend: langIsArabic ? "إضافة صديق" : "Add friend",
+      noBlockedUsers: langIsArabic ? "لا يوجد مستخدمون محظورون حالياً" : "No blocked users currently",
+      unblock: langIsArabic ? "إلغاء الحظر" : "Unblock",
+      loadBlockedError: langIsArabic ? "تعذر تحميل القائمة" : "Unable to load list",
+      copiedLink: langIsArabic ? "تم نسخ الرابط" : "Link copied",
+      copyLinkFailed: langIsArabic ? "تعذر نسخ الرابط" : "Could not copy link",
+      copiedLinkForShare: langIsArabic ? "تم نسخ الرابط للمشاركة" : "Link copied for sharing",
+      prepareLinkFailed: langIsArabic ? "تعذر تجهيز الرابط" : "Could not prepare link",
+      reportSaved: langIsArabic ? "تم تسجيل البلاغ" : "Report submitted",
+      blockedDone: langIsArabic ? "تم الحظر" : "User blocked",
+      blockedFailed: langIsArabic ? "فشل تنفيذ الحظر" : "Block failed",
+      moreSoon: langIsArabic ? "خيارات إضافية قريبًا" : "More options coming soon",
+    };
+
     function getCsrfToken() {
       const cookieMatch = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
       const cookieToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
@@ -1475,23 +1611,23 @@
       btn.disabled = false;
       if (!label || !icon) return;
       if (state === 'AMIS') {
-        label.textContent = "صديق";
+        label.textContent = uiText.friend;
         icon.className = 'fas fa-user-check';
         btn.classList.add('is-friend');
       } else if (state === 'BLOQUE') {
-        label.textContent = "محظور";
+        label.textContent = uiText.blocked;
         icon.className = 'fas fa-ban';
         btn.classList.add('is-pending');
         btn.disabled = true;
       } else if (state === 'EN_ATTENTE_ENVOYE') {
-        label.textContent = "إلغاء الطلب";
+        label.textContent = uiText.cancelRequest;
         icon.className = 'fas fa-clock';
         btn.classList.add('is-pending');
       } else if (state === 'EN_ATTENTE_RECU') {
-        label.textContent = "تأكيد";
+        label.textContent = uiText.confirm;
         icon.className = 'fas fa-user-check';
       } else {
-        label.textContent = "إضافة صديق";
+        label.textContent = uiText.addFriend;
         icon.className = 'fas fa-user-plus';
       }
     }
@@ -1550,8 +1686,15 @@
       if (key) localStorage.setItem(key, isOn ? '1' : '0');
     }
 
+    function applyOnlineVisibilityPreference(isOn) {
+      document.documentElement.classList.toggle('user-online-hidden', !isOn);
+      document.documentElement.classList.toggle('user-online-visible', !!isOn);
+    }
+
     function loadProfileSettingsSwitches() {
-      setSwitchState(settingsOnlineSwitch, localStorage.getItem('ui_online_status') !== '0', 'ui_online_status');
+      const onlineVisible = localStorage.getItem('ui_online_status') !== '0';
+      setSwitchState(settingsOnlineSwitch, onlineVisible, 'ui_online_status');
+      applyOnlineVisibilityPreference(onlineVisible);
       setSwitchState(settingsChatSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
     }
 
@@ -1570,7 +1713,7 @@
         if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-          settingsBlockedEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+          settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
           return;
         }
         settingsBlockedEmpty.textContent = '';
@@ -1578,22 +1721,24 @@
           <div class="blocked-user-row" data-user-id="${u.id}">
             ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
             <span class="blocked-user-name">${u.name}</span>
-            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">إلغاء الحظر</button>
+            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">${uiText.unblock}</button>
           </div>
         `).join('');
       } catch (_) {
-        settingsBlockedEmpty.textContent = 'تعذر تحميل القائمة';
+        settingsBlockedEmpty.textContent = uiText.loadBlockedError;
       }
     }
 
     function ensureFriendMenu(userId) {
       if (!actionsContainer || actionsContainer.querySelector('.friend-menu-wrap')) return;
+      const friendCancelLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إلغاء{% else %}Cancel{% endif %}";
+      const friendDeleteLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}حذف الصديق{% else %}Delete friends{% endif %}";
       const wrap = document.createElement('div');
       wrap.className = 'friend-menu-wrap';
       wrap.innerHTML = `
         <div class="friend-menu" hidden>
-          <button type="button" class="friend-menu-item friend-cancel-btn" data-user-id="${userId}">Cancel</button>
-          <button type="button" class="friend-menu-item friend-remove-btn" data-user-id="${userId}">Delete friends</button>
+          <button type="button" class="friend-menu-item friend-cancel-btn" data-user-id="${userId}">${friendCancelLabel}</button>
+          <button type="button" class="friend-menu-item friend-remove-btn" data-user-id="${userId}">${friendDeleteLabel}</button>
         </div>
       `;
       actionsContainer.appendChild(wrap);
@@ -1706,8 +1851,11 @@
         const on = !sw.classList.contains('is-on');
         const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
         setSwitchState(sw, on, key);
+        if (key === 'ui_online_status') applyOnlineVisibilityPreference(on);
       });
     });
+
+    applyOnlineVisibilityPreference(localStorage.getItem('ui_online_status') !== '0');
 
     if (settingsMessageInvitesBtn) {
       settingsMessageInvitesBtn.addEventListener('click', function () {
@@ -1747,7 +1895,7 @@
           }
           setTimeout(() => {
             if (!settingsBlockedList.querySelector('.blocked-user-row') && settingsBlockedEmpty) {
-              settingsBlockedEmpty.textContent = 'لا يوجد مستخدمون محظورون حالياً';
+              settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
             }
           }, 240);
         } catch (_) {
@@ -1768,9 +1916,9 @@
       if (e.target.closest('.profile-menu-copy-link')) {
         try {
           await copyProfileLink();
-          showMenuToast('تم نسخ الرابط');
+          showMenuToast(uiText.copiedLink);
         } catch (_) {
-          showMenuToast('تعذر نسخ الرابط');
+          showMenuToast(uiText.copyLinkFailed);
         }
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
@@ -1779,16 +1927,16 @@
       if (e.target.closest('.profile-menu-share-message')) {
         try {
           await copyProfileLink();
-          showMenuToast('تم نسخ الرابط للمشاركة');
+          showMenuToast(uiText.copiedLinkForShare);
         } catch (_) {
-          showMenuToast('تعذر تجهيز الرابط');
+          showMenuToast(uiText.prepareLinkFailed);
         }
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
       }
 
       if (e.target.closest('.profile-menu-report')) {
-        showMenuToast('تم تسجيل البلاغ');
+        showMenuToast(uiText.reportSaved);
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
       }
@@ -1810,10 +1958,10 @@
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
           updateFriendButton(friendBtn, data.state || 'BLOQUE');
-          showMenuToast('تم الحظر');
+          showMenuToast(uiText.blockedDone);
         } catch (err) {
           updateFriendButton(friendBtn, prev);
-          showMenuToast('فشل تنفيذ الحظر');
+          showMenuToast(uiText.blockedFailed);
           console.error(err);
         }
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
@@ -1821,7 +1969,7 @@
       }
 
       if (e.target.closest('.profile-menu-more')) {
-        showMenuToast('خيارات إضافية قريبًا');
+        showMenuToast(uiText.moreSoon);
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
       }
@@ -1921,3 +2069,4 @@
   });
 </script>
 {% endblock extra_scripts %}
+

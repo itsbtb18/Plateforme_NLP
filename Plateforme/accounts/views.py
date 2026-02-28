@@ -186,6 +186,7 @@ class ProfileView(DetailView):
         context['relation_state'] = relation_state
         context['is_friend'] = is_friend
         context['can_view_full_profile'] = can_view_full
+        context['can_view_contributions'] = True
         context['page'] = 'profile'
 
         # Public resources are always visible (profile public view)
@@ -194,43 +195,43 @@ class ProfileView(DetailView):
             author=profile_user, approval_status='approved'
         ).order_by('-creation_date')[:6]
 
-        if can_view_full:
-            # User's projects
-            context['user_projects'] = Project.objects.filter(
-                members__member=profile_user,
-                members__status='accepted'
-            ).distinct()[:6]
+        # Show user contributions publicly on profile pages
+        user_projects_qs = Project.objects.filter(
+            members__member=profile_user,
+            members__status='accepted'
+        ).distinct()
+        context['user_projects'] = user_projects_qs[:6]
 
-            # User's posts (QA)
-            from QA.models import Post
-            context['user_posts'] = Post.objects.filter(
-                author=profile_user, approval_status='approved'
-            ).order_by('-created_at')[:6]
+        from QA.models import Post
+        user_posts_qs = Post.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-created_at')
+        context['user_posts'] = user_posts_qs[:6]
 
-            # User's courses (as teacher)
-            from resources.models import Course
-            context['user_courses'] = Course.objects.filter(
-                teacher=profile_user, approval_status='approved'
-            ).order_by('-creation_date')[:6]
+        from resources.models import Course, Corpus
+        user_courses_qs = Course.objects.filter(
+            teacher=profile_user, approval_status='approved'
+        ).order_by('-creation_date')
+        context['user_courses'] = user_courses_qs[:6]
 
-            # User's forum topics
-            from forum.models import Topic
-            context['user_topics'] = Topic.objects.filter(
-                creator=profile_user, approval_status='approved'
-            ).order_by('-created_at')[:6]
+        from forum.models import Topic
+        user_topics_qs = Topic.objects.filter(
+            creator=profile_user, approval_status='approved'
+        ).order_by('-created_at')
+        context['user_topics'] = user_topics_qs[:6]
 
-            from events.models import EventRegistration
-            today = timezone.now().date()
-            regs = EventRegistration.objects.filter(user=profile_user).select_related('event')
-            context['upcoming_events'] = regs.filter(event__start_date__gte=today).order_by('event__start_date')[:6]
-            context['past_events'] = regs.filter(event__start_date__lt=today).order_by('-event__start_date')[:6]
-        else:
-            context['user_projects'] = Project.objects.none()
-            context['user_posts'] = []
-            context['user_courses'] = []
-            context['user_topics'] = []
-            context['upcoming_events'] = []
-            context['past_events'] = []
+        from events.models import EventRegistration
+        today = timezone.now().date()
+        regs = EventRegistration.objects.filter(user=profile_user).select_related('event')
+        context['upcoming_events'] = regs.filter(event__start_date__gte=today).order_by('event__start_date')[:6]
+        context['past_events'] = regs.filter(event__start_date__lt=today).order_by('-event__start_date')[:6]
+
+        # Profile headline stats for "social-pro" header
+        context['user_projects_count'] = user_projects_qs.count()
+        context['user_corpus_count'] = Corpus.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).count()
+        context['user_news_count'] = user_posts_qs.count()
 
         return context
 

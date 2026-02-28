@@ -618,6 +618,15 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return self.render_to_response(context)
 
     def get_template_names(self):
+        # In admin review mode, force the shared detail template so all
+        # resource types (tools/corpus/articles/...) use the same approval UI.
+        if (
+            self.request.user.is_authenticated
+            and self.request.user.is_staff
+            and self.request.GET.get('admin_review') == '1'
+        ):
+            return [self.template_name]
+
         return [
             f"resources/{self.kwargs['type']}_detail.html",
             self.template_name
@@ -770,6 +779,13 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def form_valid(self, form):
         resource = cast(ResourceBase, self.get_object())
         resource_type = self.kwargs['type']
+        review_mode = self.request.GET.get('review') == '1' and self.request.user.is_staff
+        edit_only = self.request.GET.get('edit_only') == '1' and self.request.user.is_staff
+
+        # In review view mode, form must be read-only. Only approve/reject actions are allowed.
+        if review_mode and not edit_only:
+            messages.warning(self.request, _("This form is read-only in review mode. Use Edit mode to modify fields."))
+            return redirect(self.request.get_full_path())
         
         # Use form.save() which correctly handles all fields and type-specific logic
         try:
@@ -818,6 +834,14 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             return redirect(self.get_admin_redirect_url(resource_type))
         
         messages.success(self.request, _("Resource '%(title)s' updated successfully!") % {'title': resource.title})
+
+        # In admin edit-only mode, go back to the review detail page to allow approve/reject.
+        if edit_only and self.request.GET.get('review_model') and self.request.GET.get('review_pk'):
+            return redirect(
+                'pages:admin_view_item',
+                model_type=self.request.GET.get('review_model'),
+                pk=self.request.GET.get('review_pk'),
+            )
         
         # In review mode, redirect back to admin
         if self.request.GET.get('review') == '1' and self.request.user.is_staff:
@@ -856,6 +880,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         context['page'] = 'resources'
         # Check if in admin review mode
         context['review_mode'] = self.request.GET.get('review') == '1'
+        context['edit_only'] = self.request.GET.get('edit_only') == '1'
         resource = self.get_object()
         context['is_pending'] = getattr(resource, 'approval_status', None) == 'pending'
         context['resource'] = resource
@@ -1015,14 +1040,23 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
         
         try:
             resource = form.save()
-            logger.info(f"[COURSE_CREATE] ✓ Course saved successfully (ID: {resource.id})")
-            messages.info(
-                self.request, 
-                _("Your course '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
-            )
+            if self.request.user.is_staff and getattr(resource, 'approval_status', None) != 'approved':
+                resource.approval_status = 'approved'
+                resource.save(update_fields=['approval_status'])
+                logger.info(f"[COURSE_CREATE] Auto-approved staff course (ID: {resource.id})")
+                messages.success(
+                    self.request,
+                    _("Your course '%(title)s' has been created and published.") % {'title': resource.title}
+                )
+            else:
+                logger.info(f"[COURSE_CREATE] Course saved successfully (ID: {resource.id})")
+                messages.info(
+                    self.request,
+                    _("Your course '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+                )
             return super().form_valid(form)
         except Exception as e:
-            logger.error(f"[COURSE_CREATE] ✗ Error saving course: {str(e)}", exc_info=True)
+            logger.error(f"[COURSE_CREATE] Error saving course: {str(e)}", exc_info=True)
             messages.error(
                 self.request,
                 _("An error occurred while creating the course. Please try again.")

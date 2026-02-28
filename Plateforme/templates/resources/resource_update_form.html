@@ -361,6 +361,29 @@
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
+.btn-reject {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border: 1px solid #ef4444;
+    background: #ffffff;
+    color: #dc2626;
+    transition: all 0.3s ease;
+}
+
+.btn-reject:hover {
+    background: #fee2e2;
+    border-color: #dc2626;
+    color: #b91c1c;
+    transform: translateY(-2px);
+}
+
 .btn-submit:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
@@ -419,7 +442,8 @@ html[dir="rtl"] .form-actions {
 }
 
 html[dir="rtl"] .btn-cancel,
-html[dir="rtl"] .btn-submit {
+html[dir="rtl"] .btn-submit,
+html[dir="rtl"] .btn-reject {
     flex-direction: row-reverse;
 }
 
@@ -584,7 +608,7 @@ ul.list-unstyled.checkbox-grid {
         gap: 1rem;
     }
     
-    .btn-cancel, .btn-submit {
+    .btn-cancel, .btn-submit, .btn-reject {
         width: 100%;
         justify-content: center;
     }
@@ -608,8 +632,8 @@ ul.list-unstyled.checkbox-grid {
         <header class="page-header">
             <h1>
                 <i class="bi bi-pencil-square"></i>
-                {% if review_mode and is_pending %}
-                    {% trans "Review & Edit Resource" %}
+                {% if review_mode and is_pending and not edit_only %}
+                    {% trans "Review Resource" %}
                 {% else %}
                     {% trans "Update Resource" %}
                 {% endif %}
@@ -626,12 +650,12 @@ ul.list-unstyled.checkbox-grid {
         </header>
         
         <!-- Review Mode Alert -->
-        {% if review_mode and is_pending %}
+        {% if review_mode and is_pending and not edit_only %}
         <div class="review-alert">
             <i class="bi bi-info-circle-fill"></i>
             <div class="review-alert-content">
                 <h4>{% trans "Admin Review Mode" %}</h4>
-                <p>{% trans "Please review and complete all bilingual fields (Arabic & English) before approving." %}</p>
+                <p>{% trans "This form is read-only. Use the edit action to modify fields, then return to approve or reject." %}</p>
             </div>
         </div>
         {% endif %}
@@ -925,13 +949,24 @@ ul.list-unstyled.checkbox-grid {
                     {% trans "Back to Admin" %}
                 </a>
                 <div style="display: flex; gap: 0.75rem;">
-                    <button type="submit" class="btn-submit" id="submit-btn">
-                        <span class="spinner"></span>
-                        <i class="bi bi-check2"></i>
-                        <span class="btn-text">{% trans "Save Draft" %}</span>
+                    {% if not edit_only and request.GET.review_model and request.GET.review_pk %}
+                    <a href="?edit_only=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn-cancel">
+                        <i class="bi bi-pencil-square"></i>
+                        {% trans "Edit Form" %}
+                    </a>
+                    {% endif %}
+                    {% if is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
+                    <button type="submit"
+                            class="btn-reject"
+                            formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                            onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                        <i class="bi bi-x-circle"></i>
+                        <span>{% trans "Reject" %}</span>
                     </button>
-                    {% if is_pending %}
-                    <button type="submit" name="approve_and_publish" value="1" class="btn-submit" style="background: linear-gradient(135deg, #059669, #10b981);">
+                    <button type="submit"
+                            class="btn-submit"
+                            formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                            style="background: linear-gradient(135deg, #059669, #10b981);">
                         <i class="bi bi-check-circle"></i>
                         <span>{% trans "Approve & Publish" %}</span>
                     </button>
@@ -979,6 +1014,17 @@ document.addEventListener('DOMContentLoaded', function() {
             el.classList.add('form-control');
         }
     });
+
+    {% if review_mode and not edit_only %}
+    // Read-only view mode: fields are not editable from the "view form" action.
+    document.querySelectorAll('#resource-form input, #resource-form textarea, #resource-form select').forEach(el => {
+        const isButton = el.type === 'button' || el.type === 'submit' || el.type === 'reset';
+        const isHidden = el.type === 'hidden';
+        if (isButton || isHidden) return;
+        el.setAttribute('readonly', 'readonly');
+        el.setAttribute('disabled', 'disabled');
+    });
+    {% endif %}
 });
 </script>
 {% endblock %}

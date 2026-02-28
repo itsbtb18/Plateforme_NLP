@@ -922,6 +922,35 @@ html[dir="rtl"] .ai-badge-inline {
     color: var(--ed-danger);
     background: var(--ed-danger-bg);
 }
+
+.ed-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: var(--ed-radius-md);
+    border: 1px solid transparent;
+    font-weight: 700;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+}
+
+.ed-review-btn:hover {
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.ed-review-btn.back { background: #475569; }
+.ed-review-btn.edit { background: #1d4ed8; }
+.ed-review-btn.reject { background: #b91c1c; }
+.ed-review-btn.approve { background: #047857; }
+
+.ed-review-form {
+    display: inline-flex;
+    margin: 0;
+}
 </style>
 {% endblock %}
 
@@ -1062,7 +1091,26 @@ html[dir="rtl"] .ai-badge-inline {
                 </a>
                 {% endif %}
                 
-                {% if request.user == event.author %}
+                {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                <a class="ed-review-btn back" href="{% url 'pages:admin_calls' %}?tab=pending">
+                    <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
+                </a>
+                <a class="ed-review-btn edit" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
+                    <i class="bi bi-pencil-square"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}
+                </a>
+                <form method="post" action="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="ed-review-form">
+                    {% csrf_token %}
+                    <button type="submit" class="ed-review-btn reject">
+                        <i class="bi bi-x-circle"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% translate "Refuse" %}{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="ed-review-form">
+                    {% csrf_token %}
+                    <button type="submit" class="ed-review-btn approve">
+                        <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
+                    </button>
+                </form>
+                {% elif request.user == event.author %}
                 <a href="{% url 'events:event-update' pk=event.pk %}" class="ed-btn-action btn-edit">
                     <i class="bi bi-pencil"></i>
                     <span>{% translate "Edit" %}</span>
