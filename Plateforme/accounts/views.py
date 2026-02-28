@@ -176,6 +176,13 @@ class ProfileView(DetailView):
         context = super().get_context_data(**kwargs)
         profile_user = self.get_object()
         viewer = self.request.user if self.request.user.is_authenticated else None
+        selected_section = (self.request.GET.get('section') or 'all').strip().lower()
+        valid_sections = {
+            'all', 'posts', 'courses', 'resources', 'tools', 'corpora',
+            'projects', 'topics', 'events_upcoming', 'events_past', 'events_created'
+        }
+        if selected_section not in valid_sections:
+            selected_section = 'all'
 
         is_own_profile = bool(viewer and viewer == profile_user)
         relation_state = Friendship.relation_state(viewer, profile_user) if viewer else 'NEUTRE'
@@ -188,50 +195,92 @@ class ProfileView(DetailView):
         context['can_view_full_profile'] = can_view_full
         context['can_view_contributions'] = True
         context['page'] = 'profile'
+        context['selected_section'] = selected_section
 
         # Public resources are always visible (profile public view)
         from resources.models import Document
-        context['user_resources'] = Document.objects.filter(
+        user_resources_qs = Document.objects.filter(
             author=profile_user, approval_status='approved'
-        ).order_by('-creation_date')[:6]
+        ).order_by('-creation_date')
 
         # Show user contributions publicly on profile pages
         user_projects_qs = Project.objects.filter(
             members__member=profile_user,
             members__status='accepted'
         ).distinct()
-        context['user_projects'] = user_projects_qs[:6]
 
         from QA.models import Post
         user_posts_qs = Post.objects.filter(
             author=profile_user, approval_status='approved'
         ).order_by('-created_at')
-        context['user_posts'] = user_posts_qs[:6]
 
-        from resources.models import Course, Corpus
+        from resources.models import Course, Corpus, NLPTool
         user_courses_qs = Course.objects.filter(
             teacher=profile_user, approval_status='approved'
         ).order_by('-creation_date')
-        context['user_courses'] = user_courses_qs[:6]
+
+        user_corpora_qs = Corpus.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-creation_date')
+
+        user_tools_qs = NLPTool.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-creation_date')
 
         from forum.models import Topic
         user_topics_qs = Topic.objects.filter(
             creator=profile_user, approval_status='approved'
         ).order_by('-created_at')
-        context['user_topics'] = user_topics_qs[:6]
 
-        from events.models import EventRegistration
+        from events.models import Event, EventRegistration
         today = timezone.now().date()
         regs = EventRegistration.objects.filter(user=profile_user).select_related('event')
-        context['upcoming_events'] = regs.filter(event__start_date__gte=today).order_by('event__start_date')[:6]
-        context['past_events'] = regs.filter(event__start_date__lt=today).order_by('-event__start_date')[:6]
+        upcoming_events_qs = regs.filter(event__start_date__gte=today).order_by('event__start_date')
+        past_events_qs = regs.filter(event__start_date__lt=today).order_by('-event__start_date')
+        user_events_qs = Event.objects.filter(
+            created_by=profile_user, approval_status='approved'
+        ).order_by('-start_date')
+
+        def section_items(queryset, section_key: str):
+            if selected_section in ('all', section_key):
+                return queryset if selected_section == section_key else queryset[:6]
+            return queryset.none()
+
+        context['user_posts'] = section_items(user_posts_qs, 'posts')
+        context['user_courses'] = section_items(user_courses_qs, 'courses')
+        context['user_resources'] = section_items(user_resources_qs, 'resources')
+        context['user_tools'] = section_items(user_tools_qs, 'tools')
+        context['user_corpora'] = section_items(user_corpora_qs, 'corpora')
+        context['user_projects'] = section_items(user_projects_qs, 'projects')
+        context['user_topics'] = section_items(user_topics_qs, 'topics')
+        context['upcoming_events'] = section_items(upcoming_events_qs, 'events_upcoming')
+        context['past_events'] = section_items(past_events_qs, 'events_past')
+        context['user_events'] = section_items(user_events_qs, 'events_created')
 
         # Profile headline stats for "social-pro" header
         context['user_projects_count'] = user_projects_qs.count()
-        context['user_corpus_count'] = Corpus.objects.filter(
-            author=profile_user, approval_status='approved'
-        ).count()
+        context['user_corpus_count'] = user_corpora_qs.count()
         context['user_news_count'] = user_posts_qs.count()
+        context['user_courses_count'] = user_courses_qs.count()
+        context['user_resources_count'] = user_resources_qs.count()
+        context['user_tools_count'] = user_tools_qs.count()
+        context['user_topics_count'] = user_topics_qs.count()
+        context['upcoming_events_count'] = upcoming_events_qs.count()
+        context['past_events_count'] = past_events_qs.count()
+        context['user_events_count'] = user_events_qs.count()
+        section_counts = {
+            'posts': context['user_news_count'],
+            'courses': context['user_courses_count'],
+            'resources': context['user_resources_count'],
+            'tools': context['user_tools_count'],
+            'corpora': context['user_corpus_count'],
+            'projects': context['user_projects_count'],
+            'topics': context['user_topics_count'],
+            'events_upcoming': context['upcoming_events_count'],
+            'events_past': context['past_events_count'],
+            'events_created': context['user_events_count'],
+        }
+        context['selected_section_count'] = section_counts.get(selected_section, 0)
 
         return context
 

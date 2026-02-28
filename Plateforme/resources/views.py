@@ -622,7 +622,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         # resource types (tools/corpus/articles/...) use the same approval UI.
         if (
             self.request.user.is_authenticated
-            and self.request.user.is_staff
+            and (self.request.user.is_staff or self.request.user.is_superuser)
             and self.request.GET.get('admin_review') == '1'
         ):
             return [self.template_name]
