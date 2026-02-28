@@ -639,6 +639,20 @@ ul.list-unstyled.checkbox-grid {
         <form method="post" enctype="multipart/form-data" id="resource-form" novalidate>
             {% csrf_token %}
             
+            {% if form.errors %}
+            <div class="alert alert-danger" style="border-radius: var(--radius-lg); padding: 1rem 1.5rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-exclamation-triangle-fill" style="margin-inline-end: 0.5rem;"></i>
+                <strong>{% trans "Please correct the errors below:" %}</strong>
+                <ul style="margin: 0.5rem 0 0; padding-inline-start: 1.25rem;">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
             <!-- Hidden fields -->
             {{ form.resource_type.as_hidden }}
             {% if form.initial.resource_type == 'document' %}
@@ -658,13 +672,13 @@ ul.list-unstyled.checkbox-grid {
                 </div>
                 <div class="section-body">
                     
-                    <!-- Title -->
+                    <!-- Title (English) -->
                     <div class="form-group">
-                        <label for="id_title">
+                        <label for="id_title_en">
                             {% trans "Title" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
-                        {{ form.title }}
+                        {{ form.title_en }}
                     </div>
                     
                     <!-- Language -->
@@ -673,13 +687,13 @@ ul.list-unstyled.checkbox-grid {
                         {{ form.language }}
                     </div>
                     
-                    <!-- Description -->
+                    <!-- Description (English) -->
                     <div class="form-group">
-                        <label for="id_description">
+                        <label for="id_description_en">
                             {% trans "Description" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
-                        {{ form.description }}
+                        {{ form.description_en }}
                     </div>
                     
                     <!-- Keywords -->
@@ -698,7 +712,7 @@ ul.list-unstyled.checkbox-grid {
                 </div>
             </section>
             
-            <!-- Section 2: Bilingual Content (Admin/Review Mode) -->
+            <!-- Section 2: Arabic Translation (Admin/Review Mode) -->
             {% if review_mode or request.user.is_staff %}
             <section class="section-card">
                 <div class="section-header">
@@ -706,75 +720,23 @@ ul.list-unstyled.checkbox-grid {
                         <i class="bi bi-translate"></i>
                     </div>
                     <div class="section-header-text">
-                        <h2>{% trans "Bilingual Content" %}</h2>
-                        <p>{% trans "Required for approval - provide content in both languages" %}</p>
+                        <h2>{% trans "Arabic Translation" %}</h2>
+                        <p>{% trans "Required for approval - provide content in Arabic" %}</p>
                     </div>
                 </div>
                 <div class="section-body">
-                    <div class="bilingual-grid">
-                        
-                        <!-- English Column -->
-                        <div class="bilingual-column english">
-                            <h5><i class="bi bi-globe"></i> {% trans "English" %}</h5>
-                            
-                            <div class="form-group">
-                                <label for="id_title_en">
-                                    {% trans "Title (English)" %}
-                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
-                                </label>
-                                <input type="text" 
-                                       name="title_en" 
-                                       id="id_title_en"
-                                       class="form-control" 
-                                       value="{{ resource.title_en|default:'' }}" 
-                                       placeholder="{% trans 'Enter title in English' %}">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="id_description_en">
-                                    {% trans "Description (English)" %}
-                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
-                                </label>
-                                <textarea name="description_en" 
-                                          id="id_description_en"
-                                          class="form-control" 
-                                          rows="5" 
-                                          placeholder="{% trans 'Enter description in English' %}">{{ resource.description_en|default:'' }}</textarea>
-                            </div>
-                        </div>
-                        
-                        <!-- Arabic Column -->
-                        <div class="bilingual-column arabic">
-                            <h5><i class="bi bi-globe"></i> {% trans "Arabic" %}</h5>
-                            
-                            <div class="form-group">
-                                <label for="id_title_ar">
-                                    {% trans "Title (Arabic)" %}
-                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
-                                </label>
-                                <input type="text" 
-                                       name="title_ar" 
-                                       id="id_title_ar"
-                                       class="form-control" 
-                                       dir="rtl" 
-                                       value="{{ resource.title_ar|default:'' }}" 
-                                       placeholder="{% trans 'Enter title in Arabic' %}">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="id_description_ar">
-                                    {% trans "Description (Arabic)" %}
-                                    <span class="required-badge"><i class="bi bi-asterisk"></i></span>
-                                </label>
-                                <textarea name="description_ar" 
-                                          id="id_description_ar"
-                                          class="form-control" 
-                                          rows="5" 
-                                          dir="rtl" 
-                                          placeholder="{% trans 'Enter description in Arabic' %}">{{ resource.description_ar|default:'' }}</textarea>
-                            </div>
-                        </div>
-                        
+                    <div class="form-group">
+                        <label for="id_title_ar">
+                            {% trans "Title (Arabic)" %}
+                        </label>
+                        {{ form.title_ar }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_description_ar">
+                            {% trans "Description (Arabic)" %}
+                        </label>
+                        {{ form.description_ar }}
                     </div>
                 </div>
             </section>

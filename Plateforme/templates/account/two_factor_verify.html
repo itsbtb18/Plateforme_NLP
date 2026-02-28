@@ -40,22 +40,21 @@
         }
 
         html[dir="rtl"] .email-info {
-            border-left: none;
-            border-right: 4px solid #1a73e8;
+            /* border-inline-start handles RTL automatically */
         }
 
         html[dir="rtl"] .form-buttons {
             align-items: flex-start;
         }
 
-        html[dir="rtl"] .message-box.error,
-        html[dir="rtl"] .message-box.success {
-            border-left: none;
-            border-right: 4px solid;
+        html[dir="rtl"] .fa-arrow-left::before {
+            content: "\f061"; /* arrow-right in RTL */
         }
 
-        html[dir="rtl"] .message-box.error { border-right-color: #dc3545; }
-        html[dir="rtl"] .message-box.success { border-right-color: #28a745; }
+        html[dir="rtl"] .message-box.error,
+        html[dir="rtl"] .message-box.success {
+            /* border-inline-start handles RTL automatically */
+        }
 
         body {
             background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
@@ -76,11 +75,13 @@
             height: 200px;
             background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
             z-index: 0;
+            pointer-events: none;
         }
 
         .main-wrapper {
             width: 100%;
             max-width: 420px;
+            margin-inline: auto;
             position: relative;
             z-index: 1;
         }
@@ -90,6 +91,8 @@
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
             padding: 40px 30px;
+            position: relative;
+            z-index: 2;
             animation: slideUp 0.5s ease-out;
         }
 
@@ -143,12 +146,16 @@
 
         .email-info {
             background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.04) 100%);
-            border-left: 4px solid #1a73e8;
+            border-inline-start: 4px solid #1a73e8;
             border-radius: 10px;
             padding: 14px;
-            margin-bottom: 25px;
+            margin-bottom: 1.5rem;
             font-size: 0.9rem;
             color: #202124;
+        }
+
+        .email-info i {
+            margin-inline-end: 6px;
         }
 
         .email-info strong {
@@ -167,6 +174,10 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        label i {
+            margin-inline-end: 4px;
         }
 
         .otp-input-container {
@@ -195,7 +206,6 @@
             box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
         }
 
-        /* Alternative: Single input field */
         input[type="text"]#otp_code {
             width: 100%;
             padding: 14px;
@@ -207,6 +217,8 @@
             letter-spacing: 3px;
             transition: all 0.3s;
             text-align: center;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
         input[type="text"]#otp_code:focus {
@@ -239,18 +251,20 @@
             display: none;
         }
 
+        .message-box.visible {
+            display: block;
+        }
+
         .message-box.error {
             background: #f8d7da;
             color: #721c24;
-            border-left: 4px solid #dc3545;
-            display: block;
+            border-inline-start: 4px solid #dc3545;
         }
 
         .message-box.success {
             background: #d4edda;
             color: #155724;
-            border-left: 4px solid #28a745;
-            display: block;
+            border-inline-start: 4px solid #28a745;
         }
 
         .form-buttons {
@@ -381,12 +395,17 @@
             <!-- Security Icon -->
             <div class="security-icon-section">
                 <div class="security-icon">
-                    <i class="fas fa-shield-check"></i>
+                    <i class="fas fa-shield-halved"></i>
                 </div>
             </div>
 
+            {% if is_signup_verification %}
+            <h1 class="page-title">{% trans "Verify Your Email" %}</h1>
+            <p class="page-subtitle">{% trans "Enter the code sent to your email to activate your account" %}</p>
+            {% else %}
             <h1 class="page-title">{% trans "Verify Your Identity" %}</h1>
             <p class="page-subtitle">{% trans "Enter the security code sent to your email" %}</p>
+            {% endif %}
 
             <!-- Email Info -->
             <div class="email-info">
@@ -394,8 +413,8 @@
                 {% trans "Code sent to" %}: <strong>{{ user_email }}</strong>
             </div>
 
-            <!-- Message Box -->
-            <div class="message-box error" id="messageBox"></div>
+            <!-- Message Box (hidden by default, shown via JS) -->
+            <div class="message-box" id="messageBox"></div>
 
             <!-- Form -->
             <form id="otpForm" method="post">
@@ -443,10 +462,17 @@
                 </button>
             </div>
 
-            <!-- Different Email / Logout -->
+            {% if is_signup_verification %}
+            <!-- Back to Sign Up -->
+            <a href="{% url 'account_signup' %}" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
+                <i class="fas fa-arrow-left"></i> {% trans "Back to Sign Up" %}
+            </a>
+            {% else %}
+            <!-- Use Different Email / Logout -->
             <a href="{% url 'accounts:account_logout' %}" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
                 <i class="fas fa-redo"></i> {% trans "Use Different Email" %}
             </a>
+            {% endif %}
 
             <!-- Back to Main Page -->
             <a href="{% url 'pages:home' %}" style="display:block; width:100%; padding:12px; margin-top:15px; background:#f8f9fa; color:#666; border:2px solid #ddd; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
@@ -468,13 +494,18 @@
 
         // Timer countdown
         function updateTimer() {
+            if (remainingSeconds <= 0) {
+                timerMinutes.textContent = '0';
+                timerSeconds.textContent = '00';
+                verifyBtn.disabled = true;
+                showMessage('Code expired. Please request a new one.', 'error');
+                return;
+            }
             remainingSeconds--;
             const minutes = Math.floor(remainingSeconds / 60);
             const seconds = remainingSeconds % 60;
-            
             timerMinutes.textContent = minutes;
             timerSeconds.textContent = seconds.toString().padStart(2, '0');
-            
             if (remainingSeconds > 0) {
                 setTimeout(updateTimer, 1000);
             } else {
@@ -485,17 +516,17 @@
 
         // Show/hide messages
         function showMessage(text, type = 'error') {
+            messageBox.textContent = '';
             messageBox.innerHTML = text;
-            messageBox.className = `message-box ${type}`;
+            messageBox.className = 'message-box visible ' + type;
         }
 
         // Format OTP input (only digits)
-        otpInput.addEventListener('input', function(event) {
-            event.stopPropagation();
+        otpInput.addEventListener('input', function() {
             this.value = this.value.replace(/[^0-9]/g, '');
-        }, true);
+        });
 
-        // Focus on input load
+        // Focus on input on page load
         document.addEventListener('DOMContentLoaded', function() {
             otpInput.focus();
         });
@@ -503,20 +534,19 @@
         // Verify OTP
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            e.stopPropagation();
-            
+
             const otp = otpInput.value.trim();
-            
+
             if (!otp || otp.length !== 6) {
                 showMessage('&#9888; Please enter a valid 6-digit code.', 'error');
-                return false;
+                return;
             }
-            
+
             verifyBtn.disabled = true;
             verifyBtn.innerHTML = '<i class="spinner"></i> Verifying...';
-            
+
             const formData = new FormData(form);
-            
+
             fetch(window.location.href, {
                 method: 'POST',
                 body: formData,
@@ -525,24 +555,20 @@
                     'Accept': 'application/json'
                 }
             })
-            .then(response => {
+            .then(function(response) {
                 if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error(`HTTP ${response.status}: ${text}`);
-                    });
+                    throw new Error('HTTP ' + response.status);
                 }
                 return response.json();
             })
-            .then(data => {
+            .then(function(data) {
                 if (data && data.success) {
                     showMessage('✅ ' + (data.message || 'Verification successful'), 'success');
-                    setTimeout(() => {
-                        const redirectUrl = data.redirect_url || '/';
-                        console.log('Redirecting to:', redirectUrl);
-                        window.location.replace(redirectUrl);
+                    setTimeout(function() {
+                        window.location.replace(data.redirect_url || '/');
                     }, 800);
                 } else {
-                    const errorMsg = data && data.message ? data.message : 'Verification failed';
+                    var errorMsg = data && data.message ? data.message : 'Verification failed';
                     showMessage('❌ ' + errorMsg, 'error');
                     verifyBtn.disabled = false;
                     verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Code';
@@ -550,50 +576,46 @@
                     otpInput.focus();
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Verification error:', error);
                 showMessage('❌ An error occurred. Please try again.', 'error');
                 verifyBtn.disabled = false;
                 verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Code';
                 otpInput.focus();
             });
-            
-            return false;
-        }, true);
+        });
 
         // Resend OTP
         if (resendBtn) {
             resendBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
-                
+
                 resendBtn.disabled = true;
                 resendBtn.innerHTML = '<i class="spinner"></i> Sending...';
-                
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-                
+
+                var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
                 if (!csrfToken) {
                     showMessage('❌ Security token not found. Please refresh.', 'error');
                     resendBtn.disabled = false;
                     resendBtn.innerHTML = '<i class="fas fa-envelope"></i> Resend Code';
-                    return false;
+                    return;
                 }
-                
+
                 fetch('{% url "accounts:resend_otp" %}', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': csrfToken,
+                        'X-CSRFToken': csrfToken.value,
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'Accept': 'application/json'
                     }
                 })
-                .then(response => {
+                .then(function(response) {
                     if (!response.ok) {
                         throw new Error('Resend failed');
                     }
                     return response.json();
                 })
-                .then(data => {
+                .then(function(data) {
                     if (data && data.success) {
                         showMessage('✅ ' + (data.message || 'Code resent successfully'), 'success');
                         remainingSeconds = 300;
@@ -602,33 +624,23 @@
                         otpInput.focus();
                         verifyBtn.disabled = false;
                     } else {
-                        const errorMsg = data && data.message ? data.message : 'Failed to resend code';
+                        var errorMsg = data && data.message ? data.message : 'Failed to resend code';
                         showMessage('❌ ' + errorMsg, 'error');
                     }
                 })
-                .catch(error => {
+                .catch(function(error) {
                     console.error('Resend error:', error);
                     showMessage('❌ Failed to resend. Please try again.', 'error');
                 })
-                .finally(() => {
+                .finally(function() {
                     resendBtn.disabled = false;
                     resendBtn.innerHTML = '<i class="fas fa-envelope"></i> Resend Code';
                 });
-                
-                return false;
-            }, true);
+            });
         }
 
         // Start timer
         updateTimer();
-
-        // Ensure proper page behavior
-        document.addEventListener('click', function(e) {
-            // Allow links to navigate normally
-            if (e.target.tagName === 'A' && !e.target.closest('form')) {
-                console.log('Navigating to:', e.target.href);
-            }
-        }, false);
     </script>
 </body>
 </html>

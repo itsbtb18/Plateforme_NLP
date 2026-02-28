@@ -18,77 +18,88 @@ User = get_user_model()
 
 class OTPVerificationView(View):
     """
-    Phase 2 & 3 & 4: OTP Verification after login
-    User is redirected here after successful username/password verification
+    OTP Verification for signup (account activation).
+    User is redirected here after registration to verify their email.
     """
     template_name = 'account/two_factor_verify.html'
-    
+
     def get(self, request):
-        # Check if user is in "pending_2fa" state
         user_id = request.session.get('pending_2fa_user_id')
-        
+        is_signup = request.session.get('pending_2fa_is_signup', False)
+
         if not user_id:
-            messages.error(request, "Invalid request. Please try logging in again.")
+            if is_signup:
+                messages.error(request, _("Session expired. Please sign up again."))
+                return redirect('account_signup')
+            messages.error(request, _("Invalid request. Please try logging in again."))
             return redirect('account_login')
-        
+
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            messages.error(request, "User not found. Please try logging in again.")
-            return redirect('account_login')
-        
-        # Get OTP expiry info
+            messages.error(request, _("User not found. Please try again."))
+            return redirect('account_signup' if is_signup else 'account_login')
+
         expiry_info = get_otp_expiry(user_id)
-        
+
         context = {
             'user_email': user.email,
             'user_name': user.full_name,
             'remaining_seconds': expiry_info.get('remaining_seconds', 0),
+            'is_signup_verification': is_signup,
         }
         return render(request, self.template_name, context)
-    
+
     def post(self, request):
         user_id = request.session.get('pending_2fa_user_id')
-        
+        is_signup = request.session.get('pending_2fa_is_signup', False)
+
         if not user_id:
-            return JsonResponse({'success': False, 'message': 'Session expired. Please try logging in again.'})
-        
-        # Get the OTP code from form
+            return JsonResponse({'success': False, 'message': _('Session expired. Please try again.')})
+
         otp_code = request.POST.get('otp_code', '').strip()
-        
+
         if not otp_code:
-            return JsonResponse({'success': False, 'message': 'Please enter the OTP code.'})
-        
-        # Verify OTP
+            return JsonResponse({'success': False, 'message': _('Please enter the verification code.')})
+
         result = verify_otp(user_id, otp_code)
-        
+
         if result['valid']:
-            # OTP is valid! Log the user in
             try:
                 user = User.objects.get(id=user_id)
-                
-                # Retrieve remember-me preference
+
+                # Activate account if this is signup verification
+                if is_signup:
+                    user.is_active = True
+                    if hasattr(user, 'is_verified'):
+                        user.is_verified = True
+                    if hasattr(user, 'status'):
+                        user.status = 'active'
+                    user.save()
+
                 remember = request.session.get('pending_2fa_remember', False)
 
-                # Clear 2FA session keys
-                del request.session['pending_2fa_user_id']
-                request.session.pop('pending_2fa_remember', None)
+                # Clear all 2FA session keys before login
+                for key in ['pending_2fa_user_id', 'pending_2fa_remember', 'pending_2fa_is_signup']:
+                    request.session.pop(key, None)
                 request.session.save()
-                
+
                 # Log user in
                 auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
 
-                # Apply remember-me preference
                 if remember:
                     request.session.set_expiry(None)
                 else:
                     request.session.set_expiry(0)
-                
-                messages.success(request, _("Two-factor authentication successful!"))
+
+                if is_signup:
+                    messages.success(request, _("Account verified successfully! Welcome!"))
+                else:
+                    messages.success(request, _("Two-factor authentication successful!"))
                 return JsonResponse({'success': True, 'redirect_url': '/'})
-            
+
             except User.DoesNotExist:
-                return JsonResponse({'success': False, 'message': 'User not found.'})
+                return JsonResponse({'success': False, 'message': _('User not found.')})
         else:
             return JsonResponse({'success': False, 'message': result['message']})
 
