@@ -109,6 +109,7 @@ async def search_nlp_knowledge(
             query_vector=qe,
             limit=k,
             query_filter=qf,
+            score_threshold=0.45,
         )
         if not hits:
             return []
@@ -135,6 +136,8 @@ async def search_nlp_knowledge(
                     "difficulty": r.difficulty,
                     "source": "nlp_knowledge",
                     "similarity": score_map[pid],
+                    "document_type": getattr(r, "document_type", None),
+                    "section_title": getattr(r, "section_title", None),
                 }
             )
         return results
@@ -238,6 +241,7 @@ async def search_legal_documents(
                 query_vector=qe,
                 limit=k,
                 query_filter=lang_filter,
+                score_threshold=0.50,
             )
             if len(lang_hits) >= max(1, k // 2):
                 hits = lang_hits
@@ -248,6 +252,7 @@ async def search_legal_documents(
                     collection=COLLECTION_LEGAL_DOCUMENTS,
                     query_vector=qe,
                     limit=k,
+                    score_threshold=0.50,
                     query_filter=base_filter,
                 )
                 # Merge: same-language first, then cross-language
@@ -261,6 +266,7 @@ async def search_legal_documents(
                 query_vector=qe,
                 limit=k,
                 query_filter=base_filter,
+                score_threshold=0.50,
             )
 
         if not hits:
@@ -360,6 +366,13 @@ async def search_user_documents(
         score_map = {h["id"]: h["score"] for h in hits}
         payload_map = {h["id"]: h["payload"] for h in hits}
 
+        # Phase 10: Named Entity Boost — extract entities from query,
+        # boost chunks whose payload contains matching entities.
+        from app.services.documents.entities import extract_entities, match_entities
+
+        query_entities = extract_entities(query)
+        ENTITY_BOOST = 0.06  # per matching entity
+
         stmt = select(DocumentChunk).where(DocumentChunk.id.in_(ids))
         rows = (await db.execute(stmt)).scalars().all()
         row_map = {r.id: r for r in rows}
@@ -372,6 +385,13 @@ async def search_user_documents(
             if not r:
                 continue
             sim = score_map[pid]
+
+            # Apply entity boost
+            if query_entities:
+                chunk_entities = payload.get("entities", [])
+                n_matches = match_entities(query_entities, chunk_entities)
+                sim = min(sim + n_matches * ENTITY_BOOST, 1.0)
+
             raw_results.append(
                 {
                     "id": r.id,

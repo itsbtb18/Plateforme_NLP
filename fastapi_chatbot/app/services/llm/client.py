@@ -11,8 +11,9 @@ from app.config import get_settings
 from app.services.llm.prompts import (
     CRITICAL_RULES,
     SYSTEM_PROMPTS,
-    source_rules,
+    identity_hint,
     rag_prompt,
+    source_rules,
 )
 import asyncio
 import logging
@@ -98,6 +99,7 @@ class GroqClient:
         chat_history: Optional[List[Dict[str, Any]]] = None,
         session_summary: Optional[str] = None,
         source_type: Optional[str] = None,
+        username: Optional[str] = None,
     ) -> str:
         """RAG-augmented answer generation.
 
@@ -112,6 +114,7 @@ class GroqClient:
         system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
         if source_type:
             system += source_rules(language, source_type)
+        system += identity_hint(username, language)
 
         # 2) CONVERSATION MEMORY
         if session_summary:
@@ -129,7 +132,7 @@ class GroqClient:
 
         return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
 
-    async def quick_answer(self, question: str, language: str = "en") -> str:
+    async def quick_answer(self, question: str, language: str = "en", username: Optional[str] = None) -> str:
         """Answer without retrieved context.
 
         Phase 10 — Safety: critical rules are included even without RAG.
@@ -140,33 +143,32 @@ class GroqClient:
         system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
         system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
 
-        # Anti-hallucination guardrail for no-context answers
+        # Phase 9 — Conversational Mode guardrail (no RAG context)
         guardrails = {
             "ar": (
-                "\n\n⚠️ تنبيه: لا تتوفر لديك وثائق مرجعية لهذا السؤال. "
-                "أجب فقط إذا كانت الإجابة ضمن تخصصك في معالجة اللغات الطبيعية أو استخدام المنصة. "
-                "إذا لم تكن متأكداً، قل بوضوح أنك لا تملك معلومات كافية بدلاً من الاختراع."
+                "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. "
+                "إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. "
+                "لا تروّج للمنصة تلقائياً."
             ),
             "fr": (
-                "\n\n⚠️ Attention : vous n'avez aucun document de référence pour cette question. "
-                "Répondez uniquement si la réponse relève de votre expertise en NLP ou de l'utilisation de la plateforme. "
-                "Si vous n'êtes pas sûr, dites clairement que vous ne disposez pas d'informations suffisantes plutôt que d'inventer."
+                "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. "
+                "Si vous n'êtes pas sûr, dites-le clairement. "
+                "Ne faites pas la promotion de la plateforme spontanément."
             ),
             "en": (
-                "\n\n⚠️ Note: You have NO reference documents for this question. "
-                "Only answer if the question falls within your expertise in NLP, Arabic language processing, or platform usage. "
-                "If you are unsure or the question is outside your domain, clearly state that you don't have enough information rather than guessing or fabricating an answer."
+                "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. "
+                "If you are unsure, say so clearly. "
+                "Do not promote the platform spontaneously."
             ),
         }
         system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system},
             {"role": "user", "content": question},
         ]
-        # Use configured max_tokens (capped at 2048 for non-RAG answers)
-        tokens = min(settings.GROQ_MAX_TOKENS, 2048)
-        return await self.chat_completion(messages, max_tokens=tokens)
+        return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
 
     # ------------------------------------------------------------------
     # Helpers

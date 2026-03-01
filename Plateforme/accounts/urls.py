@@ -5,7 +5,7 @@ from .views import (
     awaiting_verification_view, delete_account, custom_logout,
     NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api
 )
-from .two_factor_views import OTPVerificationView, ResendOTPView, TwoFactorSettingsView
+from .two_factor_views import OTPVerificationView, ResendOTPView, CancelTwoFactorView, TwoFactorSettingsView
 
 
 app_name = 'accounts'
@@ -28,5 +28,6 @@ urlpatterns = [
     # Two-Factor Authentication
     path('verify-2fa/', OTPVerificationView.as_view(), name='verify_2fa'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
+    path('cancel-2fa/', CancelTwoFactorView.as_view(), name='cancel_2fa'),
     path('2fa-settings/', TwoFactorSettingsView.as_view(), name='two_factor_settings'),
 ]

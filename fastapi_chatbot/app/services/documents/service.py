@@ -152,6 +152,13 @@ class DocumentService:
         await db.commit()
         await db.refresh(doc)
 
+        # Phase 8: Activate document session persistently so subsequent
+        # conversation turns auto-route to document mode.
+        sess.active_document_session = True
+        sess.active_document_id = str(doc.id)
+        sess.low_doc_similarity_streak = 0
+        await db.commit()
+
         # Celery: heavy processing (chunking + embedding generation)
         from app.tasks import process_document
 
