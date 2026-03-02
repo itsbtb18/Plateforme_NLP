@@ -347,6 +347,22 @@ GENERAL_KNOWLEDGE_PATTERNS = [
         r"\b(?:comparer|avantages?|inconvénients?|différences?)\b",
         re.I,
     ),
+    # Advisory / rule-based / theoretical — prevents platform keyword leak
+    # English
+    re.compile(
+        r"\b(?:what|which)\b.*\b(?:rules?|principles?|guidelines?|best practices?|standards?|criteria|ethics?|norms?)\b",
+        re.I,
+    ),
+    re.compile(r"\b(?:how|why)\s+should\b", re.I),
+    # French
+    re.compile(
+        r"\b(?:quelles?|quels?)\b.*\b(?:règles?|principes?|lignes directrices|bonnes pratiques|normes?|critères?|éthiques?)\b",
+        re.I,
+    ),
+    re.compile(r"\b(?:comment|pourquoi)\s+(?:devrait|faut[- ]il|doit[- ]on)\b", re.I),
+    # Arabic
+    re.compile(r"\b(?:ما هي|ما)\b.*\b(?:قواعد|مبادئ|إرشادات|معايير|أخلاقيات|ممارسات)\b"),
+    re.compile(r"\b(?:كيف|لماذا)\s+(?:يجب|ينبغي)\b"),
 ]
 
 # Soft document hints — DISABLED.

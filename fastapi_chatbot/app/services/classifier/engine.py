@@ -213,14 +213,25 @@ class QueryClassifier:
         scores["platform_query"] = self._match_score(
             text, PLATFORM_PATTERNS, base=0.85,
         )
-        # Platform keywords add a weaker signal
-        if self._has_platform_keywords(text):
-            scores["platform_query"] = max(
-                scores["platform_query"], 0.65,
-            )
         scores["general_knowledge"] = self._match_score(
             text, GENERAL_KNOWLEDGE_PATTERNS, base=0.82,
         )
+        # Platform keywords add a weaker signal — but NEVER when the
+        # question has a conceptual/advisory/educational structure.
+        conceptual = (
+            scores["general_knowledge"] > 0
+            or self._is_conceptual_structure(text)
+        )
+        if self._has_platform_keywords(text) and not conceptual:
+            scores["platform_query"] = max(
+                scores["platform_query"], 0.65,
+            )
+
+        # If the question is structurally conceptual, suppress any
+        # platform_query score that may have leaked through patterns
+        # containing ambiguous words ("researcher", "author", etc.).
+        if conceptual and scores["platform_query"] > 0:
+            scores["platform_query"] = 0.0
 
         # conceptual_question is the default — gets a floor score
         scores["conceptual_question"] = 0.0
@@ -250,6 +261,39 @@ class QueryClassifier:
     def _has_platform_keywords(text: str) -> bool:
         lower = text.lower()
         return any(kw in lower for kw in PLATFORM_KEYWORDS)
+
+    @staticmethod
+    def _is_conceptual_structure(text: str) -> bool:
+        """Detect advisory / educational / definitional question structure.
+
+        Returns True when the sentence is clearly asking for knowledge,
+        rules, explanations, or definitions — even if it contains platform
+        keywords like 'researcher' or 'author'.
+        """
+        import re
+        return bool(re.search(
+            r"(?:"
+            # English
+            r"\b(?:what|which)\s+(?:rules?|principles?|guidelines?|steps?|laws?|standards?|criteria|ethics?|norms?|best practices?)\b"
+            r"|\b(?:what\s+(?:is|are|was|were|does|do|should|would|could))\b"
+            r"|\b(?:how|why)\s+(?:should|can|could|do|does|would|is|are|to)\b"
+            r"|\b(?:explain|define|describe|clarify|elaborate)\b"
+            r"|\b(?:what(?:'s| is) (?:the )?(?:difference|meaning|definition|purpose|role|concept))\b"
+            # French
+            r"|\b(?:qu(?:'|\u2019)?(?:est[- ]ce qu|el(?:le)?s? (?:sont|est)))\b"
+            r"|\b(?:quelles?|quels?)\s+(?:r[eè]gles?|principes?|normes?|crit[eè]res?)\b"
+            r"|\b(?:comment|pourquoi)\s+(?:devrait|faut|doit|peut|faire)\b"
+            r"|\b(?:expliquer|d[eé]finir|d[eé]crire)\b"
+            # Arabic
+            r"|(?:ما\s*(?:هو|هي|هم|هن|معنى|هي ال|هو ال))"
+            r"|(?:ما\s+ال?(?:قواعد|مبادئ|إرشادات|معايير|أخلاقيات))"
+            r"|(?:كيف\s+(?:يجب|ينبغي|يمكن|نستطيع))"
+            r"|(?:لماذا\s+(?:يجب|ينبغي))"
+            r"|(?:اشرح|عرّف|وضّح)"
+            r")",
+            text,
+            re.I,
+        ))
 
     @staticmethod
     def _build_classification(

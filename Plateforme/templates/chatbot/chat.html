@@ -333,12 +333,12 @@ html[dir="rtl"] .lang-panel{right:auto;left:0}
 
 .suggestions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .suggestion-chip{
-    padding:10px 20px;background:var(--hub-surface);
+    padding:8px 16px;background:var(--hub-surface);
     border:1px solid var(--hub-border);border-radius:var(--radius-full);
-    color:var(--hub-text-secondary);font-size:.85rem;font-weight:500;
+    color:var(--hub-text-secondary);font-size:.82rem;font-weight:500;
     cursor:pointer;transition:all var(--transition-base);
-    font-family:inherit;display:flex;align-items:center;gap:8px;
-    box-shadow:var(--shadow-xs);
+    font-family:inherit;display:inline-flex;align-items:center;gap:6px;
+    box-shadow:var(--shadow-xs);white-space:nowrap;
 }
 .suggestion-chip:hover{
     border-color:var(--hub-accent);color:var(--hub-accent);
@@ -818,13 +818,13 @@ input[type="file"]{display:none}
                     <div class="greeting-title">{% trans "How can I help you?" %}</div>
                     <div class="greeting-sub">{% trans "Ask me anything about Arabic NLP — resources, tools, research, and more." %}</div>
                     <div class="suggestions">
-                        <button class="suggestion-chip" data-q="{% trans 'What is Arabic NLP?' %}">
-                            <i class="fas fa-sparkles"></i> {% trans "What is Arabic NLP?" %}
+                        <button class="suggestion-chip" data-q="{% trans 'What is Arabic NLP?' %}" data-mode="conversation">
+                            <i class="fas fa-lightbulb"></i> {% trans "What is Arabic NLP?" %}
                         </button>
-                        <button class="suggestion-chip" data-q="{% trans 'Show me available resources' %}">
+                        <button class="suggestion-chip" data-q="resources" data-mode="platform" data-label="{% trans 'Show me resources' %}">
                             <i class="fas fa-book-open"></i> {% trans "Show me resources" %}
                         </button>
-                        <button class="suggestion-chip" data-q="{% trans 'List upcoming events' %}">
+                        <button class="suggestion-chip" data-q="events" data-mode="platform" data-resource-type="event" data-label="{% trans 'Upcoming events' %}">
                             <i class="fas fa-calendar"></i> {% trans "Upcoming events" %}
                         </button>
                     </div>
@@ -1109,10 +1109,24 @@ input[type="file"]{display:none}
         });
 
         /* ============================================================
-           SUGGESTION CHIPS
+           SUGGESTION CHIPS (event delegation — survives DOM toggles)
            ============================================================ */
-        document.querySelectorAll('.suggestion-chip').forEach(function(chip){
-            chip.addEventListener('click',function(){chatInput.value=chip.dataset.q;handleSend()});
+        var _chipResourceType=null;
+        document.addEventListener('click',function(e){
+            var chip=e.target.closest('.suggestion-chip');
+            if(!chip)return;
+            e.preventDefault();
+            var q=chip.dataset.q;
+            if(!q)return;
+            var mode=chip.dataset.mode||'conversation';
+            /* Show friendly label in chat bubble instead of the API keyword */
+            var label=chip.dataset.label||q;
+            chatInput.value=q;
+            _chipResourceType=chip.dataset.resourceType||null;
+            if(mode==='platform'){platformActive=true}
+            /* Show the label as user message */
+            showMsgs();addUserMsg(label);
+            handleSend(true).finally(function(){platformActive=false;_chipResourceType=null});
         });
 
         /* ============================================================
@@ -1122,7 +1136,7 @@ input[type="file"]{display:none}
         chatInput.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}});
         chatInput.addEventListener('input',function(){chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,150)+'px'});
 
-        async function handleSend(){
+        async function handleSend(skipUserMsg){
             if(isLoading)return;
             var question=chatInput.value.trim();
             var mode=platformActive?'platform':'conversation';
@@ -1140,7 +1154,7 @@ input[type="file"]{display:none}
             if(mode==='upload'&&selectedFiles.length>0){
                 var fileObjs=selectedFiles.map(function(f){return {name:f.name}});
                 addUserMsg(question||'',true,fileObjs);
-            } else if(question) {
+            } else if(question&&!skipUserMsg) {
                 addUserMsg(question);
             }
 
@@ -1202,7 +1216,9 @@ input[type="file"]{display:none}
             try{
                 var body,headers={'X-CSRFToken':csrf()};
                 headers['Content-Type']='application/json';
-                body=JSON.stringify({mode:mode,question:question,session_id:currentSessionId||''});
+                var payload={mode:mode,question:question,session_id:currentSessionId||''};
+                if(mode==='platform'&&_chipResourceType){payload.resource_type=_chipResourceType}
+                body=JSON.stringify(payload);
                 var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
                 thinkEl.remove();
                 var ct=resp.headers.get('content-type');
@@ -1374,7 +1390,7 @@ input[type="file"]{display:none}
                 user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
             };
             /* Filter out my_contributions — already shown in answer body */
-            var filtered=results.filter(function(r){return r.type!=='my_contributions' && r.type!=='stats'});
+            var filtered=results.filter(function(r){return r.type!=='my_contributions' && r.type!=='stats' && r.type!=='no_data'});
             if(filtered.length===0) return '';
             var h='<div class="platform-cards">';
             filtered.forEach(function(r){

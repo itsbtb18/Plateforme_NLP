@@ -5,7 +5,7 @@ Handles chat completion, RAG-augmented generation, and quick answers.
 API key is NEVER logged.
 """
 
-from groq import Groq
+from groq import Groq, RateLimitError
 from groq.types.chat import ChatCompletionMessageParam, ChatCompletion
 from app.config import get_settings
 from app.services.llm.prompts import (
@@ -17,6 +17,7 @@ from app.services.llm.prompts import (
 )
 import asyncio
 import logging
+import time
 from typing import List, Dict, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -38,28 +39,50 @@ class GroqClient:
     # Core completion
     # ------------------------------------------------------------------
 
+    _MAX_RETRIES = 3
+    _BASE_DELAY = 2  # seconds
+
     def _sync_chat_completion(
         self,
         messages: List[ChatCompletionMessageParam],
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> str:
-        """Synchronous Groq API call — runs in a thread pool via asyncio."""
+        """Synchronous Groq API call with retry on rate-limit.
+
+        Retries up to _MAX_RETRIES times with exponential backoff when
+        the Groq API returns 429 Too Many Requests.
+        """
         if not messages:
             raise ValueError("Messages list cannot be empty")
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=False,
-        )
-        if not isinstance(response, ChatCompletion):
-            raise ValueError("Unexpected response type from Groq API")
-        content = response.choices[0].message.content
-        if not content:
-            return self._fallback_message("en")
-        return content
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(self._MAX_RETRIES):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False,
+                )
+                if not isinstance(response, ChatCompletion):
+                    raise ValueError("Unexpected response type from Groq API")
+                content = response.choices[0].message.content
+                if not content:
+                    return self._fallback_message("en")
+                return content
+            except RateLimitError as e:
+                last_exc = e
+                delay = self._BASE_DELAY * (2 ** attempt)
+                logger.warning(
+                    "Groq rate-limited (attempt %d/%d), retrying in %ds",
+                    attempt + 1, self._MAX_RETRIES, delay,
+                )
+                time.sleep(delay)
+
+        # All retries exhausted — re-raise so chat_completion returns fallback
+        raise last_exc  # type: ignore[misc]
 
     async def chat_completion(
         self,
@@ -177,11 +200,21 @@ class GroqClient:
     @staticmethod
     def _fallback_message(language: str) -> str:
         msgs = {
-            "ar": "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
-            "fr": "Désolé, une erreur s'est produite. Veuillez réessayer.",
-            "en": "Sorry, an error occurred while processing your request. Please try again.",
+            "ar": "أعتذر، لم أتمكن من إكمال الإجابة الآن. يرجى إعادة صياغة سؤالك أو المحاولة بعد لحظات.",
+            "fr": "Je n'ai pas pu compléter la réponse pour le moment. Veuillez reformuler votre question ou réessayer dans un instant.",
+            "en": "I wasn't able to complete my answer right now. Please rephrase your question or try again in a moment.",
         }
         return msgs.get(language, msgs["en"])
+
+    @staticmethod
+    def is_fallback(text: str) -> bool:
+        """Return True if *text* is one of the fallback messages."""
+        _markers = {
+            "لم أتمكن من إكمال",
+            "pas pu compl\u00e9ter la r\u00e9ponse",
+            "wasn't able to complete",
+        }
+        return any(m in text for m in _markers)
 
 
 # Singleton

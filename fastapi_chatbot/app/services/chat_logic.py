@@ -14,6 +14,7 @@ SessionService and DocumentService respectively.
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.llm import get_groq_client
+from app.services.llm.client import GroqClient
 from app.services.retrieval import (
     search_legal_documents,
     search_user_documents,
@@ -356,6 +357,18 @@ class ChatLogic:
                 source_type=source,
                 username=getattr(request, "user_name", None),
             )
+            # If RAG returned a fallback (e.g. rate-limit), retry without
+            # context so the conversation is never blocked.
+            if GroqClient.is_fallback(answer):
+                logger.warning(
+                    "RAG answer was fallback — retrying via quick_answer "
+                    "(source=%s)", source,
+                )
+                answer = await self.groq.quick_answer(
+                    request.question, language,
+                    username=getattr(request, "user_name", None),
+                )
+                source = "groq"
             if source == "none":
                 source = "groq"
         else:
@@ -485,17 +498,13 @@ class ChatLogic:
         )
 
         if not docs:
-            # Phase 10 — Safety: do NOT fall back to general LLM.
-            # Without owner-matched documents, answering with open-ended
-            # knowledge could mislead the user into thinking the answer
-            # came from their private document.
-            _no_doc = {
-                "ar": "لم أجد محتوى مطابقاً في مستنداتك. يرجى التأكد من رفع المستند وأنه تمت معالجته بنجاح.",
-                "fr": "Aucun contenu correspondant n'a été trouvé dans vos documents. Veuillez vérifier que le document a été téléversé et traité avec succès.",
-                "en": "No matching content was found in your documents. Please make sure the document has been uploaded and processed successfully.",
-            }
-            answer = _no_doc.get(language, _no_doc["en"])
-            source = "none"
+            # No matching chunks — fall back to general knowledge so the
+            # conversation is never blocked by retrieval failure.
+            logger.info(
+                "No user-doc chunks found — falling back to quick_answer"
+            )
+            answer = await self.groq.quick_answer(question, language)
+            source = "groq"
         else:
             context = self._build_context(docs)
             chat_history = await self.sessions.get_recent_messages(session_id, db)
@@ -508,7 +517,15 @@ class ChatLogic:
                 session_summary=session_summary,
                 source_type="user_document",
             )
-            source = "user_document"
+            # If RAG returned a fallback, retry without context
+            if GroqClient.is_fallback(answer):
+                logger.warning(
+                    "User-doc RAG fallback — retrying via quick_answer"
+                )
+                answer = await self.groq.quick_answer(question, language)
+                source = "groq"
+            else:
+                source = "user_document"
 
         await self.sessions.save_message(
             session_id, "user", question, source, language, db

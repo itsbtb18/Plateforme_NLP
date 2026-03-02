@@ -13,6 +13,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Keywords that mean "show everything" — skip ILIKE filtering
+_BROWSE_KEYWORDS = frozenset((
+    '', '*', 'resources', 'events', 'all',
+    'الموارد', 'الأحداث', 'أحداث', 'الكل',
+    'ressources', 'événements', 'tous',
+))
+
+
+def _is_browse_keyword(kw: Optional[str]) -> bool:
+    return not kw or kw.strip().lower() in _BROWSE_KEYWORDS
+
 
 class PlatformQueryService:
     """Query the Django platform's PostgreSQL tables for structured metadata."""
@@ -64,7 +75,7 @@ class PlatformQueryService:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
-        if keyword:
+        if not _is_browse_keyword(keyword):
             conditions.append(
                 "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
                 "OR description ILIKE :kw)"
@@ -112,7 +123,7 @@ class PlatformQueryService:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
-        if keyword:
+        if keyword and keyword.strip() not in ('', '*', 'resources', 'الموارد'):
             conditions.append(
                 "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
                 "OR description ILIKE :kw)"
@@ -161,7 +172,7 @@ class PlatformQueryService:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
-        if keyword:
+        if not _is_browse_keyword(keyword):
             conditions.append(
                 "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
                 "OR description ILIKE :kw)"
@@ -208,7 +219,7 @@ class PlatformQueryService:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
-        if keyword:
+        if not _is_browse_keyword(keyword):
             conditions.append(
                 "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
                 "OR description ILIKE :kw)"
@@ -260,7 +271,7 @@ class PlatformQueryService:
         conditions = ["approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
-        if keyword:
+        if not _is_browse_keyword(keyword):
             conditions.append(
                 "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
                 "OR description ILIKE :kw OR domains ILIKE :kw)"
