@@ -1,251 +1,106 @@
 {% extends "base_admin.html" %}
 {% load i18n %}
-
 {% block title %}{% trans "News Management" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-:root {
-  --grad-header: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --card-bg: #ffffff;
-  --border: #e5e7eb;
-  --muted: #6b7280;
-  --text: #0f172a;
-  --shadow: 0 12px 30px rgba(0,0,0,0.08);
-  --success: #059669;
-  --success-soft: #ecfdf5;
-  --warn: #f59e0b;
-  --warn-soft: #fffbeb;
-  --info: #2563eb;
-}
-
-body { background:#f5f6fb; font-family:'Inter','Tajawal',sans-serif; }
-
-.hero {
-  background: var(--grad-header);
-  color:#fff;
-  padding:32px 32px;
-  border-radius:20px;
-  box-shadow: var(--shadow);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:20px;
-}
-.hero-title { margin:0; font-size:2.1rem; font-weight:800; }
-.hero-sub { margin:8px 0 0; color:rgba(255,255,255,0.9); }
-.hero-action {
-  display:inline-flex; align-items:center; gap:10px;
-  background:#fff; color:#111827; padding:12px 16px;
-  border-radius:12px; text-decoration:none; font-weight:700;
-  box-shadow: var(--shadow);
-}
-
-.top-strip {
-  display:grid; grid-template-columns: 260px auto; gap:14px;
-  align-items:center;
-  margin:22px 0 16px;
-}
-.mini-card {
-  background: var(--card-bg);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:14px 16px;
-  box-shadow: var(--shadow);
-}
-.mini-title { color:var(--muted); margin:0 0 6px; font-weight:600; }
-.mini-value { margin:0; font-size:1.5rem; font-weight:800; color:var(--text); }
-.search-box {
-  display:flex; align-items:center; gap:10px;
-  background: var(--card-bg);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:6px 10px;
-  box-shadow: var(--shadow);
-  width: 420px;
-}
-.search-box input {
-  flex:1; border:none; outline:none; font-size:0.9rem; height:30px;
-}
-.status-tabs {
-  display:flex; gap:12px; margin:10px 0 16px;
-}
-.status-tab {
-  flex:1; padding:12px 14px; border-radius:12px;
-  border:1px solid var(--border);
-  background:#fff;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  font-weight:700; color:var(--text); text-decoration:none;
-  box-shadow: var(--shadow);
-}
-.status-tab.active {
-  background:#4f46e5; color:#fff; border-color:transparent;
-}
-.status-tab .badge {
-  background:rgba(0,0,0,0.1);
-  border-radius:999px;
-  padding:2px 8px;
-  font-size:0.8rem;
-}
-.status-tab.active .badge { background:rgba(255,255,255,0.2); color:#fff; }
-
-.list-card {
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow: var(--shadow);
-}
-.row-head, .row-item {
-  display:grid;
-  grid-template-columns: 2fr 1fr 0.9fr 140px;
-  gap:10px;
-  align-items:center;
-  padding:12px 16px;
-}
-.row-head { background:#f8fafc; font-weight:700; color:var(--muted); }
-.row-item { border-top:1px solid var(--border); }
-.content-cell{
-  min-width:0;
-  text-align:start;
-}
-.avatar {
-  width:40px; height:40px; border-radius:50%;
-  background:#eef2ff; color:#4338ca;
-  display:flex; align-items:center; justify-content:center;
-  font-weight:700;
-}
-.excerpt{
-  margin-top:0;
-  font-weight:600;
-  color:var(--text);
-  font-size:.86rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.meta { color:var(--muted); font-size:0.9rem; }
-.status-pill {
-  padding:6px 12px; border-radius:20px; font-weight:600; font-size:0.9rem; width:max-content;
-}
-.status-pending { background:var(--warn-soft); color:var(--warn); }
-.status-approved{ background:var(--success-soft); color:var(--success); }
-.actions { display:flex; gap:8px; justify-content:flex-start; }
-.icon-btn {
-  width:36px; height:36px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  background:#fff;
-  display:flex; align-items:center; justify-content:center;
-  color:#4b5563;
-  transition:0.2s;
-}
-.icon-btn:hover { box-shadow: var(--shadow); transform:translateY(-1px); }
-.icon-btn.approve { color: var(--success); }
-.icon-btn.view { color: var(--info); }
-.icon-btn.reject { color: #dc2626; }
-.empty-state { text-align:center; padding:28px; color:var(--muted); }
-.empty-state i { font-size:28px; margin-bottom:8px; color:#a3aed0; }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid" style="padding-top:.5rem;">
 
-  <!-- Hero -->
-  <div class="hero">
+  <div class="pg-head">
     <div>
-      <h1 class="hero-title">{% trans "News Management" %}</h1>
-      <p class="hero-sub">{% trans "Manage and approve news posts" %}</p>
+      <h1><i class="fas fa-newspaper"></i> {% trans "News Management" %}</h1>
+      <p class="pg-sub">{% trans "Manage and approve news posts" %}</p>
     </div>
-    <a class="hero-action" href="{% url 'QA:create_post' %}">
-      <i class="fas fa-plus"></i> {% trans "Add News" %}
-    </a>
+    <a href="{% url 'QA:create_post' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "Add News" %}</a>
   </div>
 
-  <!-- Mini stats + search -->
-  <div class="top-strip">
-    <div class="mini-card">
-      <p class="mini-title">{% trans "Total Posts" %}</p>
-      <p class="mini-value">{{ total_count|default:"0" }}</p>
-    </div>
-    <div class="search-box">
-      <i class="fas fa-search text-muted"></i>
-      <form id="news-search" method="get" style="flex:1; display:flex; gap:8px; align-items:center;">
-        <input type="hidden" name="tab" value="{{ active_tab }}">
-        <input type="text" name="search" value="{{ search }}" placeholder="{% trans 'Search posts...' %}">
-        <button type="submit" class="btn btn-sm btn-outline-primary" style="height:30px; padding:4px 10px;">{% trans "Search" %}</button>
-      </form>
+  <!-- Stats -->
+  <div class="n-st-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));">
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Total Posts" %}</p>
+        <p class="n-st-num">{{ total_count|default:"0" }}</p>
+      </div>
+      <div class="n-st-icon i1"><i class="fas fa-newspaper"></i></div>
     </div>
   </div>
 
   <!-- Tabs -->
-  <div class="status-tabs">
-    <a class="status-tab {% if active_tab == 'pending' %}active{% endif %}" href="?tab=pending{% if search %}&search={{ search }}{% endif %}">
-      <span class="badge">{{ pending_count|default:0 }}</span> {% trans "Pending" %}
+  <div class="n-tabs">
+    <a class="n-tab {% if active_tab == 'pending' %}on{% endif %}" href="?tab=pending{% if search %}&search={{ search }}{% endif %}">
+      <i class="fas fa-clock"></i> {% trans "Pending" %}
+      <span class="n-tab-badge {% if pending_count > 0 %}warn{% endif %}">{{ pending_count|default:0 }}</span>
     </a>
-    <a class="status-tab {% if active_tab == 'approved' %}active{% endif %}" href="?tab=approved{% if search %}&search={{ search }}{% endif %}">
-      <span class="badge">{{ approved_count|default:0 }}</span> {% trans "Approved" %}
+    <a class="n-tab {% if active_tab == 'approved' %}on{% endif %}" href="?tab=approved{% if search %}&search={{ search }}{% endif %}">
+      <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+      <span class="n-tab-badge">{{ approved_count|default:0 }}</span>
     </a>
   </div>
 
-  <!-- List -->
-  <div class="list-card">
-    <div class="row-head">
-      <div>{% trans "Content" %}</div>
-      <div>{% trans "Date" %}</div>
-      <div>{% trans "Status" %}</div>
-      <div>{% trans "Actions" %}</div>
+  <!-- Search -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <input type="hidden" name="tab" value="{{ active_tab }}">
+        <div class="n-search-wrap" style="flex:1;min-width:200px;">
+          <i class="fas fa-search"></i>
+          <input type="text" name="search" value="{{ search }}" class="n-search" placeholder="{% trans 'Search posts...' %}">
+        </div>
+        <button type="submit" class="n-btn n-btn-blue n-btn-sm"><i class="fas fa-search"></i> {% trans "Search" %}</button>
+      </form>
     </div>
 
-    {% if active_tab == 'pending' %}
-      {% with items=pending_posts %}
-        {% if items %}
-          {% for post in items %}
-          <div class="row-item">
-            <div class="content-cell">
-              <div class="excerpt" title="{{ post.get_localized_content|default:post.content }}">
+    <!-- Table -->
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "Content" %}</th>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if active_tab == 'pending' %}
+          {% for post in pending_posts %}
+          <tr>
+            <td style="max-width:400px;">
+              <p style="font-weight:600;font-size:.85rem;color:var(--n-text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ post.get_localized_content|default:post.content }}">
                 {{ post.get_localized_content|default:post.content|truncatechars:95 }}
+              </p>
+            </td>
+            <td><span class="n-dt">{{ post.created_at|date:"Y-m-d" }}</span></td>
+            <td><span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span></td>
+            <td style="text-align:center;">
+              <div class="n-acts" style="justify-content:center;">
+                <a href="{% url 'pages:admin_news_view' post.id %}" class="n-act" title="{% trans 'View / Edit' %}"><i class="fas fa-eye"></i></a>
               </div>
-            </div>
-            <div class="meta">{{ post.created_at|date:"Y-m-d" }}</div>
-            <div class="status-pill status-pending">{% trans "Pending" %}</div>
-            <div class="actions">
-              <a class="icon-btn view" href="{% url 'pages:admin_news_view' post.id %}" title="{% trans 'View / Edit' %}"><i class="fas fa-eye"></i></a>
-            </div>
-          </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4"><div class="n-empty"><i class="fas fa-newspaper"></i><p>{% trans "No posts found." %}</p></div></td></tr>
           {% endfor %}
         {% else %}
-          <div class="empty-state">
-            <i class="fas fa-newspaper"></i>
-            <div>{% trans "No posts found." %}</div>
-          </div>
-        {% endif %}
-      {% endwith %}
-    {% else %}
-      {% with items=approved_posts %}
-        {% if items %}
-          {% for post in items %}
-          <div class="row-item">
-            <div class="content-cell">
-              <div class="excerpt" title="{{ post.get_localized_content|default:post.content }}">
+          {% for post in approved_posts %}
+          <tr>
+            <td style="max-width:400px;">
+              <p style="font-weight:600;font-size:.85rem;color:var(--n-text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ post.get_localized_content|default:post.content }}">
                 {{ post.get_localized_content|default:post.content|truncatechars:95 }}
+              </p>
+            </td>
+            <td><span class="n-dt">{{ post.created_at|date:"Y-m-d" }}</span></td>
+            <td><span class="n-status approved"><span class="n-dot"></span> {% trans "Approved" %}</span></td>
+            <td style="text-align:center;">
+              <div class="n-acts" style="justify-content:center;">
+                <a href="{% url 'pages:admin_news_view' post.id %}" class="n-act" title="{% trans 'View / Edit' %}"><i class="fas fa-eye"></i></a>
               </div>
-            </div>
-            <div class="meta">{{ post.created_at|date:"Y-m-d" }}</div>
-            <div class="status-pill status-approved">{% trans "Approved" %}</div>
-            <div class="actions">
-            <a class="icon-btn view" href="{% url 'pages:admin_news_view' post.id %}" title="{% trans 'View / Edit' %}"><i class="fas fa-eye"></i></a>
-            </div>
-          </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4"><div class="n-empty"><i class="fas fa-newspaper"></i><p>{% trans "No posts found." %}</p></div></td></tr>
           {% endfor %}
-        {% else %}
-          <div class="empty-state">
-            <i class="fas fa-newspaper"></i>
-            <div>{% trans "No posts found." %}</div>
-          </div>
         {% endif %}
-      {% endwith %}
-    {% endif %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endblock %}
