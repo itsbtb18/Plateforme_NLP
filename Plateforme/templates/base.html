@@ -41,6 +41,27 @@
     <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
     <style>
+      :root {
+        --site-header-height: 80px;
+      }
+
+      html, body {
+        scroll-padding-top: var(--site-header-height);
+      }
+
+      .site-header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        z-index: 2000 !important;
+      }
+
+      .main-container {
+        margin-top: var(--site-header-height) !important;
+      }
+
       /* Date input with calendar icon */
       input[type="text"][id*="date"],
       input[type="text"][id*="Date"],
@@ -85,6 +106,43 @@
       }
       .notification-badge:not(:empty) {
         display: block;
+      }
+
+      .sidebar-label-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .sidebar-chat-badge {
+        display: none !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-width: 18px !important;
+        min-height: 18px !important;
+        max-height: 18px !important;
+        aspect-ratio: 1 / 1;
+        padding: 0 !important;
+        border-radius: 50%;
+        background: #FF3B30;
+        color: #fff;
+        font-size: 0.64rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+        flex-shrink: 0;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 6px rgba(255, 59, 48, 0.28);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .sidebar-chat-badge.is-visible {
+        display: inline-flex !important;
       }
 
       /* ══════════════════════════════════════════════════════════════════════ */
@@ -1465,6 +1523,17 @@
                     <li><a class="{% if page == 'institutions' %}active{% endif %}" href="{% url 'institutions:institution_list' %}">
                         <i class="fas fa-university"></i><span>{% trans "Institutions" %}</span>
                     </a></li>
+                    {% if user.is_authenticated %}
+                    <li>
+                        <a class="{% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}" href="{% url 'direct_messages:inbox' %}">
+                            <i class="fas fa-comments"></i>
+                            <span class="sidebar-label-group">
+                                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المحادثات{% else %}{% trans "Discussions" %}{% endif %}</span>
+                                <span id="sidebarDmBadge" class="sidebar-chat-badge" aria-label="{% trans 'Unread messages' %}"></span>
+                            </span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if user.is_staff %}
                     <li><a class="{% if page == 'Admin' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
                         <i class="fas fa-tools"></i><span>{% trans "Admin" %}</span>
@@ -1872,6 +1941,7 @@
             const blockedUsersEmpty = document.getElementById('blockedUsersEmpty');
             const messageInvitesBtn = document.getElementById('messageInvitesBtn');
             const profileMiniToast = document.getElementById('profileMiniToast');
+            const sidebarDmBadge = document.getElementById('sidebarDmBadge');
 
             function showProfileToast(message) {
                 if (!profileMiniToast) return;
@@ -1918,6 +1988,33 @@
                 }
             }
 
+            function updateSidebarDmBadge(count) {
+                if (!sidebarDmBadge) return;
+                const value = Number(count || 0);
+                if (value > 0) {
+                    sidebarDmBadge.textContent = value > 99 ? '99' : String(value);
+                    sidebarDmBadge.classList.add('is-visible');
+                } else {
+                    sidebarDmBadge.textContent = '';
+                    sidebarDmBadge.classList.remove('is-visible');
+                }
+            }
+
+            async function loadSidebarDmUnreadCount() {
+                if (!sidebarDmBadge) return;
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/messages/unread-count/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed');
+                    updateSidebarDmBadge(data.count || 0);
+                } catch (_) {
+                    // Keep silent for temporary network issues.
+                }
+            }
+
             function setProfilePanel(target) {
                 if (!profileMainPanel || !profileSettingsPanel) return;
                 profileMainPanel.classList.toggle('is-active', target === 'main');
@@ -1941,8 +2038,25 @@
                 document.documentElement.classList.toggle('user-online-visible', !!isOn);
             }
 
+            async function persistOnlineVisibility(isOn) {
+                try {
+                    await fetch(`${currentLangPrefix()}/accounts/network/online-visibility/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        credentials: 'same-origin',
+                        body: new URLSearchParams({ is_on: isOn ? '1' : '0' }).toString()
+                    });
+                } catch (_) {
+                    // keep silent; local UI state still updates
+                }
+            }
+
             function loadSwitches() {
-                const onlineVisible = localStorage.getItem('ui_online_status') !== '0';
+                const onlineVisible = {% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %};
                 setSwitchState(onlineStatusSwitch, onlineVisible, 'ui_online_status');
                 applyOnlineVisibilityPreference(onlineVisible);
                 setSwitchState(chatNotificationsSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
@@ -2023,6 +2137,9 @@
                 });
             }
 
+            loadSidebarDmUnreadCount();
+            setInterval(loadSidebarDmUnreadCount, 10000);
+
             loadProfileInvitationsCount();
             setInterval(loadProfileInvitationsCount, 60000);
 
@@ -2044,18 +2161,21 @@
 
             [onlineStatusSwitch, chatNotificationsSwitch].forEach(function(sw, idx) {
                 if (!sw) return;
-                sw.addEventListener('click', function(e) {
+                sw.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     const isOn = !sw.classList.contains('is-on');
                     const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
                     setSwitchState(sw, isOn, key);
-                    if (key === 'ui_online_status') applyOnlineVisibilityPreference(isOn);
+                    if (key === 'ui_online_status') {
+                        applyOnlineVisibilityPreference(isOn);
+                        await persistOnlineVisibility(isOn);
+                    }
                 });
             });
 
-            // Apply preference even when the settings dropdown is not opened.
-            applyOnlineVisibilityPreference(localStorage.getItem('ui_online_status') !== '0');
+            // Apply server-backed preference even when the settings dropdown is not opened.
+            applyOnlineVisibilityPreference({% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %});
 
             if (messageInvitesBtn) {
                 messageInvitesBtn.addEventListener('click', function(e) {
@@ -2966,6 +3086,21 @@
     <!-- ══════════════════════════════════════════════════════════════════════ -->
     <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
     <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+    <script>
+    (function () {
+        function syncSiteHeaderHeight() {
+            const header = document.querySelector('.site-header');
+            if (!header) return;
+            const h = Math.max(1, Math.ceil(header.getBoundingClientRect().height || header.offsetHeight || 80));
+            document.documentElement.style.setProperty('--site-header-height', `${h}px`);
+        }
+
+        document.addEventListener('DOMContentLoaded', syncSiteHeaderHeight);
+        window.addEventListener('load', syncSiteHeaderHeight);
+        window.addEventListener('resize', syncSiteHeaderHeight);
+    })();
+    </script>
 
     <!-- Instagram-Style Share Modal -->
     {% include "includes/share_modal_modern.html" %}

@@ -139,6 +139,10 @@ class CustomUser(AbstractUser):
         default=True,
         verbose_name=_('active')
     )
+    show_online_status = models.BooleanField(
+        default=True,
+        verbose_name=_('show online status')
+    )
 
     objects: CustomUserManager = CustomUserManager()  # type: ignore[assignment]
 

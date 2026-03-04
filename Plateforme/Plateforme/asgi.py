@@ -11,6 +11,7 @@ django_asgi_app = get_asgi_application()
 to_imports = []
 from notifications import routing as notifications_routing
 from forum import routing as chatroom_routing
+from projects import routing as projects_routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
@@ -19,7 +20,8 @@ application = ProtocolTypeRouter({
             URLRouter(
                 # Combine notification routes with chatroom routes
                 notifications_routing.websocket_urlpatterns + 
-                chatroom_routing.websocket_urlpatterns
+                chatroom_routing.websocket_urlpatterns +
+                projects_routing.websocket_urlpatterns
             )
         )
     ),

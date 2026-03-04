@@ -3,7 +3,8 @@ from .views import (
     SignUp, LoginView, ProfileView, ProfileEditView,
     InviteToProjectView, RespondToProjectInviteView,
     awaiting_verification_view, delete_account, custom_logout,
-    NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api
+    NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api,
+    set_online_visibility_api
 )
 from .two_factor_views import OTPVerificationView, ResendOTPView, TwoFactorSettingsView
 
@@ -16,6 +17,7 @@ urlpatterns = [
     path('profile/<uuid:pk>/edit/', ProfileEditView.as_view(), name='profile-edit'),
     path('network/invitations/', NetworkInvitationsView.as_view(), name='network_invitations'),
     path('network/invitations/count/', invitations_count_api, name='invitations_count_api'),
+    path('network/online-visibility/', set_online_visibility_api, name='set_online_visibility_api'),
     path('network/blocked/', blocked_users_api, name='blocked_users_api'),
     path('network/<uuid:user_id>/<str:action>/', friendship_action, name='friendship_action'),
     path('profile/<uuid:pk>/invite/', InviteToProjectView.as_view(), name='invite_to_project'),

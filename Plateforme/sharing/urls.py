@@ -6,7 +6,9 @@ app_name = 'sharing'
 urlpatterns = [
     # Modal helpers
     path('users/search/', views.user_search, name='user_search'),
+    path('groups/search/', views.group_search, name='group_search'),
     path('create/', views.create_share, name='create_share'),
+    path('create-group/', views.create_group_share, name='create_group_share'),
 
     # Inbox / Sent
     path('inbox/', views.inbox, name='inbox'),

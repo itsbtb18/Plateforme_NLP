@@ -53,22 +53,25 @@ def _get_url(obj) -> str:
 
 class ShareService:
     @staticmethod
-    def create_share(sender, receiver, content_type_str: str, object_id: str, message: str = ''):
-        """
-        Create a Share and fire a notification.
-        Returns (share, created:bool).
-        """
+    def get_share_snapshot(content_type_str: str, object_id: str):
+        """Return snapshot metadata for a share target."""
         ct = _resolve_content_type(content_type_str)
-
-        # Snapshot title + URL at share time so they survive object deletion
         try:
             obj = ct.get_object_for_this_type(pk=object_id)
             title = _get_title(obj)
             url = _get_url(obj)
         except Exception:
-            obj = None
             title = ''
             url = ''
+        return ct, title, url
+
+    @staticmethod
+    def create_share(sender, receiver, content_type_str: str, object_id: str, message: str = ''):
+        """
+        Create a Share and fire a notification.
+        Returns (share, created:bool).
+        """
+        ct, title, url = ShareService.get_share_snapshot(content_type_str, object_id)
 
         try:
             share = Share.objects.create(

@@ -422,6 +422,24 @@ def invitations_count_api(request: Any) -> Any:
 
 
 @login_required
+def set_online_visibility_api(request: Any) -> Any:
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+
+    raw = (request.POST.get('is_on') or '').strip().lower()
+    if raw in {'1', 'true', 'on', 'yes'}:
+        is_on = True
+    elif raw in {'0', 'false', 'off', 'no'}:
+        is_on = False
+    else:
+        return JsonResponse({'ok': False, 'error': _('Invalid value.')}, status=400)
+
+    request.user.show_online_status = is_on
+    request.user.save(update_fields=['show_online_status'])
+    return JsonResponse({'ok': True, 'show_online_status': is_on})
+
+
+@login_required
 def friendship_action(request: Any, user_id: str, action: str) -> Any:
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)

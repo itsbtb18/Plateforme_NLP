@@ -1,20 +1,24 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "Two-Factor Authentication" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التحقق بخطوتين{% else %}{% trans "Two-Factor Authentication" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <style>
     .verify-2fa-page {
-        --text-main: #0f172a;
-        --text-muted: #64748b;
-        --line-soft: #dbe6ff;
-        --dark-blue: #1e1b4b;
-        --blue: #2563eb;
-        --indigo: #4338ca;
-        --violet: #6d28d9;
-        --green: #16a34a;
-        --orange: #d97706;
+        --hub-deep-blue: #0f172a;
+        --hub-navy: #1e3a5f;
+        --hub-accent: #2563eb;
+        --hub-accent-light: #3b82f6;
+        --hub-accent-hover: #1d4ed8;
+        --hub-accent-glow: rgba(37, 99, 235, 0.12);
+        --hub-surface: #ffffff;
+        --hub-background: #f8fafc;
+        --hub-muted: #f1f5f9;
+        --hub-subtle: #e2e8f0;
+        --hub-border: #dbe6ff;
+        --hub-text-primary: #0f172a;
+        --hub-text-secondary: #475569;
         width: 100%;
         min-height: calc(100vh - 140px);
         display: flex;
@@ -23,8 +27,8 @@
         padding: 28px 16px;
         background:
             radial-gradient(900px 520px at 12% 2%, rgba(37, 99, 235, 0.18), transparent 64%),
-            radial-gradient(780px 440px at 88% 10%, rgba(109, 40, 217, 0.18), transparent 66%),
-            linear-gradient(180deg, #edf3ff 0%, #f7f8ff 50%, #eef2ff 100%);
+            radial-gradient(780px 440px at 88% 10%, rgba(59, 130, 246, 0.16), transparent 66%),
+            linear-gradient(180deg, #eef4ff 0%, #f8fbff 60%, #eef3ff 100%);
     }
 
     .verify-2fa-page .main-wrapper {
@@ -34,8 +38,8 @@
     }
 
     .verify-2fa-page .form-card {
-        background: #ffffff;
-        border: 1px solid var(--line-soft);
+        background: var(--hub-surface);
+        border: 1px solid var(--hub-border);
         border-radius: 28px;
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
         padding: 34px 34px 26px;
@@ -50,7 +54,7 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--orange), var(--green), var(--violet), var(--blue), var(--dark-blue));
+        background: linear-gradient(90deg, var(--hub-accent-light), var(--hub-accent), var(--hub-accent-hover), var(--hub-deep-blue));
     }
 
     .verify-2fa-page .security-icon-section { text-align: center; margin-bottom: 18px; }
@@ -63,8 +67,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(140deg, var(--blue), var(--violet));
-        box-shadow: 0 14px 30px rgba(67, 56, 202, 0.24);
+        background: linear-gradient(140deg, var(--hub-accent), var(--hub-accent-light));
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
     }
 
     .verify-2fa-page .security-icon i {
@@ -78,14 +82,14 @@
         font-size: 2rem;
         line-height: 1.2;
         font-weight: 700;
-        color: var(--text-main);
+        color: var(--hub-text-primary);
         letter-spacing: -0.01em;
     }
 
     .verify-2fa-page .page-subtitle {
         text-align: center;
         font-size: 1.02rem;
-        color: var(--text-muted);
+        color: var(--hub-text-secondary);
         margin: 10px 0 22px;
         line-height: 1.55;
         max-width: 480px;
@@ -99,9 +103,9 @@
         margin: 10px auto 0;
         padding: 8px 14px;
         border-radius: 999px;
-        background: #eef2ff;
-        border: 1px solid #c7d2fe;
-        color: #4338ca;
+        background: #edf4ff;
+        border: 1px solid #bfd3ff;
+        color: #1d4ed8;
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.06em;
@@ -109,20 +113,20 @@
     }
 
     .verify-2fa-page .email-info {
-        background: linear-gradient(120deg, rgba(37, 99, 235, 0.07), rgba(67, 56, 202, 0.06));
-        border: 1px solid rgba(67, 56, 202, 0.2);
-        border-inline-start: 4px solid var(--indigo);
+        background: linear-gradient(120deg, rgba(37, 99, 235, 0.08), rgba(59, 130, 246, 0.06));
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        border-inline-start: 4px solid var(--hub-accent);
         border-radius: 14px;
         padding: 13px 14px;
         margin-bottom: 18px;
         font-size: 0.96rem;
-        color: #1e293b;
+        color: var(--hub-text-primary);
         text-align: start;
     }
 
     .verify-2fa-page .email-info i {
         margin-inline-end: 7px;
-        color: var(--blue);
+        color: var(--hub-accent);
     }
 
     .verify-2fa-page .form-group { margin-bottom: 14px; }
@@ -130,23 +134,23 @@
     .verify-2fa-page label {
         display: block;
         margin-bottom: 8px;
-        color: #334155;
+        color: var(--hub-text-secondary);
         font-size: 0.86rem;
         font-weight: 700;
         letter-spacing: 0.2px;
         text-align: start;
     }
 
-    .verify-2fa-page label i { margin-inline-end: 5px; color: var(--blue); }
+    .verify-2fa-page label i { margin-inline-end: 5px; color: var(--hub-accent); }
 
     .verify-2fa-page input[type="text"]#otp_code {
         width: 100%;
         height: 58px;
         padding: 12px 16px;
-        border: 1.5px solid #bfd0ff;
+        border: 1.5px solid #bfd3ff;
         border-radius: 16px;
         font-size: 1.6rem;
-        color: #0f172a;
+        color: var(--hub-text-primary);
         font-family: "Poppins", "Tajawal", sans-serif;
         letter-spacing: 8px;
         text-align: center;
@@ -158,18 +162,18 @@
 
     .verify-2fa-page input[type="text"]#otp_code:focus {
         outline: none;
-        border-color: var(--indigo);
-        box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.13);
+        border-color: var(--hub-accent);
+        box-shadow: 0 0 0 4px var(--hub-accent-glow);
         transform: translateY(-1px);
     }
 
     .verify-2fa-page .timer-box {
         margin: 14px 0 18px;
         padding: 13px 14px;
-        background: #f5f3ff;
-        border: 1px solid #c4b5fd;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
         border-radius: 14px;
-        color: #5b21b6;
+        color: #1d4ed8;
         font-size: 0.95rem;
         display: flex;
         align-items: center;
@@ -180,7 +184,7 @@
     .verify-2fa-page .timer-box .remaining-time {
         font-weight: 700;
         font-size: 1.7rem;
-        color: #6d28d9;
+        color: #2563eb;
         letter-spacing: 1px;
     }
 
@@ -223,9 +227,9 @@
     }
 
     .verify-2fa-page .btn-verify {
-        background: linear-gradient(120deg, var(--blue), var(--indigo) 45%, var(--violet) 75%, var(--dark-blue));
+        background: linear-gradient(135deg, var(--hub-accent), var(--hub-accent-light));
         color: #fff;
-        box-shadow: 0 12px 24px rgba(67, 56, 202, 0.28);
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
         cursor: pointer;
     }
 
@@ -239,45 +243,45 @@
 
     .verify-2fa-page .btn-resend {
         background: #ffffff;
-        color: var(--indigo);
-        border-color: rgba(67, 56, 202, 0.35);
+        color: var(--hub-accent);
+        border-color: rgba(37, 99, 235, 0.35);
         cursor: pointer;
     }
 
     .verify-2fa-page .btn-resend:hover {
-        background: #f8faff;
-        border-color: var(--indigo);
+        background: #f5f9ff;
+        border-color: var(--hub-accent);
     }
 
     .verify-2fa-page .resend-hint {
         margin-top: 12px;
         font-size: 0.93rem;
-        color: #64748b;
+        color: var(--hub-text-secondary);
         text-align: start;
     }
 
     .verify-2fa-page .action-link {
         margin-top: 10px;
         background: #ffffff;
-        color: #1e293b;
-        border-color: #d5def6;
+        color: var(--hub-text-primary);
+        border-color: #dbe6ff;
     }
 
     .verify-2fa-page .action-link:hover {
-        background: #f8faff;
-        border-color: #b6c7f5;
+        background: #f5f9ff;
+        border-color: #bfd3ff;
     }
 
     .verify-2fa-page .action-link.accent {
-        color: #5b21b6;
-        border-color: #c4b5fd;
-        background: #f5f3ff;
+        color: var(--hub-accent);
+        border-color: #bfdbfe;
+        background: #eff6ff;
     }
 
     .verify-2fa-page .action-link.neutral {
-        color: #334155;
-        border-color: #cbd5e1;
-        background: #f8fafc;
+        color: var(--hub-text-secondary);
+        border-color: #dbe6ff;
+        background: #f8fbff;
     }
 
     .verify-2fa-page .spinner {
@@ -325,6 +329,36 @@
         }
         .verify-2fa-page .timer-box .remaining-time { font-size: 1.45rem; }
     }
+
+    /* ===== Chatbot Clean Blue Palette (match screenshot) ===== */
+    .verify-2fa-page {
+        background: #ffffff !important;
+    }
+
+    .verify-2fa-page .form-card {
+        background: #ffffff !important;
+        border: 1px solid #d9e1ee !important;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .verify-2fa-page .form-card::before {
+        background: linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8, #0f172a) !important;
+    }
+
+    .verify-2fa-page .security-icon {
+        background: linear-gradient(145deg, #1e3a5f 0%, #2563eb 55%, #3b82f6 100%) !important;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24) !important;
+    }
+
+    .verify-2fa-page .title-badge {
+        background: #edf4ff !important;
+        border-color: #c7d8f7 !important;
+        color: #1d4ed8 !important;
+    }
+
+    .verify-2fa-page .btn-verify {
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 60%, #1d4ed8 100%) !important;
+    }
 </style>
 {% endblock %}
 
@@ -338,21 +372,21 @@
                 </div>
                 <div class="title-badge">
                     <i class="fas fa-check-circle"></i>
-                    {% trans "Secure Verification" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحقق آمن{% else %}{% trans "Secure Verification" %}{% endif %}
                 </div>
             </div>
 
             {% if is_signup_verification %}
-            <h1 class="page-title">{% trans "Verify Your Email" %}</h1>
-            <p class="page-subtitle">{% trans "Enter the code sent to your email to activate your account" %}</p>
+            <h1 class="page-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحقق من بريدك الإلكتروني{% else %}{% trans "Verify Your Email" %}{% endif %}</h1>
+            <p class="page-subtitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الرمز المرسل إلى بريدك الإلكتروني لتفعيل حسابك{% else %}{% trans "Enter the code sent to your email to activate your account" %}{% endif %}</p>
             {% else %}
-            <h1 class="page-title">{% trans "Verify Your Identity" %}</h1>
-            <p class="page-subtitle">{% trans "Enter the security code sent to your email" %}</p>
+            <h1 class="page-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحقق من هويتك{% else %}{% trans "Verify Your Identity" %}{% endif %}</h1>
+            <p class="page-subtitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل رمز الأمان المرسل إلى بريدك الإلكتروني{% else %}{% trans "Enter the security code sent to your email" %}{% endif %}</p>
             {% endif %}
 
             <div class="email-info">
                 <i class="fas fa-envelope"></i>
-                {% trans "Code sent to" %}: <strong>{{ user_email }}</strong>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تم إرسال الرمز إلى:{% else %}{% trans "Code sent to" %}:{% endif %} <strong>{{ user_email }}</strong>
             </div>
 
             <div class="message-box" id="messageBox"></div>
@@ -361,7 +395,7 @@
                 {% csrf_token %}
                 <div class="form-group">
                     <label for="otp_code">
-                        <i class="fas fa-key"></i> {% trans "Security Code" %}
+                        <i class="fas fa-key"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رمز الأمان{% else %}{% trans "Security Code" %}{% endif %}
                     </label>
                     <input
                         type="text"
@@ -376,7 +410,7 @@
                 </div>
 
                 <div class="timer-box">
-                    <div><i class="fas fa-stopwatch"></i> {% trans "Code expires in" %}</div>
+                    <div><i class="fas fa-stopwatch"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ينتهي صلاحية الرمز خلال{% else %}{% trans "Code expires in" %}{% endif %}</div>
                     <div class="remaining-time">
                         <span id="timerMinutes">5</span>:<span id="timerSeconds">00</span>
                     </div>
@@ -385,34 +419,34 @@
                 <div class="form-buttons">
                     <button type="submit" class="btn-verify" id="verifyBtn">
                         <i class="fas fa-check"></i>
-                        {% trans "Verify Code" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحقق من الرمز{% else %}{% trans "Verify Code" %}{% endif %}
                     </button>
                 </div>
             </form>
 
             <div class="resend-hint">
-                <p>{% trans "Didn't receive the code?" %}</p>
+                <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم تستلم الرمز؟{% else %}{% trans "Didn't receive the code?" %}{% endif %}</p>
                 <button type="button" class="btn-resend" id="resendBtn" style="margin-top: 10px;">
                     <i class="fas fa-envelope"></i>
-                    {% trans "Resend Code" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إعادة إرسال الرمز{% else %}{% trans "Resend Code" %}{% endif %}
                 </button>
             </div>
 
             {% if is_signup_verification %}
             <a href="{% url 'account_signup' %}" class="action-link accent">
                 <i class="fas fa-arrow-left"></i>
-                {% trans "Back to Sign Up" %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى التسجيل{% else %}{% trans "Back to Sign Up" %}{% endif %}
             </a>
             {% else %}
             <a href="{% url 'accounts:account_logout' %}" class="action-link accent">
                 <i class="fas fa-redo"></i>
-                {% trans "Use Different Email" %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استخدام بريد إلكتروني مختلف{% else %}{% trans "Use Different Email" %}{% endif %}
             </a>
             {% endif %}
 
             <a href="{% url 'pages:home' %}" class="action-link neutral">
                 <i class="fas fa-home"></i>
-                {% trans "Back to Main Page" %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى الصفحة الرئيسية{% else %}{% trans "Back to Main Page" %}{% endif %}
             </a>
         </div>
     </div>

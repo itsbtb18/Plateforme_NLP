@@ -1,0 +1,559 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Conversations" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  :root {
+    --ig-dark-blue: #10233f;
+    --ig-dark-blue-soft: #1a365f;
+    --ig-blue-line: #c7d5ea;
+    --ig-blue-bg: #f7faff;
+  }
+  .ig-dm-wrap {
+    max-width: 980px;
+    margin: 16px auto;
+    background: #fff;
+    border: 1px solid var(--ig-blue-line);
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(16, 35, 63, 0.08);
+    overflow: hidden;
+  }
+  .ig-dm-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--ig-blue-line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .ig-dm-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ig-dark-blue);
+  }
+  .ig-section {
+    margin: 10px 14px;
+    border: 1px solid var(--ig-blue-line);
+    border-radius: 14px;
+    background: #fff;
+  }
+  .ig-section-controls {
+    padding: 8px;
+    background: var(--ig-blue-bg);
+  }
+  .ig-section-list {
+    margin-top: 0;
+    overflow: hidden;
+  }
+  .ig-btn {
+    border: 1px solid var(--ig-blue-line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ig-dark-blue-soft);
+  }
+  .ig-btn.primary {
+    border: 1px solid #1e3a63;
+    color: #fff;
+    background: var(--ig-dark-blue);
+    box-shadow: 0 4px 10px rgba(16, 35, 63, 0.22);
+  }
+
+  .ig-tabs {
+    margin: 0;
+    padding: 6px;
+    display: flex;
+    gap: 8px;
+    border: 1px solid var(--ig-blue-line);
+    border-radius: 14px;
+    background: #fff;
+  }
+  .ig-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    border: 1px solid var(--ig-blue-line);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 0.86rem;
+    color: var(--ig-dark-blue-soft);
+    background: #ffffff;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .ig-tab.active {
+    background: var(--ig-dark-blue);
+    color: #ffffff;
+    border-color: var(--ig-dark-blue);
+    box-shadow: 0 3px 8px rgba(16, 35, 63, 0.2);
+  }
+  .ig-tab-badge {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #d9e7ff;
+    color: #0b3a91;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+  }
+  .ig-tab.active .ig-tab-badge {
+    background: #1d4ed8;
+    color: #ffffff;
+  }
+
+  .ig-list {
+    max-height: min(74vh, 760px);
+    overflow-y: auto;
+  }
+  .ig-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e3ebf7;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color .16s ease;
+  }
+  .ig-row:hover { background: #f8fbff; }
+
+  .ig-avatar,
+  .ig-avatar-fallback {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    border: 1px solid #bcd0f1;
+  }
+  .ig-avatar-wrap {
+    width: 48px;
+    height: 48px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .ig-avatar-unread {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: #FF3B30;
+    color: #FFFFFF;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35);
+    z-index: 2;
+  }
+  .ig-avatar-unread.is-hidden {
+    display: none;
+  }
+  html[dir="rtl"] .ig-avatar-unread {
+    right: auto;
+    left: -4px;
+  }
+  .ig-avatar { object-fit: cover; background: #e2e8f0; }
+  .ig-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #0b2f6f;
+    background: linear-gradient(135deg, #dbe7fb, #c7daf8);
+  }
+
+  .ig-main { flex: 1; min-width: 0; }
+  .ig-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 1px;
+  }
+  .ig-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0b1f4a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ig-time {
+    font-size: 0.72rem;
+    color: #5d6f8f;
+    flex-shrink: 0;
+  }
+  .ig-last {
+    font-size: 0.82rem;
+    color: #546481;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ig-meta {
+    min-width: 32px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .ig-unread {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #0b2f6f;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+  }
+
+  .ig-request-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .ig-act-btn {
+    border: 1px solid #b8c8e8;
+    background: #fff;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+  .ig-act-btn.accept {
+    border: 0;
+    color: #fff;
+    background: #0b2f6f;
+  }
+  .ig-empty {
+    margin: 26px;
+    color: #60708f;
+    text-align: center;
+  }
+
+  .ig-group-box {
+    padding: 12px 4px 4px;
+    border-top: 1px solid #dbe4f2;
+    background: transparent;
+    display: none;
+  }
+  .ig-group-box.show { display: block; }
+  .ig-group-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .ig-group-field label {
+    display: block;
+    font-size: 0.79rem;
+    font-weight: 700;
+    color: #0b2f6f;
+    margin-bottom: 5px;
+  }
+  .ig-group-input,
+  .ig-group-image-picker {
+    width: 100%;
+    border: 1px solid #bfd0ea;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.86rem;
+    background: #fff;
+    color: #0b1f4a;
+  }
+  .ig-group-input:focus,
+  .ig-group-image-picker:focus {
+    outline: 0;
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+  .ig-group-image-picker {
+    padding: 8px 10px;
+    font-size: 0.84rem;
+  }
+  .ig-group-image-picker::file-selector-button {
+    border: 1px solid #b8c8e8;
+    background: #fff;
+    color: #0b2f6f;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-inline-end: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #id_members,
+  .ig-group-members-checklist {
+    margin: 0;
+    padding: 10px;
+    list-style: none;
+    border: 1px solid #bfd0ea;
+    border-radius: 12px;
+    background: #fff;
+    max-height: 240px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  #id_members li,
+  .ig-group-members-checklist li {
+    margin: 0;
+    padding: 0;
+  }
+  #id_members label,
+  .ig-group-members-checklist label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid #dbe5f5;
+    border-radius: 10px;
+    background: #f8fbff;
+    color: #0b1f4a;
+    cursor: pointer;
+  }
+  #id_members input[type="checkbox"],
+  .ig-group-members-checklist input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #0b2f6f;
+  }
+  .ig-group-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .ig-dm-wrap { margin: 8px auto; border-radius: 12px; }
+    .ig-section { margin: 8px 10px; }
+    .ig-group-grid { grid-template-columns: 1fr; }
+  .ig-avatar, .ig-avatar-fallback { width: 42px; height: 42px; }
+    .ig-avatar-wrap { width: 42px; height: 42px; }
+    .ig-request-actions { flex-direction: column; }
+    .ig-tabs { padding: 6px; flex-wrap: wrap; }
+    .ig-tab {
+      flex: 1 1 calc(50% - 6px);
+      justify-content: center;
+      min-width: 120px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-2">
+  <section class="ig-dm-wrap">
+    <div class="ig-dm-head">
+      <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الرسائل{% else %}{% trans "Messages" %}{% endif %}</h2>
+      <button type="button" class="ig-btn primary" id="toggleGroupForm">
+        <i class="fas fa-user-friends"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مجموعة جديدة{% else %}{% trans "New Group" %}{% endif %}
+      </button>
+    </div>
+
+    <div class="ig-section ig-section-controls">
+      <div class="ig-tabs">
+        <a href="?tab=primary" class="ig-tab {% if active_tab != 'requests' %}active{% endif %}">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أساسي{% else %}{% trans "Primary" %}{% endif %}
+        </a>
+        <a href="?tab=requests" class="ig-tab {% if active_tab == 'requests' %}active{% endif %}">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الطلبات{% else %}{% trans "Requests" %}{% endif %}
+          <span class="ig-tab-badge">{{ request_conversations|length }}</span>
+        </a>
+      </div>
+
+      <div class="ig-group-box" id="groupFormBox">
+        <form method="post" action="{% url 'direct_messages:create_group' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="ig-group-grid">
+            <div class="ig-group-field">
+              <label for="id_group_name">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المجموعة{% else %}{{ group_form.group_name.label }}{% endif %}</label>
+              {{ group_form.group_name }}
+            </div>
+            <div class="ig-group-field">
+              <label for="id_group_image">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صورة المجموعة{% else %}{{ group_form.group_image.label }}{% endif %}</label>
+              {{ group_form.group_image }}
+            </div>
+            <div class="ig-group-field" style="grid-column: 1 / -1;">
+              <label for="id_members">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأعضاء{% else %}{{ group_form.members.label }}{% endif %}</label>
+              {{ group_form.members }}
+            </div>
+          </div>
+          <div class="ig-group-actions">
+            <button type="button" class="ig-btn" id="cancelGroupForm">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}</button>
+            <button type="submit" class="ig-btn primary">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء مجموعة{% else %}{% trans "Create Group" %}{% endif %}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="ig-section ig-section-list">
+      <div class="ig-list">
+      {% if active_tab == 'requests' %}
+        {% for row in request_conversations %}
+          <a href="{% url 'direct_messages:thread' row.conversation.id %}" class="ig-row" data-conversation-id="{{ row.conversation.id }}">
+            <div class="ig-avatar-wrap">
+              {% if row.avatar_url %}
+                <img src="{{ row.avatar_url }}" alt="{{ row.title }}" class="ig-avatar" loading="lazy"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ig-avatar-fallback" style="display:none;">{{ row.title|slice:":1"|upper }}</div>
+              {% else %}
+                <div class="ig-avatar-fallback">{{ row.title|slice:":1"|upper }}</div>
+              {% endif %}
+              <span class="ig-avatar-unread">{% trans "New" %}</span>
+            </div>
+            <div class="ig-main">
+              <div class="ig-top">
+                <div class="ig-name">{{ row.title }}</div>
+                <div class="ig-time">{% if row.last_message %}{{ row.last_message.created_at|date:"H:i" }}{% endif %}</div>
+              </div>
+              <div class="ig-last">
+                {% if row.last_message %}{{ row.last_message.content|truncatechars:60 }}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طلب رسالة{% else %}{% trans "Message request" %}{% endif %}{% endif %}
+              </div>
+            </div>
+            <div class="ig-meta">
+              <span class="ig-unread">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جديد{% else %}{% trans "New" %}{% endif %}</span>
+            </div>
+          </a>
+        {% empty %}
+          <p class="ig-empty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات رسائل.{% else %}{% trans "No message requests." %}{% endif %}</p>
+        {% endfor %}
+      {% else %}
+        {% for row in primary_conversations %}
+          <a href="{% url 'direct_messages:thread' row.conversation.id %}" class="ig-row" data-conversation-id="{{ row.conversation.id }}">
+            <div class="ig-avatar-wrap">
+              {% if row.avatar_url %}
+                <img src="{{ row.avatar_url }}" alt="{{ row.title }}" class="ig-avatar" loading="lazy"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ig-avatar-fallback" style="display:none;">{{ row.title|slice:":1"|upper }}</div>
+              {% else %}
+                <div class="ig-avatar-fallback">{{ row.title|slice:":1"|upper }}</div>
+              {% endif %}
+              {% if row.unread_count > 0 %}
+                <span class="ig-avatar-unread" data-unread-badge>
+                  {% if row.unread_count > 99 %}99+{% else %}{{ row.unread_count }}{% endif %}
+                </span>
+              {% else %}
+                <span class="ig-avatar-unread is-hidden" data-unread-badge></span>
+              {% endif %}
+            </div>
+            <div class="ig-main">
+              <div class="ig-top">
+                <div class="ig-name">{{ row.title }}</div>
+                <div class="ig-time">
+                  {% if row.last_message %}{{ row.last_message.created_at|date:"H:i" }}{% else %}{{ row.conversation.created_at|date:"H:i" }}{% endif %}
+                </div>
+              </div>
+                <div class="ig-last">
+                {% if row.last_message %}
+                  {% if row.last_message.sender_id == request.user.id and row.last_message.message_type != "system" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أنت{% else %}{% trans "You" %}{% endif %}: {% endif %}
+                  {% if row.last_message.message_type == "file" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مرفق{% else %}{% trans "Attachment" %}{% endif %}{% else %}{{ row.last_message.content|truncatechars:72 }}{% endif %}
+                {% else %}
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد رسائل بعد.{% else %}{% trans "No messages yet." %}{% endif %}
+                {% endif %}
+              </div>
+            </div>
+            <div class="ig-meta"></div>
+          </a>
+        {% empty %}
+          <p class="ig-empty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد محادثات بعد.{% else %}{% trans "No conversations yet." %}{% endif %}</p>
+        {% endfor %}
+      {% endif %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const isArabicUi = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}1{% else %}0{% endif %}" === "1";
+
+    function getCsrfToken() {
+      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : "";
+    }
+
+    const groupNameInput = document.getElementById("id_group_name");
+    if (groupNameInput && isArabicUi) {
+      groupNameInput.setAttribute("placeholder", "أدخل اسم المجموعة");
+      groupNameInput.setAttribute("dir", "rtl");
+    }
+
+    const groupFormBox = document.getElementById("groupFormBox");
+    const toggleGroupForm = document.getElementById("toggleGroupForm");
+    const cancelGroupForm = document.getElementById("cancelGroupForm");
+    if (toggleGroupForm && groupFormBox) {
+      toggleGroupForm.addEventListener("click", function () {
+        groupFormBox.classList.toggle("show");
+      });
+    }
+    if (cancelGroupForm && groupFormBox) {
+      cancelGroupForm.addEventListener("click", function () {
+        groupFormBox.classList.remove("show");
+      });
+    }
+    const unreadMapUrl = "{% url 'direct_messages:unread_map' %}";
+    function renderUnreadBadge(rowEl, count) {
+      const badge = rowEl.querySelector("[data-unread-badge]");
+      if (!badge) return;
+      if (!count || count <= 0) {
+        badge.textContent = "";
+        badge.classList.add("is-hidden");
+        return;
+      }
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.classList.remove("is-hidden");
+    }
+    async function refreshUnreadBadges() {
+      try {
+        const res = await fetch(unreadMapUrl, {
+          method: "GET",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const counts = data.counts || {};
+        document.querySelectorAll(".ig-row[data-conversation-id]").forEach((rowEl) => {
+          const convId = rowEl.getAttribute("data-conversation-id");
+          renderUnreadBadge(rowEl, Number(counts[convId] || 0));
+        });
+      } catch (_) {}
+    }
+    document.querySelectorAll(".ig-row[data-conversation-id]").forEach((rowEl) => {
+      rowEl.addEventListener("click", function () {
+        renderUnreadBadge(rowEl, 0);
+      });
+    });
+    if ("{% if active_tab == 'requests' %}0{% else %}1{% endif %}" === "1") {
+      refreshUnreadBadges();
+      setInterval(() => {
+        if (!document.hidden) refreshUnreadBadges();
+      }, 15000);
+    }
+    // Request actions are handled inside thread page.
+  })();
+</script>
+{% endblock %}

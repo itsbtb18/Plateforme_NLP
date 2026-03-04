@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "notifications",
     "search",
     "chatbot",
+    "direct_messages",
     "sharing",
     "translate",
     "scraping",

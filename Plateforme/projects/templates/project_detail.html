@@ -246,6 +246,17 @@ html[dir="rtl"] body {
     color: var(--pd-white);
 }
 
+.pd-btn-invite {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pd-btn-invite:hover {
+    color: #fff;
+    filter: brightness(1.05);
+}
+
 /* ===== ACTION CARD (Course-Style) ===== */
 .project-action-card {
     background: var(--pd-white);
@@ -1039,6 +1050,153 @@ html[dir="rtl"] .pd-timeline-dot {
     color: var(--primary-accent);
     background: var(--type-general-bg);
 }
+
+.invite-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 23, 42, 0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.invite-modal.is-open {
+    display: flex;
+}
+
+.invite-modal-card {
+    width: min(640px, 100%);
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #dbe4f3;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+}
+
+.invite-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.invite-modal-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.invite-modal-close {
+    background: #f1f5f9;
+    border: 1px solid #dbe4f3;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #334155;
+}
+
+.invite-modal-body {
+    padding: 1rem 1.25rem;
+}
+
+.invite-search-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.invite-search-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+}
+
+.invite-search-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    background: #1d4ed8;
+    color: #fff;
+    font-weight: 700;
+}
+
+.invite-search-results {
+    border: 1px solid #dbe4f3;
+    border-radius: 12px;
+    max-height: 220px;
+    overflow: auto;
+    background: #f8fafc;
+}
+
+.invite-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0.8rem;
+    border-bottom: 1px solid #e6edf8;
+    gap: 0.75rem;
+}
+
+.invite-result-item:last-child {
+    border-bottom: 0;
+}
+
+.invite-user-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.invite-user-name {
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+
+.invite-user-email {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.invite-empty {
+    padding: 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.invite-modal-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.invite-btn-secondary,
+.invite-btn-primary {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-weight: 700;
+}
+
+.invite-btn-secondary {
+    background: #fff;
+    color: #334155;
+}
+
+.invite-btn-primary {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+}
 </style>
 {% endblock %}
 
@@ -1089,8 +1247,15 @@ html[dir="rtl"] .pd-timeline-dot {
                     </div>
                 </div>
                 
-                {% if is_coordinator %}
+                {% if is_coordinator or can_invite_members %}
                 <div class="pd-hero-actions">
+                    {% if can_invite_members %}
+                    <button type="button" class="pd-btn pd-btn-invite" id="open-invite-modal-btn">
+                        <i class="bi bi-person-plus-fill"></i>
+                        {% translate "Invite Members" %}
+                    </button>
+                    {% endif %}
+                    {% if is_coordinator %}
                     <a href="{% url 'projects:project_update' project.pk %}" class="pd-btn pd-btn-secondary">
                         <i class="bi bi-pencil"></i>
                         {% translate "Edit" %}
@@ -1103,6 +1268,7 @@ html[dir="rtl"] .pd-timeline-dot {
                         <i class="bi bi-trash"></i>
                         {% translate "Delete" %}
                     </a>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -1161,7 +1327,7 @@ html[dir="rtl"] .pd-timeline-dot {
                 </button>
                 {% endif %}
                 
-                {% if (request.user.is_staff or request.user.is_superuser) and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
                 <a class="pd-review-btn back" href="{% url 'pages:admin_projects' %}?tab=pending">
                     <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
                 </a>
@@ -1305,6 +1471,18 @@ html[dir="rtl"] .pd-timeline-dot {
                             <i class="bi bi-robot"></i>
                             {% trans "Ask AI Robot" %}
                             <span class="ai-badge-inline">AI</span>
+                        </a>
+
+                        {% if is_coordinator or is_member %}
+                        <a href="{% url 'projects:project_chatroom' project.pk %}" class="project-action-btn secondary">
+                            <i class="bi bi-chat-dots"></i>
+                            {% trans "Project Chatroom" %}
+                        </a>
+                        {% endif %}
+
+                        <a href="{% url 'projects:project_invitations' %}" class="project-action-btn secondary">
+                            <i class="bi bi-inbox"></i>
+                            {% trans "Project Invitations" %}
                         </a>
                     </div>
                 </div>
@@ -1470,5 +1648,187 @@ html[dir="rtl"] .pd-timeline-dot {
     
 </div>
 
+{% if can_invite_members %}
+<div class="invite-modal" id="invite-members-modal" aria-hidden="true">
+    <div class="invite-modal-card" role="dialog" aria-modal="true" aria-labelledby="invite-members-title">
+        <div class="invite-modal-header">
+            <h3 class="invite-modal-title" id="invite-members-title">{% translate "Invite Members" %}</h3>
+            <button type="button" class="invite-modal-close" id="close-invite-modal-btn" aria-label="{% translate 'Close' %}">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="invite-modal-body">
+            <div class="invite-search-row">
+                <input type="text" class="invite-search-input" id="invite-search-input" placeholder="{% translate 'Search by email or username...' %}">
+                <button type="button" class="invite-search-btn" id="invite-search-btn">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <div id="invite-feedback" class="invite-empty">{% translate "Type at least 2 characters to search." %}</div>
+            <div class="invite-search-results" id="invite-search-results" style="display: none;"></div>
+        </div>
+        <div class="invite-modal-footer">
+            <button type="button" class="invite-btn-secondary" id="invite-cancel-btn">{% translate "Cancel" %}</button>
+            <button type="button" class="invite-btn-primary" id="invite-submit-btn">{% translate "Send Invitation" %}</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% include "components/document_viewer_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+{% if can_invite_members %}
+<script>
+(function() {
+    'use strict';
+    const modal = document.getElementById('invite-members-modal');
+    const openBtn = document.getElementById('open-invite-modal-btn');
+    const closeBtn = document.getElementById('close-invite-modal-btn');
+    const cancelBtn = document.getElementById('invite-cancel-btn');
+    const searchInput = document.getElementById('invite-search-input');
+    const searchBtn = document.getElementById('invite-search-btn');
+    const resultsEl = document.getElementById('invite-search-results');
+    const feedbackEl = document.getElementById('invite-feedback');
+    const submitBtn = document.getElementById('invite-submit-btn');
+    const selectedUsers = new Set();
+
+    if (!modal || !openBtn || !closeBtn || !cancelBtn || !searchInput || !searchBtn || !resultsEl || !feedbackEl || !submitBtn) {
+        return;
+    }
+
+    const searchUrl = "{% url 'projects:project_invite_user_search' project.pk %}";
+    const inviteUrl = "{% url 'projects:project_invite' project.pk %}";
+
+    function getCsrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function openModal() {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        searchInput.focus();
+    }
+
+    function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderResults(items) {
+        resultsEl.innerHTML = '';
+        if (!items.length) {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'No users found.' %}";
+            return;
+        }
+        feedbackEl.style.display = 'none';
+        resultsEl.style.display = 'block';
+        items.forEach(function(user) {
+            const row = document.createElement('label');
+            row.className = 'invite-result-item';
+            row.innerHTML = `
+                <span class="invite-user-main">
+                    <span class="invite-user-name"></span>
+                    <span class="invite-user-email"></span>
+                </span>
+                <input type="checkbox" class="invite-user-checkbox">
+            `;
+            row.querySelector('.invite-user-name').textContent = user.name || user.email;
+            row.querySelector('.invite-user-email').textContent = user.email;
+            const checkbox = row.querySelector('.invite-user-checkbox');
+            checkbox.checked = selectedUsers.has(user.id);
+            checkbox.addEventListener('change', function() {
+                if (checkbox.checked) {
+                    selectedUsers.add(user.id);
+                } else {
+                    selectedUsers.delete(user.id);
+                }
+            });
+            resultsEl.appendChild(row);
+        });
+    }
+
+    function runSearch() {
+        const q = (searchInput.value || '').trim();
+        if (q.length < 2) {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Type at least 2 characters to search.' %}";
+            return;
+        }
+        fetch(searchUrl + '?q=' + encodeURIComponent(q), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) {
+                throw new Error(data.error || 'Search failed');
+            }
+            renderResults(data.results || []);
+        })
+        .catch(function() {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Search failed. Please try again.' %}";
+        });
+    }
+
+    function sendInvites() {
+        if (!selectedUsers.size) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Select at least one user.' %}";
+            return;
+        }
+        const formData = new FormData();
+        selectedUsers.forEach(function(userId) {
+            formData.append('invited_users[]', userId);
+        });
+
+        fetch(inviteUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) {
+                throw new Error(data.error || 'Invite failed');
+            }
+            window.location.reload();
+        })
+        .catch(function(err) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = err.message || "{% translate 'Invite failed. Please try again.' %}";
+        });
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    searchBtn.addEventListener('click', runSearch);
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            runSearch();
+        }
+    });
+    submitBtn.addEventListener('click', sendInvites);
+})();
+</script>
+{% endif %}
 {% endblock %}

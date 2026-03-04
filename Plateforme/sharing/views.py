@@ -8,10 +8,12 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.db.models import Q
+from django.urls import reverse
 
 from .models import Share, ShareReply
 from .services import ShareService
 from accounts.models import Friendship
+from direct_messages.models import Conversation, Message
 
 
 # ---------------------------------------------------------------------------
@@ -54,11 +56,36 @@ def user_search(request):
         {
             'id': str(u.pk),
             'name': u.get_full_name_display if hasattr(u, 'get_full_name_display') else (u.full_name or u.email),
+            'email': u.email or '',
             'avatar': u.avatar.url if getattr(u, 'avatar', None) and u.avatar else None,
+            'profile_url': reverse('accounts:profile', kwargs={'pk': u.pk}),
         }
         for u in qs
     ]
     return JsonResponse({'users': users})
+
+
+@login_required
+def group_search(request):
+    """Return groups joined by the current user, optionally filtered by query."""
+    q = request.GET.get('q', '').strip()
+    qs = (
+        Conversation.objects
+        .filter(conversation_type=Conversation.ConversationType.GROUP, participants=request.user)
+        .order_by('-created_at')
+    )
+    if q:
+        qs = qs.filter(group_name__icontains=q)
+    qs = qs[:50]
+    groups = [
+        {
+            'id': str(conv.id),
+            'name': (conv.group_name or _("Group chat")),
+            'avatar': conv.group_image.url if conv.group_image else None,
+        }
+        for conv in qs
+    ]
+    return JsonResponse({'groups': groups})
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +131,62 @@ def create_share(request):
 
         return JsonResponse({'success': True, 'share_id': str(share.id)})
 
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=500)
+
+
+@login_required
+@require_POST
+def create_group_share(request):
+    """Share platform content into a group conversation joined by the sender."""
+    try:
+        if request.content_type and 'application/json' in request.content_type:
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
+        conversation_id = data.get('conversation_id')
+        content_type_str = data.get('content_type')
+        object_id = data.get('object_id')
+        user_note = (data.get('message', '') or '').strip()
+
+        if not all([conversation_id, content_type_str, object_id]):
+            return JsonResponse({'success': False, 'error': _('Missing required fields.')}, status=400)
+
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        if conversation.conversation_type != Conversation.ConversationType.GROUP:
+            return JsonResponse({'success': False, 'error': _('Invalid group conversation.')}, status=400)
+        if not conversation.has_participant(request.user):
+            return JsonResponse({'success': False, 'error': _('You are not a participant in this group.')}, status=403)
+        if not conversation.can_user_send(request.user):
+            return JsonResponse({'success': False, 'error': _('You cannot send messages in this group.')}, status=403)
+
+        _, title, url = ShareService.get_share_snapshot(content_type_str, str(object_id))
+        if url and url.startswith("/"):
+            url = request.build_absolute_uri(url)
+        is_ar = request.LANGUAGE_CODE.startswith('ar')
+        header = _("Shared item") if not title else title
+        if is_ar:
+            intro = f"مشاركة: {header}"
+        else:
+            intro = f"Shared: {header}"
+        parts = [intro]
+        if url:
+            parts.append(url)
+        if user_note:
+            parts.append(user_note)
+        content = "\n".join(parts).strip()
+
+        msg_type = Message.MessageType.LINK if (url and (url.startswith("http://") or url.startswith("https://"))) else Message.MessageType.TEXT
+        msg = Message.objects.create(
+            conversation=conversation,
+            sender=request.user,
+            message_type=msg_type,
+            content=content,
+        )
+        return JsonResponse({'success': True, 'message_id': str(msg.id)})
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
     except Exception as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=500)
 

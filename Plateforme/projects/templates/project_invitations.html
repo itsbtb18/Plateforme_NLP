@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% translate "Project Invitations" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+.pi-wrap {
+    max-width: 980px;
+    margin: 2rem auto;
+    padding: 0 1rem 2rem;
+}
+.pi-card {
+    background: #fff;
+    border: 1px solid #dbe4f3;
+    border-radius: 14px;
+    box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+.pi-head {
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.pi-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+.pi-list {
+    display: flex;
+    flex-direction: column;
+}
+.pi-item {
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.pi-item:last-child {
+    border-bottom: 0;
+}
+.pi-main {
+    min-width: 220px;
+}
+.pi-project {
+    font-weight: 800;
+    color: #0f172a;
+}
+.pi-meta {
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+.pi-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.pi-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.48rem 0.95rem;
+    font-weight: 700;
+    background: #fff;
+}
+.pi-btn.accept {
+    border-color: #1d4ed8;
+    background: #1d4ed8;
+    color: #fff;
+}
+.pi-btn.reject {
+    border-color: #ef4444;
+    color: #b91c1c;
+}
+.pi-empty {
+    padding: 1.4rem;
+    text-align: center;
+    color: #64748b;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pi-wrap">
+    <div class="pi-card">
+        <div class="pi-head">
+            <h1 class="pi-title">{% translate "Project Invitations" %}</h1>
+            <a href="{% url 'projects:project_list' %}" class="pi-btn">
+                <i class="bi bi-arrow-left"></i>
+                {% translate "Projects" %}
+            </a>
+        </div>
+        <div class="pi-list">
+            {% for invitation in invitations %}
+            <div class="pi-item">
+                <div class="pi-main">
+                    <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
+                    <div class="pi-meta">
+                        {% blocktranslate with inviter=invitation.invited_by.get_full_name_display institution=invitation.project.institution %}
+                        Invited by {{ inviter }} · {{ institution }}
+                        {% endblocktranslate %}
+                    </div>
+                </div>
+                <div class="pi-actions">
+                    <form method="post" action="{% url 'projects:project_invitation_accept' invitation.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="pi-btn accept">{% translate "Accept" %}</button>
+                    </form>
+                    <form method="post" action="{% url 'projects:project_invitation_reject' invitation.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="pi-btn reject">{% translate "Reject" %}</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="pi-empty">{% translate "No pending project invitations." %}</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,2228 @@
+﻿{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ conversation_title }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  body.dm-thread-lock {
+    overflow: hidden;
+  }
+  :root {
+    --dm-blue-900: #07142d;
+    --dm-blue-800: #102a57;
+    --dm-blue-700: #1a3f7f;
+    --dm-blue-600: #2a5fb7;
+    --dm-blue-100: #e8f0ff;
+    --dm-blue-050: #f4f8ff;
+    --dm-line: #c8d8f2;
+    --dm-text: #0f2247;
+    --dm-subtle: #5a6f96;
+    --dm-head-bg: #0d2348;
+    --dm-head-border: #1a3a73;
+    --dm-head-text: #eaf2ff;
+    --dm-head-sub: #b9c9e6;
+    --dm-head-btn-bg: #153567;
+    --dm-head-btn-border: #2a4f8a;
+  }
+  .ig-chat-wrap {
+    max-width: 980px;
+    margin: 12px auto;
+    height: calc(100vh - 126px);
+    min-height: 520px;
+    border: 1px solid var(--dm-line);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 12px 24px rgba(11, 31, 74, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .ig-chat-head {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    border-bottom: 1px solid var(--dm-head-border);
+    background: var(--dm-head-bg);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .ig-chat-head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+  .ig-back {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--dm-head-btn-border);
+    color: var(--dm-head-text);
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dm-head-btn-bg);
+  }
+  .ig-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ig-settings-wrap {
+    position: relative;
+  }
+  .ig-settings-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--dm-head-btn-border);
+    color: var(--dm-head-text);
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dm-head-btn-bg);
+  }
+  .ig-add-member-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--dm-head-btn-border);
+    color: var(--dm-head-text);
+    border-radius: 999px;
+    font-size: 0.95rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dm-head-btn-bg);
+  }
+  .ig-add-member-btn:hover {
+    background: #1a3f7f;
+    border-color: #4269a5;
+  }
+  .ig-settings-btn:hover {
+    background: #1a3f7f;
+    border-color: #4269a5;
+  }
+  .ig-settings-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline-end: 0;
+    width: 232px;
+    border: 1px solid var(--dm-line);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 14px 28px rgba(11, 31, 74, 0.14);
+    padding: 6px;
+    display: none;
+    z-index: 30;
+  }
+  .ig-settings-menu.show { display: block; }
+  .ig-settings-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #66799d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 8px 4px;
+  }
+  .ig-settings-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #0b1f4a;
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: start;
+    font-size: 0.84rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .ig-settings-item:hover { background: var(--dm-blue-050); }
+  .ig-settings-item.has-submenu .caret {
+    font-size: 0.72rem;
+    color: #6b7ea4;
+  }
+  .ig-settings-submenu {
+    display: none;
+    margin: 2px 0 6px;
+    padding: 0 6px;
+  }
+  .ig-settings-submenu.show { display: block; }
+  .ig-settings-submenu .ig-settings-item {
+    font-size: 0.8rem;
+    padding: 7px 8px;
+  }
+  .ig-member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 2px;
+  }
+  .ig-member-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .ig-member-avatar-link {
+    display: inline-flex;
+    text-decoration: none;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .ig-member-avatar,
+  .ig-member-avatar-fallback {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid #dbeafe;
+    flex-shrink: 0;
+  }
+  .ig-member-avatar {
+    object-fit: cover;
+    background: #e2e8f0;
+  }
+  .ig-member-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #1e3a8a;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  }
+  .ig-member-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ig-member-name {
+    font-size: 0.8rem;
+    color: #0b1f4a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ig-member-email {
+    font-size: 0.72rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: ltr;
+  }
+  .ig-member-remove {
+    border: 1px solid #f3b6bf;
+    border-radius: 999px;
+    background: #fff;
+    color: #b42318;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 4px 8px;
+  }
+  .ig-member-remove:hover { background: #fff5f6; }
+  .ig-settings-item.danger {
+    color: #b42318;
+  }
+  .ig-settings-sep {
+    border-top: 1px solid var(--dm-line);
+    margin: 6px 0;
+  }
+  .ig-muted-chip {
+    margin: 8px 12px 0;
+    border: 1px solid var(--dm-line);
+    background: var(--dm-blue-050);
+    color: var(--dm-blue-800);
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ig-back:hover {
+    background: #1a3f7f;
+    border-color: #4269a5;
+    color: var(--dm-head-text);
+  }
+
+  html[dir="rtl"] .ig-chat-wrap {
+    direction: rtl;
+  }
+  html[dir="rtl"] .ig-chat-head {
+    flex-direction: row;
+  }
+  html[dir="rtl"] .ig-chat-head-left {
+    flex-direction: row;
+  }
+  html[dir="rtl"] .ig-head-actions {
+    flex-direction: row;
+  }
+  html[dir="rtl"] .ig-head-title { text-align: right; }
+  html[dir="rtl"] .ig-head-link {
+    flex-direction: row;
+  }
+  html[dir="rtl"] .ig-group-edit-trigger {
+    flex-direction: row;
+  }
+  html[dir="rtl"] .ig-settings-menu {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+  }
+  html[dir="rtl"] .ig-settings-item {
+    text-align: right;
+    flex-direction: row-reverse;
+  }
+  html[dir="rtl"] .ig-member-row {
+    flex-direction: row-reverse;
+  }
+  html[dir="rtl"] .ig-member-name,
+  html[dir="rtl"] .ig-sender,
+  html[dir="rtl"] .ig-msg-meta,
+  html[dir="rtl"] .ig-bubble {
+    text-align: right;
+  }
+  html[dir="rtl"] .ig-msg-row {
+    direction: rtl;
+  }
+  html[dir="rtl"] .ig-compose-tools {
+    flex-direction: row-reverse;
+  }
+  html[dir="rtl"] .ig-compose-row {
+    direction: rtl;
+  }
+  html[dir="rtl"] .dm-composer-input {
+    text-align: right;
+  }
+  .ig-head-avatar,
+  .ig-head-avatar-fallback {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid #dbeafe;
+    flex-shrink: 0;
+  }
+  .ig-head-avatar { object-fit: cover; background: #e2e8f0; }
+  .ig-head-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  }
+  .ig-head-avatar-wrap {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .ig-head-title { min-width: 0; }
+  .ig-group-edit-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 10px;
+    padding: 3px 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    appearance: none;
+  }
+  .ig-group-edit-trigger:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .ig-head-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    text-decoration: none;
+  }
+  .ig-head-link:hover .ig-head-name {
+    text-decoration: underline;
+  }
+  .ig-head-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--dm-head-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ig-head-sub {
+    font-size: 0.74rem;
+    color: var(--dm-head-sub);
+  }
+
+  .ig-chat-forbidden {
+    margin: 10px 12px 0;
+    border: 1px solid #fed7aa;
+    background: #fff7ed;
+    color: #9a3412;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.84rem;
+  }
+  .ig-request-actions-bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 9;
+    border-top: 1px solid var(--dm-line);
+    background: #ffffff;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .ig-request-btn {
+    border-radius: 999px;
+    min-width: 132px;
+    padding: 11px 24px;
+    font-size: 0.96rem;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid var(--dm-line);
+    background: #fff;
+    color: var(--dm-blue-800);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ig-request-btn.accept {
+    border: 0;
+    color: #fff;
+    background: linear-gradient(135deg, var(--dm-blue-900), var(--dm-blue-800) 58%, var(--dm-blue-700));
+  }
+  .ig-request-btn.delete {
+    border-color: #f3b6bf;
+    color: #b42318;
+    background: #fff;
+  }
+
+  .ig-chat-body {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--dm-blue-050);
+    padding: 14px 12px 8px;
+  }
+  .ig-empty {
+    text-align: center;
+    color: var(--dm-subtle);
+    margin-top: 14px;
+  }
+  .ig-msg-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-start;
+    direction: ltr;
+    margin-bottom: 10px;
+    animation: igMsgIn .16s ease;
+  }
+  .ig-msg-row.mine { justify-content: flex-end; flex-direction: row; }
+  .ig-msg-row.mine .ig-msg { order: 1; }
+  .ig-msg-row.mine .ig-msg-avatar,
+  .ig-msg-row.mine .ig-msg-avatar-fallback { order: 2; }
+  .ig-msg-row.system {
+    justify-content: center;
+    margin: 8px 0 12px;
+  }
+  .ig-msg-avatar,
+  .ig-msg-avatar-fallback {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    border: 1px solid var(--dm-line);
+    overflow: hidden;
+  }
+  .ig-msg-avatar {
+    object-fit: cover;
+    background: #e2e8f0;
+  }
+  .ig-msg-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--dm-blue-700);
+    background: linear-gradient(135deg, #e5eeff, #d2e2ff);
+  }
+  .ig-msg {
+    max-width: min(78%, 660px);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ig-sender {
+    font-size: 0.72rem;
+    color: var(--dm-subtle);
+    padding-inline: 5px;
+    font-weight: 600;
+  }
+  .ig-bubble {
+    border-radius: 18px;
+    padding: 9px 12px;
+    line-height: 1.42;
+    font-size: 0.91rem;
+    word-break: break-word;
+    color: var(--dm-text);
+    background: #edf3fe;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, 0.06);
+  }
+  .ig-msg-row.mine .ig-bubble {
+    color: #fff;
+    background: linear-gradient(135deg, #1b3f84 0%, #1b4f9f 52%, #2563eb 100%);
+  }
+  .ig-bubble a { color: inherit; text-decoration: underline; }
+  .ig-msg-meta {
+    font-size: 0.68rem;
+    color: var(--dm-subtle);
+    padding-inline: 5px;
+  }
+  .ig-msg-row.mine .ig-msg-meta { text-align: end; }
+  .ig-seen { color: var(--dm-blue-600); font-weight: 600; }
+  .ig-system-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--dm-line);
+    background: #eaf2ff;
+    color: var(--dm-blue-800);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+
+  .ig-media {
+    margin-top: 6px;
+    max-width: 320px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0f172a;
+  }
+  .ig-media-btn {
+    border: 0;
+    padding: 0;
+    width: 100%;
+    display: block;
+    cursor: zoom-in;
+    background: transparent;
+  }
+  .ig-media img,
+  .ig-media video {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .ig-vcl-card {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 170px;
+    max-width: 260px;
+    padding: 7px 10px;
+    border-radius: 14px;
+    border: 1px solid #c8d8f2;
+    background: #f2f7ff;
+  }
+  .ig-vcl-play {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 0;
+    background: #133d8e;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.74rem;
+    flex-shrink: 0;
+  }
+  .ig-vcl-bars {
+    flex: 1;
+    min-width: 0;
+    height: 8px;
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, #9fb8e4 25%, transparent 25% 35%, #9fb8e4 35% 55%, transparent 55% 65%, #9fb8e4 65% 100%);
+    opacity: .92;
+  }
+  .ig-vcl-time {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1a365f;
+    min-width: 34px;
+    text-align: end;
+  }
+  .ig-vcl-audio {
+    display: none;
+  }
+  .ig-vcl-card.is-playing .ig-vcl-play {
+    background: #e53935;
+  }
+  .ig-msg-row.mine .ig-vcl-card {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.46);
+  }
+  .ig-msg-row.mine .ig-vcl-time {
+    color: #ffffff;
+  }
+  .ig-msg-row.mine .ig-vcl-bars {
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.7) 25%, transparent 25% 35%, rgba(255,255,255,.7) 35% 55%, transparent 55% 65%, rgba(255,255,255,.7) 65% 100%);
+  }
+  .ig-file-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+    max-width: 360px;
+    border: 1px solid #c8d8f2;
+    border-radius: 14px;
+    background: #f8fbff;
+    padding: 10px;
+  }
+  .ig-file-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #e2ecff;
+    color: #17408a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ig-file-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+  .ig-file-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0f2247;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ig-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .ig-file-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    border: 1px solid #bfd0ea;
+    background: #ffffff;
+    color: #153567;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 4px 9px;
+    text-decoration: none;
+  }
+  .ig-file-link:hover {
+    background: #e8f0ff;
+    color: #153567;
+    text-decoration: none;
+  }
+  .ig-file-link.download {
+    border-color: #9fb8e4;
+  }
+  .ig-msg-row.mine .ig-file-card {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+  .ig-msg-row.mine .ig-file-title {
+    color: #ffffff;
+  }
+  .ig-msg-row.mine .ig-file-link {
+    background: rgba(255, 255, 255, 0.94);
+    color: #153567;
+    border-color: rgba(255, 255, 255, 0.9);
+  }
+  .ig-msg-row.mine .ig-file-link:hover {
+    background: #ffffff;
+  }
+
+  .ig-media-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(3, 8, 20, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .ig-media-viewer.show {
+    display: flex;
+  }
+  .ig-media-viewer-close {
+    position: absolute;
+    top: 16px;
+    inset-inline-end: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ig-media-viewer-stage {
+    width: min(92vw, 980px);
+    max-height: calc(100vh - 140px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ig-media-viewer-stage img {
+    width: auto;
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    border-radius: 14px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  }
+  .ig-media-viewer-actions {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .ig-media-viewer-link {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    text-decoration: none;
+  }
+  .ig-media-viewer-link:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .ig-compose {
+    position: sticky;
+    bottom: 0;
+    z-index: 7;
+    border-top: 1px solid var(--dm-line);
+    background: #fff;
+    padding: 9px 10px;
+  }
+  .ig-compose-tools {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .ig-tool {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--dm-line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--dm-subtle);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .ig-tool:hover {
+    color: var(--dm-blue-600);
+    border-color: #90b1e6;
+    background: #ebf3ff;
+  }
+  .ig-emoji-panel {
+    display: none;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .ig-emoji-panel.show { display: flex; }
+  .ig-emoji-chip {
+    border: 1px solid var(--dm-line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .ig-compose-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dm-composer-input {
+    width: 100%;
+    min-height: 42px;
+    max-height: 150px;
+    resize: none;
+    border: 1px solid var(--dm-line);
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    outline: none;
+    background: #fff;
+  }
+  .dm-composer-input:focus {
+    border-color: #90b1e6;
+    box-shadow: 0 0 0 4px rgba(29, 79, 157, 0.12);
+  }
+  .ig-send {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--dm-blue-800), var(--dm-blue-600));
+    box-shadow: 0 8px 18px rgba(18, 53, 111, 0.28);
+  }
+  .ig-voice {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--dm-line);
+    border-radius: 999px;
+    color: var(--dm-blue-800);
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(18, 53, 111, 0.12);
+  }
+  .ig-voice:hover {
+    border-color: #90b1e6;
+    background: #ebf3ff;
+  }
+  .ig-voice.is-listening {
+    color: #fff;
+    border-color: #c62828;
+    background: #e53935;
+    box-shadow: 0 0 0 4px rgba(229, 57, 53, 0.16);
+  }
+  .ig-voice:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .ig-send.is-sending { opacity: .74; }
+
+  .ig-file-input { display: none; }
+  .ig-file-preview {
+    display: none;
+    margin-top: 6px;
+    font-size: 0.75rem;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 7px 9px;
+  }
+  .ig-file-preview.show { display: block; }
+  .ig-errors {
+    color: #b91c1c;
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+  .ig-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.38);
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .ig-confirm-overlay.show { display: flex; }
+  .ig-confirm-card {
+    width: min(460px, 100%);
+    border: 1px solid #c9d7ef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.2);
+    padding: 14px;
+  }
+  .ig-confirm-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0b1f4a;
+    margin-bottom: 8px;
+  }
+  .ig-confirm-text {
+    font-size: 0.88rem;
+    color: #334155;
+    margin-bottom: 12px;
+  }
+  .ig-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .ig-confirm-btn {
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border: 1px solid #b8c8e8;
+    background: #fff;
+    color: #0b2f6f;
+  }
+  .ig-confirm-btn.ok {
+    border: 0;
+    color: #fff;
+    background: linear-gradient(135deg, #0b1f4a, #0b2f6f 55%, #1d4ed8);
+  }
+  .ig-add-member-list {
+    margin: 0 0 12px;
+    padding: 8px;
+    list-style: none;
+    border: 1px solid #bfd0ea;
+    border-radius: 12px;
+    background: #f8fbff;
+    max-height: 220px;
+    overflow-y: auto;
+    display: grid;
+    gap: 8px;
+  }
+  .ig-add-member-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .ig-add-member-search-input {
+    width: 100%;
+    border: 1px solid #bfd0ea;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.84rem;
+    color: #0b1f4a;
+    background: #fff;
+  }
+  .ig-add-member-search-input:focus {
+    outline: 0;
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+  .ig-add-member-clear {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #bfd0ea;
+    border-radius: 999px;
+    background: #fff;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ig-add-member-clear:hover {
+    background: #f1f5f9;
+    color: #0b2f6f;
+  }
+  .ig-add-member-option {
+    width: 100%;
+    border: 1px solid #d4def1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0b1f4a;
+    padding: 9px 10px;
+    text-align: start;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .ig-add-member-option:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+  }
+  .ig-add-member-option.active {
+    background: linear-gradient(135deg, #0b2f6f 0%, #1d4ed8 100%);
+    border-color: #1d4ed8;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.28);
+  }
+  .ig-add-member-option.active .ig-add-member-email {
+    color: rgba(255, 255, 255, 0.88);
+  }
+  .ig-add-member-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .ig-add-member-avatar,
+  .ig-add-member-avatar-fallback {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    border: 1px solid #bfd0ea;
+    overflow: hidden;
+  }
+  .ig-add-member-avatar {
+    object-fit: cover;
+    background: #e2e8f0;
+  }
+  .ig-add-member-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #0b2f6f;
+    background: linear-gradient(135deg, #dbe7fb, #c7daf8);
+  }
+  .ig-add-member-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .ig-add-member-name {
+    font-size: 0.84rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .ig-add-member-email {
+    font-size: 0.73rem;
+    color: #5f6f8b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .ig-add-member-empty {
+    border: 1px dashed #bfd0ea;
+    border-radius: 10px;
+    color: #5d6f8f;
+    text-align: center;
+    padding: 10px;
+    font-size: 0.83rem;
+    margin-bottom: 12px;
+    background: #f8fbff;
+  }
+  .ig-edit-group-field {
+    margin-bottom: 10px;
+  }
+  .ig-edit-group-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0b2f6f;
+    margin-bottom: 5px;
+  }
+  .ig-edit-group-input {
+    width: 100%;
+    border: 1px solid #bfd0ea;
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-size: 0.86rem;
+  }
+  .ig-edit-group-input:focus {
+    outline: 0;
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+
+  @keyframes igMsgIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 768px) {
+    .ig-chat-wrap {
+      margin: 8px auto;
+      border-radius: 12px;
+      min-height: 420px;
+      height: calc(100vh - 108px);
+    }
+    .ig-msg { max-width: 88%; }
+    .ig-head-sub { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-1">
+  <section class="ig-chat-wrap">
+    <header class="ig-chat-head">
+      <div class="ig-chat-head-left">
+        {% if other %}
+          <a href="{% url 'accounts:profile' pk=other.id %}" class="ig-head-link">
+            <div class="ig-head-avatar-wrap">
+              {% if conversation_avatar_url %}
+                <img src="{{ conversation_avatar_url }}" alt="{{ conversation_title }}" class="ig-head-avatar"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ig-head-avatar-fallback" style="display:none;">{{ conversation_title|slice:":1"|upper }}</div>
+              {% else %}
+                <div class="ig-head-avatar-fallback">{{ conversation_title|slice:":1"|upper }}</div>
+              {% endif %}
+            </div>
+            <div class="ig-head-title">
+              <div class="ig-head-name">{{ conversation_title }}</div>
+              <div class="ig-head-sub">{{ conversation_subtitle }}</div>
+            </div>
+          </a>
+        {% else %}
+          {% if conversation.is_group and can_manage_group %}
+            <button type="button" class="ig-group-edit-trigger" id="openEditGroupModal" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تعديل المجموعة{% else %}Edit group{% endif %}">
+              <div class="ig-head-avatar-wrap">
+                {% if conversation_avatar_url %}
+                  <img src="{{ conversation_avatar_url }}" alt="{{ conversation_title }}" class="ig-head-avatar" id="groupHeadAvatar"
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                  <div class="ig-head-avatar-fallback" id="groupHeadAvatarFallback" style="display:none;">{{ conversation_title|slice:":1"|upper }}</div>
+                {% else %}
+                  <div class="ig-head-avatar-fallback" id="groupHeadAvatarFallback">{{ conversation_title|slice:":1"|upper }}</div>
+                {% endif %}
+              </div>
+              <div class="ig-head-title">
+                <div class="ig-head-name" id="groupHeadTitle">{{ conversation_title }}</div>
+                <div class="ig-head-sub">{{ conversation_subtitle }}</div>
+              </div>
+            </button>
+          {% else %}
+            <div class="ig-head-avatar-wrap">
+              {% if conversation_avatar_url %}
+                <img src="{{ conversation_avatar_url }}" alt="{{ conversation_title }}" class="ig-head-avatar"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ig-head-avatar-fallback" style="display:none;">{{ conversation_title|slice:":1"|upper }}</div>
+              {% else %}
+                <div class="ig-head-avatar-fallback">{{ conversation_title|slice:":1"|upper }}</div>
+              {% endif %}
+            </div>
+            <div class="ig-head-title">
+              <div class="ig-head-name">{{ conversation_title }}</div>
+              <div class="ig-head-sub">{{ conversation_subtitle }}</div>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="ig-head-actions">
+        {% if conversation.is_group and can_manage_group %}
+          <button type="button" class="ig-add-member-btn" id="openAddMemberModal" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إضافة عضو{% else %}Add member{% endif %}">
+            <i class="fas fa-user-plus"></i>
+          </button>
+        {% endif %}
+        <div class="ig-settings-wrap">
+          <button type="button" class="ig-settings-btn" id="chatSettingsBtn" aria-label="{% trans 'Settings' %}">
+            <i class="fas fa-cog"></i>
+          </button>
+          <div class="ig-settings-menu" id="chatSettingsMenu">
+            {% if conversation.is_group %}
+              <div class="ig-settings-sep"></div>
+              <button type="button" class="ig-settings-item has-submenu" id="groupMembersToggle">
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أعضاء المجموعة{% else %}Group members{% endif %}</span><i class="fas fa-users caret"></i>
+              </button>
+              <div class="ig-settings-submenu" id="groupMembersSubmenu">
+                {% for p in participants %}
+                  <div class="ig-member-row">
+                    <div class="ig-member-main">
+                      <a href="{% url 'accounts:profile' pk=p.id %}" class="ig-member-avatar-link" aria-label="{{ p.get_full_name_display|default:p.get_short_name }}">
+                        {% if p.avatar %}
+                          <img src="{{ p.avatar.url }}" alt="{{ p.get_full_name_display|default:p.get_short_name }}" class="ig-member-avatar"
+                               onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                          <span class="ig-member-avatar-fallback" style="display:none;">{{ p.get_short_name|slice:":1"|upper }}</span>
+                        {% else %}
+                          <span class="ig-member-avatar-fallback">{{ p.get_short_name|slice:":1"|upper }}</span>
+                        {% endif %}
+                      </a>
+                      <div class="ig-member-text">
+                        <span class="ig-member-name">{{ p.get_full_name_display|default:p.get_short_name }}</span>
+                        <span class="ig-member-email">{{ p.email }}</span>
+                      </div>
+                    </div>
+                    {% if can_manage_group %}
+                      <button type="button" class="ig-member-remove js-remove-member" data-user-id="{{ p.id }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إزالة{% else %}Remove{% endif %}</button>
+                    {% endif %}
+                  </div>
+                {% empty %}
+                  <div class="ig-member-row">
+                    <span class="ig-member-name">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد أعضاء آخرون{% else %}No other members{% endif %}</span>
+                  </div>
+                {% endfor %}
+              </div>
+              <button type="button" class="ig-settings-item danger" id="groupLeaveBtn" data-url="{% url 'direct_messages:leave_group' conversation_id=conversation.id %}">
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مغادرة الدردشة{% else %}Leave chat{% endif %}</span><i class="fas fa-sign-out-alt"></i>
+              </button>
+            {% endif %}
+            {% if other %}
+              <div class="ig-settings-sep"></div>
+              <button type="button" class="ig-settings-item danger" id="chatBlockBtn" data-url="{% url 'accounts:friendship_action' user_id=other.id action='block' %}">
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حظر المستخدم{% else %}Block user{% endif %}</span><i class="fas fa-ban"></i>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+        <a href="{% url 'direct_messages:inbox' %}" class="ig-back" aria-label="{% trans 'Back' %}">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            <i class="bi bi-arrow-left"></i>
+          {% else %}
+            <i class="bi bi-arrow-right"></i>
+          {% endif %}
+        </a>
+      </div>
+    </header>
+    <div class="ig-muted-chip" id="muteStatusChip" hidden>
+      <i class="fas fa-bell-slash"></i><span id="muteStatusText"></span>
+    </div>
+
+    {% if chat_forbidden and not is_message_request %}
+      <div class="ig-chat-forbidden">
+        {% trans "This chat is in requests. Accept it first to reply." %}
+      </div>
+    {% endif %}
+
+    <div class="ig-chat-body" id="chatBody">
+      {% for msg in thread_messages %}
+        {% if msg.message_type == "system" %}
+        <div class="ig-msg-row system">
+          <div class="ig-system-badge">
+            <i class="fas fa-info-circle"></i>
+            <span>
+              {% if msg.system_event == "group_created" %}
+                {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                  قام <bdi>{{ msg.system_actor }}</bdi> بإنشاء المجموعة
+                {% else %}
+                  <bdi>{{ msg.system_actor }}</bdi> created the group
+                {% endif %}
+              {% elif msg.system_event == "member_added" %}
+                {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                  قام <bdi>{{ msg.system_actor }}</bdi> بإضافة <bdi>{{ msg.system_target }}</bdi> إلى المجموعة
+                {% else %}
+                  <bdi>{{ msg.system_actor }}</bdi> added <bdi>{{ msg.system_target }}</bdi> to the group
+                {% endif %}
+              {% elif msg.system_event == "member_removed" %}
+                {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                  قام <bdi>{{ msg.system_actor }}</bdi> بإزالة <bdi>{{ msg.system_target }}</bdi> من المجموعة
+                {% else %}
+                  <bdi>{{ msg.system_actor }}</bdi> removed <bdi>{{ msg.system_target }}</bdi> from the group
+                {% endif %}
+              {% elif msg.system_event == "member_left" %}
+                {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                  غادر <bdi>{{ msg.system_actor }}</bdi> المجموعة
+                {% else %}
+                  <bdi>{{ msg.system_actor }}</bdi> left the group
+                {% endif %}
+              {% else %}
+                {{ msg.content }}
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        {% else %}
+        <div class="ig-msg-row {% if msg.sender_id == request.user.id %}mine{% endif %}">
+          {% if msg.sender.avatar %}
+            <img src="{{ msg.sender.avatar.url }}" alt="{{ msg.sender.get_full_name_display|default:msg.sender.get_short_name }}" class="ig-msg-avatar"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+            <span class="ig-msg-avatar-fallback" style="display:none;">{{ msg.sender.get_short_name|slice:":1"|upper }}</span>
+          {% else %}
+            <span class="ig-msg-avatar-fallback">{{ msg.sender.get_short_name|slice:":1"|upper }}</span>
+          {% endif %}
+          <div class="ig-msg">
+            {% if msg.sender_id != request.user.id %}
+              <div class="ig-sender">{{ msg.sender.full_name_display|default:msg.sender.get_short_name }}</div>
+            {% endif %}
+            <div class="ig-bubble">
+              {% if msg.message_type == "file" and msg.file_path %}
+                {% with file_url=msg.file_path.url|lower %}
+                  {% if ".jpg" in file_url or ".jpeg" in file_url or ".png" in file_url or ".gif" in file_url or ".webp" in file_url %}
+                    <div class="ig-media">
+                      <button type="button" class="ig-media-btn js-ig-media-open" data-file-url="{{ msg.file_path.url }}" aria-label="{% trans 'Open image' %}">
+                        <img src="{{ msg.file_path.url }}" alt="{% trans 'Attachment' %}">
+                      </button>
+                    </div>
+                  {% elif ".mp3" in file_url or ".wav" in file_url or ".ogg" in file_url or ".m4a" in file_url %}
+                    <div class="ig-vcl-card" data-vcl-card>
+                      <button type="button" class="ig-vcl-play" data-vcl-play aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تشغيل رسالة صوتية{% else %}Play voice message{% endif %}">
+                        <i class="fas fa-play"></i>
+                      </button>
+                      <div class="ig-vcl-bars"></div>
+                      <span class="ig-vcl-time" data-vcl-time>0:00</span>
+                      <audio class="ig-vcl-audio" preload="metadata" src="{{ msg.file_path.url }}"></audio>
+                    </div>
+                  {% elif ".webm" in file_url %}
+                    {% if msg.content == "__voice__" %}
+                      <div class="ig-vcl-card" data-vcl-card>
+                        <button type="button" class="ig-vcl-play" data-vcl-play aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تشغيل رسالة صوتية{% else %}Play voice message{% endif %}">
+                          <i class="fas fa-play"></i>
+                        </button>
+                        <div class="ig-vcl-bars"></div>
+                        <span class="ig-vcl-time" data-vcl-time>0:00</span>
+                        <audio class="ig-vcl-audio" preload="metadata" src="{{ msg.file_path.url }}"></audio>
+                      </div>
+                    {% else %}
+                      <div class="ig-media"><video src="{{ msg.file_path.url }}" controls preload="metadata"></video></div>
+                    {% endif %}
+                  {% elif ".mp4" in file_url or ".mov" in file_url %}
+                    <div class="ig-media"><video src="{{ msg.file_path.url }}" controls preload="metadata"></video></div>
+                  {% else %}
+                    <div class="ig-file-card">
+                      <span class="ig-file-icon"><i class="fas fa-file-alt"></i></span>
+                      <div class="ig-file-meta">
+                        <div class="ig-file-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مرفق ملف{% else %}File attachment{% endif %}</div>
+                        <div class="ig-file-actions">
+                          <a href="{{ msg.file_path.url }}" class="ig-file-link" target="_blank" rel="noopener">
+                            <i class="fas fa-paperclip"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فتح الملف{% else %}Open file{% endif %}
+                          </a>
+                          <a href="{{ msg.file_path.url }}" class="ig-file-link download" download>
+                            <i class="fas fa-download"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحميل{% else %}Download{% endif %}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endwith %}
+                {% if msg.content and msg.content != "__voice__" %}<div class="mt-1">{{ msg.content|linebreaksbr }}</div>{% endif %}
+              {% elif msg.message_type == "link" %}
+                {{ msg.content|urlize }}
+              {% else %}
+                {{ msg.content|linebreaksbr }}
+              {% endif %}
+            </div>
+            <div class="ig-msg-meta">
+              {{ msg.created_at|date:"H:i" }}
+              {% if msg.sender_id == request.user.id %}
+                - <span class="{% if msg.is_read %}ig-seen{% endif %}">
+                  {% if msg.is_read %}
+                    {% if LANGUAGE_CODE|slice:":2" == "ar" %}تمت المشاهدة{% else %}Seen{% endif %}
+                  {% else %}
+                    {% if LANGUAGE_CODE|slice:":2" == "ar" %}تم الإرسال{% else %}Send{% endif %}
+                  {% endif %}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      {% empty %}
+        <p class="ig-empty">{% trans "No messages yet." %}</p>
+      {% endfor %}
+    </div>
+
+    {% if is_message_request %}
+      <div class="ig-request-actions-bottom">
+        <form method="post" action="{% url 'direct_messages:accept_conversation' conversation.id %}">
+          {% csrf_token %}
+          <button type="submit" class="ig-request-btn accept">{% trans "Accept" %}</button>
+        </form>
+        <form method="post" action="{% url 'direct_messages:delete_conversation' conversation.id %}">
+          {% csrf_token %}
+          <button type="submit" class="ig-request-btn delete">{% trans "Delete" %}</button>
+        </form>
+      </div>
+    {% elif not chat_forbidden %}
+      <div class="ig-compose">
+        <form method="post" enctype="multipart/form-data" id="chatForm">
+          {% csrf_token %}
+          <div class="ig-errors">{{ form.non_field_errors }}{{ form.content.errors }}{{ form.file_path.errors }}</div>
+
+          <div class="ig-compose-tools">
+            <button type="button" class="ig-tool" id="emojiToggle" title="{% trans 'Emoji' %}"><i class="far fa-smile"></i></button>
+            <button type="button" class="ig-tool" id="imagePick" title="{% trans 'Image' %}"><i class="far fa-image"></i></button>
+            <button type="button" class="ig-tool" id="filePick" title="{% trans 'File' %}"><i class="fas fa-paperclip"></i></button>
+          </div>
+
+          <div class="ig-emoji-panel" id="emojiPanel">
+            <button type="button" class="ig-emoji-chip">&#x1F600;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F602;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F60D;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F525;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F44D;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F64F;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F389;</button>
+            <button type="button" class="ig-emoji-chip">&#x1F499;</button>
+          </div>
+
+          <div class="ig-compose-row">
+            {{ form.content }}
+            <button type="button" class="ig-voice" id="voiceToggle" title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إدخال صوتي{% else %}Voice input{% endif %}" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إدخال صوتي{% else %}Voice input{% endif %}">
+              <i class="fas fa-microphone"></i>
+            </button>
+            <button type="submit" class="ig-send" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+          </div>
+
+          <input type="file" id="id_file_path" name="file_path" class="ig-file-input" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a,.docx,audio/*" hidden>
+          <div class="ig-file-preview" id="filePreview"></div>
+        </form>
+      </div>
+    {% endif %}
+  </section>
+</div>
+<div class="ig-media-viewer" id="igMediaViewer" aria-hidden="true">
+  <button type="button" class="ig-media-viewer-close" id="igMediaViewerClose" aria-label="{% trans 'Close' %}">
+    <i class="fas fa-times"></i>
+  </button>
+  <div class="ig-media-viewer-stage">
+    <img src="" alt="{% trans 'Attachment' %}" id="igMediaViewerImage">
+  </div>
+  <div class="ig-media-viewer-actions">
+    <a href="#" target="_blank" rel="noopener" class="ig-media-viewer-link" id="igMediaViewerOpen">
+      <i class="fas fa-paperclip"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فتح الملف{% else %}Open file{% endif %}
+    </a>
+    <a href="#" download class="ig-media-viewer-link" id="igMediaViewerDownload">
+      <i class="fas fa-download"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحميل{% else %}Download{% endif %}
+    </a>
+  </div>
+</div>
+<div class="ig-confirm-overlay" id="igConfirmOverlay" aria-hidden="true">
+  <div class="ig-confirm-card" role="dialog" aria-modal="true" aria-labelledby="igConfirmTitle">
+    <div class="ig-confirm-title" id="igConfirmTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تأكيد الإجراء{% else %}Confirm action{% endif %}</div>
+    <div class="ig-confirm-text" id="igConfirmText"></div>
+    <div class="ig-confirm-actions">
+      <button type="button" class="ig-confirm-btn" id="igConfirmCancel">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}Cancel{% endif %}</button>
+      <button type="button" class="ig-confirm-btn ok" id="igConfirmOk">OK</button>
+    </div>
+  </div>
+</div>
+{% if conversation.is_group and can_manage_group %}
+<div class="ig-confirm-overlay" id="igAddMemberOverlay" aria-hidden="true">
+  <div class="ig-confirm-card" role="dialog" aria-modal="true" aria-labelledby="igAddMemberTitle">
+    <div class="ig-confirm-title" id="igAddMemberTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة عضو{% else %}Add member{% endif %}</div>
+    {% if group_add_candidates %}
+      <div class="ig-add-member-search">
+        <input type="text" id="igAddMemberSearch" class="ig-add-member-search-input"
+               placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن مستخدم...{% else %}Search user...{% endif %}">
+        <button type="button" id="igAddMemberClear" class="ig-add-member-clear" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مسح{% else %}Clear{% endif %}">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <ul class="ig-add-member-list" id="igAddMemberList">
+        {% for u in group_add_candidates %}
+          <li>
+            <button type="button" class="ig-add-member-option" data-user-id="{{ u.id }}" data-search-text="{{ u.get_full_name_display|default:u.get_short_name }} {{ u.email }}">
+              <span class="ig-add-member-content">
+                {% if u.avatar %}
+                  <img src="{{ u.avatar.url }}" alt="{{ u.get_full_name_display|default:u.get_short_name }}" class="ig-add-member-avatar"
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                  <span class="ig-add-member-avatar-fallback" style="display:none;">{{ u.get_short_name|slice:":1"|upper }}</span>
+                {% else %}
+                  <span class="ig-add-member-avatar-fallback">{{ u.get_short_name|slice:":1"|upper }}</span>
+                {% endif %}
+                <span class="ig-add-member-text">
+                  <span class="ig-add-member-name">{{ u.get_full_name_display|default:u.get_short_name }}</span>
+                  <span class="ig-add-member-email">{{ u.email }}</span>
+                </span>
+              </span>
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="ig-add-member-empty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد أعضاء متاحون للإضافة{% else %}No available members to add{% endif %}</div>
+    {% endif %}
+    <div class="ig-confirm-actions">
+      <button type="button" class="ig-confirm-btn" id="igAddMemberCancel">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}Cancel{% endif %}</button>
+      <button type="button" class="ig-confirm-btn ok" id="igAddMemberOk">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة{% else %}Add{% endif %}</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% if conversation.is_group and can_manage_group %}
+<div class="ig-confirm-overlay" id="igEditGroupOverlay" aria-hidden="true">
+  <div class="ig-confirm-card" role="dialog" aria-modal="true" aria-labelledby="igEditGroupTitle">
+    <div class="ig-confirm-title" id="igEditGroupTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المجموعة{% else %}Edit group{% endif %}</div>
+    <div class="ig-edit-group-field">
+      <label class="ig-edit-group-label" for="igEditGroupName">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المجموعة{% else %}Group name{% endif %}</label>
+      <input type="text" id="igEditGroupName" class="ig-edit-group-input" maxlength="120" value="{{ conversation.group_name|default:'' }}">
+    </div>
+    <div class="ig-edit-group-field">
+      <label class="ig-edit-group-label" for="igEditGroupImage">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صورة المجموعة{% else %}Group image{% endif %}</label>
+      <input type="file" id="igEditGroupImage" class="ig-edit-group-input" accept="image/*">
+    </div>
+    <div class="ig-confirm-actions">
+      <button type="button" class="ig-confirm-btn" id="igEditGroupCancel">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}Cancel{% endif %}</button>
+      <button type="button" class="ig-confirm-btn ok" id="igEditGroupSave">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حفظ{% else %}Save{% endif %}</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    document.body.classList.add("dm-thread-lock");
+    window.addEventListener("beforeunload", function () {
+      document.body.classList.remove("dm-thread-lock");
+    });
+    const chatBody = document.getElementById("chatBody");
+    if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+
+    const input = document.querySelector(".dm-composer-input");
+    const emojiToggle = document.getElementById("emojiToggle");
+    const emojiPanel = document.getElementById("emojiPanel");
+    const imagePick = document.getElementById("imagePick");
+    const filePick = document.getElementById("filePick");
+    const fileInput = document.getElementById("id_file_path");
+    const filePreview = document.getElementById("filePreview");
+    const voiceToggle = document.getElementById("voiceToggle");
+    const sendBtn = document.getElementById("sendBtn");
+    const chatForm = document.getElementById("chatForm");
+    const chatSettingsBtn = document.getElementById("chatSettingsBtn");
+    const chatSettingsMenu = document.getElementById("chatSettingsMenu");
+    const muteStatusChip = document.getElementById("muteStatusChip");
+    const muteStatusText = document.getElementById("muteStatusText");
+    const chatBlockBtn = document.getElementById("chatBlockBtn");
+    const groupMembersToggle = document.getElementById("groupMembersToggle");
+    const groupMembersSubmenu = document.getElementById("groupMembersSubmenu");
+    const groupLeaveBtn = document.getElementById("groupLeaveBtn");
+    const confirmOverlay = document.getElementById("igConfirmOverlay");
+    const confirmText = document.getElementById("igConfirmText");
+    const confirmOk = document.getElementById("igConfirmOk");
+    const confirmCancel = document.getElementById("igConfirmCancel");
+    const openAddMemberModal = document.getElementById("openAddMemberModal");
+    const addMemberOverlay = document.getElementById("igAddMemberOverlay");
+    const addMemberList = document.getElementById("igAddMemberList");
+    const addMemberSearch = document.getElementById("igAddMemberSearch");
+    const addMemberClear = document.getElementById("igAddMemberClear");
+    const addMemberOk = document.getElementById("igAddMemberOk");
+    const addMemberCancel = document.getElementById("igAddMemberCancel");
+    const openEditGroupModal = document.getElementById("openEditGroupModal");
+    const editGroupOverlay = document.getElementById("igEditGroupOverlay");
+    const editGroupName = document.getElementById("igEditGroupName");
+    const editGroupImage = document.getElementById("igEditGroupImage");
+    const editGroupSave = document.getElementById("igEditGroupSave");
+    const editGroupCancel = document.getElementById("igEditGroupCancel");
+    const groupHeadTitle = document.getElementById("groupHeadTitle");
+    const mediaViewer = document.getElementById("igMediaViewer");
+    const mediaViewerImage = document.getElementById("igMediaViewerImage");
+    const mediaViewerOpen = document.getElementById("igMediaViewerOpen");
+    const mediaViewerDownload = document.getElementById("igMediaViewerDownload");
+    const mediaViewerClose = document.getElementById("igMediaViewerClose");
+    const muteKey = "dm_mute_until_{{ conversation.id }}";
+    const serverMutedForever = {% if is_muted_indefinitely %}true{% else %}false{% endif %};
+    const serverMutedUntilMs = {% if muted_until_ms %}{{ muted_until_ms }}{% else %}null{% endif %};
+    const selectedAddMemberIds = new Set();
+    const uiSeenLabel = "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تمت المشاهدة{% else %}Seen{% endif %}";
+    const uiSentLabel = "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تم الإرسال{% else %}Send{% endif %}";
+
+    const isArUi = document.documentElement.lang && document.documentElement.lang.startsWith("ar");
+    const uiOpenFileLabelLocalized = isArUi ? "\u0641\u062a\u062d \u0627\u0644\u0645\u0644\u0641" : "Open file";
+    const uiDownloadLabel = isArUi ? "\u062a\u062d\u0645\u064a\u0644" : "Download";
+    const uiAttachmentLabel = isArUi ? "\u0645\u0631\u0641\u0642 \u0645\u0644\u0641" : "File attachment";
+    const VOICE_TOKEN = "__voice__";
+    const uiVoiceUnsupported = isArUi ? "الرسائل الصوتية غير مدعومة في هذا المتصفح" : "Voice messages are not supported in this browser";
+    const uiVoiceDenied = isArUi ? "تعذر الوصول إلى الميكروفون" : "Microphone access failed";
+    const uiVoiceStart = isArUi ? "بدء تسجيل صوتي" : "Start voice recording";
+    const uiVoiceStop = isArUi ? "إيقاف التسجيل وإرسال الصوت" : "Stop recording and send voice";
+    const uiVoiceRecording = isArUi ? "جارٍ تسجيل رسالة صوتية..." : "Recording voice message...";
+    const uiVoiceReady = isArUi ? "الرسالة الصوتية جاهزة للإرسال" : "Voice message ready to send";
+    if (input && isArUi) {
+      input.setAttribute("placeholder", "اكتب رسالة...");
+    }
+
+    let mediaRecorder = null;
+    let mediaStream = null;
+    let audioChunks = [];
+    let listening = false;
+    if (voiceToggle && input) {
+      const hasRecorder = typeof window.MediaRecorder !== "undefined" && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function";
+      if (!hasRecorder || !fileInput || !chatForm) {
+        voiceToggle.disabled = true;
+        voiceToggle.title = uiVoiceUnsupported;
+      } else {
+        voiceToggle.title = uiVoiceStart;
+        voiceToggle.addEventListener("click", async function () {
+          if (listening && mediaRecorder) {
+            try { mediaRecorder.stop(); } catch (_) {}
+            return;
+          }
+          try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } catch (_) {
+            voiceToggle.title = uiVoiceDenied;
+            return;
+          }
+
+          audioChunks = [];
+          let mimeType = "";
+          if (window.MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+            mimeType = "audio/webm;codecs=opus";
+          } else if (window.MediaRecorder.isTypeSupported("audio/webm")) {
+            mimeType = "audio/webm";
+          } else if (window.MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
+            mimeType = "audio/ogg;codecs=opus";
+          }
+          mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
+          listening = true;
+          voiceToggle.classList.add("is-listening");
+          voiceToggle.setAttribute("aria-pressed", "true");
+          voiceToggle.title = uiVoiceStop;
+          if (filePreview) {
+            filePreview.classList.add("show");
+            filePreview.textContent = uiVoiceRecording;
+          }
+
+          mediaRecorder.ondataavailable = function (e) {
+            if (e.data && e.data.size > 0) audioChunks.push(e.data);
+          };
+          mediaRecorder.onstop = function () {
+            const blob = new Blob(audioChunks, { type: mimeType || "audio/webm" });
+            const ext = blob.type.includes("ogg") ? "ogg" : "webm";
+            const file = new File([blob], `voice-message-${Date.now()}.${ext}`, { type: blob.type || `audio/${ext}` });
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            input.value = VOICE_TOKEN;
+
+            listening = false;
+            voiceToggle.classList.remove("is-listening");
+            voiceToggle.setAttribute("aria-pressed", "false");
+            voiceToggle.title = uiVoiceStart;
+            if (filePreview) {
+              filePreview.classList.add("show");
+              filePreview.textContent = uiVoiceReady;
+            }
+
+            if (mediaStream) {
+              mediaStream.getTracks().forEach((t) => t.stop());
+              mediaStream = null;
+            }
+
+            if (typeof chatForm.requestSubmit === "function") {
+              chatForm.requestSubmit();
+            } else {
+              sendBtn.click();
+            }
+          };
+          mediaRecorder.start();
+        });
+      }
+    }
+
+    function getCsrfToken() {
+      const inputToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (inputToken && inputToken.value && inputToken.value !== "NOTPROVIDED") {
+        return inputToken.value;
+      }
+      const tplToken = "{{ csrf_token }}";
+      if (tplToken && tplToken !== "NOTPROVIDED") {
+        return tplToken;
+      }
+      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : "";
+    }
+    function askConfirm(messageText) {
+      return new Promise((resolve) => {
+        if (!confirmOverlay || !confirmText || !confirmOk || !confirmCancel) {
+          resolve(window.confirm(messageText));
+          return;
+        }
+        confirmText.textContent = messageText;
+        confirmOverlay.classList.add("show");
+        confirmOverlay.setAttribute("aria-hidden", "false");
+        const cleanup = () => {
+          confirmOverlay.classList.remove("show");
+          confirmOverlay.setAttribute("aria-hidden", "true");
+          confirmOk.removeEventListener("click", onOk);
+          confirmCancel.removeEventListener("click", onCancel);
+          confirmOverlay.removeEventListener("click", onBackdrop);
+        };
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+        const onBackdrop = (e) => {
+          if (e.target === confirmOverlay) onCancel();
+        };
+        confirmOk.addEventListener("click", onOk);
+        confirmCancel.addEventListener("click", onCancel);
+        confirmOverlay.addEventListener("click", onBackdrop);
+      });
+    }
+    function submitPostFallback(url, fields) {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = url;
+      form.style.display = "none";
+
+      const csrf = document.createElement("input");
+      csrf.type = "hidden";
+      csrf.name = "csrfmiddlewaretoken";
+      csrf.value = getCsrfToken();
+      form.appendChild(csrf);
+
+      Object.keys(fields || {}).forEach((k) => {
+        const inp = document.createElement("input");
+        inp.type = "hidden";
+        inp.name = k;
+        inp.value = fields[k];
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    if (openAddMemberModal && addMemberOverlay) {
+      openAddMemberModal.addEventListener("click", function () {
+        addMemberOverlay.classList.add("show");
+        addMemberOverlay.setAttribute("aria-hidden", "false");
+        selectedAddMemberIds.clear();
+        if (addMemberList) {
+          addMemberList.querySelectorAll(".ig-add-member-option").forEach((node) => {
+            node.classList.remove("active");
+            const item = node.closest("li");
+            if (item) item.style.display = "";
+          });
+        }
+        if (addMemberSearch) {
+          addMemberSearch.value = "";
+          addMemberSearch.focus();
+        }
+      });
+    }
+    if (addMemberCancel && addMemberOverlay) {
+      addMemberCancel.addEventListener("click", function () {
+        addMemberOverlay.classList.remove("show");
+        addMemberOverlay.setAttribute("aria-hidden", "true");
+      });
+    }
+    if (addMemberOverlay) {
+      addMemberOverlay.addEventListener("click", function (e) {
+        if (e.target === addMemberOverlay) {
+          addMemberOverlay.classList.remove("show");
+          addMemberOverlay.setAttribute("aria-hidden", "true");
+        }
+      });
+    }
+    if (addMemberList) {
+      addMemberList.addEventListener("click", function (e) {
+        const btn = e.target.closest(".ig-add-member-option");
+        if (!btn) return;
+        const userId = btn.getAttribute("data-user-id") || "";
+        if (!userId) return;
+        if (selectedAddMemberIds.has(userId)) {
+          selectedAddMemberIds.delete(userId);
+          btn.classList.remove("active");
+        } else {
+          selectedAddMemberIds.add(userId);
+          btn.classList.add("active");
+        }
+      });
+    }
+    if (addMemberSearch && addMemberList) {
+      addMemberSearch.addEventListener("input", function () {
+        const q = (addMemberSearch.value || "").trim().toLowerCase();
+        addMemberList.querySelectorAll(".ig-add-member-option").forEach((node) => {
+          const text = (node.getAttribute("data-search-text") || "").toLowerCase();
+          const item = node.closest("li");
+          if (!item) return;
+          item.style.display = !q || text.includes(q) ? "" : "none";
+        });
+      });
+    }
+    if (addMemberClear && addMemberSearch && addMemberList) {
+      addMemberClear.addEventListener("click", function () {
+        addMemberSearch.value = "";
+        addMemberSearch.dispatchEvent(new Event("input"));
+        addMemberSearch.focus();
+      });
+    }
+    if (addMemberOk) {
+      addMemberOk.addEventListener("click", async function () {
+        const userIds = Array.from(selectedAddMemberIds);
+        if (!userIds.length) return;
+        addMemberOk.disabled = true;
+        const addUrl = "{% url 'direct_messages:add_group_member' conversation_id=conversation.id %}";
+        let hasSuccess = false;
+        for (const userId of userIds) {
+          const res = await fetch(addUrl, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCsrfToken(),
+              "X-Requested-With": "XMLHttpRequest",
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            credentials: "same-origin",
+            body: new URLSearchParams({ user_id: userId }).toString(),
+          });
+          if (res.ok) hasSuccess = true;
+        }
+        addMemberOk.disabled = false;
+        if (hasSuccess) window.location.reload();
+      });
+    }
+    if (openEditGroupModal && editGroupOverlay) {
+      openEditGroupModal.addEventListener("click", function () {
+        editGroupOverlay.classList.add("show");
+        editGroupOverlay.setAttribute("aria-hidden", "false");
+      });
+    }
+    if (editGroupCancel && editGroupOverlay) {
+      editGroupCancel.addEventListener("click", function () {
+        editGroupOverlay.classList.remove("show");
+        editGroupOverlay.setAttribute("aria-hidden", "true");
+      });
+    }
+    if (editGroupOverlay) {
+      editGroupOverlay.addEventListener("click", function (e) {
+        if (e.target === editGroupOverlay) {
+          editGroupOverlay.classList.remove("show");
+          editGroupOverlay.setAttribute("aria-hidden", "true");
+        }
+      });
+    }
+    if (editGroupSave) {
+      editGroupSave.addEventListener("click", async function () {
+        const url = "{% url 'direct_messages:update_group_info' conversation_id=conversation.id %}";
+        const fd = new FormData();
+        if (editGroupName) fd.append("group_name", editGroupName.value || "");
+        if (editGroupImage && editGroupImage.files && editGroupImage.files[0]) {
+          fd.append("group_image", editGroupImage.files[0]);
+        }
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "X-CSRFToken": getCsrfToken(), "X-Requested-With": "XMLHttpRequest" },
+          credentials: "same-origin",
+          body: fd,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (groupHeadTitle && data.title) groupHeadTitle.textContent = data.title;
+        if (editGroupOverlay) {
+          editGroupOverlay.classList.remove("show");
+          editGroupOverlay.setAttribute("aria-hidden", "true");
+        }
+        window.location.reload();
+      });
+    }
+
+    function humanMuteText(value) {
+      const isAr = document.documentElement.lang && document.documentElement.lang.startsWith("ar");
+      if (value === "forever") return isAr ? "تم كتم المحادثة حتى إعادة التفعيل" : "Conversation muted until changed";
+      const ts = parseInt(value || "0", 10);
+      if (!ts || Number.isNaN(ts)) return "";
+      const now = Date.now();
+      if (ts <= now) return "";
+      const diffMin = Math.ceil((ts - now) / 60000);
+      if (isAr) return `تم كتم المحادثة (${diffMin} دقيقة متبقية)`;
+      return `Conversation muted (${diffMin} min left)`;
+    }
+
+    function refreshMuteChip() {
+      if (!muteStatusChip || !muteStatusText) return;
+      const val = localStorage.getItem(muteKey);
+      const text = humanMuteText(val);
+      if (!text) {
+        muteStatusChip.hidden = true;
+        return;
+      }
+      muteStatusText.textContent = text;
+      muteStatusChip.hidden = false;
+    }
+
+    if (chatSettingsBtn && chatSettingsMenu) {
+      chatSettingsBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chatSettingsMenu.classList.toggle("show");
+      });
+      document.addEventListener("click", function (e) {
+        if (!chatSettingsMenu.contains(e.target) && !chatSettingsBtn.contains(e.target)) {
+          chatSettingsMenu.classList.remove("show");
+        }
+      });
+    }
+    if (groupMembersToggle && groupMembersSubmenu) {
+      groupMembersToggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        groupMembersSubmenu.classList.toggle("show");
+      });
+    }
+
+
+    document.querySelectorAll(".js-remove-member").forEach((btn) => {
+      btn.addEventListener("click", async function () {
+        const userId = btn.getAttribute("data-user-id");
+        if (!userId) return;
+        const isAr = document.documentElement.lang && document.documentElement.lang.startsWith("ar");
+        const ok = await askConfirm(isAr ? "إزالة هذا العضو من المجموعة؟" : "Remove this member from the group?");
+        if (!ok) return;
+        const removeUrl = "{% url 'direct_messages:remove_group_member' conversation_id=conversation.id %}";
+        try {
+          const res = await fetch(removeUrl, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCsrfToken(),
+              "X-Requested-With": "XMLHttpRequest",
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            credentials: "same-origin",
+            body: new URLSearchParams({ user_id: userId }).toString(),
+          });
+          if (res.ok) {
+            window.location.reload();
+            return;
+          }
+        } catch (_) {
+          // fallback below
+        }
+        submitPostFallback(removeUrl, { user_id: userId });
+      });
+    });
+
+    if (groupLeaveBtn) {
+      groupLeaveBtn.addEventListener("click", async function () {
+        const leaveUrl = groupLeaveBtn.getAttribute("data-url");
+        if (!leaveUrl) return;
+        const isAr = document.documentElement.lang && document.documentElement.lang.startsWith("ar");
+        const ok = await askConfirm(isAr ? "هل تريد مغادرة هذه الدردشة؟" : "Do you want to leave this chat?");
+        if (!ok) return;
+        try {
+          const res = await fetch(leaveUrl, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCsrfToken(), "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin",
+          });
+          if (res.ok) {
+            window.location.href = "{% url 'direct_messages:inbox' %}";
+            return;
+          }
+        } catch (_) {
+          // fallback below
+        }
+        submitPostFallback(leaveUrl, {});
+      });
+    }
+
+    if (chatBlockBtn) {
+      chatBlockBtn.addEventListener("click", async function () {
+        const blockUrl = chatBlockBtn.getAttribute("data-url");
+        if (!blockUrl) return;
+        const isAr = document.documentElement.lang && document.documentElement.lang.startsWith("ar");
+        const ok = await askConfirm(isAr ? "هل تريد حظر هذا المستخدم؟" : "Do you want to block this user?");
+        if (!ok) return;
+        const res = await fetch(blockUrl, {
+          method: "POST",
+          headers: { "X-CSRFToken": getCsrfToken(), "X-Requested-With": "XMLHttpRequest" },
+          credentials: "same-origin",
+        });
+        if (res.ok) {
+          window.location.href = "{% url 'direct_messages:inbox' %}";
+        }
+      });
+    }
+
+    if (serverMutedForever) {
+      localStorage.setItem(muteKey, "forever");
+    } else if (serverMutedUntilMs) {
+      localStorage.setItem(muteKey, String(serverMutedUntilMs));
+    } else {
+      localStorage.removeItem(muteKey);
+    }
+    refreshMuteChip();
+
+    function insertAtCursor(text) {
+      if (!input) return;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const val = input.value || "";
+      input.value = val.slice(0, start) + text + val.slice(end);
+      input.focus();
+      const p = start + text.length;
+      input.setSelectionRange(p, p);
+    }
+
+    document.querySelectorAll(".ig-emoji-chip").forEach((chip) => {
+      chip.addEventListener("click", () => insertAtCursor(chip.textContent + " "));
+    });
+
+    if (emojiToggle && emojiPanel) {
+      emojiToggle.addEventListener("click", function () {
+        emojiPanel.classList.toggle("show");
+      });
+    }
+
+    function pickWithAccept(acceptValue) {
+      if (!fileInput) return;
+      fileInput.setAttribute("accept", acceptValue);
+      fileInput.click();
+    }
+    if (imagePick) imagePick.addEventListener("click", () => pickWithAccept("image/*"));
+    if (filePick) filePick.addEventListener("click", () => pickWithAccept(".pdf,.docx,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.mov"));
+
+    if (fileInput && filePreview) {
+      fileInput.addEventListener("change", function () {
+        const f = fileInput.files && fileInput.files[0];
+        if (!f) {
+          filePreview.classList.remove("show");
+          filePreview.textContent = "";
+          return;
+        }
+        filePreview.classList.add("show");
+        filePreview.textContent = f.name + " (" + Math.ceil(f.size / 1024) + " KB)";
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+    function isImage(url) {
+      const u = (url || "").toLowerCase();
+      return u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".png") || u.endsWith(".gif") || u.endsWith(".webp");
+    }
+    function isVideo(url) {
+      const u = (url || "").toLowerCase();
+      return u.endsWith(".mp4") || u.endsWith(".webm") || u.endsWith(".mov");
+    }
+    function isAudio(url, content) {
+      const u = (url || "").toLowerCase();
+      if (u.endsWith(".webm")) return String(content || "") === VOICE_TOKEN;
+      return u.endsWith(".mp3") || u.endsWith(".wav") || u.endsWith(".ogg") || u.endsWith(".m4a");
+    }
+    function openImageViewer(url) {
+      if (!mediaViewer || !mediaViewerImage || !mediaViewerOpen || !mediaViewerDownload || !url) return;
+      mediaViewerImage.src = url;
+      mediaViewerOpen.href = url;
+      mediaViewerDownload.href = url;
+      mediaViewer.classList.add("show");
+      mediaViewer.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+    function closeImageViewer() {
+      if (!mediaViewer || !mediaViewerImage) return;
+      mediaViewer.classList.remove("show");
+      mediaViewer.setAttribute("aria-hidden", "true");
+      mediaViewerImage.src = "";
+      document.body.style.overflow = "";
+    }
+    function fileCardHtml(fileUrl) {
+      return `
+        <div class="ig-file-card">
+          <span class="ig-file-icon"><i class="fas fa-file-alt"></i></span>
+          <div class="ig-file-meta">
+            <div class="ig-file-title">${uiAttachmentLabel}</div>
+            <div class="ig-file-actions">
+              <a href="${escapeHtml(fileUrl)}" class="ig-file-link" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i>${uiOpenFileLabelLocalized}</a>
+              <a href="${escapeHtml(fileUrl)}" class="ig-file-link download" download><i class="fas fa-download"></i>${uiDownloadLabel}</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    function fmtDuration(sec) {
+      const s = Math.max(0, Math.floor(Number(sec || 0)));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${String(r).padStart(2, "0")}`;
+    }
+    function voiceCardHtml(fileUrl) {
+      return `
+        <div class="ig-vcl-card" data-vcl-card>
+          <button type="button" class="ig-vcl-play" data-vcl-play aria-label="${isArUi ? "تشغيل رسالة صوتية" : "Play voice message"}">
+            <i class="fas fa-play"></i>
+          </button>
+          <div class="ig-vcl-bars"></div>
+          <span class="ig-vcl-time" data-vcl-time>0:00</span>
+          <audio class="ig-vcl-audio" preload="metadata" src="${escapeHtml(fileUrl)}"></audio>
+        </div>
+      `;
+    }
+    function initVoiceCards(root) {
+      const scope = root || document;
+      scope.querySelectorAll("[data-vcl-card]").forEach((card) => {
+        if (card.dataset.bound === "1") return;
+        card.dataset.bound = "1";
+        const audio = card.querySelector(".ig-vcl-audio");
+        const playBtn = card.querySelector("[data-vcl-play]");
+        const timeEl = card.querySelector("[data-vcl-time]");
+        if (!audio || !playBtn || !timeEl) return;
+
+        const syncBtn = () => {
+          const icon = playBtn.querySelector("i");
+          if (audio.paused) {
+            card.classList.remove("is-playing");
+            if (icon) icon.className = "fas fa-play";
+          } else {
+            card.classList.add("is-playing");
+            if (icon) icon.className = "fas fa-pause";
+          }
+        };
+        audio.addEventListener("loadedmetadata", () => { timeEl.textContent = fmtDuration(audio.duration); });
+        audio.addEventListener("ended", () => { audio.currentTime = 0; syncBtn(); });
+        audio.addEventListener("pause", syncBtn);
+        audio.addEventListener("play", syncBtn);
+        playBtn.addEventListener("click", () => {
+          if (audio.paused) audio.play().catch(() => {});
+          else audio.pause();
+        });
+      });
+    }
+    function appendOwnMessage(message) {
+      if (!chatBody || !message) return;
+      const avatar = message.sender_avatar_url
+        ? `<img src="${escapeHtml(message.sender_avatar_url)}" class="ig-msg-avatar" alt="${escapeHtml(message.sender_name || "")}">`
+        : `<span class="ig-msg-avatar-fallback">${escapeHtml((message.sender_name || "U").slice(0,1).toUpperCase())}</span>`;
+      let bubbleContent = "";
+      if (message.message_type === "file" && message.file_url) {
+        if (isImage(message.file_url)) {
+          bubbleContent = `
+            <div class="ig-media">
+              <button type="button" class="ig-media-btn js-ig-media-open" data-file-url="${escapeHtml(message.file_url)}" aria-label="Open image">
+                <img src="${escapeHtml(message.file_url)}" alt="Attachment">
+              </button>
+            </div>
+          `;
+        } else if (isAudio(message.file_url, message.content)) {
+          bubbleContent = voiceCardHtml(message.file_url);
+        } else if (isVideo(message.file_url)) {
+          bubbleContent = `<div class="ig-media"><video src="${escapeHtml(message.file_url)}" controls preload="metadata"></video></div>`;
+        } else {
+          bubbleContent = fileCardHtml(message.file_url);
+        }
+      } else {
+        bubbleContent = escapeHtml(message.content || "");
+      }
+      const row = document.createElement("div");
+      row.className = "ig-msg-row mine";
+      const extraText = message.content && message.content !== VOICE_TOKEN ? `<div class="mt-1">${escapeHtml(message.content || "")}</div>` : "";
+      row.innerHTML = `
+        ${avatar}
+        <div class="ig-msg">
+          <div class="ig-bubble">${bubbleContent}${extraText}</div>
+          <div class="ig-msg-meta"><span>${uiSentLabel}</span> - ${escapeHtml(message.created_at || "")}</div>
+        </div>
+      `;
+      chatBody.appendChild(row);
+      initVoiceCards(row);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+    if (chatForm && sendBtn) {
+      chatForm.addEventListener("submit", async function (e) {
+        if (mediaRecorder && listening) {
+          try { mediaRecorder.stop(); } catch (_) {}
+        }
+        if (mediaStream) {
+          mediaStream.getTracks().forEach((t) => t.stop());
+          mediaStream = null;
+        }
+        e.preventDefault();
+        if (sendBtn.classList.contains("is-sending")) return;
+        sendBtn.classList.add("is-sending");
+        const fd = new FormData(chatForm);
+        try {
+          const res = await fetch(chatForm.action, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCsrfToken(),
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            credentials: "same-origin",
+            body: fd,
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            sendBtn.classList.remove("is-sending");
+            return;
+          }
+          appendOwnMessage(data.message);
+          if (input) input.value = "";
+          if (fileInput) fileInput.value = "";
+          if (filePreview) {
+            filePreview.classList.remove("show");
+            filePreview.textContent = "";
+          }
+          if (emojiPanel) emojiPanel.classList.remove("show");
+        } catch (_) {
+          // fallback to classic submit if network issue
+          chatForm.submit();
+          return;
+        }
+        sendBtn.classList.remove("is-sending");
+      });
+    }
+    window.addEventListener("beforeunload", function () {
+      if (mediaRecorder && listening) {
+        try { mediaRecorder.stop(); } catch (_) {}
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((t) => t.stop());
+        mediaStream = null;
+      }
+    });
+    if (chatBody) {
+      initVoiceCards(chatBody);
+      chatBody.addEventListener("click", function (e) {
+        const trigger = e.target.closest(".js-ig-media-open");
+        if (!trigger) return;
+        e.preventDefault();
+        const url = trigger.getAttribute("data-file-url");
+        openImageViewer(url);
+      });
+    }
+    if (mediaViewerClose) {
+      mediaViewerClose.addEventListener("click", function () {
+        closeImageViewer();
+      });
+    }
+    if (mediaViewer) {
+      mediaViewer.addEventListener("click", function (e) {
+        if (e.target === mediaViewer) closeImageViewer();
+      });
+    }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && mediaViewer && mediaViewer.classList.contains("show")) {
+        closeImageViewer();
+      }
+    });
+  })();
+</script>
+{% endblock %}
+
+
+
+
