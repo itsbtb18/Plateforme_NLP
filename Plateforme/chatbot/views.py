@@ -30,12 +30,16 @@ ALLOWED_FILE_TYPES = {".pdf", ".doc", ".docx", ".txt", ".xlsx"}
 
 
 def check_rate_limit(user_id, limit=30, window=60):
-    key = f"chatbot_rate_{user_id}"
-    count = cache.get(key, 0)
-    if count >= limit:
-        return False, limit - count
-    cache.set(key, count + 1, window)
-    return True, limit - count
+    try:
+        key = f"chatbot_rate_{user_id}"
+        count = cache.get(key, 0)
+        if count >= limit:
+            return False, limit - count
+        cache.set(key, count + 1, window)
+        return True, limit - count
+    except Exception:
+        # Redis unavailable — allow the request rather than crash
+        return True, limit
 
 
 def get_api_headers():
@@ -370,11 +374,15 @@ def ask_bot(request):
         if isinstance(payload_context, dict):
             context_prompt = _build_card_context_prompt(payload_context)
             context_metadata = payload_context
-            request.session["chatbot_card_context"] = payload_context
-            request.session["chatbot_context_prompt"] = context_prompt
-            request.session.modified = True
         else:
             context_prompt, context_metadata = _get_request_content_context(request)
+
+        # Clear session context after consuming it so it doesn't
+        # persist into subsequent messages (prevents stale card
+        # context like "AIntelia" from leaking into greetings).
+        request.session.pop("chatbot_card_context", None)
+        request.session.pop("chatbot_context_prompt", None)
+        request.session.modified = True
 
         # Auto-create session if missing
         if not session_id:

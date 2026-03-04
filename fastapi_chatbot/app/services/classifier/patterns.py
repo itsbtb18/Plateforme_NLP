@@ -365,6 +365,41 @@ GENERAL_KNOWLEDGE_PATTERNS = [
     re.compile(r"\b(?:كيف|لماذا)\s+(?:يجب|ينبغي)\b"),
 ]
 
+# --- Conceptual / educational questions (should go to Qdrant RAG) ---
+# Broad definitional, explanatory, or "how does X work" queries that
+# benefit from NLP-knowledge retrieval rather than LLM-direct answers.
+CONCEPTUAL_QUESTION_PATTERNS = [
+    # English — "what is X", "explain X", "define X", "how does X work"
+    re.compile(
+        r"\b(?:what is|what are|what's)\b(?!\s+(?:my|your)\b)",
+        re.I,
+    ),
+    re.compile(r"\b(?:define|definition of)\b", re.I),
+    re.compile(
+        r"\b(?:explain|describe)\b(?!.*\b(?:document|file|pdf|paper|upload)\b)",
+        re.I,
+    ),
+    re.compile(r"\bhow does\b.*\bwork\b", re.I),
+    re.compile(r"\bwhat does\b.*\bmean\b", re.I),
+    re.compile(r"\btell me about\b(?!\s+(?:myself|me)\b)", re.I),
+    # French — "qu'est-ce que", "c'est quoi", "expliquer", "définir"
+    re.compile(r"\bqu'est[- ]ce que?\b", re.I),
+    re.compile(r"\bc'est quoi\b", re.I),
+    re.compile(
+        r"\b(?:expliquer?|définir?|décrire?)\b(?!.*\b(?:fichier|document|pdf)\b)",
+        re.I,
+    ),
+    re.compile(r"\bcomment fonctionne\b", re.I),
+    re.compile(r"\bque (?:signifie|veut dire)\b", re.I),
+    re.compile(r"\bparle[- ]moi de\b", re.I),
+    # Arabic — "ما هو", "ما هي", "اشرح", "عرّف"
+    re.compile(r"\bما (?:هو|هي|هم|المقصود بـ?)\b"),
+    re.compile(r"\b(?:اشرح|عرّف|صف)\b(?!.*\b(?:ملف|مستند|وثيقة)\b)"),
+    re.compile(r"\bكيف (?:يعمل|تعمل)\b"),
+    re.compile(r"\bما (?:معنى|مفهوم)\b"),
+    re.compile(r"\bحدثني عن\b"),
+]
+
 # Soft document hints — DISABLED.
 # Was causing false positives: generic verbs like "explain" or "summarize"
 # triggered document_query even for conceptual questions.

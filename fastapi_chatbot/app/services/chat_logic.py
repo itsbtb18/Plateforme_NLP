@@ -240,22 +240,25 @@ class ChatLogic:
             scores = self.classifier._score_all_intents(
                 request.question, has_session_docs=has_docs,
             )
-            top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
-            resolved = await self.classifier.llm_resolve_ambiguity(
-                request.question, language, top_2,
-            )
-            if resolved and resolved != classification.intent:
-                logger.info(
-                    "LLM reclassified: %s → %s", classification.intent, resolved,
+            # If all scores are 0, the classifier intentionally defaulted
+            # to conceptual_question — don't let LLM override that.
+            if any(v > 0 for v in scores.values()):
+                top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
+                resolved = await self.classifier.llm_resolve_ambiguity(
+                    request.question, language, top_2,
                 )
-                classification = self.classifier._build_classification(
-                    resolved, language, 0.80,
-                )
-                if resolved == "platform_query":
-                    from app.services.classifier.patterns import extract_resource_type
-                    classification.detected_resource_type = extract_resource_type(
-                        request.question
+                if resolved and resolved != classification.intent:
+                    logger.info(
+                        "LLM reclassified: %s → %s", classification.intent, resolved,
                     )
+                    classification = self.classifier._build_classification(
+                        resolved, language, 0.80,
+                    )
+                    if resolved == "platform_query":
+                        from app.services.classifier.patterns import extract_resource_type
+                        classification.detected_resource_type = extract_resource_type(
+                            request.question
+                        )
 
         # Step 3: Route to correct data source(s)
         routing: RoutingResult = await self.router.route(
@@ -310,7 +313,8 @@ class ChatLogic:
         # courses, tools, institutions, resources, etc.
         _card_intents = {"platform_query"}
         if routing.platform_results and classification.intent in _card_intents:
-            platform_ctx = self._build_platform_context(routing.platform_results)
+            real_results = [r for r in routing.platform_results if r.get("type") != "no_data"]
+            platform_ctx = self._build_platform_context(real_results) if real_results else ""
             if platform_ctx:
                 # Prepend platform data BEFORE other results so it appears first
                 if context:
@@ -399,10 +403,12 @@ class ChatLogic:
 
         # Phase 5: Only return entity cards for direct platform queries
         show_cards = (
-            routing.platform_results
-            if classification.intent in _card_intents
+            [c for c in routing.platform_results if c.get("type") != "no_data"]
+            if classification.intent in _card_intents and routing.platform_results
             else None
         )
+        if show_cards is not None and len(show_cards) == 0:
+            show_cards = None
         return ChatResponse(
             answer=answer,
             source=source,

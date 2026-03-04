@@ -162,7 +162,13 @@ class DocumentService:
         # Celery: heavy processing (chunking + embedding generation)
         from app.tasks import process_document
 
-        process_document.delay(doc.id)
+        try:
+            process_document.delay(doc.id)
+        except Exception as exc:
+            logger.error("Failed to dispatch Celery task for doc %d: %s", doc.id, exc)
+            # Document is already saved — mark it so the user knows
+            doc.status = "queued"
+            await db.commit()
 
         logger.info("Document uploaded: %s (id=%d)", filename, doc.id)
         return DocumentUploadResponse(
