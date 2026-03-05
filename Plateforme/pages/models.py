@@ -326,3 +326,43 @@ class BlockedUpload(models.Model):
     def __str__(self):
         base = self.file_name or 'upload'
         return f"{base} blocked at {self.blocked_at:%Y-%m-%d %H:%M:%S}"
+
+
+class SecurityLog(models.Model):
+    ACTION_CHOICES = [
+        ('login', _('Login')),
+        ('upload', _('Upload')),
+        ('blocked_upload', _('Blocked Upload')),
+        ('create', _('Create')),
+        ('update', _('Update')),
+        ('delete', _('Delete')),
+        ('other', _('Other')),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='security_logs',
+    )
+    role = models.CharField(max_length=32, blank=True, default='member')
+    action = models.CharField(max_length=32, choices=ACTION_CHOICES, default='other')
+    method = models.CharField(max_length=10, blank=True, default='GET')
+    ip_address = models.CharField(max_length=64, blank=True, default='')
+    path = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Security Log')
+        verbose_name_plural = _('Security Logs')
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['role', 'created_at']),
+        ]
+
+    def __str__(self):
+        actor = getattr(self.user, 'email', 'anonymous')
+        return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"

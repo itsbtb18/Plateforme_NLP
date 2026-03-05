@@ -1,102 +1,224 @@
 {% extends 'base_admin.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Security" %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:':2' == 'ar' %}&#1605;&#1585;&#1603;&#1586; &#1571;&#1605;&#1575;&#1606; &#1575;&#1604;&#1573;&#1583;&#1575;&#1585;&#1577;{% else %}{% trans 'Admin Security Center' %}{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
+  :root {
+    --sec-border: #e2e8f0;
+    --sec-text: #0f172a;
+    --sec-muted: #64748b;
+    --sec-blue-1: #0f172a;
+    --sec-blue-2: #1e3a8a;
+  }
   .sec-wrap { padding: 1rem 0 2rem; }
   .sec-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, var(--sec-blue-1) 0%, var(--sec-blue-2) 100%);
     color: #f1f5f9;
     border-radius: 16px;
     padding: 1.2rem 1.4rem;
     margin-bottom: 1rem;
     box-shadow: 0 10px 24px rgba(15, 23, 42, .22);
   }
-  .sec-cards { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+  .sec-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: .8rem;
+    margin-bottom: 1rem;
+  }
   .sec-card {
     background: #fff;
-    border: 1px solid #dbe4f3;
+    border: 1px solid var(--sec-border);
     border-radius: 14px;
     padding: .9rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
   }
-  .sec-card .label { color: #64748b; font-size: .84rem; margin: 0; }
-  .sec-card .value { color: #0f172a; font-size: 1.35rem; font-weight: 800; margin: .2rem 0 0; }
+  .sec-card .label { color: var(--sec-muted); font-size: .84rem; margin: 0; }
+  .sec-card .value { color: var(--sec-text); font-size: 1.35rem; font-weight: 800; margin: .2rem 0 0; }
+  .sec-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: .95rem;
+  }
+  .sec-icon.blocked { background: linear-gradient(135deg, #ef4444, #dc2626); }
+  .sec-icon.events { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .sec-icon.total { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+
   .sec-table-wrap {
     background: #fff;
-    border: 1px solid #dbe4f3;
+    border: 1px solid var(--sec-border);
     border-radius: 14px;
     overflow: hidden;
   }
-  .sec-table th { font-size: .78rem; text-transform: uppercase; color: #64748b; }
-  .sec-badge {
-    display: inline-flex;
-    padding: .2rem .55rem;
-    border-radius: 999px;
-    font-size: .75rem;
-    font-weight: 700;
-    color: #1e3a8a;
-    background: #eaf2ff;
+  .sec-head-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .9rem 1rem; border-bottom: 1px solid var(--sec-border);
   }
-  .sec-empty { padding: 1rem; color: #64748b; text-align: center; }
-  @media (max-width: 900px) { .sec-cards { grid-template-columns: 1fr; } }
+  .sec-title { margin: 0; font-size: .98rem; font-weight: 800; color: var(--sec-text); }
+
+  .sec-table th {
+    font-size: .76rem;
+    text-transform: uppercase;
+    color: var(--sec-muted);
+    white-space: nowrap;
+  }
+  .sec-table td { font-size: .84rem; vertical-align: middle; }
+
+  .sec-role {
+    display: inline-flex;
+    padding: .22rem .55rem;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 700;
+    background: #eef2ff;
+    color: #3730a3;
+  }
+
+  .sec-action {
+    display: inline-flex;
+    padding: .24rem .58rem;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .sec-action.create { background: #ecfdf5; color: #15803d; border-color: #bbf7d0; }
+  .sec-action.update { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .sec-action.delete { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .sec-action.upload { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .sec-action.blocked_upload { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .sec-action.login { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+  .sec-action.other { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+
+  .sec-method {
+    font-size: .72rem; font-weight: 800; border-radius: 999px; padding: .2rem .55rem;
+  }
+  .sec-method.get { background: #eff6ff; color: #1d4ed8; }
+  .sec-method.post { background: #ecfdf5; color: #15803d; }
+  .sec-method.put, .sec-method.patch { background: #fffbeb; color: #b45309; }
+  .sec-method.delete { background: #fef2f2; color: #b91c1c; }
+
+  .sec-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
+  .sec-empty { padding: 1rem; color: var(--sec-muted); text-align: center; }
+
+  .sec-pagination {
+    padding: .8rem 1rem;
+    border-top: 1px solid var(--sec-border);
+    display: flex;
+    justify-content: center;
+  }
+  .sec-pagination .pagination { margin: 0; }
+
+  @media (max-width: 980px) {
+    .sec-cards { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="sec-wrap">
   <div class="sec-header">
-    <h1 class="h4 mb-1">{% trans "Admin Security Center" %}</h1>
-    <p class="mb-0">{% trans "RBAC, route protection, upload hardening, and activity logs." %}</p>
+    <h1 class="h4 mb-1">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1605;&#1585;&#1603;&#1586; &#1571;&#1605;&#1575;&#1606; &#1575;&#1604;&#1573;&#1583;&#1575;&#1585;&#1577;{% else %}{% trans "Admin Security Center" %}{% endif %}</h1>
+    <p class="mb-0">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1578;&#1581;&#1603;&#1605; &#1576;&#1575;&#1604;&#1589;&#1604;&#1575;&#1581;&#1610;&#1575;&#1578;&#1548; &#1581;&#1605;&#1575;&#1610;&#1577; &#1575;&#1604;&#1605;&#1587;&#1575;&#1585;&#1575;&#1578;&#1548; &#1578;&#1593;&#1586;&#1610;&#1586; &#1571;&#1605;&#1575;&#1606; &#1575;&#1604;&#1585;&#1601;&#1593;&#1548; &#1608;&#1587;&#1580;&#1604;&#1575;&#1578; &#1575;&#1604;&#1606;&#1588;&#1575;&#1591;.{% else %}{% trans "RBAC, route protection, upload hardening, and activity logs." %}{% endif %}</p>
   </div>
 
   <div class="sec-cards">
     <div class="sec-card">
-      <p class="label">{% trans "Total log entries" %}</p>
-      <p class="value">{{ logs_count }}</p>
+      <div>
+        <p class="label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1593;&#1605;&#1604;&#1610;&#1575;&#1578; &#1575;&#1604;&#1585;&#1601;&#1593; &#1575;&#1604;&#1605;&#1581;&#1580;&#1608;&#1576;&#1577;{% else %}{% trans "Blocked Upload Attempts" %}{% endif %}</p>
+        <p class="value">{{ failed_uploads_count }}</p>
+      </div>
+      <span class="sec-icon blocked"><i class="bi bi-shield-x"></i></span>
     </div>
     <div class="sec-card">
-      <p class="label">{% trans "Last 24h events" %}</p>
-      <p class="value">{{ recent_security_events_count }}</p>
+      <div>
+        <p class="label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1571;&#1581;&#1583;&#1575;&#1579; &#1570;&#1582;&#1585; 24 &#1587;&#1575;&#1593;&#1577;{% else %}{% trans "Events in Last 24 Hours" %}{% endif %}</p>
+        <p class="value">{{ recent_security_events_count }}</p>
+      </div>
+      <span class="sec-icon events"><i class="bi bi-clock-history"></i></span>
     </div>
     <div class="sec-card">
-      <p class="label">{% trans "Blocked uploads" %}</p>
-      <p class="value">{{ failed_uploads_count }}</p>
+      <div>
+        <p class="label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1573;&#1580;&#1605;&#1575;&#1604;&#1610; &#1575;&#1604;&#1587;&#1580;&#1604;&#1575;&#1578;{% else %}{% trans "Total Logs" %}{% endif %}</p>
+        <p class="value">{{ logs_count }}</p>
+      </div>
+      <span class="sec-icon total"><i class="bi bi-journal-text"></i></span>
     </div>
   </div>
 
   <div class="sec-table-wrap table-responsive">
+    <div class="sec-head-row">
+      <h2 class="sec-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1587;&#1580;&#1604;&#1575;&#1578; &#1575;&#1604;&#1606;&#1588;&#1575;&#1591;{% else %}{% trans "Activity Logs" %}{% endif %}</h2>
+    </div>
     <table class="table sec-table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th>{% trans "Time" %}</th>
-          <th>{% trans "Admin" %}</th>
-          <th>{% trans "Role" %}</th>
-          <th>{% trans "Action" %}</th>
-          <th>{% trans "Method" %}</th>
-          <th>{% trans "IP" %}</th>
-          <th>{% trans "Path" %}</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1608;&#1602;&#1578;{% else %}{% trans "Time" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1605;&#1587;&#1572;&#1608;&#1604;{% else %}{% trans "Admin/User" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1583;&#1608;&#1585;{% else %}{% trans "Role" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1573;&#1580;&#1585;&#1575;&#1569;{% else %}{% trans "Action" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1591;&#1585;&#1610;&#1602;&#1577;{% else %}{% trans "HTTP Method" %}{% endif %}</th>
+          <th>IP</th>
+          <th>{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1575;&#1604;&#1605;&#1587;&#1575;&#1585;{% else %}{% trans "Path" %}{% endif %}</th>
         </tr>
       </thead>
       <tbody>
         {% for log in recent_logs %}
         <tr>
-          <td>{{ log.occurred_at|date:"Y-m-d H:i:s" }}</td>
-          <td>{{ log.admin_user.email|default:"-" }}</td>
-          <td><span class="sec-badge">{{ log.role_snapshot }}</span></td>
-          <td>{{ log.action }}</td>
-          <td>{{ log.http_method }}</td>
+          <td>
+            {{ log.created_at|date:"Y-m-d H:i:s" }}
+            <div class="text-muted small">
+              {% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1605;&#1606;&#1584; {{ log.created_at|timesince }}{% else %}{{ log.created_at|timesince }} {% trans "ago" %}{% endif %}
+            </div>
+          </td>
+          <td>{{ log.user.email|default:"-" }}</td>
+          <td><span class="sec-role">{{ log.role }}</span></td>
+          <td>
+            <span class="sec-action {{ log.action|default:'other' }}">{{ log.get_action_display|default:log.action }}</span>
+          </td>
+          <td>
+            <span class="sec-method {{ log.method|lower }}">{{ log.method }}</span>
+          </td>
           <td>{{ log.ip_address|default:"-" }}</td>
-          <td>{{ log.path|default:"-" }}</td>
+          <td><span class="sec-path" title="{{ log.path }}">{{ log.path|default:"-" }}</span></td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="sec-empty">{% trans "No activity logs yet." %}</td>
+          <td colspan="7" class="sec-empty">{% if LANGUAGE_CODE|slice:":2" == "ar" %}&#1604;&#1575; &#1578;&#1608;&#1580;&#1583; &#1587;&#1580;&#1604;&#1575;&#1578; &#1606;&#1588;&#1575;&#1591; &#1576;&#1593;&#1583;.{% else %}{% trans "No activity logs yet." %}{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="sec-pagination">
+      <nav aria-label="Security logs pagination">
+        <ul class="pagination pagination-sm">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}&#1575;&#1604;&#1587;&#1575;&#1576;&#1602;{% else %}{% trans "Previous" %}{% endif %}</a></li>
+          {% endif %}
+          <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}&#1575;&#1604;&#1578;&#1575;&#1604;&#1610;{% else %}{% trans "Next" %}{% endif %}</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

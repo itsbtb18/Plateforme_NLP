@@ -99,7 +99,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import AdminActivityLog, ContactMessage, Stats, UserStatusHistory
+from .models import AdminActivityLog, ContactMessage, SecurityLog, Stats, UserStatusHistory
 from institutions.models import Institution
 import datetime
 from accounts.forms import CustomUserChangeForm
@@ -1380,15 +1380,18 @@ def admin_settings(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_security(request):
-    """Admin security dashboard with audit logs and role overview."""
-    recent_logs = AdminActivityLog.objects.select_related('admin_user').order_by('-occurred_at')[:120]
+    """Admin security center: metrics + paginated security logs."""
+    logs_qs = SecurityLog.objects.select_related('user').order_by('-created_at')
+    paginator = Paginator(logs_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    last_24h = timezone.now() - timedelta(hours=24)
     context = {
-        'recent_logs': recent_logs,
-        'logs_count': AdminActivityLog.objects.count(),
-        'failed_uploads_count': AdminActivityLog.objects.filter(action='blocked_upload').count(),
-        'recent_security_events_count': AdminActivityLog.objects.filter(
-            occurred_at__gte=timezone.now() - timedelta(days=1)
-        ).count(),
+        'page_obj': page_obj,
+        'recent_logs': page_obj.object_list,
+        'logs_count': logs_qs.count(),
+        'failed_uploads_count': logs_qs.filter(action='blocked_upload').count(),
+        'recent_security_events_count': logs_qs.filter(created_at__gte=last_24h).count(),
     }
     return render(request, 'admin/security.html', context)
 

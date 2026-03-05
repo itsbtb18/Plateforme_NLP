@@ -11,6 +11,7 @@ from .security import (
     permission_for_route,
     validate_admin_upload,
 )
+from .models import SecurityLog
 
 
 class AdminPanelSecurityMiddleware:
@@ -58,6 +59,14 @@ class AdminPanelSecurityMiddleware:
                         action="blocked_upload",
                         details=error,
                     )
+                    SecurityLog.objects.create(
+                        user=request.user,
+                        role=self._get_role(request.user) if hasattr(self, "_get_role") else ("superuser" if request.user.is_superuser else ("staff" if request.user.is_staff else "member")),
+                        action="blocked_upload",
+                        method=(request.method or "POST").upper(),
+                        ip_address=(request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")),
+                        path=request.path[:255],
+                    )
                     messages.error(request, _("Blocked upload: %(reason)s") % {"reason": error})
                     referer = request.META.get("HTTP_REFERER", "")
                     return redirect(referer or "pages:admin_security")
@@ -86,3 +95,60 @@ class AdminPanelSecurityMiddleware:
                     details=f"status={response.status_code}",
                 )
         return response
+
+
+class SecurityLogMiddleware:
+    """
+    Global security log middleware for important actions:
+    login, upload, create, update, delete.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        self._log_security_event(request, response)
+        return response
+
+    def _get_role(self, user):
+        if not user or not user.is_authenticated:
+            return 'anonymous'
+        if user.is_superuser:
+            return 'superuser'
+        if user.is_staff:
+            return 'staff'
+        return 'member'
+
+    def _infer_action(self, request, response):
+        path = (request.path or '').lower()
+        method = (request.method or 'GET').upper()
+
+        if method == 'POST' and 'login' in path and response.status_code in {200, 302}:
+            return 'login'
+        if method in {'POST', 'PUT', 'PATCH'} and request.FILES:
+            # Heuristic: blocked uploads usually end with 4xx.
+            return 'blocked_upload' if response.status_code >= 400 else 'upload'
+        if method == 'DELETE' or '/delete/' in path:
+            return 'delete'
+        if method in {'PUT', 'PATCH'} or '/update/' in path or '/edit/' in path:
+            return 'update'
+        if method == 'POST' and '/new/' in path:
+            return 'create'
+        return None
+
+    def _log_security_event(self, request, response):
+        if request.path.startswith('/static/') or request.path.startswith('/media/'):
+            return
+        action = self._infer_action(request, response)
+        if not action:
+            return
+        user = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+        SecurityLog.objects.create(
+            user=user,
+            role=self._get_role(user),
+            action=action,
+            method=(request.method or 'GET').upper(),
+            ip_address=(request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')),
+            path=request.path[:255],
+        )

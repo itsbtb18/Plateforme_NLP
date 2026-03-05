@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AdminActivityLog, ContactMessage, Stats, UserStatusHistory
+from .models import AdminActivityLog, ContactMessage, SecurityLog, Stats, UserStatusHistory
 
 
 @admin.register(AdminActivityLog)
@@ -29,3 +29,11 @@ class AdminActivityLogAdmin(admin.ModelAdmin):
 admin.site.register(Stats)
 admin.site.register(UserStatusHistory)
 admin.site.register(ContactMessage)
+
+
+@admin.register(SecurityLog)
+class SecurityLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "user", "role", "action", "method", "ip_address", "path")
+    list_filter = ("action", "method", "role", "created_at")
+    search_fields = ("user__email", "action", "path", "ip_address")
+    ordering = ("-created_at",)
