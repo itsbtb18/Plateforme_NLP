@@ -5,493 +5,186 @@
 
 {% block extra_css %}
 <style>
-/* ───────────────────────────────────────────────────────────────────
-   Web Scraping Dashboard — self-contained styles
-   ─────────────────────────────────────────────────────────────────── */
-:root {
-    --ws-primary:       #6366f1;
-    --ws-primary-light: #818cf8;
-    --ws-primary-dark:  #4f46e5;
-    --ws-success:       #10b981;
-    --ws-warning:       #f59e0b;
-    --ws-danger:        #ef4444;
-    --ws-info:          #3b82f6;
-    --ws-purple:        #8b5cf6;
-    --ws-bg:            #f1f5f9;
-    --ws-card:          #ffffff;
-    --ws-border:        #e2e8f0;
-    --ws-text:          #1e293b;
-    --ws-text-muted:    #64748b;
-    --ws-radius:        14px;
-    --ws-radius-sm:     8px;
-    --ws-shadow:        0 1px 3px rgba(0,0,0,.08);
-    --ws-shadow-md:     0 4px 12px rgba(0,0,0,.08);
-    --ws-shadow-lg:     0 10px 30px rgba(0,0,0,.10);
-    --ws-transition:    .25s cubic-bezier(.4,0,.2,1);
-}
+/* ───────────────────────────────────────────────────────────
+   Scraping Dashboard — Notion-Blue design tokens override
+   Uses the same n-* design system as every other admin page
+   ─────────────────────────────────────────────────────────── */
 
-/* ── Hero ─────────────────────────────────────────────────────────── */
-.ws-hero {
-    background: linear-gradient(135deg, var(--ws-primary-dark) 0%, var(--ws-purple) 100%);
-    border-radius: var(--ws-radius);
-    padding: 2.5rem 2rem;
-    margin-bottom: 1.5rem;
-    color: #fff;
-    position: relative;
-    overflow: hidden;
-}
-.ws-hero::after {
-    content: '';
-    position: absolute;
-    top: -40%; right: -10%;
-    width: 300px; height: 300px;
-    background: rgba(255,255,255,.06);
-    border-radius: 50%;
-}
-.ws-hero h1 { font-size: 1.8rem; font-weight: 700; margin: 0 0 .4rem; }
-.ws-hero p  { opacity: .85; margin: 0; font-size: .95rem; max-width: 600px; }
+/* Scraping-specific layout helpers */
+.ws-panel{display:none}
+.ws-panel.active{display:block;animation:wsFade .25s ease}
+@keyframes wsFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
-/* ── Stats bar ────────────────────────────────────────────────────── */
-.ws-stats-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-.ws-stat-card {
-    background: var(--ws-card);
-    border-radius: var(--ws-radius-sm);
-    padding: 1.1rem 1.2rem;
-    box-shadow: var(--ws-shadow);
-    display: flex;
-    align-items: center;
-    gap: .9rem;
-    transition: transform var(--ws-transition);
-}
-.ws-stat-card:hover { transform: translateY(-2px); box-shadow: var(--ws-shadow-md); }
-.ws-stat-icon {
-    width: 44px; height: 44px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem; color: #fff; flex-shrink: 0;
-}
-.ws-stat-value { font-size: 1.4rem; font-weight: 700; color: var(--ws-text); line-height: 1; }
-.ws-stat-label { font-size: .78rem; color: var(--ws-text-muted); margin-top: 2px; }
-
-/* ── Tabs ─────────────────────────────────────────────────────────── */
-.ws-tabs {
-    display: flex;
-    gap: .5rem;
-    border-bottom: 2px solid var(--ws-border);
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-    padding-bottom: 0;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-.ws-tabs::-webkit-scrollbar { display: none; }
-.ws-tab {
-    padding: .7rem 1.3rem;
-    border: none;
-    background: none;
-    font-size: .88rem;
-    font-weight: 600;
-    color: var(--ws-text-muted);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    white-space: nowrap;
-    transition: all var(--ws-transition);
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-}
-.ws-tab:hover { color: var(--ws-primary); }
-.ws-tab.active {
-    color: var(--ws-primary);
-    border-bottom-color: var(--ws-primary);
-}
-
-/* ── Panels ───────────────────────────────────────────────────────── */
-.ws-panel { display: none; }
-.ws-panel.active { display: block; animation: wsFadeIn .3s ease; }
-@keyframes wsFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-/* Panel header */
-.ws-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.2rem;
-}
-.ws-source-info {
-    background: var(--ws-card);
-    border-radius: var(--ws-radius-sm);
-    padding: 1rem 1.3rem;
-    box-shadow: var(--ws-shadow);
-    flex: 1; min-width: 260px;
-}
-.ws-source-info h3 { margin: 0 0 .3rem; font-size: 1rem; color: var(--ws-text); }
-.ws-source-info p  { margin: 0; font-size: .82rem; color: var(--ws-text-muted); }
-.ws-source-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
-.ws-source-tag {
-    background: #f1f5f9;
-    color: var(--ws-text-muted);
-    font-size: .72rem;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: 500;
-}
+/* Source tag chips */
+.ws-src-tag{display:inline-flex;align-items:center;gap:4px;background:var(--n-bg);color:var(--n-text-2);font-size:.7rem;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid var(--n-border-s)}
+.ws-src-tag i{font-size:.6rem;opacity:.5}
 
 /* Run button */
-.ws-run-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    padding: .75rem 1.6rem;
-    border: none;
-    border-radius: var(--ws-radius-sm);
-    background: linear-gradient(135deg, var(--ws-primary), var(--ws-primary-dark));
-    color: #fff;
-    font-weight: 600;
-    font-size: .88rem;
-    cursor: pointer;
-    transition: all var(--ws-transition);
-    box-shadow: 0 2px 8px rgba(99,102,241,.3);
-    white-space: nowrap;
-}
-.ws-run-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(99,102,241,.4);
-}
-.ws-run-btn:disabled {
-    opacity: .6;
-    cursor: not-allowed;
-    transform: none;
-}
-.ws-run-btn .spinner {
-    display: none;
-    width: 16px; height: 16px;
-    border: 2px solid rgba(255,255,255,.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: wsSpin .7s linear infinite;
-}
-.ws-run-btn.loading .spinner { display: inline-block; }
-.ws-run-btn.loading .btn-text { display: none; }
-@keyframes wsSpin { to { transform: rotate(360deg); } }
+.ws-run-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1.2rem;border:none;border-radius:8px;background:var(--n-blue);color:#fff;font-weight:600;font-size:.82rem;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.ws-run-btn:hover{opacity:.85}
+.ws-run-btn:disabled{opacity:.5;cursor:not-allowed}
+.ws-run-btn .ws-spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wsSpin .7s linear infinite}
+.ws-run-btn.loading .ws-spin{display:inline-block}
+.ws-run-btn.loading .ws-btn-label{display:none}
+@keyframes wsSpin{to{transform:rotate(360deg)}}
 
-/* ── Results section ──────────────────────────────────────────────── */
-.ws-results-section {
-    background: var(--ws-card);
-    border-radius: var(--ws-radius);
-    box-shadow: var(--ws-shadow);
-    overflow: hidden;
-    margin-top: 1rem;
-}
-.ws-results-header {
-    padding: 1rem 1.3rem;
-    border-bottom: 1px solid var(--ws-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.ws-results-header h4 {
-    margin: 0;
-    font-size: .95rem;
-    color: var(--ws-text);
-    display: flex;
-    align-items: center;
-    gap: .4rem;
-}
-.ws-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: .72rem;
-    font-weight: 700;
-    color: #fff;
-}
+/* Loading overlay */
+.ws-loading{display:none;text-align:center;padding:2.5rem 1rem}
+.ws-loading.active{display:block}
+.ws-loading .ws-big-spin{width:36px;height:36px;border:3px solid var(--n-border);border-top-color:var(--n-blue);border-radius:50%;animation:wsSpin .8s linear infinite;margin:0 auto .7rem}
+.ws-loading p{color:var(--n-text-3);font-size:.82rem}
 
-/* Results table */
-.ws-results-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.ws-results-table thead th {
-    padding: .7rem 1rem;
-    text-align: left;
-    font-size: .76rem;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--ws-text-muted);
-    background: #f8fafc;
-    border-bottom: 1px solid var(--ws-border);
-    white-space: nowrap;
-}
-.ws-results-table tbody td {
-    padding: .7rem 1rem;
-    font-size: .84rem;
-    color: var(--ws-text);
-    border-bottom: 1px solid #f1f5f9;
-    max-width: 320px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ws-results-table tbody tr:hover { background: #f8fafc; }
-.ws-results-table a {
-    color: var(--ws-primary);
-    text-decoration: none;
-}
-.ws-results-table a:hover { text-decoration: underline; }
+/* Result summary grid */
+.ws-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
+.ws-summary-item{text-align:center}
+.ws-summary-item .ws-num{font-size:1.35rem;font-weight:700;line-height:1}
+.ws-summary-item .ws-lbl{font-size:.68rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
 
-/* ── Empty / loading states ───────────────────────────────────────── */
-.ws-empty {
-    text-align: center;
-    padding: 2.5rem 1rem;
-    color: var(--ws-text-muted);
-}
-.ws-empty i { font-size: 2.2rem; margin-bottom: .6rem; display: block; opacity: .4; }
-.ws-empty p { font-size: .88rem; margin: .3rem 0; }
+/* Errors callout */
+.ws-errors{background:var(--n-red-bg);border-inline-start:3px solid var(--n-red);border-radius:0 var(--n-radius-sm) var(--n-radius-sm) 0;padding:.75rem 1.15rem;margin:1rem 1.25rem}
+.ws-errors summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--n-red)}
+.ws-errors ul{margin:.35rem 0 0;padding-inline-start:1.2rem;font-size:.76rem;color:#991b1b}
 
-.ws-loading-overlay {
-    display: none;
-    text-align: center;
-    padding: 3rem 1rem;
-}
-.ws-loading-overlay.active { display: block; }
-.ws-loading-overlay .big-spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--ws-border);
-    border-top-color: var(--ws-primary);
-    border-radius: 50%;
-    animation: wsSpin .8s linear infinite;
-    margin: 0 auto .8rem;
-}
-.ws-loading-overlay p { color: var(--ws-text-muted); font-size: .88rem; }
+/* Run history row */
+.ws-run-row{display:flex;align-items:center;gap:.65rem;padding:.55rem 1.25rem;border-bottom:1px solid var(--n-border-s);font-size:.82rem}
+.ws-run-row:last-child{border-bottom:none}
+.ws-run-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ws-run-dot.completed{background:var(--n-green)}.ws-run-dot.failed{background:var(--n-red)}
+.ws-run-dot.running{background:var(--n-amber);animation:wsPulse 1.5s ease infinite}
+@keyframes wsPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.ws-run-meta{color:var(--n-text-3);font-size:.74rem;margin-inline-start:auto}
 
-/* ── Summary cards (after scraping) ───────────────────────────────── */
-.ws-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: .8rem;
-    padding: 1rem 1.3rem;
-    background: #f8fafc;
-    border-bottom: 1px solid var(--ws-border);
-}
-.ws-summary-item {
-    text-align: center;
-}
-.ws-summary-item .num {
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1;
-}
-.ws-summary-item .lbl {
-    font-size: .72rem;
-    color: var(--ws-text-muted);
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    margin-top: 2px;
-}
-
-/* ── Recent runs ──────────────────────────────────────────────────── */
-.ws-runs-list {
-    background: var(--ws-card);
-    border-radius: var(--ws-radius);
-    box-shadow: var(--ws-shadow);
-    overflow: hidden;
-    margin-top: 1.2rem;
-}
-.ws-runs-list h4 {
-    margin: 0;
-    padding: 1rem 1.3rem;
-    font-size: .9rem;
-    border-bottom: 1px solid var(--ws-border);
-    color: var(--ws-text);
-}
-.ws-run-row {
-    display: flex;
-    align-items: center;
-    gap: .8rem;
-    padding: .65rem 1.3rem;
-    border-bottom: 1px solid #f8fafc;
-    font-size: .82rem;
-}
-.ws-run-row:last-child { border-bottom: none; }
-.ws-run-status {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-.ws-run-status.completed { background: var(--ws-success); }
-.ws-run-status.failed    { background: var(--ws-danger); }
-.ws-run-status.running   { background: var(--ws-warning); animation: wsPulse 1.5s ease infinite; }
-@keyframes wsPulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
-.ws-run-meta { color: var(--ws-text-muted); font-size: .76rem; margin-left: auto; }
-
-/* ── Errors ───────────────────────────────────────────────────────── */
-.ws-errors {
-    background: #fef2f2;
-    border-left: 3px solid var(--ws-danger);
-    border-radius: 0 var(--ws-radius-sm) var(--ws-radius-sm) 0;
-    padding: .8rem 1.2rem;
-    margin: 1rem 0 0;
-}
-.ws-errors summary {
-    cursor: pointer;
-    font-size: .82rem;
-    font-weight: 600;
-    color: var(--ws-danger);
-}
-.ws-errors ul {
-    margin: .4rem 0 0;
-    padding-left: 1.2rem;
-    font-size: .78rem;
-    color: #991b1b;
-}
-
-/* ── Responsive ───────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-    .ws-hero { padding: 1.5rem 1.2rem; }
-    .ws-hero h1 { font-size: 1.3rem; }
-    .ws-stats-bar { grid-template-columns: repeat(2, 1fr); }
-    .ws-panel-header { flex-direction: column; }
-    .ws-run-btn { width: 100%; justify-content: center; }
-    .ws-results-table { font-size: .78rem; }
-    .ws-results-table thead th,
-    .ws-results-table tbody td { padding: .5rem .6rem; }
-}
+/* Responsive tweaks */
+@media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.n-st-grid{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:576px){.ws-summary{grid-template-columns:1fr}.n-st-grid{grid-template-columns:1fr!important}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="max-width:1200px; margin:0 auto;">
 
-    <!-- ─── Hero ─────────────────────────────────────────────────── -->
-    <section class="ws-hero">
-        <h1><i class="fas fa-spider" style="margin-right:.5rem;"></i>{% trans "Web Scraping Module" %}</h1>
-        <p>{% trans "Automatically discover and import NLP resources — events, tools, papers, courses and institutions — from credible academic sources across the web." %}</p>
-    </section>
+<!-- ─── Page Header ───────────────────────────────────────────── -->
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-spider"></i> {% trans "Web Scraping" %}</h1>
+    <p class="pg-sub">{% trans "Automatically discover and import NLP resources from the web" %}</p>
+  </div>
+</div>
 
-    <!-- ─── Global stats ─────────────────────────────────────────── -->
-    <div class="ws-stats-bar">
-        <div class="ws-stat-card">
-            <div class="ws-stat-icon" style="background:var(--ws-primary);">
-                <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div>
-                <div class="ws-stat-value">{{ model_counts.events|default:"0" }}</div>
-                <div class="ws-stat-label">{% trans "Events" %}</div>
-            </div>
-        </div>
-        <div class="ws-stat-card">
-            <div class="ws-stat-icon" style="background:var(--ws-success);">
-                <i class="fas fa-tools"></i>
-            </div>
-            <div>
-                <div class="ws-stat-value">{{ model_counts.tools|default:"0" }}</div>
-                <div class="ws-stat-label">{% trans "Tools" %}</div>
-            </div>
-        </div>
-        <div class="ws-stat-card">
-            <div class="ws-stat-icon" style="background:var(--ws-warning);">
-                <i class="fas fa-newspaper"></i>
-            </div>
-            <div>
-                <div class="ws-stat-value">{{ model_counts.news|default:"0" }}</div>
-                <div class="ws-stat-label">{% trans "News" %}</div>
-            </div>
-        </div>
-        <div class="ws-stat-card">
-            <div class="ws-stat-icon" style="background:var(--ws-info);">
-                <i class="fas fa-graduation-cap"></i>
-            </div>
-            <div>
-                <div class="ws-stat-value">{{ model_counts.courses|default:"0" }}</div>
-                <div class="ws-stat-label">{% trans "Courses" %}</div>
-            </div>
-        </div>
-        <div class="ws-stat-card">
-            <div class="ws-stat-icon" style="background:var(--ws-purple);">
-                <i class="fas fa-university"></i>
-            </div>
-            <div>
-                <div class="ws-stat-value">{{ model_counts.institutions|default:"0" }}</div>
-                <div class="ws-stat-label">{% trans "Institutions" %}</div>
-            </div>
-        </div>
+<!-- ─── Stats Grid ────────────────────────────────────────────── -->
+<div class="n-st-grid" style="grid-template-columns:repeat(5,1fr)">
+  <div class="n-st">
+    <div class="n-st-info">
+      <p class="n-st-label">{% trans "Events" %}</p>
+      <p class="n-st-num">{{ model_counts.events|default:"0" }}</p>
+      {% if pending_counts.events %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.events }} {% trans "pending" %}</span>{% endif %}
     </div>
+    <div class="n-st-icon i1"><i class="fas fa-calendar-alt"></i></div>
+  </div>
+  <div class="n-st">
+    <div class="n-st-info">
+      <p class="n-st-label">{% trans "Tools" %}</p>
+      <p class="n-st-num">{{ model_counts.tools|default:"0" }}</p>
+      {% if pending_counts.tools %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.tools }} {% trans "pending" %}</span>{% endif %}
+    </div>
+    <div class="n-st-icon i3"><i class="fas fa-tools"></i></div>
+  </div>
+  <div class="n-st">
+    <div class="n-st-info">
+      <p class="n-st-label">{% trans "News" %}</p>
+      <p class="n-st-num">{{ model_counts.news|default:"0" }}</p>
+      {% if pending_counts.news %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</span>{% endif %}
+    </div>
+    <div class="n-st-icon i4"><i class="fas fa-newspaper"></i></div>
+  </div>
+  <div class="n-st">
+    <div class="n-st-info">
+      <p class="n-st-label">{% trans "Courses" %}</p>
+      <p class="n-st-num">{{ model_counts.courses|default:"0" }}</p>
+      {% if pending_counts.courses %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.courses }} {% trans "pending" %}</span>{% endif %}
+    </div>
+    <div class="n-st-icon i2"><i class="fas fa-graduation-cap"></i></div>
+  </div>
+  <div class="n-st">
+    <div class="n-st-info">
+      <p class="n-st-label">{% trans "Institutions" %}</p>
+      <p class="n-st-num">{{ model_counts.institutions|default:"0" }}</p>
+    </div>
+    <div class="n-st-icon i5"><i class="fas fa-university"></i></div>
+  </div>
+</div>
 
-    <!-- ─── Tabs ─────────────────────────────────────────────────── -->
-    <div class="ws-tabs" role="tablist">
-        {% for cat in categories %}
-        <button class="ws-tab{% if forloop.first %} active{% endif %}"
-                role="tab"
-                data-category="{{ cat.key }}"
-                onclick="switchTab('{{ cat.key }}')">
-            <i class="fas {{ cat.meta.icon }}"></i>
-            {{ cat.meta.label }}
-        </button>
+<!-- ─── Category Tabs ─────────────────────────────────────────── -->
+<div class="n-tabs">
+  {% for cat in categories %}
+  <button class="n-tab{% if forloop.first %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
+    <i class="fas {{ cat.meta.icon }}"></i>
+    {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% trans "News" %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+    {% if cat.last_run %}<span class="n-tab-badge">{{ cat.last_run.items_created }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- ─── Category Panels ───────────────────────────────────────── -->
+{% for cat in categories %}
+<div class="ws-panel{% if forloop.first %} active{% endif %}" id="panel-{{ cat.key }}">
+
+  <!-- Source info card + run button -->
+  <div class="n-card">
+    <div class="n-card-head">
+      <h3 class="n-card-title">
+        <i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }}"></i>
+        {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% trans "News" %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+      </h3>
+      <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
+        <span class="ws-spin"></span>
+        <span class="ws-btn-label"><i class="fas fa-play"></i> {% trans "Run Scraper" %}</span>
+      </button>
+    </div>
+    <div class="n-card-body">
+      <p style="margin:0 0 .5rem;font-size:.84rem;color:var(--n-text-2)">
+        {% if cat.key == "events" %}{% trans "NLP conferences, workshops, seminars, and calls for papers" %}{% elif cat.key == "tools" %}{% trans "Arabic NLP models, LLMs, speech models, and datasets from HuggingFace" %}{% elif cat.key == "news" %}{% trans "Recent NLP research papers and publications" %}{% elif cat.key == "courses" %}{% trans "NLP courses from top universities, Coursera, and YouTube" %}{% elif cat.key == "institutions" %}{% trans "Universities, research centres, and NLP labs worldwide" %}{% else %}{{ cat.meta.description }}{% endif %}
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem">
+        {% for src in cat.meta.sources %}
+        <span class="ws-src-tag"><i class="fas fa-link"></i> {{ src }}</span>
         {% endfor %}
+      </div>
     </div>
+  </div>
 
-    <!-- ─── Panels ───────────────────────────────────────────────── -->
-    {% for cat in categories %}
-    <div class="ws-panel{% if forloop.first %} active{% endif %}" id="panel-{{ cat.key }}">
+  <!-- Loading overlay -->
+  <div class="ws-loading" id="loading-{{ cat.key }}">
+    <div class="ws-big-spin"></div>
+    <p>{% trans "Scraping in progress… please wait." %}</p>
+  </div>
 
-        <!-- Panel header -->
-        <div class="ws-panel-header">
-            <div class="ws-source-info">
-                <h3><i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }};margin-right:.4rem;"></i>{{ cat.meta.label }}</h3>
-                <p>{{ cat.meta.description }}</p>
-                <div class="ws-source-tags">
-                    {% for src in cat.meta.sources %}
-                    <span class="ws-source-tag"><i class="fas fa-link" style="margin-right:3px;font-size:.65rem;"></i>{{ src }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-            <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
-                <span class="spinner"></span>
-                <span class="btn-text"><i class="fas fa-play"></i> {% trans "Run Scraper" %}</span>
-            </button>
-        </div>
+  <!-- Results container (populated by JS) -->
+  <div id="results-{{ cat.key }}"></div>
 
-        <!-- Loading overlay -->
-        <div class="ws-loading-overlay" id="loading-{{ cat.key }}">
-            <div class="big-spinner"></div>
-            <p>{% trans "Scraping in progress… this may take a moment." %}</p>
-        </div>
-
-        <!-- Results (populated by JS after scraping) -->
-        <div id="results-{{ cat.key }}"></div>
-
-        <!-- Recent runs -->
-        {% if cat.recent_runs %}
-        <div class="ws-runs-list">
-            <h4><i class="fas fa-history" style="margin-right:.35rem;opacity:.5;"></i>{% trans "Recent Runs" %}</h4>
-            {% for run in cat.recent_runs %}
-            <div class="ws-run-row">
-                <span class="ws-run-status {{ run.status }}"></span>
-                <span>{{ run.get_status_display }}</span>
-                <span style="color:var(--ws-text-muted);">
-                    — {{ run.items_created }} {% trans "created" %}, {{ run.items_skipped }} {% trans "skipped" %}
-                </span>
-                <span class="ws-run-meta">{{ run.started_at|date:"M d, H:i" }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+  <!-- Recent runs -->
+  {% if cat.recent_runs %}
+  <div class="n-card" style="margin-top:1rem">
+    <div class="n-card-head">
+      <h3 class="n-card-title"><i class="fas fa-history"></i> {% trans "Recent Runs" %}</h3>
+    </div>
+    {% for run in cat.recent_runs %}
+    <div class="ws-run-row">
+      <span class="ws-run-dot {{ run.status }}"></span>
+      <span>
+        {% if run.status == "completed" %}{% trans "Completed" %}{% elif run.status == "failed" %}{% trans "Failed" %}{% elif run.status == "running" %}{% trans "Running" %}{% else %}{{ run.get_status_display }}{% endif %}
+      </span>
+      <span style="color:var(--n-text-2)">
+        — {{ run.items_created }} {% trans "created" %}, {{ run.items_skipped }} {% trans "skipped" %}
+      </span>
+      <span class="ws-run-meta">{{ run.started_at|date:"d M Y, H:i" }}</span>
     </div>
     {% endfor %}
+  </div>
+  {% endif %}
 
 </div>
+{% endfor %}
 
 {% csrf_token %}
 {% endblock %}
@@ -501,160 +194,198 @@
 (function() {
     'use strict';
 
-    /* ── CSRF helper ─────────────────────────────────────────────── */
+    /* ── i18n labels for JS-rendered content ───────────────────── */
+    var I18N = {
+        found:      '{% trans "Found" %}',
+        created:    '{% trans "Created" %}',
+        skipped:    '{% trans "Skipped" %}',
+        duration:   '{% trans "Duration" %}',
+        warnings:   '{% trans "warning(s)" %}',
+        noItems:    '{% trans "No new items found." %}',
+        scraped:    '{% trans "Scraped Items" %}',
+        networkErr: '{% trans "Network Error" %}',
+        error:      '{% trans "Error" %}',
+        title:      '{% trans "Title" %}',
+        location:   '{% trans "Location" %}',
+        dates:      '{% trans "Dates" %}',
+        link:       '{% trans "Link" %}',
+        type:       '{% trans "Type" %}',
+        author:     '{% trans "Author" %}',
+        downloads:  '{% trans "Downloads" %}',
+        published:  '{% trans "Published" %}',
+        institution:'{% trans "Institution" %}',
+        level:      '{% trans "Level" %}',
+        name:       '{% trans "Name" %}',
+        country:    '{% trans "Country" %}',
+        city:       '{% trans "City" %}',
+    };
+
+    /* ── CSRF helper ───────────────────────────────────────────── */
     function getCookie(name) {
-        let v = null;
+        var v = null;
         if (document.cookie) {
-            document.cookie.split(';').forEach(c => {
+            document.cookie.split(';').forEach(function(c) {
                 c = c.trim();
-                if (c.startsWith(name + '='))
+                if (c.indexOf(name + '=') === 0)
                     v = decodeURIComponent(c.substring(name.length + 1));
             });
         }
         return v;
     }
-    const csrfToken = getCookie('csrftoken')
+    var csrfToken = getCookie('csrftoken')
         || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
         || '';
 
-    /* ── Tab switching ───────────────────────────────────────────── */
-    window.switchTab = function(category) {
-        document.querySelectorAll('.ws-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.ws-panel').forEach(p => p.classList.remove('active'));
-        const tab = document.querySelector(`.ws-tab[data-category="${category}"]`);
-        const panel = document.getElementById('panel-' + category);
-        if (tab) tab.classList.add('active');
+    /* ── Tab switching ─────────────────────────────────────────── */
+    window.switchTab = function(cat) {
+        document.querySelectorAll('.n-tab').forEach(function(t){ t.classList.remove('on'); });
+        document.querySelectorAll('.ws-panel').forEach(function(p){ p.classList.remove('active'); });
+        var tab = document.querySelector('.n-tab[data-cat="'+cat+'"]');
+        var panel = document.getElementById('panel-' + cat);
+        if (tab) tab.classList.add('on');
         if (panel) panel.classList.add('active');
     };
 
-    /* ── Run scraper ─────────────────────────────────────────────── */
-    window.runScraper = function(category) {
-        const btn     = document.getElementById('btn-' + category);
-        const loading = document.getElementById('loading-' + category);
-        const results = document.getElementById('results-' + category);
+    /* ── Run scraper ───────────────────────────────────────────── */
+    window.runScraper = function(cat) {
+        var btn     = document.getElementById('btn-' + cat);
+        var loading = document.getElementById('loading-' + cat);
+        var results = document.getElementById('results-' + cat);
 
         btn.classList.add('loading');
         btn.disabled = true;
         loading.classList.add('active');
         results.innerHTML = '';
 
-        const dashboardUrl = '{% url "scraping:dashboard" %}';
-        const runUrl = dashboardUrl.replace(/\/?$/, '/run/') + category + '/';
+        var dashboardUrl = '{% url "scraping:dashboard" %}';
+        var runUrl = dashboardUrl.replace(/\/?$/, '/run/') + cat + '/';
 
         fetch(runUrl, {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json',
-            },
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
         })
-        .then(r => r.json())
-        .then(data => {
-            loading.classList.remove('active');
-            btn.classList.remove('loading');
-            btn.disabled = false;
-
-            if (data.status === 'error') {
-                results.innerHTML = `<div class="ws-errors"><summary>Error</summary><ul><li>${data.message}</li></ul></div>`;
-                return;
+        .then(function(r){ return r.json(); })
+        .then(function(data) {
+            if (data.status === 'started') {
+                pollTaskStatus(cat, data.run_id);
+            } else {
+                finishScraper(cat, data);
             }
-            renderResults(category, data);
         })
-        .catch(err => {
+        .catch(function(err) {
             loading.classList.remove('active');
             btn.classList.remove('loading');
             btn.disabled = false;
-            results.innerHTML = `<div class="ws-errors"><summary>Network Error</summary><ul><li>${err}</li></ul></div>`;
+            results.innerHTML = '<div class="ws-errors"><summary>'+I18N.networkErr+'</summary><ul><li>'+escapeHtml(String(err))+'</li></ul></div>';
         });
     };
 
-    /* ── Render results ──────────────────────────────────────────── */
-    function renderResults(category, data) {
-        const container = document.getElementById('results-' + category);
-        let html = '';
+    /* ── Poll task status ──────────────────────────────────────── */
+    function pollTaskStatus(cat, runId) {
+        var dashboardUrl = '{% url "scraping:dashboard" %}';
+        var statusUrl = dashboardUrl.replace(/\/?$/, '/status/') + runId + '/';
+        function check() {
+            fetch(statusUrl).then(function(r){ return r.json(); }).then(function(data) {
+                if (data.status === 'running') setTimeout(check, 3000);
+                else finishScraper(cat, data);
+            }).catch(function(){ setTimeout(check, 6000); });
+        }
+        setTimeout(check, 3000);
+    }
 
-        /* Summary cards */
-        html += `<div class="ws-summary">
-            <div class="ws-summary-item"><div class="num" style="color:var(--ws-info)">${data.items_found || 0}</div><div class="lbl">Found</div></div>
-            <div class="ws-summary-item"><div class="num" style="color:var(--ws-success)">${data.items_created || 0}</div><div class="lbl">Created</div></div>
-            <div class="ws-summary-item"><div class="num" style="color:var(--ws-text-muted)">${data.items_skipped || 0}</div><div class="lbl">Skipped</div></div>
-            <div class="ws-summary-item"><div class="num" style="color:var(--ws-primary)">${data.duration ? data.duration.toFixed(1) + 's' : '—'}</div><div class="lbl">Duration</div></div>
-        </div>`;
+    /* ── Finish ────────────────────────────────────────────────── */
+    function finishScraper(cat, data) {
+        var btn     = document.getElementById('btn-' + cat);
+        var loading = document.getElementById('loading-' + cat);
+        loading.classList.remove('active');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+
+        if (data.status === 'error' || data.status === 'failed') {
+            var msg = data.message || (data.errors && data.errors.join(', ')) || 'Unknown error';
+            document.getElementById('results-' + cat).innerHTML =
+                '<div class="ws-errors"><summary>'+I18N.error+'</summary><ul><li>'+escapeHtml(msg)+'</li></ul></div>';
+            return;
+        }
+        renderResults(cat, data);
+    }
+
+    /* ── Render results ────────────────────────────────────────── */
+    function renderResults(cat, data) {
+        var container = document.getElementById('results-' + cat);
+        var h = '';
+
+        /* Summary */
+        h += '<div class="n-card" style="margin-top:1rem"><div class="ws-summary">';
+        h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-blue)">'+(data.items_found||0)+'</div><div class="ws-lbl">'+I18N.found+'</div></div>';
+        h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-green)">'+(data.items_created||0)+'</div><div class="ws-lbl">'+I18N.created+'</div></div>';
+        h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-text-3)">'+(data.items_skipped||0)+'</div><div class="ws-lbl">'+I18N.skipped+'</div></div>';
+        h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-blue-dark)">'+(data.duration ? data.duration.toFixed(1)+'s' : '—')+'</div><div class="ws-lbl">'+I18N.duration+'</div></div>';
+        h += '</div>';
 
         /* Errors */
         if (data.errors && data.errors.length) {
-            html += `<details class="ws-errors"><summary><i class="fas fa-exclamation-triangle"></i> ${data.errors.length} warning(s)</summary><ul>`;
-            data.errors.forEach(e => { html += `<li>${escapeHtml(e)}</li>`; });
-            html += '</ul></details>';
+            h += '<details class="ws-errors" style="margin:0;border-radius:0"><summary><i class="fas fa-exclamation-triangle"></i> '+data.errors.length+' '+I18N.warnings+'</summary><ul>';
+            data.errors.forEach(function(e){ h += '<li>'+escapeHtml(e)+'</li>'; });
+            h += '</ul></details>';
         }
 
-        /* Results table */
-        const items = data.results || [];
-        if (items.length === 0) {
-            html += `<div class="ws-empty"><i class="fas fa-inbox"></i><p>No new items found.</p></div>`;
+        /* Table */
+        var items = data.results || [];
+        if (!items.length) {
+            h += '<div class="n-empty"><i class="fas fa-inbox"></i><h3>'+I18N.noItems+'</h3></div>';
         } else {
-            html += buildResultsTable(category, items);
+            h += buildTable(cat, items);
         }
 
-        container.innerHTML = `<div class="ws-results-section">${html}</div>`;
-
-        /* Update the stat card for this category */
-        updateStatCards();
+        h += '</div>';
+        container.innerHTML = h;
     }
 
-    /* ── Build table per category ────────────────────────────────── */
-    function buildResultsTable(category, items) {
-        const cols = {
-            events:       ['Title', 'Location', 'Dates', 'Link'],
-            tools:        ['Title', 'Type', 'Author', 'Downloads', 'Link'],
-            news:         ['Title', 'Published', 'Link'],
-            courses:      ['Title', 'Institution', 'Level', 'Link'],
-            institutions: ['Name', 'Type', 'Country', 'City', 'Link'],
+    /* ── Build results table ───────────────────────────────────── */
+    function buildTable(cat, items) {
+        var cols = {
+            events:       [I18N.title, I18N.location, I18N.dates, I18N.link],
+            tools:        [I18N.title, I18N.type, I18N.author, I18N.downloads, I18N.link],
+            news:         [I18N.title, I18N.published, I18N.link],
+            courses:      [I18N.title, I18N.institution, I18N.level, I18N.link],
+            institutions: [I18N.name, I18N.type, I18N.country, I18N.city, I18N.link],
         };
-        const fields = {
-            events:       ['title', 'location', 'dates', 'url'],
-            tools:        ['title', 'type', 'author', 'downloads', 'url'],
-            news:         ['title', 'published', 'url'],
-            courses:      ['title', 'institution', 'level', 'url'],
-            institutions: ['title', 'type', 'country', 'city', 'url'],
+        var fields = {
+            events:       ['title','location','dates','url'],
+            tools:        ['title','type','author','downloads','url'],
+            news:         ['title','published','url'],
+            courses:      ['title','institution','level','url'],
+            institutions: ['title','type','country','city','url'],
         };
+        var cArr = cols[cat] || [I18N.title];
+        var fArr = fields[cat] || ['title'];
 
-        const cArr = cols[category] || ['Title'];
-        const fArr = fields[category] || ['title'];
+        var h = '<div class="n-card-head"><h3 class="n-card-title"><i class="fas fa-list"></i> '+I18N.scraped+' <span class="n-tab-badge" style="background:var(--n-green);color:#fff">'+items.length+'</span></h3></div>';
+        h += '<div class="table-responsive"><table class="n-tbl"><thead><tr><th>#</th>';
+        cArr.forEach(function(c){ h += '<th>'+c+'</th>'; });
+        h += '</tr></thead><tbody>';
 
-        let html = '<div class="ws-results-header"><h4><i class="fas fa-list"></i> Scraped Items <span class="ws-badge" style="background:var(--ws-success)">' + items.length + '</span></h4></div>';
-        html += '<table class="ws-results-table"><thead><tr>';
-        html += '<th>#</th>';
-        cArr.forEach(c => { html += `<th>${c}</th>`; });
-        html += '</tr></thead><tbody>';
-
-        items.forEach((item, idx) => {
-            html += '<tr>';
-            html += `<td>${idx + 1}</td>`;
-            fArr.forEach(f => {
-                const val = item[f] || '—';
+        items.forEach(function(item, idx) {
+            h += '<tr><td>'+(idx+1)+'</td>';
+            fArr.forEach(function(f) {
+                var val = item[f] || '—';
                 if (f === 'url' && val !== '—') {
-                    html += `<td><a href="${escapeHtml(val)}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i></a></td>`;
+                    h += '<td><a href="'+escapeHtml(val)+'" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a></td>';
                 } else {
-                    html += `<td>${escapeHtml(val)}</td>`;
+                    h += '<td>'+escapeHtml(val)+'</td>';
                 }
             });
-            html += '</tr>';
+            h += '</tr>';
         });
 
-        html += '</tbody></table>';
-        return html;
-    }
-
-    function updateStatCards() {
-        /* Reload the page stats after a scrape completes */
-        /* (a lightweight approach — full reload) */
-        // Optional: could fetch stats via AJAX instead
+        h += '</tbody></table></div>';
+        return h;
     }
 
     function escapeHtml(text) {
         if (!text) return '';
-        const d = document.createElement('div');
+        var d = document.createElement('div');
         d.textContent = String(text);
         return d.innerHTML;
     }
