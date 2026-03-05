@@ -1,130 +1,36 @@
 {% extends "base_admin.html" %}
 {% load i18n %}
-
 {% block title %}{% trans "Review Post" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-.review-wrap{
-  max-width:1400px;
-  margin:0 auto;
-}
-.review-card{
-  background:#fff;
-  border:1px solid #dbe3ee;
-  border-radius:18px;
-  padding:26px;
-  box-shadow:0 12px 28px rgba(15,23,42,0.08);
-}
-.review-title{
-  margin:0 0 14px;
-  font-size:1.65rem;
-  font-weight:800;
-  color:#0f172a;
-}
-.review-grid{
-  display:grid;
-  grid-template-columns: 180px 1fr;
-  gap:14px 18px;
-}
-.review-label{
-  font-weight:800;
-  color:#0f172a;
-}
-.review-value{
-  color:#334155;
-  white-space:pre-wrap;
-  word-break:break-word;
-}
-.review-divider{
-  margin:22px 0 16px;
-  border:0;
-  border-top:1px solid #e2e8f0;
-}
-.review-bottom-actions{
-  display:flex;
-  gap:12px;
-  flex-wrap:nowrap;
-  justify-content:flex-end;
-  align-items:center;
-}
-.btn-review{
-  border:1px solid transparent;
-  border-radius:12px;
-  padding:11px 16px;
-  font-weight:700;
-  color:#fff;
-  text-decoration:none;
-  display:inline-flex;
-  align-items:center;
-  gap:9px;
-  line-height:1;
-  box-shadow:0 6px 16px rgba(15,23,42,0.14);
-  transition:all .18s ease;
-}
-.btn-review:hover{
-  transform:translateY(-1px);
-  color:#fff;
-}
-.btn-back{background:#475569;}
-.btn-edit{background:#1d4ed8;}
-.btn-accept{background:#047857;}
-.btn-reject{background:#b91c1c;}
-.review-bottom-actions form{
-  display:inline-flex !important;
-  flex:0 0 auto;
-  margin:0 !important;
-  width:auto !important;
-}
-.review-bottom-actions > *{
-  flex:0 0 auto;
-}
-@media (max-width: 900px){
-  .review-bottom-actions{flex-wrap:wrap;}
-  .review-grid{grid-template-columns:1fr;}
-}
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container py-4 review-wrap">
-  <div class="review-card">
-    <h3 class="review-title">{% trans "Review Post" %}</h3>
+<div class="container-fluid" style="padding-top:.5rem;max-width:760px;margin:0 auto;">
+  <div class="pg-head">
+    <div><h1><i class="fas fa-newspaper"></i> {% trans "Review Post" %}</h1></div>
+    <a href="{% url 'pages:admin_news' %}?tab=pending" class="n-btn n-btn-outline"><i class="fas fa-arrow-left"></i> {% trans "Back" %}</a>
+  </div>
 
-    <div class="review-grid">
-      <div class="review-label">{% trans "Title" %}</div>
-      <div class="review-value">{{ post.get_localized_title|default:post.title_en|default:post.title_ar|default:post.title|default:post.id }}</div>
-
-      <div class="review-label">{% trans "Content" %}</div>
-      <div class="review-value">{{ post.get_localized_content|default:post.content }}</div>
-
-      <div class="review-label">{% trans "Author" %}</div>
-      <div class="review-value">{{ post.author.full_name|default:post.author.username|default:post.author }}</div>
-
-      <div class="review-label">{% trans "Status" %}</div>
-      <div class="review-value">{{ post.approval_status }}</div>
+  <div class="n-card">
+    <div class="n-card-body" style="padding:1.5rem;">
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:.65rem 1rem;font-size:.85rem;">
+        <span style="font-weight:700;color:var(--n-text);">{% trans "Title" %}</span>
+        <span style="color:var(--n-text-2);">{{ post.get_localized_title|default:post.title_en|default:post.title_ar|default:post.title|default:post.id }}</span>
+        <span style="font-weight:700;color:var(--n-text);">{% trans "Content" %}</span>
+        <span style="color:var(--n-text-2);white-space:pre-wrap;word-break:break-word;">{{ post.get_localized_content|default:post.content }}</span>
+        <span style="font-weight:700;color:var(--n-text);">{% trans "Author" %}</span>
+        <span style="color:var(--n-text-2);">{{ post.author.full_name|default:post.author.username|default:post.author }}</span>
+        <span style="font-weight:700;color:var(--n-text);">{% trans "Status" %}</span>
+        <span><span class="n-status-pill {% if post.approval_status == 'approved' %}approved{% elif post.approval_status == 'pending' %}pending{% else %}rejected{% endif %}">{{ post.approval_status }}</span></span>
+      </div>
     </div>
-
-    <hr class="review-divider">
-
-    <div class="review-bottom-actions">
-      <a class="btn-review btn-back" href="{% url 'pages:admin_news' %}?tab=pending">
-        <i class="fas fa-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% trans "Back" %}{% endif %}
-      </a>
-      <a class="btn-review btn-edit" href="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}?mode=edit">
-        <i class="fas fa-edit"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% trans "Edit Form" %}{% endif %}
-      </a>
-      <form action="{% url 'pages:admin_reject_item' model_type='post' pk=post.id %}" method="post" style="display:inline;">
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;padding:.85rem 1.5rem;border-top:1px solid var(--n-border-s);">
+      <a href="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}?mode=edit" class="n-btn n-btn-outline"><i class="fas fa-edit"></i> {% trans "Edit Form" %}</a>
+      <form action="{% url 'pages:admin_reject_item' model_type='post' pk=post.id %}" method="post" style="display:inline;margin:0;">
         {% csrf_token %}
-        <button type="submit" class="btn-review btn-reject">
-          <i class="fas fa-times"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% trans "Refuse" %}{% endif %}
-        </button>
+        <button type="submit" class="n-btn n-btn-red"><i class="fas fa-times"></i> {% trans "Refuse" %}</button>
       </form>
-      <form action="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}" method="post" style="display:inline;">
+      <form action="{% url 'pages:admin_approve_item' model_type='post' pk=post.id %}" method="post" style="display:inline;margin:0;">
         {% csrf_token %}
-        <button type="submit" class="btn-review btn-accept">
-          <i class="fas fa-check"></i>{% trans "Approve & Publish" %}
-        </button>
+        <button type="submit" class="n-btn n-btn-green"><i class="fas fa-check"></i> {% trans "Approve & Publish" %}</button>
       </form>
     </div>
   </div>

@@ -224,6 +224,8 @@ class GlobalSearchView(TemplateView):
                 date_f = self.DOCUMENT_CONFIGS[doc_type].get('date_field')
                 if sort_by == 'newest' and date_f:
                     search = search.sort({date_f: {'order': 'desc', 'unmapped_type': 'date'}})
+                elif sort_by == 'oldest' and date_f:
+                    search = search.sort({date_f: {'order': 'asc', 'unmapped_type': 'date'}})
                 
                 response = search.execute()
                 for hit in response:
@@ -237,7 +239,7 @@ class GlobalSearchView(TemplateView):
         
         if not type_filter:
             total_count = sum(aggregations.values())
-            results.sort(key=lambda x: x.get('score', 0), reverse=True)
+            results.sort(key=lambda x: x.get('score') or 0, reverse=True)
             results = results[:per_page]
         
         return results, aggregations, total_count
@@ -370,6 +372,9 @@ class GlobalSearchView(TemplateView):
                 context['page_range'] = range(1, total_pages + 1)
             except (ConnectionError, NotFoundError):
                 context['fallback_mode'] = True
+
+        context['filters'] = filters
+        context.setdefault('query', q)
         return context
 
 class SearchAutocompleteView(View):

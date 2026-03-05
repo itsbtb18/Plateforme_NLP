@@ -31,6 +31,12 @@ class NLPKnowledge(Base):
     language = Column(String(10), default="en")
     keywords = Column(ARRAY(String))
     difficulty = Column(String(20))
+    # v2 metadata fields for improved retrieval
+    source_file = Column(String(500))
+    section_title = Column(String(500))
+    document_type = Column(String(50))  # paper, book, survey, tutorial
+    chunk_index = Column(Integer)
+    version = Column(Integer, default=2)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -125,6 +131,10 @@ class ChatSession(Base):
     summary = Column(Text)
     pdf_context = Column(Text)
     pdf_filename = Column(String(255))
+    # Phase 4.1: Document session persistence
+    active_document_session = Column(Boolean, default=False, server_default="false")
+    active_document_id = Column(String(255), nullable=True)
+    low_doc_similarity_streak = Column(Integer, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_activity = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

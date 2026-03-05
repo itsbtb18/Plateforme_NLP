@@ -17,7 +17,7 @@ from django.db.models.functions import TruncDate, TruncMonth
 from notifications.models import Notification
 from notifications.services import NotificationService
 from QA.models import Post, Question
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Max
 import datetime
 import json
 from urllib.parse import urlencode
@@ -577,7 +577,7 @@ def admin_user_history(request, user_id):
     admin_filter = request.GET.get('admin_filter', '')
     period_filter = request.GET.get('period_filter', '')
 
-    history_qs = UserStatusHistory.objects.filter(user=user).order_by('-change_date')
+    history_qs = UserStatusHistory.objects.filter(user=user).select_related('user', 'changed_by').order_by('-change_date')
 
     if status_filter:
         history_qs = history_qs.filter(new_status=status_filter)
@@ -603,6 +603,26 @@ def admin_user_history(request, user_id):
     
     all_admins: 'QuerySet[CustomUser]' = CustomUser.objects.filter(is_staff=True).order_by('full_name')
 
+    admins_activity = (
+        UserStatusHistory.objects.filter(user=user)
+        .values('changed_by__id', 'changed_by__username')
+        .annotate(
+            changes_count=Count('id'),
+            last_change=Max('change_date'),
+        )
+        .order_by('-changes_count')
+    )
+    # Attach avatar info by fetching the actual user objects
+    admin_ids = [a['changed_by__id'] for a in admins_activity]
+    admin_map = {u.id: u for u in CustomUser.objects.filter(id__in=admin_ids)}
+    for a in admins_activity:
+        admin_obj = admin_map.get(a['changed_by__id'])
+        a['username'] = a['changed_by__username']
+        a['avatar'] = admin_obj.avatar if admin_obj else None
+
+    pending_changes = UserStatusHistory.objects.filter(user=user, new_status='pending').count()
+    new_accounts = UserStatusHistory.objects.filter(user=user, new_status='new').count()
+
     context = {
         'user_obj': user,
         'recent_history': history_qs,
@@ -614,6 +634,9 @@ def admin_user_history(request, user_id):
         'admin_filter': int(admin_filter) if admin_filter else '',
         'period_filter': period_filter,
         'all_admins': all_admins,
+        'admins_activity': admins_activity,
+        'pending_changes': pending_changes,
+        'new_accounts': new_accounts,
     }
 
     return render(request, 'admin/history.html', context)

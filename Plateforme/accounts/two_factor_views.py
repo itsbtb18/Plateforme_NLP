@@ -104,6 +104,23 @@ class OTPVerificationView(View):
             return JsonResponse({'success': False, 'message': result['message']})
 
 
+class CancelTwoFactorView(View):
+    """
+    Cancel 2FA verification flow — clears pending session data
+    and redirects to signup or login.
+    """
+    def get(self, request):
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        request.session.save()
+        dest = request.GET.get('next', '')
+        if dest == 'signup':
+            return redirect('account_signup')
+        if dest == 'home':
+            return redirect('pages:home')
+        return redirect('account_login')
+
+
 class ResendOTPView(View):
     """
     Resend OTP if user didn't receive it or it expired

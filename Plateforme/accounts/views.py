@@ -79,6 +79,11 @@ class SignUp(CreateView):
         if request.user.is_authenticated:
             messages.info(request, _("You are already logged in."))
             return redirect('pages:home')
+        # Clear any stale 2FA session data from a previous abandoned signup
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        if request.session.modified:
+            request.session.save()
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form: Any) -> Any:
@@ -152,6 +157,7 @@ class LoginView(AllauthLoginView):
     Custom login view with Remember Me support.
     """
 
+<<<<<<< HEAD
     MAX_LOGIN_ATTEMPTS = 5
     LOCKOUT_SECONDS = 15 * 60
     FAILURE_WINDOW_SECONDS = 15 * 60
@@ -179,6 +185,14 @@ class LoginView(AllauthLoginView):
                 _("Too many failed attempts. Try again later."),
             )
             return self.render_to_response(self.get_context_data(form=self.get_form()))
+=======
+    def dispatch(self, request, *args, **kwargs):
+        # Clear any stale 2FA session data from an abandoned signup flow
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        if request.session.modified:
+            request.session.save()
+>>>>>>> c3e799e40dd89e42723bf0ddc0ad7215e60299b6
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form: Any) -> Any:

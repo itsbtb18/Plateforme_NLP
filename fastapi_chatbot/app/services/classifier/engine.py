@@ -1,10 +1,13 @@
 """
-Heuristic-based intent classifier for routing queries.
+Confidence-based intent classifier for routing queries.
+
+Phase 10 rewrite: scores all intents simultaneously, selects highest
+confidence, and uses LLM classification fallback when ambiguous.
 """
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict, Tuple
 
 from app.services.language import get_language_service
 from app.services.classifier.patterns import (
@@ -15,12 +18,15 @@ from app.services.classifier.patterns import (
     DOCUMENT_PATTERNS,
     BUG_PATTERNS,
     GENERAL_KNOWLEDGE_PATTERNS,
-    SOFT_DOCUMENT_PATTERN,
+    CONCEPTUAL_QUESTION_PATTERNS,
     USER_QUERY_PATTERNS,
     extract_resource_type,
 )
 
 logger = logging.getLogger(__name__)
+
+# Minimum confidence gap between top-1 and top-2 to skip LLM fallback
+_AMBIGUITY_MARGIN = 0.15
 
 
 @dataclass
@@ -39,11 +45,37 @@ class QueryClassification:
     )
 
 
+# Intent → routing parameters (avoids repeating in every branch)
+_INTENT_PARAMS: Dict[str, dict] = {
+    "user_query": {"use_postgresql": True},
+    "metadata_query": {"use_postgresql": True},
+    "document_query": {
+        "qdrant_collections": ["document_chunks"],
+        "qdrant_type_filter": "document",
+    },
+    "legal_query": {
+        "qdrant_collections": ["legal_documents"],
+        "qdrant_type_filter": "law",
+    },
+    "bug_query": {
+        "qdrant_collections": ["nlp_knowledge", "platform_docs"],
+        "qdrant_type_filter": "bug",
+    },
+    "platform_query": {"use_postgresql": True},
+    "general_knowledge": {"use_llm_direct": True},
+    "conceptual_question": {"qdrant_collections": ["nlp_knowledge"]},
+}
+
+
 class QueryClassifier:
-    """Heuristic-based intent classifier for routing queries."""
+    """Confidence-based intent classifier with LLM fallback."""
 
     def __init__(self):
         self.lang_service = get_language_service()
+
+    # ------------------------------------------------------------------
+    # Public entry point
+    # ------------------------------------------------------------------
 
     def classify(
         self,
@@ -52,120 +84,172 @@ class QueryClassifier:
         has_session_docs: bool = False,
     ) -> QueryClassification:
         """
-        Classify a user question.
+        Classify a user question using multi-intent scoring.
 
-        Parameters
-        ----------
-        question : str
-            Raw user input.
-        has_session_docs : bool
-            Whether the user has uploaded documents in the current session.
-            Boosts document_query likelihood.
-
-        Returns
-        -------
-        QueryClassification
+        Scores all intents simultaneously, picks the highest-confidence
+        match.  When the top two intents are within a narrow margin,
+        the result is flagged as ambiguous (confidence capped at 0.60)
+        so the caller can optionally invoke LLM disambiguation.
         """
         language = self.lang_service.detect(question)
         q = question.strip()
 
-        # --- 1. User identity / profile query ---
-        if self._matches(q, USER_QUERY_PATTERNS):
-            return QueryClassification(
-                intent="user_query",
-                language=language,
-                confidence=0.90,
-                use_postgresql=True,
-            )
+        scores = self._score_all_intents(q, has_session_docs)
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-        # --- 2. Metadata query (stats, navigation) ---
-        if self._matches(q, METADATA_PATTERNS):
-            return QueryClassification(
-                intent="metadata_query",
-                language=language,
-                confidence=0.90,
-                use_postgresql=True,
-            )
+        top_intent, top_score = ranked[0]
+        runner_up_score = ranked[1][1] if len(ranked) > 1 else 0.0
 
-        # --- 3. Document query (user uploads) — explicit patterns only ---
-        if self._matches(q, DOCUMENT_PATTERNS):
-            return QueryClassification(
-                intent="document_query",
-                language=language,
-                confidence=0.85,
-                qdrant_collections=["document_chunks"],
-                qdrant_type_filter="document",
-            )
-
-        # --- 4. Legal query ---
-        if self._matches(q, LEGAL_PATTERNS):
-            return QueryClassification(
-                intent="legal_query",
-                language=language,
-                confidence=0.85,
-                qdrant_collections=["legal_documents"],
-                qdrant_type_filter="law",
-            )
-
-        # --- 5. Bug query ---
-        if self._matches(q, BUG_PATTERNS):
-            return QueryClassification(
-                intent="bug_query",
-                language=language,
-                confidence=0.80,
-                qdrant_collections=["nlp_knowledge", "platform_docs"],
-                qdrant_type_filter="bug",
-            )
-
-        # --- 6. Platform / structured query ---
-        if self._matches(q, PLATFORM_PATTERNS) or self._has_platform_keywords(q):
-            res_type = extract_resource_type(q)
-            return QueryClassification(
-                intent="platform_query",
-                language=language,
-                confidence=0.85,
-                use_postgresql=True,
-                detected_resource_type=res_type,
-            )
-
-        # --- 6b. Soft document hint (explain/summarize when docs exist) ---
-        # Checked AFTER platform patterns so "explain the tools" still goes
-        # to platform_query, but "explain this" when docs exist goes to
-        # document_query.
-        if has_session_docs and self._soft_document_hint(q):
-            return QueryClassification(
-                intent="document_query",
-                language=language,
-                confidence=0.75,
-                qdrant_collections=["document_chunks"],
-                qdrant_type_filter="document",
-            )
-
-        # --- 7. General knowledge (advice, plans, recommendations) → direct LLM ---
-        if self._matches(q, GENERAL_KNOWLEDGE_PATTERNS):
-            return QueryClassification(
-                intent="general_knowledge",
-                language=language,
-                confidence=0.85,
-                use_llm_direct=True,
-            )
-
-        # --- 8. Default: conceptual question → LLM with optional RAG ---
-        return QueryClassification(
-            intent="conceptual_question",
-            language=language,
-            confidence=0.70,
-            qdrant_collections=["nlp_knowledge", "platform_docs", "resources"],
-            use_llm_direct=True,
+        # Check for ambiguity
+        is_ambiguous = (
+            top_score > 0 and (top_score - runner_up_score) < _AMBIGUITY_MARGIN
         )
 
+        if top_score == 0:
+            # No pattern matched → default conceptual_question
+            return self._build_classification(
+                "conceptual_question", language, 0.50
+            )
+
+        if is_ambiguous:
+            # Confidence is capped to signal uncertainty
+            confidence = min(top_score, 0.60)
+            logger.info(
+                "Ambiguous classification: top=%s(%.2f) runner_up=%s(%.2f) → "
+                "using %s with capped confidence %.2f",
+                ranked[0][0], ranked[0][1],
+                ranked[1][0], ranked[1][1],
+                top_intent, confidence,
+            )
+        else:
+            confidence = top_score
+
+        result = self._build_classification(top_intent, language, confidence)
+
+        # Attach resource type for platform queries
+        if top_intent == "platform_query":
+            result.detected_resource_type = extract_resource_type(q)
+
+        return result
+
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Async LLM fallback (can be called by chat_logic when ambiguous)
+    # ------------------------------------------------------------------
+
+    async def llm_resolve_ambiguity(
+        self,
+        question: str,
+        language: str,
+        top_intents: List[str],
+    ) -> Optional[str]:
+        """Use a lightweight LLM call to disambiguate between top intents.
+
+        Returns one of the *top_intents* or None on failure.
+        Called from chat_logic only when classification.confidence <= 0.60.
+        """
+        try:
+            from app.services.llm import get_groq_client
+
+            client = get_groq_client()
+            intents_str = ", ".join(top_intents)
+            system = (
+                "You are an intent classifier. Given a user question and a set "
+                "of candidate intents, respond with ONLY the single best intent "
+                "name. Do not explain.\n\n"
+                f"Candidate intents: {intents_str}\n\n"
+                "Intent definitions:\n"
+                "- user_query: user asking about their own profile/name/contributions\n"
+                "- metadata_query: asking for statistics, counts, navigation\n"
+                "- document_query: asking about uploaded documents\n"
+                "- legal_query: asking about laws or legal texts\n"
+                "- bug_query: reporting a bug or technical issue\n"
+                "- platform_query: asking about platform resources (tools, courses, etc.)\n"
+                "- general_knowledge: open-ended advice, brainstorming, plans\n"
+                "- conceptual_question: NLP/AI concept explanations\n"
+            )
+            messages = [
+                {"role": "system", "content": system},
+                {"role": "user", "content": question},
+            ]
+            answer = await client.chat_completion(
+                messages, temperature=0.0, max_tokens=20,
+            )
+            resolved = answer.strip().lower().replace('"', "").replace("'", "")
+            if resolved in top_intents:
+                logger.info("LLM resolved ambiguity → %s", resolved)
+                return resolved
+            logger.warning(
+                "LLM returned unexpected intent '%s', ignoring", resolved,
+            )
+        except Exception:
+            logger.warning("LLM intent fallback failed", exc_info=True)
+        return None
+
+    # ------------------------------------------------------------------
+    # Multi-intent scoring
+    # ------------------------------------------------------------------
+
+    def _score_all_intents(
+        self, text: str, has_session_docs: bool,
+    ) -> Dict[str, float]:
+        """Compute a confidence score (0.0–1.0) for every intent."""
+        scores: Dict[str, float] = {}
+
+        # Count how many patterns match per intent
+        scores["user_query"] = self._match_score(
+            text, USER_QUERY_PATTERNS, base=0.90,
+        )
+        scores["metadata_query"] = self._match_score(
+            text, METADATA_PATTERNS, base=0.88,
+        )
+        scores["document_query"] = self._match_score(
+            text, DOCUMENT_PATTERNS, base=0.85,
+        )
+        scores["legal_query"] = self._match_score(
+            text, LEGAL_PATTERNS, base=0.85,
+        )
+        scores["bug_query"] = self._match_score(
+            text, BUG_PATTERNS, base=0.80,
+        )
+        scores["platform_query"] = self._match_score(
+            text, PLATFORM_PATTERNS, base=0.85,
+        )
+        scores["general_knowledge"] = self._match_score(
+            text, GENERAL_KNOWLEDGE_PATTERNS, base=0.82,
+        )
+        # Platform keywords add a weaker signal — but only when the
+        # question doesn't already look like general knowledge.
+        if self._has_platform_keywords(text) and scores["general_knowledge"] == 0.0:
+            scores["platform_query"] = max(
+                scores["platform_query"], 0.65,
+            )
+
+        # conceptual_question uses pattern matching; falls back to 0.0
+        # so it remains the default when nothing else matches.
+        scores["conceptual_question"] = self._match_score(
+            text, CONCEPTUAL_QUESTION_PATTERNS, base=0.85,
+        )
+
+        return scores
+
+    # ------------------------------------------------------------------
+    # Helpers
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _matches(text: str, patterns: list) -> bool:
-        return any(p.search(text) for p in patterns)
+    def _match_score(text: str, patterns: list, *, base: float) -> float:
+        """Score an intent by counting matching patterns.
+
+        First match → *base* confidence.
+        Each additional match adds a small bonus (capped at 0.98).
+        Zero matches → 0.0.
+        """
+        count = sum(1 for p in patterns if p.search(text))
+        if count == 0:
+            return 0.0
+        # Diminishing returns per extra match
+        bonus = min(count - 1, 3) * 0.03
+        return min(base + bonus, 0.98)
 
     @staticmethod
     def _has_platform_keywords(text: str) -> bool:
@@ -173,9 +257,20 @@ class QueryClassifier:
         return any(kw in lower for kw in PLATFORM_KEYWORDS)
 
     @staticmethod
-    def _soft_document_hint(text: str) -> bool:
-        """Loose check when the user has docs and mentions summarise/explain etc."""
-        return bool(SOFT_DOCUMENT_PATTERN.search(text))
+    def _build_classification(
+        intent: str, language: str, confidence: float,
+    ) -> QueryClassification:
+        """Construct a QueryClassification from intent name."""
+        params = _INTENT_PARAMS.get(intent, {})
+        return QueryClassification(
+            intent=intent,
+            language=language,
+            confidence=confidence,
+            qdrant_collections=list(params.get("qdrant_collections", [])),
+            qdrant_type_filter=params.get("qdrant_type_filter"),
+            use_postgresql=params.get("use_postgresql", False),
+            use_llm_direct=params.get("use_llm_direct", False),
+        )
 
 
 # ---------------------------------------------------------------------------

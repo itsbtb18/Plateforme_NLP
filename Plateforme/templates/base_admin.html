@@ -14,9 +14,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/admin.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'css/admin.css' %}?v=15">
     {% if LANGUAGE_CODE == 'ar' %}
-    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}?v=15">
     {% endif %}
     <style>
       /* Align admin tables vertically and center content */
@@ -79,8 +79,11 @@
     <!-- Admin Header -->
     <header class="admin-header">
         <div class="admin-header-container">
-            <!-- LEFT: Logo + Admin Panel Title -->
+            <!-- LEFT: Logo + Sidebar Toggle + Admin Panel Title -->
             <div class="admin-logo">
+                <button id="sidebarToggleBtn" class="sidebar-toggle-btn" type="button" aria-label="{% trans 'Toggle sidebar' %}">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <img src="{% static 'images/logo.png' %}" alt="Logo" class="admin-logo-img">
                 <h5 class="admin-title">{% trans "Admin Panel" %}</h5>
             </div>
@@ -102,82 +105,82 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
+            <nav id="sidebar" class="sidebar">
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}
+                                <i class="fas fa-tachometer-alt"></i> <span>{% trans "Dashboard" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_users' %}active{% endif %}" href="{% url 'pages:admin_users' %}">
-                                <i class="fas fa-users"></i> {% trans "Users" %}
+                                <i class="fas fa-users"></i> <span>{% trans "Users" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_publications' %}active{% endif %}" href="{% url 'pages:admin_publications' %}">
-                                <i class="fas fa-book"></i> {% trans "Publications" %}
+                                <i class="fas fa-book"></i> <span>{% trans "Publications" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_corpora' %}active{% endif %}" href="{% url 'pages:admin_corpora' %}">
-                                <i class="fas fa-database"></i> {% trans "Corpus" %}
+                                <i class="fas fa-database"></i> <span>{% trans "Corpus" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_tools' %}active{% endif %}" href="{% url 'pages:admin_tools' %}">
-                                <i class="fas fa-tools"></i> {% trans "tools" %}
+                                <i class="fas fa-tools"></i> <span>{% trans "tools" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_projects' %}active{% endif %}" href="{% url 'pages:admin_projects' %}">
-                                <i class="fas fa-project-diagram"></i> {% trans "Projects" %}
+                                <i class="fas fa-project-diagram"></i> <span>{% trans "Projects" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_courses' %}active{% endif %}" href="{% url 'pages:admin_courses' %}">
-                                <i class="fas fa-graduation-cap"></i> {% trans "Course" %}
+                                <i class="fas fa-graduation-cap"></i> <span>{% trans "Courses" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_forum' %}active{% endif %}" href="{% url 'pages:admin_forum' %}">
-                                <i class="fas fa-comments"></i> {% trans "Forum" %}
+                                <i class="fas fa-comments"></i> <span>{% trans "Forum" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_news' %}active{% endif %}" href="{% url 'pages:admin_news' %}">
-                                <i class="fas fa-newspaper"></i> {% trans "News" %}
+                                <i class="fas fa-newspaper"></i> <span>{% trans "News" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_institutions' %}active{% endif %}" href="{% url 'pages:admin_institutions' %}">
-                                <i class="fas fa-university"></i> {% trans "Institutions" %}
+                                <i class="fas fa-university"></i> <span>{% trans "Institutions" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_calls' %}active{% endif %}" href="{% url 'pages:admin_calls' %}">
-                                <i class="fas fa-bullhorn"></i> {% trans "Calls" %}
+                                <i class="fas fa-bullhorn"></i> <span>{% trans "Calls" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_statistics' %}active{% endif %}" href="{% url 'pages:admin_statistics' %}">
-                                <i class="fas fa-chart-bar"></i> {% trans "Statistics" %}
+                                <i class="fas fa-chart-bar"></i> <span>{% trans "Statistics" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_settings' %}active{% endif %}" href="{% url 'pages:admin_settings' %}">
-                                <i class="fas fa-cog"></i> {% trans "Settings" %}
+                                <i class="fas fa-cog"></i> <span>{% trans "Settings" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_security' %}active{% endif %}" href="{% url 'pages:admin_security' %}">
-                                <i class="fas fa-shield-alt"></i> {% trans "Security" %}
+                                <i class="fas fa-shield-alt"></i> <span>{% trans "Security" %}</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if page == 'scraping' %}active{% endif %}" href="{% url 'scraping:dashboard' %}">
-                                <i class="fas fa-spider"></i> {% trans "Web Scraping" %}
+                                <i class="fas fa-spider"></i> <span>{% trans "Web Scraping" %}</span>
                             </a>
                         </li>
                     </ul>
@@ -185,7 +188,7 @@
             </nav>
 
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+            <main class="main-content">
                 {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
@@ -208,6 +211,42 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    /* ===== Sidebar collapse/expand toggle ===== */
+    (function() {
+      var btn = document.getElementById('sidebarToggleBtn');
+      var sidebar = document.getElementById('sidebar');
+      var STORAGE_KEY = 'admin_sidebar_collapsed';
+      var isRTL = document.documentElement.dir === 'rtl';
+
+      function applyState(collapsed) {
+        if (collapsed) {
+          document.body.classList.add('sidebar-collapsed');
+          sidebar.classList.add('collapsed');
+          if (btn) btn.querySelector('i').className = isRTL ? 'fas fa-outdent' : 'fas fa-indent';
+        } else {
+          document.body.classList.remove('sidebar-collapsed');
+          sidebar.classList.remove('collapsed');
+          if (btn) btn.querySelector('i').className = 'fas fa-bars';
+        }
+      }
+
+      /* Restore saved state on page load */
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === 'true') applyState(true);
+
+      /* Toggle ONLY when the header button is clicked — not nav links */
+      if (btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var collapsed = !sidebar.classList.contains('collapsed');
+          applyState(collapsed);
+          localStorage.setItem(STORAGE_KEY, collapsed);
+        });
+      }
+    })();
+    </script>
+
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         const actionContainerSelectors = [

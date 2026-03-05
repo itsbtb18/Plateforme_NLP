@@ -5,27 +5,29 @@ from django.db import migrations
 
 def make_rejection_reason_nullable(apps, schema_editor):
     """
-    Make rejection_reason field nullable in all resource tables.
-    This field exists in the database but was not properly defined in the model.
+    Add rejection_reason column if missing, or make it nullable if it exists.
     """
+    tables = [
+        'resources_corpus',
+        'resources_course',
+        'resources_nlptool',
+        'resources_document',
+    ]
     with schema_editor.connection.cursor() as cursor:
-        # Make rejection_reason nullable for all resource tables
-        cursor.execute("""
-            ALTER TABLE resources_corpus 
-            ALTER COLUMN rejection_reason DROP NOT NULL;
-        """)
-        cursor.execute("""
-            ALTER TABLE resources_course 
-            ALTER COLUMN rejection_reason DROP NOT NULL;
-        """)
-        cursor.execute("""
-            ALTER TABLE resources_nlptool 
-            ALTER COLUMN rejection_reason DROP NOT NULL;
-        """)
-        cursor.execute("""
-            ALTER TABLE resources_document 
-            ALTER COLUMN rejection_reason DROP NOT NULL;
-        """)
+        for table in tables:
+            cursor.execute(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = %s AND column_name = 'rejection_reason'",
+                [table],
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    f'ALTER TABLE {table} ALTER COLUMN rejection_reason DROP NOT NULL;'
+                )
+            else:
+                cursor.execute(
+                    f"ALTER TABLE {table} ADD COLUMN rejection_reason text NOT NULL DEFAULT '';"
+                )
 
 
 def reverse_nullable(apps, schema_editor):

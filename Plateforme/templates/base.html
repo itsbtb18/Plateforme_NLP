@@ -3115,14 +3115,13 @@
         
         // Get CSRF token
         function getCsrfToken() {
-            // First try from a hidden input (works even with CSRF_COOKIE_HTTPONLY)
+            // Use Django template tag (works even with CSRF_COOKIE_HTTPONLY=True)
+            const tmpl = "{{ csrf_token }}";
+            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
+            // Fallback: hidden input
             const input = document.querySelector('[name=csrfmiddlewaretoken]');
             if (input) return input.value;
-            // Fallback to cookie
-            const cookieValue = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('csrftoken='));
-            return cookieValue ? cookieValue.split('=')[1] : '';
+            return '';
         }
     })();
     </script>
@@ -3154,10 +3153,8 @@
         'use strict';
 
         function getCsrfToken() {
-            const cookieValue = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('csrftoken='));
-            if (cookieValue) return cookieValue.split('=')[1];
+            const tmpl = "{{ csrf_token }}";
+            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
             const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
             if (csrfInput && csrfInput.value) return csrfInput.value;
             return '';

@@ -11,6 +11,5 @@ queries = [
 for q in queries:
     ct = r._extract_content_type(q)
     ident = r._is_identity_question(q)
-    kw = r._extract_user_keyword(q)
     print("Q: '%s'" % q)
-    print("  content_type=%s  identity=%s  user_keyword=%s" % (ct, ident, kw))
+    print("  content_type=%s  identity=%s" % (ct, ident))

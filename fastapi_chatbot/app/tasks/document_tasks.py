@@ -47,6 +47,7 @@ async def _process_document_async(document_id: int):
     from app.models import UserDocument, DocumentChunk
     from app.services.documents.processor import get_document_processor
     from app.services.documents.embeddings import get_embedding_service
+    from app.services.documents.entities import extract_entities
     from app.services.language import LanguageService
     from app.services.qdrant import get_qdrant_service, COLLECTION_DOCUMENT_CHUNKS
     from qdrant_client.models import PointStruct
@@ -102,6 +103,9 @@ async def _process_document_async(document_id: int):
                     db.add(db_chunk)
                     await db.flush()
 
+                    # Phase 10: extract named entities for search boosting
+                    chunk_entities = extract_entities(chunk["content"])
+
                     qdrant_points.append(
                         PointStruct(
                             id=db_chunk.id,
@@ -115,6 +119,7 @@ async def _process_document_async(document_id: int):
                                 "filename": doc.filename,
                                 "chunk_index": idx,
                                 "source": "user_upload",
+                                "entities": chunk_entities,
                             },
                         )
                     )

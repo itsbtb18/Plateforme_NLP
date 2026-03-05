@@ -160,6 +160,9 @@ services:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_fastapi
+    cpus: 1.0
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -175,11 +178,18 @@ services:
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      # Disable parallelism — protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -206,6 +216,9 @@ services:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_celery_worker
+    cpus: 1.0
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -220,10 +233,17 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      # Disable parallelism — protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
-    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=2
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=1
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
       interval: 30s
