@@ -1,12 +1,14 @@
 """
-NLP Courses scraper — sources: MIT OpenCourseWare API + curated list of
-well-known NLP courses from top universities.
+NLP Courses scraper — sources: MIT OpenCourseWare API, Coursera catalog,
+YouTube NLP playlists, and curated list of well-known NLP courses
+from top universities.
 
 Each scraped course is stored as a ``resources.Course`` instance with
 ``approval_status='pending'``.
 """
 
 import logging
+import re
 from datetime import date
 from .base import BaseScraper
 
@@ -282,58 +284,355 @@ class CourseScraper(BaseScraper):
 
     def scrape(self):
         self._scrape_mit_ocw()
+        self._scrape_coursera()
+        self._import_youtube_playlists()
         self._import_curated_courses()
 
-    # ── MIT OpenCourseWare ────────────────────────────────────────────
+    # ── MIT OpenCourseWare (via MIT Open Learning API) ──────────────
+    MIT_API_BASE = "https://api.learn.mit.edu/api/v1/courses/"
+
+    # Targeted queries to find NLP / AI / computational-linguistics courses
+    MIT_QUERIES = [
+        {"q": "natural language processing", "topic": "AI", "limit": 10},
+        {"q": "computational linguistics", "offered_by": "ocw", "limit": 5},
+        {"q": "deep learning", "topic": "AI", "limit": 10},
+        {"q": "machine learning NLP", "topic": "AI", "limit": 5},
+        {"q": "text mining information retrieval", "offered_by": "ocw", "limit": 5},
+    ]
+
     def _scrape_mit_ocw(self):
-        """Try to scrape NLP-related courses from MIT OCW search API."""
-        url = "https://ocw.mit.edu/api/v0/search/"
-        params = {
-            "q": "natural language processing",
-            "limit": 10,
-        }
-        resp = self.safe_request(url, params=params)
-        if resp is None:
-            # MIT OCW API may not be available — that's fine, curated list
-            # will cover famous courses.
+        """Scrape NLP-related courses from the MIT Open Learning API."""
+        seen_ids: set[int] = set()
+
+        mit_country = self.get_or_create_country("United States", "US")
+        mit_inst = self.get_or_create_institution(
+            "Massachusetts Institute of Technology",
+            acronym="MIT",
+            country=mit_country,
+            city="Cambridge, Massachusetts",
+            website="https://ocw.mit.edu",
+            inst_type="University",
+        )
+        if mit_inst is None:
             return
 
-        try:
-            data = resp.json()
-            results = data.get("results", data.get("hits", []))
-            if not isinstance(results, list):
-                return
-
-            mit_country = self.get_or_create_country("United States", "US")
-            mit_inst = self.get_or_create_institution(
-                "Massachusetts Institute of Technology",
-                acronym="MIT",
-                country=mit_country,
-                city="Cambridge, Massachusetts",
-                website="https://ocw.mit.edu",
-                inst_type="University",
+        for query_params in self.MIT_QUERIES:
+            params = {"offered_by": "ocw", **query_params}
+            resp = self.safe_request(
+                self.MIT_API_BASE,
+                params=params,
+                headers={"Accept": "application/json"},
             )
-            if mit_inst is None:
-                return
+            if resp is None:
+                continue
 
-            for hit in results:
-                title = hit.get("title", "") or hit.get("name", "")
-                desc = hit.get("description", "") or hit.get("short_description", "")
-                course_url = hit.get("url", "") or hit.get("link", "")
-                if course_url and not course_url.startswith("http"):
-                    course_url = f"https://ocw.mit.edu{course_url}"
+            try:
+                data = resp.json()
+                results = data.get("results", [])
+                if not isinstance(results, list):
+                    continue
 
-                if title:
+                for course in results:
+                    course_id = course.get("id")
+                    if course_id in seen_ids:
+                        continue
+                    seen_ids.add(course_id)
+
+                    title = course.get("title", "")
+                    if not title:
+                        continue
+
+                    desc = self.clean_text(
+                        course.get("description", "")
+                    )
+                    course_url = course.get("url", "")
+                    if course_url and not course_url.startswith("http"):
+                        course_url = f"https://ocw.mit.edu{course_url}"
+
+                    # Resolve level from first run
+                    level = "master"
+                    runs = course.get("runs", [])
+                    if runs:
+                        levels = runs[0].get("level", [])
+                        if levels:
+                            code = levels[0].get("code", "")
+                            if code == "undergraduate":
+                                level = "bachelor"
+                            elif code == "graduate":
+                                level = "master"
+
                     self._create_course(
                         title=title,
                         description=desc,
                         institution=mit_inst,
                         website=course_url,
                         field="nlp",
-                        level="master",
+                        level=level,
                     )
-        except Exception as exc:
-            self.errors.append(f"MIT OCW parse error: {exc}")
+            except Exception as exc:
+                self.errors.append(f"MIT OCW parse error: {exc}")
+                logger.error("MIT OCW parse error: %s", exc)
+
+    # ── Coursera NLP Courses ────────────────────────────────────────
+    COURSERA_COURSES = [
+        {
+            "title": "Natural Language Processing Specialization",
+            "instructor": "Younes Bensouda Mourri, Łukasz Kaiser",
+            "duration": "4 months",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/specializations/natural-language-processing",
+            "description": (
+                "DeepLearning.AI specialization on Coursera covering classification, "
+                "vector spaces, sequence models, attention mechanisms, and transformers "
+                "for NLP. Taught by Younes Bensouda Mourri and Łukasz Kaiser."
+            ),
+            "institution": "DeepLearning.AI",
+            "country": "US",
+        },
+        {
+            "title": "Machine Learning with Python",
+            "instructor": "Joseph Santarcangelo",
+            "duration": "5 weeks",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/learn/machine-learning-with-python",
+            "description": (
+                "IBM course on Coursera covering supervised and unsupervised ML, "
+                "regression, classification, and clustering with Python and scikit-learn."
+            ),
+            "institution": "IBM",
+            "country": "US",
+        },
+        {
+            "title": "Deep Learning Specialization",
+            "instructor": "Andrew Ng",
+            "duration": "5 months",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/specializations/deep-learning",
+            "description": (
+                "DeepLearning.AI specialization teaching neural networks, "
+                "hyperparameter tuning, CNNs, RNNs, and sequence models. "
+                "Essential foundation for NLP deep learning."
+            ),
+            "institution": "DeepLearning.AI",
+            "country": "US",
+        },
+        {
+            "title": "Introduction to Large Language Models",
+            "instructor": "Google Cloud",
+            "duration": "1 hour",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/learn/introduction-to-large-language-models",
+            "description": (
+                "Google Cloud introductory course on LLMs covering what they are, "
+                "use cases, prompt tuning, and Google tools for LLM development."
+            ),
+            "institution": "Google Cloud",
+            "country": "US",
+        },
+        {
+            "title": "Applied Text Mining in Python",
+            "instructor": "V.G. Vinod Vydiswaran",
+            "duration": "5 weeks",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/learn/python-text-mining",
+            "description": (
+                "University of Michigan course covering text mining, NLP with NLTK, "
+                "topic modeling, text classification, and information extraction."
+            ),
+            "institution": "University of Michigan",
+            "country": "US",
+        },
+        {
+            "title": "Prompt Engineering for ChatGPT",
+            "instructor": "Dr. Jules White",
+            "duration": "18 hours",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.coursera.org/learn/prompt-engineering",
+            "description": (
+                "Vanderbilt University course on prompt engineering patterns, "
+                "chain-of-thought, few-shot learning, and effective interaction "
+                "with large language models."
+            ),
+            "institution": "Vanderbilt University",
+            "country": "US",
+        },
+        {
+            "title": "Arabic for Beginners (with NLP Context)",
+            "instructor": "Hanan Khallaf",
+            "duration": "10 weeks",
+            "level": "bachelor",
+            "language": "ar",
+            "link": "https://www.coursera.org/learn/arabic-language",
+            "description": (
+                "Introductory Arabic language course valuable for NLP practitioners "
+                "working with Arabic text processing, morphology, and tokenization."
+            ),
+            "institution": "Al-Azhar University",
+            "country": "EG",
+            "city": "Cairo",
+        },
+    ]
+
+    def _scrape_coursera(self):
+        """Import Coursera NLP-related courses from curated catalog."""
+        for item in self.COURSERA_COURSES:
+            country = self.get_or_create_country(
+                item["institution"][:30], item.get("country", "US"),
+            )
+            institution = self.get_or_create_institution(
+                item["institution"],
+                country=country,
+                city=item.get("city", ""),
+                website=item.get("link", ""),
+                inst_type="Other",
+            )
+            if institution is None:
+                self.items_skipped += 1
+                continue
+
+            desc = item["description"]
+            if item.get("instructor"):
+                desc += f"\n\nInstructor: {item['instructor']}"
+            if item.get("duration"):
+                desc += f"\nDuration: {item['duration']}"
+
+            self._create_course(
+                title=item["title"],
+                description=desc,
+                institution=institution,
+                website=item["link"],
+                field="nlp",
+                level=item.get("level", "bachelor"),
+            )
+
+    # ── YouTube NLP Playlists ─────────────────────────────────────────
+    YOUTUBE_PLAYLISTS = [
+        {
+            "title": "Arabic NLP — Full Course (Arabic)",
+            "instructor": "Moustafa Alzantot",
+            "duration": "15+ videos",
+            "level": "bachelor",
+            "language": "ar",
+            "link": "https://www.youtube.com/playlist?list=PLvLvlVqNQGHC3uV0T6TTndqNDDR69tN3t",
+            "description": (
+                "Comprehensive Arabic-language YouTube playlist covering NLP "
+                "fundamentals including tokenization, stemming, POS tagging, "
+                "and Arabic text processing techniques."
+            ),
+        },
+        {
+            "title": "Stanford CS224N: NLP with Deep Learning (2023)",
+            "instructor": "Christopher Manning",
+            "duration": "20 lectures",
+            "level": "master",
+            "language": "en",
+            "link": "https://www.youtube.com/playlist?list=PLoROMvodv4rMFqRtEuo6SGjY4XbRIVRd4",
+            "description": (
+                "Full Stanford CS224N course lectures covering word vectors, "
+                "neural networks for NLP, transformers, pre-trained models, "
+                "and current NLP research."
+            ),
+        },
+        {
+            "title": "Hugging Face NLP Course",
+            "instructor": "Hugging Face Team",
+            "duration": "10+ videos",
+            "level": "bachelor",
+            "language": "en",
+            "link": "https://www.youtube.com/playlist?list=PLo2EIpI_JMQvWfQndUesu0nPBAtZ9gP1o",
+            "description": (
+                "Official Hugging Face course covering transformers, "
+                "tokenizers, fine-tuning, and the Hugging Face ecosystem "
+                "for practical NLP tasks."
+            ),
+        },
+        {
+            "title": "NLP Zero to Hero — TensorFlow (Arabic Subtitles)",
+            "instructor": "Laurence Moroney",
+            "duration": "4 videos",
+            "level": "bachelor",
+            "language": "ar",
+            "link": "https://www.youtube.com/playlist?list=PLQY2H8rRoyvzDbLUZkbudP-MFQZwNmU4S",
+            "description": (
+                "TensorFlow NLP series covering text tokenization, "
+                "sequence padding, word embeddings, and LSTMs. "
+                "Available with Arabic subtitles."
+            ),
+        },
+        {
+            "title": "Machine Learning in Arabic — Complete Course",
+            "instructor": "Hesham Asem",
+            "duration": "40+ videos",
+            "level": "bachelor",
+            "language": "ar",
+            "link": "https://www.youtube.com/playlist?list=PLtsZ69x5q-Xc-ov4-rrFcFgYAprpjwi3Z",
+            "description": (
+                "Comprehensive machine learning course in Arabic covering "
+                "regression, classification, clustering, neural networks, "
+                "and practical implementation with Python."
+            ),
+        },
+        {
+            "title": "Deep Learning for NLP — CMU CS 11-747",
+            "instructor": "Graham Neubig",
+            "duration": "25 lectures",
+            "level": "master",
+            "language": "en",
+            "link": "https://www.youtube.com/playlist?list=PL8PYTP1V4I8DZprnWryM4nR8Ik1QuJCBN",
+            "description": (
+                "Carnegie Mellon advanced NLP course covering cutting-edge "
+                "methods in text generation, structured prediction, "
+                "low-resource NLP, and multilingual models."
+            ),
+        },
+        {
+            "title": "Arabic AI and Deep Learning",
+            "instructor": "Ahmed El-Deeb",
+            "duration": "20+ videos",
+            "level": "bachelor",
+            "language": "ar",
+            "link": "https://www.youtube.com/playlist?list=PLyhJeMedQd9QnbJIo_UAOHYz2u_4XSGaE",
+            "description": (
+                "Arabic-language deep learning playlist covering neural "
+                "networks, CNNs, RNNs, and their applications in NLP "
+                "and computer vision."
+            ),
+        },
+    ]
+
+    def _import_youtube_playlists(self):
+        """Import YouTube NLP playlists as courses."""
+        yt_country = self.get_or_create_country("International", "XX")
+        yt_inst = self.get_or_create_institution(
+            "YouTube Educational Content",
+            country=yt_country,
+            website="https://www.youtube.com",
+            inst_type="Other",
+        )
+        if yt_inst is None:
+            return
+
+        for item in self.YOUTUBE_PLAYLISTS:
+            desc = item["description"]
+            if item.get("instructor"):
+                desc += f"\n\nInstructor: {item['instructor']}"
+            if item.get("duration"):
+                desc += f"\nDuration: {item['duration']}"
+
+            self._create_course(
+                title=item["title"],
+                description=desc,
+                institution=yt_inst,
+                website=item["link"],
+                field="nlp",
+                level=item.get("level", "bachelor"),
+            )
 
     # ── Curated courses ───────────────────────────────────────────────
     def _import_curated_courses(self):
