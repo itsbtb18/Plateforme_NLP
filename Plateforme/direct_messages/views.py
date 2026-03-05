@@ -14,6 +14,7 @@ from accounts.models import Friendship
 
 from .forms import GroupCreateForm, MessageCreateForm
 from .models import Conversation, ConversationParticipant, Message, _pair_order
+from projects.models import Project, ProjectChatRoom
 
 User = get_user_model()
 
@@ -142,13 +143,68 @@ def inbox(request):
             "subtitle": subtitle,
             "other": other,
             "last_message": last_msg,
+            "last_activity": (last_msg.created_at if last_msg else conv.created_at),
             "unread_count": unread_count,
             "is_group": conv.is_group,
+            "is_project_chat": False,
+            "thread_url": reverse("direct_messages:thread", kwargs={"conversation_id": conv.id}),
         }
         if conv.is_request_for(request.user):
             request_conversations.append(row)
         else:
             primary_conversations.append(row)
+
+    # Include project group discussions in the global discussions inbox.
+    member_projects = (
+        Project.objects.filter(
+            Q(coordinator=request.user) | Q(members__member=request.user, members__status='accepted')
+        )
+        .distinct()
+        .order_by("-updated_at")
+    )
+    for project in member_projects:
+        room, room_created = ProjectChatRoom.objects.get_or_create(project=project)
+        last_project_msg = room.messages.filter(is_deleted=False).select_related("sender").order_by("-created_at").first()
+        unread_project = (
+            room.messages.filter(is_deleted=False)
+            .exclude(sender=request.user)
+            .exclude(seen_by=request.user)
+            .count()
+        )
+        if last_project_msg:
+            if last_project_msg.message_type == last_project_msg.MessageType.FILE:
+                last_text = _("Attachment")
+            else:
+                last_text = (last_project_msg.content or "").strip()
+        else:
+            last_text = _("Group discussion")
+        project_title = getattr(project, "get_localized_title", None)
+        if callable(project_title):
+            project_title = project_title()
+        if not project_title:
+            project_title = getattr(project, "title_display", None) or getattr(project, "title", "")
+
+        primary_conversations.append(
+            {
+                "conversation": None,
+                "title": project_title,
+                "avatar_url": "",
+                "subtitle": _("Project discussion"),
+                "other": None,
+                "last_message": None,
+                "last_activity": (last_project_msg.created_at if last_project_msg else room.created_at),
+                "last_message_text": last_text,
+                "unread_count": unread_project,
+                "is_group": True,
+                "is_project_chat": True,
+                "thread_url": reverse("projects:project_chatroom", kwargs={"pk": project.pk}),
+            }
+        )
+
+    primary_conversations.sort(
+        key=lambda row: row.get("last_activity") or timezone.now(),
+        reverse=True,
+    )
 
     group_form = GroupCreateForm(members_queryset=_friend_candidates(request.user))
     return render(

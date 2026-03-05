@@ -20,11 +20,14 @@ from .two_factor_utils import generate_otp, store_otp
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
 import logging
+import time
 from django.db.models import Q
+from django.core.cache import cache
 
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
 from .models import Friendship
+from pages.security import log_admin_activity
 
 if TYPE_CHECKING:
     from .models import CustomUser
@@ -149,7 +152,38 @@ class LoginView(AllauthLoginView):
     Custom login view with Remember Me support.
     """
 
+    MAX_LOGIN_ATTEMPTS = 5
+    LOCKOUT_SECONDS = 15 * 60
+    FAILURE_WINDOW_SECONDS = 15 * 60
+    FAILURE_DELAY_SECONDS = 1.2
+
+    def _client_ip(self) -> str:
+        xff = (self.request.META.get("HTTP_X_FORWARDED_FOR", "") or "").split(",")[0].strip()
+        return (xff or self.request.META.get("REMOTE_ADDR", "") or "unknown")[:64]
+
+    def _email_key(self) -> str:
+        email = (self.request.POST.get("login") or self.request.POST.get("email") or "").strip().lower()
+        return email or "unknown"
+
+    def _lock_key(self) -> str:
+        return f"auth:login:lock:{self._client_ip()}:{self._email_key()}"
+
+    def _fail_key(self) -> str:
+        return f"auth:login:fail:{self._client_ip()}:{self._email_key()}"
+
+    def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        locked_until = cache.get(self._lock_key())
+        if locked_until:
+            messages.error(
+                request,
+                _("Too many failed attempts. Try again later."),
+            )
+            return self.render_to_response(self.get_context_data(form=self.get_form()))
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form: Any) -> Any:
+        cache.delete(self._fail_key())
+        cache.delete(self._lock_key())
         response = super().form_valid(form)
 
         remember = self.request.POST.get('remember')
@@ -158,7 +192,30 @@ class LoginView(AllauthLoginView):
         else:
             self.request.session.set_expiry(0)  # Expire when browser closes
 
+        if self.request.user.is_authenticated and getattr(self.request.user, "is_staff", False):
+            log_admin_activity(
+                user=self.request.user,
+                request=self.request,
+                action="admin_login_success",
+                target_type="auth",
+            )
+
         return response
+
+    def form_invalid(self, form: Any) -> Any:
+        fail_key = self._fail_key()
+        lock_key = self._lock_key()
+        current_fails = cache.get(fail_key, 0) + 1
+        cache.set(fail_key, current_fails, self.FAILURE_WINDOW_SECONDS)
+        if current_fails >= self.MAX_LOGIN_ATTEMPTS:
+            cache.set(lock_key, "1", self.LOCKOUT_SECONDS)
+            messages.error(
+                self.request,
+                _("Account temporarily locked due to repeated failed attempts."),
+            )
+
+        time.sleep(self.FAILURE_DELAY_SECONDS)
+        return super().form_invalid(form)
 
 
 # --------------------------
@@ -358,26 +415,9 @@ class NetworkInvitationsView(LoginRequiredMixin, View):
             status=Friendship.Status.PENDING
         ).select_related('addressee', 'addressee__institution').order_by('-created_at')
 
-        rel_rows = Friendship.objects.filter(
-            Q(requester=request.user) | Q(addressee=request.user)
-        ).values_list('requester_id', 'addressee_id')
-        excluded_user_ids = {request.user.id}
-        for a, b in rel_rows:
-            excluded_user_ids.add(a)
-            excluded_user_ids.add(b)
-
-        suggestions = User.objects.filter(is_active=True).exclude(
-            id__in=excluded_user_ids
-        ).select_related('institution')
-
-        if request.user.institution_id:
-            suggestions = suggestions.filter(institution_id=request.user.institution_id)
-        suggestions = suggestions[:20]
-
         return render(request, self.template_name, {
             'incoming_requests': incoming,
             'outgoing_requests': outgoing,
-            'suggestions': suggestions,
             'page': 'network',
         })
 

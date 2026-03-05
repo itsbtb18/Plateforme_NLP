@@ -1,491 +1,486 @@
 {% extends "base_admin.html" %}
 {% load i18n %}
-{% block title %}{% trans "Admin Dashboard" %}{% endblock %}
+
+{% block title %}{% trans "Admin Security Center" %}{% endblock %}
 
 {% block extra_css %}
 <style>
   :root {
-    --primary-color: #1d4ed8;
-    --primary-dark: #1e40af;
-    --success-color: #10b981;
-    --info-color: #3b82f6;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --ad-bg: #f8fafc;
+    --ad-surface: #ffffff;
+    --ad-border: #e2e8f0;
+    --ad-text: #0f172a;
+    --ad-muted: #64748b;
+    --ad-muted-2: #94a3b8;
+    --ad-blue: #1d4ed8;
+    --ad-blue-2: #2563eb;
+    --ad-green: #16a34a;
+    --ad-yellow: #d97706;
+    --ad-red: #dc2626;
+    --ad-purple: #7c3aed;
   }
 
-  body { background: #ffffff; }
+  .ad-wrap { padding: 18px 4px 26px; color: var(--ad-text); }
 
-  /* Dashboard Header */
-  .dashboard-header {
-    background: #ffffff;
-    border: 1px solid var(--gray-200);
-    border-radius: 16px;
-    padding: 2rem;
-    color: var(--gray-900);
-    margin-bottom: 2rem;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  .ad-header {
+    border: 1px solid var(--ad-border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+    padding: 16px;
+    margin-bottom: 14px;
   }
+  .ad-title { margin: 0; font-size: 1.35rem; font-weight: 800; }
+  .ad-sub { margin: 4px 0 0; color: var(--ad-muted); font-size: .92rem; }
 
-  .dashboard-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  /* Stats Grid */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  /* Stat Cards */
-  .stat-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .stat-content {
-    flex: 1;
-  }
-
-  .stat-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
-  }
-
-  .stat-number {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0.5rem 0;
-  }
-
-  .stat-growth {
+  .ad-tabs {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 50px;
+    gap: 8px;
+    border: 1px solid var(--ad-border);
+    border-radius: 999px;
+    padding: 5px;
+    background: #eef4ff;
+    margin: 12px 0 16px;
   }
-
-  .stat-growth.positive {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .stat-growth.negative {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .stat-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .stat-icon.primary { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); }
-  .stat-icon.success { background: linear-gradient(135deg, var(--success-color), #059669); }
-  .stat-icon.info { background: linear-gradient(135deg, var(--info-color), #1d4ed8); }
-  .stat-icon.warning { background: linear-gradient(135deg, var(--warning-color), #d97706); }
-
-  /* Content Card */
-  .content-card {
-    background: white;
-    border: 1px solid var(--gray-200);
-    border-radius: 16px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-    overflow: hidden;
-    margin-bottom: 2rem;
-  }
-
-  .dashboard-subtitle {
-    margin: 0.5rem 0 0 0;
-    color: var(--gray-600);
-  }
-
-
-  .card-header-modern {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .card-title {
-    font-size: 1.125rem;
+  .ad-tab {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: #334155;
     font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    font-size: .88rem;
+    padding: 8px 14px;
+  }
+  .ad-tab.active {
+    background: #fff;
+    color: var(--ad-blue);
+    border-color: #dbe8ff;
+    box-shadow: 0 2px 8px rgba(37,99,235,.12);
   }
 
-  /* Table */
-  .table-modern {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
+  .ad-pane { display: none; animation: adFade .22s ease; }
+  .ad-pane.active { display: block; }
+  @keyframes adFade { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+
+  .ad-grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .ad-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .ad-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .ad-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+
+  .ad-card {
+    border: 1px solid var(--ad-border);
+    border-radius: 14px;
+    background: var(--ad-surface);
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(15,23,42,.04);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .ad-card:hover { box-shadow: 0 10px 26px rgba(15,23,42,.08); transform: translateY(-1px); }
+
+  .ad-stat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ad-stat-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .95rem;
+  }
+  .ad-tone-blue { background: linear-gradient(135deg, var(--ad-blue), var(--ad-blue-2)); }
+  .ad-tone-green { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .ad-tone-yellow { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .ad-tone-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+  .ad-tone-purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+
+  .ad-stat-label { color: var(--ad-muted); font-size: .78rem; font-weight: 700; margin-top: 8px; }
+  .ad-stat-value { font-size: 1.6rem; line-height: 1.1; font-weight: 800; margin-top: 4px; }
+  .ad-stat-delta { margin-top: 6px; font-size: .79rem; color: var(--ad-muted); }
+  .ad-stat-delta.positive { color: var(--ad-green); }
+  .ad-stat-delta.negative { color: var(--ad-red); }
+
+  .ad-section-title { margin: 0 0 10px; font-size: .98rem; font-weight: 800; }
+  .ad-mini { color: var(--ad-muted); font-size: .82rem; }
+
+  .ad-content-card .ad-content-top { display:flex; align-items:center; justify-content:space-between; }
+  .ad-content-name { font-weight: 800; }
+  .ad-content-count { font-size: 1.35rem; font-weight: 800; margin-top: 8px; }
+  .ad-content-recent { color: var(--ad-muted); font-size: .8rem; margin-top: 4px; }
+  .ad-pending-badge {
+    background: #fff7ed; color: #c2410c; border: 1px solid #fdba74;
+    font-size: .72rem; border-radius: 999px; padding: 2px 7px; font-weight: 700;
   }
 
-  .table-modern thead {
-    background: var(--gray-50);
+  .ad-warn-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+  .ad-warn-card { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 10px; }
+  .ad-warn-count { font-size: 1.2rem; font-weight: 800; color: #c2410c; }
+
+  .ad-actions { display: grid; gap: 8px; }
+  .ad-action-link {
+    border: 1px solid var(--ad-border); border-radius: 10px; padding: 10px;
+    display: flex; align-items: center; gap: 10px; text-decoration: none;
+    color: #1e293b; background: #fff;
+  }
+  .ad-action-link:hover { background: #f8fbff; color: var(--ad-blue); }
+
+  .ad-table-wrap { overflow-x: auto; }
+  .ad-table { width: 100%; border-collapse: collapse; min-width: 820px; }
+  .ad-table th, .ad-table td { border-bottom: 1px solid var(--ad-border); padding: 10px; font-size: .84rem; vertical-align: middle; }
+  .ad-table th { font-size: .75rem; text-transform: uppercase; color: var(--ad-muted); letter-spacing: .04em; }
+
+  .ad-user-cell { display: inline-flex; align-items: center; gap: 8px; }
+  .ad-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e3a8a; font-weight: 800;
+  }
+  .ad-user-name { font-weight: 700; color: var(--ad-text); }
+  .ad-user-sub { color: var(--ad-muted); font-size: .76rem; }
+
+  .ad-role {
+    border: 1px solid var(--ad-border); border-radius: 999px; padding: 2px 8px; font-size: .72rem; font-weight: 700;
+  }
+  .ad-role.super { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .ad-role.staff { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .ad-role.member { background: #f8fafc; color: #334155; }
+
+  .ad-method { border-radius: 999px; padding: 2px 8px; font-size: .71rem; font-weight: 800; display:inline-block; }
+  .ad-method.get { background: #eff6ff; color: #1d4ed8; }
+  .ad-method.post { background: #ecfdf5; color: #15803d; }
+  .ad-method.put { background: #fffbeb; color: #b45309; }
+  .ad-method.delete { background: #fef2f2; color: #b91c1c; }
+
+  .ad-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: inline-block; vertical-align: bottom;
   }
 
-  .table-modern th {
-    padding: 1rem 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray-700);
+  .ad-empty {
+    border: 1px dashed var(--ad-border);
+    border-radius: 12px;
+    padding: 18px;
     text-align: center;
-    border: none;
+    color: var(--ad-muted);
+    background: #fcfdff;
   }
 
-  .table-modern td {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    vertical-align: middle;
+  html[dir="rtl"] .ad-user-cell { flex-direction: row-reverse; }
+
+  @media (max-width: 1200px) {
+    .ad-grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ad-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ad-warn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
-
-  .table-modern th:first-child,
-  .table-modern td:first-child {
-    text-align: left;
+  @media (max-width: 900px) {
+    .ad-grid-2 { grid-template-columns: 1fr; }
   }
-
-  .table-modern tbody tr {
-    transition: all 0.2s ease;
-  }
-
-  .table-modern tbody tr:hover {
-    background: var(--gray-50);
-  }
-
-
-  /* User Avatar */
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 0.875rem;
-    margin-right: 0.75rem;
-    line-height: 1;
-    letter-spacing: 0;
-  }
-
-  .flex-center {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  /* Status Badge */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.9rem;
-    border-radius: 50px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .status-active {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .status-active::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--success-color);
-  }
-
-  .status-pending {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .status-pending::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--warning-color);
-  }
-
-  .status-blocked {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .status-blocked::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--danger-color);
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--gray-600);
-  }
-
-  .empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-  }
-
-  /* Animations */
-  .fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .dashboard-header h1 {
-      font-size: 1.5rem;
-    }
-
-    .stat-number {
-      font-size: 1.75rem;
-    }
-
-    .stat-icon {
-      width: 56px;
-      height: 56px;
-      font-size: 1.5rem;
-    }
+  @media (max-width: 760px) {
+    .ad-grid-5, .ad-grid-4, .ad-grid-3, .ad-warn-grid { grid-template-columns: 1fr; }
+    .ad-tabs { width: 100%; display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; }
+    .ad-tab { border-radius: 10px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4 fade-in">
-  <!-- Dashboard Header -->
-  <div class="dashboard-header">
-    <h1>
-      <i class="fas fa-chart-line"></i>
-      {% trans "Dashboard" %}
-    </h1>
-    <p class="dashboard-subtitle">{% trans "Welcome to your admin panel" %}</p>
-  </div>
+<div class="ad-wrap">
+  <section class="ad-header">
+    <h1 class="ad-title">{% trans "Admin Security Center" %}</h1>
+    <p class="ad-sub">{% trans "Monitor users, moderation, platform content and security events from one workspace." %}</p>
 
+    <div class="ad-tabs" role="tablist" aria-label="{% trans 'Dashboard tabs' %}">
+      <button class="ad-tab active" type="button" data-tab="overview" role="tab" aria-selected="true">{% trans "Overview" %}</button>
+      <button class="ad-tab" type="button" data-tab="users" role="tab" aria-selected="false">{% trans "Users" %}</button>
+      <button class="ad-tab" type="button" data-tab="content" role="tab" aria-selected="false">{% trans "Content" %}</button>
+      <button class="ad-tab" type="button" data-tab="security" role="tab" aria-selected="false">{% trans "Security" %}</button>
+    </div>
+  </section>
 
-  <!-- Stats Grid -->
-  <div class="stats-grid">
-    <!-- Users -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Users" %}</div>
-        <div class="stat-number">{{ users_count }}</div>
-        <span class="stat-growth {% if user_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if user_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ user_growth|floatformat:1 }}%
-        </span>
-      </div>
-      <div class="stat-icon primary">
-        <i class="fas fa-users"></i>
-      </div>
+  <section class="ad-pane active" id="ad-pane-overview">
+    <div class="ad-grid-5">
+      {% for metric in overview_metrics %}
+      <article class="ad-card">
+        <div class="ad-stat-head">
+          <div class="ad-stat-icon ad-tone-{{ metric.tone }}"><i class="fas {{ metric.icon }}"></i></div>
+        </div>
+        <div class="ad-stat-label">{{ metric.label }}</div>
+        <div class="ad-stat-value">{{ metric.value }}</div>
+        <div class="ad-stat-delta {% if metric.delta > 0 %}positive{% elif metric.delta < 0 %}negative{% endif %}">
+          {% if metric.delta > 0 %}+{% endif %}{{ metric.delta }} {{ metric.period }}
+        </div>
+      </article>
+      {% endfor %}
     </div>
 
-    <!-- Resources -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Resources" %}</div>
-        <div class="stat-number">{{ resources_count }}</div>
-        <span class="stat-growth {% if pubs_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if pubs_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ pubs_growth|floatformat:1 }}%
-        </span>
+    <article class="ad-card" style="margin-top:12px;">
+      <h3 class="ad-section-title">{% trans "Platform Content" %}</h3>
+      <div class="ad-grid-4">
+        {% for row in content_inventory %}
+        <a class="ad-card ad-content-card" href="{{ row.url }}" style="text-decoration:none;color:inherit;">
+          <div class="ad-content-top">
+            <span class="ad-content-name"><i class="fas {{ row.icon }}"></i> {{ row.label }}</span>
+            {% if row.pending_count > 0 %}<span class="ad-pending-badge">{{ row.pending_count }} {% trans "pending" %}</span>{% endif %}
+          </div>
+          <div class="ad-content-count">{{ row.total_count }}</div>
+          <div class="ad-content-recent">+{{ row.recent_count }} {% trans "in last 7 days" %}</div>
+        </a>
+        {% endfor %}
       </div>
-      <div class="stat-icon success">
-        <i class="fas fa-book-open"></i>
-      </div>
-    </div>
+    </article>
 
-    <!-- Projects -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Projects" %}</div>
-        <div class="stat-number">{{ projects_count }}</div>
-        <span class="stat-growth {% if projects_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if projects_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ projects_growth|floatformat:1 }}%
-        </span>
+    {% if has_pending %}
+    <article class="ad-card" style="margin-top:12px;">
+      <h3 class="ad-section-title">{% trans "Pending Moderation" %}</h3>
+      <div class="ad-warn-grid">
+        {% for row in pending_sections %}
+        <div class="ad-warn-card">
+          <div class="ad-mini">{{ row.label }}</div>
+          <div class="ad-warn-count">{{ row.pending_count }}</div>
+        </div>
+        {% endfor %}
       </div>
-      <div class="stat-icon info">
-        <i class="fas fa-project-diagram"></i>
-      </div>
-    </div>
+    </article>
+    {% endif %}
 
-    <!-- Forum -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Forum" %}</div>
-        <div class="stat-number">{{ forum_posts_count }}</div>
-        <span class="stat-growth {% if posts_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if posts_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ posts_growth|floatformat:1 }}%
-        </span>
-      </div>
-      <div class="stat-icon warning">
-        <i class="fas fa-comments"></i>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- Recent Users -->
-  <div class="content-card">
-    <div class="card-header-modern">
-      <h6 class="card-title">
-        <i class="fas fa-user-plus text-success"></i>
-        {% trans "Recent Users" %}
-      </h6>
-      <a href="{% url 'pages:admin_users' %}" class="btn btn-sm btn-outline-primary">
-        {% trans "View All" %}
-        <i class="fas fa-arrow-right ms-1"></i>
-      </a>
-    </div>
-    <div class="table-responsive">
-      <table class="table-modern">
-        <thead>
-          <tr>
-            <th>{% trans "User" %}</th>
-            <th>{% trans "Status" %}</th>
-            <th>{% trans "Date" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for user in recent_users %}
-          <tr>
-            <td>
-              <div class="flex-center">
-                <div class="user-avatar">
-                  {% if user.get_full_name_display %}{{ user.get_full_name_display|slice:":1"|upper }}{% else %}U{% endif %}
-                </div>
-                <div>
-                  <strong>{% if user.get_full_name_display %}{{ user.get_full_name_display }}{% else %}{{ user.email }}{% endif %}</strong>
-                </div>
-              </div>
-            </td>
-            <td>
-              {% if user.status == 'active' %}
-              <span class="status-badge status-active">{% trans "Active" %}</span>
-              {% elif user.status == 'pending' %}
-              <span class="status-badge status-pending">{% trans "Pending" %}</span>
-              {% elif user.status == 'blocked' %}
-              <span class="status-badge status-blocked">{% trans "Blocked" %}</span>
-              {% endif %}
-            </td>
-            <td>
-              <span class="text-muted">{{ user.date_joined|date:"d M Y" }}</span>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="3" class="empty-state">
-              <div class="empty-icon">
-                <i class="fas fa-users"></i>
-              </div>
-              <p>{% trans "No recent users" %}</p>
-            </td>
-          </tr>
+    <div class="ad-grid-2" style="margin-top:12px;">
+      <article class="ad-card">
+        <h3 class="ad-section-title">{% trans "User Signups Last 30 Days" %}</h3>
+        <canvas id="adSignupChart" height="120"></canvas>
+      </article>
+      <article class="ad-card">
+        <h3 class="ad-section-title">{% trans "Quick Actions" %}</h3>
+        <div class="ad-actions">
+          {% for action in quick_actions %}
+          <a href="{{ action.url }}" class="ad-action-link"><i class="fas {{ action.icon }}"></i> <span>{{ action.label }}</span></a>
           {% endfor %}
-        </tbody>
-      </table>
+        </div>
+      </article>
     </div>
-  </div>
-</div>
+  </section>
 
+  <section class="ad-pane" id="ad-pane-users">
+    <div class="ad-grid-4">
+      {% for metric in users_metrics %}
+      <article class="ad-card">
+        <div class="ad-stat-head"><div class="ad-stat-icon ad-tone-{{ metric.tone }}"><i class="fas {{ metric.icon }}"></i></div></div>
+        <div class="ad-stat-label">{{ metric.label }}</div>
+        <div class="ad-stat-value">{{ metric.value }}</div>
+        <div class="ad-stat-delta {% if metric.delta > 0 %}positive{% elif metric.delta < 0 %}negative{% endif %}">
+          {% if metric.delta > 0 %}+{% endif %}{{ metric.delta }} {{ metric.period }}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <article class="ad-card" style="margin-top:12px;">
+      <h3 class="ad-section-title">{% trans "Latest Registered Users" %}</h3>
+      <div class="ad-table-wrap">
+        <table class="ad-table">
+          <thead>
+            <tr>
+              <th>{% trans "User" %}</th>
+              <th>{% trans "Username" %}</th>
+              <th>{% trans "Email" %}</th>
+              <th>{% trans "Joined" %}</th>
+              <th>{% trans "Last login" %}</th>
+              <th>{% trans "Role" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in recent_users %}
+            <tr>
+              <td>
+                <div class="ad-user-cell">
+                  <span class="ad-avatar">{{ u.get_full_name_display|default:u.email|slice:":1"|upper }}</span>
+                  <div>
+                    <div class="ad-user-name">{{ u.get_full_name_display|default:u.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ u.username|default:"-" }}</td>
+              <td>{{ u.email }}</td>
+              <td>{{ u.date_joined|timesince }} {% trans "ago" %}</td>
+              <td>{% if u.last_login %}{{ u.last_login|timesince }} {% trans "ago" %}{% else %}-{% endif %}</td>
+              <td>
+                {% if u.is_superuser %}
+                  <span class="ad-role super">{% trans "Superuser" %}</span>
+                {% elif u.is_staff %}
+                  <span class="ad-role staff">{% trans "Staff" %}</span>
+                {% else %}
+                  <span class="ad-role member">{% trans "Member" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6"><div class="ad-empty">{% trans "No users found." %}</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="ad-pane" id="ad-pane-content">
+    {% if has_pending %}
+    <article class="ad-card">
+      <h3 class="ad-section-title">{% trans "Pending Moderation Items" %}</h3>
+      <div class="ad-grid-4">
+        {% for row in pending_sections %}
+        <a class="ad-warn-card" href="{{ row.url }}" style="text-decoration:none; color:inherit;">
+          <div class="ad-mini">{{ row.label }}</div>
+          <div class="ad-warn-count">{{ row.pending_count }}</div>
+        </a>
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}
+    <div class="ad-empty">{% trans "All Clear. No pending moderation items." %}</div>
+    {% endif %}
+
+    <article class="ad-card" style="margin-top:12px;">
+      <h3 class="ad-section-title">{% trans "Content Inventory" %}</h3>
+      <div class="ad-grid-4">
+        {% for row in content_inventory %}
+        <a class="ad-card ad-content-card" href="{{ row.url }}" style="text-decoration:none;color:inherit;">
+          <div class="ad-content-top">
+            <span class="ad-content-name"><i class="fas {{ row.icon }}"></i> {{ row.label }}</span>
+            {% if row.pending_count > 0 %}<span class="ad-pending-badge">{{ row.pending_count }} {% trans "pending" %}</span>{% endif %}
+          </div>
+          <div class="ad-content-count">{{ row.total_count }}</div>
+          <div class="ad-content-recent">+{{ row.recent_count }} {% trans "in last 7 days" %}</div>
+        </a>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  <section class="ad-pane" id="ad-pane-security">
+    <div class="ad-grid-3">
+      {% for metric in security_metrics %}
+      <article class="ad-card">
+        <div class="ad-stat-head"><div class="ad-stat-icon ad-tone-{{ metric.tone }}"><i class="fas {{ metric.icon }}"></i></div></div>
+        <div class="ad-stat-label">{{ metric.label }}</div>
+        <div class="ad-stat-value">{{ metric.value }}</div>
+        <div class="ad-stat-delta {% if metric.delta > 0 %}positive{% elif metric.delta < 0 %}negative{% endif %}">
+          {% if metric.delta > 0 %}+{% endif %}{{ metric.delta }} {{ metric.period }}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <article class="ad-card" style="margin-top:12px;">
+      <h3 class="ad-section-title">{% trans "Activity Logs (Last 20)" %}</h3>
+      <div class="ad-table-wrap">
+        <table class="ad-table">
+          <thead>
+            <tr>
+              <th>{% trans "Time" %}</th>
+              <th>{% trans "User" %}</th>
+              <th>{% trans "Action" %}</th>
+              <th>{% trans "Method" %}</th>
+              <th>{% trans "Path" %}</th>
+              <th>{% trans "IP" %}</th>
+              <th>{% trans "Role" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_logs %}
+            <tr>
+              <td>{{ log.occurred_at|date:"Y-m-d H:i" }}</td>
+              <td>
+                <div class="ad-user-cell">
+                  <span class="ad-avatar">{{ log.admin_user.get_full_name_display|default:log.admin_user.email|default:'U'|slice:":1"|upper }}</span>
+                  <div>
+                    <div class="ad-user-name">{{ log.admin_user.get_full_name_display|default:log.admin_user.email|default:"-" }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ log.action }}</td>
+              <td>
+                <span class="ad-method {{ log.http_method|lower }}">{{ log.http_method }}</span>
+              </td>
+              <td><span class="ad-path" title="{{ log.path }}">{{ log.path }}</span></td>
+              <td>{{ log.ip_address|default:"-" }}</td>
+              <td>
+                {% if log.role_snapshot == 'superuser' %}
+                  <span class="ad-role super">{% trans "Superuser" %}</span>
+                {% elif log.role_snapshot == 'admin' or log.role_snapshot == 'staff' %}
+                  <span class="ad-role staff">{% trans "Staff" %}</span>
+                {% else %}
+                  <span class="ad-role member">{% trans "Member" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7"><div class="ad-empty">{% trans "No security logs available." %}</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Animate counters
-  const counters = document.querySelectorAll('.stat-number');
-  counters.forEach(counter => {
-    const target = parseInt(counter.textContent);
-    const increment = target / 50;
-    let current = 0;
+  (function () {
+    const tabs = document.querySelectorAll('.ad-tab');
+    const panes = {
+      overview: document.getElementById('ad-pane-overview'),
+      users: document.getElementById('ad-pane-users'),
+      content: document.getElementById('ad-pane-content'),
+      security: document.getElementById('ad-pane-security'),
+    };
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        counter.textContent = target;
-        clearInterval(timer);
-      } else {
-        counter.textContent = Math.floor(current);
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const key = tab.getAttribute('data-tab');
+        tabs.forEach((x) => {
+          x.classList.toggle('active', x === tab);
+          x.setAttribute('aria-selected', x === tab ? 'true' : 'false');
+        });
+        Object.entries(panes).forEach(([name, pane]) => {
+          if (!pane) return;
+          pane.classList.toggle('active', name === key);
+        });
+      });
+    });
+
+    const canvas = document.getElementById('adSignupChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+    gradient.addColorStop(0, 'rgba(37, 99, 235, 0.30)');
+    gradient.addColorStop(1, 'rgba(37, 99, 235, 0.03)');
+
+    const labels = {{ signup_labels_json|safe }};
+    const values = {{ signup_values_json|safe }};
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: '{% trans "Signups" %}',
+          data: values,
+          borderColor: '#2563eb',
+          backgroundColor: gradient,
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          fill: true,
+          tension: 0.35,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+          y: { beginAtZero: true, ticks: { color: '#64748b', precision: 0 }, grid: { color: '#e2e8f0' } }
+        }
       }
-    }, 30);
-  });
-});
+    });
+  })();
 </script>
 {% endblock %}

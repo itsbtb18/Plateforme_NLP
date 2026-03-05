@@ -1462,6 +1462,17 @@
                                 </span>
                                 <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
                             </a>
+                            <a href="{% url 'projects:project_invitations' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-envelope-open-text"></i>
+                                <span>
+                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        دعوات المشاريع
+                                    {% else %}
+                                        Project invitations
+                                    {% endif %}
+                                </span>
+                                <span class="profile-inv-count" id="projectInvCount" hidden>0</span>
+                            </a>
                             <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span>{% trans "Logout" %}</span>
@@ -1929,6 +1940,7 @@
             const profileDropdown = document.getElementById('profileDropdown');
             const profileInvBadge = document.getElementById('profileInvBadge');
             const profileInvCount = document.getElementById('profileInvCount');
+            const projectInvCount = document.getElementById('projectInvCount');
             const profileSettingsGear = document.getElementById('profileSettingsGear');
             const profileSettingsBack = document.getElementById('profileSettingsBack');
             const profileMainPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="main"]') : null;
@@ -1958,31 +1970,62 @@
 
             function currentLangPrefix() {
                 const seg = window.location.pathname.split('/').filter(Boolean)[0];
-                return seg ? `/${seg}` : '';
+                if (seg === 'ar' || seg === 'en') return `/${seg}`;
+                return '';
             }
 
-            function updateProfileInvBadge(count) {
-                const value = Number(count || 0);
-                const text = value > 99 ? '99+' : String(value);
+            function updateProfileInvBadge(friendCount, projectCount) {
+                const friendValue = Number(friendCount || 0);
+                const projectValue = Number(projectCount || 0);
+                const totalValue = friendValue + projectValue;
+                const totalText = totalValue > 99 ? '99+' : String(totalValue);
+                const friendText = friendValue > 99 ? '99+' : String(friendValue);
+                const projectText = projectValue > 99 ? '99+' : String(projectValue);
                 if (profileInvBadge) {
-                    profileInvBadge.textContent = value > 0 ? text : '';
+                    profileInvBadge.textContent = totalValue > 0 ? totalText : '';
                 }
                 if (profileInvCount) {
-                    profileInvCount.textContent = text;
-                    profileInvCount.hidden = value <= 0;
+                    profileInvCount.textContent = friendText;
+                    profileInvCount.hidden = friendValue <= 0;
+                }
+                if (projectInvCount) {
+                    projectInvCount.textContent = projectText;
+                    projectInvCount.hidden = projectValue <= 0;
                 }
             }
 
             async function loadProfileInvitationsCount() {
-                if (!profileInvBadge) return;
+                if (!profileInvBadge && !profileInvCount && !projectInvCount) return;
                 try {
-                    const res = await fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        credentials: 'same-origin'
-                    });
-                    const data = await res.json();
-                    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-                    updateProfileInvBadge(data.count);
+                    const [friendResult, projectResult] = await Promise.allSettled([
+                        fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin'
+                        }),
+                        fetch(`${currentLangPrefix()}/projects/invitations/count/`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin'
+                        })
+                    ]);
+                    let friendCount = 0;
+                    let projectCount = 0;
+
+                    if (friendResult.status === 'fulfilled') {
+                        const friendRes = friendResult.value;
+                        const friendData = await friendRes.json().catch(() => ({}));
+                        if (friendRes.ok && friendData.ok) {
+                            friendCount = Number(friendData.count || 0);
+                        }
+                    }
+                    if (projectResult.status === 'fulfilled') {
+                        const projectRes = projectResult.value;
+                        const projectData = await projectRes.json().catch(() => ({}));
+                        if (projectRes.ok && projectData.ok) {
+                            projectCount = Number(projectData.count || 0);
+                        }
+                    }
+
+                    updateProfileInvBadge(friendCount, projectCount);
                 } catch (_) {
                     // Keep silent to avoid noisy UI for transient network errors.
                 }

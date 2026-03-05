@@ -5,7 +5,6 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 from django.utils.html import escape
 
-from accounts.models import Friendship
 from .models import Project, ProjectChatMessage, ProjectChatRoom, ProjectMember
 
 
@@ -20,10 +19,6 @@ class ProjectChatConsumer(WebsocketConsumer):
         if user == project.coordinator:
             return True
         return ProjectMember.objects.filter(project=project, member=user, status="accepted").exists()
-
-    def _is_blocked(self, user, project: Project) -> bool:
-        rel = Friendship.between(user, project.coordinator)
-        return bool(rel and rel.status == Friendship.Status.BLOCKED)
 
     def connect(self):
         user = cast(Optional[Any], self.scope.get("user"))
@@ -45,7 +40,7 @@ class ProjectChatConsumer(WebsocketConsumer):
             self.close()
             return
 
-        if not self._is_member(self.user, self.project) or self._is_blocked(self.user, self.project):
+        if not self._is_member(self.user, self.project):
             self.close()
             return
 

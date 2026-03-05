@@ -1,128 +1,385 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Project Invitations" %}{% endblock %}
-
-{% block extra_styles %}
-<style>
-.pi-wrap {
-    max-width: 980px;
-    margin: 2rem auto;
-    padding: 0 1rem 2rem;
-}
-.pi-card {
-    background: #fff;
-    border: 1px solid #dbe4f3;
-    border-radius: 14px;
-    box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
-    overflow: hidden;
-}
-.pi-head {
-    padding: 1rem 1.1rem;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.pi-title {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: #0f172a;
-}
-.pi-list {
-    display: flex;
-    flex-direction: column;
-}
-.pi-item {
-    padding: 0.9rem 1.1rem;
-    border-bottom: 1px solid #eef2ff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-.pi-item:last-child {
-    border-bottom: 0;
-}
-.pi-main {
-    min-width: 220px;
-}
-.pi-project {
-    font-weight: 800;
-    color: #0f172a;
-}
-.pi-meta {
-    margin-top: 0.2rem;
-    color: #64748b;
-    font-size: 0.86rem;
-}
-.pi-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.pi-btn {
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 0.48rem 0.95rem;
-    font-weight: 700;
-    background: #fff;
-}
-.pi-btn.accept {
-    border-color: #1d4ed8;
-    background: #1d4ed8;
-    color: #fff;
-}
-.pi-btn.reject {
-    border-color: #ef4444;
-    color: #b91c1c;
-}
-.pi-empty {
-    padding: 1.4rem;
-    text-align: center;
-    color: #64748b;
-}
-</style>
-{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دعوات المشاريع{% else %}Project Invitations{% endif %}{% endblock %}
 
 {% block content %}
-<div class="pi-wrap">
-    <div class="pi-card">
-        <div class="pi-head">
-            <h1 class="pi-title">{% translate "Project Invitations" %}</h1>
-            <a href="{% url 'projects:project_list' %}" class="pi-btn">
-                <i class="bi bi-arrow-left"></i>
-                {% translate "Projects" %}
-            </a>
+{% get_current_language as LANGUAGE_CODE %}
+<div class="pi-page">
+  <input type="hidden" id="piCsrfToken" value="{{ csrf_token }}">
+  <input type="hidden" id="piBaseUrl" value="{% url 'projects:project_invitations' %}">
+
+  <div class="pi-shell">
+    <div class="pi-head">
+      <h1 class="pi-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}دعوات المشاريع{% else %}Project Invitations{% endif %}</h1>
+      <p class="pi-sub">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة دعوات المشاريع: إرسال الدعوات ومتابعة الدعوات الواردة والمرسلة.{% else %}Manage project invitations: send invitations and track received and sent invitations.{% endif %}</p>
+    </div>
+
+    <div class="pi-grid">
+      <section class="pi-card">
+        <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}دعوة مستخدم إلى مشروع{% else %}Invite User to Project{% endif %}</h2>
+
+        {% if manageable_projects %}
+          <div class="pi-controls">
+            <label for="piProjectSelect">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشروع{% else %}Project{% endif %}</label>
+            <select id="piProjectSelect" class="pi-input">
+              {% for p in manageable_projects %}
+                <option value="{{ p.id }}">{{ p.get_localized_title }}</option>
+              {% endfor %}
+            </select>
+
+            <label for="piSearchInput">{% if LANGUAGE_CODE|slice:":2" == "ar" %}البحث{% else %}Search{% endif %}</label>
+            <div class="pi-search-row">
+              <input type="text" id="piSearchInput" class="pi-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث باسم المستخدم أو البريد الإلكتروني...{% else %}Search by username or email...{% endif %}">
+              <button type="button" class="pi-btn primary" id="piSearchBtn">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+            </div>
+          </div>
+
+          <div class="pi-feedback" id="piFeedback">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتب حرفين على الأقل للبحث.{% else %}Type at least 2 characters to search.{% endif %}</div>
+          <div class="pi-results" id="piResults"></div>
+        {% else %}
+          <div class="pi-empty">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مشروع متاح للدعوات. يجب أن تكون منسق المشروع أو عضواً مسؤولاً.{% else %}No project available for invitations. You must be the project coordinator or an admin member.{% endif %}</div>
+        {% endif %}
+      </section>
+
+      <section class="pi-card">
+        <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة الدعوات{% else %}Invitations{% endif %}</h2>
+
+        <div class="pi-inv-tabs" role="tablist" aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تبويبات الدعوات{% else %}Invitation tabs{% endif %}">
+          <button type="button" class="pi-inv-tab active" data-target="pi-received" role="tab" aria-selected="true">
+            {% if LANGUAGE_CODE|slice:":2" == "ar" %}الواردة{% else %}Received{% endif %}
+            <span class="pi-tab-count">{{ received_total_count }}</span>
+          </button>
+          <button type="button" class="pi-inv-tab" data-target="pi-sent" role="tab" aria-selected="false">
+            {% if LANGUAGE_CODE|slice:":2" == "ar" %}المرسلة{% else %}Sent{% endif %}
+            <span class="pi-tab-count">{{ sent_invitations|length }}</span>
+          </button>
         </div>
-        <div class="pi-list">
+
+        <div class="pi-pane active" id="pi-received">
+          <div class="pi-list">
             {% for invitation in invitations %}
-            <div class="pi-item">
+              <article class="pi-item">
                 <div class="pi-main">
-                    <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
-                    <div class="pi-meta">
-                        {% blocktranslate with inviter=invitation.invited_by.get_full_name_display institution=invitation.project.institution %}
-                        Invited by {{ inviter }} · {{ institution }}
-                        {% endblocktranslate %}
-                    </div>
+                  <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
+                  <div class="pi-meta">
+                    {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                      دعوة من {{ invitation.invited_by.get_full_name_display }}
+                    {% else %}
+                      {% blocktranslate with inviter=invitation.invited_by.get_full_name_display %}Invited by {{ inviter }}{% endblocktranslate %}
+                    {% endif %}
+                  </div>
                 </div>
                 <div class="pi-actions">
-                    <form method="post" action="{% url 'projects:project_invitation_accept' invitation.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="pi-btn accept">{% translate "Accept" %}</button>
-                    </form>
-                    <form method="post" action="{% url 'projects:project_invitation_reject' invitation.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="pi-btn reject">{% translate "Reject" %}</button>
-                    </form>
+                  <form method="post" action="{% url 'projects:project_invitation_accept' invitation.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="pi-btn primary">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                  </form>
+                  <form method="post" action="{% url 'projects:project_invitation_reject' invitation.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                  </form>
                 </div>
-            </div>
-            {% empty %}
-            <div class="pi-empty">{% translate "No pending project invitations." %}</div>
+              </article>
             {% endfor %}
+
+            {% for legacy in legacy_received_member_invites %}
+              <article class="pi-item">
+                <div class="pi-main">
+                  <div class="pi-project">{{ legacy.project.get_localized_title }}</div>
+                  <div class="pi-meta">
+                    {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                      دعوة من {{ legacy.project.coordinator.get_full_name_display }}
+                    {% else %}
+                      {% blocktranslate with inviter=legacy.project.coordinator.get_full_name_display %}Invited by {{ inviter }}{% endblocktranslate %}
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="pi-actions">
+                  <form method="post" action="{% url 'accounts:respond_project_invite' legacy.project.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="response" value="accept">
+                    <button type="submit" class="pi-btn primary">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                  </form>
+                  <form method="post" action="{% url 'accounts:respond_project_invite' legacy.project.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="response" value="reject">
+                    <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+
+            {% for req in incoming_join_requests %}
+              <article class="pi-item">
+                <div class="pi-main">
+                  <div class="pi-project">{{ req.project.get_localized_title }}</div>
+                  <div class="pi-meta">
+                    {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                      {{ req.member.get_full_name_display }} طلب الانضمام إلى مشروع "{{ req.project.get_localized_title }}"
+                    {% else %}
+                      {{ req.member.get_full_name_display }} requested to join project "{{ req.project.get_localized_title }}"
+                    {% endif %}
+                    - {{ req.member.email }}
+                  </div>
+                </div>
+                <div class="pi-actions">
+                  <form method="post" action="{% url 'projects:respond_to_request' req.project.id req.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="response" value="accept">
+                    <button type="submit" class="pi-btn primary">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                  </form>
+                  <form method="post" action="{% url 'projects:respond_to_request' req.project.id req.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="response" value="reject">
+                    <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+
+            {% if not invitations and not legacy_received_member_invites and not incoming_join_requests %}
+              <div class="pi-empty">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات واردة معلقة.{% else %}No pending received invitations.{% endif %}</div>
+            {% endif %}
+          </div>
         </div>
+
+        <div class="pi-pane" id="pi-sent">
+          <div class="pi-list">
+            {% for invitation in sent_invitations %}
+              <article class="pi-item">
+                <div class="pi-main">
+                  <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
+                  <div class="pi-meta">{{ invitation.invited_user.get_full_name_display }} - {{ invitation.invited_user.email }}</div>
+                </div>
+                <div class="pi-actions">
+                  {% if invitation.status == 'pending' %}
+                    <span class="pi-status pending">{% if LANGUAGE_CODE|slice:":2" == "ar" %}معلقة{% else %}Pending{% endif %}</span>
+                  {% elif invitation.status == 'accepted' %}
+                    <span class="pi-status accepted">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مقبولة{% else %}Accepted{% endif %}</span>
+                  {% elif invitation.status == 'rejected' %}
+                    <span class="pi-status rejected">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مرفوضة{% else %}Rejected{% endif %}</span>
+                  {% else %}
+                    <span class="pi-status pending">{{ invitation.status }}</span>
+                  {% endif %}
+                </div>
+              </article>
+            {% empty %}
+              <div class="pi-empty">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات مرسلة بعد.{% else %}No sent invitations yet.{% endif %}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
     </div>
+  </div>
 </div>
+
+<style>
+.pi-page { padding: 24px 16px; }
+.pi-shell { max-width: 1080px; margin: 0 auto; border: 1px solid #dbe4f3; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08); padding: 16px; }
+.pi-head { margin-bottom: 12px; }
+.pi-title { margin: 0; font-size: 1.35rem; color: #0f172a; font-weight: 800; }
+.pi-sub { margin: 6px 0 0; color: #64748b; font-size: .92rem; }
+.pi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pi-card { border: 1px solid #dbe4f3; border-radius: 14px; padding: 12px; }
+.pi-card h2 { margin: 0 0 10px; font-size: 1rem; color: #1e3a8a; }
+.pi-controls { display: grid; gap: 7px; }
+.pi-controls label { font-size: .82rem; font-weight: 700; color: #334155; }
+.pi-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 10px; }
+.pi-search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.pi-btn { border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #1e3a8a; padding: 8px 12px; font-weight: 700; }
+.pi-btn.primary { border-color: #1d4ed8; background: #1d4ed8; color: #fff; }
+.pi-btn.outline { background: #fff; }
+.pi-btn:disabled { opacity: .58; cursor: not-allowed; }
+.pi-feedback { margin-top: 8px; font-size: .85rem; color: #64748b; }
+.pi-feedback.error { color: #b91c1c; }
+.pi-results { margin-top: 10px; display: grid; gap: 8px; }
+.pi-result { border: 1px solid #dbe4f3; border-radius: 10px; padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pi-user { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.pi-avatar { width: 36px; height: 36px; border-radius: 999px; overflow: hidden; border: 1px solid #bfd3f4; background: #e9f1ff; color: #1e3a8a; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.pi-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pi-name { font-weight: 700; color: #0f172a; }
+.pi-email { font-size: .8rem; color: #64748b; }
+.pi-list { display: grid; gap: 8px; }
+.pi-item { border: 1px solid #dbe4f3; border-radius: 10px; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pi-project { font-weight: 800; color: #0f172a; }
+.pi-meta { color: #64748b; font-size: .85rem; }
+.pi-actions { display: flex; align-items: center; gap: 8px; }
+.pi-empty { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 12px; color: #64748b; text-align: center; }
+.pi-status { border-radius: 999px; padding: 4px 9px; font-size: .78rem; font-weight: 700; }
+.pi-status.pending { background: #eaf2ff; color: #1e3a8a; }
+.pi-status.accepted { background: #e7f8ee; color: #166534; }
+.pi-status.rejected { background: #fee2e2; color: #991b1b; }
+
+.pi-inv-tabs { display: inline-flex; gap: 8px; padding: 5px; border: 1px solid #d3def2; border-radius: 999px; background: #f8fbff; margin-bottom: 10px; }
+.pi-inv-tab { border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; background: #fff; color: #1e3a8a; font-weight: 700; display: inline-flex; gap: 8px; align-items: center; }
+.pi-inv-tab.active { background: #1d4ed8; color: #fff; }
+.pi-tab-count { min-width: 18px; height: 18px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: .72rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
+.pi-inv-tab.active .pi-tab-count { background: #fff; }
+.pi-pane { display: none; }
+.pi-pane.active { display: block; }
+
+@media (max-width: 920px) {
+  .pi-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .pi-item, .pi-result { flex-direction: column; align-items: stretch; }
+  .pi-actions { width: 100%; }
+  .pi-actions .pi-btn { flex: 1; }
+}
+</style>
+
+<script>
+(function(){
+  const isAr = "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}1{% else %}0{% endif %}" === "1";
+  const txtTypeMin = isAr ? "اكتب حرفين على الأقل للبحث." : "Type at least 2 characters to search.";
+  const txtSearching = isAr ? "جار البحث..." : "Searching...";
+  const txtNoUsers = isAr ? "لا توجد نتائج." : "No users found.";
+  const txtErr = isAr ? "حدث خطأ أثناء البحث." : "Error during search.";
+  const txtInvite = isAr ? "إرسال الدعوة" : "Send Invitation";
+  const txtSent = isAr ? "تم الإرسال" : "Sent";
+  const txtAlready = isAr ? "مدعو مسبقاً" : "Already invited";
+
+  document.querySelectorAll('.pi-inv-tab').forEach((tab) => {
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.pi-inv-tab').forEach((x) => x.classList.remove('active'));
+      document.querySelectorAll('.pi-pane').forEach((x) => x.classList.remove('active'));
+      tab.classList.add('active');
+      const pane = document.getElementById(tab.getAttribute('data-target'));
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  const projectSelect = document.getElementById('piProjectSelect');
+  const searchInput = document.getElementById('piSearchInput');
+  const searchBtn = document.getElementById('piSearchBtn');
+  const feedback = document.getElementById('piFeedback');
+  const resultsEl = document.getElementById('piResults');
+
+  if (!projectSelect || !searchInput || !searchBtn || !feedback || !resultsEl) return;
+
+  function projectBasePath() {
+    const baseInput = document.getElementById('piBaseUrl');
+    const invitationsUrl = (baseInput && baseInput.value) ? baseInput.value : '/projects/invitations/';
+    return invitationsUrl.replace(/invitations\/?$/, '');
+  }
+
+  function openInvitationsTab(targetId) {
+    document.querySelectorAll('.pi-inv-tab').forEach((x) => {
+      const isActive = x.getAttribute('data-target') === targetId;
+      x.classList.toggle('active', isActive);
+      x.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    document.querySelectorAll('.pi-pane').forEach((x) => {
+      x.classList.toggle('active', x.id === targetId);
+    });
+  }
+  function csrf() {
+    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    const hidden = document.getElementById('piCsrfToken');
+    return hidden ? (hidden.value || '') : '';
+  }
+
+  function setFeedback(msg, isError) {
+    feedback.textContent = msg || '';
+    feedback.classList.toggle('error', !!isError);
+  }
+
+  function avatarHtml(user) {
+    if (user.avatar) return `<span class="pi-avatar"><img src="${user.avatar}" alt="${user.name || user.email}"></span>`;
+    return `<span class="pi-avatar">${(user.name || user.email || 'U').trim().charAt(0).toUpperCase()}</span>`;
+  }
+
+  function rowHtml(user) {
+    const disabled = user.already_invited ? 'disabled' : '';
+    const label = user.already_invited ? txtAlready : txtInvite;
+    return `
+      <div class="pi-result" data-user-id="${user.id}">
+        <div class="pi-user">
+          ${avatarHtml(user)}
+          <div>
+            <div class="pi-name">${user.name || user.username || user.email}</div>
+            <div class="pi-email">${user.email || ''}</div>
+          </div>
+        </div>
+        <button type="button" class="pi-btn primary" data-invite-user="${user.id}" ${disabled}>${label}</button>
+      </div>
+    `;
+  }
+
+  async function runSearch() {
+    const q = (searchInput.value || '').trim();
+    if (q.length < 2) {
+      resultsEl.innerHTML = '';
+      setFeedback(txtTypeMin, false);
+      return;
+    }
+    const projectId = projectSelect.value;
+    if (!projectId) {
+      setFeedback(txtErr, true);
+      return;
+    }
+
+    setFeedback(txtSearching, false);
+    resultsEl.innerHTML = '';
+
+    const url = `${projectBasePath()}${projectId}/invite/search-users/?q=${encodeURIComponent(q)}`;
+    try {
+      const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'search error');
+      const results = data.results || [];
+      if (!results.length) {
+        setFeedback(txtNoUsers, false);
+        return;
+      }
+      setFeedback(isAr ? `${results.length} نتيجة` : `${results.length} result(s)`, false);
+      resultsEl.innerHTML = results.map(rowHtml).join('');
+    } catch (_) {
+      setFeedback(txtErr, true);
+    }
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  searchInput.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runSearch();
+    }
+  });
+
+  resultsEl.addEventListener('click', async function(e){
+    const btn = e.target.closest('[data-invite-user]');
+    if (!btn || btn.disabled) return;
+    const userId = btn.getAttribute('data-invite-user');
+    const projectId = projectSelect.value;
+    if (!userId || !projectId) return;
+
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${projectBasePath()}${projectId}/invite/`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': csrf(),
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `invited_users[]=${encodeURIComponent(userId)}`,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'invite error');
+      btn.textContent = txtSent;
+      setFeedback(data.message || txtSent, false);
+      openInvitationsTab('pi-sent');
+      setTimeout(() => window.location.reload(), 350);
+    } catch (err) {
+      btn.disabled = false;
+      const msg = (err && err.message) ? err.message : txtErr;
+      setFeedback(msg, true);
+    }
+  });
+})();
+</script>
 {% endblock %}

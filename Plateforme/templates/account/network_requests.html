@@ -2,11 +2,6 @@
 {% load i18n %}
 
 {% block title %}{% trans "Invitations" %}{% endblock %}
-{% block extra_styles %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-{% endblock %}
 
 {% block content %}
 {% get_current_language as LANGUAGE_CODE %}
@@ -16,32 +11,20 @@
     <div class="nr-header">
       <div class="nr-title-wrap">
         <span class="nr-title-icon" aria-hidden="true"><i class="fas fa-user-friends"></i></span>
-        <h1>
-          {% if LANGUAGE_CODE|slice:":2" == "ar" %}
-            إدارة طلبات الشبكة
-          {% else %}
-            {% trans "Manage Network Requests" %}
-          {% endif %}
-        </h1>
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة طلبات الشبكة{% else %}Manage Network Requests{% endif %}</h1>
       </div>
-      <p>
-        {% if LANGUAGE_CODE|slice:":2" == "ar" %}
-          عرض الطلبات الواردة والمرسلة في لوحة احترافية واحدة.
-        {% else %}
-          {% trans "Incoming and outgoing invitations in one professional dashboard." %}
-        {% endif %}
-      </p>
+      <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الطلبات الواردة والمرسلة في لوحة احترافية واحدة.{% else %}Incoming and outgoing invitations in one professional dashboard.{% endif %}</p>
     </div>
 
-    <div class="nr-tabs" role="tablist" aria-label="{% trans 'Invitation tabs' %}">
+    <div class="nr-tabs" role="tablist" aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تبويبات الدعوات{% else %}Invitation tabs{% endif %}">
       <button class="nr-tab active" data-target="incoming" role="tab" aria-selected="true">
         <i class="fas fa-inbox" aria-hidden="true"></i>
-        {% if LANGUAGE_CODE|slice:":2" == "ar" %}الواردة{% else %}{% trans "Received" %}{% endif %}
+        {% if LANGUAGE_CODE|slice:":2" == "ar" %}الواردة{% else %}Received{% endif %}
         <span class="nr-tab-count">{{ incoming_requests|length }}</span>
       </button>
       <button class="nr-tab" data-target="outgoing" role="tab" aria-selected="false">
         <i class="fas fa-paper-plane" aria-hidden="true"></i>
-        {% if LANGUAGE_CODE|slice:":2" == "ar" %}المرسلة{% else %}{% trans "Sent" %}{% endif %}
+        {% if LANGUAGE_CODE|slice:":2" == "ar" %}المرسلة{% else %}Sent{% endif %}
         <span class="nr-tab-count">{{ outgoing_requests|length }}</span>
       </button>
     </div>
@@ -63,19 +46,14 @@
           </div>
         </div>
         <div class="nr-actions">
-          <button class="nr-btn primary" data-action="accept" data-user="{{ rel.requester.id }}">
-            {% if LANGUAGE_CODE|slice:":2" == "ar" %}تأكيد{% else %}{% trans "Accept" %}{% endif %}
-          </button>
-          <button class="nr-btn outline" data-action="reject" data-user="{{ rel.requester.id }}">
-            {% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% trans "Refuse" %}{% endif %}
-          </button>
+          <button class="nr-btn primary" data-action="accept" data-user="{{ rel.requester.id }}">{% trans "Accept" %}</button>
+          <button class="nr-btn outline" data-action="reject" data-user="{{ rel.requester.id }}">{% trans "Reject" %}</button>
         </div>
       </article>
       {% empty %}
       <div class="nr-empty">
-        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="20" r="10"/><path d="M12 52c2-10 10-16 20-16s18 6 20 16"/></svg>
-        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات واردة{% else %}{% trans "No incoming requests" %}{% endif %}</h3>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}استمر بمشاركة أعمالك، وستنمو شبكتك المهنية.{% else %}{% trans "Keep sharing your work, your network will grow." %}{% endif %}</p>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات واردة{% else %}No incoming requests{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واصل مشاركة عملك وستنمو شبكتك.{% else %}Keep sharing your work, your network will grow.{% endif %}</p>
       </div>
       {% endfor %}
     </div>
@@ -97,308 +75,55 @@
           </div>
         </div>
         <div class="nr-actions">
-          <button class="nr-btn outline" data-action="cancel" data-user="{{ rel.addressee.id }}">
-            {% if LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء الدعوة{% else %}{% trans "Cancel invitation" %}{% endif %}
-          </button>
+          <button class="nr-btn outline" data-action="cancel" data-user="{{ rel.addressee.id }}">{% trans "Cancel invitation" %}</button>
         </div>
       </article>
       {% empty %}
       <div class="nr-empty">
-        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 48h44"/><path d="M14 18h28"/><path d="M44 14l10 10-10 10"/></svg>
-        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات مرسلة{% else %}{% trans "No outgoing requests" %}{% endif %}</h3>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}يمكنك دعوة محترفين من الاقتراحات أدناه.{% else %}{% trans "You can invite professionals from suggestions below." %}{% endif %}</p>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات مرسلة{% else %}No outgoing requests{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}يمكنك دعوة المستخدمين من القسم أدناه.{% else %}You can invite professionals from suggestions below.{% endif %}</p>
       </div>
       {% endfor %}
     </div>
 
-    <section class="nr-suggest">
-      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اقتراحات{% else %}{% trans "Suggestions" %}{% endif %}</h2>
-      <div class="nr-grid">
-        {% for u in suggestions %}
-        <article class="nr-card compact" id="card-{{ u.id }}">
-          <div class="nr-user">
-            <div class="nr-avatar">
-              {% if u.avatar %}
-                <img src="{{ u.avatar.url }}" alt="{{ u.get_full_name_display }}">
-              {% else %}
-                <span>{{ u.get_full_name_display|slice:":1"|upper }}</span>
-              {% endif %}
-            </div>
-            <div class="nr-meta">
-              <a href="{% url 'accounts:profile' u.id %}">{{ u.get_full_name_display }}</a>
-              <small>{{ u.institution|default:_("No institution") }}</small>
-            </div>
-          </div>
-          <div class="nr-actions">
-            <button class="nr-btn primary" data-action="add" data-user="{{ u.id }}">
-              + {% if LANGUAGE_CODE|slice:":2" == "ar" %}إضافة{% else %}{% trans "Add" %}{% endif %}
-            </button>
-          </div>
-        </article>
-      {% empty %}
-      <div class="nr-empty">
-        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="20" cy="22" r="8"/><circle cx="42" cy="22" r="8"/><path d="M8 52c1.5-8 8-13 15-13"/><path d="M41 39c7 0 13.5 5 15 13"/></svg>
-        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد اقتراحات حالياً{% else %}{% trans "No suggestions available" %}{% endif %}</h3>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}حاول لاحقاً للعثور على جهات اتصال جديدة.{% else %}{% trans "Try again later for new contacts." %}{% endif %}</p>
-      </div>
-      {% endfor %}
-      </div>
-    </section>
   </div>
 </div>
 
 <style>
-.nr-page {
-  background: #ffffff;
-  min-height: 100vh;
-  padding: 38px 24px;
-  font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
-}
-.nr-shell {
-  max-width: 980px;
-  margin: 0 auto;
-  direction: ltr;
-  text-align: left;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
-  padding: 24px;
-}
-[dir="rtl"] .nr-shell { direction: rtl; text-align: right; }
-.nr-header { margin-bottom: 20px; }
-.nr-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.nr-title-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
-}
-.nr-header h1 {
-  color: #0f172a;
-  font-size: 1.8rem;
-  margin: 0;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.nr-header p { color: #64748b; margin: 0; font-size: 0.96rem; }
-
-.nr-tabs {
-  display: flex;
-  justify-content: center;
-  gap: 86px;
-  margin-bottom: 24px;
-  padding-bottom: 8px;
-}
-.nr-tab {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
-  padding: 10px 26px;
-  border-radius: 999px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  transition: all .24s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.nr-tab-count {
-  min-width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  padding: 0 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: #e2e8f0;
-  color: #334155;
-}
-.nr-tab.active {
-  color: #1d4ed8;
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35), 0 6px 20px rgba(59, 130, 246, 0.15);
-}
-.nr-tab.active .nr-tab-count {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
+.nr-page { background: #fff; min-height: 100vh; padding: 28px 18px; }
+.nr-shell { max-width: 1040px; margin: 0 auto; border: 1px solid #dbe4f0; border-radius: 18px; box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08); padding: 22px; background: #fff; }
+.nr-header { margin-bottom: 18px; }
+.nr-title-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.nr-title-icon { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.nr-header h1 { margin: 0; font-size: 1.45rem; font-weight: 800; color: #0f172a; }
+.nr-header p { margin: 0; color: #64748b; }
+.nr-tabs { display: flex; gap: 12px; margin-bottom: 16px; }
+.nr-tab { border: 1px solid #cbd5e1; background: #fff; color: #1e3a8a; border-radius: 999px; padding: 8px 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.nr-tab.active { border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,.2); }
+.nr-tab-count { min-width: 20px; height: 20px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: .74rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
 .nr-pane { display: none; }
 .nr-pane.active { display: block; }
-
-.nr-card {
-  background: #ffffff;
-  border: 1px solid #dbe4f0;
-  border-radius: 14px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
-  padding: 14px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
-}
-.nr-card:hover {
-  transform: translateY(-2px);
-  border-color: #93c5fd;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
-}
-.nr-card.compact { margin-bottom: 12px; }
-.nr-card.removing { opacity: 0; transform: translateY(-6px) scale(.98); }
-.nr-user { display: flex; align-items: center; gap: 10px; }
-.nr-avatar {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  border: 1px solid #93c5fd;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  font-weight: 700;
-  color: #ffffff;
-}
+.nr-card { border: 1px solid #dbe4f0; border-radius: 14px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.nr-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nr-avatar { width: 42px; height: 42px; border-radius: 999px; overflow: hidden; border: 1px solid #bfdbfe; background: #dbeafe; color: #1e3a8a; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
 .nr-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.nr-meta a { color: #0f172a; text-decoration: none; font-weight: 700; display: block; }
-.nr-meta small { color: #64748b; font-size: 0.86rem; }
+.nr-meta a { font-weight: 700; color: #0f172a; text-decoration: none; }
+.nr-meta small { color: #64748b; display: block; }
 .nr-actions { display: flex; gap: 8px; }
-.nr-btn {
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  padding: 8px 14px;
-  font-weight: 700;
-  background: #f8fafc;
-  color: #334155;
-}
-.nr-btn.primary {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  color: #fff;
-  border-color: rgba(96, 165, 250, 0.72);
-  box-shadow: 0 0 16px rgba(37, 99, 235, 0.28);
-}
-.nr-btn.outline {
-  background: transparent;
-  color: #334155;
-  border-color: #cbd5e1;
-}
-
-.nr-empty {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  color: #64748b;
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  margin-bottom: 12px;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-}
-.nr-empty svg { width: 46px; height: 46px; stroke: #64748b; fill: none; stroke-width: 1.8; }
-.nr-empty h3 { margin: 0; color: #0f172a; font-size: 1rem; }
-.nr-empty p { margin: 0; font-size: 0.9rem; color: #64748b; }
-.nr-suggest { margin-top: 22px; }
-.nr-suggest h2 { font-size: 1.1rem; color: #0f172a; margin: 0 0 10px; }
-.nr-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
-.nr-grid .nr-card.compact { grid-column: auto; }
+.nr-btn { border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #1e3a8a; padding: 8px 12px; font-weight: 700; }
+.nr-btn.primary { border-color: #1d4ed8; background: #1d4ed8; color: #fff; }
+.nr-btn.outline { background: #fff; }
+.nr-btn:disabled { opacity: .55; cursor: not-allowed; }
+.nr-empty { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; color: #64748b; }
+.nr-empty h3 { margin: 0 0 4px; color: #0f172a; font-size: 1rem; }
+.nr-empty p { margin: 0; }
 
 @media (max-width: 700px) {
-  .nr-page { padding: 16px; }
-  .nr-shell { padding: 16px; }
-  .nr-tabs { gap: 24px; }
-  .nr-card { flex-direction: column; align-items: stretch; gap: 12px; }
-  .nr-actions { justify-content: stretch; }
-  .nr-btn { flex: 1; }
-}
-
-/* ===== Dark minimal blue theme ===== */
-.nr-shell {
-  border-color: rgba(30, 58, 138, 0.24) !important;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12) !important;
-}
-
-.nr-title-icon {
-  background: rgba(30, 58, 138, 0.12) !important;
-  color: #1e3a8a !important;
-  border-color: rgba(30, 58, 138, 0.32) !important;
-}
-
-.nr-header h1,
-.nr-suggest h2,
-.nr-meta a {
-  color: #0f172a !important;
-}
-
-.nr-tab {
-  border-color: rgba(30, 58, 138, 0.28) !important;
-  color: #334155 !important;
-  background: #ffffff !important;
-}
-
-.nr-tab.active {
-  color: #1e3a8a !important;
-  border-color: rgba(30, 58, 138, 0.45) !important;
-  box-shadow: 0 0 0 1px rgba(30, 58, 138, 0.18), 0 6px 18px rgba(30, 58, 138, 0.14) !important;
-}
-
-.nr-tab-count {
-  background: rgba(30, 58, 138, 0.12) !important;
-  color: #1e3a8a !important;
-}
-
-.nr-card {
-  border-color: rgba(30, 58, 138, 0.18) !important;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.09) !important;
-}
-
-.nr-card:hover {
-  border-color: rgba(30, 58, 138, 0.4) !important;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12) !important;
-}
-
-.nr-avatar {
-  background: linear-gradient(135deg, #1e3a8a, #1d4ed8) !important;
-  border-color: rgba(30, 58, 138, 0.36) !important;
-}
-
-.nr-btn {
-  border-color: rgba(30, 58, 138, 0.28) !important;
-  color: #1e3a8a !important;
-  background: #ffffff !important;
-}
-
-.nr-btn.primary {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 70%, #2563eb 100%) !important;
-  color: #ffffff !important;
-  border-color: rgba(30, 58, 138, 0.5) !important;
-  box-shadow: 0 0 14px rgba(30, 58, 138, 0.2) !important;
-}
-
-.nr-btn.outline {
-  color: #1e3a8a !important;
-  border-color: rgba(30, 58, 138, 0.34) !important;
-}
-
-.nr-empty {
-  border-color: rgba(30, 58, 138, 0.24) !important;
-  background: #f8fbff !important;
-}
-
-.nr-empty svg {
-  stroke: #1e3a8a !important;
+  .nr-page { padding: 12px; }
+  .nr-shell { padding: 14px; }
+  .nr-card, .nr-project-invite-item { flex-direction: column; align-items: stretch; }
+  .nr-actions { width: 100%; }
+  .nr-actions .nr-btn { flex: 1; }
 }
 </style>
 
@@ -406,24 +131,38 @@
 (function(){
   const tabs = document.querySelectorAll('.nr-tab');
   const panes = document.querySelectorAll('.nr-pane');
-  tabs.forEach(t => t.addEventListener('click', () => {
-    tabs.forEach(x => x.classList.remove('active'));
-    panes.forEach(x => x.classList.remove('active'));
+  tabs.forEach((t) => t.addEventListener('click', () => {
+    tabs.forEach((x) => x.classList.remove('active'));
+    panes.forEach((x) => x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById(t.dataset.target)?.classList.add('active');
   }));
 
   function csrf() {
-    const cookieMatch = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    const cookieToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
-    if (cookieToken && cookieToken !== 'NOTPROVIDED') return cookieToken;
-    const hidden = document.getElementById('nrCsrfToken')?.value || '';
-    return hidden && hidden !== 'NOTPROVIDED' ? hidden : '';
+    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    return document.getElementById('nrCsrfToken')?.value || '';
   }
 
-  function buildActionUrl(userId, action) {
-    const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
-    return `/${lang}/accounts/network/${userId}/${action}/`;
+  function currentLang() {
+    return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+  }
+
+  function friendshipUrl(userId, action) {
+    return `/${currentLang()}/accounts/network/${userId}/${action}/`;
+  }
+
+  async function postForm(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrf(),
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      credentials: 'same-origin',
+      body,
+    });
   }
 
   document.addEventListener('click', async (e) => {
@@ -437,21 +176,15 @@
 
     btn.disabled = true;
     try {
-      const res = await fetch(buildActionUrl(userId, action), {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'same-origin'
-      });
+      const res = await postForm(friendshipUrl(userId, action), '');
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
-
-      card.classList.add('removing');
-      setTimeout(() => card.remove(), 220);
-    } catch (err) {
+      card.remove();
+    } catch (_) {
       btn.disabled = false;
-      console.error(err);
     }
   });
+
 })();
 </script>
 {% endblock %}

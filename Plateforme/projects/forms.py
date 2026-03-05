@@ -119,6 +119,14 @@ class ProjectForm(forms.ModelForm):
 
 
 class ProjectChatMessageForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        lang = get_active_language()
+        if lang == "ar":
+            self.fields["content"].widget.attrs["placeholder"] = "اكتب رسالة..."
+        else:
+            self.fields["content"].widget.attrs["placeholder"] = "Write a message..."
+
     class Meta:
         model = ProjectChatMessage
         fields = ["content", "file_path"]

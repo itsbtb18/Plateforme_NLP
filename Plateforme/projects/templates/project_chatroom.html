@@ -60,11 +60,11 @@
     top: 0;
     z-index: 8;
     padding: 12px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #fff;
+    border-bottom: 1px solid #334155;
+    background: #0f172a;
   }
-  .pc-title { margin: 0; font-size: 1.02rem; font-weight: 700; color: #0f172a; }
-  .pc-subtitle { font-size: 0.78rem; color: #64748b; }
+  .pc-title { margin: 0; font-size: 1.02rem; font-weight: 700; color: #f1f5f9; }
+  .pc-subtitle { font-size: 0.78rem; color: #cbd5e1; }
 
   .pc-messages {
     flex: 1;
@@ -221,7 +221,13 @@
     <section class="pc-main">
       <header class="pc-head">
         <h2 class="pc-title"># {{ project.get_localized_title|default:project.title }}</h2>
-        <div class="pc-subtitle">{% trans "Private chat for project members only" %}</div>
+        <div class="pc-subtitle">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            دردشة خاصة لأعضاء المشروع فقط
+          {% else %}
+            {% trans "Private chat for project members only" %}
+          {% endif %}
+        </div>
       </header>
 
       <div id="pcMessages" class="pc-messages">
@@ -262,7 +268,13 @@
             </div>
           </div>
         {% empty %}
-          <p class="pc-empty">{% trans "No messages yet." %}</p>
+          <p class="pc-empty">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              لا توجد رسائل بعد.
+            {% else %}
+              {% trans "No messages yet." %}
+            {% endif %}
+          </p>
         {% endfor %}
       </div>
 
@@ -278,7 +290,6 @@
             <button type="submit" class="pc-send" title="{% trans 'Send' %}"><i class="bi bi-send-fill"></i></button>
           </div>
           <input id="pcFileInput" name="file_path" type="file" class="pc-file-input" accept=".pdf,.jpg,.jpeg,.png,.docx,.zip" hidden>
-          <div id="pcDrop" class="pc-drop">{% trans "Drag and drop file here (max 10MB)" %}</div>
           <div id="pcFilePreview" class="pc-file-preview"></div>
         </form>
       </div>
@@ -297,7 +308,6 @@
     const fileInput = document.getElementById("pcFileInput");
     const fileBtn = document.getElementById("pcFileBtn");
     const preview = document.getElementById("pcFilePreview");
-    const drop = document.getElementById("pcDrop");
     const emojiBtn = document.getElementById("pcEmojiBtn");
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     const roomUrl = `${wsScheme}://${window.location.host}/ws/projects/chat/{{ project.id }}/`;
@@ -377,27 +387,6 @@
         typingTimer = setTimeout(() => {}, 700);
       });
     }
-    if (drop && fileInput) {
-      ["dragenter", "dragover"].forEach((eName) => {
-        drop.addEventListener(eName, (e) => {
-          e.preventDefault();
-          drop.classList.add("dragging");
-        });
-      });
-      ["dragleave", "drop"].forEach((eName) => {
-        drop.addEventListener(eName, (e) => {
-          e.preventDefault();
-          drop.classList.remove("dragging");
-        });
-      });
-      drop.addEventListener("drop", (e) => {
-        const files = e.dataTransfer && e.dataTransfer.files;
-        if (!files || !files.length) return;
-        fileInput.files = files;
-        updatePreview();
-      });
-    }
-
     if (form) {
       form.addEventListener("submit", async function (e) {
         e.preventDefault();

@@ -1,8 +1,102 @@
-
 {% extends 'base_admin.html' %}
 {% load i18n %}
+
 {% block title %}{% trans "Security" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sec-wrap { padding: 1rem 0 2rem; }
+  .sec-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #f1f5f9;
+    border-radius: 16px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .22);
+  }
+  .sec-cards { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+  .sec-card {
+    background: #fff;
+    border: 1px solid #dbe4f3;
+    border-radius: 14px;
+    padding: .9rem 1rem;
+  }
+  .sec-card .label { color: #64748b; font-size: .84rem; margin: 0; }
+  .sec-card .value { color: #0f172a; font-size: 1.35rem; font-weight: 800; margin: .2rem 0 0; }
+  .sec-table-wrap {
+    background: #fff;
+    border: 1px solid #dbe4f3;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .sec-table th { font-size: .78rem; text-transform: uppercase; color: #64748b; }
+  .sec-badge {
+    display: inline-flex;
+    padding: .2rem .55rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: #eaf2ff;
+  }
+  .sec-empty { padding: 1rem; color: #64748b; text-align: center; }
+  @media (max-width: 900px) { .sec-cards { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>{% trans "Security" %}</h1>
-<p>{% trans "To be implemented.w" %}</p>
+<div class="sec-wrap">
+  <div class="sec-header">
+    <h1 class="h4 mb-1">{% trans "Admin Security Center" %}</h1>
+    <p class="mb-0">{% trans "RBAC, route protection, upload hardening, and activity logs." %}</p>
+  </div>
+
+  <div class="sec-cards">
+    <div class="sec-card">
+      <p class="label">{% trans "Total log entries" %}</p>
+      <p class="value">{{ logs_count }}</p>
+    </div>
+    <div class="sec-card">
+      <p class="label">{% trans "Last 24h events" %}</p>
+      <p class="value">{{ recent_security_events_count }}</p>
+    </div>
+    <div class="sec-card">
+      <p class="label">{% trans "Blocked uploads" %}</p>
+      <p class="value">{{ failed_uploads_count }}</p>
+    </div>
+  </div>
+
+  <div class="sec-table-wrap table-responsive">
+    <table class="table sec-table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% trans "Time" %}</th>
+          <th>{% trans "Admin" %}</th>
+          <th>{% trans "Role" %}</th>
+          <th>{% trans "Action" %}</th>
+          <th>{% trans "Method" %}</th>
+          <th>{% trans "IP" %}</th>
+          <th>{% trans "Path" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in recent_logs %}
+        <tr>
+          <td>{{ log.occurred_at|date:"Y-m-d H:i:s" }}</td>
+          <td>{{ log.admin_user.email|default:"-" }}</td>
+          <td><span class="sec-badge">{{ log.role_snapshot }}</span></td>
+          <td>{{ log.action }}</td>
+          <td>{{ log.http_method }}</td>
+          <td>{{ log.ip_address|default:"-" }}</td>
+          <td>{{ log.path|default:"-" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="sec-empty">{% trans "No activity logs yet." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

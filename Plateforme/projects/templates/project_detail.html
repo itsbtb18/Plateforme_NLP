@@ -1449,7 +1449,7 @@ html[dir="rtl"] .pd-timeline-dot {
                             </div>
                         </div>
                         
-                        {% if project.attachment and is_coordinator or is_member %}
+                        {% if project.attachment and is_coordinator or project.attachment and is_member %}
                         <button type="button" 
                                 class="project-action-btn primary"
                                 onclick="openDocumentViewer('{{ project.attachment.url }}')">
@@ -1476,14 +1476,14 @@ html[dir="rtl"] .pd-timeline-dot {
                         {% if is_coordinator or is_member %}
                         <a href="{% url 'projects:project_chatroom' project.pk %}" class="project-action-btn secondary">
                             <i class="bi bi-chat-dots"></i>
-                            {% trans "Project Chatroom" %}
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                              💬 مناقشة المشروع
+                            {% else %}
+                              💬 Project Discussion
+                            {% endif %}
                         </a>
                         {% endif %}
 
-                        <a href="{% url 'projects:project_invitations' %}" class="project-action-btn secondary">
-                            <i class="bi bi-inbox"></i>
-                            {% trans "Project Invitations" %}
-                        </a>
                     </div>
                 </div>
                 

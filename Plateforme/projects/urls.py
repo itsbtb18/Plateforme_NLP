@@ -6,7 +6,8 @@ from .views import (
     RejectMemberView, ProjectMembersView, RemoveMemberView, RespondToLeaveRequestView,
     RespondToRequestView, ProjectUserLookupView, InviteProjectMembersView,
     ProjectInvitationsView, AcceptProjectInvitationView, RejectProjectInvitationView,
-    project_chatroom, project_chat_send, project_chat_delete_message
+    project_chatroom, project_chat_send, project_chat_delete_message,
+    project_invitations_count_api,
 )
 
 app_name = 'projects'
@@ -30,6 +31,7 @@ urlpatterns = [
     path('<uuid:pk>/invite/search-users/', ProjectUserLookupView.as_view(), name='project_invite_user_search'),
     path('<uuid:pk>/invite/', InviteProjectMembersView.as_view(), name='project_invite'),
     path('invitations/', ProjectInvitationsView.as_view(), name='project_invitations'),
+    path('invitations/count/', project_invitations_count_api, name='project_invitations_count_api'),
     path('invitation/<uuid:invitation_id>/accept/', AcceptProjectInvitationView.as_view(), name='project_invitation_accept'),
     path('invitation/<uuid:invitation_id>/reject/', RejectProjectInvitationView.as_view(), name='project_invitation_reject'),
     path('<uuid:pk>/chat/', project_chatroom, name='project_chatroom'),
