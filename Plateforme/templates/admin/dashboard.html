@@ -1,490 +1,318 @@
 {% extends "base_admin.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block title %}{% trans "Admin Dashboard" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-  :root {
-    --primary-color: #1d4ed8;
-    --primary-dark: #1e40af;
-    --success-color: #10b981;
-    --info-color: #3b82f6;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  }
+/* ── Toggle button ── */
+.pg-toggle{background:none;border:1px solid var(--n-border);color:var(--n-text-2);padding:.4rem .9rem;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:all .15s}
+.pg-toggle:hover{background:var(--n-border-s);color:var(--n-text)}
+.pg-toggle .chev{transition:transform .2s;font-size:.65rem}
+.pg-toggle.collapsed .chev{transform:rotate(180deg)}
 
-  body { background: #ffffff; }
+/* ── Stats wrapper collapse ── */
+.db-wrap{overflow:hidden;transition:max-height .35s ease,opacity .25s ease,margin .35s ease;max-height:280px;opacity:1;margin-bottom:1.5rem}
+.db-wrap.collapsed{max-height:0;opacity:0;margin-bottom:0}
 
-  /* Dashboard Header */
-  .dashboard-header {
-    background: #ffffff;
-    border: 1px solid var(--gray-200);
-    border-radius: 16px;
-    padding: 2rem;
-    color: var(--gray-900);
-    margin-bottom: 2rem;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  }
+/* ── Full-width 4-col stats ── */
+.db-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+@media(max-width:1100px){.db-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:576px){.db-stats{grid-template-columns:1fr}}
 
-  .dashboard-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
+/* ── Chart body ── */
+.ch-body{padding:1rem;min-height:220px;position:relative}
 
-  /* Stats Grid */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
+/* ── Approval grid ── */
+.ap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;padding:1rem 1.25rem}
+.ap-item{display:flex;align-items:center;justify-content:space-between;padding:.7rem .9rem;border:1px solid var(--n-border);border-radius:8px;text-decoration:none;color:inherit;transition:border-color .15s}
+.ap-item:hover{border-color:var(--n-blue);color:inherit}
+.ap-name{font-weight:600;font-size:.82rem;color:var(--n-text)}
+.ap-owner{font-size:.7rem;color:var(--n-text-3)}
+.ap-pill{padding:.12rem .5rem;border-radius:50px;font-size:.65rem;font-weight:700}
+.ap-pill.pn{background:var(--n-amber-bg);color:var(--n-amber)}
+.ap-pill.ok{background:var(--n-green-bg);color:var(--n-green)}
 
-  /* Stat Cards */
-  .stat-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
-  }
+/* ── User cell with avatar image ── */
+.u-cell{display:flex;align-items:center;gap:.75rem}
+.u-name{font-weight:600;font-size:.85rem;color:var(--n-text);margin:0}
+.u-av{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--n-border)}
+.u-av-fallback{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;color:#fff;font-size:.8rem;flex-shrink:0;background:var(--n-blue)}
+.u-av-fallback.c2{background:var(--n-green)}
+.u-av-fallback.c3{background:#F97316}
+.u-av-fallback.c4{background:var(--n-red)}
+.u-av-fallback.c5{background:#8B5CF6}
+.u-av-fallback.c6{background:#0EA5E9}
 
-  .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
+/* ── Status badge (standardized) ── */
+.db-badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.25rem .65rem;border-radius:50px}
+.db-badge .db-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.db-badge.active{color:var(--n-green);background:var(--n-green-bg)}
+.db-badge.pending{color:var(--n-amber);background:var(--n-amber-bg)}
+.db-badge.blocked{color:var(--n-red);background:var(--n-red-bg)}
 
-  .stat-content {
-    flex: 1;
-  }
-
-  .stat-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
-  }
-
-  .stat-number {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0.5rem 0;
-  }
-
-  .stat-growth {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 50px;
-  }
-
-  .stat-growth.positive {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .stat-growth.negative {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .stat-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .stat-icon.primary { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); }
-  .stat-icon.success { background: linear-gradient(135deg, var(--success-color), #059669); }
-  .stat-icon.info { background: linear-gradient(135deg, var(--info-color), #1d4ed8); }
-  .stat-icon.warning { background: linear-gradient(135deg, var(--warning-color), #d97706); }
-
-  /* Content Card */
-  .content-card {
-    background: white;
-    border: 1px solid var(--gray-200);
-    border-radius: 16px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-    overflow: hidden;
-    margin-bottom: 2rem;
-  }
-
-  .dashboard-subtitle {
-    margin: 0.5rem 0 0 0;
-    color: var(--gray-600);
-  }
-
-
-  .card-header-modern {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .card-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  /* Table */
-  .table-modern {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .table-modern thead {
-    background: var(--gray-50);
-  }
-
-  .table-modern th {
-    padding: 1rem 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray-700);
-    text-align: center;
-    border: none;
-  }
-
-  .table-modern td {
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    vertical-align: middle;
-  }
-
-  .table-modern th:first-child,
-  .table-modern td:first-child {
-    text-align: left;
-  }
-
-  .table-modern tbody tr {
-    transition: all 0.2s ease;
-  }
-
-  .table-modern tbody tr:hover {
-    background: var(--gray-50);
-  }
-
-
-  /* User Avatar */
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 0.875rem;
-    margin-right: 0.75rem;
-    line-height: 1;
-    letter-spacing: 0;
-  }
-
-  .flex-center {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  /* Status Badge */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.9rem;
-    border-radius: 50px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .status-active {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .status-active::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--success-color);
-  }
-
-  .status-pending {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .status-pending::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--warning-color);
-  }
-
-  .status-blocked {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .status-blocked::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--danger-color);
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--gray-600);
-  }
-
-  .empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-  }
-
-  /* Animations */
-  .fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .dashboard-header h1 {
-      font-size: 1.5rem;
-    }
-
-    .stat-number {
-      font-size: 1.75rem;
-    }
-
-    .stat-icon {
-      width: 56px;
-      height: 56px;
-      font-size: 1.5rem;
-    }
-  }
+/* ── RTL for dashboard (dir=rtl auto-flips flex rows) ── */
+@media(max-width:768px){.ap-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4 fade-in">
-  <!-- Dashboard Header -->
-  <div class="dashboard-header">
-    <h1>
-      <i class="fas fa-chart-line"></i>
-      {% trans "Dashboard" %}
-    </h1>
-    <p class="dashboard-subtitle">{% trans "Welcome to your admin panel" %}</p>
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <!-- ═══ Page Header ═══ -->
+  <div class="pg-head">
+    <div>
+      <h1><i class="fas fa-th-large"></i> {% trans "Dashboard" %}</h1>
+      <p class="pg-sub">{% trans "Welcome to your admin panel" %}</p>
+    </div>
+    <button class="pg-toggle" id="toggleBtn" type="button">
+      <span id="toggleLabel">{% trans "Hide stats" %}</span>
+      <i class="fas fa-chevron-up chev"></i>
+    </button>
   </div>
 
-
-  <!-- Stats Grid -->
-  <div class="stats-grid">
-    <!-- Users -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Users" %}</div>
-        <div class="stat-number">{{ users_count }}</div>
-        <span class="stat-growth {% if user_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if user_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ user_growth|floatformat:1 }}%
-        </span>
+  <!-- ═══ Stats Row (full-width 4 columns) ═══ -->
+  <div class="db-wrap" id="statsWrap">
+    <div class="db-stats">
+      <div class="n-st">
+        <div class="n-st-info">
+          <p class="n-st-label">{% trans "Users" %}</p>
+          <p class="n-st-num" data-counter>{{ users_count }}</p>
+          <span class="n-st-grow {% if user_growth >= 0 %}up{% else %}down{% endif %}">
+            <i class="fas fa-arrow-{% if user_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ user_growth|floatformat:1 }}%
+          </span>
+        </div>
+        <div class="n-st-icon i1"><i class="fas fa-users"></i></div>
       </div>
-      <div class="stat-icon primary">
-        <i class="fas fa-users"></i>
+      <div class="n-st">
+        <div class="n-st-info">
+          <p class="n-st-label">{% trans "Resources" %}</p>
+          <p class="n-st-num" data-counter>{{ resources_count }}</p>
+          <span class="n-st-grow {% if pubs_growth >= 0 %}up{% else %}down{% endif %}">
+            <i class="fas fa-arrow-{% if pubs_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ pubs_growth|floatformat:1 }}%
+          </span>
+        </div>
+        <div class="n-st-icon i2"><i class="fas fa-book-open"></i></div>
       </div>
-    </div>
-
-    <!-- Resources -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Resources" %}</div>
-        <div class="stat-number">{{ resources_count }}</div>
-        <span class="stat-growth {% if pubs_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if pubs_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ pubs_growth|floatformat:1 }}%
-        </span>
+      <div class="n-st">
+        <div class="n-st-info">
+          <p class="n-st-label">{% trans "Projects" %}</p>
+          <p class="n-st-num" data-counter>{{ projects_count }}</p>
+          <span class="n-st-grow {% if projects_growth >= 0 %}up{% else %}down{% endif %}">
+            <i class="fas fa-arrow-{% if projects_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ projects_growth|floatformat:1 }}%
+          </span>
+        </div>
+        <div class="n-st-icon i3"><i class="fas fa-project-diagram"></i></div>
       </div>
-      <div class="stat-icon success">
-        <i class="fas fa-book-open"></i>
-      </div>
-    </div>
-
-    <!-- Projects -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Projects" %}</div>
-        <div class="stat-number">{{ projects_count }}</div>
-        <span class="stat-growth {% if projects_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if projects_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ projects_growth|floatformat:1 }}%
-        </span>
-      </div>
-      <div class="stat-icon info">
-        <i class="fas fa-project-diagram"></i>
-      </div>
-    </div>
-
-    <!-- Forum -->
-    <div class="stat-card">
-      <div class="stat-content">
-        <div class="stat-label">{% trans "Forum" %}</div>
-        <div class="stat-number">{{ forum_posts_count }}</div>
-        <span class="stat-growth {% if posts_growth >= 0 %}positive{% else %}negative{% endif %}">
-          <i class="fas fa-arrow-{% if posts_growth >= 0 %}up{% else %}down{% endif %}"></i>
-          {{ posts_growth|floatformat:1 }}%
-        </span>
-      </div>
-      <div class="stat-icon warning">
-        <i class="fas fa-comments"></i>
+      <div class="n-st">
+        <div class="n-st-info">
+          <p class="n-st-label">{% trans "Forum" %}</p>
+          <p class="n-st-num" data-counter>{{ forum_posts_count }}</p>
+          <span class="n-st-grow {% if posts_growth >= 0 %}up{% else %}down{% endif %}">
+            <i class="fas fa-arrow-{% if posts_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ posts_growth|floatformat:1 }}%
+          </span>
+        </div>
+        <div class="n-st-icon i4"><i class="fas fa-comments"></i></div>
       </div>
     </div>
   </div>
 
-
-  <!-- Recent Users -->
-  <div class="content-card">
-    <div class="card-header-modern">
-      <h6 class="card-title">
-        <i class="fas fa-user-plus text-success"></i>
-        {% trans "Recent Users" %}
-      </h6>
-      <a href="{% url 'pages:admin_users' %}" class="btn btn-sm btn-outline-primary">
-        {% trans "View All" %}
-        <i class="fas fa-arrow-right ms-1"></i>
-      </a>
+  <!-- ═══ Recent Users Table ═══ -->
+  <div class="n-card">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-users"></i> {% trans "Recent Users" %}</h6>
+      <a href="{% url 'pages:admin_users' %}" class="n-link">{% trans "View All" %} <i class="fas fa-arrow-right"></i></a>
     </div>
-    <div class="table-responsive">
-      <table class="table-modern">
-        <thead>
-          <tr>
-            <th>{% trans "User" %}</th>
-            <th>{% trans "Status" %}</th>
-            <th>{% trans "Date" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for user in recent_users %}
-          <tr>
-            <td>
-              <div class="flex-center">
-                <div class="user-avatar">
-                  {% if user.get_full_name_display %}{{ user.get_full_name_display|slice:":1"|upper }}{% else %}U{% endif %}
-                </div>
-                <div>
-                  <strong>{% if user.get_full_name_display %}{{ user.get_full_name_display }}{% else %}{{ user.email }}{% endif %}</strong>
-                </div>
-              </div>
-            </td>
-            <td>
-              {% if user.status == 'active' %}
-              <span class="status-badge status-active">{% trans "Active" %}</span>
-              {% elif user.status == 'pending' %}
-              <span class="status-badge status-pending">{% trans "Pending" %}</span>
-              {% elif user.status == 'blocked' %}
-              <span class="status-badge status-blocked">{% trans "Blocked" %}</span>
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "User" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th style="text-align:end;">{% trans "Date" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in recent_users %}
+        <tr>
+          <td>
+            <div class="u-cell">
+              {% if u.avatar %}
+                <img src="{{ u.avatar.url }}" alt="" class="u-av" loading="lazy">
+              {% else %}
+                <span class="u-av-fallback {% cycle '' 'c2' 'c3' 'c4' 'c5' 'c6' %}">{{ u.get_initials }}</span>
               {% endif %}
-            </td>
-            <td>
-              <span class="text-muted">{{ user.date_joined|date:"d M Y" }}</span>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="3" class="empty-state">
-              <div class="empty-icon">
-                <i class="fas fa-users"></i>
-              </div>
-              <p>{% trans "No recent users" %}</p>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              <p class="u-name">{% if u.get_full_name_display %}{{ u.get_full_name_display }}{% else %}{{ u.email }}{% endif %}</p>
+            </div>
+          </td>
+          <td>
+            {% if u.status == 'active' %}
+              <span class="db-badge active"><span class="db-dot"></span> {% trans "Active" %}</span>
+            {% elif u.status == 'pending' %}
+              <span class="db-badge pending"><span class="db-dot"></span> {% trans "Pending" %}</span>
+            {% elif u.status == 'blocked' %}
+              <span class="db-badge blocked"><span class="db-dot"></span> {% trans "Blocked" %}</span>
+            {% endif %}
+          </td>
+          <td style="text-align:end;"><span class="n-dt">{{ u.date_joined|date:"d M Y" }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3"><div class="n-empty"><i class="fas fa-users"></i><p>{% trans "No recent users" %}</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Activity Charts (2-col) ═══ -->
+  <div class="n-2col">
+    <div class="n-card">
+      <div class="n-card-head"><h6 class="n-card-title"><i class="fas fa-chart-area"></i> {% trans "Users Activity" %}</h6></div>
+      <div class="ch-body"><canvas id="usersChart"></canvas></div>
+    </div>
+    <div class="n-card">
+      <div class="n-card-head"><h6 class="n-card-title"><i class="fas fa-chart-bar"></i> {% trans "Resources Activity" %}</h6></div>
+      <div class="ch-body"><canvas id="resourcesChart"></canvas></div>
     </div>
   </div>
+
+  <!-- ═══ Approval Overview ═══ -->
+  <div class="n-card">
+    <div class="n-card-head"><h6 class="n-card-title"><i class="fas fa-clipboard-check"></i> {% trans "Approval Overview" %}</h6></div>
+    <div class="ap-grid">
+      {% for s in approval_sections %}
+      <a href="{{ s.url }}" class="ap-item">
+        <div><div class="ap-name">{{ s.title }}</div><div class="ap-owner">{{ s.owner }}</div></div>
+        <div style="display:flex;gap:.25rem;">
+          {% if s.pending > 0 %}<span class="ap-pill pn">{{ s.pending }}</span>{% endif %}
+          <span class="ap-pill ok">{{ s.approved }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ═══ Recent Publications ═══ -->
+  <div class="n-card">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-book"></i> {% trans "Recent Publications" %}</h6>
+      <a href="{% url 'pages:admin_publications' %}" class="n-link">{% trans "View All" %} <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <table class="n-tbl">
+      <thead><tr><th>{% trans "Title" %}</th><th style="text-align:end;">{% trans "Date" %}</th></tr></thead>
+      <tbody>
+        {% for pub in recent_publications %}
+        <tr>
+          <td><span style="font-weight:600;">{{ pub.title|truncatechars:50 }}</span></td>
+          <td style="text-align:end;"><span class="n-dt">{{ pub.creation_date|date:"d M Y" }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2"><div class="n-empty"><i class="fas fa-book"></i><p>{% trans "No publications" %}</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Recent Projects ═══ -->
+  <div class="n-card">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-project-diagram"></i> {% trans "Recent Projects" %}</h6>
+      <a href="{% url 'pages:admin_projects' %}" class="n-link">{% trans "View All" %} <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <table class="n-tbl">
+      <thead><tr><th>{% trans "Project" %}</th><th>{% trans "Status" %}</th><th style="text-align:end;">{% trans "Date" %}</th></tr></thead>
+      <tbody>
+        {% for proj in recent_projects %}
+        <tr>
+          <td><span style="font-weight:600;">{{ proj.title|truncatechars:40 }}</span></td>
+          <td>
+            <span class="db-badge {% if proj.status == 'ongoing' or proj.status == 'completed' %}active{% elif proj.status == 'pending' %}pending{% else %}blocked{% endif %}">
+              <span class="db-dot"></span> {{ proj.get_status_display }}
+            </span>
+          </td>
+          <td style="text-align:end;"><span class="n-dt">{{ proj.created_at|date:"d M Y" }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3"><div class="n-empty"><i class="fas fa-project-diagram"></i><p>{% trans "No projects" %}</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Animate counters
-  const counters = document.querySelectorAll('.stat-number');
-  counters.forEach(counter => {
-    const target = parseInt(counter.textContent);
-    const increment = target / 50;
-    let current = 0;
+  /* ── Stats toggle ── */
+  var btn = document.getElementById('toggleBtn');
+  var wrap = document.getElementById('statsWrap');
+  var label = document.getElementById('toggleLabel');
+  var KEY = 'admin_stats_collapsed';
+  var txtH = '{% filter escapejs %}{% trans "Hide stats" %}{% endfilter %}';
+  var txtS = '{% filter escapejs %}{% trans "Show stats" %}{% endfilter %}';
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        counter.textContent = target;
-        clearInterval(timer);
-      } else {
-        counter.textContent = Math.floor(current);
-      }
-    }, 30);
+  function setCollapsed(c) {
+    wrap.classList.toggle('collapsed', c);
+    btn.classList.toggle('collapsed', c);
+    label.textContent = c ? txtS : txtH;
+  }
+  if (localStorage.getItem(KEY) === 'true') setCollapsed(true);
+  btn.addEventListener('click', function() {
+    var c = !wrap.classList.contains('collapsed');
+    setCollapsed(c);
+    localStorage.setItem(KEY, c);
   });
+
+  /* ── Counter animation ── */
+  document.querySelectorAll('[data-counter]').forEach(function(el) {
+    var t = parseInt(el.textContent) || 0;
+    if (!t) return;
+    var n = 0, s = t / 30;
+    var iv = setInterval(function() {
+      n += s;
+      if (n >= t) { el.textContent = t; clearInterval(iv); }
+      else el.textContent = Math.floor(n);
+    }, 25);
+  });
+
+  /* ── Charts ── */
+  var labels = {{ chart_labels|safe }};
+  var uData = {{ users_activity_data|safe }};
+  var rData = {{ resources_activity_data|safe }};
+  var isRTL = document.documentElement.dir === 'rtl';
+
+  var opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#1E293B', padding: 8, cornerRadius: 6, titleFont: { size: 11 }, bodyFont: { size: 11 } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, color: '#9CA3AF' }, reverse: isRTL },
+      y: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 10 }, color: '#9CA3AF' }, beginAtZero: true, position: isRTL ? 'right' : 'left' }
+    }
+  };
+
+  var uc = document.getElementById('usersChart');
+  if (uc) {
+    var g = uc.getContext('2d').createLinearGradient(0, 0, 0, 200);
+    g.addColorStop(0, 'rgba(59,130,246,.12)');
+    g.addColorStop(1, 'rgba(59,130,246,0)');
+    new Chart(uc, {
+      type: 'line',
+      data: { labels: labels, datasets: [{ data: uData, borderColor: '#3B82F6', backgroundColor: g, fill: true, tension: .4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#3B82F6' }] },
+      options: opts
+    });
+  }
+
+  var rc = document.getElementById('resourcesChart');
+  if (rc) {
+    new Chart(rc, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ data: rData, backgroundColor: 'rgba(16,185,129,.35)', borderColor: '#10B981', borderWidth: 1, borderRadius: 4, barPercentage: .55 }] },
+      options: opts
+    });
+  }
 });
 </script>
 {% endblock %}

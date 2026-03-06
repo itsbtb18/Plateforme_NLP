@@ -80,10 +80,36 @@ class PlatformSearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=50)
 
 
+class EntityExplainRequest(BaseModel):
+    """Request to explain/summarise a platform entity (tool, corpus, etc.)"""
+
+    entity_type: str = Field(
+        ..., description="Content type: tool, corpus, course, event, project, article, thesis, institution"
+    )
+    entity_title: str = Field(..., max_length=500, description="Entity title")
+    entity_description: Optional[str] = Field(None, max_length=5000, description="Entity description/summary")
+    entity_metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Extra metadata (author, language, field, etc.)"
+    )
+    session_id: str = Field(..., description="Session identifier")
+    user_id: Optional[str] = None
+    language: Optional[str] = Field(None, description="Preferred response language (ar/en/fr)")
+
+
 class SessionRenameRequest(BaseModel):
     """Rename a chat session"""
 
     title: str = Field(..., min_length=1, max_length=200)
+
+
+class PlatformDocumentIngestResponse(BaseModel):
+    """Response after ingesting a platform document for RAG processing"""
+
+    document_id: int
+    filename: str
+    status: str
+    session_id: str
+    message: str
 
 
 # ---------------------------------------------------------------------------

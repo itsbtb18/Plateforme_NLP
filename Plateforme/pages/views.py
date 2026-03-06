@@ -1,12 +1,11 @@
 from django.conf import settings
-from django.apps import apps
 from django.db import transaction
 from django.urls import reverse
 from django.core.mail import send_mail
 from django.views.generic import TemplateView
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from pages.forms import AdminResponseForm, ContactForm, AdminUserCreateForm
+from pages.forms import AdminResponseForm, ContactForm
 from accounts.models import CustomUser
 from events.models import Event
 from resources.models import Corpus, NLPTool, Document, Course
@@ -100,203 +99,377 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import AdminActivityLog, ContactMessage, SecurityLog, Stats, UserStatusHistory
+from .models import ContactMessage, Stats, UserStatusHistory
 from institutions.models import Institution
 import datetime
 from accounts.forms import CustomUserChangeForm
-from .security import (
-    ROLE_ADMIN,
-    ensure_moderator_group,
-    get_user_role,
-    has_admin_permission,
-    log_admin_activity,
-    sanitize_admin_text,
-)
 
 
 User = get_user_model()
 
 
 def is_admin(user):
-    """Allow admin panel access for admin + moderator roles."""
-    return has_admin_permission(user, "view_dashboard")
-
-
-def is_staff_user(user):
-    return bool(user and user.is_authenticated and user.is_staff)
+    """Check if user is an admin"""
+    return user.is_staff or user.is_superuser
 
 
 @login_required
-@user_passes_test(is_staff_user)
+@user_passes_test(is_admin)
 def admin_dashboard(request):
-    now_dt = timezone.now()
-    today = now_dt.date()
-    day_ago = now_dt - timedelta(days=1)
-    week_ago = now_dt - timedelta(days=7)
-    prev_week_start = now_dt - timedelta(days=14)
-    month_ago = now_dt - timedelta(days=30)
-    prev_month_start = now_dt - timedelta(days=60)
-
-    def safe_model(app_label, model_name):
-        try:
-            return apps.get_model(app_label, model_name)
-        except LookupError:
-            return None
-
-    def model_fields(model):
-        if not model:
-            return set()
-        return {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
-
-    def count_recent(model, since_dt):
-        if not model:
-            return 0
-        fields = model_fields(model)
-        for date_field in ('created_at', 'creation_date', 'date_joined'):
-            if date_field in fields:
-                return model.objects.filter(**{f"{date_field}__gte": since_dt}).count()
-        return 0
-
-    def pending_queryset(model):
-        if not model:
-            return None
-        fields = model_fields(model)
-        if 'approval_status' in fields:
-            return model.objects.filter(approval_status='pending')
-        if 'is_approved' in fields:
-            return model.objects.filter(is_approved=False)
-        if 'status' in fields:
-            return model.objects.filter(status='pending')
-        return None
-
-    def pending_count(model):
-        qs = pending_queryset(model)
-        return qs.count() if qs is not None else 0
-
-    content_models = [
-        {'slug': 'corpus', 'label': _('Corpus'), 'model': safe_model('resources', 'Corpus'), 'icon': 'fa-database', 'url': reverse('pages:admin_corpora')},
-        {'slug': 'tools', 'label': _('Tools'), 'model': safe_model('resources', 'NLPTool'), 'icon': 'fa-screwdriver-wrench', 'url': reverse('pages:admin_tools')},
-        {'slug': 'resources', 'label': _('Resources'), 'model': safe_model('resources', 'Document'), 'icon': 'fa-file-lines', 'url': reverse('pages:admin_publications')},
-        {'slug': 'courses', 'label': _('Courses'), 'model': safe_model('resources', 'Course'), 'icon': 'fa-graduation-cap', 'url': reverse('pages:admin_courses')},
-        {'slug': 'projects', 'label': _('Projects'), 'model': safe_model('projects', 'Project'), 'icon': 'fa-flask', 'url': reverse('pages:admin_projects')},
-        {'slug': 'events', 'label': _('Events'), 'model': safe_model('events', 'Event'), 'icon': 'fa-calendar-days', 'url': reverse('pages:admin_calls')},
-        {'slug': 'forum_topics', 'label': _('Forum Topics'), 'model': safe_model('forum', 'Topic'), 'icon': 'fa-comments', 'url': reverse('pages:admin_forum')},
-        {'slug': 'institutions', 'label': _('Institutions'), 'model': safe_model('institutions', 'Institution'), 'icon': 'fa-building-columns', 'url': reverse('pages:admin_institutions')},
-    ]
-
-    UserModel = get_user_model()
-    users_total = UserModel.objects.count()
-    users_active_7d = UserModel.objects.filter(last_login__gte=week_ago).count()
-    users_active_prev_7d = UserModel.objects.filter(last_login__gte=prev_week_start, last_login__lt=week_ago).count()
-    users_new_today = UserModel.objects.filter(date_joined__date=today).count()
-    users_new_yesterday = UserModel.objects.filter(date_joined__date=today - timedelta(days=1)).count()
-    users_new_7d = UserModel.objects.filter(date_joined__gte=week_ago).count()
-    users_new_30d = UserModel.objects.filter(date_joined__gte=month_ago).count()
-    users_new_prev_30d = UserModel.objects.filter(date_joined__gte=prev_month_start, date_joined__lt=month_ago).count()
-    users_staff = UserModel.objects.filter(is_staff=True).count()
-
-    ActivityLogModel = safe_model('pages', 'ActivityLog') or AdminActivityLog
-    BlockedUploadModel = safe_model('pages', 'BlockedUpload')
-
-    if BlockedUploadModel:
-        blocked_uploads_total = BlockedUploadModel.objects.count()
-        blocked_uploads_24h = BlockedUploadModel.objects.filter(blocked_at__gte=day_ago).count()
-    else:
-        blocked_uploads_total = ActivityLogModel.objects.filter(action='blocked_upload').count()
-        blocked_uploads_24h = ActivityLogModel.objects.filter(action='blocked_upload', occurred_at__gte=day_ago).count()
-
-    security_events_24h = ActivityLogModel.objects.filter(occurred_at__gte=day_ago).count()
-    security_events_prev_24h = ActivityLogModel.objects.filter(occurred_at__gte=day_ago - timedelta(days=1), occurred_at__lt=day_ago).count()
-    logs_total = ActivityLogModel.objects.count()
-    recent_logs = ActivityLogModel.objects.select_related('admin_user').order_by('-occurred_at')[:20]
-
-    content_inventory = []
-    pending_sections = []
-    total_pending_reviews = 0
-    pending_recent_7d = 0
-    for item in content_models:
-        model = item['model']
-        total_count = model.objects.count() if model else 0
-        recent_count = count_recent(model, week_ago)
-        pending = pending_count(model)
-        total_pending_reviews += pending
-        pending_recent_7d += count_recent(model, week_ago) if pending else 0
-        row = {
-            **item,
-            'total_count': total_count,
-            'recent_count': recent_count,
-            'pending_count': pending,
-        }
-        content_inventory.append(row)
-        if pending > 0:
-            pending_sections.append(row)
-
-    chart_start = today - timedelta(days=29)
-    signup_rows = (
-        UserModel.objects.filter(date_joined__date__gte=chart_start)
-        .annotate(day=TruncDate('date_joined'))
-        .values('day')
-        .annotate(total=Count('id'))
-        .order_by('day')
+    """Main admin dashboard view"""
+    today = timezone.now().date()
+    last_year = today - datetime.timedelta(days=365)
+    
+    # Recent users - Type hint the queryset
+    recent_users: 'QuerySet[CustomUser]' = CustomUser.objects.filter(
+        date_joined__gte=today-datetime.timedelta(days=30)
+    ).order_by('-date_joined')[:10]
+    
+    # Recent content
+    recent_publications = Document.objects.order_by('-creation_date').prefetch_related('authors')[:5]
+    recent_corpora = Corpus.objects.all().order_by('-creation_date')[:5]
+    recent_tools = NLPTool.objects.all().order_by('-creation_date')[:5]
+    recent_projects = Project.objects.all().order_by('-created_at')[:5]
+    
+    # Count statistics
+    users_count = CustomUser.objects.count()
+    resources_count = (
+        Document.objects.count() + 
+        Corpus.objects.count() + 
+        NLPTool.objects.count() + 
+        Course.objects.count()
     )
-    signup_map = {r['day']: r['total'] for r in signup_rows}
-    signup_labels = []
-    signup_values = []
-    for i in range(30):
-        day = chart_start + timedelta(days=i)
-        signup_labels.append(day.strftime('%Y-%m-%d'))
-        signup_values.append(int(signup_map.get(day, 0)))
+    projects_count = Project.objects.filter(status='ongoing').count()
+    forum_posts_count = Topic.objects.count() + ChatRoom.objects.count()
+    
+    # Nouveaux compteurs pour la répartition des ressources
+    publications_count = Document.objects.count()
+    corpora_count = Corpus.objects.count()
+    tools_count = NLPTool.objects.count()
+    courses_count = Course.objects.count()
+    
+    # Compteurs pour les statuts des projets
+    projects_in_progress = Project.objects.filter(status='ongoing').count()
+    projects_completed = Project.objects.filter(status='completed').count()
+    projects_pending = Project.objects.filter(status='pending').count()
+    projects_cancelled = Project.objects.filter(status='cancelled').count()
+    
+    # Données pour l'activité du forum
+    forum_topics_data = []
+    forum_messages_data = []
+    
+    # Récupérer les données du forum pour les 12 derniers mois
+    for i in range(12):
+        month = today - datetime.timedelta(days=30 * i)
+        month_start = month.replace(day=1)
+        if i == 0:
+            month_end = today
+        else:
+            next_month = month.replace(day=28) + datetime.timedelta(days=4)
+            month_end = next_month - datetime.timedelta(days=next_month.day)
+        
+        topics_count = Topic.objects.filter(
+            created_at__gte=month_start,
+            created_at__lte=month_end
+        ).count()
+        
+        messages_count = ChatRoom.objects.filter(
+            created_at__gte=month_start,
+            created_at__lte=month_end
+        ).count()
+        
+        forum_topics_data.append(topics_count)
+        forum_messages_data.append(messages_count)
+    
+    forum_topics_data.reverse()
+    forum_messages_data.reverse()
+    
+    # Users by type
+    users_by_type = CustomUser.objects.order_by('-date_joined')[:10]
+    
+    # Get monthly growth rates
+    last_month = today - datetime.timedelta(days=30)
+    two_months_ago = today - datetime.timedelta(days=60)
+    
+    users_this_month = CustomUser.objects.filter(date_joined__gte=last_month).count()
+    users_last_month = CustomUser.objects.filter(
+        date_joined__gte=two_months_ago, 
+        date_joined__lt=last_month
+    ).count()
+    
+    user_growth = ((users_this_month - users_last_month) / users_last_month * 100) if users_last_month > 0 else (100 if users_this_month > 0 else 0)
+        
+    # Publications this month
+    pubs_this_month = Document.objects.filter(creation_date__gte=last_month).count()
+    pubs_last_month = Document.objects.filter(
+        creation_date__gte=two_months_ago, 
+        creation_date__lt=last_month
+    ).count()
+    
+    pubs_growth = ((pubs_this_month - pubs_last_month) / pubs_last_month * 100) if pubs_last_month > 0 else (100 if pubs_this_month > 0 else 0)
 
-    recent_users = UserModel.objects.order_by('-date_joined')
+    # Projects growth
+    projects_this_month = Project.objects.filter(created_at__gte=last_month).count()
+    projects_last_month = Project.objects.filter(
+        created_at__gte=two_months_ago, 
+        created_at__lt=last_month
+    ).count()
+    
+    projects_growth = ((projects_this_month - projects_last_month) / projects_last_month * 100) if projects_last_month > 0 else (100 if projects_this_month > 0 else 0)
+    
+    # Forum posts growth
+    posts_this_month = (
+        Topic.objects.filter(created_at__gte=last_month).count() + 
+        ChatRoom.objects.filter(created_at__gte=last_month).count()
+    )
+    
+    posts_last_month = (
+        Topic.objects.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count() + 
+        ChatRoom.objects.filter(created_at__gte=two_months_ago, created_at__lt=last_month).count()  
+    )
+    
+    posts_growth = ((posts_this_month - posts_last_month) / posts_last_month * 100) if posts_last_month > 0 else (100 if posts_this_month > 0 else 0)
+    
+    # Monthly users
+    monthly_users = CustomUser.objects.filter(
+        date_joined__date__gte=last_year
+    ).annotate(
+        month=TruncMonth('date_joined')
+    ).values('month').annotate(count=Count('id')).order_by('month')
 
-    quick_actions = [
-        {'label': _('Manage Users'), 'url': reverse('pages:admin_users'), 'icon': 'fa-users'},
-        {'label': _('Moderate Publications'), 'url': reverse('pages:admin_publications'), 'icon': 'fa-book-open'},
-        {'label': _('Review Projects'), 'url': reverse('pages:admin_projects'), 'icon': 'fa-flask'},
-        {'label': _('Moderate Forum'), 'url': reverse('pages:admin_forum'), 'icon': 'fa-comments'},
-        {'label': _('Review Events'), 'url': reverse('pages:admin_calls'), 'icon': 'fa-calendar-days'},
-        {'label': _('Security Center'), 'url': reverse('pages:admin_security'), 'icon': 'fa-shield-halved'},
-    ]
+    # Monthly resources
+    monthly_publications = Document.objects.filter(
+        creation_date__date__gte=last_year
+    ).annotate(month=TruncMonth('creation_date')).values('month').annotate(count=Count('id')).order_by('month')
 
-    def metric(label, value, delta, period, icon, tone):
-        return {
-            'label': label,
-            'value': value,
-            'delta': delta,
-            'period': period,
-            'icon': icon,
-            'tone': tone,
-        }
+    monthly_corpora = Corpus.objects.filter(
+        creation_date__date__gte=last_year
+    ).annotate(month=TruncMonth('creation_date')).values('month').annotate(count=Count('id')).order_by('month')
+
+    monthly_tools = NLPTool.objects.filter(
+        creation_date__date__gte=last_year
+    ).annotate(month=TruncMonth('creation_date')).values('month').annotate(count=Count('id')).order_by('month')
+
+    # Combine monthly resources
+    monthly_resources_dict = {}
+
+    for item in monthly_publications:
+        month_key = item['month'].strftime('%Y-%m')
+        monthly_resources_dict[month_key] = monthly_resources_dict.get(month_key, 0) + item['count']
+
+    for item in monthly_corpora:
+        month_key = item['month'].strftime('%Y-%m')
+        monthly_resources_dict[month_key] = monthly_resources_dict.get(month_key, 0) + item['count']
+        
+    for item in monthly_tools:
+        month_key = item['month'].strftime('%Y-%m')
+        monthly_resources_dict[month_key] = monthly_resources_dict.get(month_key, 0) + item['count']
+
+    # Prepare chart data
+    all_months = []
+    for i in range(12):
+        month = today - datetime.timedelta(days=30 * i)
+        all_months.append(month.strftime('%Y-%m'))
+    all_months.reverse()
+
+    chart_labels = [datetime.datetime.strptime(month, '%Y-%m').strftime('%b %Y') for month in all_months]
+    users_activity_data = []
+    resources_activity_data = []
+
+    monthly_users_dict = {item['month'].strftime('%Y-%m'): item['count'] for item in monthly_users}
+
+    for month in all_months:
+        users_activity_data.append(monthly_users_dict.get(month, 0))
+        resources_activity_data.append(monthly_resources_dict.get(month, 0))
 
     context = {
-        'page': 'Admin',
-        'overview_metrics': [
-            metric(_('Total Users'), users_total, users_new_30d, _('this month'), 'fa-users', 'blue'),
-            metric(_('Active Users (7d)'), users_active_7d, users_active_7d - users_active_prev_7d, _('vs last 7 days'), 'fa-user-check', 'green'),
-            metric(_('New Users Today'), users_new_today, users_new_today - users_new_yesterday, _('vs yesterday'), 'fa-user-plus', 'purple'),
-            metric(_('Pending Reviews'), total_pending_reviews, pending_recent_7d, _('created in 7 days'), 'fa-hourglass-half', 'yellow'),
-            metric(_('Security Events (24h)'), security_events_24h, security_events_24h - security_events_prev_24h, _('vs previous 24h'), 'fa-shield-halved', 'red'),
-        ],
-        'users_metrics': [
-            metric(_('Total Users'), users_total, users_new_30d, _('this month'), 'fa-users', 'blue'),
-            metric(_('New Today'), users_new_today, users_new_7d, _('new in 7 days'), 'fa-user-plus', 'purple'),
-            metric(_('Active Users (7d)'), users_active_7d, users_active_7d - users_active_prev_7d, _('vs last 7 days'), 'fa-user-check', 'green'),
-            metric(_('Staff Count'), users_staff, 0, _('staff accounts'), 'fa-user-shield', 'yellow'),
-        ],
-        'security_metrics': [
-            metric(_('Blocked Uploads'), blocked_uploads_total, blocked_uploads_24h, _('in last 24h'), 'fa-ban', 'red'),
-            metric(_('Events (24h)'), security_events_24h, security_events_24h, _('in last 24h'), 'fa-triangle-exclamation', 'yellow'),
-            metric(_('Total Log Entries'), logs_total, 0, _('audit entries'), 'fa-clipboard-list', 'blue'),
-        ],
-        'content_inventory': content_inventory,
-        'pending_sections': pending_sections,
-        'has_pending': bool(pending_sections),
-        'quick_actions': quick_actions,
         'recent_users': recent_users,
-        'recent_logs': recent_logs,
-        'signup_labels_json': json.dumps(signup_labels),
-        'signup_values_json': json.dumps(signup_values),
+        'recent_publications': recent_publications,
+        'recent_corpora': recent_corpora,
+        'recent_tools': recent_tools,
+        'recent_projects': recent_projects,
+        'users_count': users_count,
+        'resources_count': resources_count,
+        'projects_count': projects_count,
+        'forum_posts_count': forum_posts_count,
+        'users_by_type': users_by_type,
+        'user_growth': user_growth,
+        'pubs_growth': pubs_growth,
+        'projects_growth': projects_growth,
+        'posts_growth': posts_growth,
+        'chart_labels': json.dumps(chart_labels),
+        'users_activity_data': json.dumps(users_activity_data),
+        'resources_activity_data': json.dumps(resources_activity_data),
+        'publications_count': publications_count,
+        'corpora_count': corpora_count,
+        'tools_count': tools_count,
+        'courses_count': courses_count,
+        'projects_in_progress': projects_in_progress,
+        'projects_completed': projects_completed,
+        'projects_pending': projects_pending,
+        'projects_cancelled': projects_cancelled,
+        'forum_topics_data': json.dumps(forum_topics_data),
+        'forum_messages_data': json.dumps(forum_messages_data),
     }
+
+    def _pending_queryset(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return model.objects.filter(approval_status='pending')
+        if 'status' in field_names:
+            return model.objects.filter(status='pending')
+        return model.objects.none()
+
+    def _title_for(item):
+        for attr in ('get_localized_title', 'title', 'name'):
+            value = getattr(item, attr, None)
+            if callable(value):
+                try:
+                    value = value()
+                except Exception:
+                    value = None
+            if value:
+                return str(value)
+        return str(item)
+
+    def _author_for(item):
+        for attr in ('author', 'coordinator', 'creator', 'teacher', 'created_by'):
+            u = getattr(item, attr, None)
+            if not u:
+                continue
+            display = getattr(u, 'get_full_name_display', None)
+            if callable(display):
+                try:
+                    return str(display())
+                except Exception:
+                    pass
+            for name_attr in ('full_name', 'username', 'email'):
+                v = getattr(u, name_attr, None)
+                if v:
+                    return str(v)
+        return '-'
+
+    def _created_for(item):
+        for attr in ('created_at', 'creation_date'):
+            v = getattr(item, attr, None)
+            if v:
+                return v
+        return timezone.now()
+
+    section_defs = [
+        ('corpus', _('Corpus'), Corpus),
+        ('nlptool', _('Tools'), NLPTool),
+        ('document', _('Resources'), Document),
+        ('project', _('Projects'), Project),
+        ('topic', _('Topics'), Topic),
+        ('post', _('News'), Post),
+        ('course', _('Courses'), Course),
+        ('event', _('Events'), Event),
+    ]
+    pending_review_items = []
+    for model_type, section_label, model in section_defs:
+        for item in _pending_queryset(model).order_by('-created_at' if hasattr(model, 'created_at') else '-creation_date')[:10]:
+            pending_review_items.append({
+                'id': str(item.pk),
+                'model_type': model_type,
+                'section': section_label,
+                'title': _title_for(item),
+                'author': _author_for(item),
+                'created': _created_for(item),
+            })
+    pending_review_items.sort(key=lambda x: x['created'], reverse=True)
+    context['pending_review_items'] = pending_review_items[:80]
+
+    def _status_counts(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return (
+                model.objects.filter(approval_status='pending').count(),
+                model.objects.filter(approval_status='approved').count(),
+            )
+        if 'status' in field_names:
+            return (
+                model.objects.filter(status='pending').count(),
+                model.objects.exclude(status='pending').count(),
+            )
+        return (0, model.objects.count())
+
+    corpus_pending, corpus_approved = _status_counts(Corpus)
+    tools_pending, tools_approved = _status_counts(NLPTool)
+    resources_pending, resources_approved = _status_counts(Document)
+    projects_pending_approval, projects_approved = _status_counts(Project)
+    topics_pending, topics_approved = _status_counts(Topic)
+    news_pending, news_approved = _status_counts(Post)
+    courses_pending, courses_approved = _status_counts(Course)
+    events_pending, events_approved = _status_counts(Event)
+
+    context['approval_sections'] = [
+        {
+            'title': _('Corpus'),
+            'owner': _('Corpus Team'),
+            'pending': corpus_pending,
+            'approved': corpus_approved,
+            'url': reverse('pages:admin_corpora'),
+            'active': corpus_pending == 0,
+        },
+        {
+            'title': _('Tools'),
+            'owner': _('Tools Team'),
+            'pending': tools_pending,
+            'approved': tools_approved,
+            'url': reverse('pages:admin_tools'),
+            'active': tools_pending == 0,
+        },
+        {
+            'title': _('Resources'),
+            'owner': _('Resources Team'),
+            'pending': resources_pending,
+            'approved': resources_approved,
+            'url': reverse('pages:admin_publications'),
+            'active': resources_pending == 0,
+        },
+        {
+            'title': _('Projects'),
+            'owner': _('Projects Team'),
+            'pending': projects_pending_approval,
+            'approved': projects_approved,
+            'url': reverse('pages:admin_projects'),
+            'active': projects_pending_approval == 0,
+        },
+        {
+            'title': _('Topics'),
+            'owner': _('Forum Team'),
+            'pending': topics_pending,
+            'approved': topics_approved,
+            'url': reverse('pages:admin_forum'),
+            'active': topics_pending == 0,
+        },
+        {
+            'title': _('News'),
+            'owner': _('Editorial Team'),
+            'pending': news_pending,
+            'approved': news_approved,
+            'url': reverse('pages:admin_news'),
+            'active': news_pending == 0,
+        },
+        {
+            'title': _('Courses'),
+            'owner': _('Courses Team'),
+            'pending': courses_pending,
+            'approved': courses_approved,
+            'url': reverse('pages:admin_courses'),
+            'active': courses_pending == 0,
+        },
+        {
+            'title': _('Events'),
+            'owner': _('Events Team'),
+            'pending': events_pending,
+            'approved': events_approved,
+            'url': reverse('events:event_list'),
+            'active': events_pending == 0,
+        },
+    ]
+    
     return render(request, 'admin/dashboard.html', context)
 
 
@@ -433,33 +606,41 @@ def admin_users(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_users_new(request):
-    if get_user_role(request.user) != ROLE_ADMIN:
-        messages.error(request, _("Only administrators can create users."))
+    if request.method == 'POST':
+        full_name = request.POST.get('full_name')
+        email = request.POST.get('email')
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
+        status = request.POST.get('status', 'active')
+
+        if password1 != password2:
+            messages.error(request, "Les mots de passe ne correspondent pas.")
+            return render(request, 'admin/users_new.html')
+
+        if CustomUser.objects.filter(email=email).exists():
+            messages.error(request, f"L'utilisateur avec l'email {email} existe déjà.")
+            return render(request, 'admin/users_new.html')
+
+        institution_obj = None
+
+        user = CustomUser.objects.create_user(
+            username=email,
+            email=email,
+            password=password1,
+            full_name=full_name,
+            institution=institution_obj,
+        )
+
+        user.status = status
+        user.is_active = True
+        user.is_staff = True
+        user.is_superuser = True
+        user.save()
+
+        messages.success(request, f"L'administrateur {full_name} a été créé avec succès.")
         return redirect('pages:admin_users')
 
-    ensure_moderator_group()
-
-    if request.method == 'POST':
-        form = AdminUserCreateForm(request.POST)
-        if form.is_valid():
-            user = form.save(created_by=request.user)
-            log_admin_activity(
-                user=request.user,
-                request=request,
-                action="create_user",
-                target_type="user",
-                target_id=str(user.id),
-                details=f"role={get_user_role(user)};status={user.status}",
-            )
-            messages.success(
-                request,
-                _("User %(name)s has been created successfully.") % {'name': user.full_name or user.email},
-            )
-            return redirect('pages:admin_users')
-        messages.error(request, _("Please fix the form errors."))
-        return render(request, 'admin/users_new.html', {'form': form})
-
-    return render(request, 'admin/users_new.html', {'form': AdminUserCreateForm()})
+    return render(request, 'admin/users_new.html')
 
 
 @login_required
@@ -541,7 +722,7 @@ def admin_user_block(request, user_id):
         return redirect('pages:admin_users')
     
     if request.method == 'POST':
-        reason = sanitize_admin_text(request.POST.get('reason', ''), max_len=1000)
+        reason = request.POST.get('reason', '')
         old_status = user.status
         user.is_active = False
         user.status = 'blocked'
@@ -679,7 +860,7 @@ def admin_user_status(request, user_id, status):
 
     user_obj: CustomUser = get_object_or_404(CustomUser, id=user_id)
     old_status = user_obj.status
-    reason = sanitize_admin_text(request.POST.get('reason', ''), max_len=1000)
+    reason = request.POST.get('reason', '').strip()
 
     user_obj.status = status
     user_obj.is_active = status == 'active'
@@ -1404,152 +1585,8 @@ def admin_settings(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_security(request):
-    """Admin security center: metrics, alerts, filters, and paginated logs."""
-    security_logs_qs = SecurityLog.objects.select_related('user').order_by('-created_at')
-    use_legacy_admin_logs = not security_logs_qs.exists()
-    all_logs_qs = security_logs_qs
-    logs_qs = all_logs_qs
-
-    search_query = (request.GET.get('search') or '').strip()
-    user_filter = (request.GET.get('user') or '').strip()
-    action_filter = (request.GET.get('action') or '').strip()
-    date_filter = (request.GET.get('date') or '').strip()
-
-    def normalize_action(action: str, method: str = '', path: str = '') -> str:
-        a = (action or '').lower()
-        m = (method or '').upper()
-        p = (path or '').lower()
-        if 'failed_login' in a:
-            return 'failed_login'
-        if 'login' in a:
-            return 'login'
-        if 'blocked_upload' in a:
-            return 'blocked_upload'
-        if 'upload' in a:
-            return 'upload'
-        if 'delete' in a or m == 'DELETE' or '/delete/' in p:
-            return 'delete'
-        if 'update' in a or m in {'PUT', 'PATCH'} or '/update/' in p or '/edit/' in p:
-            return 'update'
-        if 'create' in a or (m == 'POST' and ('/new/' in p or '/create/' in p)):
-            return 'create'
-        return 'other'
-
-    if use_legacy_admin_logs:
-        admin_logs_qs = AdminActivityLog.objects.select_related('admin_user').order_by('-occurred_at')
-        logs_qs = admin_logs_qs
-        if search_query:
-            logs_qs = logs_qs.filter(
-                Q(admin_user__email__icontains=search_query)
-                | Q(action__icontains=search_query)
-                | Q(ip_address__icontains=search_query)
-                | Q(path__icontains=search_query)
-            )
-        if user_filter:
-            logs_qs = logs_qs.filter(admin_user_id=user_filter)
-        if action_filter:
-            logs_qs = logs_qs.filter(action__icontains=action_filter)
-        if date_filter:
-            try:
-                parsed_date = datetime.date.fromisoformat(date_filter)
-                logs_qs = logs_qs.filter(occurred_at__date=parsed_date)
-            except ValueError:
-                pass
-
-        paginator = Paginator(logs_qs, 20)
-        page_obj = paginator.get_page(request.GET.get('page'))
-        recent_logs = [
-            SimpleNamespace(
-                user=log.admin_user,
-                role=log.role_snapshot,
-                action=normalize_action(log.action, log.http_method, log.path),
-                method=(log.http_method or 'GET').upper(),
-                ip_address=log.ip_address,
-                path=log.path,
-                created_at=log.occurred_at,
-                get_action_display=lambda a=normalize_action(log.action, log.http_method, log.path): dict(SecurityLog.ACTION_CHOICES).get(a, a),
-            )
-            for log in page_obj.object_list
-        ]
-        last_24h = timezone.now() - timedelta(hours=24)
-        logs_count = admin_logs_qs.count()
-        failed_uploads_count = admin_logs_qs.filter(action='blocked_upload').count()
-        recent_security_events_count = admin_logs_qs.filter(occurred_at__gte=last_24h).count()
-        alerts = [
-            SimpleNamespace(
-                action=normalize_action(log.action, log.http_method, log.path),
-                get_action_display=dict(SecurityLog.ACTION_CHOICES).get(normalize_action(log.action, log.http_method, log.path), normalize_action(log.action, log.http_method, log.path)),
-                ip_address=log.ip_address,
-                created_at=log.occurred_at,
-            )
-            for log in admin_logs_qs[:30]
-            if normalize_action(log.action, log.http_method, log.path) in {'failed_login', 'blocked_upload'}
-        ][:12]
-        user_choices = (
-            AdminActivityLog.objects.exclude(admin_user__isnull=True)
-            .values('admin_user_id', 'admin_user__email')
-            .annotate(total=Count('id'))
-            .order_by('admin_user__email')
-        )
-        normalized_user_choices = [
-            {'user_id': row['admin_user_id'], 'user__email': row['admin_user__email'], 'total': row['total']}
-            for row in user_choices
-        ]
-    else:
-        if search_query:
-            logs_qs = logs_qs.filter(
-                Q(user__email__icontains=search_query)
-                | Q(action__icontains=search_query)
-                | Q(ip_address__icontains=search_query)
-                | Q(path__icontains=search_query)
-            )
-        if user_filter:
-            logs_qs = logs_qs.filter(user_id=user_filter)
-        if action_filter:
-            logs_qs = logs_qs.filter(action=action_filter)
-        if date_filter:
-            try:
-                parsed_date = datetime.date.fromisoformat(date_filter)
-                logs_qs = logs_qs.filter(created_at__date=parsed_date)
-            except ValueError:
-                pass
-
-        paginator = Paginator(logs_qs, 20)
-        page_obj = paginator.get_page(request.GET.get('page'))
-        recent_logs = page_obj.object_list
-        last_24h = timezone.now() - timedelta(hours=24)
-        alerts = all_logs_qs.filter(action__in=['failed_login', 'blocked_upload']).order_by('-created_at')[:12]
-        user_choices = (
-            SecurityLog.objects.exclude(user__isnull=True)
-            .values('user_id', 'user__email')
-            .annotate(total=Count('id'))
-            .order_by('user__email')
-        )
-        normalized_user_choices = list(user_choices)
-        logs_count = all_logs_qs.count()
-        failed_uploads_count = all_logs_qs.filter(action='blocked_upload').count()
-        recent_security_events_count = all_logs_qs.filter(created_at__gte=last_24h).count()
-
-    query_params = request.GET.copy()
-    query_params.pop('page', None)
-    context = {
-        'page_obj': page_obj,
-        'recent_logs': recent_logs,
-        'logs_count': logs_count,
-        'failed_uploads_count': failed_uploads_count,
-        'failed_login_count': (all_logs_qs.filter(action='failed_login').count() if not use_legacy_admin_logs else 0),
-        'recent_security_events_count': recent_security_events_count,
-        'alerts': alerts,
-        'user_choices': normalized_user_choices,
-        'action_choices': SecurityLog.ACTION_CHOICES,
-        'search_query': search_query,
-        'user_filter': user_filter,
-        'action_filter': action_filter,
-        'date_filter': date_filter,
-        'query_string': query_params.urlencode(),
-        'using_legacy_logs': use_legacy_admin_logs,
-    }
-    return render(request, 'admin/security.html', context)
+    """Admin security view"""
+    return render(request, 'admin/security.html')
 
 
 @login_required
@@ -2185,5 +2222,3 @@ def admin_reject_item(request, model_type, pk):
     messages.warning(request, _("'%(title)s' has been rejected and deleted.") % {'title': title})
     redirect_url = REDIRECT_MAP.get(model_type, 'pages:admin_dashboard')
     return redirect(f"{reverse(redirect_url)}?tab=pending")
-
-

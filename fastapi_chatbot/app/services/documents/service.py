@@ -37,6 +37,8 @@ class DocumentService:
         filename: str,
         session_id: str,
         user_id: Optional[str] = None,
+        source: str = "user_upload",
+        platform_document_id: Optional[str] = None,
     ) -> DocumentUploadResponse:
         """Validate, extract text, persist metadata, dispatch Celery task."""
         fname = filename.lower()
@@ -147,6 +149,8 @@ class DocumentService:
             file_size_bytes=file_size,
             raw_text=raw_text[:200_000],
             status="pending",
+            source=source,
+            platform_document_id=platform_document_id,
         )
         db.add(doc)
         await db.commit()
@@ -163,7 +167,7 @@ class DocumentService:
         from app.tasks import process_document
 
         try:
-            process_document.delay(doc.id)
+            process_document.delay(doc.id, source)
         except Exception as exc:
             logger.error("Failed to dispatch Celery task for doc %d: %s", doc.id, exc)
             # Document is already saved — mark it so the user knows

@@ -157,7 +157,6 @@ class LoginView(AllauthLoginView):
     Custom login view with Remember Me support.
     """
 
-<<<<<<< HEAD
     MAX_LOGIN_ATTEMPTS = 5
     LOCKOUT_SECONDS = 15 * 60
     FAILURE_WINDOW_SECONDS = 15 * 60
@@ -178,6 +177,12 @@ class LoginView(AllauthLoginView):
         return f"auth:login:fail:{self._client_ip()}:{self._email_key()}"
 
     def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        # Clear any stale 2FA session data from an abandoned signup flow
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        if request.session.modified:
+            request.session.save()
+
         locked_until = cache.get(self._lock_key())
         if locked_until:
             messages.error(
@@ -185,14 +190,6 @@ class LoginView(AllauthLoginView):
                 _("Too many failed attempts. Try again later."),
             )
             return self.render_to_response(self.get_context_data(form=self.get_form()))
-=======
-    def dispatch(self, request, *args, **kwargs):
-        # Clear any stale 2FA session data from an abandoned signup flow
-        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
-            request.session.pop(key, None)
-        if request.session.modified:
-            request.session.save()
->>>>>>> c3e799e40dd89e42723bf0ddc0ad7215e60299b6
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form: Any) -> Any:

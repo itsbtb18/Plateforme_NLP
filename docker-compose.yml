@@ -106,6 +106,10 @@ services:
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      
       # Email (optional)
       EMAIL_HOST: ${EMAIL_HOST:-}
       EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -125,6 +129,10 @@ services:
       CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
       CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
       CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
+      
+      # Groq (scraping LLM validation)
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
     volumes:
       - ./Plateforme:/app
       - static_volume:/app/staticfiles
@@ -282,6 +290,68 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # ── Django Celery Worker (scraping background tasks) ──────────────
+  django_celery_worker:
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      FASTAPI_URL: http://fastapi:8000
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+    volumes:
+      - ./Plateforme:/app
+      - static_volume:/app/staticfiles
+      - ./Plateforme/media:/app/media
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # ── Django Celery Beat (periodic task scheduler) ──────────────────
+  django_celery_beat:
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_beat
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+    volumes:
+      - ./Plateforme:/app
+    command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - nlp_network
     restart: unless-stopped

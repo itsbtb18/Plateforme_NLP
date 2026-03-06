@@ -25,7 +25,7 @@ from app.services.memory import get_session_service
 from app.services.documents.embeddings import get_embedding_service
 from app.services.qdrant import get_qdrant_service, COLLECTION_DOCUMENT_CHUNKS
 from app.services.retrieval.filters import build_user_doc_filter
-from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc
+from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc, EntityExplainRequest
 from app.models import ChatSession, UserDocument
 from sqlalchemy import select, func as sqlfunc
 from typing import List, Dict, Optional, Any
@@ -552,6 +552,97 @@ class ChatLogic:
             session_id=session_id,
             lang=language,
             retrieved_docs=self._to_schema(docs),
+        )
+
+    # ------------------------------------------------------------------
+    # Platform entity explain (skip classifier — direct context → LLM)
+    # ------------------------------------------------------------------
+
+    async def handle_entity_explain(
+        self,
+        request: EntityExplainRequest,
+        db: AsyncSession,
+    ) -> ChatResponse:
+        """Generate a rich explanation of a platform entity.
+
+        Skips intent classification entirely — the entity metadata IS the
+        context.  Optionally enriches with Qdrant knowledge if available.
+        """
+        lang = request.language or self.classifier.classify(
+            request.entity_title
+        ).language
+
+        # Assemble entity context as verified data
+        meta = request.entity_metadata or {}
+        ctx_parts = [
+            f"[Verified Data — Platform {request.entity_type}]",
+            f"Title: {request.entity_title}",
+        ]
+        if request.entity_description:
+            ctx_parts.append(f"Description: {request.entity_description[:3000]}")
+        for key, val in meta.items():
+            if val:
+                ctx_parts.append(f"{key}: {val}")
+        entity_context = "\n".join(ctx_parts)
+
+        # Optional: enrich with related NLP knowledge from Qdrant
+        extra_context = ""
+        try:
+            routing = await self.router.route(
+                request.entity_title,
+                QueryClassification(
+                    intent="nlp_knowledge",
+                    language=lang,
+                    confidence=0.9,
+                ),
+            )
+            if routing.results:
+                extra_context = self._build_context(routing.results)
+        except Exception:
+            logger.debug("Entity explain: optional Qdrant enrichment failed", exc_info=True)
+
+        # Combine contexts
+        full_context = entity_context
+        if extra_context:
+            full_context += "\n\n[Additional Context]\n" + extra_context
+
+        # Build the implicit question
+        question = (
+            f"Explain what '{request.entity_title}' is. "
+            f"Provide a helpful overview of this {request.entity_type}, "
+            f"its purpose, key features, and how it can be useful."
+        )
+
+        chat_history = await self.sessions.get_recent_messages(
+            request.session_id, db
+        )
+
+        answer = await self.groq.generate_answer_with_context(
+            question=question,
+            context=full_context,
+            language=lang,
+            chat_history=chat_history,
+            source_type="platform",
+        )
+
+        source = "platform"
+        if GroqClient.is_fallback(answer):
+            answer = await self.groq.quick_answer(question, lang)
+            source = "groq"
+
+        # Persist messages
+        await self.sessions.save_message(
+            request.session_id, "user", question, source, lang, db
+        )
+        await self.sessions.save_message(
+            request.session_id, "assistant", answer, source, lang, db
+        )
+
+        return ChatResponse(
+            answer=answer,
+            source=source,
+            session_id=request.session_id,
+            lang=lang,
         )
 
     # ------------------------------------------------------------------
