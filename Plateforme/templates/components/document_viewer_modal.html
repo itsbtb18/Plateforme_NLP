@@ -11,6 +11,7 @@
      aria-modal="true" 
      aria-labelledby="docViewerTitle"
      data-resource-id="{{ object.pk }}"
+     data-resource-title="{{ object.title|default:'' }}"
      data-convert-url="{% url 'resources:convert-to-text' object.pk %}"
      style="display: none;">
     
@@ -2135,9 +2136,18 @@ if (typeof pdfjsLib !== 'undefined') {
         },
         
         askChatbot() {
-            // Redirect to chatbot with document context
+            // Redirect to chatbot with document context for analysis
             const chatbotUrl = '{% url "chatbot:chatbot_interface" %}';
-            window.open(chatbotUrl + '?doc=' + encodeURIComponent(this.currentUrl), '_blank');
+            const resourceId = this.modal.dataset.resourceId || '';
+            const resourceTitle = this.modal.dataset.resourceTitle || this.getFilename(this.currentUrl);
+            const fileUrl = this.currentUrl || '';
+            const params = new URLSearchParams({
+                doc_action: 'analyse',
+                doc_id: resourceId,
+                doc_title: resourceTitle,
+                doc_file: fileUrl
+            });
+            window.open(chatbotUrl + '?' + params.toString(), '_blank');
         }
     };
     

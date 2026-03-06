@@ -1401,8 +1401,118 @@ input[type="file"]{display:none}
 
         function setLoading(v){isLoading=v;sendBtn.disabled=v;chatInput.disabled=v}
 
+        /* ============================================================
+           AUTO-EXPLAIN: when chatbot opens from an entity detail page
+           ============================================================ */
+        async function autoExplainEntity(){
+            var raw='{{ entity_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            if(!ctx.title) return;
+
+            /* Ensure we have a session */
+            if(!currentSessionId){
+                try{
+                    var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                    if(!sr.ok) return;
+                    var sd=await sr.json();
+                    if(sd.session_id) currentSessionId=sd.session_id;
+                    else return;
+                }catch(e){return}
+            }
+
+            showMsgs();
+            addUserMsg("{% trans 'Tell me about' %}: "+ctx.title);
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_entity',
+                    session_id:currentSessionId,
+                    entity_context:{
+                        type:ctx.contentType||'resource',
+                        title:ctx.title||'',
+                        description:ctx.description||'',
+                        category:ctx.category||'',
+                        author:ctx.author||'',
+                        url:ctx.link||''
+                    }
+                };
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id) currentSessionId=data.session_id;
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,true);
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
+        /* ============================================================
+           AUTO-ANALYSE: when chatbot opens from a document detail page
+           ============================================================ */
+        async function autoAnalyseDocument(){
+            var raw='{{ document_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            if(!ctx.document_id||!ctx.document_file_url) return;
+
+            /* Ensure we have a session */
+            if(!currentSessionId){
+                try{
+                    var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                    if(!sr.ok) return;
+                    var sd=await sr.json();
+                    if(sd.session_id) currentSessionId=sd.session_id;
+                    else return;
+                }catch(e){return}
+            }
+
+            showMsgs();
+            addUserMsg("{% trans 'Analyse document' %}: "+(ctx.document_title||'Document'));
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_document',
+                    session_id:currentSessionId,
+                    document_context:{
+                        document_id:ctx.document_id,
+                        document_title:ctx.document_title||'',
+                        document_file_url:ctx.document_file_url
+                    }
+                };
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id) currentSessionId=data.session_id;
+                if(data.document_id) activeDocumentId=data.document_id;
+                hasDocuments=true;
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,null,true);
+                else if(data.document_status==='processing') addSystem("{% trans 'Document is still processing. Please ask again shortly.' %}",'system');
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoAnalyse:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
         /* ── Init ── */
         loadSessions();
+        autoExplainEntity();
+        autoAnalyseDocument();
     })();
     </script>
 </body>

@@ -177,10 +177,36 @@ def _create_fastapi_session(user):
 def chatbot_interface(request):
     # Persist context when opening chatbot from detail/card links.
     _get_request_content_context(request)
+
+    # If entity context exists, pass it to the template so the JS can
+    # auto-fire a platform_entity explain request on page load.
+    entity_context_json = "{}"
+    session_ctx = request.session.get("chatbot_card_context")
+    if isinstance(session_ctx, dict) and session_ctx.get("title"):
+        import json as _json
+        entity_context_json = _json.dumps(session_ctx)
+
+    # Feature 2: document context from query params
+    # e.g. ?doc_action=analyse&doc_id=55&doc_title=...&doc_file=/media/...
+    document_context_json = "{}"
+    doc_action = request.GET.get("doc_action", "").strip()
+    doc_id = request.GET.get("doc_id", "").strip()
+    doc_title = request.GET.get("doc_title", "").strip()
+    doc_file = request.GET.get("doc_file", "").strip()
+    if doc_action == "analyse" and doc_id and doc_file:
+        import json as _json
+        document_context_json = _json.dumps({
+            "document_id": doc_id,
+            "document_title": doc_title or "Document",
+            "document_file_url": doc_file,
+        })
+
     context = {
         "user": request.user,
         "page_title": _("Chatbot"),
         "max_file_size": CHATBOT_MAX_FILE_SIZE,
+        "entity_context_json": entity_context_json,
+        "document_context_json": document_context_json,
     }
     return render(request, "chatbot/chat.html", context)
 
@@ -526,6 +552,191 @@ def ask_bot(request):
             platform_data = resp.json()
             platform_data["session_id"] = session_id
             return JsonResponse(platform_data)
+
+        # ----- Mode: platform_entity (explain a specific entity) -----
+        elif mode == "platform_entity":
+            entity_ctx = data.get("entity_context")
+            if not isinstance(entity_ctx, dict) or not entity_ctx.get("title"):
+                return JsonResponse(
+                    {"error": _("Entity context required."), "source": "error"},
+                    status=400,
+                )
+
+            resp = requests.post(
+                f"{FASTAPI_URL}/platform/entity_explain",
+                json={
+                    "entity_type": str(entity_ctx.get("type", "resource"))[:50],
+                    "entity_title": str(entity_ctx.get("title", ""))[:500],
+                    "entity_description": str(entity_ctx.get("description", ""))[:5000],
+                    "entity_metadata": {
+                        k: str(v)[:200]
+                        for k, v in entity_ctx.items()
+                        if k not in ("type", "title", "description") and v
+                    },
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "language": data.get("language"),
+                },
+                headers=get_api_headers(),
+                timeout=CHATBOT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            response_data = resp.json()
+
+            if response_data.get("answer"):
+                save_message(
+                    session_id,
+                    "bot",
+                    response_data["answer"],
+                    source=response_data.get("source", "platform"),
+                    language=response_data.get("lang", "en"),
+                )
+
+            response_data["session_id"] = session_id
+            return JsonResponse(response_data)
+
+        # ----- Mode: platform_document (ingest & analyse a platform PDF) --
+        elif mode == "platform_document":
+            doc_ctx = data.get("document_context")
+            if not isinstance(doc_ctx, dict) or not doc_ctx.get("document_id"):
+                return JsonResponse(
+                    {"error": _("Document context required."), "source": "error"},
+                    status=400,
+                )
+
+            platform_doc_id = doc_ctx["document_id"]
+            doc_title = str(doc_ctx.get("document_title", ""))[:300]
+            doc_file_url = str(doc_ctx.get("document_file_url", ""))
+
+            # Resolve file from Django's media storage
+            import os
+            from django.conf import settings as django_settings
+
+            if not doc_file_url:
+                return JsonResponse(
+                    {"error": _("No file attached to this document."), "source": "error"},
+                    status=400,
+                )
+
+            # doc_file_url is a relative media path like "/media/resources/files/2025/01/paper.pdf"
+            # Convert to absolute filesystem path inside the container
+            media_root = getattr(django_settings, "MEDIA_ROOT", "/app/media")
+            # Strip leading /media/ prefix if present
+            relative_path = doc_file_url
+            if relative_path.startswith("/media/"):
+                relative_path = relative_path[len("/media/"):]
+            elif relative_path.startswith("media/"):
+                relative_path = relative_path[len("media/"):]
+            file_path = os.path.join(media_root, relative_path)
+
+            if not os.path.isfile(file_path):
+                return JsonResponse(
+                    {"error": _("Document file not found on server."), "source": "error"},
+                    status=400,
+                )
+
+            filename = os.path.basename(file_path)
+            content_type = "application/pdf"
+            if filename.lower().endswith(".docx"):
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif filename.lower().endswith(".txt"):
+                content_type = "text/plain"
+
+            # Upload to FastAPI via the platform document ingest endpoint
+            upload_headers = {}
+            if FASTAPI_API_KEY:
+                upload_headers["Authorization"] = f"Bearer {FASTAPI_API_KEY}"
+
+            with open(file_path, "rb") as f:
+                upload_resp = requests.post(
+                    f"{FASTAPI_URL}/platform/document_ingest",
+                    files={"file": (filename, f, content_type)},
+                    data={
+                        "session_id": session_id,
+                        "user_id": user_id,
+                        "platform_document_id": str(platform_doc_id),
+                    },
+                    headers=upload_headers,
+                    timeout=CHATBOT_TIMEOUT,
+                )
+
+            if not upload_resp.ok:
+                err = upload_resp.json().get("detail", "Upload failed")
+                return JsonResponse(
+                    {"error": str(err), "source": "error"}, status=upload_resp.status_code,
+                )
+
+            upload_data = upload_resp.json()
+            fastapi_doc_id = upload_data.get("document_id")
+
+            # Poll until document is processed (max 120s)
+            doc_ready = False
+            for _attempt in range(60):
+                time.sleep(2)
+                try:
+                    status_resp = requests.get(
+                        f"{FASTAPI_URL}/document_status/{fastapi_doc_id}",
+                        params={"user_id": user_id},
+                        headers=get_api_headers(),
+                        timeout=10,
+                    )
+                    if status_resp.ok:
+                        status_data = status_resp.json()
+                        if status_data.get("status") == "completed":
+                            doc_ready = True
+                            break
+                        elif status_data.get("status") == "failed":
+                            return JsonResponse(
+                                {"error": _("Document processing failed."), "source": "error"},
+                                status=500,
+                            )
+                except requests.RequestException:
+                    pass
+
+            if not doc_ready:
+                return JsonResponse({
+                    "answer": _(
+                        "Document is still being processed. "
+                        "Please ask your question again in a few seconds."
+                    ),
+                    "source": "system",
+                    "session_id": session_id,
+                    "document_id": fastapi_doc_id,
+                    "document_status": "processing",
+                })
+
+            # Document ready — send initial analysis prompt
+            initial_prompt = (
+                f"Please analyse this document titled '{doc_title}' "
+                f"and explain its key ideas, main findings, and structure."
+            )
+            ask_resp = requests.post(
+                f"{FASTAPI_URL}/ask_document",
+                json={
+                    "question": initial_prompt,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "document_ids": [fastapi_doc_id] if fastapi_doc_id else None,
+                },
+                headers=get_api_headers(),
+                timeout=CHATBOT_TIMEOUT,
+            )
+            ask_resp.raise_for_status()
+            response_data = ask_resp.json()
+
+            if response_data.get("answer"):
+                save_message(
+                    session_id,
+                    "bot",
+                    response_data["answer"],
+                    source="document",
+                    language=response_data.get("lang", "en"),
+                )
+
+            response_data["session_id"] = session_id
+            response_data["document_id"] = fastapi_doc_id
+            response_data["document_status"] = "completed"
+            return JsonResponse(response_data)
 
         # ----- Mode: upload -----
         elif mode == "upload":

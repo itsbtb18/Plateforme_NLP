@@ -36,14 +36,14 @@ def _make_celery_session():
 
 
 @celery.task(bind=True, name="app.tasks.process_document", max_retries=2)
-def process_document(self, document_id: int):
+def process_document(self, document_id: int, source: str = "user_upload"):
     """Chunk a user-uploaded document and generate embeddings."""
     import asyncio
 
-    asyncio.run(_process_document_async(document_id))
+    asyncio.run(_process_document_async(document_id, source=source))
 
 
-async def _process_document_async(document_id: int):
+async def _process_document_async(document_id: int, source: str = "user_upload"):
     from app.models import UserDocument, DocumentChunk
     from app.services.documents.processor import get_document_processor
     from app.services.documents.embeddings import get_embedding_service
@@ -118,7 +118,7 @@ async def _process_document_async(document_id: int):
                                 "session_id": doc.session_id,
                                 "filename": doc.filename,
                                 "chunk_index": idx,
-                                "source": "user_upload",
+                                "source": source,
                                 "entities": chunk_entities,
                             },
                         )
