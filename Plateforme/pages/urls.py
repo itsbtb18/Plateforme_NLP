@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/statistics/', views.admin_statistics, name='admin_statistics'),
     path('admin/settings/', views.admin_settings, name='admin_settings'),
     path('admin/security/', views.admin_security, name='admin_security'),
+    path('admin/security/activity-data/', views.admin_security_activity_api, name='admin_security_activity_api'),
     
     # User management
      path('admin/users/<uuid:user_id>/edit/', views.admin_user_edit, name='admin_user_edit'),

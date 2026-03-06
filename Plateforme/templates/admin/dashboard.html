@@ -94,6 +94,14 @@
   .ad-stat-delta { margin-top: 6px; font-size: .79rem; color: var(--ad-muted); }
   .ad-stat-delta.positive { color: var(--ad-green); }
   .ad-stat-delta.negative { color: var(--ad-red); }
+  .ad-security-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ad-security-main { flex: 1; min-width: 0; }
+  html[dir="rtl"] .ad-security-card { flex-direction: row-reverse; }
 
   .ad-section-title { margin: 0 0 10px; font-size: .98rem; font-weight: 800; }
   .ad-mini { color: var(--ad-muted); font-size: .82rem; }
@@ -270,7 +278,7 @@
     </div>
 
     <article class="ad-card" style="margin-top:12px;">
-      <h3 class="ad-section-title">{% trans "Latest Registered Users" %}</h3>
+      <h3 class="ad-section-title">{% trans "Registered Users" %}</h3>
       <div class="ad-table-wrap">
         <table class="ad-table">
           <thead>
@@ -354,13 +362,15 @@
   <section class="ad-pane" id="ad-pane-security">
     <div class="ad-grid-3">
       {% for metric in security_metrics %}
-      <article class="ad-card">
-        <div class="ad-stat-head"><div class="ad-stat-icon ad-tone-{{ metric.tone }}"><i class="fas {{ metric.icon }}"></i></div></div>
-        <div class="ad-stat-label">{{ metric.label }}</div>
-        <div class="ad-stat-value">{{ metric.value }}</div>
-        <div class="ad-stat-delta {% if metric.delta > 0 %}positive{% elif metric.delta < 0 %}negative{% endif %}">
-          {% if metric.delta > 0 %}+{% endif %}{{ metric.delta }} {{ metric.period }}
+      <article class="ad-card ad-security-card">
+        <div class="ad-security-main">
+          <div class="ad-stat-label">{{ metric.label }}</div>
+          <div class="ad-stat-value">{{ metric.value }}</div>
+          <div class="ad-stat-delta {% if metric.delta > 0 %}positive{% elif metric.delta < 0 %}negative{% endif %}">
+            {% if metric.delta > 0 %}+{% endif %}{{ metric.delta }} {{ metric.period }}
+          </div>
         </div>
+        <div class="ad-stat-icon ad-tone-{{ metric.tone }}"><i class="fas {{ metric.icon }}"></i></div>
       </article>
       {% endfor %}
     </div>

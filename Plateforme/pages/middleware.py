@@ -27,7 +27,18 @@ class AdminPanelSecurityMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        return self.get_response(request)
+        response = self.get_response(request)
+        self._log_response_activity(request, response)
+        return response
+
+    def _get_role(self, user):
+        if not user or not user.is_authenticated:
+            return "anonymous"
+        if user.is_superuser:
+            return "superuser"
+        if user.is_staff:
+            return "staff"
+        return "member"
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         match = getattr(request, "resolver_match", None)
@@ -61,7 +72,7 @@ class AdminPanelSecurityMiddleware:
                     )
                     SecurityLog.objects.create(
                         user=request.user,
-                        role=self._get_role(request.user) if hasattr(self, "_get_role") else ("superuser" if request.user.is_superuser else ("staff" if request.user.is_staff else "member")),
+                        role=self._get_role(request.user),
                         action="blocked_upload",
                         method=(request.method or "POST").upper(),
                         ip_address=(request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")),
@@ -75,10 +86,10 @@ class AdminPanelSecurityMiddleware:
         request._admin_required_permission = required_permission  # type: ignore[attr-defined]
         return None
 
-    def process_response(self, request, response):
+    def _log_response_activity(self, request, response):
         route_name = getattr(request, "_admin_route_name", "")
         if not route_name:
-            return response
+            return
 
         if getattr(request, "user", None) and request.user.is_authenticated and response.status_code < 500:
             should_log = request.method in {"POST", "PUT", "PATCH", "DELETE"} or route_name in {
@@ -94,7 +105,6 @@ class AdminPanelSecurityMiddleware:
                     target_id=route_name,
                     details=f"status={response.status_code}",
                 )
-        return response
 
 
 class SecurityLogMiddleware:
@@ -123,7 +133,11 @@ class SecurityLogMiddleware:
     def _infer_action(self, request, response):
         path = (request.path or '').lower()
         method = (request.method or 'GET').upper()
+        req_user = getattr(request, 'user', None)
+        is_auth = bool(req_user and req_user.is_authenticated)
 
+        if method == 'POST' and 'login' in path and response.status_code == 200 and not is_auth:
+            return 'failed_login'
         if method == 'POST' and 'login' in path and response.status_code in {200, 302}:
             return 'login'
         if method in {'POST', 'PUT', 'PATCH'} and request.FILES:
@@ -135,6 +149,8 @@ class SecurityLogMiddleware:
             return 'update'
         if method == 'POST' and '/new/' in path:
             return 'create'
+        if '/admin/' in path or '/dashboard/' in path:
+            return 'other'
         return None
 
     def _log_security_event(self, request, response):
