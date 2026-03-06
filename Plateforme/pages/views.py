@@ -99,7 +99,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import ContactMessage, Stats, UserStatusHistory
+from .models import ContactMessage, Stats, UserStatusHistory, AdminActivityLog, SecurityLog
 from institutions.models import Institution
 import datetime
 from accounts.forms import CustomUserChangeForm
@@ -1585,8 +1585,148 @@ def admin_settings(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_security(request):
-    """Admin security view"""
-    return render(request, 'admin/security.html')
+    """Admin security center: metrics, alerts, filters, and paginated logs."""
+    all_logs_qs = SecurityLog.objects.select_related('user').order_by('-created_at')
+    use_legacy_admin_logs = not all_logs_qs.exists()
+
+    search_query = (request.GET.get('search') or '').strip()
+    user_filter = (request.GET.get('user') or '').strip()
+    action_filter = (request.GET.get('action') or '').strip()
+    date_filter = (request.GET.get('date') or '').strip()
+
+    def normalize_action(action: str, method: str = '', path: str = '') -> str:
+        a = (action or '').lower()
+        m = (method or '').upper()
+        p = (path or '').lower()
+        if 'failed_login' in a:
+            return 'failed_login'
+        if 'login' in a:
+            return 'login'
+        if 'blocked_upload' in a:
+            return 'blocked_upload'
+        if 'upload' in a:
+            return 'upload'
+        if 'delete' in a or m == 'DELETE' or '/delete/' in p:
+            return 'delete'
+        if 'update' in a or m in {'PUT', 'PATCH'} or '/update/' in p or '/edit/' in p:
+            return 'update'
+        if 'create' in a or (m == 'POST' and ('/new/' in p or '/create/' in p)):
+            return 'create'
+        return 'other'
+
+    if use_legacy_admin_logs:
+        logs_qs = AdminActivityLog.objects.select_related('admin_user').order_by('-occurred_at')
+        if search_query:
+            logs_qs = logs_qs.filter(
+                Q(admin_user__email__icontains=search_query)
+                | Q(action__icontains=search_query)
+                | Q(ip_address__icontains=search_query)
+                | Q(path__icontains=search_query)
+            )
+        if user_filter:
+            logs_qs = logs_qs.filter(admin_user_id=user_filter)
+        if action_filter:
+            logs_qs = logs_qs.filter(action__icontains=action_filter)
+        if date_filter:
+            try:
+                parsed_date = datetime.date.fromisoformat(date_filter)
+                logs_qs = logs_qs.filter(occurred_at__date=parsed_date)
+            except ValueError:
+                pass
+
+        paginator = Paginator(logs_qs, 20)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        recent_logs = [
+            SimpleNamespace(
+                user=log.admin_user,
+                role=log.role_snapshot,
+                action=normalize_action(log.action, log.http_method, log.path),
+                method=(log.http_method or 'GET').upper(),
+                ip_address=log.ip_address,
+                path=log.path,
+                created_at=log.occurred_at,
+                get_action_display=lambda a=normalize_action(log.action, log.http_method, log.path): dict(SecurityLog.ACTION_CHOICES).get(a, a),
+            )
+            for log in page_obj.object_list
+        ]
+        last_24h = timezone.now() - timedelta(hours=24)
+        logs_count = AdminActivityLog.objects.count()
+        failed_uploads_count = AdminActivityLog.objects.filter(action='blocked_upload').count()
+        recent_security_events_count = AdminActivityLog.objects.filter(occurred_at__gte=last_24h).count()
+        alerts = [
+            SimpleNamespace(
+                action=normalize_action(log.action, log.http_method, log.path),
+                get_action_display=dict(SecurityLog.ACTION_CHOICES).get(normalize_action(log.action, log.http_method, log.path), normalize_action(log.action, log.http_method, log.path)),
+                ip_address=log.ip_address,
+                created_at=log.occurred_at,
+            )
+            for log in AdminActivityLog.objects.order_by('-occurred_at')[:40]
+            if normalize_action(log.action, log.http_method, log.path) in {'failed_login', 'blocked_upload'}
+        ][:12]
+        user_choices = (
+            AdminActivityLog.objects.exclude(admin_user__isnull=True)
+            .values('admin_user_id', 'admin_user__email')
+            .annotate(total=Count('id'))
+            .order_by('admin_user__email')
+        )
+        normalized_user_choices = [
+            {'user_id': row['admin_user_id'], 'user__email': row['admin_user__email'], 'total': row['total']}
+            for row in user_choices
+        ]
+    else:
+        logs_qs = all_logs_qs
+        if search_query:
+            logs_qs = logs_qs.filter(
+                Q(user__email__icontains=search_query)
+                | Q(action__icontains=search_query)
+                | Q(ip_address__icontains=search_query)
+                | Q(path__icontains=search_query)
+            )
+        if user_filter:
+            logs_qs = logs_qs.filter(user_id=user_filter)
+        if action_filter:
+            logs_qs = logs_qs.filter(action=action_filter)
+        if date_filter:
+            try:
+                parsed_date = datetime.date.fromisoformat(date_filter)
+                logs_qs = logs_qs.filter(created_at__date=parsed_date)
+            except ValueError:
+                pass
+
+        paginator = Paginator(logs_qs, 20)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        recent_logs = page_obj.object_list
+        last_24h = timezone.now() - timedelta(hours=24)
+        logs_count = all_logs_qs.count()
+        failed_uploads_count = all_logs_qs.filter(action='blocked_upload').count()
+        recent_security_events_count = all_logs_qs.filter(created_at__gte=last_24h).count()
+        alerts = all_logs_qs.filter(action__in=['failed_login', 'blocked_upload']).order_by('-created_at')[:12]
+        normalized_user_choices = list(
+            SecurityLog.objects.exclude(user__isnull=True)
+            .values('user_id', 'user__email')
+            .annotate(total=Count('id'))
+            .order_by('user__email')
+        )
+
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    context = {
+        'page_obj': page_obj,
+        'recent_logs': recent_logs,
+        'logs_count': logs_count,
+        'failed_uploads_count': failed_uploads_count,
+        'recent_security_events_count': recent_security_events_count,
+        'alerts': alerts,
+        'user_choices': normalized_user_choices,
+        'action_choices': SecurityLog.ACTION_CHOICES,
+        'search_query': search_query,
+        'user_filter': user_filter,
+        'action_filter': action_filter,
+        'date_filter': date_filter,
+        'query_string': query_params.urlencode(),
+        'using_legacy_logs': use_legacy_admin_logs,
+    }
+    return render(request, 'admin/security.html', context)
 
 
 @login_required
