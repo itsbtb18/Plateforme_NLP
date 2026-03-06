@@ -331,6 +331,7 @@ class BlockedUpload(models.Model):
 class SecurityLog(models.Model):
     ACTION_CHOICES = [
         ('login', _('Login')),
+        ('failed_login', _('Failed Login')),
         ('upload', _('Upload')),
         ('blocked_upload', _('Blocked Upload')),
         ('create', _('Create')),
