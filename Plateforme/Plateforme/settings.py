@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "chatbot",
     "translate",
     "scraping",
+    "settings",
     # Allauth
     "allauth",
     "allauth.account",
