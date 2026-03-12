@@ -489,16 +489,17 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     padding: 1rem 1.25rem;
     border-top: 1px solid var(--eh-border);
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 0.75rem;
 }
 
-.eh-card-organizer {
-    font-size: 0.8rem;
-    color: var(--eh-text-muted);
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
+.eh-footer-actions {
+    margin-inline-start: auto;
+}
+
+.eh-card-footer .card-top-actions {
+    margin: 0;
 }
 
 .eh-card-link {
@@ -663,7 +664,8 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
         <div class="eh-events-grid">
             {% for event in events %}
             <article class="eh-event-card">
-                <div class="eh-card-header">
+                <div class="eh-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                    <div style="display: flex; gap: 1rem; flex: 1;">
                     <div class="eh-date-badge">
                         <span class="eh-date-day">{{ event.start_date|date:"d" }}</span>
                         <span class="eh-date-month">{{ event.start_date|date:"M" }}</span>
@@ -691,6 +693,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                         </div>
                         <h3 class="eh-card-title">{{ event.get_localized_title }}</h3>
                     </div>
+                    </div>
                 </div>
                 
                 <div class="eh-card-body">
@@ -712,6 +715,10 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                                 {{ event.start_date|date:"M d" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }}{% else %}, {{ event.start_date|date:"Y" }}{% endif %}
                             </span>
                         </div>
+                        <div class="eh-info-row">
+                            <i class="bi bi-building"></i>
+                            <span>{{ event.organizer }}</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -729,14 +736,20 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                 {% endif %}
                 
                 <div class="eh-card-footer">
-                    <span class="eh-card-organizer">
-                        <i class="bi bi-building"></i>
-                        {{ event.organizer }}
-                    </span>
-                    <a href="{% url 'events:event_detail' event.pk %}" class="eh-card-link">
-                        {% translate "View Details" %}
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
+                    {% if event.approval_status == 'pending' and event.created_by == request.user %}
+                        <a href="{% url 'events:event_update' event.pk %}" class="eh-card-link" title="{% translate 'Edit Form' %}">
+                            {% translate "Edit Form" %}
+                            <i class="bi bi-file-earmark-text"></i>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'events:event_detail' event.pk %}" class="eh-card-link">
+                            {% translate "View Details" %}
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    {% endif %}
+                    <div class="eh-footer-actions">
+                        {% include "includes/card_top_actions.html" with content_type="event" object_id=event.pk title=event.get_localized_title description=event.get_localized_description|truncatewords:40 category=event.get_event_type_display author=event.organizer url=request.build_absolute_uri %}
+                    </div>
                 </div>
             </article>
             {% endfor %}

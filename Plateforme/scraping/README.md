@@ -62,11 +62,11 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 
 | Category | Target Model | Sources | Typical Yield |
 |---|---|---|---|
-| **Events** | `events.Event` | WikiCFP + 12 curated conferences | ~12 events |
-| **Tools** | `resources.NLPTool` | HuggingFace Hub API | ~44 tools |
-| **News** | `QA.Post` | arXiv API + Semantic Scholar | ~20 papers |
-| **Courses** | `resources.Course` | MIT OCW API + 10 curated courses | ~10 courses |
-| **Institutions** | `institutions.Institution` | ROR API + OpenAlex API | ~66 institutions |
+| **Events** | `events.Event` | WikiCFP + ConferenceAlerts (Algeria, Morocco, Tunisia, Egypt) + AllConferenceAlert Algeria + 22 curated Arabic/MENA events | ~30 events |
+| **Tools** | `resources.NLPTool` | HuggingFace Hub API (14 queries) + 10 curated LLMs/speech models + 7 Arabic datasets | ~70 tools |
+| **News** | `QA.Post` | arXiv API + Semantic Scholar (with retry/backoff) | ~20 papers |
+| **Courses** | `resources.Course` | MIT OCW + Coursera (7 NLP courses) + YouTube (7 playlists) + 10 curated | ~34 courses |
+| **Institutions** | `institutions.Institution` | ROR + OpenAlex + 10 Algerian + 10 African/Arabic labs + 10 North African + 10 Arabic/Gulf | ~108 institutions |
 
 ---
 
@@ -142,14 +142,17 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 
 **Sources:**
 - **WikiCFP** (wikicfp.com) — Scrapes the Call For Papers website for NLP-related events by searching for keywords ("natural language processing", "NLP", "computational linguistics"). Parses HTML tables using BeautifulSoup.
+- **ConferenceAlerts Algeria** (conferencealerts.co.in/algeria) — Scrapes upcoming academic conferences in Algeria. Extracts title, dates, city, and links from cards/lists.
+- **AllConferenceAlert Algeria** (allconferencealert.com/algeria.html) — Alternative Algerian conference source. Parses table rows for title, date, city, and category.
 - **Curated List** — 12 major NLP conferences manually maintained in the source code (ACL, EMNLP, NAACL, COLING, EACL, AAAI, IJCNLP-AACL, ArabicNLP, LREC-COLING, SIGIR, NeurIPS, WANLP).
 
 **How it works:**
 1. Tries WikiCFP search with 3 different queries
-2. Parses HTML rows (2 rows per event: title + dates/location)
-3. Falls back to curated event list
-4. For each event, resolves the organising institution (creates if needed)
-5. Creates `events.Event` with all fields filled (title, description, dates, location, organizer, etc.)
+2. Scrapes ConferenceAlerts Algeria and AllConferenceAlert Algeria for regional events
+3. Parses HTML rows (2 rows per event: title + dates/location)
+4. Falls back to curated event list
+5. For each event, resolves the organising institution (creates if needed)
+6. Creates `events.Event` with all fields filled (title, description, dates, location, organizer, etc.)
 
 **Target Model Fields (`events.Event`):**
 - `title` / `title_en` / `title_ar` — Event name in both languages
@@ -168,14 +171,19 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 
 **What it does:** Discovers NLP tools and models from the HuggingFace Hub.
 
-**Source:** **HuggingFace Hub API** (`huggingface.co/api/models`) — A REST API that returns metadata for machine learning models. Searched with 8 queries focused on Arabic NLP models.
+**Sources:**
+- **HuggingFace Hub API** (`huggingface.co/api/models`) — A REST API that returns metadata for machine learning models. Searched with 14 queries focused on Arabic NLP, LLMs, and speech models.
+- **Curated Arabic LLMs** — 10 handpicked Arabic/multilingual LLMs and NLP toolkits including Jais (13B/30B), AceGPT, ALLaM, Whisper Arabic, MMS, CAMeL Tools, FARASA, Stanza Arabic, and AraBERT v2.
+- **Curated Arabic Datasets** — 7 HuggingFace datasets for Arabic NLP: Arabic Speech Corpus, HARD (sentiment), ARCD (QA), LABR (reviews), WikiANN-Arabic (NER), Calliar (Algerian dialect), NADI (dialect identification).
 
 **How it works:**
-1. Sends 8 separate API queries (arabic nlp, camelbert, arabert, arabic sentiment, etc.)
+1. Sends 14 separate API queries (arabic nlp, camelbert, arabert, arabic speech recognition, jais arabic, arabic llm, etc.)
 2. Deduplicates by model ID across queries
 3. Maps HuggingFace pipeline tags to platform tool types (e.g., `text-classification` → `sentiment_analysis`)
 4. Maps language tags (ar, en, fr, es) to platform language codes
-5. Creates `resources.NLPTool` with model details, download counts, tags, and link
+5. Imports curated LLM tools and speech models with detailed descriptions
+6. Imports curated Arabic datasets as NLPTool entries prefixed with `[Dataset]`
+7. Creates `resources.NLPTool` with model details, download counts, tags, and link
 
 **Target Model Fields (`resources.NLPTool`):**
 - `title` / `title_en` / `title_ar` — Human-readable model name
@@ -217,13 +225,17 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 
 **Sources:**
 - **MIT OpenCourseWare API** (`ocw.mit.edu/api/v0/search/`) — Searches for NLP-related courses. May return 404 if API is deprecated.
+- **Coursera** — 7 curated NLP courses: NLP Specialization (DeepLearning.AI), ML with Python (IBM), Deep Learning Specialization (Andrew Ng), Intro to LLMs (Google Cloud), Applied Text Mining (U Michigan), Prompt Engineering (Vanderbilt), Arabic for Beginners (Al-Azhar).
+- **YouTube Playlists** — 7 curated NLP video playlists: Arabic NLP Full Course, Stanford CS224N, HuggingFace NLP Course, NLP Zero to Hero (Arabic subtitles), ML in Arabic (Hesham Asem), CMU CS 11-747, Arabic AI and Deep Learning.
 - **Curated List** — 10 well-known NLP courses from top universities (Stanford CS224N, CMU CS11-711, MIT 6.8610, McGill COMP 550, Oxford DL-NLP, NYU Abu Dhabi Arabic NLP, HuggingFace Course, Stanford SLP, ETH Multilingual NLP, UIUC Text Mining).
 
 **How it works:**
 1. Tries MIT OCW API search
-2. Imports curated courses with full syllabi
-3. For each course, resolves/creates the university institution
-4. Creates `resources.Course` with all academic details
+2. Imports Coursera NLP courses (creates institution per course provider)
+3. Imports YouTube NLP playlists (creates "YouTube Educational Content" institution)
+4. Imports curated university courses with full syllabi
+5. For each course, resolves/creates the university institution
+6. Creates `resources.Course` with all academic details
 
 **Target Model Fields (`resources.Course`):**
 - `title` / `title_en` / `title_ar` — Course name
@@ -246,13 +258,17 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 **Sources:**
 - **ROR API v2** (`api.ror.org/organizations`) — The Research Organization Registry, a community-led registry of research organisations. Searched with 4 queries. Uses v2 format (names/locations/links arrays).
 - **OpenAlex API** (`api.openalex.org/institutions`) — Open scholarly metadata. Searched for institutions with NLP/Arabic research output.
+- **Algerian Universities** — 10 curated Algerian institutions: USTHB, University of Algiers 1, University of Oran 1, University of Constantine 1, ESI, University of Tlemcen, University of Béjaïa, University of Batna 2, University of Blida 1, and CERIST (research centre).
+- **African & Arabic NLP Labs** — 10 curated research labs and institutions: Masakhane NLP (South Africa), InstaDeep (Tunisia), Cairo University FCAI (Egypt), KACST (Saudi Arabia), AIMS (Rwanda), UCT NLP Group (South Africa), UM6P (Morocco), QCRI (Qatar), NYU Abu Dhabi CAMeL Lab (UAE), KAUST (Saudi Arabia).
 
 **How it works:**
 1. Queries ROR with 4 keywords, deduplicates by ROR ID
 2. Parses v2 format: extracts display name from `names[]`, location from `locations[].geonames_details`, website from `links[]`
 3. Queries OpenAlex for 15 institutions
-4. Parses geo data, works count, and citations count
-5. Creates `institutions.Institution` with detailed descriptions
+4. Imports 10 curated Algerian universities with bilingual fields (Arabic/English)
+5. Imports 10 curated African and Arabic NLP laboratories
+6. Parses geo data, works count, and citations count
+7. Creates `institutions.Institution` with detailed descriptions
 
 **Target Model Fields (`institutions.Institution`):**
 - `name` / `name_en` / `name_ar` — Institution name
@@ -271,7 +287,7 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 
 ## Models & Database
 
-The scraping app defines two tracking models in `scraping/models.py`:
+The scraping app defines four models in `scraping/models.py`:
 
 ### ScrapingSource
 
@@ -305,6 +321,48 @@ Log of each scraping execution:
 | `completed_at` | DateTimeField | When the run finished |
 | `triggered_by` | ForeignKey(User) | Admin who triggered it |
 | `duration` | Property | Computed from started_at/completed_at |
+
+### ScrapingSourceHealth
+
+Per-source health tracking with circuit breaker state (Phase 5):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `category` | CharField | Scraper category |
+| `source_name` | CharField | Logical source name (e.g. "WikiCFP") |
+| `base_url` | URLField | Source base URL |
+| `total_attempts` | PositiveIntegerField | Lifetime request count |
+| `total_successes` | PositiveIntegerField | Successful requests |
+| `total_failures` | PositiveIntegerField | Failed requests |
+| `consecutive_failures` | PositiveIntegerField | Current failure streak |
+| `health_score` | FloatField | 0–100, decays on failure, recovers on success |
+| `circuit_state` | CharField | closed / open / half_open |
+| `circuit_opened_at` | DateTimeField | When circuit was tripped |
+| `circuit_cooldown_seconds` | PositiveIntegerField | Seconds before half-open probe |
+| `last_attempt_at` | DateTimeField | Most recent request time |
+| `last_success_at` | DateTimeField | Most recent success |
+| `last_failure_at` | DateTimeField | Most recent failure |
+| `avg_response_time` | FloatField | Exponential moving average (seconds) |
+| `last_error` | TextField | Most recent error message |
+
+### ScrapedItemMeta
+
+Per-item intelligence metadata created by the scoring pipeline (Phase 6):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `category` | CharField | events / tools / news / courses / institutions |
+| `item_title` | CharField(300) | Title of the scored item |
+| `item_id` | UUIDField | Optional FK reference to the original model record |
+| `domain_scores` | JSONField | Dict of domain → confidence (e.g. `{"arabic_nlp": 0.6}`) |
+| `primary_domain` | CharField | Best-matching domain or `"general"` |
+| `relevance_score` | FloatField | 0–100 composite score |
+| `created_at` | DateTimeField | Auto-set on creation |
+| `updated_at` | DateTimeField | Auto-updated |
+
+Indexed on `(category, primary_domain)` and `-relevance_score`.
 
 ---
 
@@ -427,18 +485,34 @@ All scraped items are created with `approval_status='pending'`. This means:
 
 ### Rate Limiting & Politeness
 
-- Each scraper uses a shared `requests.Session` with a descriptive `User-Agent` header
-- Timeouts are set to 30 seconds per request
-- The HuggingFace scraper limits to 60 models across 8 queries
+- Each scraper uses a shared `requests.Session` with **rotating User-Agent** strings (5-agent pool)
+- Default timeout is 30 seconds (configurable via `DEFAULT_TIMEOUT` class attribute)
+- Transient failures (429, 5xx, connection errors, timeouts) trigger **automatic retry with exponential back-off**
+- Base backoff is 2s, doubling per attempt, capped at 60s (configurable via `BACKOFF_BASE` / `BACKOFF_MAX`)
+- Max retries default to 3 (configurable via `MAX_RETRIES`)
+- The HuggingFace scraper limits to ~100 models across 14 queries
 - The ROR and OpenAlex APIs are free and rate-limit-friendly
 - arXiv requests respect the API's built-in pagination
+
+### Circuit Breaker
+
+Each external source is tracked by the `ScrapingSourceHealth` model. When a source fails repeatedly:
+
+1. **Health score** starts at 100 and loses 15 points per failure / gains 10 per success
+2. Circuit **trips open** when score drops below 25 *or* 3 consecutive failures occur
+3. While open, all requests to that source are **skipped** (no wasted time)
+4. After a cooldown period (default 300s), the circuit moves to **half-open** and allows one probe request
+5. If the probe succeeds the circuit **closes**; if it fails, it **re-opens**
+
+Admins can view source health in the Django admin under **Source Health Records**.
 
 ### Error Handling
 
 - Individual item failures don't crash the entire scraper run
-- Errors are collected in `self.errors` list and logged
+- **Structured errors** are collected in `self.structured_errors` with type, source, URL, timestamp, and extra metadata
+- Legacy `self.errors` list is maintained for backward compatibility
 - The `ScrapingRun` record tracks all errors
-- Network failures are caught by `safe_request()` and logged
+- Network failures are caught by `safe_request()` with per-attempt logging
 
 ### Elasticsearch Safety
 
@@ -495,7 +569,9 @@ CATEGORY_META = {
 ### Modifying Curated Data
 
 - **Events**: Edit `CURATED_EVENTS` list in `scrapers/events.py`
-- **Courses**: Edit `CURATED_COURSES` list in `scrapers/courses.py`
+- **Courses**: Edit `CURATED_COURSES`, `COURSERA_COURSES`, or `YOUTUBE_PLAYLISTS` lists in `scrapers/courses.py`
+- **Tools**: Edit `CURATED_LLM_TOOLS` or `CURATED_DATASETS` lists in `scrapers/tools.py`
+- **Institutions**: Edit `ALGERIAN_UNIVERSITIES` or `AFRICAN_NLP_LABS` lists in `scrapers/institutions.py`
 - **Conference organisers**: Edit `CONFERENCE_ORGS` dict in `scrapers/events.py`
 
 ### Adjusting API Limits
@@ -514,10 +590,11 @@ CATEGORY_META = {
 | Issue | Cause | Solution |
 |---|---|---|
 | "beautifulsoup4 is not installed" | `bs4` not in container | `pip install beautifulsoup4 lxml` inside Docker |
-| WikiCFP returns no results | Site may be down or blocking | Curated events will still import |
-| MIT OCW returns 404 | API endpoint deprecated | Curated courses will still import |
-| Semantic Scholar returns 429 | Rate limit exceeded | Wait and retry; arXiv data still works |
-| "Scraper error: ..." | Network timeout or API change | Check error logs; scraper records partial results |
+| WikiCFP returns no results | Site may be down or blocking | Curated events still import; circuit breaker will skip future attempts |
+| MIT OCW returns 404 | API endpoint deprecated | Curated courses still import |
+| Semantic Scholar returns 429 | Rate limit exceeded | Scraper retries 5× with exponential backoff (30s–180s); arXiv data still works |
+| "Circuit open for X — skipping" | Source failed too many times | Check Source Health in admin; health recovers after cooldown |
+| "Scraper error: ..." | Network timeout or API change | Check structured error logs; scraper records partial results |
 | Duplicate items not created | Working as intended | Scraper checks for existing records |
 | Items not visible to users | Pending approval | Admin must approve items in the admin panel |
 
@@ -542,6 +619,7 @@ LOGGING = {
 In the Django admin (`/admin/`), navigate to:
 - **Scraping Sources** — View/edit source configurations
 - **Scraping Runs** — View all past runs with status, counts, and errors
+- **Source Health Records** — View per-source health scores, circuit breaker states, failure counts, and average response times
 
 Or use the Web Scraping dashboard in the admin panel — each category tab shows its recent runs.
 
@@ -552,21 +630,22 @@ Or use the Web Scraping dashboard in the admin panel — each category tab shows
 ```
 scraping/
 ├── __init__.py                  # Django app init
-├── admin.py                     # Django admin registration (ScrapingSource, ScrapingRun)
+├── admin.py                     # Django admin registration (ScrapingSource, ScrapingRun, ScrapingSourceHealth, ScrapedItemMeta)
 ├── apps.py                      # Django app config
-├── models.py                    # ScrapingSource + ScrapingRun models
+├── intelligence.py              # Intelligence module (keyword expansion, query gen, domain classification, scoring, trends)
+├── models.py                    # ScrapingSource + ScrapingRun + ScrapingSourceHealth + ScrapedItemMeta models
 ├── urls.py                      # URL routing (dashboard + run endpoint)
 ├── views.py                     # Dashboard view + AJAX run_scraper endpoint
 ├── README.md                    # This documentation
 │
 ├── scrapers/
 │   ├── __init__.py              # Scraper registry (SCRAPERS dict, CATEGORY_META)
-│   ├── base.py                  # BaseScraper abstract class (ES safety, HTTP, parsing)
-│   ├── events.py                # EventScraper (WikiCFP + curated conferences)
+│   ├── base.py                  # BaseScraper abstract class (ES safety, retry/backoff, circuit breaker, UA rotation, intelligence)
+│   ├── events.py                # EventScraper (WikiCFP + curated conferences + MENA events)
 │   ├── tools.py                 # ToolScraper (HuggingFace Hub API)
 │   ├── news.py                  # NewsScraper (arXiv + Semantic Scholar)
 │   ├── courses.py               # CourseScraper (MIT OCW + curated courses)
-│   └── institutions.py          # InstitutionScraper (ROR + OpenAlex APIs)
+│   └── institutions.py          # InstitutionScraper (ROR + OpenAlex + North African + Arabic institutions)
 │
 ├── management/
 │   └── commands/
@@ -574,7 +653,9 @@ scraping/
 │
 ├── migrations/
 │   ├── 0001_initial.py          # Initial migration
-│   └── 0002_alter_scrapingsource_options_and_more.py
+│   ├── 0002_scrapingrun_task_id.py
+│   ├── 0003_add_scraping_source_health.py  # ScrapingSourceHealth model
+│   └── 0004_add_scraped_item_meta.py       # ScrapedItemMeta model (Phase 6)
 │
 └── templates/
     └── scraping/
@@ -601,6 +682,8 @@ These are listed in the platform's `requirements.txt`.
 | API | Endpoint | Method | Auth |
 |---|---|---|---|
 | WikiCFP | `http://www.wikicfp.com/cfp/servlet/tool.search` | GET | None |
+| ConferenceAlerts | `https://conferencealerts.co.in/algeria` | GET | None |
+| AllConferenceAlert | `https://www.allconferencealert.com/algeria.html` | GET | None |
 | HuggingFace | `https://huggingface.co/api/models` | GET | None |
 | arXiv | `http://export.arxiv.org/api/query` | GET | None |
 | Semantic Scholar | `https://api.semanticscholar.org/graph/v1/paper/search` | GET | None |
@@ -609,3 +692,158 @@ These are listed in the platform's `requirements.txt`.
 | OpenAlex | `https://api.openalex.org/institutions` | GET | None (mailto) |
 
 All APIs are **free and open**. No API keys are required.
+
+---
+
+## Phase 4 — Arabic, African & Algerian Source Expansion
+
+Phase 4 expanded every scraper category with regional and specialised sources:
+
+| Scraper | New Sources Added | Items |
+|---|---|---|
+| **Events** | ConferenceAlerts Algeria, AllConferenceAlert Algeria | Algerian academic conferences |
+| **Tools** | 6 new HF queries (speech, LLMs), 10 curated LLMs/toolkits, 7 Arabic datasets | Arabic LLMs (Jais, AceGPT, ALLaM), speech models (Whisper, MMS), NLP toolkits (CAMeL, FARASA, Stanza) |
+| **Courses** | 7 Coursera NLP courses, 7 YouTube NLP playlists | Online courses from DeepLearning.AI, IBM, Google Cloud, Stanford, HuggingFace, Arabic channels |
+| **Institutions** | 10 Algerian universities, 10 African/Arabic NLP labs | USTHB, ESI, CERIST, Masakhane, InstaDeep, QCRI, CAMeL Lab, UM6P, KAUST |
+| **News** | Improved S2 retry (5 retries, exponential backoff, 504/ConnectionError handling) | More reliable paper fetching |
+
+### Semantic Scholar Rate-Limit Fix
+
+The S2 API retry logic was upgraded:
+- **Max retries:** 3 → 5
+- **Backoff:** exponential `min(30 × 2^attempt, 180s)` instead of linear `15 × attempt`
+- **New error handling:** 504 Gateway Timeout + ConnectionError retries
+- **Retry-After header:** respected with +2s buffer
+- **Warning removal:** error message that generated visible warnings was removed
+
+---
+
+## Phase 5 — Web Scraping Failure Handling & Improvements
+
+Phase 5 hardened the scraping infrastructure with production-grade failure handling:
+
+### Changes Summary
+
+| Feature | Location | Description |
+|---|---|---|
+| **Retry + exponential backoff** | `base.py` `safe_request()` | Transient errors (429, 5xx, connection, timeout) retry up to `MAX_RETRIES` with exponential sleep |
+| **User-Agent rotation** | `base.py` `_rotate_user_agent()` | 5-string UA pool, rotated per request attempt |
+| **Circuit breaker** | `base.py` + `models.py` | `check_source()` / `report_success()` / `report_failure()` tied to `ScrapingSourceHealth` |
+| **Source health score** | `ScrapingSourceHealth.health_score` | 0–100 float, −15 per failure, +10 per success |
+| **Per-source failure tracking** | `ScrapingSourceHealth` model | Tracks total/consecutive failures, last error, avg response time |
+| **Configurable timeout** | `BaseScraper.DEFAULT_TIMEOUT` | Class-level attribute (default 30s), overridable per scraper |
+| **Structured error logs** | `base.py` `_log_error()` | Each error is a dict with type, message, source, URL, timestamp, extras |
+| **Admin panel** | `admin.py` | Health bar, circuit badge, response time display in `ScrapingSourceHealthAdmin` |
+
+### Circuit Breaker State Machine
+
+```
+                  success
+    ┌──────────────────────────────┐
+    │                              │
+    ▼          failure ×3          │
+  CLOSED ─────────────────────► OPEN
+    ▲                              │
+    │          cooldown elapsed    │
+    │              (300s)          ▼
+    │                          HALF-OPEN
+    │          success             │
+    └──────────────────────────────┘
+              failure → re-OPEN
+```
+
+### Configurable Scraper Attributes
+
+Sub-classes can override these class attributes:
+
+```python
+class MyCustomScraper(BaseScraper):
+    DEFAULT_TIMEOUT = 45       # seconds per request
+    MAX_RETRIES = 5            # retry attempts for transient errors
+    BACKOFF_BASE = 3.0         # initial backoff sleep (seconds)
+    BACKOFF_MAX = 120.0        # maximum backoff cap (seconds)
+```
+
+---
+
+## Phase 6 — Scraping Intelligence
+
+Phase 6 adds an intelligence layer that classifies, scores, and tracks every scraped item across four NLP research domains.
+
+### New Module: `intelligence.py`
+
+| Feature | Function | Description |
+|---|---|---|
+| **Keyword expansion** | `expand_keywords(seeds, max_results)` | Expands seed terms using a 4-domain ontology (~30+ keywords per domain, Arabic + English) |
+| **Auto query generation** | `generate_queries(category, max_queries)` | Combines base terms × year modifiers + Arabic terms + category-specific extras |
+| **Domain classification** | `classify_domain(text)` | Rule-based regex matching against ontology keywords; returns `{domain: confidence}` |
+| **LLM fallback** | `classify_with_llm_fallback(text)` | Falls back to Groq LLM only when rule-based confidence < 0.5 (cost-efficient) |
+| **Relevance scoring** | `compute_relevance_score(...)` | Weighted 0–100 score: recency (25%), relevance (30%), source health (15%), popularity (15%), completeness (15%) |
+| **Trend detection** | `detect_trends(months)` | Analyses last N months of data: top domains, growing topics, top sources, category counts, monthly activity |
+
+### Four Research Domains
+
+| Domain Key | English Label | Description |
+|---|---|---|
+| `arabic_nlp` | Arabic NLP | Text processing, NER, sentiment analysis, morphology, tokenization |
+| `arabic_languages` | Arabic Languages | Dialectology, MSA, corpus linguistics, linguistic resources |
+| `speech_processing` | Speech Processing | ASR, TTS, speaker recognition, speech synthesis |
+| `llm_research` | LLM Research | Large language models, fine-tuning, RLHF, prompt engineering |
+
+Each domain has 30+ English keywords and 10+ Arabic keywords in the ontology.
+
+### Scoring System
+
+Items are ranked on a 0–100 scale using 5 weighted factors:
+
+| Factor | Weight | Calculation |
+|---|---|---|
+| Recency | 25% | Tiered by age: <30 days = 100, <90 days = 80, <180 days = 60, <365 days = 40, else 20 |
+| Relevance | 30% | Best domain match score × 100 |
+| Source Health | 15% | `ScrapingSourceHealth.health_score` (0–100) |
+| Popularity | 15% | `log10(downloads + citations + 1) / 7 × 100`, capped at 100 |
+| Completeness | 15% | Proportion of optional fields present (description, website, Arabic content) |
+
+### Integration with Scrapers
+
+After every `scraper.run()`, the base class automatically:
+1. Classifies each new result via `classify_domain()`
+2. Computes a relevance score via `compute_relevance_score()`
+3. Creates/updates a `ScrapedItemMeta` record with domain scores and ranking
+4. Returns an `intelligence` summary in the result dict
+
+### New Institutions (Phase 6)
+
+**North African (10):** Mohammed V University (MA), Cadi Ayyad University (MA), International University of Rabat (MA), University of Tunis El Manar (TN), University of Sfax (TN), University of Sousse (TN), University of Tripoli (LY), Nile University (EG), E-JUST (EG), Ain Shams University (EG)
+
+**Arabic/Gulf (10):** King Saud University (SA), KFUPM (SA), Khalifa University (AE), MBZUAI (AE), Qatar University (QA), American University of Beirut (LB), JUST (JO), Sultan Qaboos University (OM), University of Khartoum (SD), KINDI Center for AI (QA)
+
+### New Events (Phase 6)
+
+**10 Arabic/MENA conferences:** ICNLSP 2025 (Algiers), ArabicNLP 2025 (Vienna), ICALP 2025 (Rabat), AI & NLP Summit MENA 2025 (Dubai), North Africa AI Summit 2025 (Tunis), NADI 2025 (Vienna), Deep Learning Indaba 2025 (Dakar), IEEE AICCSA 2025 (Cairo), SIGARAB Workshop 2025 (Suzhou)
+
+**New country scrapers:** ConferenceAlerts for Morocco, Tunisia, and Egypt.
+
+### Trends API Endpoint
+
+```
+GET /<lang>/scraping/trends/?months=6
+```
+
+Returns JSON with:
+- `top_domains` — Most active research domains with counts
+- `growing_topics` — Domains with highest growth percentage
+- `top_sources` — Healthiest and most productive sources
+- `category_counts` — Items per category (events, tools, news, courses, institutions)
+- `monthly_activity` — Items created per month
+
+Staff-only access. `months` parameter is clamped to 1–24.
+
+### Admin Panel
+
+`ScrapedItemMeta` is registered in the admin with:
+- Color-coded category badges
+- Score badges (green ≥70, amber ≥40, red <40)
+- Filters by category and primary domain
+- Search by item title
+- Ordered by highest relevance score

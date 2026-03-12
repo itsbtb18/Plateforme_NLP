@@ -132,41 +132,68 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         instance.save()
 
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         form.instance.is_approved = self.request.user.is_staff
         form.instance.approval_status = 'approved' if self.request.user.is_staff else 'pending'
         form.instance.created_by = self.request.user
-        self.object = form.save()
-        self._save_bilingual_fields(self.object)
         
-        if self.object.is_approved:
-            messages.success(self.request, _('Event created successfully!'))
-            User = get_user_model()
-            active_users = User.objects.filter(is_active=True)
-            NotificationService.notify_group(
-                active_users,
-                'EVENT_APPROVED',
-                _("New event approved: %(title)s"),
-                _("A new event has been approved: %(title)s."),
-                self.object,
-                title_kwargs={'title': self.object.title},
-                message_kwargs={'title': self.object.title}
+        logger.info(
+            f"[EVENT_CREATE] Creating event by user: {self.request.user.email}, "
+            f"title: {form.instance.title}, status: {form.instance.approval_status}"
+        )
+        
+        try:
+            self.object = form.save()
+            self._save_bilingual_fields(self.object)
+            
+            logger.info(
+                f"[EVENT_CREATE] ✓ Event created successfully "
+                f"(ID: {self.object.id}, Status: {self.object.approval_status})"
             )
-            return redirect(self.object.get_absolute_url())
-        else:
-            messages.success(self.request, _('Event created successfully! It will be visible after admin approval.'))
-            NotificationService.create_notification(
-                recipient=self.request.user,
-                notification_type='EVENT_CREATED',
-                title=_("Your event is awaiting approval"),
-                message=_("Your event '%(title)s' is awaiting approval."),
-                related_object=self.object,
-                message_kwargs={'title': self.object.title}
-            )
-            return redirect('events:event_list')
+            
+            if self.object.is_approved:
+                messages.success(self.request, _('Event created successfully!'))
+                User = get_user_model()
+                active_users = User.objects.filter(is_active=True)
+                NotificationService.notify_group(
+                    active_users,
+                    'EVENT_APPROVED',
+                    _("New event approved: %(title)s"),
+                    _("A new event has been approved: %(title)s."),
+                    self.object,
+                    title_kwargs={'title': self.object.title},
+                    message_kwargs={'title': self.object.title}
+                )
+                return redirect(self.object.get_absolute_url())
+            else:
+                messages.success(self.request, _('Event created successfully! It will be visible after admin approval.'))
+                NotificationService.create_notification(
+                    recipient=self.request.user,
+                    notification_type='EVENT_CREATED',
+                    title=_("Your event is awaiting approval"),
+                    message=_("Your event '%(title)s' is awaiting approval."),
+                    related_object=self.object,
+                    message_kwargs={'title': self.object.title}
+                )
+                return redirect('events:event_list')
+                
+        except Exception as e:
+            logger.error(f"[EVENT_CREATE] ✗ Error creating event: {str(e)}", exc_info=True)
+            messages.error(self.request, _('An error occurred while creating the event. Please try again.'))
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[EVENT_CREATE] Form validation failed: {form.errors.as_json()}")
+        messages.error(self.request, _('Please correct the errors in the form.'))
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'events'  
+        context['page'] = 'events'
         return context
 
 
@@ -205,11 +232,26 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             messages.success(self.request, _('Event updated successfully!'))
         response = super().form_valid(form)
         self._save_bilingual_fields(self.object)
+
+        # In admin edit-only mode, return to review detail page for approve/reject actions.
+        if (
+            self.request.user.is_staff
+            and self.request.GET.get('edit_only') == '1'
+            and self.request.GET.get('review_model')
+            and self.request.GET.get('review_pk')
+        ):
+            return redirect(
+                'pages:admin_view_item',
+                model_type=self.request.GET.get('review_model'),
+                pk=self.request.GET.get('review_pk'),
+            )
         return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page'] = 'events'  
+        context['page'] = 'events'
+        context['review_mode'] = self.request.GET.get('review') == '1' and self.request.user.is_staff
+        context['is_pending'] = self.object.approval_status == 'pending'
         return context
 
 

@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.utils import timezone
 from django.views import View
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.core.exceptions import PermissionDenied
 from typing import Any, TYPE_CHECKING, cast
 from projects.models import Project, ProjectMember
@@ -20,9 +20,14 @@ from .two_factor_utils import generate_otp, store_otp
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
 import logging
+import time
+from django.db.models import Q
+from django.core.cache import cache
 
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
+from .models import Friendship
+from pages.security import log_admin_activity
 
 if TYPE_CHECKING:
     from .models import CustomUser
@@ -74,6 +79,11 @@ class SignUp(CreateView):
         if request.user.is_authenticated:
             messages.info(request, _("You are already logged in."))
             return redirect('pages:home')
+        # Clear any stale 2FA session data from a previous abandoned signup
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        if request.session.modified:
+            request.session.save()
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form: Any) -> Any:
@@ -147,7 +157,44 @@ class LoginView(AllauthLoginView):
     Custom login view with Remember Me support.
     """
 
+    MAX_LOGIN_ATTEMPTS = 5
+    LOCKOUT_SECONDS = 15 * 60
+    FAILURE_WINDOW_SECONDS = 15 * 60
+    FAILURE_DELAY_SECONDS = 1.2
+
+    def _client_ip(self) -> str:
+        xff = (self.request.META.get("HTTP_X_FORWARDED_FOR", "") or "").split(",")[0].strip()
+        return (xff or self.request.META.get("REMOTE_ADDR", "") or "unknown")[:64]
+
+    def _email_key(self) -> str:
+        email = (self.request.POST.get("login") or self.request.POST.get("email") or "").strip().lower()
+        return email or "unknown"
+
+    def _lock_key(self) -> str:
+        return f"auth:login:lock:{self._client_ip()}:{self._email_key()}"
+
+    def _fail_key(self) -> str:
+        return f"auth:login:fail:{self._client_ip()}:{self._email_key()}"
+
+    def dispatch(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        # Clear any stale 2FA session data from an abandoned signup flow
+        for key in ['pending_2fa_user_id', 'pending_2fa_is_signup', 'pending_2fa_remember']:
+            request.session.pop(key, None)
+        if request.session.modified:
+            request.session.save()
+
+        locked_until = cache.get(self._lock_key())
+        if locked_until:
+            messages.error(
+                request,
+                _("Too many failed attempts. Try again later."),
+            )
+            return self.render_to_response(self.get_context_data(form=self.get_form()))
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form: Any) -> Any:
+        cache.delete(self._fail_key())
+        cache.delete(self._lock_key())
         response = super().form_valid(form)
 
         remember = self.request.POST.get('remember')
@@ -156,7 +203,30 @@ class LoginView(AllauthLoginView):
         else:
             self.request.session.set_expiry(0)  # Expire when browser closes
 
+        if self.request.user.is_authenticated and getattr(self.request.user, "is_staff", False):
+            log_admin_activity(
+                user=self.request.user,
+                request=self.request,
+                action="admin_login_success",
+                target_type="auth",
+            )
+
         return response
+
+    def form_invalid(self, form: Any) -> Any:
+        fail_key = self._fail_key()
+        lock_key = self._lock_key()
+        current_fails = cache.get(fail_key, 0) + 1
+        cache.set(fail_key, current_fails, self.FAILURE_WINDOW_SECONDS)
+        if current_fails >= self.MAX_LOGIN_ATTEMPTS:
+            cache.set(lock_key, "1", self.LOCKOUT_SECONDS)
+            messages.error(
+                self.request,
+                _("Account temporarily locked due to repeated failed attempts."),
+            )
+
+        time.sleep(self.FAILURE_DELAY_SECONDS)
+        return super().form_invalid(form)
 
 
 # --------------------------
@@ -173,40 +243,112 @@ class ProfileView(DetailView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         profile_user = self.get_object()
+        viewer = self.request.user if self.request.user.is_authenticated else None
+        selected_section = (self.request.GET.get('section') or 'all').strip().lower()
+        valid_sections = {
+            'all', 'posts', 'courses', 'resources', 'tools', 'corpora',
+            'projects', 'topics', 'events_upcoming', 'events_past', 'events_created'
+        }
+        if selected_section not in valid_sections:
+            selected_section = 'all'
 
-        context['is_own_profile'] = (
-            self.request.user.is_authenticated and self.request.user == profile_user
-        )
+        is_own_profile = bool(viewer and viewer == profile_user)
+        relation_state = Friendship.relation_state(viewer, profile_user) if viewer else 'NEUTRE'
+        is_friend = relation_state == 'AMIS'
+        can_view_full = is_own_profile or is_friend
 
-        # User's projects
-        context['user_projects'] = Project.objects.filter(
+        context['is_own_profile'] = is_own_profile
+        context['relation_state'] = relation_state
+        context['is_friend'] = is_friend
+        context['can_view_full_profile'] = can_view_full
+        context['can_view_contributions'] = True
+        context['page'] = 'profile'
+        context['selected_section'] = selected_section
+
+        # Public resources are always visible (profile public view)
+        from resources.models import Document
+        user_resources_qs = Document.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-creation_date')
+
+        # Show user contributions publicly on profile pages
+        user_projects_qs = Project.objects.filter(
             members__member=profile_user,
             members__status='accepted'
-        ).distinct()[:6]
+        ).distinct()
 
-        # User's posts (QA)
         from QA.models import Post
-        context['user_posts'] = Post.objects.filter(
+        user_posts_qs = Post.objects.filter(
             author=profile_user, approval_status='approved'
-        ).order_by('-created_at')[:6]
+        ).order_by('-created_at')
 
-        # User's courses (as teacher)
-        from resources.models import Course
-        context['user_courses'] = Course.objects.filter(
+        from resources.models import Course, Corpus, NLPTool
+        user_courses_qs = Course.objects.filter(
             teacher=profile_user, approval_status='approved'
-        ).order_by('-creation_date')[:6]
+        ).order_by('-creation_date')
 
-        # User's documents (as author) - articles, theses, memoirs
-        from resources.models import Document
-        context['user_resources'] = Document.objects.filter(
+        user_corpora_qs = Corpus.objects.filter(
             author=profile_user, approval_status='approved'
-        ).order_by('-creation_date')[:6]
+        ).order_by('-creation_date')
 
-        # User's forum topics
+        user_tools_qs = NLPTool.objects.filter(
+            author=profile_user, approval_status='approved'
+        ).order_by('-creation_date')
+
         from forum.models import Topic
-        context['user_topics'] = Topic.objects.filter(
+        user_topics_qs = Topic.objects.filter(
             creator=profile_user, approval_status='approved'
-        ).order_by('-created_at')[:6]
+        ).order_by('-created_at')
+
+        from events.models import Event, EventRegistration
+        today = timezone.now().date()
+        regs = EventRegistration.objects.filter(user=profile_user).select_related('event')
+        upcoming_events_qs = regs.filter(event__start_date__gte=today).order_by('event__start_date')
+        past_events_qs = regs.filter(event__start_date__lt=today).order_by('-event__start_date')
+        user_events_qs = Event.objects.filter(
+            created_by=profile_user, approval_status='approved'
+        ).order_by('-start_date')
+
+        def section_items(queryset, section_key: str):
+            if selected_section in ('all', section_key):
+                return queryset if selected_section == section_key else queryset[:6]
+            return queryset.none()
+
+        context['user_posts'] = section_items(user_posts_qs, 'posts')
+        context['user_courses'] = section_items(user_courses_qs, 'courses')
+        context['user_resources'] = section_items(user_resources_qs, 'resources')
+        context['user_tools'] = section_items(user_tools_qs, 'tools')
+        context['user_corpora'] = section_items(user_corpora_qs, 'corpora')
+        context['user_projects'] = section_items(user_projects_qs, 'projects')
+        context['user_topics'] = section_items(user_topics_qs, 'topics')
+        context['upcoming_events'] = section_items(upcoming_events_qs, 'events_upcoming')
+        context['past_events'] = section_items(past_events_qs, 'events_past')
+        context['user_events'] = section_items(user_events_qs, 'events_created')
+
+        # Profile headline stats for "social-pro" header
+        context['user_projects_count'] = user_projects_qs.count()
+        context['user_corpus_count'] = user_corpora_qs.count()
+        context['user_news_count'] = user_posts_qs.count()
+        context['user_courses_count'] = user_courses_qs.count()
+        context['user_resources_count'] = user_resources_qs.count()
+        context['user_tools_count'] = user_tools_qs.count()
+        context['user_topics_count'] = user_topics_qs.count()
+        context['upcoming_events_count'] = upcoming_events_qs.count()
+        context['past_events_count'] = past_events_qs.count()
+        context['user_events_count'] = user_events_qs.count()
+        section_counts = {
+            'posts': context['user_news_count'],
+            'courses': context['user_courses_count'],
+            'resources': context['user_resources_count'],
+            'tools': context['user_tools_count'],
+            'corpora': context['user_corpus_count'],
+            'projects': context['user_projects_count'],
+            'topics': context['user_topics_count'],
+            'events_upcoming': context['upcoming_events_count'],
+            'events_past': context['past_events_count'],
+            'events_created': context['user_events_count'],
+        }
+        context['selected_section_count'] = section_counts.get(selected_section, 0)
 
         return context
 
@@ -270,6 +412,176 @@ class ProfileEditView(LoginRequiredMixin, UpdateView):
 # --------------------------
 # Vue invitation à un projet
 # --------------------------
+class NetworkInvitationsView(LoginRequiredMixin, View):
+    template_name = 'account/network_requests.html'
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        incoming = Friendship.objects.filter(
+            addressee=request.user,
+            status=Friendship.Status.PENDING
+        ).select_related('requester', 'requester__institution').order_by('-created_at')
+
+        outgoing = Friendship.objects.filter(
+            requester=request.user,
+            status=Friendship.Status.PENDING
+        ).select_related('addressee', 'addressee__institution').order_by('-created_at')
+
+        return render(request, self.template_name, {
+            'incoming_requests': incoming,
+            'outgoing_requests': outgoing,
+            'page': 'network',
+        })
+
+
+@login_required
+def blocked_users_api(request: Any) -> Any:
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+
+    blocked = Friendship.objects.filter(
+        requester=request.user,
+        status=Friendship.Status.BLOCKED
+    ).select_related('addressee').order_by('-created_at')
+
+    data = []
+    for rel in blocked:
+        u = rel.addressee
+        avatar_url = ''
+        if getattr(u, 'avatar', None):
+            try:
+                avatar_url = u.avatar.url
+            except Exception:
+                avatar_url = ''
+        data.append({
+            'id': str(u.id),
+            'name': u.get_full_name_display,
+            'avatar': avatar_url,
+        })
+    return JsonResponse({'ok': True, 'items': data})
+
+
+@login_required
+def invitations_count_api(request: Any) -> Any:
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+
+    count = Friendship.objects.filter(
+        addressee=request.user,
+        status=Friendship.Status.PENDING
+    ).count()
+    return JsonResponse({'ok': True, 'count': count})
+
+
+@login_required
+def set_online_visibility_api(request: Any) -> Any:
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+
+    raw = (request.POST.get('is_on') or '').strip().lower()
+    if raw in {'1', 'true', 'on', 'yes'}:
+        is_on = True
+    elif raw in {'0', 'false', 'off', 'no'}:
+        is_on = False
+    else:
+        return JsonResponse({'ok': False, 'error': _('Invalid value.')}, status=400)
+
+    request.user.show_online_status = is_on
+    request.user.save(update_fields=['show_online_status'])
+    return JsonResponse({'ok': True, 'show_online_status': is_on})
+
+
+@login_required
+def friendship_action(request: Any, user_id: str, action: str) -> Any:
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+
+    target_user = get_object_or_404(User, pk=user_id)
+    current_user = request.user
+
+    if target_user == current_user:
+        return JsonResponse({'ok': False, 'error': _('Invalid target user.')}, status=400)
+
+    try:
+        pair_filter = Q(requester=current_user, addressee=target_user) | Q(requester=target_user, addressee=current_user)
+        outgoing_pending = Friendship.objects.filter(
+            requester=current_user,
+            addressee=target_user,
+            status=Friendship.Status.PENDING
+        )
+        incoming_pending = Friendship.objects.filter(
+            requester=target_user,
+            addressee=current_user,
+            status=Friendship.Status.PENDING
+        )
+        accepted_relations = Friendship.objects.filter(pair_filter, status=Friendship.Status.ACCEPTED)
+        blocked_relations = Friendship.objects.filter(pair_filter, status=Friendship.Status.BLOCKED)
+
+        if action == 'add':
+            if blocked_relations.exists():
+                return JsonResponse({'ok': False, 'error': _('User is blocked.')}, status=400)
+            if accepted_relations.exists():
+                state = 'AMIS'
+            elif incoming_pending.exists():
+                state = 'EN_ATTENTE_RECU'
+            elif outgoing_pending.exists():
+                state = 'EN_ATTENTE_ENVOYE'
+            else:
+                Friendship.objects.create(
+                    requester=current_user,
+                    addressee=target_user,
+                    status=Friendship.Status.PENDING
+                )
+                state = 'EN_ATTENTE_ENVOYE'
+
+        elif action == 'cancel':
+            outgoing_pending.delete()
+            state = 'NEUTRE'
+
+        elif action == 'accept':
+            if incoming_pending.exists():
+                incoming_pending.update(status=Friendship.Status.ACCEPTED, updated_at=timezone.now())
+                # Safety cleanup in case duplicate inverse pending rows exist.
+                outgoing_pending.delete()
+            elif accepted_relations.exists():
+                pass
+            else:
+                return JsonResponse({'ok': False, 'error': _('No incoming request to accept.')}, status=400)
+            state = 'AMIS'
+
+        elif action == 'reject':
+            incoming_pending.delete()
+            state = 'NEUTRE'
+
+        elif action == 'remove':
+            accepted_relations.delete()
+            state = 'NEUTRE'
+
+        elif action == 'block':
+            Friendship.objects.filter(pair_filter).delete()
+            Friendship.objects.create(
+                requester=current_user,
+                addressee=target_user,
+                status=Friendship.Status.BLOCKED
+            )
+            state = 'BLOQUE'
+
+        elif action == 'unblock':
+            Friendship.objects.filter(
+                requester=current_user,
+                addressee=target_user,
+                status=Friendship.Status.BLOCKED
+            ).delete()
+            state = 'NEUTRE'
+
+        else:
+            return JsonResponse({'ok': False, 'error': _('Unknown action.')}, status=400)
+
+        return JsonResponse({'ok': True, 'state': state, 'target_id': str(target_user.id)})
+    except Exception as exc:
+        logger.error("Friendship action failed: %s", exc, exc_info=True)
+        return JsonResponse({'ok': False, 'error': _('Action failed.')}, status=500)
+
+
 class InviteToProjectView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user_to_invite = get_object_or_404(get_user_model(), pk=pk)

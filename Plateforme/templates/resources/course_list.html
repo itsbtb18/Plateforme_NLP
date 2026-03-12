@@ -340,27 +340,34 @@ html[dir="rtl"] body {
 .course-hub-pill.active {
     background: var(--academy-primary);
     border-color: var(--academy-primary);
-    color: var(--academy-white);
+    color: var(--academy-white) !important;
 }
 
 .course-hub-pill i {
     font-size: 0.85rem;
 }
 
+.course-hub-pill.active i {
+    color: #ffffff !important;
+}
+
 /* Level-specific pill colors */
 .course-hub-pill[data-level="beginner"].active {
     background: var(--academy-beginner);
     border-color: var(--academy-beginner);
+    color: #ffffff !important;
 }
 
 .course-hub-pill[data-level="intermediate"].active {
     background: var(--academy-intermediate);
     border-color: var(--academy-intermediate);
+    color: #ffffff !important;
 }
 
 .course-hub-pill[data-level="advanced"].active {
     background: var(--academy-advanced);
     border-color: var(--academy-advanced);
+    color: #ffffff !important;
 }
 
 /* ===== COURSE GRID ===== */
@@ -552,43 +559,139 @@ html[dir="rtl"] body {
     border-block-start: 1px solid var(--academy-border);
 }
 
-.course-hub-card-cta {
+.card-actions-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
+    justify-content: space-between;
     width: 100%;
-    padding: 0.75rem 1.25rem;
-    background: var(--academy-primary);
-    color: var(--academy-white);
-    font-weight: 600;
-    font-size: 0.875rem;
+    gap: 0.75rem;
+}
+
+.course-hub-primary-actions,
+.social-actions {
+    display: flex;
+    align-items: center;
+}
+
+.social-actions .comment-btn {
+    margin-inline-start: 30px;
+}
+
+.course-hub-secondary-actions,
+.tool-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline-end: 15px;
+}
+
+.course-hub-action-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: transparent;
     border: none;
-    border-radius: var(--academy-radius-md);
+    color: var(--academy-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
     text-decoration: none;
     cursor: pointer;
-    transition: all 0.25s;
-    opacity: 0.9;
-    transform: translateY(2px);
+    padding: 0;
+    transition: color 0.2s ease;
 }
 
-.course-hub-card:hover .course-hub-card-cta {
-    opacity: 1;
-    transform: translateY(0);
-    background: var(--academy-primary-hover);
+.course-hub-action-text:hover {
+    color: var(--academy-primary);
 }
 
-.course-hub-card-cta i {
-    font-size: 1rem;
-    transition: transform 0.2s;
+.course-hub-action-text i {
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
 }
 
-.course-hub-card-cta:hover i {
-    transform: translateX(3px);
+.course-hub-action-text.like-btn.is-liked {
+    color: #e11d48;
 }
 
-html[dir="rtl"] .course-hub-card-cta:hover i {
-    transform: translateX(-3px);
+.course-hub-action-text.like-btn.is-liked i {
+    color: #e11d48;
+}
+
+.course-hub-compact-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(99, 102, 241, 0.26);
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
+}
+
+.course-hub-compact-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 18px rgba(79, 70, 229, 0.28);
+    color: #fff;
+}
+
+.course-hub-share-wrap {
+    position: relative;
+}
+
+.course-hub-share-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline-end: 0;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--academy-border);
+    border-radius: 12px;
+    box-shadow: var(--academy-shadow-lg);
+    padding: 0.35rem;
+    display: none;
+    z-index: 40;
+}
+
+.course-hub-share-popover.show {
+    display: block;
+}
+
+.course-hub-share-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: start;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    color: var(--academy-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.84rem;
+    cursor: pointer;
+}
+
+.course-hub-share-item:hover {
+    background: var(--academy-muted);
+    color: var(--academy-text);
+}
+
+@media (max-width: 768px) {
+    .course-hub-primary-actions {
+        gap: 0;
+    }
+    .social-actions .comment-btn {
+        margin-inline-start: 25px;
+    }
+    .course-hub-secondary-actions,
+    .tool-actions {
+        margin-inline-end: 8px;
+    }
 }
 
 /* ===== EMPTY STATE ===== */
@@ -849,13 +952,15 @@ html[dir="rtl"] .course-hub-card-cta:hover i {
             <div class="course-hub-grid" id="courses-grid">
                 {% for course in courses %}
                 <article class="course-hub-card">
-                    <div class="course-hub-card-header">
+                    <div class="course-hub-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
                         <div class="course-hub-card-icon">
                             <i class="bi bi-journal-bookmark"></i>
                         </div>
                         <span class="course-hub-level-badge {{ course.academic_level }}">
                             {{ course.get_academic_level_display }}
                         </span>
+                        </div>
                     </div>
                     
                     <div class="course-hub-card-body">
@@ -881,10 +986,57 @@ html[dir="rtl"] .course-hub-card-cta:hover i {
                     </div>
                     
                     <div class="course-hub-card-footer">
-                        <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-card-cta">
-                            <i class="bi bi-play-circle"></i>
-                            {% translate "Start Learning" %}
-                        </a>
+                        <div class="card-actions-bar">
+                            <div class="course-hub-primary-actions social-actions">
+                                <button type="button" class="course-hub-action-text like-btn" data-course-id="{{ course.id }}" aria-label="{% translate 'Like' %}">
+                                    <i class="bi bi-heart" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
+                                    <span>{% translate "Like" %}</span>
+                                </button>
+                                <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn" aria-label="{% translate 'Comment' %}">
+                                    <i class="bi bi-chat"></i>
+                                    <span>{% translate "Comment" %}</span>
+                                </a>
+                            </div>
+                            <div class="course-hub-secondary-actions tool-actions">
+                                <button type="button"
+                                        class="course-hub-compact-icon ask-chatbot-btn"
+                                        title="{% trans 'Ask chatbot about this' %}"
+                                        data-ct="course"
+                                        data-oid="{{ course.id }}"
+                                        data-title="{{ course.get_localized_title|default:''|truncatechars:200 }}"
+                                        data-category="{{ course.get_course_field_display|default:'course' }}"
+                                        data-author="{{ course.author.get_full_name_display|default:''|truncatechars:120 }}"
+                                        data-description="{{ course.get_localized_description|default:''|truncatechars:400 }}"
+                                        data-url="{% url 'resources:course_detail' course.id %}"
+                                        data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.id %}","type":"course","id":"{{ course.id|escapejs }}"}'
+                                        aria-label="{% trans 'Ask chatbot' %}">
+                                    <i class="fas fa-robot"></i>
+                                </button>
+                                <div class="course-hub-share-wrap">
+                                    <button type="button"
+                                            class="course-hub-compact-icon share-trigger-btn"
+                                            data-share-type="course"
+                                            data-share-id="{{ course.id }}"
+                                            data-share-title="{{ course.get_localized_title|default:'' }}"
+                                            data-share-url="{% url 'resources:course_detail' course.id %}"
+                                            aria-label="{% trans 'Share' %}"
+                                            title="{% trans 'Share with friends' %}">
+                                        <i class="bi bi-send"></i>
+                                    </button>
+                                    <div class="course-hub-share-popover" role="menu">
+                                        <button type="button" class="course-hub-share-item" data-share-action="friends">
+                                            <i class="bi bi-people"></i> {% trans "Send to friends" %}
+                                        </button>
+                                        <button type="button" class="course-hub-share-item" data-share-action="copy">
+                                            <i class="bi bi-link-45deg"></i> {% trans "Copy link" %}
+                                        </button>
+                                        <button type="button" class="course-hub-share-item" data-share-action="social">
+                                            <i class="bi bi-globe2"></i> {% trans "Share on social media" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </article>
                 {% endfor %}
@@ -897,12 +1049,6 @@ html[dir="rtl"] .course-hub-card-cta:hover i {
                     </div>
                     <h3>{% translate "No Courses Found" %}</h3>
                     <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'resources:course-create' %}" class="course-hub-empty-btn">
-                        <i class="bi bi-plus-lg"></i>
-                        {% translate "Create Your First Course" %}
-                    </a>
-                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -925,6 +1071,108 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentLevel = '{{ current_level|default:"" }}';
     let debounceTimer = null;
     let currentRequest = null;
+
+    function getCsrfTokenFromCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function buildStructuredCourseContext(card, btn) {
+        const getText = (selectors, fallback = '') => {
+            for (const selector of selectors) {
+                const el = card.querySelector(selector);
+                const txt = (el?.textContent || '').trim();
+                if (txt) return txt.replace(/\s+/g, ' ');
+            }
+            return fallback;
+        };
+
+        const title = getText(['.course-hub-card-title', '.card-title', 'h3']);
+        const category = getText(['.course-hub-level-badge', '.badge']);
+        const author = getText(['.course-hub-meta-row strong', '.author-name']);
+        const summary = getText(['.course-hub-card-desc', '.card-text', 'p']);
+        const detailUrl = btn.dataset.url || btn.getAttribute('data-url') || '';
+
+        const payload = {
+            title,
+            category,
+            author,
+            description: summary,
+            type: 'course',
+            id: btn.dataset.oid || '',
+            url: detailUrl,
+        };
+
+        const structuredText =
+            `[CARD_CONTEXT]\n` +
+            `Title: ${title || 'N/A'}\n` +
+            `Category: ${category || 'N/A'}\n` +
+            `Author: ${author || 'N/A'}\n` +
+            `Summary: ${summary || 'N/A'}\n` +
+            `Type: course\n` +
+            `ID: ${payload.id || 'N/A'}\n` +
+            `URL: ${payload.url || 'N/A'}`;
+
+        return { payload, structuredText };
+    }
+
+    async function sendCourseContextSilently(payload, structuredText) {
+        try {
+            if (window.chat && typeof window.chat.sendContext === 'function') {
+                window.chat.sendContext(structuredText);
+            }
+        } catch (err) {
+            console.warn('window.chat.sendContext failed:', err);
+        }
+
+        try {
+            sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
+                ...payload,
+                system_prompt: structuredText,
+            }));
+            sessionStorage.setItem('chatbot_last_context_title', payload.title || '');
+        } catch (err) {
+            console.warn('sessionStorage context failed:', err);
+        }
+
+        try {
+            await fetch("{% url 'chatbot:set_card_context' %}", {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfTokenFromCookie(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(payload),
+            });
+        } catch (err) {
+            console.warn('set_card_context failed:', err);
+        }
+    }
+
+    function likeStorageKey(courseId) {
+        return `course_like_${courseId}`;
+    }
+
+    function applyLikeVisual(btn, liked) {
+        btn.classList.toggle('is-liked', liked);
+        const icon = btn.querySelector('i');
+        if (!icon) return;
+        const outline = icon.dataset.outlineIcon || 'bi-heart';
+        const solid = icon.dataset.solidIcon || 'bi-heart-fill';
+        icon.classList.remove(outline, solid);
+        icon.classList.add(liked ? solid : outline);
+    }
+
+    function hydrateCourseActions(scope) {
+        const root = scope || document;
+        root.querySelectorAll('.course-hub-action-text.like-btn').forEach(btn => {
+            const courseId = btn.dataset.courseId;
+            const liked = localStorage.getItem(likeStorageKey(courseId)) === '1';
+            applyLikeVisual(btn, liked);
+        });
+    }
     
     // ===== DEBOUNCE FUNCTION =====
     function debounce(func, delay) {
@@ -978,6 +1226,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const existingGrid = document.getElementById('courses-grid');
             if (existingGrid && newGrid) {
                 existingGrid.replaceWith(newGrid);
+                hydrateCourseActions(newGrid);
             }
             
             // Remove loading state
@@ -1028,6 +1277,90 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchCourses(query, currentLevel);
         });
     });
+
+    document.addEventListener('click', async function(e) {
+        const robotBtn = e.target.closest('.ask-chatbot-btn');
+        if (robotBtn && robotBtn.closest('.course-hub-card')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+                e.stopImmediatePropagation();
+            }
+
+            const card = robotBtn.closest('.course-hub-card');
+            const { payload, structuredText } = buildStructuredCourseContext(card, robotBtn);
+            await sendCourseContextSilently(payload, structuredText);
+
+            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
+            chatbotUrl.searchParams.set('context', 'course');
+            if (payload.id) chatbotUrl.searchParams.set('id', payload.id);
+            chatbotUrl.searchParams.set('source', 'card');
+            window.location.assign(chatbotUrl.toString());
+            return;
+        }
+
+        const likeBtn = e.target.closest('.course-hub-action-text.like-btn');
+        if (likeBtn) {
+            e.preventDefault();
+            const courseId = likeBtn.dataset.courseId;
+            const wasLiked = localStorage.getItem(likeStorageKey(courseId)) === '1';
+            const nowLiked = !wasLiked;
+            localStorage.setItem(likeStorageKey(courseId), nowLiked ? '1' : '0');
+            applyLikeVisual(likeBtn, nowLiked);
+            return;
+        }
+
+        const shareBtn = e.target.closest('.share-trigger-btn');
+        if (shareBtn && shareBtn.closest('.course-hub-share-wrap')) {
+            e.preventDefault();
+            const wrap = shareBtn.closest('.course-hub-share-wrap');
+            const popover = wrap.querySelector('.course-hub-share-popover');
+            const isOpen = popover.classList.contains('show');
+            document.querySelectorAll('.course-hub-share-popover.show').forEach(p => p.classList.remove('show'));
+            if (!isOpen) popover.classList.add('show');
+            return;
+        }
+
+        const shareActionBtn = e.target.closest('.course-hub-share-item');
+        if (shareActionBtn) {
+            e.preventDefault();
+            const wrap = shareActionBtn.closest('.course-hub-share-wrap');
+            const trigger = wrap.querySelector('.share-trigger-btn');
+            const action = shareActionBtn.dataset.shareAction;
+            const contentType = trigger.dataset.shareType;
+            const objectId = trigger.dataset.shareId;
+            const title = trigger.dataset.shareTitle || '';
+            const rawUrl = trigger.dataset.shareUrl || window.location.href;
+            const url = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
+
+            if (action === 'friends') {
+                const event = new CustomEvent('openShareModal', {
+                    detail: { contentType, objectId, title },
+                });
+                document.dispatchEvent(event);
+            } else if (action === 'copy') {
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch (err) {
+                    console.warn('Copy failed', err);
+                }
+            } else if (action === 'social') {
+                const shareText = encodeURIComponent(title || document.title);
+                const shareUrl = encodeURIComponent(url);
+                window.open(`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`, '_blank', 'noopener,noreferrer,width=640,height=520');
+            }
+
+            const popover = wrap.querySelector('.course-hub-share-popover');
+            popover.classList.remove('show');
+            return;
+        }
+
+        if (!e.target.closest('.course-hub-share-wrap')) {
+            document.querySelectorAll('.course-hub-share-popover.show').forEach(p => p.classList.remove('show'));
+        }
+    });
+
+    hydrateCourseActions();
 });
 </script>
 {% endblock %}

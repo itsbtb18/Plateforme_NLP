@@ -95,6 +95,7 @@ class TwoFactorAuthenticationMiddleware:
         self.exempt_paths = [
             '/accounts/verify-2fa/',
             '/accounts/resend-otp/',
+            '/accounts/cancel-2fa/',
             '/accounts/logout/',
             '/accounts/login/',
             '/accounts/signup/',
@@ -104,6 +105,12 @@ class TwoFactorAuthenticationMiddleware:
             '/media/',
         ]
     
+    def _clear_2fa_session(self, request):
+        request.session.pop('pending_2fa_user_id', None)
+        request.session.pop('pending_2fa_is_signup', None)
+        request.session.pop('pending_2fa_remember', None)
+        request.session.modified = True
+
     def __call__(self, request):
         # Check if user has pending 2FA verification
         pending_user_id = request.session.get('pending_2fa_user_id')
@@ -113,10 +120,7 @@ class TwoFactorAuthenticationMiddleware:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             if not User.objects.filter(id=pending_user_id).exists():
-                request.session.pop('pending_2fa_user_id', None)
-                request.session.pop('pending_2fa_is_signup', None)
-                request.session.pop('pending_2fa_remember', None)
-                request.session.modified = True
+                self._clear_2fa_session(request)
                 pending_user_id = None
         
         if pending_user_id:
@@ -125,12 +129,23 @@ class TwoFactorAuthenticationMiddleware:
             import re
             path_no_lang = re.sub(r'^/[a-z]{2}(-[a-z]{2})?/', '/', path)
             
-            is_exempt = path == '/'
+            is_exempt = path == '/' or path_no_lang == '/'
             if not is_exempt:
                 for exempt in self.exempt_paths:
                     if path_no_lang.startswith(exempt) or path.startswith(exempt):
                         is_exempt = True
                         break
+            
+            # If user navigates to login, signup, or home — they're abandoning 2FA
+            abandon_paths = ['/accounts/login/', '/accounts/signup/', '/accounts/cancel-2fa/']
+            is_abandoning = path == '/' or path_no_lang == '/'
+            if not is_abandoning:
+                for ap in abandon_paths:
+                    if path_no_lang.startswith(ap) or path.startswith(ap):
+                        is_abandoning = True
+                        break
+            if is_abandoning:
+                self._clear_2fa_session(request)
             
             if not is_exempt:
                 return redirect('accounts:verify_2fa')

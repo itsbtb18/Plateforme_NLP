@@ -259,3 +259,111 @@ class ContactMessage(models.Model):
 
 
 
+
+class AdminActivityLog(models.Model):
+    """
+    Security audit trail for custom admin panel actions.
+    """
+
+    admin_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='admin_activity_logs',
+    )
+    role_snapshot = models.CharField(max_length=32, default='user')
+    action = models.CharField(max_length=120)
+    path = models.CharField(max_length=255, blank=True, default='')
+    http_method = models.CharField(max_length=10, blank=True, default='GET')
+    target_type = models.CharField(max_length=80, blank=True, default='')
+    target_id = models.CharField(max_length=64, blank=True, default='')
+    details = models.TextField(blank=True, default='')
+    ip_address = models.CharField(max_length=64, blank=True, default='')
+    user_agent = models.CharField(max_length=255, blank=True, default='')
+    occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-occurred_at']
+        indexes = [
+            models.Index(fields=['admin_user', 'occurred_at']),
+            models.Index(fields=['action', 'occurred_at']),
+        ]
+        verbose_name = 'Admin activity log'
+        verbose_name_plural = 'Admin activity logs'
+
+    def __str__(self):
+        who = getattr(self.admin_user, 'email', 'unknown')
+        return f"{who} - {self.action} ({self.occurred_at:%Y-%m-%d %H:%M:%S})"
+
+
+class BlockedUpload(models.Model):
+    """
+    Security record for blocked file uploads.
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='blocked_uploads',
+    )
+    file_name = models.CharField(max_length=255, blank=True, default='')
+    reason = models.CharField(max_length=255, blank=True, default='')
+    path = models.CharField(max_length=255, blank=True, default='')
+    ip_address = models.CharField(max_length=64, blank=True, default='')
+    blocked_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-blocked_at']
+        verbose_name = 'Blocked upload'
+        verbose_name_plural = 'Blocked uploads'
+        indexes = [
+            models.Index(fields=['blocked_at']),
+            models.Index(fields=['ip_address', 'blocked_at']),
+        ]
+
+    def __str__(self):
+        base = self.file_name or 'upload'
+        return f"{base} blocked at {self.blocked_at:%Y-%m-%d %H:%M:%S}"
+
+
+class SecurityLog(models.Model):
+    ACTION_CHOICES = [
+        ('login', _('Login')),
+        ('failed_login', _('Failed Login')),
+        ('upload', _('Upload')),
+        ('blocked_upload', _('Blocked Upload')),
+        ('create', _('Create')),
+        ('update', _('Update')),
+        ('delete', _('Delete')),
+        ('other', _('Other')),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='security_logs',
+    )
+    role = models.CharField(max_length=32, blank=True, default='member')
+    action = models.CharField(max_length=32, choices=ACTION_CHOICES, default='other')
+    method = models.CharField(max_length=10, blank=True, default='GET')
+    ip_address = models.CharField(max_length=64, blank=True, default='')
+    path = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Security Log')
+        verbose_name_plural = _('Security Logs')
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['role', 'created_at']),
+        ]
+
+    def __str__(self):
+        actor = getattr(self.user, 'email', 'anonymous')
+        return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"

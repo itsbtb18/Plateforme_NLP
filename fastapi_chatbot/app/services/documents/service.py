@@ -37,6 +37,8 @@ class DocumentService:
         filename: str,
         session_id: str,
         user_id: Optional[str] = None,
+        source: str = "user_upload",
+        platform_document_id: Optional[str] = None,
     ) -> DocumentUploadResponse:
         """Validate, extract text, persist metadata, dispatch Celery task."""
         fname = filename.lower()
@@ -147,15 +149,30 @@ class DocumentService:
             file_size_bytes=file_size,
             raw_text=raw_text[:200_000],
             status="pending",
+            source=source,
+            platform_document_id=platform_document_id,
         )
         db.add(doc)
         await db.commit()
         await db.refresh(doc)
 
+        # Phase 8: Activate document session persistently so subsequent
+        # conversation turns auto-route to document mode.
+        sess.active_document_session = True
+        sess.active_document_id = str(doc.id)
+        sess.low_doc_similarity_streak = 0
+        await db.commit()
+
         # Celery: heavy processing (chunking + embedding generation)
         from app.tasks import process_document
 
-        process_document.delay(doc.id)
+        try:
+            process_document.delay(doc.id, source)
+        except Exception as exc:
+            logger.error("Failed to dispatch Celery task for doc %d: %s", doc.id, exc)
+            # Document is already saved — mark it so the user knows
+            doc.status = "queued"
+            await db.commit()
 
         logger.info("Document uploaded: %s (id=%d)", filename, doc.id)
         return DocumentUploadResponse(

@@ -51,23 +51,13 @@ USER_QUERY_PATTERNS = [
     # Arabic: "أدواتي", "منشوراتي", "مواردي"
     re.compile(r"(?:أدواتي|منشوراتي|مواردي|مشاريعي|دوراتي|مقالاتي|مساهماتي)"),
     re.compile(r"(?:التي نشرتها|التي شاركتها|التي أنشأتها)"),
-    # English: "who is X", "tell me about X", "find user X"
-    re.compile(r"\bwho is (?!this|that|it\b)\w+", re.I),
-    re.compile(
-        r"\b(?:find|search|lookup|look up|info about) (?:user|member|researcher|author|person)\b",
-        re.I,
-    ),
-    re.compile(r"\btell me about (?:user |member )?(?!yourself\b|you\b)\w+", re.I),
-    # French
+    # French self-only
     re.compile(r"\bquel est mon (?:nom|profil|email)\b", re.I),
     re.compile(r"\bqui suis[- ]je\b", re.I),
-    re.compile(r"\bqui est \w+", re.I),
     re.compile(r"\bmon (?:nom|profil|compte)\b", re.I),
-    # Arabic
+    # Arabic self-only
     re.compile(r"\b(?:ما (?:هو )?اسمي|من أنا)\b"),
-    re.compile(r"\bمن هو \w+"),
-    re.compile(r"\bمن هي \w+"),
-    re.compile(r"\bمعلومات(?:ي| عن)\b"),
+    re.compile(r"\bمعلوماتي\b"),
     re.compile(r"\bملفي الشخصي\b"),
     re.compile(r"\bحسابي\b"),
 ]
@@ -203,19 +193,28 @@ LEGAL_PATTERNS = [
 ]
 
 # --- Document queries (user-uploaded files) ---
+# ONLY explicit document references trigger this intent.
+# Generic verbs (explain, summarize) without document words do NOT match.
 DOCUMENT_PATTERNS = [
+    # English — explicit document references
     re.compile(r"\b(?:my (?:file|document|upload|pdf))\b", re.I),
-    re.compile(
-        r"\b(?:uploaded|summarize|summarise)\b.*\b(?:file|document|pdf)\b",
-        re.I,
-    ),
-    re.compile(r"\b(?:mon (?:fichier|document))\b", re.I),
-    re.compile(
-        r"\b(?:résumer|analyser) (?:mon|le) (?:fichier|document)\b",
-        re.I,
-    ),
+    re.compile(r"\b(?:uploaded|summarize|summarise)\b.*\b(?:file|document|pdf)\b", re.I),
+    re.compile(r"\bin (?:this|the|my) (?:document|file|pdf|paper|upload)\b", re.I),
+    re.compile(r"\b(?:what does|according to) (?:this|the|my) (?:document|file|pdf|paper)\b", re.I),
+    re.compile(r"\b(?:from|in) (?:the )?uploaded (?:file|document|pdf)\b", re.I),
+    re.compile(r"\bsummarize my (?:pdf|document|file|paper)\b", re.I),
+    re.compile(r"\bexplain (?:this|the) (?:document|paper|pdf|file)\b", re.I),
+    # French — explicit document references
+    re.compile(r"\b(?:mon (?:fichier|document|pdf))\b", re.I),
+    re.compile(r"\b(?:résumer|analyser) (?:mon|le|ce) (?:fichier|document|pdf)\b", re.I),
+    re.compile(r"\bdans (?:ce|le|mon) (?:document|fichier|pdf)\b", re.I),
+    re.compile(r"\bque dit (?:ce|le|mon) (?:document|fichier)\b", re.I),
+    re.compile(r"\bselon (?:ce|le|mon) (?:document|fichier|pdf)\b", re.I),
+    # Arabic — explicit document references
     re.compile(r"\b(?:ملفي|مستندي|وثيقتي)\b"),
-    re.compile(r"\bلخص\b.*\b(?:ملف|مستند)\b"),
+    re.compile(r"\bلخص\b.*\b(?:ملف|مستند|وثيقة)\b"),
+    re.compile(r"\b(?:في|من|حسب) (?:هذا |هذه )?(?:الملف|المستند|الوثيقة|الـ ?pdf)\b"),
+    re.compile(r"\bماذا (?:يقول|يذكر|يحتوي) (?:هذا )?(?:الملف|المستند)\b"),
 ]
 
 # --- Bug queries ---
@@ -275,6 +274,29 @@ GENERAL_KNOWLEDGE_PATTERNS = [
         r"\b(?:what (?:should i|do i need to)|where (?:should i|do i)) (?:learn|study|start|begin)\b",
         re.I,
     ),
+    # Conversational / advisory — no retrieval needed
+    re.compile(
+        r"\b(?:how (?:to|do i|can i|should i))\b"
+        r".*\b(?:build|create|make|design|develop|implement|write|set up|deploy)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:brainstorm|ideate|ideas? for|think of|come up with)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:what is|what are|what's|explain|define|describe)\b"
+        r".*\b(?:the (?:difference|concept|idea|purpose|role|meaning|definition))\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:compare|pros? and cons?|advantages?|disadvantages?|trade-?offs?)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:can you|could you|help me)\b.*\b(?:explain|understand|clarify|elaborate)\b",
+        re.I,
+    ),
     # French
     re.compile(
         r"\b(?:suggérer|recommander|proposer|créer|faire|donner)\b"
@@ -309,14 +331,83 @@ GENERAL_KNOWLEDGE_PATTERNS = [
     re.compile(
         r"\b(?:خطة|مسار|برنامج) (?:تعلم|دراسة|تدريب)\b",
     ),
+    # Arabic conversational / advisory
+    re.compile(r"\b(?:كيف (?:أبني|أصمم|أنشئ|أطور|أكتب))\b"),
+    re.compile(r"\b(?:أفكار|اقتراحات|عصف ذهني)\b"),
+    # French conversational / advisory
+    re.compile(
+        r"\b(?:comment)\b.*\b(?:construire|créer|développer|concevoir|implémenter|déployer)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:idées?|brainstorm|réfléchir)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:comparer|avantages?|inconvénients?|différences?)\b",
+        re.I,
+    ),
+    # Advisory / rule-based / theoretical — prevents platform keyword leak
+    # English
+    re.compile(
+        r"\b(?:what|which)\b.*\b(?:rules?|principles?|guidelines?|best practices?|standards?|criteria|ethics?|norms?)\b",
+        re.I,
+    ),
+    re.compile(r"\b(?:how|why)\s+should\b", re.I),
+    # French
+    re.compile(
+        r"\b(?:quelles?|quels?)\b.*\b(?:règles?|principes?|lignes directrices|bonnes pratiques|normes?|critères?|éthiques?)\b",
+        re.I,
+    ),
+    re.compile(r"\b(?:comment|pourquoi)\s+(?:devrait|faut[- ]il|doit[- ]on)\b", re.I),
+    # Arabic
+    re.compile(r"\b(?:ما هي|ما)\b.*\b(?:قواعد|مبادئ|إرشادات|معايير|أخلاقيات|ممارسات)\b"),
+    re.compile(r"\b(?:كيف|لماذا)\s+(?:يجب|ينبغي)\b"),
 ]
 
-# Soft document hints (used when session already has docs)
-SOFT_DOCUMENT_PATTERN = re.compile(
-    r"\b(?:summarize|summarise|explain|analyze|analyse|extract|"
-    r"résumer|expliquer|analyser|لخص|اشرح)\b",
-    re.I,
-)
+# --- Conceptual / educational questions (should go to Qdrant RAG) ---
+# Broad definitional, explanatory, or "how does X work" queries that
+# benefit from NLP-knowledge retrieval rather than LLM-direct answers.
+CONCEPTUAL_QUESTION_PATTERNS = [
+    # English — "what is X", "explain X", "define X", "how does X work"
+    re.compile(
+        r"\b(?:what is|what are|what's)\b(?!\s+(?:my|your)\b)",
+        re.I,
+    ),
+    re.compile(r"\b(?:define|definition of)\b", re.I),
+    re.compile(
+        r"\b(?:explain|describe)\b(?!.*\b(?:document|file|pdf|paper|upload)\b)",
+        re.I,
+    ),
+    re.compile(r"\bhow does\b.*\bwork\b", re.I),
+    re.compile(r"\bwhat does\b.*\bmean\b", re.I),
+    re.compile(r"\btell me about\b(?!\s+(?:myself|me)\b)", re.I),
+    # French — "qu'est-ce que", "c'est quoi", "expliquer", "définir"
+    re.compile(r"\bqu'est[- ]ce que?\b", re.I),
+    re.compile(r"\bc'est quoi\b", re.I),
+    re.compile(
+        r"\b(?:expliquer?|définir?|décrire?)\b(?!.*\b(?:fichier|document|pdf)\b)",
+        re.I,
+    ),
+    re.compile(r"\bcomment fonctionne\b", re.I),
+    re.compile(r"\bque (?:signifie|veut dire)\b", re.I),
+    re.compile(r"\bparle[- ]moi de\b", re.I),
+    # Arabic — "ما هو", "ما هي", "اشرح", "عرّف"
+    re.compile(r"\bما (?:هو|هي|هم|المقصود بـ?)\b"),
+    re.compile(r"\b(?:اشرح|عرّف|صف)\b(?!.*\b(?:ملف|مستند|وثيقة)\b)"),
+    re.compile(r"\bكيف (?:يعمل|تعمل)\b"),
+    re.compile(r"\bما (?:معنى|مفهوم)\b"),
+    re.compile(r"\bحدثني عن\b"),
+]
+
+# Soft document hints — DISABLED.
+# Was causing false positives: generic verbs like "explain" or "summarize"
+# triggered document_query even for conceptual questions.
+# SOFT_DOCUMENT_PATTERN = re.compile(
+#     r"\b(?:summarize|summarise|explain|analyze|analyse|extract|"
+#     r"résumer|expliquer|analyser|لخص|اشرح)\b",
+#     re.I,
+# )
 
 
 # ---------------------------------------------------------------------------

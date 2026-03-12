@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
+from accounts.blocking import exclude_hidden_users
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         model = Topic
@@ -68,6 +69,7 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
             # STRICT: Only show APPROVED topics in the community section
             # Pending topics are only visible in the admin panel
             qs = qs.filter(approval_status='approved')
+            qs = exclude_hidden_users(qs, self.request.user, ('creator',))
             
             # Filter: My Topics only - but still only approved ones
             if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
@@ -122,20 +124,74 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     context_object_name = 'topic'
       
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         form.instance.creator = self.request.user
+        
         # Auto-approve for staff, pending for regular users
         if self.request.user.is_staff:
             form.instance.approval_status = 'approved'
-            response = super().form_valid(form)
-            messages.success(self.request, _("Your topic has been published."))
+            form.instance.is_approved = True  # Legacy field
+            logger.info(f"[TOPIC_CREATE] Auto-approving topic by staff: {self.request.user.email}")
         else:
             form.instance.approval_status = 'pending'
+            form.instance.is_approved = False  # Legacy field
+            logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
+        
+        try:
             response = super().form_valid(form)
-            messages.info(
-                self.request,
-                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            logger.info(
+                f"[TOPIC_CREATE] ✓ Topic created successfully "
+                f"(ID: {form.instance.id}, Title: {form.instance.title}, Status: {form.instance.approval_status})"
             )
-        return response
+            
+            if self.request.user.is_staff:
+                messages.success(self.request, _("Your topic has been published."))
+            else:
+                messages.info(
+                    self.request,
+                    _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+                )
+            return response
+            
+        except Exception as e:
+            logger.error(f"[TOPIC_CREATE] ✗ Error creating topic: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the topic. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[TOPIC_CREATE] Form validation failed: {form.errors.as_json()}")
+        
+        # Log each field error for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                logger.warning(f"[TOPIC_CREATE] Field '{field}': {error}")
+        
+        # Create user-friendly error message
+        error_summary = []
+        for field, errors in form.errors.items():
+            if field == '__all__':
+                error_summary.extend(errors)
+            else:
+                field_label = form.fields.get(field).label if field in form.fields else field
+                for error in errors:
+                    error_summary.append(f"{field_label}: {error}")
+        
+        if error_summary:
+            messages.error(
+                self.request,
+                _("Form validation failed:\n") + "\n".join(error_summary[:5])  # Show first 5 errors
+            )
+        else:
+            messages.error(self.request, _('Please correct the errors in the form.'))
+        
+        return super().form_invalid(form)
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context['page'] = 'community'  
@@ -179,6 +235,9 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         
         if is_admin and is_review_action:
             topic = self.object
+            edit_only = request.GET.get('edit_only') == '1'
+            review_model = request.GET.get('review_model')
+            review_pk = request.GET.get('review_pk')
             
             # Update bilingual fields
             if request.POST.get('title_en'):
@@ -202,6 +261,8 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             # Just saving bilingual changes
             topic.save()
             messages.success(request, _("Topic updated successfully."))
+            if edit_only and review_model and review_pk:
+                return redirect('pages:admin_view_item', model_type=review_model, pk=review_pk)
             return redirect('pages:admin_forum')
         
         # Normal flow for non-admin or non-review mode
@@ -266,6 +327,7 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                 Q(approval_status='approved') | 
                 Q(creator=self.request.user)
             )
+        qs = exclude_hidden_users(qs, self.request.user, ('creator',))
         return qs
 
     def get_context_data(self, **kwargs):

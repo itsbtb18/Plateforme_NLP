@@ -1,5 +1,5 @@
 from django import forms
-from .models import Project
+from .models import Project, ProjectChatMessage, PROJECT_CHAT_URL_RE, validate_project_chat_file
 from django.utils.translation import get_language, gettext_lazy as _
 
 
@@ -76,7 +76,9 @@ class ProjectForm(forms.ModelForm):
         for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
             target_field = ar_field if lang == 'ar' else en_field
             value = self.cleaned_data.get(generic_field, '')
+            # Set both the language-specific field AND the main field
             setattr(instance, target_field, value)
+            setattr(instance, generic_field, value)
         
         if commit:
             instance.save()
@@ -114,3 +116,55 @@ class ProjectForm(forms.ModelForm):
                     _("Invalid file type. Only PDF and Word documents are allowed.")
                 )
         return attachment
+
+
+class ProjectChatMessageForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        lang = get_active_language()
+        if lang == "ar":
+            self.fields["content"].widget.attrs["placeholder"] = "اكتب رسالة..."
+        else:
+            self.fields["content"].widget.attrs["placeholder"] = "Write a message..."
+
+    class Meta:
+        model = ProjectChatMessage
+        fields = ["content", "file_path"]
+        widgets = {
+            "content": forms.Textarea(
+                attrs={
+                    "rows": 2,
+                    "placeholder": _("Write a message..."),
+                    "class": "pc-input",
+                }
+            ),
+            "file_path": forms.ClearableFileInput(
+                attrs={
+                    "class": "pc-file-input",
+                    "accept": ".pdf,.jpg,.jpeg,.png,.docx,.zip",
+                }
+            ),
+        }
+
+    def clean_file_path(self):
+        file_obj = self.cleaned_data.get("file_path")
+        if file_obj:
+            validate_project_chat_file(file_obj)
+        return file_obj
+
+    def clean(self):
+        cleaned = super().clean()
+        content = (cleaned.get("content") or "").strip()
+        file_obj = cleaned.get("file_path")
+
+        if not content and not file_obj:
+            raise forms.ValidationError(_("Enter a message or attach a file."))
+
+        if file_obj:
+            self.instance.message_type = ProjectChatMessage.MessageType.FILE
+        elif PROJECT_CHAT_URL_RE.search(content):
+            self.instance.message_type = ProjectChatMessage.MessageType.LINK
+        else:
+            self.instance.message_type = ProjectChatMessage.MessageType.TEXT
+
+        return cleaned

@@ -401,6 +401,26 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
             <form method="post">
                 {% csrf_token %}
                 
+                <!-- Form Errors Display -->
+                {% if form.errors or form.non_field_errors %}
+                <div class="tf-alert tf-alert-error" style="margin-bottom: 1.5rem;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                        <strong>{% translate "Please correct the following errors:" %}</strong>
+                        <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div class="tf-card-body">
                     
                     <div class="tf-notice">

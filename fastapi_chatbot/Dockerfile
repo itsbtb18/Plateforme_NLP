@@ -38,7 +38,7 @@ COPY requirements.txt .
 # Install PyTorch CPU-only version first (smaller, faster download)
 # Using extended timeout and retries for large package
 RUN pip install --no-cache-dir --timeout 300 --retries 5 \
-    torch --index-url https://download.pytorch.org/whl/cpu
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Install remaining Python dependencies
 RUN pip install --no-cache-dir --timeout 120 --retries 3 -r requirements.txt

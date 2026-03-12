@@ -37,7 +37,8 @@ ALL_COLLECTIONS = [
 #   type="nlp_knowledge", language, slug, category
 #
 # nlp_knowledge:
-#   type="nlp_knowledge", language, difficulty
+#   type="nlp_knowledge", language, difficulty,
+#   source_file, document_type, section_title, chunk_index, entities, version
 #
 # resources:
 #   type=<article|dataset|project|tutorial|…>, language, country, city

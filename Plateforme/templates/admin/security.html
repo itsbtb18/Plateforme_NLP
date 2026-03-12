@@ -1,8 +1,372 @@
-
 {% extends 'base_admin.html' %}
 {% load i18n %}
-{% block title %}{% trans "Security" %}{% endblock %}
+
+{% block title %}{% if LANGUAGE_CODE|slice:':2' == 'ar' %}مركز أمان الإدارة{% else %}{% trans "Admin Security Center" %}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sec-wrap { padding: 1rem 0 2rem; }
+  .sec-toolbar {
+    border: 1px solid #1e3a8a;
+    background: linear-gradient(180deg, #14284f 0%, #10213f 100%);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 72px;
+  }
+  .sec-toolbar-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #e2e8f0;
+  }
+  .sec-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .sec-tool-btn {
+    border: 1px solid #35528f;
+    background: rgba(255, 255, 255, .06);
+    color: #dbeafe;
+    border-radius: 10px;
+    padding: .46rem .86rem;
+    font-size: .82rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sec-tool-btn:hover { border-color: #60a5fa; background: rgba(147, 197, 253, .18); color: #ffffff; }
+  .sec-tool-btn.primary {
+    border-color: #1d4ed8;
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .sec-tool-btn.primary:hover { background: #dbeafe; }
+  .sec-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .sec-grid-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .sec-card, .sec-panel {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 14px;
+  }
+  .sec-card {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .sec-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,.08); }
+  .sec-label { font-size: .84rem; color: #64748b; margin: 0; }
+  .sec-value { font-size: 2rem; font-weight: 800; color: #0f172a; line-height: 1; margin: 6px 0 0; }
+  .sec-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem; border: 1px solid transparent;
+  }
+  .sec-icon.total { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+  .sec-icon.events { background: #fffbeb; border-color: #fed7aa; color: #d97706; }
+  .sec-icon.blocked { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+
+  .sec-panel-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .sec-chart-box { padding: 12px 14px; height: 320px; }
+  .sec-alert-list { padding: 12px 14px; display: grid; gap: 8px; max-height: 320px; overflow: auto; }
+  .sec-alert {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 8px;
+    align-items: start;
+  }
+  .sec-alert.danger { border-color: #fecaca; background: #fff5f5; }
+  .sec-alert i { margin-top: 2px; }
+  .sec-alert-msg { font-weight: 700; color: #0f172a; font-size: .84rem; }
+  .sec-alert-meta { color: #64748b; font-size: .75rem; }
+  .sec-ip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .75rem; color: #334155; }
+  .sec-empty { text-align: center; color: #64748b; padding: 1rem; }
+
+  .sec-table-wrap { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; }
+  .sec-filters {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: grid;
+    grid-template-columns: 2fr 1.2fr 1.1fr 1.1fr auto auto;
+    gap: 8px;
+  }
+  .sec-input, .sec-select {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: .42rem .55rem;
+    font-size: .85rem;
+    width: 100%;
+  }
+  .sec-btn {
+    border: 1px solid #1d4ed8; background: #1d4ed8; color: #fff;
+    border-radius: 10px; padding: .42rem .8rem; font-size: .85rem; font-weight: 700;
+  }
+  .sec-btn.reset { background: #fff; color: #1d4ed8; text-decoration: none; text-align: center; }
+
+  .sec-table th, .sec-table td { font-size: .84rem; vertical-align: middle; }
+  .sec-table th { color: #64748b; text-transform: uppercase; font-size: .75rem; }
+  .sec-method { border-radius: 999px; padding: 2px 8px; font-size: .72rem; font-weight: 800; display: inline-block; }
+  .sec-method.get { background: #eff6ff; color: #1d4ed8; }
+  .sec-method.post { background: #ecfdf5; color: #15803d; }
+  .sec-method.put, .sec-method.patch { background: #fffbeb; color: #b45309; }
+  .sec-method.delete { background: #fef2f2; color: #b91c1c; }
+  .sec-action { border-radius: 999px; padding: 2px 8px; font-size: .72rem; font-weight: 700; display: inline-block; border: 1px solid transparent; }
+  .sec-action.login { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .sec-action.failed_login, .sec-action.blocked_upload, .sec-action.delete { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .sec-action.upload, .sec-action.create { background: #ecfdf5; color: #15803d; border-color: #bbf7d0; }
+  .sec-action.update { background: #fffbeb; color: #b45309; border-color: #fed7aa; }
+  .sec-action.other { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+  .sec-role { border-radius: 999px; padding: 2px 8px; font-size: .72rem; font-weight: 700; background: #eef2ff; color: #3730a3; }
+  .sec-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;
+  }
+  .sec-pagination { padding: 10px 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; }
+  .sec-pagination .pagination { margin: 0; }
+
+  @media (max-width: 1100px) { .sec-filters { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 980px) {
+    .sec-grid-3, .sec-grid-2 { grid-template-columns: 1fr; }
+    .sec-filters { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>{% trans "Security" %}</h1>
-<p>{% trans "To be implemented.w" %}</p>
+<div class="sec-wrap">
+  <div class="sec-toolbar">
+    <div class="sec-toolbar-title">
+      <i class="fas fa-sliders"></i>
+      <span>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}شريط الإعدادات{% else %}{% trans "Settings Bar" %}{% endif %}</span>
+    </div>
+    <div class="sec-toolbar-actions">
+      <a class="sec-tool-btn" href="{% url 'pages:admin_security' %}">
+        <i class="fas fa-rotate"></i>
+        <span>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تحديث{% else %}{% trans "Refresh" %}{% endif %}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="sec-grid-3">
+    <article class="sec-card">
+      <div>
+        <p class="sec-label">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}إجمالي السجلات{% else %}{% trans "Total Logs" %}{% endif %}</p>
+        <p class="sec-value">{{ logs_count }}</p>
+      </div>
+      <span class="sec-icon total"><i class="fas fa-clipboard-list"></i></span>
+    </article>
+    <article class="sec-card">
+      <div>
+        <p class="sec-label">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}أحداث آخر 24 ساعة{% else %}{% trans "Events in Last 24 Hours" %}{% endif %}</p>
+        <p class="sec-value">{{ recent_security_events_count }}</p>
+      </div>
+      <span class="sec-icon events"><i class="fas fa-triangle-exclamation"></i></span>
+    </article>
+    <article class="sec-card">
+      <div>
+        <p class="sec-label">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}عمليات الرفع المحجوبة{% else %}{% trans "Blocked Upload Attempts" %}{% endif %}</p>
+        <p class="sec-value">{{ failed_uploads_count }}</p>
+      </div>
+      <span class="sec-icon blocked"><i class="fas fa-ban"></i></span>
+    </article>
+  </div>
+
+  <div class="sec-grid-2">
+    <section class="sec-panel">
+      <div class="sec-panel-head">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}نشاط الأمان (7 أيام){% else %}{% trans "Security Activity (Last 7 Days)" %}{% endif %}</div>
+      <div class="sec-chart-box"><canvas id="securityActivityChart"></canvas></div>
+    </section>
+    <section class="sec-panel">
+      <div class="sec-panel-head">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تنبيهات أمنية{% else %}{% trans "Security Alerts" %}{% endif %}</div>
+      <div class="sec-alert-list">
+        {% for alert in alerts %}
+        <article class="sec-alert {% if alert.action == 'failed_login' or alert.action == 'blocked_upload' %}danger{% endif %}">
+          <i class="fas {% if alert.action == 'failed_login' %}fa-user-xmark{% elif alert.action == 'blocked_upload' %}fa-file-circle-xmark{% else %}fa-circle-exclamation{% endif %}"></i>
+          <div>
+            <div class="sec-alert-msg">
+              {% if LANGUAGE_CODE|slice:':2' == 'ar' %}
+                {% if alert.action == 'login' %}تسجيل الدخول{% elif alert.action == 'failed_login' %}فشل تسجيل الدخول{% elif alert.action == 'upload' %}رفع{% elif alert.action == 'blocked_upload' %}رفع محجوب{% elif alert.action == 'create' %}إنشاء{% elif alert.action == 'update' %}تحديث{% elif alert.action == 'delete' %}حذف{% else %}أخرى{% endif %}
+              {% else %}
+                {{ alert.get_action_display }}
+              {% endif %}
+            </div>
+            <div class="sec-alert-meta">{{ alert.created_at|date:"Y-m-d H:i" }} - {% if LANGUAGE_CODE|slice:':2' == 'ar' %}منذ {{ alert.created_at|timesince }}{% else %}{{ alert.created_at|timesince }} {% trans "ago" %}{% endif %}</div>
+          </div>
+          <div class="sec-ip">{{ alert.ip_address|default:"-" }}</div>
+        </article>
+        {% empty %}
+        <div class="sec-empty">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}لا توجد تنبيهات أمنية حالياً.{% else %}{% trans "No security alerts right now." %}{% endif %}</div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="sec-table-wrap table-responsive">
+    <div class="sec-panel-head">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}سجلات النشاط{% else %}{% trans "Activity Logs" %}{% endif %}</div>
+
+    <form method="get" class="sec-filters">
+      <input type="text" class="sec-input" name="search" value="{{ search_query }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث بالمسؤول، الإجراء، IP، المسار...{% else %}{% trans 'Search by user, action, IP, path...' %}{% endif %}">
+      <select name="user" class="sec-select">
+        <option value="">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}كل المستخدمين{% else %}{% trans "All users" %}{% endif %}</option>
+        {% for u in user_choices %}
+        <option value="{{ u.user_id }}" {% if user_filter == u.user_id|stringformat:'s' %}selected{% endif %}>{{ u.user__email }}</option>
+        {% endfor %}
+      </select>
+      <select name="action" class="sec-select">
+        <option value="">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}كل الإجراءات{% else %}{% trans "All actions" %}{% endif %}</option>
+        {% for code, label in action_choices %}
+        <option value="{{ code }}" {% if action_filter == code %}selected{% endif %}>
+          {% if LANGUAGE_CODE|slice:':2' == 'ar' %}
+            {% if code == 'login' %}تسجيل الدخول{% elif code == 'failed_login' %}فشل تسجيل الدخول{% elif code == 'upload' %}رفع{% elif code == 'blocked_upload' %}رفع محجوب{% elif code == 'create' %}إنشاء{% elif code == 'update' %}تحديث{% elif code == 'delete' %}حذف{% else %}أخرى{% endif %}
+          {% else %}
+            {{ label }}
+          {% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <input type="date" class="sec-input" name="date" value="{{ date_filter }}" lang="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ar{% else %}en{% endif %}" dir="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}rtl{% else %}ltr{% endif %}">
+      <button type="submit" class="sec-btn">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تصفية{% else %}{% trans "Filter" %}{% endif %}</button>
+      <a href="{% url 'pages:admin_security' %}" class="sec-btn reset">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}إعادة تعيين{% else %}{% trans "Reset" %}{% endif %}</a>
+    </form>
+
+    <table class="table sec-table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}الوقت{% else %}{% trans "Time" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}المسؤول{% else %}{% trans "Admin/User" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}الدور{% else %}{% trans "Role" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}الإجراء{% else %}{% trans "Action" %}{% endif %}</th>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}الطريقة{% else %}{% trans "HTTP Method" %}{% endif %}</th>
+          <th>IP</th>
+          <th>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}المسار{% else %}{% trans "Path" %}{% endif %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in recent_logs %}
+        <tr>
+          <td>{{ log.created_at|date:"Y-m-d H:i:s" }}<div class="text-muted small">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}منذ {{ log.created_at|timesince }}{% else %}{{ log.created_at|timesince }} {% trans "ago" %}{% endif %}</div></td>
+          <td>{{ log.user.email|default:"-" }}</td>
+          <td>
+            <span class="sec-role">
+              {% if LANGUAGE_CODE|slice:':2' == 'ar' %}
+                {% if log.role == 'superuser' %}مدير عام{% elif log.role == 'staff' %}طاقم إداري{% elif log.role == 'member' %}عضو{% elif log.role == 'anonymous' %}مجهول{% elif log.role == 'admin' %}مدير{% elif log.role == 'moderator' %}مشرف{% else %}{{ log.role }}{% endif %}
+              {% else %}
+                {{ log.role }}
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            <span class="sec-action {{ log.action|default:'other' }}">
+              {% if LANGUAGE_CODE|slice:':2' == 'ar' %}
+                {% if log.action == 'login' %}تسجيل الدخول{% elif log.action == 'failed_login' %}فشل تسجيل الدخول{% elif log.action == 'upload' %}رفع{% elif log.action == 'blocked_upload' %}رفع محجوب{% elif log.action == 'create' %}إنشاء{% elif log.action == 'update' %}تحديث{% elif log.action == 'delete' %}حذف{% else %}أخرى{% endif %}
+              {% else %}
+                {{ log.get_action_display|default:log.action }}
+              {% endif %}
+            </span>
+          </td>
+          <td><span class="sec-method {{ log.method|lower }}">{{ log.method }}</span></td>
+          <td>{{ log.ip_address|default:"-" }}</td>
+          <td>
+            <span class="sec-path" title="{{ log.path }}">
+              {% if LANGUAGE_CODE|slice:':2' == 'ar' %}
+                {% if '/admin/security/activity-data/' in log.path %}واجهة بيانات نشاط الأمان
+                {% elif '/admin/security/' in log.path %}مركز أمان الإدارة
+                {% elif '/dashboard/' in log.path %}لوحة التحكم
+                {% elif '/admin/users/' in log.path %}إدارة المستخدمين
+                {% elif '/admin/publications/' in log.path %}إدارة المنشورات
+                {% elif '/admin/corpora/' in log.path %}إدارة المدونات اللغوية
+                {% elif '/admin/tools/' in log.path %}إدارة الأدوات
+                {% elif '/admin/projects/' in log.path %}إدارة المشاريع
+                {% elif '/admin/courses/' in log.path %}إدارة الدورات
+                {% elif '/admin/forum/' in log.path %}إدارة المنتدى
+                {% elif '/admin/institutions/' in log.path %}إدارة المؤسسات
+                {% elif '/admin/statistics/' in log.path %}الإحصائيات
+                {% elif '/admin/settings/' in log.path %}الإعدادات
+                {% else %}{{ log.path|default:"-" }}{% endif %}
+              {% else %}
+                {{ log.path|default:"-" }}
+              {% endif %}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="sec-empty">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}لا توجد سجلات نشاط بعد.{% else %}{% trans "No activity logs yet." %}{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="sec-pagination">
+      <ul class="pagination pagination-sm">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}السابق{% else %}{% trans "Previous" %}{% endif %}</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}التالي{% else %}{% trans "Next" %}{% endif %}</a></li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const canvas = document.getElementById('securityActivityChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  fetch("{% url 'pages:admin_security_activity_api' %}", { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then((data) => {
+      if (!data.ok) return;
+      const ctx = canvas.getContext('2d');
+      const ds = data.datasets || {};
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels || [],
+          datasets: [
+            { label: "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تسجيل الدخول{% else %}{% trans 'Login' %}{% endif %}", data: ds.login || [], borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.1)', fill: true, tension: .35 },
+            { label: "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}رفع{% else %}{% trans 'Upload' %}{% endif %}", data: ds.upload || [], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,.1)', fill: true, tension: .35 },
+            { label: "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تحديث{% else %}{% trans 'Update' %}{% endif %}", data: ds.update || [], borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,.1)', fill: true, tension: .35 },
+            { label: "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}حذف{% else %}{% trans 'Delete' %}{% endif %}", data: ds.delete || [], borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,.1)', fill: true, tension: .35 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } },
+            x: { grid: { display: false } }
+          },
+          plugins: { legend: { position: 'top' } }
+        }
+      });
+    })
+    .catch(() => {});
+})();
+</script>
 {% endblock %}

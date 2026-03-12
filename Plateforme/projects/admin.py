@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _, ngettext
 from django.utils.html import format_html
-from .models import Project, ProjectMember
+from .models import Project, ProjectMember, ProjectInvitation, ProjectChatRoom, ProjectChatMessage
 from Plateforme.admin_forms import ProjectAdminForm
 
 
@@ -146,5 +146,28 @@ class ProjectMemberAdmin(admin.ModelAdmin):
     list_display = ['member', 'project', 'role', 'status', 'created_at']
     list_filter = ['status', 'project']
     search_fields = ['member__email', 'project__title', 'role']
+
+
+@admin.register(ProjectInvitation)
+class ProjectInvitationAdmin(admin.ModelAdmin):
+    list_display = ['project', 'invited_user', 'invited_by', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['project__title', 'invited_user__email', 'invited_by__email']
+    ordering = ['-created_at']
+
+
+@admin.register(ProjectChatRoom)
+class ProjectChatRoomAdmin(admin.ModelAdmin):
+    list_display = ['id', 'project', 'created_at', 'updated_at']
+    search_fields = ['project__title', 'project__title_ar', 'project__title_en']
+    ordering = ['-updated_at']
+
+
+@admin.register(ProjectChatMessage)
+class ProjectChatMessageAdmin(admin.ModelAdmin):
+    list_display = ['id', 'room', 'sender', 'message_type', 'is_deleted', 'created_at']
+    list_filter = ['message_type', 'is_deleted', 'created_at']
+    search_fields = ['content', 'sender__email', 'room__project__title']
+    ordering = ['-created_at']
 
 

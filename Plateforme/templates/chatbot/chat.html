@@ -333,12 +333,12 @@ html[dir="rtl"] .lang-panel{right:auto;left:0}
 
 .suggestions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .suggestion-chip{
-    padding:10px 20px;background:var(--hub-surface);
+    padding:8px 16px;background:var(--hub-surface);
     border:1px solid var(--hub-border);border-radius:var(--radius-full);
-    color:var(--hub-text-secondary);font-size:.85rem;font-weight:500;
+    color:var(--hub-text-secondary);font-size:.82rem;font-weight:500;
     cursor:pointer;transition:all var(--transition-base);
-    font-family:inherit;display:flex;align-items:center;gap:8px;
-    box-shadow:var(--shadow-xs);
+    font-family:inherit;display:inline-flex;align-items:center;gap:6px;
+    box-shadow:var(--shadow-xs);white-space:nowrap;
 }
 .suggestion-chip:hover{
     border-color:var(--hub-accent);color:var(--hub-accent);
@@ -817,17 +817,7 @@ input[type="file"]{display:none}
                     </div>
                     <div class="greeting-title">{% trans "How can I help you?" %}</div>
                     <div class="greeting-sub">{% trans "Ask me anything about Arabic NLP — resources, tools, research, and more." %}</div>
-                    <div class="suggestions">
-                        <button class="suggestion-chip" data-q="{% trans 'What is Arabic NLP?' %}">
-                            <i class="fas fa-sparkles"></i> {% trans "What is Arabic NLP?" %}
-                        </button>
-                        <button class="suggestion-chip" data-q="{% trans 'Show me available resources' %}">
-                            <i class="fas fa-book-open"></i> {% trans "Show me resources" %}
-                        </button>
-                        <button class="suggestion-chip" data-q="{% trans 'List upcoming events' %}">
-                            <i class="fas fa-calendar"></i> {% trans "Upcoming events" %}
-                        </button>
-                    </div>
+
                 </div>
                 <div class="messages-area" id="messages-area" style="display:none"></div>
             </div>
@@ -1109,10 +1099,16 @@ input[type="file"]{display:none}
         });
 
         /* ============================================================
-           SUGGESTION CHIPS
+           SUGGESTION CHIPS (event delegation — survives DOM toggles)
            ============================================================ */
-        document.querySelectorAll('.suggestion-chip').forEach(function(chip){
-            chip.addEventListener('click',function(){chatInput.value=chip.dataset.q;handleSend()});
+        document.addEventListener('click',function(e){
+            var chip=e.target.closest('.suggestion-chip');
+            if(!chip)return;
+            e.preventDefault();
+            var q=chip.dataset.q;
+            if(!q)return;
+            chatInput.value=q;
+            handleSend();
         });
 
         /* ============================================================
@@ -1202,7 +1198,8 @@ input[type="file"]{display:none}
             try{
                 var body,headers={'X-CSRFToken':csrf()};
                 headers['Content-Type']='application/json';
-                body=JSON.stringify({mode:mode,question:question,session_id:currentSessionId||''});
+                var payload={mode:mode,question:question,session_id:currentSessionId||''};
+                body=JSON.stringify(payload);
                 var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
                 thinkEl.remove();
                 var ct=resp.headers.get('content-type');
@@ -1373,8 +1370,8 @@ input[type="file"]{display:none}
                 institution:{icon:'<i class="fas fa-university"></i>',cls:'pci-institution'},
                 user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
             };
-            /* Filter out my_contributions — already shown in answer body */
-            var filtered=results.filter(function(r){return r.type!=='my_contributions' && r.type!=='stats'});
+            /* Filter out meta types — my_contributions/stats shown in answer body, no_data is not a real card */
+            var filtered=results.filter(function(r){return r.type!=='my_contributions' && r.type!=='stats' && r.type!=='no_data'});
             if(filtered.length===0) return '';
             var h='<div class="platform-cards">';
             filtered.forEach(function(r){
@@ -1404,8 +1401,118 @@ input[type="file"]{display:none}
 
         function setLoading(v){isLoading=v;sendBtn.disabled=v;chatInput.disabled=v}
 
+        /* ============================================================
+           AUTO-EXPLAIN: when chatbot opens from an entity detail page
+           ============================================================ */
+        async function autoExplainEntity(){
+            var raw='{{ entity_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            if(!ctx.title) return;
+
+            /* Ensure we have a session */
+            if(!currentSessionId){
+                try{
+                    var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                    if(!sr.ok) return;
+                    var sd=await sr.json();
+                    if(sd.session_id) currentSessionId=sd.session_id;
+                    else return;
+                }catch(e){return}
+            }
+
+            showMsgs();
+            addUserMsg("{% trans 'Tell me about' %}: "+ctx.title);
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_entity',
+                    session_id:currentSessionId,
+                    entity_context:{
+                        type:ctx.contentType||'resource',
+                        title:ctx.title||'',
+                        description:ctx.description||'',
+                        category:ctx.category||'',
+                        author:ctx.author||'',
+                        url:ctx.link||''
+                    }
+                };
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id) currentSessionId=data.session_id;
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,true);
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
+        /* ============================================================
+           AUTO-ANALYSE: when chatbot opens from a document detail page
+           ============================================================ */
+        async function autoAnalyseDocument(){
+            var raw='{{ document_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            if(!ctx.document_id||!ctx.document_file_url) return;
+
+            /* Ensure we have a session */
+            if(!currentSessionId){
+                try{
+                    var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                    if(!sr.ok) return;
+                    var sd=await sr.json();
+                    if(sd.session_id) currentSessionId=sd.session_id;
+                    else return;
+                }catch(e){return}
+            }
+
+            showMsgs();
+            addUserMsg("{% trans 'Analyse document' %}: "+(ctx.document_title||'Document'));
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_document',
+                    session_id:currentSessionId,
+                    document_context:{
+                        document_id:ctx.document_id,
+                        document_title:ctx.document_title||'',
+                        document_file_url:ctx.document_file_url
+                    }
+                };
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id) currentSessionId=data.session_id;
+                if(data.document_id) activeDocumentId=data.document_id;
+                hasDocuments=true;
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,null,true);
+                else if(data.document_status==='processing') addSystem("{% trans 'Document is still processing. Please ask again shortly.' %}",'system');
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoAnalyse:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
         /* ── Init ── */
         loadSessions();
+        autoExplainEntity();
+        autoAnalyseDocument();
     })();
     </script>
 </body>

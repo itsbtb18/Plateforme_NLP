@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Conversations" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  :root {
+    --dm-bg: #f4f7fc;
+    --dm-surface: #ffffff;
+    --dm-surface-soft: #f8fbff;
+    --dm-text: #0f223f;
+    --dm-text-muted: #5c6f90;
+    --dm-line: #d7e2f2;
+    --dm-primary: #163666;
+    --dm-primary-strong: #0f2a51;
+    --dm-primary-soft: #eaf2ff;
+    --dm-danger: #ff3b30;
+    --dm-shadow-sm: 0 8px 20px rgba(15, 42, 81, 0.08);
+    --dm-shadow-md: 0 14px 34px rgba(15, 42, 81, 0.14);
+    --dm-radius-xl: 22px;
+    --dm-radius-lg: 16px;
+    --dm-radius-md: 12px;
+  }
+
+  .dm-page {
+    max-width: 1020px;
+    margin: 18px auto;
+    padding: 0 10px;
+  }
+
+  .dm-layout {
+    background: var(--dm-bg);
+    border: 1px solid var(--dm-line);
+    border-radius: var(--dm-radius-xl);
+    box-shadow: var(--dm-shadow-sm);
+    overflow: hidden;
+  }
+
+  .dm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-bottom: 1px solid var(--dm-line);
+  }
+
+  .dm-title-wrap h2 {
+    margin: 0;
+    font-size: 1.08rem;
+    font-weight: 800;
+    color: var(--dm-text);
+    letter-spacing: 0.2px;
+  }
+
+  .dm-title-wrap p {
+    margin: 3px 0 0;
+    font-size: 0.81rem;
+    color: var(--dm-text-muted);
+  }
+
+  .dm-btn {
+    border: 1px solid var(--dm-line);
+    background: #fff;
+    color: var(--dm-primary);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  }
+
+  .dm-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(15, 42, 81, 0.14);
+  }
+
+  .dm-btn:active {
+    transform: scale(0.98);
+  }
+
+  .dm-btn.primary {
+    border: none;
+    color: #fff;
+    background: linear-gradient(135deg, #1d4e96 0%, var(--dm-primary) 100%);
+    box-shadow: 0 10px 24px rgba(17, 52, 104, 0.28);
+  }
+
+  .dm-controls {
+    padding: 14px;
+    border-bottom: 1px solid var(--dm-line);
+  }
+
+  .dm-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid var(--dm-line);
+    border-radius: 14px;
+  }
+
+  .dm-tab {
+    text-decoration: none;
+    border: 1px solid transparent;
+    color: var(--dm-primary);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 0.86rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .dm-tab:hover {
+    background: var(--dm-primary-soft);
+  }
+
+  .dm-tab.active {
+    color: #fff;
+    background: var(--dm-primary);
+    box-shadow: 0 8px 20px rgba(16, 40, 80, 0.28);
+  }
+
+  .dm-tab-badge {
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    background: #d6e6ff;
+    color: #15428a;
+  }
+
+  .dm-tab.active .dm-tab-badge {
+    background: #fff;
+    color: var(--dm-primary);
+  }
+
+  .dm-group-box {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--dm-line);
+    border-radius: var(--dm-radius-lg);
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    display: none;
+  }
+
+  .dm-group-box.show {
+    display: block;
+    animation: panelIn 0.22s ease;
+  }
+
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .dm-group-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .dm-group-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--dm-primary);
+  }
+
+  .dm-group-input,
+  .dm-group-file,
+  #id_group_name,
+  #id_group_image {
+    width: 100%;
+    border: 1px solid #bed0ec;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.87rem;
+    color: var(--dm-text);
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .dm-group-input:focus,
+  .dm-group-file:focus,
+  #id_group_name:focus,
+  #id_group_image:focus {
+    outline: none;
+    border-color: #8bb5ff;
+    box-shadow: 0 0 0 4px rgba(61, 127, 237, 0.16);
+  }
+
+  #id_group_image::file-selector-button {
+    border: 1px solid var(--dm-line);
+    border-radius: 10px;
+    padding: 7px 11px;
+    margin-inline-end: 10px;
+    color: var(--dm-primary);
+    background: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #id_members {
+    margin: 0;
+    padding: 10px;
+    list-style: none;
+    border: 1px solid #bed0ec;
+    border-radius: 12px;
+    max-height: 220px;
+    overflow: auto;
+    display: grid;
+    gap: 8px;
+    background: #fff;
+  }
+
+  #id_members label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid #dbe7f8;
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--dm-surface-soft);
+  }
+
+  #id_members input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--dm-primary);
+  }
+
+  .dm-group-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .dm-card {
+    margin: 14px;
+    border: 1px solid var(--dm-line);
+    border-radius: var(--dm-radius-lg);
+    background: var(--dm-surface);
+    box-shadow: var(--dm-shadow-sm);
+    overflow: hidden;
+  }
+
+  .dm-list-shell {
+    position: relative;
+    min-height: 220px;
+  }
+
+  .dm-list {
+    max-height: min(74vh, 760px);
+    overflow: auto;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  .dm-list-shell.is-loading .dm-list {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dm-skeleton {
+    position: absolute;
+    inset: 0;
+    padding: 10px;
+    display: none;
+    gap: 10px;
+    background: #fff;
+  }
+
+  .dm-list-shell.is-loading .dm-skeleton {
+    display: grid;
+  }
+
+  .dm-skel-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 42px;
+    gap: 10px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 12px;
+    background: #f7faff;
+  }
+
+  .dm-skel-avatar,
+  .dm-skel-line,
+  .dm-skel-time {
+    border-radius: 999px;
+    background: linear-gradient(90deg, #e8eef8 25%, #f3f7ff 50%, #e8eef8 75%);
+    background-size: 200% 100%;
+    animation: pulseMove 1.15s linear infinite;
+  }
+
+  .dm-skel-avatar { width: 44px; height: 44px; }
+  .dm-skel-line { height: 10px; }
+  .dm-skel-line.short { width: 60%; }
+  .dm-skel-time { width: 36px; height: 10px; justify-self: end; }
+
+  @keyframes pulseMove {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .dm-row {
+    display: grid;
+    grid-template-columns: 54px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid #e7eef8;
+    transition: background-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .dm-row:last-child {
+    border-bottom: none;
+  }
+
+  .dm-row:hover {
+    background: var(--dm-surface-soft);
+  }
+
+  .dm-row:active {
+    transform: scale(0.998);
+  }
+
+  .dm-avatar-wrap {
+    width: 50px;
+    height: 50px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .dm-avatar,
+  .dm-avatar-fallback {
+    width: 50px;
+    height: 50px;
+    border-radius: 999px;
+    border: 1px solid #c4d6f2;
+  }
+
+  .dm-avatar {
+    object-fit: cover;
+    background: #d8e4f8;
+  }
+
+  .dm-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #123c78;
+    background: linear-gradient(135deg, #deebff 0%, #c6d9fb 100%);
+  }
+
+  .dm-avatar-unread {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    background: var(--dm-danger);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.32);
+  }
+
+  .dm-avatar-unread.is-hidden {
+    display: none;
+  }
+
+  html[dir="rtl"] .dm-avatar-unread {
+    right: auto;
+    left: -4px;
+  }
+
+  .dm-main {
+    min-width: 0;
+  }
+
+  .dm-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  .dm-name {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--dm-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dm-time {
+    font-size: 0.75rem;
+    color: var(--dm-text-muted);
+    flex-shrink: 0;
+  }
+
+  .dm-last {
+    font-size: 0.83rem;
+    color: #607396;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dm-meta {
+    min-width: 34px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .dm-unread-pill {
+    min-width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #fff;
+    background: var(--dm-primary);
+  }
+
+  .dm-empty {
+    margin: 28px;
+    text-align: center;
+    color: var(--dm-text-muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 992px) {
+    .dm-page { padding: 0 6px; }
+    .dm-layout { border-radius: 16px; }
+  }
+
+  @media (max-width: 768px) {
+    .dm-header {
+      padding: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dm-controls,
+    .dm-card {
+      margin: 10px;
+    }
+
+    .dm-controls {
+      padding: 10px;
+    }
+
+    .dm-tabs {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .dm-tab {
+      justify-content: center;
+    }
+
+    .dm-group-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .dm-avatar,
+    .dm-avatar-fallback,
+    .dm-avatar-wrap {
+      width: 44px;
+      height: 44px;
+    }
+
+    .dm-row {
+      grid-template-columns: 46px 1fr auto;
+      gap: 10px;
+      padding: 10px;
+    }
+  }
+
+  @media (max-width: 460px) {
+    .dm-title-wrap h2 {
+      font-size: 1rem;
+    }
+
+    .dm-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .dm-header {
+      align-items: stretch;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-2">
+  <section class="dm-page">
+    <div class="dm-layout">
+      <header class="dm-header">
+        <div class="dm-title-wrap">
+          <h2>{% trans "Messages" %}</h2>
+          <p>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              ابقَ على اتصال بمحادثاتك.
+            {% else %}
+              {% trans "Stay connected with your conversations." %}
+            {% endif %}
+          </p>
+        </div>
+        <button type="button" class="dm-btn primary" id="toggleGroupForm">
+          <i class="fas fa-user-friends" aria-hidden="true"></i>
+          <span>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              مجموعة جديدة
+            {% else %}
+              {% trans "New Group" %}
+            {% endif %}
+          </span>
+        </button>
+      </header>
+
+      <div class="dm-controls">
+        <nav class="dm-tabs" aria-label="{% trans 'Conversation tabs' %}">
+          <a href="?tab=primary" class="dm-tab {% if active_tab != 'requests' %}active{% endif %}">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              الرئيسية
+            {% else %}
+              Principale
+            {% endif %}
+          </a>
+          <a href="?tab=requests" class="dm-tab {% if active_tab == 'requests' %}active{% endif %}">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              الطلبات
+            {% else %}
+              {% trans "Requests" %}
+            {% endif %}
+            <span class="dm-tab-badge">{{ request_conversations|length }}</span>
+          </a>
+        </nav>
+
+        <div class="dm-group-box" id="groupFormBox">
+          <form method="post" action="{% url 'direct_messages:create_group' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="dm-group-grid">
+              <div class="dm-group-field">
+                <label for="id_group_name">{% trans "Group name" %}</label>
+                {{ group_form.group_name }}
+              </div>
+              <div class="dm-group-field">
+                <label for="id_group_image">{% trans "Group image" %}</label>
+                {{ group_form.group_image }}
+              </div>
+              <div class="dm-group-field" style="grid-column: 1 / -1;">
+                <label for="id_members">{% trans "Members" %}</label>
+                {{ group_form.members }}
+              </div>
+            </div>
+            <div class="dm-group-actions">
+              <button type="button" class="dm-btn" id="cancelGroupForm">{% trans "Cancel" %}</button>
+              <button type="submit" class="dm-btn primary">{% trans "Create Group" %}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <section class="dm-card" aria-live="polite">
+        <div class="dm-list-shell is-loading" id="conversationListShell">
+          <div class="dm-skeleton" aria-hidden="true">
+            <div class="dm-skel-row">
+              <div class="dm-skel-avatar"></div>
+              <div>
+                <div class="dm-skel-line"></div>
+                <div class="dm-skel-line short" style="margin-top:8px;"></div>
+              </div>
+              <div class="dm-skel-time"></div>
+            </div>
+            <div class="dm-skel-row">
+              <div class="dm-skel-avatar"></div>
+              <div>
+                <div class="dm-skel-line"></div>
+                <div class="dm-skel-line short" style="margin-top:8px;"></div>
+              </div>
+              <div class="dm-skel-time"></div>
+            </div>
+            <div class="dm-skel-row">
+              <div class="dm-skel-avatar"></div>
+              <div>
+                <div class="dm-skel-line"></div>
+                <div class="dm-skel-line short" style="margin-top:8px;"></div>
+              </div>
+              <div class="dm-skel-time"></div>
+            </div>
+          </div>
+
+          <div class="dm-list" id="conversationList">
+            {% if active_tab == 'requests' %}
+              {% for row in request_conversations %}
+                <a href="{% url 'direct_messages:thread' row.conversation.id %}" class="dm-row" data-conversation-id="{{ row.conversation.id }}">
+                  <div class="dm-avatar-wrap">
+                    {% if row.avatar_url %}
+                      <img src="{{ row.avatar_url }}" alt="{{ row.title }}" class="dm-avatar" loading="lazy"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                      <div class="dm-avatar-fallback" style="display:none;">{{ row.title|slice:":1"|upper }}</div>
+                    {% else %}
+                      <div class="dm-avatar-fallback">{{ row.title|slice:":1"|upper }}</div>
+                    {% endif %}
+                    <span class="dm-avatar-unread">{% trans "New" %}</span>
+                  </div>
+
+                  <div class="dm-main">
+                    <div class="dm-top">
+                      <div class="dm-name">{{ row.title }}</div>
+                      <div class="dm-time">{% if row.last_message %}{{ row.last_message.created_at|date:"H:i" }}{% endif %}</div>
+                    </div>
+                    <div class="dm-last">
+                      {% if row.last_message %}
+                        {{ row.last_message.content|truncatechars:60 }}
+                      {% else %}
+                        {% trans "Message request" %}
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="dm-meta">
+                    <span class="dm-unread-pill">{% trans "New" %}</span>
+                  </div>
+                </a>
+              {% empty %}
+                <p class="dm-empty">{% trans "No message requests." %}</p>
+              {% endfor %}
+            {% else %}
+              {% for row in primary_conversations %}
+                <a href="{{ row.thread_url }}" class="dm-row" {% if not row.is_project_chat %}data-conversation-id="{{ row.conversation.id }}"{% endif %}>
+                  <div class="dm-avatar-wrap">
+                    {% if row.avatar_url %}
+                      <img src="{{ row.avatar_url }}" alt="{{ row.title }}" class="dm-avatar" loading="lazy"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                      <div class="dm-avatar-fallback" style="display:none;">{{ row.title|slice:":1"|upper }}</div>
+                    {% else %}
+                      <div class="dm-avatar-fallback">{{ row.title|slice:":1"|upper }}</div>
+                    {% endif %}
+
+                    {% if row.unread_count > 0 %}
+                      <span class="dm-avatar-unread" data-unread-badge>
+                        {% if row.unread_count > 99 %}99+{% else %}{{ row.unread_count }}{% endif %}
+                      </span>
+                    {% else %}
+                      <span class="dm-avatar-unread is-hidden" {% if not row.is_project_chat %}data-unread-badge{% endif %}></span>
+                    {% endif %}
+                  </div>
+
+                  <div class="dm-main">
+                    <div class="dm-top">
+                      <div class="dm-name">{{ row.title }}</div>
+                      <div class="dm-time">
+                        {% if row.last_activity %}{{ row.last_activity|date:"H:i" }}{% endif %}
+                      </div>
+                    </div>
+                    <div class="dm-last">
+                      {% if row.is_project_chat %}
+                        {{ row.subtitle|default:row.last_message_text|truncatechars:72 }}
+                      {% elif row.last_message %}
+                        {% if row.last_message.sender_id == request.user.id and row.last_message.message_type != "system" %}{% trans "You" %}: {% endif %}
+                        {% if row.last_message.message_type == "file" %}
+                          {% trans "Attachment" %}
+                        {% else %}
+                          {{ row.last_message.content|truncatechars:72 }}
+                        {% endif %}
+                      {% else %}
+                        {% trans "No messages yet." %}
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="dm-meta"></div>
+                </a>
+              {% empty %}
+                <p class="dm-empty">{% trans "No conversations yet." %}</p>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const isArabicUi = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}1{% else %}0{% endif %}" === "1";
+
+    const groupNameInput = document.getElementById("id_group_name");
+    if (groupNameInput && isArabicUi) {
+      groupNameInput.setAttribute("placeholder", "ادخل اسم المجموعة");
+      groupNameInput.setAttribute("dir", "rtl");
+    }
+
+    const groupFormBox = document.getElementById("groupFormBox");
+    const toggleGroupForm = document.getElementById("toggleGroupForm");
+    const cancelGroupForm = document.getElementById("cancelGroupForm");
+    if (toggleGroupForm && groupFormBox) {
+      toggleGroupForm.addEventListener("click", function () {
+        groupFormBox.classList.toggle("show");
+      });
+    }
+    if (cancelGroupForm && groupFormBox) {
+      cancelGroupForm.addEventListener("click", function () {
+        groupFormBox.classList.remove("show");
+      });
+    }
+
+    const listShell = document.getElementById("conversationListShell");
+    window.requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (listShell) listShell.classList.remove("is-loading");
+      }, 260);
+    });
+
+    const unreadMapUrl = "{% url 'direct_messages:unread_map' %}";
+    function renderUnreadBadge(rowEl, count) {
+      const badge = rowEl.querySelector("[data-unread-badge]");
+      if (!badge) return;
+      if (!count || count <= 0) {
+        badge.textContent = "";
+        badge.classList.add("is-hidden");
+        return;
+      }
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.classList.remove("is-hidden");
+    }
+
+    async function refreshUnreadBadges() {
+      try {
+        const res = await fetch(unreadMapUrl, {
+          method: "GET",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const counts = data.counts || {};
+        document.querySelectorAll(".dm-row[data-conversation-id]").forEach((rowEl) => {
+          const convId = rowEl.getAttribute("data-conversation-id");
+          renderUnreadBadge(rowEl, Number(counts[convId] || 0));
+        });
+      } catch (_) {}
+    }
+
+    document.querySelectorAll(".dm-row[data-conversation-id]").forEach((rowEl) => {
+      rowEl.addEventListener("click", function () {
+        renderUnreadBadge(rowEl, 0);
+      });
+    });
+
+    if ("{% if active_tab == 'requests' %}0{% else %}1{% endif %}" === "1") {
+      refreshUnreadBadges();
+      setInterval(() => {
+        if (!document.hidden) refreshUnreadBadges();
+      }, 15000);
+    }
+  })();
+</script>
+{% endblock %}

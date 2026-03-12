@@ -10,6 +10,8 @@ urlpatterns = [
 
     # Chat interaction (all modes go through this)
     path("ask/", views.ask_bot, name="ask"),
+    path("ask_bot/", views.ask_bot, name="ask_bot"),
+    path("set_card_context/", views.set_card_context, name="set_card_context"),
 
     # Session management
     path("sessions/create/", views.create_session, name="create_session"),

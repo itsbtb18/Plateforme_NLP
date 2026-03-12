@@ -16,10 +16,12 @@ from django.db.models.functions import TruncDate, TruncMonth
 from notifications.models import Notification
 from notifications.services import NotificationService
 from QA.models import Post, Question
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Max
 import datetime
 import json
+from urllib.parse import urlencode
 from datetime import timedelta
+from types import SimpleNamespace
 from django.utils import timezone
 from django.core.paginator import Paginator
 from typing import TYPE_CHECKING
@@ -97,7 +99,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import ContactMessage, Stats, UserStatusHistory
+from .models import ContactMessage, Stats, UserStatusHistory, AdminActivityLog, SecurityLog
 from institutions.models import Institution
 import datetime
 from accounts.forms import CustomUserChangeForm
@@ -309,8 +311,257 @@ def admin_dashboard(request):
         'forum_topics_data': json.dumps(forum_topics_data),
         'forum_messages_data': json.dumps(forum_messages_data),
     }
+
+    def _pending_queryset(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return model.objects.filter(approval_status='pending')
+        if 'status' in field_names:
+            return model.objects.filter(status='pending')
+        return model.objects.none()
+
+    def _title_for(item):
+        for attr in ('get_localized_title', 'title', 'name'):
+            value = getattr(item, attr, None)
+            if callable(value):
+                try:
+                    value = value()
+                except Exception:
+                    value = None
+            if value:
+                return str(value)
+        return str(item)
+
+    def _author_for(item):
+        for attr in ('author', 'coordinator', 'creator', 'teacher', 'created_by'):
+            u = getattr(item, attr, None)
+            if not u:
+                continue
+            display = getattr(u, 'get_full_name_display', None)
+            if callable(display):
+                try:
+                    return str(display())
+                except Exception:
+                    pass
+            for name_attr in ('full_name', 'username', 'email'):
+                v = getattr(u, name_attr, None)
+                if v:
+                    return str(v)
+        return '-'
+
+    def _created_for(item):
+        for attr in ('created_at', 'creation_date'):
+            v = getattr(item, attr, None)
+            if v:
+                return v
+        return timezone.now()
+
+    section_defs = [
+        ('corpus', _('Corpus'), Corpus),
+        ('nlptool', _('Tools'), NLPTool),
+        ('document', _('Resources'), Document),
+        ('project', _('Projects'), Project),
+        ('topic', _('Topics'), Topic),
+        ('post', _('News'), Post),
+        ('course', _('Courses'), Course),
+        ('event', _('Events'), Event),
+    ]
+    pending_review_items = []
+    for model_type, section_label, model in section_defs:
+        for item in _pending_queryset(model).order_by('-created_at' if hasattr(model, 'created_at') else '-creation_date')[:10]:
+            pending_review_items.append({
+                'id': str(item.pk),
+                'model_type': model_type,
+                'section': section_label,
+                'title': _title_for(item),
+                'author': _author_for(item),
+                'created': _created_for(item),
+            })
+    pending_review_items.sort(key=lambda x: x['created'], reverse=True)
+    context['pending_review_items'] = pending_review_items[:80]
+
+    def _status_counts(model):
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        if 'approval_status' in field_names:
+            return (
+                model.objects.filter(approval_status='pending').count(),
+                model.objects.filter(approval_status='approved').count(),
+            )
+        if 'status' in field_names:
+            return (
+                model.objects.filter(status='pending').count(),
+                model.objects.exclude(status='pending').count(),
+            )
+        return (0, model.objects.count())
+
+    corpus_pending, corpus_approved = _status_counts(Corpus)
+    tools_pending, tools_approved = _status_counts(NLPTool)
+    resources_pending, resources_approved = _status_counts(Document)
+    projects_pending_approval, projects_approved = _status_counts(Project)
+    topics_pending, topics_approved = _status_counts(Topic)
+    news_pending, news_approved = _status_counts(Post)
+    courses_pending, courses_approved = _status_counts(Course)
+    events_pending, events_approved = _status_counts(Event)
+
+    context['approval_sections'] = [
+        {
+            'title': _('Corpus'),
+            'owner': _('Corpus Team'),
+            'pending': corpus_pending,
+            'approved': corpus_approved,
+            'url': reverse('pages:admin_corpora'),
+            'active': corpus_pending == 0,
+        },
+        {
+            'title': _('Tools'),
+            'owner': _('Tools Team'),
+            'pending': tools_pending,
+            'approved': tools_approved,
+            'url': reverse('pages:admin_tools'),
+            'active': tools_pending == 0,
+        },
+        {
+            'title': _('Resources'),
+            'owner': _('Resources Team'),
+            'pending': resources_pending,
+            'approved': resources_approved,
+            'url': reverse('pages:admin_publications'),
+            'active': resources_pending == 0,
+        },
+        {
+            'title': _('Projects'),
+            'owner': _('Projects Team'),
+            'pending': projects_pending_approval,
+            'approved': projects_approved,
+            'url': reverse('pages:admin_projects'),
+            'active': projects_pending_approval == 0,
+        },
+        {
+            'title': _('Topics'),
+            'owner': _('Forum Team'),
+            'pending': topics_pending,
+            'approved': topics_approved,
+            'url': reverse('pages:admin_forum'),
+            'active': topics_pending == 0,
+        },
+        {
+            'title': _('News'),
+            'owner': _('Editorial Team'),
+            'pending': news_pending,
+            'approved': news_approved,
+            'url': reverse('pages:admin_news'),
+            'active': news_pending == 0,
+        },
+        {
+            'title': _('Courses'),
+            'owner': _('Courses Team'),
+            'pending': courses_pending,
+            'approved': courses_approved,
+            'url': reverse('pages:admin_courses'),
+            'active': courses_pending == 0,
+        },
+        {
+            'title': _('Events'),
+            'owner': _('Events Team'),
+            'pending': events_pending,
+            'approved': events_approved,
+            'url': reverse('events:event_list'),
+            'active': events_pending == 0,
+        },
+    ]
     
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_review_item_api(request, model_type, pk):
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+    if model_type not in MODEL_MAP:
+        return JsonResponse({'ok': False, 'error': 'Invalid model type'}, status=400)
+
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+
+    def _get_first(names):
+        for name in names:
+            if hasattr(item, name):
+                value = getattr(item, name)
+                if value is not None:
+                    return str(value)
+        return ''
+
+    author_name = '-'
+    for attr in ('author', 'coordinator', 'creator', 'teacher', 'created_by'):
+        u = getattr(item, attr, None)
+        if not u:
+            continue
+        display = getattr(u, 'get_full_name_display', None)
+        if callable(display):
+            author_name = str(display())
+            break
+        author_name = str(getattr(u, 'full_name', None) or getattr(u, 'username', None) or getattr(u, 'email', '-'))
+        break
+
+    return JsonResponse({
+        'ok': True,
+        'item': {
+            'id': str(item.pk),
+            'model_type': model_type,
+            'title': _get_first(['title', 'name']),
+            'description': _get_first(['description', 'content']),
+            'category': _get_first(['category', 'field', 'tool_type', 'document_type']),
+            'author': author_name,
+        }
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_review_save_api(request, model_type, pk):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+    if model_type not in MODEL_MAP:
+        return JsonResponse({'ok': False, 'error': 'Invalid model type'}, status=400)
+
+    Model = MODEL_MAP[model_type]
+    item = get_object_or_404(Model, pk=pk)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    updated_fields = []
+
+    title = (payload.get('title') or '').strip()
+    if title and hasattr(item, 'title'):
+        setattr(item, 'title', title)
+        updated_fields.append('title')
+    elif title and hasattr(item, 'name'):
+        setattr(item, 'name', title)
+        updated_fields.append('name')
+
+    description = (payload.get('description') or '').strip()
+    if description and hasattr(item, 'description'):
+        setattr(item, 'description', description)
+        updated_fields.append('description')
+    elif description and hasattr(item, 'content'):
+        setattr(item, 'content', description)
+        updated_fields.append('content')
+
+    category = (payload.get('category') or '').strip()
+    for field_name in ('category', 'field', 'tool_type', 'document_type'):
+        if category and hasattr(item, field_name):
+            setattr(item, field_name, category)
+            updated_fields.append(field_name)
+            break
+
+    if updated_fields:
+        item.save(update_fields=list(dict.fromkeys(updated_fields)))
+
+    return JsonResponse({'ok': True, 'updated_fields': updated_fields})
 
 
 @login_required
@@ -508,7 +759,7 @@ def admin_user_history(request, user_id):
     admin_filter = request.GET.get('admin_filter', '')
     period_filter = request.GET.get('period_filter', '')
 
-    history_qs = UserStatusHistory.objects.filter(user=user).order_by('-change_date')
+    history_qs = UserStatusHistory.objects.filter(user=user).select_related('user', 'changed_by').order_by('-change_date')
 
     if status_filter:
         history_qs = history_qs.filter(new_status=status_filter)
@@ -534,6 +785,26 @@ def admin_user_history(request, user_id):
     
     all_admins: 'QuerySet[CustomUser]' = CustomUser.objects.filter(is_staff=True).order_by('full_name')
 
+    admins_activity = (
+        UserStatusHistory.objects.filter(user=user)
+        .values('changed_by__id', 'changed_by__username')
+        .annotate(
+            changes_count=Count('id'),
+            last_change=Max('change_date'),
+        )
+        .order_by('-changes_count')
+    )
+    # Attach avatar info by fetching the actual user objects
+    admin_ids = [a['changed_by__id'] for a in admins_activity]
+    admin_map = {u.id: u for u in CustomUser.objects.filter(id__in=admin_ids)}
+    for a in admins_activity:
+        admin_obj = admin_map.get(a['changed_by__id'])
+        a['username'] = a['changed_by__username']
+        a['avatar'] = admin_obj.avatar if admin_obj else None
+
+    pending_changes = UserStatusHistory.objects.filter(user=user, new_status='pending').count()
+    new_accounts = UserStatusHistory.objects.filter(user=user, new_status='new').count()
+
     context = {
         'user_obj': user,
         'recent_history': history_qs,
@@ -545,6 +816,9 @@ def admin_user_history(request, user_id):
         'admin_filter': int(admin_filter) if admin_filter else '',
         'period_filter': period_filter,
         'all_admins': all_admins,
+        'admins_activity': admins_activity,
+        'pending_changes': pending_changes,
+        'new_accounts': new_accounts,
     }
 
     return render(request, 'admin/history.html', context)
@@ -752,7 +1026,7 @@ def admin_tools(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_projects(request):
-    """Admin projects management"""
+    """Admin projects management with approval workflow"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
     active_tab = request.GET.get('tab', 'approved')
@@ -858,30 +1132,37 @@ def admin_projects(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_courses(request):
-    """Admin courses management"""
+    """Admin courses management with approval workflow"""
     level = request.GET.get('level', '')
     field = request.GET.get('field', '')
     search = request.GET.get('search', '').strip()
 
-    courses = Course.objects.select_related('teacher', 'institution').order_by('-creation_date')
+    base_qs = Course.objects.select_related('teacher', 'institution').order_by('-creation_date')
     if level:
-        courses = courses.filter(academic_level=level)
+        base_qs = base_qs.filter(academic_level=level)
     if field:
-        courses = courses.filter(field=field)
+        base_qs = base_qs.filter(field=field)
     if search:
-        courses = courses.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(teacher__full_name__icontains=search)
         )
 
+    # Courses admin section: no approval workflow (manage all courses directly)
+    pending_courses = Course.objects.none()
+    approved_courses = base_qs
+    pending_count = 0
+    approved_count = approved_courses.count()
+
     today = timezone.now().date()
     last_month = today - timedelta(days=30)
     two_months_ago = today - timedelta(days=60)
 
-    total_courses_count = Course.objects.count()
-    courses_this_month_count = Course.objects.filter(creation_date__gte=last_month).count()
-    courses_last_month_count = Course.objects.filter(creation_date__gte=two_months_ago, creation_date__lt=last_month).count()
+    all_courses = Course.objects.all()
+    total_courses_count = all_courses.count()
+    courses_this_month_count = all_courses.filter(creation_date__gte=last_month).count()
+    courses_last_month_count = all_courses.filter(creation_date__gte=two_months_ago, creation_date__lt=last_month).count()
     courses_growth = ((courses_this_month_count - courses_last_month_count) / courses_last_month_count * 100) if courses_last_month_count else (100 if courses_this_month_count else 0)
 
     if courses_growth > 0:
@@ -892,12 +1173,11 @@ def admin_courses(request):
         growth_class = 'trend-neutral'
 
     context = {
-        'courses': courses,
-        'pending_courses': Course.objects.filter(approval_status='pending'),
-        'approved_courses': Course.objects.filter(approval_status='approved'),
-        'pending_count': Course.objects.filter(approval_status='pending').count(),
-        'approved_count': Course.objects.filter(approval_status='approved').count(),
-        'active_tab': request.GET.get('tab', 'approved'),
+        'pending_courses': pending_courses,
+        'approved_courses': approved_courses,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': 'approved',
         'filter_level': level,
         'filter_field': field,
         'search': search,
@@ -913,40 +1193,53 @@ def admin_courses(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_forum(request):
-    """Admin forum management"""
+    """Admin forum management with approval workflow"""
     status = request.GET.get('status', '')
     search = request.GET.get('search', '').strip()
+    tab = request.GET.get('tab', 'approved')
     page_number = request.GET.get('page')
 
-    topics = Topic.objects.prefetch_related('chatrooms__messages').annotate(
+    base_qs = Topic.objects.prefetch_related('chatrooms__messages').annotate(
         total_messages=Count('chatrooms__messages')
     ).order_by('-created_at')
 
-    if status == 'open':
-        topics = topics.filter(is_closed=False)
-    elif status == 'closed':
-        topics = topics.filter(is_closed=True)
-
     if search:
-        topics = topics.filter(
+        base_qs = base_qs.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
             Q(creator__full_name__icontains=search)
         )
 
-    paginator = Paginator(topics, 10)
+    pending_topics = base_qs.filter(approval_status='pending')
+    approved_base = base_qs.filter(approval_status='approved')
+
+    # open/closed filter applies only to approved topics
+    if status == 'open':
+        approved_base = approved_base.filter(is_closed=False)
+    elif status == 'closed':
+        approved_base = approved_base.filter(is_closed=True)
+
+    approved_topics = approved_base
+    pending_count = pending_topics.count()
+    approved_count = approved_topics.count()
+
+    # Paginate based on active tab
+    if tab == 'pending':
+        paginator = Paginator(pending_topics, 10)
+    else:
+        paginator = Paginator(approved_topics, 10)
     page_obj = paginator.get_page(page_number)
 
     context = {
         'topics': page_obj,
-        'pending_topics': Topic.objects.filter(approval_status='pending'),
-        'approved_topics': Topic.objects.filter(approval_status='approved'),
-        'pending_count': Topic.objects.filter(approval_status='pending').count(),
-        'approved_count': Topic.objects.filter(approval_status='approved').count(),
-        'active_tab': request.GET.get('tab', 'approved'),
+        'pending_topics': pending_topics,
+        'approved_topics': approved_topics,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'total_topics_count': Topic.objects.count(),
-        'open_topics_count': Topic.objects.filter(is_closed=False).count(),
-        'closed_topics_count': Topic.objects.filter(is_closed=True).count(),
+        'open_topics_count': Topic.objects.filter(is_closed=False, approval_status='approved').count(),
+        'closed_topics_count': Topic.objects.filter(is_closed=True, approval_status='approved').count(),
         'total_messages_count': Message.objects.count(),
         'filter_status': status,
         'search': search,
@@ -1017,22 +1310,30 @@ def admin_topic_toggle_status(request, pk):
 @login_required
 @user_passes_test(is_admin)
 def admin_institutions(request):
-    """Admin institutions management"""
+    """Admin institutions management (approval workflow disabled, like courses)."""
     country_id = request.GET.get('country', '')
     institution_type = request.GET.get('type', '')
     search = request.GET.get('search', '').strip()
+    tab = 'approved'
 
-    institutions = Institution.objects.select_related('country').order_by('name')
+    base_qs = Institution.objects.select_related('country').order_by('name')
     if country_id:
-        institutions = institutions.filter(country__id=country_id)
+        base_qs = base_qs.filter(country__id=country_id)
     if institution_type:
-        institutions = institutions.filter(type=institution_type)
+        base_qs = base_qs.filter(type=institution_type)
     if search:
-        institutions = institutions.filter(
+        base_qs = base_qs.filter(
             Q(name__icontains=search) |
             Q(acronym__icontains=search) |
             Q(description__icontains=search)
         )
+
+    # Approval workflow disabled for institutions in admin section.
+    has_approval = False
+    pending_institutions = Institution.objects.none()
+    approved_institutions = base_qs
+    pending_count = 0
+    approved_count = base_qs.count()
 
     countries = Institution.objects.values(
         'country_id',
@@ -1041,11 +1342,18 @@ def admin_institutions(request):
     ).distinct()
 
     context = {
-        'institutions': institutions,
+        'institutions': approved_institutions if tab == 'approved' else pending_institutions,
+        'pending_institutions': pending_institutions,
+        'approved_institutions': approved_institutions,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'active_tab': tab,
         'countries': countries,
         'filter_country': country_id,
         'filter_type': institution_type,
         'search': search,
+        'has_approval': has_approval,
+        'model_type': 'institution',
     }
     return render(request, 'admin/institutions.html', context)
 
@@ -1340,8 +1648,210 @@ def admin_settings(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_security(request):
-    """Admin security view"""
-    return render(request, 'admin/security.html')
+    """Admin security center: metrics, alerts, filters, and paginated logs."""
+    all_logs_qs = SecurityLog.objects.select_related('user').order_by('-created_at')
+    use_legacy_admin_logs = not all_logs_qs.exists()
+
+    search_query = (request.GET.get('search') or '').strip()
+    user_filter = (request.GET.get('user') or '').strip()
+    action_filter = (request.GET.get('action') or '').strip()
+    date_filter = (request.GET.get('date') or '').strip()
+
+    def normalize_action(action: str, method: str = '', path: str = '') -> str:
+        a = (action or '').lower()
+        m = (method or '').upper()
+        p = (path or '').lower()
+        if 'failed_login' in a:
+            return 'failed_login'
+        if 'login' in a:
+            return 'login'
+        if 'blocked_upload' in a:
+            return 'blocked_upload'
+        if 'upload' in a:
+            return 'upload'
+        if 'delete' in a or m == 'DELETE' or '/delete/' in p:
+            return 'delete'
+        if 'update' in a or m in {'PUT', 'PATCH'} or '/update/' in p or '/edit/' in p:
+            return 'update'
+        if 'create' in a or (m == 'POST' and ('/new/' in p or '/create/' in p)):
+            return 'create'
+        return 'other'
+
+    if use_legacy_admin_logs:
+        logs_qs = AdminActivityLog.objects.select_related('admin_user').order_by('-occurred_at')
+        if search_query:
+            logs_qs = logs_qs.filter(
+                Q(admin_user__email__icontains=search_query)
+                | Q(action__icontains=search_query)
+                | Q(ip_address__icontains=search_query)
+                | Q(path__icontains=search_query)
+            )
+        if user_filter:
+            logs_qs = logs_qs.filter(admin_user_id=user_filter)
+        if action_filter:
+            logs_qs = logs_qs.filter(action__icontains=action_filter)
+        if date_filter:
+            try:
+                parsed_date = datetime.date.fromisoformat(date_filter)
+                logs_qs = logs_qs.filter(occurred_at__date=parsed_date)
+            except ValueError:
+                pass
+
+        paginator = Paginator(logs_qs, 20)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        recent_logs = [
+            SimpleNamespace(
+                user=log.admin_user,
+                role=log.role_snapshot,
+                action=normalize_action(log.action, log.http_method, log.path),
+                method=(log.http_method or 'GET').upper(),
+                ip_address=log.ip_address,
+                path=log.path,
+                created_at=log.occurred_at,
+                get_action_display=lambda a=normalize_action(log.action, log.http_method, log.path): dict(SecurityLog.ACTION_CHOICES).get(a, a),
+            )
+            for log in page_obj.object_list
+        ]
+        last_24h = timezone.now() - timedelta(hours=24)
+        logs_count = AdminActivityLog.objects.count()
+        failed_uploads_count = AdminActivityLog.objects.filter(action='blocked_upload').count()
+        recent_security_events_count = AdminActivityLog.objects.filter(occurred_at__gte=last_24h).count()
+        alerts = [
+            SimpleNamespace(
+                action=normalize_action(log.action, log.http_method, log.path),
+                get_action_display=dict(SecurityLog.ACTION_CHOICES).get(normalize_action(log.action, log.http_method, log.path), normalize_action(log.action, log.http_method, log.path)),
+                ip_address=log.ip_address,
+                created_at=log.occurred_at,
+            )
+            for log in AdminActivityLog.objects.order_by('-occurred_at')[:40]
+            if normalize_action(log.action, log.http_method, log.path) in {'failed_login', 'blocked_upload'}
+        ][:12]
+        user_choices = (
+            AdminActivityLog.objects.exclude(admin_user__isnull=True)
+            .values('admin_user_id', 'admin_user__email')
+            .annotate(total=Count('id'))
+            .order_by('admin_user__email')
+        )
+        normalized_user_choices = [
+            {'user_id': row['admin_user_id'], 'user__email': row['admin_user__email'], 'total': row['total']}
+            for row in user_choices
+        ]
+    else:
+        logs_qs = all_logs_qs
+        if search_query:
+            logs_qs = logs_qs.filter(
+                Q(user__email__icontains=search_query)
+                | Q(action__icontains=search_query)
+                | Q(ip_address__icontains=search_query)
+                | Q(path__icontains=search_query)
+            )
+        if user_filter:
+            logs_qs = logs_qs.filter(user_id=user_filter)
+        if action_filter:
+            logs_qs = logs_qs.filter(action=action_filter)
+        if date_filter:
+            try:
+                parsed_date = datetime.date.fromisoformat(date_filter)
+                logs_qs = logs_qs.filter(created_at__date=parsed_date)
+            except ValueError:
+                pass
+
+        paginator = Paginator(logs_qs, 20)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        recent_logs = page_obj.object_list
+        last_24h = timezone.now() - timedelta(hours=24)
+        logs_count = all_logs_qs.count()
+        failed_uploads_count = all_logs_qs.filter(action='blocked_upload').count()
+        recent_security_events_count = all_logs_qs.filter(created_at__gte=last_24h).count()
+        alerts = all_logs_qs.filter(action__in=['failed_login', 'blocked_upload']).order_by('-created_at')[:12]
+        normalized_user_choices = list(
+            SecurityLog.objects.exclude(user__isnull=True)
+            .values('user_id', 'user__email')
+            .annotate(total=Count('id'))
+            .order_by('user__email')
+        )
+
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    context = {
+        'page_obj': page_obj,
+        'recent_logs': recent_logs,
+        'logs_count': logs_count,
+        'failed_uploads_count': failed_uploads_count,
+        'recent_security_events_count': recent_security_events_count,
+        'alerts': alerts,
+        'user_choices': normalized_user_choices,
+        'action_choices': SecurityLog.ACTION_CHOICES,
+        'search_query': search_query,
+        'user_filter': user_filter,
+        'action_filter': action_filter,
+        'date_filter': date_filter,
+        'query_string': query_params.urlencode(),
+        'using_legacy_logs': use_legacy_admin_logs,
+    }
+    return render(request, 'admin/security.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_security_activity_api(request):
+    """Chart data for the last 7 days of security activity."""
+    today = timezone.localdate()
+    start_day = today - timedelta(days=6)
+    tracked_actions = ['login', 'upload', 'delete', 'update']
+
+    use_legacy_admin_logs = not SecurityLog.objects.exists()
+    if use_legacy_admin_logs:
+        rows = (
+            AdminActivityLog.objects.filter(occurred_at__date__gte=start_day, occurred_at__date__lte=today)
+            .annotate(day=TruncDate('occurred_at'))
+            .values('day', 'action', 'http_method', 'path')
+        )
+
+        def normalize_action(action: str, method: str = '', path: str = '') -> str:
+            a = (action or '').lower()
+            m = (method or '').upper()
+            p = (path or '').lower()
+            if 'login' in a:
+                return 'login'
+            if 'upload' in a:
+                return 'upload'
+            if 'delete' in a or m == 'DELETE' or '/delete/' in p:
+                return 'delete'
+            if 'update' in a or m in {'PUT', 'PATCH'} or '/update/' in p or '/edit/' in p:
+                return 'update'
+            return 'other'
+
+        counter_map = {}
+        for r in rows:
+            a = normalize_action(r.get('action', ''), r.get('http_method', ''), r.get('path', ''))
+            if a not in tracked_actions:
+                continue
+            key = (r['day'], a)
+            counter_map[key] = int(counter_map.get(key, 0)) + 1
+    else:
+        rows = (
+            SecurityLog.objects.filter(
+                created_at__date__gte=start_day,
+                created_at__date__lte=today,
+                action__in=tracked_actions,
+            )
+            .annotate(day=TruncDate('created_at'))
+            .values('day', 'action')
+            .annotate(total=Count('id'))
+            .order_by('day')
+        )
+        counter_map = {(r['day'], r['action']): int(r['total']) for r in rows}
+
+    labels = []
+    datasets = {action: [] for action in tracked_actions}
+    for i in range(7):
+        day = start_day + timedelta(days=i)
+        labels.append(day.strftime('%Y-%m-%d'))
+        for action in tracked_actions:
+            datasets[action].append(counter_map.get((day, action), 0))
+
+    return JsonResponse({'ok': True, 'labels': labels, 'datasets': datasets})
 
 
 @login_required
@@ -1652,6 +2162,7 @@ MODEL_MAP = {
     'topic': Topic,
     'event': Event,
     'post': Post,
+    'institution': Institution,
 }
 
 REDIRECT_MAP = {
@@ -1663,6 +2174,7 @@ REDIRECT_MAP = {
     'topic': 'pages:admin_forum',
     'event': 'pages:admin_calls',
     'post': 'pages:admin_news',
+    'institution': 'pages:admin_institutions',
 }
 
 # Translation field requirements for each model
@@ -1674,11 +2186,12 @@ TRANSLATION_FIELDS = {
     'project': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
     'topic': {'title': ('title_ar', 'title_en'), 'description': ('description_ar', 'description_en')},
     'event': {
-        'title': ('title_ar', 'title_en'), 
+        'title': ('title_ar', 'title_en'),
         'description': ('description_ar', 'description_en'),
         'location': ('location_ar', 'location_en')
     },
     'post': {'title': ('title_ar', 'title_en'), 'content': ('content_ar', 'content_en')},
+    'institution': {'name': ('name_ar', 'name_en'), 'description': ('description_ar', 'description_en')},
 }
 
 
@@ -1713,6 +2226,7 @@ EDIT_URL_MAP = {
     'topic': ('forum:topic-update', {}),
     'event': ('events:event_update', {}),
     'post': ('QA:edit_post', {'post_id': None}),  # post_id will be set separately
+    'institution': ('institutions:institution_update', {}),
 }
 
 
@@ -1743,6 +2257,58 @@ def get_edit_url(model_type, pk):
     return reverse(url_name, kwargs=kwargs)
 
 
+def get_view_url(model_type, pk):
+    """Get the details/read-only URL for a given model type and pk."""
+    if model_type == 'document':
+        from resources.models import Document
+        try:
+            doc = Document.objects.get(pk=pk)
+            doc_type = doc.document_type or 'article'
+        except Document.DoesNotExist:
+            doc_type = 'article'
+        return reverse('resources:resource-detail', kwargs={'type': doc_type, 'pk': pk})
+
+    if model_type == 'corpus':
+        return reverse('resources:resource-detail', kwargs={'type': 'corpus', 'pk': pk})
+
+    if model_type == 'nlptool':
+        return reverse('resources:resource-detail', kwargs={'type': 'tool', 'pk': pk})
+
+    if model_type == 'course':
+        return reverse('resources:resource-detail', kwargs={'type': 'course', 'pk': pk})
+
+    if model_type == 'project':
+        return reverse('projects:project_detail', kwargs={'pk': pk})
+
+    if model_type == 'event':
+        return reverse('events:event_detail', kwargs={'pk': pk})
+
+    if model_type == 'post':
+        return reverse('pages:admin_news_view', kwargs={'post_id': pk})
+
+    # Topic has no dedicated detail template; keep review mode (read-only in template)
+    if model_type == 'topic':
+        return reverse('pages:admin_approve_item', kwargs={'model_type': model_type, 'pk': pk})
+
+    return reverse('pages:admin_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_view_item(request, model_type, pk):
+    if model_type not in MODEL_MAP:
+        messages.error(request, _("Invalid model type."))
+        return redirect('pages:admin_dashboard')
+    view_url = get_view_url(model_type, pk)
+    review_qs = urlencode({
+        'admin_review': '1',
+        'review_model': model_type,
+        'review_pk': str(pk),
+    })
+    separator = '&' if '?' in view_url else '?'
+    return redirect(f"{view_url}{separator}{review_qs}")
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_approve_item(request, model_type, pk):
@@ -1759,17 +2325,15 @@ def admin_approve_item(request, model_type, pk):
         Model = MODEL_MAP[model_type]
         item = get_object_or_404(Model, pk=pk)
         
-        # TRANSLATION GATE: Validate that all translations are complete
+        # TRANSLATION CHECK: Warn if translations are incomplete, but do not block approval
         is_valid, missing_fields = validate_translations(item, model_type)
         if not is_valid:
             missing_str = ", ".join(missing_fields)
-            messages.error(
-                request, 
-                _("Cannot approve: Missing translations for %(fields)s. Please fill in all bilingual fields.") % {'fields': missing_str}
+            messages.warning(
+                request,
+                _("Approved with incomplete translations (%(fields)s). Please complete bilingual fields later.") % {'fields': missing_str}
             )
-            # Redirect back to edit page
-            return redirect(get_edit_url(model_type, pk))
-        
+
         item.approval_status = 'approved'
         item.save(update_fields=['approval_status'])
         
@@ -1799,11 +2363,30 @@ def admin_approve_item(request, model_type, pk):
     item = get_object_or_404(Model, pk=pk)
     title = getattr(item, 'title', str(item))
     
-    messages.info(request, _("Review and edit '%(title)s'. Click 'Approve & Publish' when ready.") % {'title': title})
-    
-    # Redirect to the edit page with a flag indicating admin review mode
+    edit_mode = request.GET.get('mode') == 'edit'
+    if edit_mode:
+        messages.info(request, _("Edit '%(title)s' and save your changes.") % {'title': title})
+    else:
+        messages.info(request, _("Review and edit '%(title)s'. Click 'Approve & Publish' when ready.") % {'title': title})
+
+    # Redirect to the edit page with review context (or edit-only mode)
     edit_url = get_edit_url(model_type, pk)
-    return redirect(f"{edit_url}?review=1")
+    if edit_mode:
+        review_qs = urlencode({
+            'edit_only': '1',
+            'review_model': model_type,
+            'review_pk': str(pk),
+        })
+    else:
+        review_qs = urlencode({
+            'review': '1',
+            'review_model': model_type,
+            'review_pk': str(pk),
+            'review_approve_url': reverse('pages:admin_approve_item', kwargs={'model_type': model_type, 'pk': pk}),
+            'review_reject_url': reverse('pages:admin_reject_item', kwargs={'model_type': model_type, 'pk': pk}),
+        })
+    separator = '&' if '?' in edit_url else '?'
+    return redirect(f"{edit_url}{separator}{review_qs}")
 
 
 @login_required

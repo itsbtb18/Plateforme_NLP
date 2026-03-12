@@ -44,6 +44,8 @@ urlpatterns += i18n_patterns(
     path("QA/", include("QA.urls")),
     path("notifications/", include("notifications.urls", namespace="notifications")),
     path("chatbot/", include("chatbot.urls")),
+    path("messages/", include("direct_messages.urls", namespace="direct_messages")),
+    path("sharing/", include("sharing.urls", namespace="sharing")),
     path("scraping/", include("scraping.urls", namespace="scraping")),
     path("", include("pages.urls")),
     path("", include("translate.urls")),

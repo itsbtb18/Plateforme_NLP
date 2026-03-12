@@ -14,6 +14,7 @@ import logging
 import time
 
 from .models import ChatSession, ChatMessage
+from .content_helpers import get_content_object, build_context_prompt, get_content_metadata
 
 logger = logging.getLogger("chatbot")
 
@@ -29,12 +30,16 @@ ALLOWED_FILE_TYPES = {".pdf", ".doc", ".docx", ".txt", ".xlsx"}
 
 
 def check_rate_limit(user_id, limit=30, window=60):
-    key = f"chatbot_rate_{user_id}"
-    count = cache.get(key, 0)
-    if count >= limit:
-        return False, limit - count
-    cache.set(key, count + 1, window)
-    return True, limit - count
+    try:
+        key = f"chatbot_rate_{user_id}"
+        count = cache.get(key, 0)
+        if count >= limit:
+            return False, limit - count
+        cache.set(key, count + 1, window)
+        return True, limit - count
+    except Exception:
+        # Redis unavailable — allow the request rather than crash
+        return True, limit
 
 
 def get_api_headers():
@@ -63,6 +68,81 @@ def save_message(session_id, message_type, content, source="bot", language="en")
 
 def _get_user_id(user):
     return str(user.id)
+
+
+def _build_card_context_prompt(context):
+    """Build a compact prompt from selected card/resource context."""
+    if not isinstance(context, dict):
+        return ""
+
+    title = str(context.get("title", "")).strip()
+    category = str(context.get("category", "")).strip()
+    author = str(context.get("author", "")).strip()
+    description = str(context.get("description", "")).strip()
+    content_type = str(context.get("type", "")).strip()
+    content_url = str(context.get("url", "")).strip()
+
+    if not any([title, category, author, description, content_type]):
+        return ""
+
+    prompt_parts = ["The user is asking about a specific platform content item."]
+    if content_type:
+        prompt_parts.append(f"Content type: {content_type}")
+    if title:
+        prompt_parts.append(f"Title: {title}")
+    if category:
+        prompt_parts.append(f"Category: {category}")
+    if author:
+        prompt_parts.append(f"Author/Owner: {author}")
+    if description:
+        prompt_parts.append(f"Description: {description[:800]}")
+    if content_url:
+        prompt_parts.append(f"URL: {content_url}")
+    prompt_parts.append(
+        "Use this context as ground truth and answer specifically about this item when relevant."
+    )
+    return "\n".join(prompt_parts)
+
+
+def _get_request_content_context(request):
+    """
+    Resolve content context from query params (?context|type + id),
+    then fallback to session context from set_card_context.
+    """
+    content_type = (request.GET.get("context") or request.GET.get("type") or "").strip()
+    object_id = (request.GET.get("id") or request.GET.get("object_id") or "").strip()
+
+    if content_type and object_id:
+        obj, err = get_content_object(content_type, object_id)
+        if not err and obj:
+            metadata = get_content_metadata(obj, content_type)
+            prompt = build_context_prompt(obj, content_type)
+            request.session["chatbot_card_context"] = metadata
+            request.session["chatbot_context_prompt"] = prompt
+            request.session.modified = True
+            return prompt, metadata
+
+    session_prompt = request.session.get("chatbot_context_prompt")
+    session_context = request.session.get("chatbot_card_context")
+    if session_prompt:
+        return str(session_prompt), session_context if isinstance(session_context, dict) else {}
+
+    if isinstance(session_context, dict):
+        return _build_card_context_prompt(session_context), session_context
+
+    return "", {}
+
+
+def _inject_context_into_question(question, context_prompt):
+    """Prefix question with resource context before forwarding to FastAPI."""
+    if not question or not context_prompt:
+        return question
+    return (
+        "[CONTEXT]\n"
+        f"{context_prompt}\n\n"
+        "[USER QUESTION]\n"
+        f"{question}"
+    )
 
 
 def _create_fastapi_session(user):
@@ -95,10 +175,38 @@ def _create_fastapi_session(user):
 
 @login_required
 def chatbot_interface(request):
+    # Persist context when opening chatbot from detail/card links.
+    _get_request_content_context(request)
+
+    # If entity context exists, pass it to the template so the JS can
+    # auto-fire a platform_entity explain request on page load.
+    entity_context_json = "{}"
+    session_ctx = request.session.get("chatbot_card_context")
+    if isinstance(session_ctx, dict) and session_ctx.get("title"):
+        import json as _json
+        entity_context_json = _json.dumps(session_ctx)
+
+    # Feature 2: document context from query params
+    # e.g. ?doc_action=analyse&doc_id=55&doc_title=...&doc_file=/media/...
+    document_context_json = "{}"
+    doc_action = request.GET.get("doc_action", "").strip()
+    doc_id = request.GET.get("doc_id", "").strip()
+    doc_title = request.GET.get("doc_title", "").strip()
+    doc_file = request.GET.get("doc_file", "").strip()
+    if doc_action == "analyse" and doc_id and doc_file:
+        import json as _json
+        document_context_json = _json.dumps({
+            "document_id": doc_id,
+            "document_title": doc_title or "Document",
+            "document_file_url": doc_file,
+        })
+
     context = {
         "user": request.user,
         "page_title": _("Chatbot"),
         "max_file_size": CHATBOT_MAX_FILE_SIZE,
+        "entity_context_json": entity_context_json,
+        "document_context_json": document_context_json,
     }
     return render(request, "chatbot/chat.html", context)
 
@@ -285,6 +393,22 @@ def ask_bot(request):
         question = data.get("question", "").strip()
         session_id = data.get("session_id", "")
         user_id = _get_user_id(request.user)
+        context_prompt = ""
+        context_metadata = {}
+
+        payload_context = data.get("context")
+        if isinstance(payload_context, dict):
+            context_prompt = _build_card_context_prompt(payload_context)
+            context_metadata = payload_context
+        else:
+            context_prompt, context_metadata = _get_request_content_context(request)
+
+        # Clear session context after consuming it so it doesn't
+        # persist into subsequent messages (prevents stale card
+        # context like "AIntelia" from leaking into greetings).
+        request.session.pop("chatbot_card_context", None)
+        request.session.pop("chatbot_context_prompt", None)
+        request.session.modified = True
 
         # Auto-create session if missing
         if not session_id:
@@ -304,11 +428,12 @@ def ask_bot(request):
                     {"error": _("Please type a message."), "source": "error"},
                     status=400,
                 )
+            effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/conversation",
                 json={
-                    "question": question,
+                    "question": effective_question,
                     "session_id": session_id,
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
@@ -334,6 +459,8 @@ def ask_bot(request):
             _auto_title_session(session_id, question)
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         # ----- Mode: quick -----
@@ -343,10 +470,11 @@ def ask_bot(request):
                     {"error": _("Please type a question."), "source": "error"},
                     status=400,
                 )
+            effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/query",
-                json={"question": question},
+                json={"question": effective_question},
                 headers=get_api_headers(),
                 timeout=CHATBOT_TIMEOUT,
             )
@@ -363,6 +491,8 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         # ----- Mode: legal -----
@@ -422,6 +552,191 @@ def ask_bot(request):
             platform_data = resp.json()
             platform_data["session_id"] = session_id
             return JsonResponse(platform_data)
+
+        # ----- Mode: platform_entity (explain a specific entity) -----
+        elif mode == "platform_entity":
+            entity_ctx = data.get("entity_context")
+            if not isinstance(entity_ctx, dict) or not entity_ctx.get("title"):
+                return JsonResponse(
+                    {"error": _("Entity context required."), "source": "error"},
+                    status=400,
+                )
+
+            resp = requests.post(
+                f"{FASTAPI_URL}/platform/entity_explain",
+                json={
+                    "entity_type": str(entity_ctx.get("type", "resource"))[:50],
+                    "entity_title": str(entity_ctx.get("title", ""))[:500],
+                    "entity_description": str(entity_ctx.get("description", ""))[:5000],
+                    "entity_metadata": {
+                        k: str(v)[:200]
+                        for k, v in entity_ctx.items()
+                        if k not in ("type", "title", "description") and v
+                    },
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "language": data.get("language"),
+                },
+                headers=get_api_headers(),
+                timeout=CHATBOT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            response_data = resp.json()
+
+            if response_data.get("answer"):
+                save_message(
+                    session_id,
+                    "bot",
+                    response_data["answer"],
+                    source=response_data.get("source", "platform"),
+                    language=response_data.get("lang", "en"),
+                )
+
+            response_data["session_id"] = session_id
+            return JsonResponse(response_data)
+
+        # ----- Mode: platform_document (ingest & analyse a platform PDF) --
+        elif mode == "platform_document":
+            doc_ctx = data.get("document_context")
+            if not isinstance(doc_ctx, dict) or not doc_ctx.get("document_id"):
+                return JsonResponse(
+                    {"error": _("Document context required."), "source": "error"},
+                    status=400,
+                )
+
+            platform_doc_id = doc_ctx["document_id"]
+            doc_title = str(doc_ctx.get("document_title", ""))[:300]
+            doc_file_url = str(doc_ctx.get("document_file_url", ""))
+
+            # Resolve file from Django's media storage
+            import os
+            from django.conf import settings as django_settings
+
+            if not doc_file_url:
+                return JsonResponse(
+                    {"error": _("No file attached to this document."), "source": "error"},
+                    status=400,
+                )
+
+            # doc_file_url is a relative media path like "/media/resources/files/2025/01/paper.pdf"
+            # Convert to absolute filesystem path inside the container
+            media_root = getattr(django_settings, "MEDIA_ROOT", "/app/media")
+            # Strip leading /media/ prefix if present
+            relative_path = doc_file_url
+            if relative_path.startswith("/media/"):
+                relative_path = relative_path[len("/media/"):]
+            elif relative_path.startswith("media/"):
+                relative_path = relative_path[len("media/"):]
+            file_path = os.path.join(media_root, relative_path)
+
+            if not os.path.isfile(file_path):
+                return JsonResponse(
+                    {"error": _("Document file not found on server."), "source": "error"},
+                    status=400,
+                )
+
+            filename = os.path.basename(file_path)
+            content_type = "application/pdf"
+            if filename.lower().endswith(".docx"):
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif filename.lower().endswith(".txt"):
+                content_type = "text/plain"
+
+            # Upload to FastAPI via the platform document ingest endpoint
+            upload_headers = {}
+            if FASTAPI_API_KEY:
+                upload_headers["Authorization"] = f"Bearer {FASTAPI_API_KEY}"
+
+            with open(file_path, "rb") as f:
+                upload_resp = requests.post(
+                    f"{FASTAPI_URL}/platform/document_ingest",
+                    files={"file": (filename, f, content_type)},
+                    data={
+                        "session_id": session_id,
+                        "user_id": user_id,
+                        "platform_document_id": str(platform_doc_id),
+                    },
+                    headers=upload_headers,
+                    timeout=CHATBOT_TIMEOUT,
+                )
+
+            if not upload_resp.ok:
+                err = upload_resp.json().get("detail", "Upload failed")
+                return JsonResponse(
+                    {"error": str(err), "source": "error"}, status=upload_resp.status_code,
+                )
+
+            upload_data = upload_resp.json()
+            fastapi_doc_id = upload_data.get("document_id")
+
+            # Poll until document is processed (max 120s)
+            doc_ready = False
+            for _attempt in range(60):
+                time.sleep(2)
+                try:
+                    status_resp = requests.get(
+                        f"{FASTAPI_URL}/document_status/{fastapi_doc_id}",
+                        params={"user_id": user_id},
+                        headers=get_api_headers(),
+                        timeout=10,
+                    )
+                    if status_resp.ok:
+                        status_data = status_resp.json()
+                        if status_data.get("status") == "completed":
+                            doc_ready = True
+                            break
+                        elif status_data.get("status") == "failed":
+                            return JsonResponse(
+                                {"error": _("Document processing failed."), "source": "error"},
+                                status=500,
+                            )
+                except requests.RequestException:
+                    pass
+
+            if not doc_ready:
+                return JsonResponse({
+                    "answer": _(
+                        "Document is still being processed. "
+                        "Please ask your question again in a few seconds."
+                    ),
+                    "source": "system",
+                    "session_id": session_id,
+                    "document_id": fastapi_doc_id,
+                    "document_status": "processing",
+                })
+
+            # Document ready — send initial analysis prompt
+            initial_prompt = (
+                f"Please analyse this document titled '{doc_title}' "
+                f"and explain its key ideas, main findings, and structure."
+            )
+            ask_resp = requests.post(
+                f"{FASTAPI_URL}/ask_document",
+                json={
+                    "question": initial_prompt,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "document_ids": [fastapi_doc_id] if fastapi_doc_id else None,
+                },
+                headers=get_api_headers(),
+                timeout=CHATBOT_TIMEOUT,
+            )
+            ask_resp.raise_for_status()
+            response_data = ask_resp.json()
+
+            if response_data.get("answer"):
+                save_message(
+                    session_id,
+                    "bot",
+                    response_data["answer"],
+                    source="document",
+                    language=response_data.get("lang", "en"),
+                )
+
+            response_data["session_id"] = session_id
+            response_data["document_id"] = fastapi_doc_id
+            response_data["document_status"] = "completed"
+            return JsonResponse(response_data)
 
         # ----- Mode: upload -----
         elif mode == "upload":
@@ -617,10 +932,11 @@ def ask_bot(request):
                 pass
 
             # Build document filter — document_ids (list) takes precedence
+            effective_question = _inject_context_into_question(question, context_prompt)
             doc_ids = data.get("document_ids")  # list from frontend
             single_id = data.get("document_id")  # legacy single ID
             ask_payload = {
-                "question": question,
+                "question": effective_question,
                 "session_id": session_id,
                 "user_id": user_id,
             }
@@ -648,6 +964,8 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            response_data["context_applied"] = bool(context_prompt)
+            response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
         else:
@@ -710,6 +1028,46 @@ def ask_bot(request):
             },
             status=500,
         )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def set_card_context(request):
+    """
+    Store the currently selected card/resource context in user session.
+    This is used by the chatbot bridge from cards without reloading the page.
+    """
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "error": _("Invalid request format.")}, status=400)
+
+    # Accept both {"context": {...}} and flat payload {...}
+    raw_context = payload.get("context") if isinstance(payload.get("context"), dict) else payload
+    if isinstance(raw_context, str):
+        try:
+            raw_context = json.loads(raw_context)
+        except json.JSONDecodeError:
+            raw_context = {"title": raw_context}
+
+    if not isinstance(raw_context, dict):
+        return JsonResponse({"ok": False, "error": _("Invalid context payload.")}, status=400)
+
+    context = {
+        "title": str(raw_context.get("title", "")).strip()[:500],
+        "author": str(raw_context.get("author", "")).strip()[:255],
+        "category": str(raw_context.get("category", "")).strip()[:255],
+        "description": str(raw_context.get("description", "")).strip()[:2000],
+        "type": str(raw_context.get("type", "")).strip()[:100],
+        "id": str(raw_context.get("id", "")).strip()[:255],
+        "url": str(raw_context.get("url", "")).strip()[:1000],
+    }
+
+    request.session["chatbot_card_context"] = context
+    request.session["chatbot_context_prompt"] = _build_card_context_prompt(context)
+    request.session.modified = True
+    return JsonResponse({"ok": True, "context": context})
 
 
 def _build_user_profile(user):

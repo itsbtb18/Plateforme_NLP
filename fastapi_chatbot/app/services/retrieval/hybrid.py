@@ -12,7 +12,6 @@ from app.services.retrieval.search import (
     search_nlp_knowledge,
     search_resources,
     search_legal_documents,
-    search_user_documents,
 )
 from app.services.retrieval.reranker import deduplicate, rerank
 
@@ -25,7 +24,6 @@ async def hybrid_search(
     user_country: Optional[str] = None,
     user_city: Optional[str] = None,
     include_legal: bool = True,
-    session_id: Optional[str] = None,
     language: Optional[str] = None,
 ) -> Tuple[List[Dict], str]:
     """
@@ -71,15 +69,6 @@ async def hybrid_search(
             )
             for d in legal:
                 d["weighted_score"] = d["similarity"] * 1.05
-                weighted.append(d)
-
-        # User documents
-        if session_id:
-            user_docs = await search_user_documents(
-                query, db, session_id=session_id, top_k=3,
-            )
-            for d in user_docs:
-                d["weighted_score"] = d["similarity"] * 1.15
                 weighted.append(d)
 
         if not weighted:

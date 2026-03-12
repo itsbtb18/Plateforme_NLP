@@ -11,6 +11,10 @@ class Notification(models.Model):
         # System & General
         ('SYSTEM', _('System')),
         
+        # Content Moderation
+        ('CONTENT_APPROVED', _('Content Approved')),
+        ('CONTENT_REJECTED', _('Content Rejected')),
+        
         # Project-related
         ('PROJECT_INVITATION', _('Project Invitation')),
         ('MEMBERSHIP_REQUEST', _('Membership Request')),

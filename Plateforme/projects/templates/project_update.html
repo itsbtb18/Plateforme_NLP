@@ -697,11 +697,16 @@ html[dir="rtl"] .pf-btn .bi-arrow-right { transform: scaleX(-1); }
                         <i class="bi bi-arrow-left"></i>{% translate "Back to Admin" %}
                     </a>
                     <div style="display: flex; gap: 0.75rem;">
-                        <button type="submit" class="pf-btn pf-btn-primary">
-                            <i class="bi bi-check-lg"></i>{% translate "Save Draft" %}
+                        {% if is_pending and request.GET.review_model and request.GET.review_pk %}
+                        <button type="submit"
+                                class="pf-btn pf-btn-secondary"
+                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                                onclick="return confirm('{% translate "Are you sure you want to reject this request?" %}');">
+                            <i class="bi bi-x-circle"></i>{% translate "Reject" %}
                         </button>
-                        {% if is_pending %}
-                        <button type="submit" name="approve_and_publish" value="1" class="pf-btn pf-btn-success">
+                        <button type="submit"
+                                class="pf-btn pf-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                             <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
                         </button>
                         {% endif %}

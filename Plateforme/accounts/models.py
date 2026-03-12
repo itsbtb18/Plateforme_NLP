@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from .managers import CustomUserManager
 from institutions.models import Institution
+from django.conf import settings
 
 
 class CustomUser(AbstractUser):
@@ -137,6 +138,10 @@ class CustomUser(AbstractUser):
     is_active = models.BooleanField(
         default=True,
         verbose_name=_('active')
+    )
+    show_online_status = models.BooleanField(
+        default=True,
+        verbose_name=_('show online status')
     )
 
     objects: CustomUserManager = CustomUserManager()  # type: ignore[assignment]
@@ -306,3 +311,68 @@ class CustomUser(AbstractUser):
     def __repr__(self):
         """Return developer-friendly representation."""
         return f"<CustomUser: {self.email} (id={self.id})>"
+
+
+class Friendship(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', _('Pending')
+        ACCEPTED = 'accepted', _('Friends')
+        BLOCKED = 'blocked', _('Blocked')
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='friendships_sent'
+    )
+    addressee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='friendships_received'
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('requester', 'addressee')
+        indexes = [
+            models.Index(fields=['requester', 'status']),
+            models.Index(fields=['addressee', 'status']),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.requester_id == self.addressee_id:
+            raise ValidationError(_('You cannot create a relationship with yourself.'))
+
+    def __str__(self):
+        return f"{self.requester_id} -> {self.addressee_id} ({self.status})"
+
+    @staticmethod
+    def between(user_a, user_b):
+        if not user_a or not user_b or user_a == user_b:
+            return None
+        return Friendship.objects.filter(
+            models.Q(requester=user_a, addressee=user_b) |
+            models.Q(requester=user_b, addressee=user_a)
+        ).first()
+
+    @staticmethod
+    def relation_state(viewer, profile_user):
+        """
+        Returns one of:
+        NEUTRE, EN_ATTENTE_ENVOYE, EN_ATTENTE_RECU, AMIS, BLOQUE
+        """
+        if not viewer or not profile_user or viewer == profile_user:
+            return 'NEUTRE'
+        rel = Friendship.between(viewer, profile_user)
+        if not rel:
+            return 'NEUTRE'
+        if rel.status == Friendship.Status.BLOCKED:
+            return 'BLOQUE'
+        if rel.status == Friendship.Status.ACCEPTED:
+            return 'AMIS'
+        if rel.requester_id == viewer.id:
+            return 'EN_ATTENTE_ENVOYE'
+        return 'EN_ATTENTE_RECU'

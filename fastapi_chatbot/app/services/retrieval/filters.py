@@ -54,9 +54,8 @@ def build_user_doc_filter(
 ) -> Filter:
     """Build filter for user-uploaded document chunk search.
 
-    When *owner_id* is available, it becomes the primary filter so
-    documents are accessible across sessions.  Falls back to
-    *session_id* for anonymous users.
+    Both *owner_id* AND *session_id* are applied when available,
+    ensuring each chat session is an isolated document workspace.
 
     *document_ids* (list) takes precedence over *document_id* (single).
     """
@@ -65,7 +64,7 @@ def build_user_doc_filter(
         conditions.append(
             FieldCondition(key="owner_id", match=MatchValue(value=owner_id))
         )
-    elif session_id:
+    if session_id:
         conditions.append(
             FieldCondition(key="session_id", match=MatchValue(value=session_id))
         )

@@ -464,19 +464,30 @@ html[dir="rtl"] .tu-label .lang-badge { margin-left: 0; margin-right: 0.5rem; }
                 
                 <div class="tu-card-footer">
                     <div class="tu-footer-left">
-                        <a href="{% url 'forum:chatroom-list' topic.pk %}" class="tu-btn tu-btn-secondary">
+                        <a href="{% if review_mode %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:chatroom-list' topic.pk %}{% endif %}" class="tu-btn tu-btn-secondary">
                             <i class="bi bi-x-lg"></i>{% translate "Cancel" %}
                         </a>
                     </div>
                     <div class="tu-footer-right">
                         {% if review_mode and is_pending %}
-                        <button type="submit" name="action" value="approve" class="tu-btn tu-btn-success">
+                        {% if request.GET.review_model and request.GET.review_pk %}
+                        <button type="submit"
+                                class="tu-btn tu-btn-secondary"
+                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                                onclick="return confirm('{% translate "Are you sure you want to reject this request?" %}');">
+                            <i class="bi bi-x-circle"></i>{% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="tu-btn tu-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                             <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
                         </button>
                         {% endif %}
+                        {% else %}
                         <button type="submit" class="tu-btn tu-btn-primary">
                             <i class="bi bi-check-lg"></i>{% translate "Save Changes" %}
                         </button>
+                        {% endif %}
                     </div>
                 </div>
             </form>

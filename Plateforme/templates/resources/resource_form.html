@@ -9,6 +9,7 @@
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <style>
 /* ===== CSS VARIABLES - Engineering Grade Theme ===== */
 :root {
@@ -815,19 +816,34 @@ html[dir="rtl"] .page-header h1 {
                         {% endif %}
                     </div>
                     
-                    <!-- Title -->
-                    <div class="form-group{% if form.title.errors %} has-error{% endif %}">
-                        <label for="id_title">
-                            {% trans "Title" %}
+                    <!-- Title (English) -->
+                    <div class="form-group{% if form.title_en.errors %} has-error{% endif %}">
+                        <label for="id_title_en">
+                            {% trans "Title (English)" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
-                        {{ form.title }}
-                        {% if form.title.errors %}
-                        {% for error in form.title.errors %}
+                        {{ form.title_en }}
+                        {% if form.title_en.errors %}
+                        {% for error in form.title_en.errors %}
                         <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
                         {% endfor %}
                         {% endif %}
-                        <span class="form-text">{% trans "A clear, descriptive title for your resource" %}</span>
+                        <span class="form-text">{% trans "A clear, descriptive title in English" %}</span>
+                    </div>
+                    
+                    <!-- Title (Arabic) -->
+                    <div class="form-group{% if form.title_ar.errors %} has-error{% endif %}">
+                        <label for="id_title_ar">
+                            {% trans "Title (Arabic / العنوان)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.title_ar }}
+                        {% if form.title_ar.errors %}
+                        {% for error in form.title_ar.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "العنوان بالعربية" %}</span>
                     </div>
                     
                     <!-- Language -->
@@ -852,19 +868,34 @@ html[dir="rtl"] .page-header h1 {
                 
                 <div class="section-body">
                     
-                    <!-- Description -->
-                    <div class="form-group{% if form.description.errors %} has-error{% endif %}">
-                        <label for="id_description">
-                            {% trans "Description" %}
+                    <!-- Description (English) -->
+                    <div class="form-group{% if form.description_en.errors %} has-error{% endif %}">
+                        <label for="id_description_en">
+                            {% trans "Description (English)" %}
                             <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
                         </label>
-                        {{ form.description }}
-                        {% if form.description.errors %}
-                        {% for error in form.description.errors %}
+                        {{ form.description_en }}
+                        {% if form.description_en.errors %}
+                        {% for error in form.description_en.errors %}
                         <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
                         {% endfor %}
                         {% endif %}
-                        <span class="form-text">{% trans "Provide a detailed description of your resource" %}</span>
+                        <span class="form-text">{% trans "Detailed description in English" %}</span>
+                    </div>
+                    
+                    <!-- Description (Arabic) -->
+                    <div class="form-group{% if form.description_ar.errors %} has-error{% endif %}">
+                        <label for="id_description_ar">
+                            {% trans "Description (Arabic / الوصف)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.description_ar }}
+                        {% if form.description_ar.errors %}
+                        {% for error in form.description_ar.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "الوصف التفصيلي بالعربية" %}</span>
                     </div>
                     
                     <!-- File Upload Zone -->
@@ -1300,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fileUploadZone && fileInput) {
         // Click to upload
         fileUploadZone.addEventListener('click', function(e) {
-            if (e.target !== btnRemoveFile && !btnRemoveFile.contains(e.target)) {
+            if (!btnRemoveFile || (e.target !== btnRemoveFile && !btnRemoveFile.contains(e.target))) {
                 fileInput.click();
             }
         });

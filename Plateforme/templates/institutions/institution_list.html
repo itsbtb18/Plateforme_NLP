@@ -158,7 +158,22 @@ html[dir="rtl"] .ip-select { padding: 0 1rem 0 2.5rem; background-position: left
 .ip-card-desc { font-size: 0.875rem; color: var(--ip-text-secondary); line-height: 1.6; margin-bottom: 1rem; }
 
 
-.ip-card-footer { padding-top: 1rem; border-top: 1px solid var(--ip-border); margin-top: auto; }
+.ip-card-footer {
+    padding-top: 1rem;
+    border-top: 1px solid var(--ip-border);
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ip-footer-actions {
+    margin-inline-start: auto;
+}
+
+.ip-card-footer .card-top-actions {
+    margin: 0;
+}
 
 .ip-card-logo {
     width: 80px;
@@ -326,7 +341,7 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
             <h2 style="font-size: 1.2rem; font-weight: 700;">
                 {% translate "Institution Directory" %} 
                 <span style="font-size: 0.9rem; background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 20px; margin-left: 10px;">
-                    {{ institutions|length }} {% translate "shown" %}
+                    {{ paginator.count|default:"0" }} {% translate "shown" %}
                 </span>
             </h2>
         </div>
@@ -335,27 +350,68 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
         <div class="ip-grid">
             {% for institution in institutions %}
             <article class="ip-card">
-                <div class="ip-card-header">
+                <div class="ip-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem;">
+                    <div style="flex: 1; display: flex; justify-content: center;">
                     {% if institution.logo %}
                     <img src="{{ institution.logo.url }}" alt="{{ institution.get_localized_name }}" class="ip-card-logo">
                     {% else %}
                     <div style="font-size: 2.5rem; color: #3b82f6;"><i class="bi bi-building"></i></div>
                     {% endif %}
+                    </div>
                 </div>
                 <div class="ip-card-body">
                     <h3 class="ip-card-name">{{ institution.get_localized_name }}</h3>
                     <div class="ip-card-location"><i class="bi bi-geo-alt"></i> {{ institution.get_localized_city }}, {{ institution.country }}</div>
                     <p class="ip-card-desc">{{ institution.get_localized_description|truncatewords:15 }}</p>
                     <div class="ip-card-footer">
-                        <a href="{% url 'institutions:institution_detail' institution.pk %}" class="ip-card-link">
-                            <span>{% translate "Show Details" %}</span>
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
+                        {% if institution.approval_status == 'pending' and institution.created_by == request.user %}
+                            <a href="{% url 'institutions:institution_update' institution.pk %}" class="ip-card-link" title="{% translate 'Edit Form' %}">
+                                <span>{% translate "Edit Form" %}</span>
+                                <i class="bi bi-file-earmark-text"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'institutions:institution_detail' institution.pk %}" class="ip-card-link">
+                                <span>{% translate "View Details" %}</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        {% endif %}
+                        <div class="ip-footer-actions">
+                            {% include "includes/card_top_actions.html" with content_type="institution" object_id=institution.pk title=institution.get_localized_name description=institution.get_localized_description|truncatewords:40 category=institution.get_type_display author=institution.website url=request.build_absolute_uri %}
+                        </div>
                     </div>
                 </div>
             </article>
             {% endfor %}
         </div>
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="ip-pagination" aria-label="{% translate 'Pagination' %}">
+            {% if page_obj.has_previous %}
+            <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                <i class="bi bi-chevron-left"></i> {% translate "Previous" %}
+            </a>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <span class="ip-page-btn active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
+                <span class="ip-page-btn" style="border: none; cursor: default;">&hellip;</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                {% translate "Next" %} <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endif %}
+        </nav>
+        {% endif %}
+
         {% else %}
         <div style="text-align: center; padding: 50px; border: 2px dashed #e2e8f0; border-radius: 15px;">
             <i class="bi bi-search" style="font-size: 3rem; color: #cbd5e1;"></i>

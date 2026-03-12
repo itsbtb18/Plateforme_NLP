@@ -2,705 +2,212 @@
 {% load i18n %}
 {% block title %}{% trans "Forum Management" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-  :root {
-    --primary-color: #6366f1;
-    --primary-dark: #4f46e5;
-    --secondary-color: #f1f5f9;
-    --accent-color: #06b6d4;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border-color: #e2e8f0;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-card: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  }
-
-  body {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    color: var(--text-primary);
-    min-height: 100vh;
-  }
-
-  .main-header {
-    background: var(--gradient-primary);
-    color: white;
-    border-radius: 20px;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .main-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="1" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-    opacity: 0.3;
-  }
-
-  .main-header .container-fluid {
-    position: relative;
-    z-index: 1;
-  }
-
-  .stats-card {
-    background: var(--gradient-card);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .stats-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .filter-card {
-    background: var(--gradient-card);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .main-table-card {
-    background: var(--gradient-card);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-  }
-
-  .table-header {
-    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    color: white;
-    padding: 1rem 1.5rem;
-  }
-
-  .custom-table {
-    margin: 0;
-  }
-
-  .custom-table thead th {
-    background: #f8fafc;
-    border: none;
-    font-weight: 600;
-    color: var(--text-primary);
-    padding: 1rem;
-  }
-
-  .custom-table tbody tr {
-    transition: all 0.2s ease;
-    border-bottom: 1px solid #f1f5f9;
-  }
-
-  .custom-table tbody tr:hover {
-    background-color: #f8fafc;
-    transform: scale(1.01);
-    box-shadow: var(--shadow-sm);
-  }
-
-
-
- 
-
-  .action-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border-color);
-    transition: all 0.2s ease;
-    margin: 0 2px;
-    text-decoration: none;
-  }
-
-  .action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-primary {
-    background: var(--gradient-primary);
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .search-input {
-    border-radius: 12px;
-    border: 2px solid var(--border-color);
-    padding: 0.75rem 1rem;
-    transition: all 0.3s ease;
-  }
-
-  .search-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-  }
-
-  .modal-content {
-    border: none;
-    border-radius: 16px;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .modal-header {
-    background: var(--gradient-primary);
-    color: white;
-    border-radius: 16px 16px 0 0;
-  }
-
-  .empty-state {
-    padding: 4rem 2rem;
-    text-align: center;
-  }
-
-  .empty-state i {
-    font-size: 4rem;
-    color: var(--text-secondary);
-    margin-bottom: 1rem;
-  }
-
-  .topic-title {
-    font-weight: 600;
-    color: var(--text-primary);
-    line-height: 1.4;
-  }
-
-  .topic-preview {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  .author-info {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .author-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--gradient-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 0.875rem;
-  }
-
-  .replies-count {
-    background: linear-gradient(135deg, var(--accent-color), #0891b2);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 50px;
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-
-  .toast {
-    z-index: 1050;
-  }
-
-  .btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  @media (max-width: 768px) {
-    .custom-table {
-      font-size: 0.875rem;
-    }
-
-    .action-btn {
-      width: 32px;
-      height: 32px;
-      font-size: 0.875rem;
-    }
-
-    .main-header h1 {
-      font-size: 1.75rem;
-    }
-
-    .btn-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.25rem;
-    }
-  }
-
-  @media (max-width: 576px) {
-    .table-responsive {
-      border-radius: 12px;
-    }
-
-    .d-md-flex {
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .loading {
-    opacity: 0.6;
-    pointer-events: none;
-  }
-
-  /* Approval Action Buttons */
-  .action-btn-approve {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--success-color);
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-    transition: all 0.2s ease;
-    margin: 0 2px;
-    text-decoration: none;
-  }
-
-  .action-btn-approve:hover {
-    background-color: var(--success-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .action-btn-reject {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--danger-color);
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-    transition: all 0.2s ease;
-    margin: 0 2px;
-    text-decoration: none;
-  }
-
-  .action-btn-reject:hover {
-    background-color: var(--danger-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Approval Tabs */
-  .approval-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 0;
-  }
-
-  .tab-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-  }
-
-  .tab-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .tab-btn.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-  }
-
-  .tab-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.25rem;
-    height: 1.25rem;
-    padding: 0 0.375rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background-color: var(--secondary-color);
-    color: var(--text-secondary);
-  }
-
-  .tab-btn.active .tab-badge {
-    background-color: rgba(99, 102, 241, 0.1);
-    color: var(--primary-color);
-  }
-
-  .tab-btn.pending .tab-badge {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .tab-btn.pending.active .tab-badge {
-    background-color: rgba(245, 158, 11, 0.2);
-    color: var(--warning-color);
-  }
-
-  /* Status Badge */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .status-pending {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .status-approved {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-</style>
-{% endblock extra_css %}
-
 {% block content %}
-<div class="container-fluid px-3 px-md-4 py-4">
-  <!-- En-tête principal -->
-  <div class="main-header animate-fade-in">
-    <div class="container-fluid px-4 py-4">
-      <div class="row align-items-center">
-        <div class="col-12 col-md-8">
-          <h1 class="fs-2 fw-bold mb-2">
-            <i class="fas fa-comments me-3"></i>{% trans "Administration of the Forums" %}
-          </h1>
-          <p class="mb-0 opacity-90">{% trans "Manage all your discussion topics at a glance" %}</p>
-        </div>
-        <div class="col-12 col-md-4 text-md-end mt-3 mt-md-0">
-          <a href="{% url 'forum:topic-new' %}" class="btn btn-light btn-lg px-4 py-2" style="border-radius: 12px;">
-            <i class="fas fa-plus me-2"></i>{% trans "New topic" %}
-          </a>
-        </div>
-      </div>
-    </div>
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-comments"></i> {% trans "Administration of the Forums" %}</h1>
+    <p class="pg-sub">{% trans "Manage all your discussion topics at a glance" %}</p>
   </div>
-
-  <!-- Statistiques -->
-  <div class="row mb-4 animate-fade-in">
-    <div class="col-6 col-md-3 mb-3">
-      <div class="stats-card h-100 p-3 text-center">
-        <div class="fs-2 fw-bold text-primary mb-1">{{ total_topics_count }}</div>
-        <div class="text-muted small">{% trans "Total topics" %}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3 mb-3">
-      <div class="stats-card h-100 p-3 text-center">
-        <div class="fs-2 fw-bold text-info mb-1">{{ total_messages_count }}</div>
-        <div class="text-muted small">{% trans "Answers" %}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Filtres -->
-  <div class="filter-card mb-4 animate-fade-in">
-    <div class="p-4">
-      <form method="get" id="filterForm">
-        <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-6 col-lg-4">
-            <label class="form-label fw-semibold text-muted small mb-2">{% trans "RESEARCH" %}</label>
-            <div class="position-relative">
-              <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-              <input type="text" class="form-control search-input ps-5" placeholder="{% trans "Search for a topic..." %}" name="search" value="{{ search|default:'' }}">
-            </div>
-          </div>
-          <div class="col-12 col-md-6 col-lg-2">
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter me-2"></i>{% trans "Filter" %}
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Approval Tabs -->
-  <div class="approval-tabs animate-fade-in">
-    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" 
-       class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
-      <i class="fas fa-check-circle"></i>
-      {% trans "Approved" %}
-      <span class="tab-badge">{{ approved_count|default:0 }}</span>
-    </a>
-    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" 
-       class="tab-btn pending {% if active_tab == 'pending' %}active{% endif %}">
-      <i class="fas fa-clock"></i>
-      {% trans "Pending Review" %}
-      <span class="tab-badge">{{ pending_count|default:0 }}</span>
-    </a>
-  </div>
-
-  <!-- Tableau principal -->
-  <div class="main-table-card animate-fade-in">
-    <div class="table-header">
-      <div class="d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-semibold">
-          <i class="fas fa-list me-2"></i>
-          {% if active_tab == 'pending' %}{% trans "Pending Topics" %}{% else %}{% trans "Forum topics" %}{% endif %}
-        </h5>
-        <span class="badge bg-white text-primary px-3 py-2 rounded-pill">
-          {% if active_tab == 'pending' %}{{ pending_count|default:0 }}{% else %}{{ approved_count|default:0 }}{% endif %} {% trans "topics" %}
-        </span>
-      </div>
-    </div>
-
-    {% if active_tab == 'pending' %}
-    <!-- Pending Topics Table -->
-    <div class="table-responsive">
-      <table class="custom-table table align-middle">
-        <thead>
-          <tr>
-            <th style="width: 30%;">{% trans "topics" %}</th>
-            <th style="width: 15%;">{% trans "Author" %}</th>
-            <th style="width: 12%;">{% trans "Date" %}</th>
-            <th style="width: 10%;">{% trans "Status" %}</th>
-            <th style="width: 25%;" class="text-center">{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for topic in pending_topics %}
-          <tr>
-            <td class="p-3">
-              <div>
-                <div class="topic-title mb-1">{{ topic.get_localized_title }}</div>
-                <div class="topic-preview">{{ topic.get_localized_description|truncatechars:100 }}</div>
-              </div>
-            </td>
-            <td class="p-3">
-              <div class="author-info">
-                <div class="author-avatar">{{ topic.creator.full_name|slice:":2"|upper }}</div>
-                <span class="fw-medium">{{ topic.creator.full_name }}</span>
-              </div>
-            </td>
-            <td class="p-3">
-              <div class="small">{{ topic.created_at|date:"d/m/Y" }}</div>
-              <div class="small text-muted">{{ topic.created_at|date:"H:i" }}</div>
-            </td>
-            <td class="p-3">
-              <span class="status-badge status-pending">{% trans "Pending" %}</span>
-            </td>
-            <td class="p-3">
-              <div class="d-flex justify-content-center gap-1">
-                <!-- Review & Edit -->
-                <a href="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
-                  <i class="fas fa-edit"></i>
-                </a>
-                <!-- Reject -->
-                {% translate "Are you sure you want to reject this topic?" as confirm_topic_msg %}
-                <form method="post" action="{% url 'pages:admin_reject_item' model_type='topic' pk=topic.pk %}" style="display: inline;" onsubmit="return confirm('{{ confirm_topic_msg }}');">
-                  {% csrf_token %}
-                  <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </form>
-                <!-- View -->
-                <a href="{% url 'forum:topic-list' %}" class="action-btn btn btn-outline-primary" title="{% trans 'View topic' %}">
-                  <i class="fas fa-eye"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5">
-              <div class="empty-state">
-                <i class="fas fa-check-circle"></i>
-                <h3 class="empty-state-title">{% trans "No pending topics" %}</h3>
-                <p class="empty-state-description">{% trans "All topics have been reviewed. Great job!" %}</p>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <!-- Approved Topics Table -->
-
-    <div class="table-responsive">
-      <table class="custom-table table align-middle">
-        <thead>
-          <tr>
-            <th style="width: 35%;">{% trans "topics" %}</th>
-            <th style="width: 15%;">{% trans "Author" %}</th>
-            <th style="width: 12%;">{% trans "Date" %}</th>
-            <th style="width: 8%;">{% trans "Answers" %}</th>
-            <th style="width: 22%;" class="text-center">{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for topic in approved_topics %}
-          <tr>
-            <td class="p-3">
-              <div>
-                <div class="topic-title mb-1">{{ topic.get_localized_title }}</div>
-                <div class="topic-preview">{{ topic.get_localized_description|truncatechars:100 }}</div>
-              </div>
-            </td>
-            <td class="p-3">
-              <div class="author-info">
-                <div class="author-avatar">{{ topic.creator.full_name|slice:":2"|upper }}</div>
-                <span class="fw-medium">{{ topic.creator.full_name }}</span>
-              </div>
-            </td>
-            <td class="p-3">
-              <div class="small">{{ topic.created_at|date:"d/m/Y" }}</div>
-              <div class="small text-muted">{{ topic.created_at|date:"H:i" }}</div>
-            </td>
-            <td class="p-3">
-              <span class="replies-count">{{ topic.total_messages|default:0 }}</span>
-            </td>
-            <td class="p-3">
-              <div class="d-flex justify-content-center gap-1">
-                <!-- Voir le topic -->
-                <a href="{% url 'forum:topic-list' %}" class="action-btn btn btn-outline-primary" title="{% trans 'View topic' %}">
-                  <i class="fas fa-eye"></i>
-                </a>
-                
-                <!-- Modifier le topic -->
-                <a href="{% url 'forum:topic-update' pk=topic.pk %}" class="action-btn btn btn-outline-secondary" title="{% trans 'Edit topic' %}">
-                  <i class="fas fa-edit"></i>
-                </a>
-               
-                
-               <a href="{% url 'forum:topic-delete' pk=topic.pk %}" class="action-btn btn btn-outline-danger delete-topic"  title="{% trans 'delete topic' %}">
-                   <i class="fas fa-trash"></i>
-                </a>
-                
-                
-                
-                <!-- Voir les chatrooms (si disponibles) -->
-                {% if topic.chatrooms.first %}
-                  <a href="{% url 'forum:chatroom-list' topic.id %}" class="action-btn btn btn-outline-info" title="{% trans 'View chatroom' %}">
-                    <i class="fas fa-comments"></i>
-                  </a>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6">
-              <div class="empty-state">
-                <i class="fas fa-comments"></i>
-                <h3 class="empty-state-title">{% trans "No forum topics found" %}</h3>
-                <p class="empty-state-description">{% trans "There are no topics matching your search criteria." %}</p>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Pagination -->
-  <nav aria-label="Page navigation" class="animate-fade-in mt-4">
-    <ul class="pagination justify-content-center">
-      {% if topics.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ topics.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="Précédent">
-            <span aria-hidden="true">&laquo;</span>
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled">
-          <span class="page-link" aria-hidden="true">&laquo;</span>
-        </li>
-      {% endif %}
-
-      {% for i in topics.paginator.page_range %}
-        {% if topics.number == i %}
-          <li class="page-item active"><span class="page-link">{{ i }} <span class="visually-hidden">{% trans "(current)" %}</span></span></li>
-        {% else %}
-          <li class="page-item"><a class="page-link" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a></li>
-        {% endif %}
-      {% endfor %}
-
-      {% if topics.has_next %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ topics.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" aria-label="Suivant">
-            <span aria-hidden="true">&raquo;</span>
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled">
-          <span class="page-link" aria-hidden="true">&raquo;</span>
-        </li>
-      {% endif %}
-    </ul>
-  </nav>
+  <a href="{% url 'forum:topic-new' %}" class="n-btn n-btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New topic" %}
+  </a>
 </div>
 
-<!-- Modal de confirmation de suppression -->
+<!-- Stats -->
+<div class="n-st-grid" style="grid-template-columns:repeat(2,1fr);">
+  <div class="n-st">
+    <span class="n-st-val">{{ total_topics_count }}</span>
+    <span class="n-st-lbl">{% trans "Total topics" %}</span>
+  </div>
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-blue);">{{ total_messages_count }}</span>
+    <span class="n-st-lbl">{% trans "Answers" %}</span>
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="n-card mb-3">
+  <div class="n-card-body">
+    <form method="get" id="filterForm">
+      <div class="n-filter">
+        <div class="n-form-group" style="flex:1;">
+          <div class="position-relative">
+            <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--n-text-3);"></i>
+            <input type="text" class="n-input ps-5" placeholder="{% trans "Search for a topic..." %}" name="search" value="{{ search|default:'' }}">
+          </div>
+        </div>
+        <button type="submit" class="n-btn n-btn-primary">
+          <i class="fas fa-filter"></i> {% trans "Filter" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="n-tabs">
+  <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab != 'pending' %}active{% endif %}">
+    <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+    <span class="pg-badge">{{ approved_count|default:0 }}</span>
+  </a>
+  <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab == 'pending' %}active{% endif %}">
+    <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+    <span class="pg-badge" style="background:var(--n-amber);color:#fff;">{{ pending_count|default:0 }}</span>
+  </a>
+</div>
+
+{% if active_tab == 'pending' %}
+<!-- Pending Topics Table -->
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "topics" %}</th>
+          <th>{% trans "Author" %}</th>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in pending_topics %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ topic.get_localized_title }}</div>
+            <div class="small" style="color:var(--n-text-3);">{{ topic.get_localized_description|truncatechars:100 }}</div>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="n-av">{{ topic.creator.full_name|slice:":2"|upper }}</span>
+              <span>{{ topic.creator.full_name }}</span>
+            </div>
+          </td>
+          <td class="n-dt">
+            <div>{{ topic.created_at|date:"d/m/Y" }}</div>
+            <div>{{ topic.created_at|date:"H:i" }}</div>
+          </td>
+          <td><span class="n-status n-status-amber">{% trans "Pending" %}</span></td>
+          <td>
+            <div class="n-acts">
+              {% translate "Approve this topic?" as confirm_approve_topic %}
+              <form method="post" action="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}" style="display:inline;" onsubmit="return confirm('{{ confirm_approve_topic }}');">
+                {% csrf_token %}
+                <button type="submit" class="n-act n-act-green" title="{% trans 'Approve' %}"><i class="fas fa-check"></i></button>
+              </form>
+              {% translate "Reject and delete this topic?" as confirm_topic_msg %}
+              <form method="post" action="{% url 'pages:admin_reject_item' model_type='topic' pk=topic.pk %}" style="display:inline;" onsubmit="return confirm('{{ confirm_topic_msg }}');">
+                {% csrf_token %}
+                <button type="submit" class="n-act n-act-red" title="{% trans 'Reject' %}"><i class="fas fa-times"></i></button>
+              </form>
+              <a href="{% url 'forum:topic-list' %}" class="n-act" title="{% trans 'View topic' %}"><i class="fas fa-eye"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="n-empty">
+              <i class="fas fa-check-circle"></i>
+              <h3>{% trans "No pending topics" %}</h3>
+              <p>{% trans "All topics have been reviewed. Great job!" %}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<!-- Approved Topics Table -->
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "topics" %}</th>
+          <th>{% trans "Author" %}</th>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Answers" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in approved_topics %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ topic.get_localized_title }}</div>
+            <div class="small" style="color:var(--n-text-3);">{{ topic.get_localized_description|truncatechars:100 }}</div>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="n-av">{{ topic.creator.full_name|slice:":2"|upper }}</span>
+              <span>{{ topic.creator.full_name }}</span>
+            </div>
+          </td>
+          <td class="n-dt">
+            <div>{{ topic.created_at|date:"d/m/Y" }}</div>
+            <div>{{ topic.created_at|date:"H:i" }}</div>
+          </td>
+          <td>
+            <span class="fw-semibold" style="color:var(--n-blue);">{{ topic.total_messages|default:0 }}</span>
+          </td>
+          <td>
+            <div class="n-acts">
+              <a href="{% url 'forum:topic-list' %}" class="n-act" title="{% trans 'View topic' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'forum:topic-update' pk=topic.pk %}" class="n-act" title="{% trans 'Edit topic' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'forum:topic-delete' pk=topic.pk %}" class="n-act n-act-red delete-topic" title="{% trans 'delete topic' %}"><i class="fas fa-trash"></i></a>
+              {% if topic.chatrooms.first %}
+              <a href="{% url 'forum:chatroom-list' topic.id %}" class="n-act" title="{% trans 'View chatroom' %}"><i class="fas fa-comments"></i></a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="n-empty">
+              <i class="fas fa-comments"></i>
+              <h3>{% trans "No forum topics found" %}</h3>
+              <p>{% trans "There are no topics matching your search criteria." %}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Pagination -->
+{% if topics.paginator.num_pages > 1 %}
+<div class="n-pag">
+  {% if topics.has_previous %}
+  <a href="?page={{ topics.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">&laquo;</a>
+  {% endif %}
+  {% for i in topics.paginator.page_range %}
+    {% if topics.number == i %}
+    <span class="n-pag-btn active">{{ i }}</span>
+    {% else %}
+    <a href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">{{ i }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if topics.has_next %}
+  <a href="?page={{ topics.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">&raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteTopicModal" tabindex="-1" aria-labelledby="deleteTopicModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
+    <div class="modal-content" style="border:none;border-radius:var(--n-radius);">
+      <div class="modal-header" style="background:var(--n-red);color:#fff;border-radius:var(--n-radius) var(--n-radius) 0 0;">
         <h5 class="modal-title" id="deleteTopicModalLabel">
           <i class="fas fa-exclamation-triangle me-2"></i>{% trans "Confirm deletion" %}
         </h5>
@@ -708,13 +215,13 @@
       </div>
       <div class="modal-body">
         <p>{% trans "Are you sure you want to delete this topic?" %}</p>
-        <p class="fw-bold text-danger" id="topicToDelete"></p>
-        <p class="text-muted">{% trans "This action cannot be undone." %}</p>
+        <p class="fw-bold" style="color:var(--n-red);" id="topicToDelete"></p>
+        <p style="color:var(--n-text-3);">{% trans "This action cannot be undone." %}</p>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
-        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-          <i class="fas fa-trash me-2"></i>{% trans "Delete" %}
+      <div class="modal-footer" style="border-top:1px solid var(--n-border);">
+        <button type="button" class="n-btn" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+        <button type="button" class="n-btn n-btn-danger" id="confirmDeleteBtn">
+          <i class="fas fa-trash"></i> {% trans "Delete" %}
         </button>
       </div>
     </div>
@@ -731,7 +238,6 @@
     </div>
     <div class="toast-body" id="successMessage"></div>
   </div>
-  
   <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="toast-header bg-danger text-white">
       <i class="fas fa-exclamation-circle me-2"></i>
@@ -741,7 +247,4 @@
     <div class="toast-body" id="errorMessage"></div>
   </div>
 </div>
-
-</script>
-
 {% endblock %}

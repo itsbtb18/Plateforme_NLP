@@ -91,40 +91,20 @@ class QueryRouter:
             classification.confidence,
         )
 
-        # ----- general_knowledge → direct LLM, no retrieval -----
-        if intent == "general_knowledge":
+        # ----- Phase 3: Strict LLM-direct mode -----
+        # When the classifier says use_llm_direct, skip ALL retrieval
+        # (Qdrant, Elasticsearch, PostgreSQL).  This covers greetings,
+        # conversational advice, brainstorming, and general knowledge.
+        if classification.use_llm_direct:
             result.skip_retrieval = True
             result.primary_source = "groq"
             return result
 
-        # ----- user_query → PostgreSQL user lookup -----
+        # ----- user_query → self-only PostgreSQL user lookup -----
         if intent == "user_query":
-            # Extract the name/keyword to look up
-            lookup_keyword = self._extract_user_keyword(question)
-            if lookup_keyword:
-                # Looking up ANOTHER user
-                user_detail = await self.platform_qs.get_user_profile_detail(
-                    db=db,
-                    keyword=lookup_keyword,
-                )
-                if user_detail:
-                    result.platform_results = [user_detail]
-                    result.primary_source = "platform"
-                else:
-                    authors = await self.platform_qs.search_authors(
-                        db=db,
-                        keyword=lookup_keyword,
-                        limit=5,
-                    )
-                    if authors:
-                        result.platform_results = authors
-                        result.primary_source = "platform"
-            elif user_email:
-                # Self-referencing query
+            if user_email:
+                # Self-referencing query only
                 content_type = self._extract_content_type(question)
-                # Only fetch contributions if the question is about
-                # specific content ("my tools", "what did I post") –
-                # NOT for identity questions ("whats my name", "who am I")
                 is_identity_only = self._is_identity_question(question)
                 if not is_identity_only:
                     contribs = await self.platform_qs.get_current_user_contributions(
@@ -138,7 +118,6 @@ class QueryRouter:
                         ]
                         result.primary_source = "platform"
                     else:
-                        # Inform the LLM that the user has no contributions
                         type_label = content_type or "content"
                         result.platform_results = [
                             {
@@ -151,42 +130,31 @@ class QueryRouter:
                             }
                         ]
                         result.primary_source = "platform"
-            # If no data found, LLM answers using user profile context
+            # If no user_email or identity-only, LLM answers using profile context
             if not result.platform_results:
                 result.primary_source = "platform"
                 result.skip_retrieval = True
             return result
 
-        # ----- conceptual_question → broad Qdrant + ES keyword supplement -----
+        # ----- conceptual_question → Qdrant (nlp_knowledge only by default) -----
         if intent == "conceptual_question":
-            docs, src = await self._semantic_broad(
+            # Phase 2: Only search nlp_knowledge unless the query
+            # explicitly asks for platform entities (courses, tools, etc.)
+            collections = ["nlp_knowledge"]
+            if self._wants_platform_entities(question):
+                collections.extend(["platform_docs", "resources"])
+
+            docs, src = await self._semantic_targeted(
                 question,
                 db,
                 lang,
-                user_country=user_country,
-                user_city=user_city,
+                collections=collections,
+                top_k=settings.TOP_K_RESULTS,
             )
             result.retrieved_docs = docs
             result.primary_source = src
 
-            # Phase 13: True hybrid search — supplement semantic results
-            # with ES keyword (BM25) results for better recall when users
-            # search for exact terms (e.g. "BERT algorithm", "tokenization").
-            try:
-                es_results = await self.es_service.search(
-                    question,
-                    total_limit=5,
-                )
-                if es_results:
-                    result.platform_results = es_results
-                    if not docs:
-                        result.primary_source = "platform"
-            except Exception:
-                logger.debug(
-                    "ES supplement for conceptual_question failed", exc_info=True
-                )
-
-            if not docs and not result.platform_results:
+            if not docs:
                 result.skip_retrieval = True
                 result.primary_source = "groq"
             return result
@@ -367,51 +335,6 @@ class QueryRouter:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_user_keyword(question: str) -> Optional[str]:
-        """Extract the user/name keyword from a user_query question.
-
-        Handles patterns like "who is linaloubna", "tell me about Ahmed",
-        "ما هو اسمي", "من هو محمد", etc.
-        """
-        import re
-
-        q = question.strip()
-
-        # "who is X" / "who's X"
-        m = re.search(r"\bwho(?:'s| is) (\S+.*)", q, re.I)
-        if m:
-            return m.group(1).strip().rstrip("?!.")
-
-        # "tell me about (user )X"
-        m = re.search(r"\btell me about (?:user |member )?(.+)", q, re.I)
-        if m:
-            name = m.group(1).strip().rstrip("?!.")
-            if name.lower() not in ("myself", "me"):
-                return name
-
-        # "find/search/lookup user X" or "info about X"
-        m = re.search(
-            r"\b(?:find|search|lookup|look up|info about) (?:user |member |researcher |author |person )?(.+)",
-            q,
-            re.I,
-        )
-        if m:
-            return m.group(1).strip().rstrip("?!.")
-
-        # French: "qui est X"
-        m = re.search(r"\bqui est (\S+.*)", q, re.I)
-        if m:
-            return m.group(1).strip().rstrip("?!.")
-
-        # Arabic: "من هو X" / "من هي X"
-        m = re.search(r"من (?:هو|هي) (.+)", q)
-        if m:
-            return m.group(1).strip().rstrip("؟!.")
-
-        # If it's a self-referencing question, return None (handled by user profile context)
-        return None
-
-    @staticmethod
     def _is_identity_question(question: str) -> bool:
         """Return True if the question is purely about the user's identity
         (name, bio, who am I) and NOT about their contributions."""
@@ -486,6 +409,19 @@ class QueryRouter:
                 return ctype
         return None
 
+    @staticmethod
+    def _wants_platform_entities(question: str) -> bool:
+        """Return True if the question explicitly asks for platform entities
+        (courses, tools, institutions, resources, recommendations, etc.)."""
+        import re
+        q = question.lower()
+        return bool(re.search(
+            r"\b(?:course|cours|دور[اة]|tool|outil|أدا[ةت]|institution|مؤسس|"
+            r"recommend|suggest|where.+(?:study|learn)|show.+resource|"
+            r"programme?|program|formation)\b",
+            q,
+        ))
+
     async def _semantic_broad(
         self,
         question: str,
@@ -504,6 +440,16 @@ class QueryRouter:
             include_legal=True,
             language=language,
         )
+
+    # Phase 7: Per-collection similarity thresholds.
+    # Avoids weak / irrelevant matches from polluting the LLM context.
+    _COLLECTION_THRESHOLDS: Dict[str, float] = {
+        "document_chunks": 0.65,
+        "legal_documents": 0.60,
+        "nlp_knowledge": 0.55,
+        "platform_docs": 0.50,
+        "resources": 0.50,
+    }
 
     async def _semantic_targeted(
         self,
@@ -546,6 +492,10 @@ class QueryRouter:
                 )
             else:
                 continue
+            # Phase 7: Apply per-collection similarity floor
+            threshold = self._COLLECTION_THRESHOLDS.get(coll_name)
+            if threshold is not None:
+                docs = [d for d in docs if d.get("similarity", 0) >= threshold]
             all_docs.extend(docs)
 
         all_docs.sort(key=lambda d: d.get("similarity", 0), reverse=True)

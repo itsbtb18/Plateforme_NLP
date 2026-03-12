@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/statistics/', views.admin_statistics, name='admin_statistics'),
     path('admin/settings/', views.admin_settings, name='admin_settings'),
     path('admin/security/', views.admin_security, name='admin_security'),
+    path('admin/security/activity-data/', views.admin_security_activity_api, name='admin_security_activity_api'),
     
     # User management
      path('admin/users/<uuid:user_id>/edit/', views.admin_user_edit, name='admin_user_edit'),
@@ -37,8 +38,11 @@ urlpatterns = [
     path('admin/users/<uuid:user_id>/status/<str:status>/', views.admin_user_status, name='admin_user_status'),
     
     # Approval workflow
+    path('admin/view/<str:model_type>/<uuid:pk>/', views.admin_view_item, name='admin_view_item'),
     path('admin/approve/<str:model_type>/<uuid:pk>/', views.admin_approve_item, name='admin_approve_item'),
     path('admin/reject/<str:model_type>/<uuid:pk>/', views.admin_reject_item, name='admin_reject_item'),
+    path('admin/review/<str:model_type>/<uuid:pk>/', views.admin_review_item_api, name='admin_review_item_api'),
+    path('admin/review/<str:model_type>/<uuid:pk>/save/', views.admin_review_save_api, name='admin_review_save_api'),
     
     # API endpoints
     path('admin/api/stats/', views.admin_api_stats, name='admin_api_stats'),

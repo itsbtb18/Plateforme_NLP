@@ -95,6 +95,14 @@ class ResourceBase(models.Model):
         default=0,
         verbose_name=_("Views Count")
     )
+    
+    # Legacy approval field (kept for database compatibility)
+    is_approved = models.BooleanField(
+        default=False,
+        verbose_name=_("Is Approved (Legacy)"),
+        help_text=_("Legacy field - use approval_status instead")
+    )
+    
     approval_status = models.CharField(
         max_length=20,
         choices=ApprovalStatus.choices,
@@ -102,6 +110,15 @@ class ResourceBase(models.Model):
         verbose_name=_("Approval Status"),
         help_text=_("Content must be approved by admin before being publicly visible")
     )
+    
+    rejection_reason = models.TextField(
+        verbose_name=_("Rejection Reason"),
+        blank=True,
+        null=True,
+        default='',
+        help_text=_("Reason for rejection (only filled when status is rejected)")
+    )
+    
     description_ar = models.TextField(
         verbose_name=_("Description (Arabic)"),
         blank=True,

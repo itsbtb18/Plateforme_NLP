@@ -4,651 +4,327 @@
 
 {% block extra_css %}
 <style>
-  :root {
-    --primary-color: #4361ee;
-    --primary-dark: #3730a3;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-  }
+  /* ═══ Users – Notion-Blue Minimal ═══ */
 
-  /* Modern Card Styling */
-  .modern-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--gray-200);
-    margin-bottom: 2rem;
-    transition: all 0.3s ease;
+  /* ── Page header ── */
+  .u-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem; flex-wrap: wrap; gap: .75rem;
   }
-
-  .modern-card:hover {
-    box-shadow: var(--shadow-lg);
+  .u-head-left { display: flex; align-items: center; gap: .75rem; }
+  .u-head h1 {
+    font-size: 1.35rem; font-weight: 700; color: var(--n-text, #111827);
+    margin: 0; display: flex; align-items: center; gap: .5rem;
   }
-
-  /* Header Section */
-  .header-section {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    border-radius: 16px;
-    padding: 2rem;
-    color: white;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-xl);
-  }
-
-  .header-title {
-    font-size: 1.875rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .stats-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    padding: 0.5rem 1rem;
+  .u-head h1 i { color: var(--n-text-3, #9CA3AF); font-size: 1.1rem; }
+  .u-pending-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--n-amber-bg, #FEF3C7); color: var(--n-amber, #F59E0B);
+    font-size: .72rem; font-weight: 700; padding: .25rem .65rem;
     border-radius: 50px;
-    font-size: 0.95rem;
-    font-weight: 600;
+  }
+  .u-btn-new {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .45rem .95rem; border-radius: 8px;
+    font-weight: 600; font-size: .82rem;
+    background: var(--n-blue, #3B82F6); color: #fff;
+    border: none; cursor: pointer; text-decoration: none;
+    transition: opacity .15s;
+  }
+  .u-btn-new:hover { opacity: .85; color: #fff; }
+
+  /* ── Card ── */
+  .u-card {
+    background: var(--n-surface, #fff);
+    border: 1px solid var(--n-border, #E5E7EB);
+    border-radius: 10px; margin-bottom: 1.25rem; overflow: hidden;
   }
 
-  /* Modern Button Styling */
-  .btn-modern {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-    text-decoration: none;
+  /* ── Filter ── */
+  .u-filter { padding: 1rem 1.25rem; }
+  .u-search-wrap { position: relative; }
+  .u-search-wrap i {
+    position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+    color: var(--n-text-3, #9CA3AF); font-size: .85rem;
+  }
+  .u-search {
+    width: 100%; padding: .55rem .85rem .55rem 2.25rem;
+    border: 1px solid var(--n-border, #E5E7EB); border-radius: 8px;
+    font-size: .85rem; background: var(--n-bg, #F8FAFC);
+    transition: border-color .15s;
+  }
+  .u-search:focus { outline: none; border-color: var(--n-blue, #3B82F6); }
+  .u-select {
+    padding: .55rem .85rem; border: 1px solid var(--n-border, #E5E7EB);
+    border-radius: 8px; font-size: .85rem; background: var(--n-bg, #F8FAFC);
+    cursor: pointer; transition: border-color .15s;
+  }
+  .u-select:focus { outline: none; border-color: var(--n-blue, #3B82F6); }
+  .u-btn-filter {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .5rem .9rem; border-radius: 8px; font-weight: 600;
+    font-size: .8rem; border: 1px solid var(--n-blue, #3B82F6);
+    background: var(--n-blue, #3B82F6); color: #fff;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .u-btn-filter:hover { opacity: .85; }
+  .u-btn-reset {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .5rem .9rem; border-radius: 8px; font-weight: 600;
+    font-size: .8rem; border: 1px solid var(--n-border, #E5E7EB);
+    background: var(--n-surface, #fff); color: var(--n-text-2, #6B7280);
+    cursor: pointer; text-decoration: none; transition: border-color .15s;
+  }
+  .u-btn-reset:hover { border-color: var(--n-text-3); color: var(--n-text); }
+
+  /* ── Active filter tags ── */
+  .u-tags {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    margin-top: .75rem; padding-top: .75rem;
+    border-top: 1px solid var(--n-border-s, #F3F4F6);
+  }
+  .u-tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--n-border-s, #F3F4F6); padding: .25rem .65rem;
+    border-radius: 50px; font-size: .78rem; font-weight: 500;
+  }
+  .u-tag a { color: var(--n-text-3); text-decoration: none; }
+  .u-tag a:hover { color: var(--n-red, #EF4444); }
+
+  /* ── Table ── */
+  .u-tbl { width: 100%; border-collapse: collapse; }
+  .u-tbl thead th {
+    padding: .65rem 1.25rem;
+    font-size: .68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--n-text-3, #9CA3AF);
+    border-bottom: 1px solid var(--n-border-s, #F3F4F6);
+  }
+  .u-tbl tbody td {
+    padding: .55rem 1.25rem; vertical-align: middle;
+    border-bottom: 1px solid var(--n-border-s, #F3F4F6);
+    font-size: .85rem; color: var(--n-text, #111827);
+  }
+  .u-tbl tbody tr:last-child td { border-bottom: none; }
+  .u-tbl tbody tr:hover { background: #FAFBFC; }
+
+  /* ── Avatar ── */
+  .u-av {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; color: #fff; font-size: .8rem; flex-shrink: 0;
+    background: var(--n-blue, #3B82F6);
+  }
+  .u-av-img {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0; border: 1px solid var(--n-border, #E5E7EB);
+  }
+  .u-info { display: flex; align-items: center; gap: .7rem; }
+  .u-info-text h6 {
+    margin: 0; font-weight: 600; font-size: .85rem;
+    color: var(--n-text, #111827); line-height: 1.2;
+  }
+  .u-info-text p {
+    margin: 0; font-size: .75rem; color: var(--n-text-3, #9CA3AF); line-height: 1.2;
   }
 
-  .btn-primary-modern {
-    background: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+  /* ── Status pill ── */
+  .u-status {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .u-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .u-status.active  { color: var(--n-green, #10B981); }
+  .u-status.pending  { color: var(--n-amber, #F59E0B); }
+  .u-status.blocked  { color: var(--n-red, #EF4444); }
+
+  /* ── Action buttons ── */
+  .u-acts { display: flex; align-items: center; gap: .3rem; }
+  .u-act {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid var(--n-border, #E5E7EB); background: var(--n-surface, #fff);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .75rem; color: var(--n-text-2, #6B7280);
+    cursor: pointer; transition: all .15s; text-decoration: none;
+  }
+  .u-act:hover { border-color: var(--n-blue, #3B82F6); color: var(--n-blue, #3B82F6); }
+
+  /* ── Dropdown ── */
+  .u-dd {
+    border-radius: 8px; border: 1px solid var(--n-border, #E5E7EB);
+    box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: .3rem;
+  }
+  .u-dd .dropdown-item {
+    padding: .45rem .7rem; border-radius: 6px; font-size: .82rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .u-dd .dropdown-item:hover { background: var(--n-border-s, #F3F4F6); }
+  .u-dd .dd-danger:hover { background: rgba(239,68,68,.06); color: var(--n-red, #EF4444); }
+
+  /* ── Pagination ── */
+  .u-pag {
+    display: flex; align-items: center; justify-content: center;
+    gap: .35rem; padding: 1rem;
+  }
+  .u-pg {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px; padding: 0 .5rem;
+    border-radius: 6px; border: 1px solid var(--n-border, #E5E7EB);
+    background: var(--n-surface, #fff); color: var(--n-text-2, #6B7280);
+    font-weight: 500; font-size: .82rem; text-decoration: none;
+    transition: all .15s;
+  }
+  .u-pg:hover { border-color: var(--n-blue); color: var(--n-blue); }
+  .u-pg.on {
+    background: var(--n-blue, #3B82F6); border-color: var(--n-blue);
+    color: #fff;
   }
 
-  .btn-primary-modern:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(67, 97, 238, 0.4);
-    color: white;
+  /* ── Empty ── */
+  .u-empty { text-align: center; padding: 3rem 1.5rem; }
+  .u-empty i { font-size: 2.5rem; color: var(--n-border, #E5E7EB); display: block; margin-bottom: .75rem; }
+  .u-empty h3 { font-size: 1.05rem; font-weight: 700; color: var(--n-text, #111827); margin-bottom: .25rem; }
+  .u-empty p { font-size: .85rem; color: var(--n-text-3, #9CA3AF); margin-bottom: 1rem; }
+
+  /* ── Date ── */
+  .u-dt { font-size: .78rem; color: var(--n-text-3, #9CA3AF); }
+
+  /* ── Responsive ── */
+  @media (max-width:768px) {
+    .u-head h1 { font-size: 1.15rem; }
+    .u-card { overflow-x: auto; }
+    .u-acts { flex-direction: column; }
   }
 
-  /* Search and Filter Section */
-  .filter-section {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    margin-bottom: 2rem;
-  }
-
-  .search-wrapper {
-    position: relative;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.875rem 1.25rem 0.875rem 3rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 12px;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
-  }
-
-  .search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--gray-600);
-    font-size: 1.125rem;
-  }
-
-  .filter-select {
-    padding: 0.875rem 1.25rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 12px;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    background: white;
-    cursor: pointer;
-  }
-
-  .filter-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
-  }
-
-  /* Active Filters */
-  .active-filters {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--gray-200);
-  }
-
-  .filter-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--gray-100);
-    padding: 0.5rem 1rem;
-    border-radius: 50px;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .filter-tag-remove {
-    cursor: pointer;
-    color: var(--gray-600);
-    transition: color 0.2s ease;
-    text-decoration: none;
-  }
-
-  .filter-tag-remove:hover {
-    color: var(--danger-color);
-  }
-
-  /* Table Styling */
-  .users-table-wrapper {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-  }
-
-  .users-table {
-    width: 100%;
-    margin: 0;
-  }
-
-  .users-table thead {
-    background: var(--gray-50);
-  }
-
-  .users-table th {
-    padding: 1rem 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray-700);
-    border: none;
-  }
-
-  .users-table td {
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    vertical-align: middle;
-    height: 64px;
-  }
-
-  .users-table tbody tr {
-    transition: all 0.2s ease;
-  }
-
-  .users-table tbody tr:hover {
-    background: var(--gray-50);
-  }
-
-  /* User Avatar */
-  .user-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: white;
-    font-size: 1.125rem;
-    flex-shrink: 0;
-    line-height: 1;
-    letter-spacing: 0;
-  }
-
-  /* Profile Image Styling */
-  .user-avatar-image {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    object-fit: cover;
-    flex-shrink: 0;
-    border: 2px solid var(--gray-200);
-    transition: all 0.2s ease;
-  }
-
-  .user-avatar-image:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  .user-info-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .user-details {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    height: 48px;
-  }
-
-  .user-details h6 {
-    margin: 0;
-    font-weight: 600;
-    color: var(--gray-900);
-    font-size: 0.95rem;
-    line-height: 1;
-    padding: 0;
-  }
-
-  .user-details p {
-    margin: 0;
-    padding: 0;
-    font-size: 0.875rem;
-    color: var(--gray-600);
-    line-height: 1;
-  }
-
-  /* Status Badges */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-
-  .status-active {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .status-pending {
-    background: rgba(245, 158, 11, 0.1);
-    color: var(--warning-color);
-  }
-
-  .status-blocked {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  /* Action Buttons */
-  .action-buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid var(--gray-300);
-    background: white;
-    color: var(--gray-700);
-    transition: all 0.2s ease;
-    cursor: pointer;
-    text-decoration: none;
-  }
-
-  .btn-action:hover {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-  }
-
-  .btn-action-danger:hover {
-    background: var(--danger-color);
-    border-color: var(--danger-color);
-  }
-
-  /* Dropdown Menu */
-  .dropdown-menu-modern {
-    border-radius: 12px;
-    border: none;
-    box-shadow: var(--shadow-xl);
-    padding: 0.5rem;
-    margin-top: 0.5rem;
-  }
-
-  .dropdown-item-modern {
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .dropdown-item-modern:hover {
-    background: var(--gray-100);
-  }
-
-  .dropdown-item-danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  /* Pagination */
-  .pagination-modern {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-    padding: 1.5rem 0;
-  }
-
-  .page-link-modern {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 0.75rem;
-    border-radius: 10px;
-    border: 1px solid var(--gray-300);
-    background: white;
-    color: var(--gray-700);
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-
-  .page-link-modern:hover {
-    background: var(--gray-100);
-    border-color: var(--gray-400);
-  }
-
-  .page-link-modern.active {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-  }
-
-  .empty-icon {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 2rem;
-    background: var(--gray-100);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: var(--gray-600);
-  }
-
-  .empty-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-description {
-    font-size: 1rem;
-    color: var(--gray-600);
-    margin-bottom: 2rem;
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .header-section {
-      padding: 1.5rem;
-    }
-
-    .header-title {
-      font-size: 1.5rem;
-    }
-
-    .users-table-wrapper {
-      overflow-x: auto;
-    }
-
-    .action-buttons {
-      flex-direction: column;
-    }
-  }
+  /* ── RTL ── */
+  [dir="rtl"] .u-info-text { text-align: right; }
+  [dir="rtl"] .u-search-wrap i { left: auto; right: .85rem; }
+  [dir="rtl"] .u-search { padding-left: .85rem; padding-right: 2.25rem; }
+  [dir="rtl"] .u-tbl th, [dir="rtl"] .u-tbl td { text-align: right; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-  <!-- Header Section -->
-  <div class="header-section">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <h1 class="header-title mb-0">
-          <i class="fas fa-users-cog"></i>
-          {% trans "User Management" %}
-        </h1>
-        {% if pending_users_count > 0 %}
-        <div class="stats-badge">
-          <i class="fas fa-clock"></i>
-          <span>{{ pending_users_count }} {% trans "Pending" %}</span>
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="u-head">
+    <div class="u-head-left">
+      <h1><i class="fas fa-users-cog"></i> {% trans "User Management" %}</h1>
+      {% if pending_users_count > 0 %}
+      <span class="u-pending-badge"><i class="fas fa-clock"></i> {{ pending_users_count }} {% trans "Pending" %}</span>
+      {% endif %}
+    </div>
+    <a href="{% url 'pages:admin_users_new' %}" class="u-btn-new">
+      <i class="fas fa-user-plus"></i> {% trans "New User" %}
+    </a>
+  </div>
+
+  <!-- ═══ FILTERS ═══ -->
+  <div class="u-card">
+    <div class="u-filter">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <div class="u-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" class="u-search" name="search" value="{{ search }}" placeholder="{% trans "Search by name or email..." %}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="status" class="u-select form-control">
+            <option value="">{% trans "All statuses" %}</option>
+            <option value="active" {% if filter_status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+            <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
+            <option value="blocked" {% if filter_status == 'blocked' %}selected{% endif %}>{% trans "Blocked" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="u-btn-filter w-100">
+            <i class="fas fa-filter"></i> {% trans "Filter" %}
+          </button>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'pages:admin_users' %}" class="u-btn-reset w-100">
+            <i class="fas fa-redo"></i> {% trans "Reset" %}
+          </a>
+        </div>
+      </form>
+
+      {% if search or filter_status %}
+      <div class="u-tags">
+        <span style="font-size:.78rem;color:var(--n-text-3);font-weight:600;">{% trans "Active filters:" %}</span>
+        {% if search %}
+        <div class="u-tag">
+          <span>{% trans "Search:" %} "{{ search }}"</span>
+          <a href="?{% if filter_status %}status={{ filter_status }}{% endif %}"><i class="fas fa-times"></i></a>
+        </div>
+        {% endif %}
+        {% if filter_status %}
+        <div class="u-tag">
+          <span>{% trans "Status:" %} {{ filter_status|title }}</span>
+          <a href="?{% if search %}search={{ search }}{% endif %}"><i class="fas fa-times"></i></a>
         </div>
         {% endif %}
       </div>
-      <a href="{% url 'pages:admin_users_new' %}" class="btn-modern" style="background: white; color: var(--primary-color); box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);">
-        <i class="fas fa-user-plus"></i>
-        {% trans "New User" %}
-      </a>
+      {% endif %}
     </div>
   </div>
 
-  <!-- Filters Section -->
-  <div class="filter-section">
-    <form method="get" class="row g-3 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label text-muted mb-2">{% trans "Search" %}</label>
-        <div class="search-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input type="text" class="search-input" name="search" value="{{ search }}" placeholder="{% trans "Search by name or email..." %}">
-        </div>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label text-muted mb-2">{% trans "Status" %}</label>
-        <select name="status" class="filter-select form-control">
-          <option value="">{% trans "All statuses" %}</option>
-          <option value="active" {% if filter_status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
-          <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
-          <option value="blocked" {% if filter_status == 'blocked' %}selected{% endif %}>{% trans "Blocked" %}</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn-modern btn-primary-modern w-100">
-          <i class="fas fa-filter"></i>
-          {% trans "Filter" %}
-        </button>
-      </div>
-      <div class="col-md-3">
-        <a href="{% url 'pages:admin_users' %}" class="btn-modern w-100" style="background: var(--gray-100); color: var(--gray-700);">
-          <i class="fas fa-redo"></i>
-          {% trans "Reset" %}
-        </a>
-      </div>
-    </form>
-    
-    {% if search or filter_status %}
-    <div class="active-filters">
-      <span class="text-muted fw-semibold">{% trans "Active filters:" %}</span>
-      {% if search %}
-      <div class="filter-tag">
-        <span>{% trans "Search:" %} "{{ search }}"</span>
-        <a href="?{% if filter_status %}status={{ filter_status }}{% endif %}" class="filter-tag-remove">
-          <i class="fas fa-times"></i>
-        </a>
-      </div>
-      {% endif %}
-      {% if filter_status %}
-      <div class="filter-tag">
-        <span>{% trans "Status:" %} {{ filter_status|title }}</span>
-        <a href="?{% if search %}search={{ search }}{% endif %}" class="filter-tag-remove">
-          <i class="fas fa-times"></i>
-        </a>
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Users Table -->
+  <!-- ═══ USERS TABLE ═══ -->
   {% if users %}
-  <div class="users-table-wrapper">
-    <table class="users-table">
+  <div class="u-card">
+    <table class="u-tbl">
       <thead>
         <tr>
           <th>{% trans "User" %}</th>
           <th>{% trans "Email" %}</th>
           <th>{% trans "Status" %}</th>
           <th>{% trans "Registration Date" %}</th>
-          <th style="text-align: center;">{% trans "Actions" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for user in users %}
         <tr>
           <td>
-            <div class="user-info-wrapper">
-              {% if user.profile_picture %}
-              <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name_display }}" class="user-avatar-image">
+            <div class="u-info">
+              {% if user.avatar %}
+              <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="u-av-img">
               {% else %}
-              <div class="user-avatar">
-                {{ user.get_full_name_display|slice:":1"|upper }}
-              </div>
+              <div class="u-av">{{ user.get_full_name_display|slice:":1"|upper }}</div>
               {% endif %}
-              <div class="user-details">
+              <div class="u-info-text">
                 <h6>{{ user.get_full_name_display }}</h6>
                 <p>{% if user.institution %}{{ user.institution.get_localized_name }}{% else %}{% trans "No institution" %}{% endif %}</p>
               </div>
             </div>
           </td>
-          <td>
-            <span class="text-muted">{{ user.email }}</span>
-          </td>
+          <td><span class="u-dt">{{ user.email }}</span></td>
           <td>
             {% if user.status == 'active' %}
-            <span class="status-badge status-active">
-              <span class="status-dot"></span>
-              {% trans "Active" %}
-            </span>
+            <span class="u-status active"><span class="u-dot"></span> {% trans "Active" %}</span>
             {% elif user.status == 'pending' %}
-            <span class="status-badge status-pending">
-              <span class="status-dot"></span>
-              {% trans "Pending" %}
-            </span>
+            <span class="u-status pending"><span class="u-dot"></span> {% trans "Pending" %}</span>
             {% elif user.status == 'blocked' %}
-            <span class="status-badge status-blocked">
-              <span class="status-dot"></span>
-              {% trans "Blocked" %}
-            </span>
+            <span class="u-status blocked"><span class="u-dot"></span> {% trans "Blocked" %}</span>
             {% endif %}
           </td>
+          <td><span class="u-dt">{{ user.date_joined|date:"M d, Y" }}</span></td>
           <td>
-            <span class="text-muted">{{ user.date_joined|date:"M d, Y" }}</span>
-          </td>
-          <td>
-            <div class="action-buttons justify-content-center">
-              <a href="{% url 'pages:admin_user_edit' user.id %}" class="btn-action" title="Edit">
-                <i class="fas fa-edit"></i>
-              </a>
+            <div class="u-acts" style="justify-content:center;">
+              <a href="{% url 'pages:admin_user_edit' user.id %}" class="u-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
               <div class="dropdown">
-                <button class="btn-action" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  <i class="fas fa-ellipsis-v"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-modern dropdown-menu-end">
+                <button class="u-act" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-ellipsis-v"></i></button>
+                <ul class="dropdown-menu u-dd dropdown-menu-end">
                   {% if user.status != 'active' %}
-                  <li>
-                    <a class="dropdown-item dropdown-item-modern" href="{% url 'pages:admin_user_activate' user.id %}">
-                      <i class="fas fa-check-circle"></i>
-                      {% trans "Activate" %}
-                    </a>
-                  </li>
+                  <li><a class="dropdown-item" href="{% url 'pages:admin_user_activate' user.id %}"><i class="fas fa-check-circle"></i> {% trans "Activate" %}</a></li>
                   {% endif %}
                   {% if user.status != 'blocked' %}
-                  <li>
-                    <a class="dropdown-item dropdown-item-modern dropdown-item-danger" href="{% url 'pages:admin_user_block' user.id %}">
-                      <i class="fas fa-ban"></i>
-                      {% trans "Block" %}
-                    </a>
-                  </li>
+                  <li><a class="dropdown-item dd-danger" href="{% url 'pages:admin_user_block' user.id %}"><i class="fas fa-ban"></i> {% trans "Block" %}</a></li>
                   {% endif %}
                   <li><hr class="dropdown-divider"></li>
-                  <li>
-                    <a class="dropdown-item dropdown-item-modern" href="{% url 'pages:admin_user_history' user.id %}">
-                      <i class="fas fa-history"></i>
-                      {% trans "History" %}
-                    </a>
-                  </li>
-                  <li>
-                    <a class="dropdown-item dropdown-item-modern dropdown-item-danger" href="{% url 'pages:admin_user_delete' user.id %}">
-                      <i class="fas fa-trash-alt"></i>
-                      {% trans "Delete" %}
-                    </a>
-                  </li>
+                  <li><a class="dropdown-item" href="{% url 'pages:admin_user_history' user.id %}"><i class="fas fa-history"></i> {% trans "History" %}</a></li>
+                  <li><a class="dropdown-item dd-danger" href="{% url 'pages:admin_user_delete' user.id %}"><i class="fas fa-trash-alt"></i> {% trans "Delete" %}</a></li>
                 </ul>
               </div>
             </div>
@@ -657,76 +333,40 @@
         {% endfor %}
       </tbody>
     </table>
-    
-    <!-- Pagination -->
+
     {% if is_paginated %}
-    <nav class="pagination-modern" aria-label="Page navigation">
+    <nav class="u-pag" aria-label="Page navigation">
       {% if page_obj.has_previous %}
-      <a class="page-link-modern" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
-        <i class="fas fa-angle-double-left"></i>
-      </a>
-      <a class="page-link-modern" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
-        <i class="fas fa-angle-left"></i>
-      </a>
+      <a class="u-pg" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+      <a class="u-pg" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-left"></i></a>
       {% endif %}
-      
       {% for i in paginator.page_range %}
         {% if page_obj.number == i %}
-        <span class="page-link-modern active">{{ i }}</span>
+        <span class="u-pg on">{{ i }}</span>
         {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-        <a class="page-link-modern" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a>
+        <a class="u-pg" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a>
         {% endif %}
       {% endfor %}
-      
       {% if page_obj.has_next %}
-      <a class="page-link-modern" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
-        <i class="fas fa-angle-right"></i>
-      </a>
-      <a class="page-link-modern" href="?page={{ paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">
-        <i class="fas fa-angle-double-right"></i>
-      </a>
+      <a class="u-pg" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+      <a class="u-pg" href="?page={{ paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
       {% endif %}
     </nav>
     {% endif %}
   </div>
+
   {% else %}
-  <!-- Empty State -->
-  <div class="modern-card">
-    <div class="empty-state">
-      <div class="empty-icon">
-        <i class="fas fa-users"></i>
-      </div>
-      <h3 class="empty-title">{% trans "No users found" %}</h3>
-      <p class="empty-description">{% trans "No users match your search criteria. Try adjusting your filters." %}</p>
-      <a href="{% url 'pages:admin_users' %}" class="btn-modern btn-primary-modern">
-        <i class="fas fa-redo"></i>
-        {% trans "Reset filters" %}
+  <div class="u-card">
+    <div class="u-empty">
+      <i class="fas fa-users"></i>
+      <h3>{% trans "No users found" %}</h3>
+      <p>{% trans "No users match your search criteria. Try adjusting your filters." %}</p>
+      <a href="{% url 'pages:admin_users' %}" class="u-btn-filter" style="display:inline-flex;">
+        <i class="fas fa-redo"></i> {% trans "Reset filters" %}
       </a>
     </div>
   </div>
   {% endif %}
-</div>
-{% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize Bootstrap tooltips
-  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-  });
-  
-  // Smooth animations for action buttons
-  const actionButtons = document.querySelectorAll('.btn-action');
-  actionButtons.forEach(button => {
-    button.addEventListener('mouseenter', function() {
-      this.style.transform = 'translateY(-2px) scale(1.05)';
-    });
-    button.addEventListener('mouseleave', function() {
-      this.style.transform = 'translateY(0) scale(1)';
-    });
-  });
-});
-</script>
+</div>
 {% endblock %}

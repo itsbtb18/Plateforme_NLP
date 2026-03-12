@@ -2,269 +2,92 @@
 {% load i18n %}
 {% block title %}{% trans "Course Management" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-  :root {
-    --primary-color: #4f46e5;
-    --primary-hover: #4338ca;
-    --success-color: #48bb78;
-    --warning-color: #f59e0b;
-    --pending-color: #ecc94b;
-    --danger-color: #e53e3e;
-    --info-color: #3b82f6;
-    --gray-100: #f7fafc;
-    --gray-200: #edf2f7;
-    --gray-300: #e2e8f0;
-    --gray-400: #cbd5e0;
-    --gray-500: #a0aec0;
-    --gray-600: #718096;
-    --gray-700: #4a5568;
-    --gray-800: #2d3748;
-    --gray-900: #1a202c;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --radius-md: 0.5rem;
-  }
-
-  body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--gray-100); }
-  .container { padding: 1.5rem; max-width: 100%; margin: 0 auto; }
-
-  /* Header & Title Section */
-  .projects-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-  .projects-header h1 { margin: 0; color: var(--gray-800); font-weight: 700; font-size: 1.875rem; }
-
-  /* Summary Cards */
-  .dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-  .summary-card { background: white; padding: 1.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
-  .summary-card-title { color: var(--gray-600); font-size: 0.875rem; font-weight: 500; }
-  .summary-card-value { color: var(--gray-900); font-size: 1.5rem; font-weight: 700; margin: 0.5rem 0; }
-  .summary-card-trend { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; }
-  .trend-up { background: rgba(72, 187, 120, 0.1); color: var(--success-color); }
-  .trend-neutral { background: var(--gray-100); color: var(--gray-600); }
-
-  /* Filter Bar & Tabs */
-  .filter-bar { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; align-items: center; box-shadow: var(--shadow-sm); flex-wrap: wrap; }
-  .search-box { flex: 1; min-width: 200px; }
-  .search-box input, .filter-dropdown select { width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: var(--radius-md); }
-
-  .approval-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: white; padding: 0.5rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
-  .tab-btn { flex: 1; padding: 1rem; text-align: center; border-radius: var(--radius-md); color: var(--gray-600); font-weight: 600; text-decoration: none; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
-  .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
-  .tab-badge { margin-inline-start: 8px; padding: 2px 8px; border-radius: 10px; background: var(--gray-200); font-size: 0.75rem; color: var(--gray-700); }
-  .tab-btn.active .tab-badge { background: rgba(255,255,255,0.2); color: white; }
-
-  /* Table Styles */
-  .courses-table { width: 100%; border-collapse: separate; border-spacing: 0; background-color: white; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
-  .courses-table thead th { background-color: var(--gray-100); color: var(--gray-700); font-weight: 600; font-size: 0.875rem; padding: 1rem; text-align: start; }
-  .courses-table td { padding: 1rem; vertical-align: middle; border-bottom: 1px solid var(--gray-200); }
-  .courses-table tbody tr:hover { background-color: var(--gray-100); }
-
-  .course-title a { color: var(--gray-900); font-weight: 600; font-size: 1rem; text-decoration: none; display: block; }
-  .course-title a:hover { color: var(--primary-color); }
-
-  /* Action Buttons */
-  .course-actions { display: flex; align-items: center; gap: 0.5rem; }
-
-  .action-btn,
-  .action-btn-approve,
-  .action-btn-reject {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid var(--gray-300);
-    background: white;
-    color: var(--gray-700);
-    text-decoration: none;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .action-btn svg,
-  .action-btn-approve svg,
-  .action-btn-reject svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .action-btn:hover { transform: translateY(-2px); background: var(--info-color); border-color: var(--info-color); color: white; }
-
-  .action-btn-approve { border-color: var(--success-color); color: var(--success-color); }
-  .action-btn-approve:hover { background: var(--success-color); border-color: var(--success-color); color: white; transform: translateY(-2px); }
-
-  .action-btn-reject { border-color: var(--danger-color); color: var(--danger-color); }
-  .action-btn-reject:hover { background: var(--danger-color); border-color: var(--danger-color); color: white; transform: translateY(-2px); }
-
-  /* Badges & Buttons */
-  .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-  .status-pending { background-color: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
-  .status-approved { background-color: rgba(72, 187, 120, 0.1); color: var(--success-color); }
-  .level-badge { background: var(--gray-100); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: var(--gray-600); }
-
-  .btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: 0.2s; border: none; text-decoration: none; gap: 0.5rem; }
-  .btn-primary { background-color: var(--primary-color); color: white; }
-  .btn-outline { background-color: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
-  .btn-group { display: flex; gap: 0.5rem; }
-</style>
-{% endblock extra_css %}
-
 {% block content %}
-<div class="container">
-  <div class="projects-header">
-    <h1>{% trans "Course Management" %}</h1>
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <div class="pg-head">
+    <div><h1><i class="fas fa-graduation-cap"></i> {% trans "Course Management" %}</h1></div>
+    <a href="{% url 'resources:course-create' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "Add Course" %}</a>
   </div>
 
-  <div class="dashboard-summary">
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Total Courses" %}</div>
-      <div class="summary-card-value">{{ courses.count }}</div>
+  <!-- Stats -->
+  <div class="n-st-grid">
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Total Courses" %}</p>
+        <p class="n-st-num">{{ total_courses_count }}</p>
+      </div>
+      <div class="n-st-icon i1"><i class="fas fa-graduation-cap"></i></div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Created this month" %}</div>
-      <div class="summary-card-value">{{ courses_this_month_count }}</div>
-      <div class="summary-card-trend trend-up">{% if courses_growth > 0 %}+{% endif %}{{ courses_growth }}%</div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Created this month" %}</p>
+        <p class="n-st-num">{{ courses_this_month_count }}</p>
+        <span class="n-st-grow {% if courses_growth >= 0 %}up{% else %}down{% endif %}"><i class="fas fa-arrow-{% if courses_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ courses_growth }}%</span>
+      </div>
+      <div class="n-st-icon i2"><i class="fas fa-calendar-plus"></i></div>
     </div>
-    <div class="summary-card">
-      <div class="summary-card-title">{% trans "Pending Review" %}</div>
-      <div class="summary-card-value" style="color: var(--warning-color);">{{ pending_count|default:0 }}</div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Pending Review" %}</p>
+        <p class="n-st-num">{{ pending_count|default:0 }}</p>
+      </div>
+      <div class="n-st-icon i4"><i class="fas fa-clock"></i></div>
     </div>
   </div>
 
-  <form method="get" class="filter-bar">
-    <div class="search-box">
-      <input type="text" name="search" placeholder="{% trans 'Search by title, author...' %}" value="{{ search }}">
+  <!-- Filter -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        <div class="n-search-wrap" style="flex:1;min-width:200px;">
+          <i class="fas fa-search"></i>
+          <input type="text" name="search" class="n-search" placeholder="{% trans 'Search by title, author...' %}" value="{{ search }}">
+        </div>
+        <select name="level" class="n-select">
+          <option value="">{% trans "All Levels" %}</option>
+          <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
+          <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
+          <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advanced" %}</option>
+        </select>
+        <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
+      </form>
     </div>
-    <div class="filter-dropdown">
-      <select name="level">
-        <option value="">{% trans "All Levels" %}</option>
-        <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
-        <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
-        <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advanced" %}</option>
-      </select>
-    </div>
-    <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
-  </form>
-
-  <div class="approval-tabs">
-    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab != 'pending' %}active{% endif %}">
-      {% trans "Approved" %} <span class="tab-badge">{{ approved_count|default:0 }}</span>
-    </a>
-    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" class="tab-btn {% if active_tab == 'pending' %}active{% endif %}">
-      {% trans "Pending Review" %} <span class="tab-badge">{{ pending_count|default:0 }}</span>
-    </a>
   </div>
 
-  {% if active_tab == 'pending' %}
-    {% if pending_courses %}
-    <table class="courses-table">
+  <!-- Courses Table -->
+  {% if approved_courses %}
+  <div class="n-card" style="margin-bottom:0;">
+    <table class="n-tbl">
       <thead>
         <tr>
-          <th style="width: 35%;">{% trans "Title" %}</th>
+          <th style="min-width:200px;">{% trans "Title" %}</th>
           <th>{% trans "Level" %}</th>
           <th>{% trans "Creation date" %}</th>
-          <th>{% trans "Status" %}</th>
-          <th>{% trans "Actions" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
         </tr>
       </thead>
       <tbody>
-        {% for course in pending_courses %}
-        <tr>
-          <td>
-            <div class="course-title">
-              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
-            </div>
-          </td>
-          <td>
-            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
-          </td>
-          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
-          <td>
-            <span class="status-badge status-pending">{% trans "Pending" %}</span>
-          </td>
-          <td>
-            <div class="course-actions">
-              <a href="{% url 'pages:admin_approve_item' model_type='course' pk=course.id %}" class="action-btn-approve" title="{% trans 'Review & Edit' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </a>
-              {% translate "Are you sure you want to reject this course?" as confirm_course_msg %}
-              <form method="post" action="{% url 'pages:admin_reject_item' model_type='course' pk=course.id %}" style="display: inline;" onsubmit="return confirm('{{ confirm_course_msg }}');">
-                {% csrf_token %}
-                <button type="submit" class="action-btn-reject" title="{% trans 'Reject' %}">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </form>
-              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses pending review." %}</div>
-    {% endif %}
-  {% else %}
-    {% if approved_courses %}
-    <table class="courses-table">
-      <thead>
-        <tr>
-          <th style="width: 40%;">{% trans "Title" %}</th>
-          <th>{% trans "Level" %}</th>
-          <th>{% trans "Creation date" %}</th>
-          <th>{% trans "Actions" %}</th>
-        </tr>
-      </thead>
-      <tbody>
+        {% translate "Delete this course?" as confirm_delete_course %}
         {% for course in approved_courses %}
         <tr>
+          <td><a href="{% url 'resources:course_detail' course.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ course.title }}</a></td>
+          <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ course.get_academic_level_display }}</span></td>
+          <td><span class="n-dt">{{ course.creation_date|date:"d M Y" }} {{ course.creation_date|date:"H:i" }}</span></td>
           <td>
-            <div class="course-title">
-              <a href="{% url 'resources:course_detail' course.id %}">{{ course.title }}</a>
-            </div>
-          </td>
-          <td>
-            <span class="badge badge-info">{{ course.get_academic_level_display }}</span>
-          </td>
-          <td>{{ course.creation_date|date:"d M Y" }} <span style="color: var(--gray-400); font-size: 0.875em;">{{ course.creation_date|date:"H:i" }}</span></td>
-          <td>
-            <div class="course-actions">
-              <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Edit' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </a>
-              <a href="{% url 'resources:course_detail' course.id %}" class="action-btn" title="{% trans 'Preview' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </a>
-              <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="action-btn" title="{% trans 'Delete' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </a>
+            <div class="n-acts" style="justify-content:center;">
+              <a href="{% url 'resources:course_detail' course.id %}" class="n-act" title="{% trans 'Preview' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="n-act n-act-red" onclick="return confirm('{{ confirm_delete_course }}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
             </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    {% else %}
-      <div class="summary-card" style="text-align:center; padding:3rem;">{% trans "No courses found." %}</div>
-    {% endif %}
+  </div>
+  {% else %}
+  <div class="n-card"><div class="n-empty"><i class="fas fa-graduation-cap"></i><h3>{% trans "No courses found." %}</h3></div></div>
   {% endif %}
 </div>
 {% endblock %}

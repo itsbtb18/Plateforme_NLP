@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET
 import logging
 import os
 from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
+from accounts.blocking import exclude_hidden_users, blocked_user_ids_for
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
         querysets = []
         
         if resource_type in ['', 'article', 'thesis', 'memoir']:
-            docs = Document.objects.filter(**approval_filter)
+            docs = exclude_hidden_users(Document.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 docs = docs.filter(language=language_filter)
             if resource_type in ['article', 'thesis', 'memoir']:
@@ -60,7 +61,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(docs)
         
         if resource_type in ['', 'tool']:
-            tools = NLPTool.objects.filter(**approval_filter)
+            tools = exclude_hidden_users(NLPTool.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 tools = tools.filter(supported_languages__contains=language_filter)
             if search_query:
@@ -73,7 +74,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(tools)
         
         if resource_type in ['', 'course']:
-            courses = Course.objects.filter(**approval_filter)
+            courses = exclude_hidden_users(Course.objects.filter(**approval_filter), self.request.user, ('author', 'teacher'))
             if language_filter:
                 courses = courses.filter(language=language_filter)
             if field_filter:
@@ -88,7 +89,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
             querysets.append(courses)
         
         if resource_type in ['', 'corpus']:
-            corpora = Corpus.objects.filter(**approval_filter)
+            corpora = exclude_hidden_users(Corpus.objects.filter(**approval_filter), self.request.user, ('author',))
             if language_filter:
                 corpora = corpora.filter(language=language_filter)
             if field_filter:
@@ -166,7 +167,7 @@ def resource_ajax_search(request):
         return 'unknown'
     
     if resource_type in ['', 'article', 'thesis', 'memoir']:
-        docs = Document.objects.filter(**approval_filter)
+        docs = exclude_hidden_users(Document.objects.filter(**approval_filter), request.user, ('author',))
         if resource_type in ['article', 'thesis', 'memoir']:
             docs = docs.filter(document_type=resource_type)
         if search_query:
@@ -178,7 +179,7 @@ def resource_ajax_search(request):
         querysets.append(docs)
     
     if resource_type in ['', 'tool']:
-        tools = NLPTool.objects.filter(**approval_filter)
+        tools = exclude_hidden_users(NLPTool.objects.filter(**approval_filter), request.user, ('author',))
         if search_query:
             tools = tools.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -188,7 +189,7 @@ def resource_ajax_search(request):
         querysets.append(tools)
     
     if resource_type in ['', 'course']:
-        courses = Course.objects.filter(**approval_filter)
+        courses = exclude_hidden_users(Course.objects.filter(**approval_filter), request.user, ('author', 'teacher'))
         if search_query:
             courses = courses.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -198,7 +199,7 @@ def resource_ajax_search(request):
         querysets.append(courses)
     
     if resource_type in ['', 'corpus']:
-        corpora = Corpus.objects.filter(**approval_filter)
+        corpora = exclude_hidden_users(Corpus.objects.filter(**approval_filter), request.user, ('author',))
         if search_query:
             corpora = corpora.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query) |
@@ -241,7 +242,11 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Only show APPROVED tools in the public section
         # Pending tools are only visible in the admin panel
-        queryset = NLPTool.objects.filter(approval_status='approved')
+        queryset = exclude_hidden_users(
+            NLPTool.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('author',)
+        )
         
         # Filter by tool type/category
         tool_type = self.request.GET.get('type', '').strip()
@@ -308,7 +313,11 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Only show APPROVED courses in the public section
         # Pending courses are only visible in the admin panel
-        queryset = Course.objects.filter(approval_status='approved')
+        queryset = exclude_hidden_users(
+            Course.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('author', 'teacher')
+        )
         
         # Search filter
         search_query = self.request.GET.get('q', '').strip()
@@ -374,10 +383,10 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved articles (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Article.objects.all()
-        return Article.objects.filter(
+        return exclude_hidden_users(Article.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -394,10 +403,10 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved theses (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Thesis.objects.all()
-        return Thesis.objects.filter(
+        return exclude_hidden_users(Thesis.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -414,10 +423,10 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
         # Only show approved memoirs (staff sees all, users see own + approved)
         if self.request.user.is_staff:
             return Memoir.objects.all()
-        return Memoir.objects.filter(
+        return exclude_hidden_users(Memoir.objects.filter(
             Q(approval_status='approved') | 
             Q(author=self.request.user)
-        )
+        ), self.request.user, ('author',))
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -432,9 +441,15 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        # STRICT: Only show APPROVED corpora in the public section
-        # Pending corpora are only visible in the admin panel
-        queryset = Corpus.objects.filter(approval_status='approved')
+        # Users can see: their own corpus (any status) + all approved corpus
+        # Staff sees all corpus
+        if self.request.user.is_staff:
+            queryset = Corpus.objects.all()
+        else:
+            queryset = exclude_hidden_users(Corpus.objects.filter(
+                Q(approval_status='approved') | 
+                Q(author=self.request.user)
+            ), self.request.user, ('author',))
         
         # Search query
         search_query = self.request.GET.get('q', '').strip()
@@ -576,6 +591,12 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             if obj.approval_status != 'approved' and not is_staff:
                 raise Http404("This resource is pending approval.")
 
+        hidden_ids = blocked_user_ids_for(self.request.user)
+        if hidden_ids:
+            owner_id = getattr(obj, 'author_id', None) or getattr(obj, 'teacher_id', None)
+            if owner_id in hidden_ids:
+                raise Http404("Resource not found.")
+
         return obj
 
     def get(self, request, *args, **kwargs):
@@ -597,6 +618,15 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return self.render_to_response(context)
 
     def get_template_names(self):
+        # In admin review mode, force the shared detail template so all
+        # resource types (tools/corpus/articles/...) use the same approval UI.
+        if (
+            self.request.user.is_authenticated
+            and (self.request.user.is_staff or self.request.user.is_superuser)
+            and self.request.GET.get('admin_review') == '1'
+        ):
+            return [self.template_name]
+
         return [
             f"resources/{self.kwargs['type']}_detail.html",
             self.template_name
@@ -749,6 +779,13 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def form_valid(self, form):
         resource = cast(ResourceBase, self.get_object())
         resource_type = self.kwargs['type']
+        review_mode = self.request.GET.get('review') == '1' and self.request.user.is_staff
+        edit_only = self.request.GET.get('edit_only') == '1' and self.request.user.is_staff
+
+        # In review view mode, form must be read-only. Only approve/reject actions are allowed.
+        if review_mode and not edit_only:
+            messages.warning(self.request, _("This form is read-only in review mode. Use Edit mode to modify fields."))
+            return redirect(self.request.get_full_path())
         
         # Use form.save() which correctly handles all fields and type-specific logic
         try:
@@ -797,6 +834,14 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             return redirect(self.get_admin_redirect_url(resource_type))
         
         messages.success(self.request, _("Resource '%(title)s' updated successfully!") % {'title': resource.title})
+
+        # In admin edit-only mode, go back to the review detail page to allow approve/reject.
+        if edit_only and self.request.GET.get('review_model') and self.request.GET.get('review_pk'):
+            return redirect(
+                'pages:admin_view_item',
+                model_type=self.request.GET.get('review_model'),
+                pk=self.request.GET.get('review_pk'),
+            )
         
         # In review mode, redirect back to admin
         if self.request.GET.get('review') == '1' and self.request.user.is_staff:
@@ -835,6 +880,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         context['page'] = 'resources'
         # Check if in admin review mode
         context['review_mode'] = self.request.GET.get('review') == '1'
+        context['edit_only'] = self.request.GET.get('edit_only') == '1'
         resource = self.get_object()
         context['is_pending'] = getattr(resource, 'approval_status', None) == 'pending'
         context['resource'] = resource
@@ -889,14 +935,33 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
     form_class = ResourceForm
     success_url = reverse_lazy('resources:list')
     
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[RESOURCE_CREATE] POST request received from user: {request.user.email}")
+        logger.info(f"[RESOURCE_CREATE] POST data keys: {list(request.POST.keys())}")
+        logger.info(f"[RESOURCE_CREATE] FILES data keys: {list(request.FILES.keys())}")
+        
+        # Log critical fields
+        logger.info(f"[RESOURCE_CREATE] resource_type: {request.POST.get('resource_type')}")
+        logger.info(f"[RESOURCE_CREATE] title_en: {request.POST.get('title_en')}")
+        logger.info(f"[RESOURCE_CREATE] title_ar: {request.POST.get('title_ar')}")
+        
+        return super().post(request, *args, **kwargs)
+    
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
     
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[RESOURCE_CREATE] Form is valid, attempting to save for user: {self.request.user.email}")
+        
         try:
             resource = form.save()
+            logger.info(f"[RESOURCE_CREATE] ✓ Resource saved successfully (ID: {resource.id})")
             # Show pending approval message instead of success
             messages.info(
                 self.request, 
@@ -907,7 +972,7 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
         except Exception as e:
             import traceback
             error_msg = str(e)
-            logger.error(f"Error creating resource: {error_msg}\n{traceback.format_exc()}")
+            logger.error(f"[RESOURCE_CREATE] ✗ Error saving resource: {str(e)}", exc_info=True)
             # Show detailed error in debug mode
             from django.conf import settings
             if settings.DEBUG:
@@ -915,6 +980,23 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
             else:
                 messages.error(self.request, _("An error occurred while creating the resource. Please try again."))
             return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[RESOURCE_CREATE] ✗ Form validation failed for user: {self.request.user.email}")
+        logger.warning(f"[RESOURCE_CREATE] Form errors: {form.errors.as_json()}")
+        logger.warning(f"[RESOURCE_CREATE] Non-field errors: {form.non_field_errors()}")
+        
+        # Log which fields have errors
+        for field, errors in form.errors.items():
+            logger.warning(f"[RESOURCE_CREATE] Field '{field}' errors: {errors}")
+        
+        messages.error(
+            self.request,
+            _("Please correct the errors in the form and try again.")
+        )
+        return super().form_invalid(form)
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -927,6 +1009,20 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
     form_class = ResourceForm
     success_url = reverse_lazy('resources:course_list')
     
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[COURSE_CREATE] POST request received from user: {request.user.email}")
+        logger.info(f"[COURSE_CREATE] POST data keys: {list(request.POST.keys())}")
+        logger.info(f"[COURSE_CREATE] FILES data keys: {list(request.FILES.keys())}")
+        
+        # Log critical fields
+        logger.info(f"[COURSE_CREATE] resource_type: {request.POST.get('resource_type')}")
+        logger.info(f"[COURSE_CREATE] title_en: {request.POST.get('title_en')}")
+        logger.info(f"[COURSE_CREATE] title_ar: {request.POST.get('title_ar')}")
+        
+        return super().post(request, *args, **kwargs)
+    
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
@@ -938,12 +1034,51 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
         return initial
     
     def form_valid(self, form):
-        resource = form.save()
-        messages.info(
-            self.request, 
-            _("Your course '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[COURSE_CREATE] Form is valid, attempting to save for user: {self.request.user.email}")
+        
+        try:
+            resource = form.save()
+            if self.request.user.is_staff and getattr(resource, 'approval_status', None) != 'approved':
+                resource.approval_status = 'approved'
+                resource.save(update_fields=['approval_status'])
+                logger.info(f"[COURSE_CREATE] Auto-approved staff course (ID: {resource.id})")
+                messages.success(
+                    self.request,
+                    _("Your course '%(title)s' has been created and published.") % {'title': resource.title}
+                )
+            else:
+                logger.info(f"[COURSE_CREATE] Course saved successfully (ID: {resource.id})")
+                messages.info(
+                    self.request,
+                    _("Your course '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+                )
+            return super().form_valid(form)
+        except Exception as e:
+            logger.error(f"[COURSE_CREATE] Error saving course: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the course. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[COURSE_CREATE] ✗ Form validation failed for user: {self.request.user.email}")
+        logger.warning(f"[COURSE_CREATE] Form errors: {form.errors.as_json()}")
+        logger.warning(f"[COURSE_CREATE] Non-field errors: {form.non_field_errors()}")
+        
+        # Log which fields have errors
+        for field, errors in form.errors.items():
+            logger.warning(f"[COURSE_CREATE] Field '{field}' errors: {errors}")
+        
+        messages.error(
+            self.request,
+            _("Please correct the errors in the form and try again.")
         )
-        return super().form_valid(form)
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -956,6 +1091,20 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
     form_class = ResourceForm
     success_url = reverse_lazy('resources:corpus_list')
     
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[CORPUS_CREATE] POST request received from user: {request.user.email}")
+        logger.info(f"[CORPUS_CREATE] POST data keys: {list(request.POST.keys())}")
+        logger.info(f"[CORPUS_CREATE] FILES data keys: {list(request.FILES.keys())}")
+        
+        # Log critical fields
+        logger.info(f"[CORPUS_CREATE] resource_type: {request.POST.get('resource_type')}")
+        logger.info(f"[CORPUS_CREATE] title_en: {request.POST.get('title_en')}")
+        logger.info(f"[CORPUS_CREATE] title_ar: {request.POST.get('title_ar')}")
+        
+        return super().post(request, *args, **kwargs)
+    
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
@@ -967,12 +1116,42 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
         return initial
     
     def form_valid(self, form):
-        resource = form.save()
-        messages.info(
-            self.request, 
-            _("Your corpus '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[CORPUS_CREATE] Form is valid, attempting to save for user: {self.request.user.email}")
+        
+        try:
+            resource = form.save()
+            logger.info(f"[CORPUS_CREATE] ✓ Corpus saved successfully (ID: {resource.id})")
+            messages.success(
+                self.request, 
+                _("Your corpus '%(title)s' has been created successfully and is pending admin approval.") % {'title': resource.get_localized_title()}
+            )
+            return super().form_valid(form)
+        except Exception as e:
+            logger.error(f"[CORPUS_CREATE] ✗ Error saving corpus: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the corpus. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[CORPUS_CREATE] ✗ Form validation failed for user: {self.request.user.email}")
+        logger.warning(f"[CORPUS_CREATE] Form errors: {form.errors.as_json()}")
+        logger.warning(f"[CORPUS_CREATE] Non-field errors: {form.non_field_errors()}")
+        
+        # Log which fields have errors
+        for field, errors in form.errors.items():
+            logger.warning(f"[CORPUS_CREATE] Field '{field}' errors: {errors}")
+        
+        messages.error(
+            self.request,
+            _("Please correct the errors in the form and try again.")
         )
-        return super().form_valid(form)
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -985,6 +1164,20 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
     form_class = ResourceForm
     success_url = reverse_lazy('resources:tool_list')
     
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[TOOL_CREATE] POST request received from user: {request.user.email}")
+        logger.info(f"[TOOL_CREATE] POST data keys: {list(request.POST.keys())}")
+        logger.info(f"[TOOL_CREATE] FILES data keys: {list(request.FILES.keys())}")
+        
+        # Log critical fields
+        logger.info(f"[TOOL_CREATE] resource_type: {request.POST.get('resource_type')}")
+        logger.info(f"[TOOL_CREATE] title_en: {request.POST.get('title_en')}")
+        logger.info(f"[TOOL_CREATE] title_ar: {request.POST.get('title_ar')}")
+        
+        return super().post(request, *args, **kwargs)
+    
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
@@ -996,12 +1189,42 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
         return initial
     
     def form_valid(self, form):
-        resource = form.save()
-        messages.info(
-            self.request, 
-            _("Your tool '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[TOOL_CREATE] Form is valid, attempting to save for user: {self.request.user.email}")
+        
+        try:
+            resource = form.save()
+            logger.info(f"[TOOL_CREATE] ✓ Tool saved successfully (ID: {resource.id})")
+            messages.info(
+                self.request, 
+                _("Your tool '%(title)s' has been submitted and is pending admin review.") % {'title': resource.title}
+            )
+            return super().form_valid(form)
+        except Exception as e:
+            logger.error(f"[TOOL_CREATE] ✗ Error saving tool: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the tool. Please try again.")
+            )
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[TOOL_CREATE] ✗ Form validation failed for user: {self.request.user.email}")
+        logger.warning(f"[TOOL_CREATE] Form errors: {form.errors.as_json()}")
+        logger.warning(f"[TOOL_CREATE] Non-field errors: {form.non_field_errors()}")
+        
+        # Log which fields have errors
+        for field, errors in form.errors.items():
+            logger.warning(f"[TOOL_CREATE] Field '{field}' errors: {errors}")
+        
+        messages.error(
+            self.request,
+            _("Please correct the errors in the form and try again.")
         )
-        return super().form_valid(form)
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

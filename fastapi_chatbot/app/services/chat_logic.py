@@ -14,6 +14,7 @@ SessionService and DocumentService respectively.
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.llm import get_groq_client
+from app.services.llm.client import GroqClient
 from app.services.retrieval import (
     search_legal_documents,
     search_user_documents,
@@ -21,7 +22,10 @@ from app.services.retrieval import (
 from app.services.classifier import get_query_classifier, QueryClassification
 from app.services.router import get_query_router, RoutingResult
 from app.services.memory import get_session_service
-from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc
+from app.services.documents.embeddings import get_embedding_service
+from app.services.qdrant import get_qdrant_service, COLLECTION_DOCUMENT_CHUNKS
+from app.services.retrieval.filters import build_user_doc_filter
+from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc, EntityExplainRequest
 from app.models import ChatSession, UserDocument
 from sqlalchemy import select, func as sqlfunc
 from typing import List, Dict, Optional, Any
@@ -65,6 +69,16 @@ class ChatLogic:
             )
             has_docs = (doc_count.scalar() or 0) > 0
 
+        # Phase 4.1: Load session row for document-session state
+        session_row: ChatSession | None = None
+        if request.session_id:
+            result = await db.execute(
+                select(ChatSession).where(
+                    ChatSession.session_id == request.session_id
+                )
+            )
+            session_row = result.scalars().first()
+
         # Step 1-2: Detect language + classify intent
         classification = self.classifier.classify(
             request.question,
@@ -72,12 +86,179 @@ class ChatLogic:
         )
         language = classification.language
 
+        # ── Phase 4.1: Document Session Persistence ──────────────────
+        # Maintains a sticky "document mode" across turns so follow-up
+        # questions like "explain more" or "how it impacts NLP" stay
+        # routed to the user's uploaded document content.
+        #
+        # State is stored on ChatSession:
+        #   active_document_session  (bool)
+        #   active_document_id       (str | None)
+        #   low_doc_similarity_streak (int)  — auto-deactivation counter
+        #
+        # Flow:
+        #   1. Explicit deactivation?  → clear session, classify normally
+        #   2. Active session?         → force document_query
+        #      2a. Probe similarity    → if < 0.30, bump streak
+        #      2b. streak >= 3         → auto-deactivate
+        #   3. Explicit activation?    → activate session, force document_query
+        #   4. Fallback               → Phase 4 dominance check (one-shot)
+
+        _doc_session_handled = False
+
+        if session_row and has_docs and request.user_id:
+            # ── 1. Deactivation check ────────────────────────────────
+            if (
+                session_row.active_document_session
+                and self._is_document_deactivation(request.question)
+            ):
+                session_row.active_document_session = False
+                session_row.active_document_id = None
+                session_row.low_doc_similarity_streak = 0
+                logger.info(
+                    "Document session DEACTIVATED (explicit): session=%s",
+                    request.session_id,
+                )
+                # Let classification proceed normally (no override)
+                _doc_session_handled = True
+
+            # ── 2. Active session → stay in document mode ────────────
+            elif session_row.active_document_session:
+                doc_score = self._check_document_dominance(
+                    request.question, owner_id=request.user_id,
+                )
+                if doc_score < 0.30:
+                    streak = (session_row.low_doc_similarity_streak or 0) + 1
+                    session_row.low_doc_similarity_streak = streak
+                    logger.debug(
+                        "Document session low-similarity streak: %d "
+                        "(score=%.3f)", streak, doc_score,
+                    )
+                    if streak >= 3:
+                        # Auto-deactivate after 3 consecutive low-sim turns
+                        session_row.active_document_session = False
+                        session_row.active_document_id = None
+                        session_row.low_doc_similarity_streak = 0
+                        logger.info(
+                            "Document session AUTO-DEACTIVATED "
+                            "(3 low-sim turns): session=%s",
+                            request.session_id,
+                        )
+                        _doc_session_handled = True
+                    else:
+                        # Still in document mode despite low sim
+                        classification = QueryClassification(
+                            intent="document_query",
+                            language=language,
+                            confidence=max(doc_score, 0.50),
+                            qdrant_collections=["document_chunks"],
+                            qdrant_type_filter="document",
+                        )
+                        _doc_session_handled = True
+                else:
+                    # Good similarity — reset streak, stay in doc mode
+                    session_row.low_doc_similarity_streak = 0
+                    classification = QueryClassification(
+                        intent="document_query",
+                        language=language,
+                        confidence=doc_score,
+                        qdrant_collections=["document_chunks"],
+                        qdrant_type_filter="document",
+                    )
+                    _doc_session_handled = True
+                    logger.debug(
+                        "Document session CONTINUES: score=%.3f",
+                        doc_score,
+                    )
+
+            # ── 3. Activation check ──────────────────────────────────
+            elif self._is_document_activation(request.question):
+                session_row.active_document_session = True
+                session_row.active_document_id = None  # could be refined later
+                session_row.low_doc_similarity_streak = 0
+                classification = QueryClassification(
+                    intent="document_query",
+                    language=language,
+                    confidence=0.95,
+                    qdrant_collections=["document_chunks"],
+                    qdrant_type_filter="document",
+                )
+                _doc_session_handled = True
+                logger.info(
+                    "Document session ACTIVATED: session=%s",
+                    request.session_id,
+                )
+
+        # ── 4. Fallback: Phase 4 one-shot dominance (no session yet) ─
+        if (
+            not _doc_session_handled
+            and has_docs
+            and request.user_id
+            and classification.intent != "document_query"
+        ):
+            skip_dominance = (
+                self._is_generic_conceptual(request.question)
+                and not self._has_document_reference(request.question)
+            )
+            if skip_dominance:
+                logger.debug(
+                    "Document dominance skipped: generic conceptual query"
+                )
+            else:
+                doc_score = self._check_document_dominance(
+                    request.question, owner_id=request.user_id,
+                )
+                if doc_score >= 0.65:
+                    logger.info(
+                        "Document dominance triggered: score=%.3f, "
+                        "overriding %s → document_query",
+                        doc_score, classification.intent,
+                    )
+                    classification = QueryClassification(
+                        intent="document_query",
+                        language=language,
+                        confidence=doc_score,
+                        qdrant_collections=["document_chunks"],
+                        qdrant_type_filter="document",
+                    )
+                    # Also activate session for subsequent turns
+                    if session_row:
+                        session_row.active_document_session = True
+                        session_row.active_document_id = None
+                        session_row.low_doc_similarity_streak = 0
+
         logger.info(
             "Classification: intent=%s lang=%s confidence=%.2f",
             classification.intent,
             language,
             classification.confidence,
         )
+
+        # Phase 10: LLM fallback for ambiguous classifications
+        if classification.confidence <= 0.60 and not _doc_session_handled:
+            # Get top-2 intents for disambiguation
+            scores = self.classifier._score_all_intents(
+                request.question, has_session_docs=has_docs,
+            )
+            # If all scores are 0, the classifier intentionally defaulted
+            # to conceptual_question — don't let LLM override that.
+            if any(v > 0 for v in scores.values()):
+                top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
+                resolved = await self.classifier.llm_resolve_ambiguity(
+                    request.question, language, top_2,
+                )
+                if resolved and resolved != classification.intent:
+                    logger.info(
+                        "LLM reclassified: %s → %s", classification.intent, resolved,
+                    )
+                    classification = self.classifier._build_classification(
+                        resolved, language, 0.80,
+                    )
+                    if resolved == "platform_query":
+                        from app.services.classifier.patterns import extract_resource_type
+                        classification.detected_resource_type = extract_resource_type(
+                            request.question
+                        )
 
         # Step 3: Route to correct data source(s)
         routing: RoutingResult = await self.router.route(
@@ -114,32 +295,38 @@ class ChatLogic:
         if user_ctx:
             context = (
                 (
-                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    "[User Profile]\n"
                     + user_ctx
                     + "\n\n"
                     + context
                 )
                 if context
                 else (
-                    "=== 👤 Current User Profile (the person asking this question) ===\n"
+                    "[User Profile]\n"
                     + user_ctx
                 )
             )
 
-        if routing.platform_results:
-            platform_ctx = self._build_platform_context(routing.platform_results)
+        # Phase 5: Entity cards ONLY for direct platform queries.
+        # No cards during conceptual explanations, user queries, or
+        # metadata queries — only when the user explicitly asks about
+        # courses, tools, institutions, resources, etc.
+        _card_intents = {"platform_query"}
+        if routing.platform_results and classification.intent in _card_intents:
+            real_results = [r for r in routing.platform_results if r.get("type") != "no_data"]
+            platform_ctx = self._build_platform_context(real_results) if real_results else ""
             if platform_ctx:
-                # Prepend platform data BEFORE semantic results so it appears first
+                # Prepend platform data BEFORE other results so it appears first
                 if context:
                     context = (
-                        "=== ✅ Platform Data (verified facts from database) ===\n"
+                        "[Verified Data]\n"
                         + platform_ctx
-                        + "\n\n=== Semantic Search Results ===\n"
+                        + "\n\n[Additional Context]\n"
                         + context
                     )
                 else:
                     context = (
-                        "=== ✅ Platform Data (verified facts from database) ===\n"
+                        "[Verified Data]\n"
                         + platform_ctx
                     )
 
@@ -172,7 +359,20 @@ class ChatLogic:
                 chat_history=chat_history,
                 session_summary=session_summary,
                 source_type=source,
+                username=getattr(request, "user_name", None),
             )
+            # If RAG returned a fallback (e.g. rate-limit), retry without
+            # context so the conversation is never blocked.
+            if GroqClient.is_fallback(answer):
+                logger.warning(
+                    "RAG answer was fallback — retrying via quick_answer "
+                    "(source=%s)", source,
+                )
+                answer = await self.groq.quick_answer(
+                    request.question, language,
+                    username=getattr(request, "user_name", None),
+                )
+                source = "groq"
             if source == "none":
                 source = "groq"
         else:
@@ -181,7 +381,7 @@ class ChatLogic:
                 routing.skip_retrieval,
                 not context,
             )
-            answer = await self.groq.quick_answer(request.question, language)
+            answer = await self.groq.quick_answer(request.question, language, username=getattr(request, "user_name", None))
             source = "groq"
 
         # Step 6: Persist messages
@@ -201,15 +401,21 @@ class ChatLogic:
         await self.sessions.maybe_trigger_summarisation(request.session_id, db)
         await self.sessions.update_language(request.session_id, language, db)
 
+        # Phase 5: Only return entity cards for direct platform queries
+        show_cards = (
+            [c for c in routing.platform_results if c.get("type") != "no_data"]
+            if classification.intent in _card_intents and routing.platform_results
+            else None
+        )
+        if show_cards is not None and len(show_cards) == 0:
+            show_cards = None
         return ChatResponse(
             answer=answer,
             source=source,
             session_id=request.session_id,
             lang=language,
             retrieved_docs=self._to_schema(routing.retrieved_docs),
-            platform_results=routing.platform_results
-            if routing.platform_results
-            else None,
+            platform_results=show_cards or None,
         )
 
     # ------------------------------------------------------------------
@@ -298,17 +504,13 @@ class ChatLogic:
         )
 
         if not docs:
-            # Phase 10 — Safety: do NOT fall back to general LLM.
-            # Without owner-matched documents, answering with open-ended
-            # knowledge could mislead the user into thinking the answer
-            # came from their private document.
-            _no_doc = {
-                "ar": "لم أجد محتوى مطابقاً في مستنداتك. يرجى التأكد من رفع المستند وأنه تمت معالجته بنجاح.",
-                "fr": "Aucun contenu correspondant n'a été trouvé dans vos documents. Veuillez vérifier que le document a été téléversé et traité avec succès.",
-                "en": "No matching content was found in your documents. Please make sure the document has been uploaded and processed successfully.",
-            }
-            answer = _no_doc.get(language, _no_doc["en"])
-            source = "none"
+            # No matching chunks — fall back to general knowledge so the
+            # conversation is never blocked by retrieval failure.
+            logger.info(
+                "No user-doc chunks found — falling back to quick_answer"
+            )
+            answer = await self.groq.quick_answer(question, language)
+            source = "groq"
         else:
             context = self._build_context(docs)
             chat_history = await self.sessions.get_recent_messages(session_id, db)
@@ -321,7 +523,15 @@ class ChatLogic:
                 session_summary=session_summary,
                 source_type="user_document",
             )
-            source = "user_document"
+            # If RAG returned a fallback, retry without context
+            if GroqClient.is_fallback(answer):
+                logger.warning(
+                    "User-doc RAG fallback — retrying via quick_answer"
+                )
+                answer = await self.groq.quick_answer(question, language)
+                source = "groq"
+            else:
+                source = "user_document"
 
         await self.sessions.save_message(
             session_id, "user", question, source, language, db
@@ -342,6 +552,97 @@ class ChatLogic:
             session_id=session_id,
             lang=language,
             retrieved_docs=self._to_schema(docs),
+        )
+
+    # ------------------------------------------------------------------
+    # Platform entity explain (skip classifier — direct context → LLM)
+    # ------------------------------------------------------------------
+
+    async def handle_entity_explain(
+        self,
+        request: EntityExplainRequest,
+        db: AsyncSession,
+    ) -> ChatResponse:
+        """Generate a rich explanation of a platform entity.
+
+        Skips intent classification entirely — the entity metadata IS the
+        context.  Optionally enriches with Qdrant knowledge if available.
+        """
+        lang = request.language or self.classifier.classify(
+            request.entity_title
+        ).language
+
+        # Assemble entity context as verified data
+        meta = request.entity_metadata or {}
+        ctx_parts = [
+            f"[Verified Data — Platform {request.entity_type}]",
+            f"Title: {request.entity_title}",
+        ]
+        if request.entity_description:
+            ctx_parts.append(f"Description: {request.entity_description[:3000]}")
+        for key, val in meta.items():
+            if val:
+                ctx_parts.append(f"{key}: {val}")
+        entity_context = "\n".join(ctx_parts)
+
+        # Optional: enrich with related NLP knowledge from Qdrant
+        extra_context = ""
+        try:
+            routing = await self.router.route(
+                request.entity_title,
+                QueryClassification(
+                    intent="nlp_knowledge",
+                    language=lang,
+                    confidence=0.9,
+                ),
+            )
+            if routing.results:
+                extra_context = self._build_context(routing.results)
+        except Exception:
+            logger.debug("Entity explain: optional Qdrant enrichment failed", exc_info=True)
+
+        # Combine contexts
+        full_context = entity_context
+        if extra_context:
+            full_context += "\n\n[Additional Context]\n" + extra_context
+
+        # Build the implicit question
+        question = (
+            f"Explain what '{request.entity_title}' is. "
+            f"Provide a helpful overview of this {request.entity_type}, "
+            f"its purpose, key features, and how it can be useful."
+        )
+
+        chat_history = await self.sessions.get_recent_messages(
+            request.session_id, db
+        )
+
+        answer = await self.groq.generate_answer_with_context(
+            question=question,
+            context=full_context,
+            language=lang,
+            chat_history=chat_history,
+            source_type="platform",
+        )
+
+        source = "platform"
+        if GroqClient.is_fallback(answer):
+            answer = await self.groq.quick_answer(question, lang)
+            source = "groq"
+
+        # Persist messages
+        await self.sessions.save_message(
+            request.session_id, "user", question, source, lang, db
+        )
+        await self.sessions.save_message(
+            request.session_id, "assistant", answer, source, lang, db
+        )
+
+        return ChatResponse(
+            answer=answer,
+            source=source,
+            session_id=request.session_id,
+            lang=lang,
         )
 
     # ------------------------------------------------------------------
@@ -401,8 +702,16 @@ class ChatLogic:
     # ------------------------------------------------------------------
 
     def _build_context(self, docs: List[Dict]) -> str:
+        """Build clean context for LLM — no metadata, no scores, no labels.
+
+        Quality threshold: results below 0.60 similarity are dropped.
+        If ALL results are below threshold, returns empty string so the
+        LLM falls back to general knowledge.
+        """
         if not docs:
             return ""
+
+        quality_threshold = 0.60
 
         # Check if these are user-uploaded document chunks
         is_user_doc = any(d.get("source") == "user_document" for d in docs)
@@ -414,7 +723,7 @@ class ChatLogic:
             by_file: dict[str, list[str]] = defaultdict(list)
             for doc in docs[:10]:
                 fname = doc.get("title", "Untitled")
-                content = doc.get("content", "")[:600]
+                content = doc.get("content", "")[:800]
                 by_file[fname].append(content)
 
             parts = []
@@ -423,19 +732,20 @@ class ChatLogic:
                 parts.append(f"[File: {fname}]\n{combined}\n")
             return "\n---\n".join(parts)
 
-        # Default: labelled documents for non-user-doc sources.
-        # Each doc gets a clear title + source label so the LLM can cite it.
+        # Filter by quality threshold — drop weak results
+        quality_docs = [
+            d for d in docs if d.get("similarity", 0) >= quality_threshold
+        ]
+        if not quality_docs:
+            return ""
+
+        # Clean content only — no metadata, scores, titles, or source labels
         parts = []
-        for i, doc in enumerate(docs[:5], 1):
-            src = doc.get("source", "unknown")
-            title = doc.get("title", "Untitled")
-            content = doc.get("content", "")[:600]
-            url = doc.get("url", "")
-            url_line = f"\nURL: {url}" if url else ""
-            parts.append(
-                f'[Source {i}: "{title}" (type: {src})]\n{content}{url_line}\n'
-            )
-        return "\n---\n".join(parts)
+        for doc in quality_docs[:5]:
+            content = doc.get("content", "")[:800]
+            if content.strip():
+                parts.append(content.strip())
+        return "\n\n---\n\n".join(parts)
 
     @staticmethod
     def _build_user_context(request) -> str:
@@ -453,6 +763,164 @@ class ChatLogic:
         if getattr(request, "user_speciality", None):
             parts.append(f"Speciality: {request.user_speciality}")
         return "\n".join(parts)
+
+    # ------------------------------------------------------------------
+    # Phase 4.1 — Document session activation / deactivation detection
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_document_activation(question: str) -> bool:
+        """Return True if the user is explicitly asking to work with a document.
+
+        Triggers on phrases like:
+          - "analyze this document"
+          - "summarize Yanis1.pdf"
+          - "explain this paper"
+          - "review my file"
+        """
+        import re
+        q = question.strip()
+        return bool(re.search(
+            r"(?:"
+            # EN activation phrases
+            r"\b(?:analyze|analyse|summarize|summarise|explain|review|read|open|use|look at|examine)"
+            r"\s+(?:this |my |the )?(?:document|paper|file|pdf|report|text|upload)"
+            r"|\b(?:document|paper|file|pdf|report)\b.*\b(?:analyze|summarize|explain|review)\b"
+            # Filename references (e.g. "summarize Yanis1.pdf")
+            r"|\b(?:analyze|analyse|summarize|summarise|explain|review|read|open|use)\s+\S+\.(?:pdf|docx?|txt|csv|xlsx?)\b"
+            # FR activation phrases
+            r"|\b(?:analyser?|résumer?|expliquer?|examiner?|lire|ouvrir|utiliser)"
+            r"\s+(?:ce |mon |le |la )?(?:document|fichier|texte|rapport|article)"
+            r"|\b(?:analyser?|résumer?|expliquer?|examiner?)\s+\S+\.(?:pdf|docx?|txt)\b"
+            # AR activation phrases
+            r"|\b(?:حلل|لخص|اشرح|راجع|اقرأ|افتح|استخدم)\s+(?:هذا |هذه )?(?:المستند|الملف|الوثيقة|النص|المقال|التقرير)"
+            r")",
+            q,
+            re.I,
+        ))
+
+    @staticmethod
+    def _is_document_deactivation(question: str) -> bool:
+        """Return True if the user explicitly wants to leave document mode.
+
+        Triggers on phrases like:
+          - "new topic", "unrelated question"
+          - "forget document", "stop using document"
+          - "general question", "change subject"
+        """
+        import re
+        q = question.strip()
+        return bool(re.search(
+            r"(?:"
+            # EN deactivation phrases
+            r"\b(?:new topic|change (?:topic|subject)|unrelated question|general question)"
+            r"|\b(?:forget|stop using|ignore|close|leave|exit|done with)\s+(?:the |this |my )?(?:document|paper|file|pdf)"
+            r"|\b(?:stop|exit|leave|end)\s+document\s*(?:mode|session)?"
+            # FR deactivation phrases
+            r"|\b(?:nouveau sujet|changer de sujet|question générale|question sans rapport)"
+            r"|\b(?:oublier|arrêter|ignorer|fermer|quitter)\s+(?:le |ce |mon )?(?:document|fichier)"
+            # AR deactivation phrases
+            r"|\b(?:موضوع جديد|سؤال عام|غير (?:ذي صلة|متعلق))"
+            r"|\b(?:أغلق|انسَ|توقف عن|اترك)\s+(?:المستند|الملف|الوثيقة)"
+            r")",
+            q,
+            re.I,
+        ))
+
+    @staticmethod
+    def _is_generic_conceptual(question: str) -> bool:
+        """Return True if the question is a generic conceptual/definitional
+        query that should NOT trigger document dominance.
+
+        Matches patterns like:
+          - "what is X" / "what are X"
+          - "define X" / "explain X"
+          - "difference between X and Y"
+          - "how does X work"
+        """
+        import re
+        q = question.strip()
+        return bool(re.search(
+            r"(?:"
+            r"\b(?:what|qu(?:'|\u2019)?(?:est[- ]ce qu(?:'|\u2019)?|el(?:le)?s? (?:est|sont)))\b"
+            r"|\b(?:what(?:'s| is| are))\s"
+            r"|\b(?:define|explain|describe|clarify)\s"
+            r"|\b(?:d[eé]finir|expliquer|d[eé]crire)\s"
+            r"|\b(?:ما (?:هو|هي|هم|معنى)|عرّف|اشرح)\b"
+            r"|\bdifference(?:s)?\s+(?:between|entre)\b"
+            r"|\b(?:الفرق بين)\b"
+            r"|\bhow does\b.*\bwork\b"
+            r"|\bcomment fonctionne\b"
+            r"|\bكيف يعمل\b"
+            r")",
+            q,
+            re.I,
+        ))
+
+    @staticmethod
+    def _has_document_reference(question: str) -> bool:
+        """Return True if the question refers to uploaded document content.
+
+        Detects:
+          - Explicit references: "in my document", "in this paper", etc.
+          - Pronoun references:  "he", "she", "this person", "the author"
+          - Contextual anchors:  "according to", "based on the text"
+        """
+        import re
+        q = question.lower().strip()
+        return bool(re.search(
+            r"(?:"
+            # Explicit document references (EN/FR/AR)
+            r"\b(?:in (?:my|the|this) (?:document|file|paper|pdf|report|text|upload))"
+            r"|\b(?:from (?:my|the|this) (?:document|file|paper|pdf|report|text))"
+            r"|\b(?:dans (?:mon|le|ce) (?:document|fichier|texte|rapport))"
+            r"|\b(?:في (?:المستند|الملف|الوثيقة|النص|المقال|التقرير|ملفي|مستندي))"
+            # Contextual anchors
+            r"|\b(?:according to|based on|as (?:stated|mentioned|described) in)"
+            r"|\b(?:selon|d'après|comme mentionné)"
+            r"|\b(?:حسب|وفقاً|كما (?:ذُكر|ورد))"
+            # Pronoun / entity references suggesting document content
+            r"|\b(?:the author|this person|the researcher|the speaker)"
+            r"|\b(?:l'auteur|cette personne|le chercheur)"
+            r"|\b(?:الكاتب|المؤلف|الباحث|هذا الشخص)"
+            # Page/section references
+            r"|\b(?:page|section|chapter|paragraph|table|figure)\s*\d"
+            r"|\b(?:الصفحة|القسم|الفصل|الفقرة|الجدول)\s*\d"
+            r")",
+            q,
+        ))
+
+    @staticmethod
+    def _check_document_dominance(question: str, *, owner_id: str) -> float:
+        """Embed *question* and probe document_chunks for the top score.
+
+        Returns the highest cosine similarity (0.0 if no hits).
+        This is a lightweight probe — only 1 result is fetched.
+        """
+        try:
+            embedding_svc = get_embedding_service()
+            qdrant = get_qdrant_service()
+            qe = embedding_svc.encode_single(question)
+            qf = build_user_doc_filter(
+                session_id=None, owner_id=owner_id,
+                document_id=None, document_ids=None,
+            )
+            hits = qdrant.search(
+                collection=COLLECTION_DOCUMENT_CHUNKS,
+                query_vector=qe,
+                limit=1,
+                score_threshold=0.0,
+                query_filter=qf,
+            )
+            top_score = hits[0]["score"] if hits else 0.0
+            logger.debug(
+                "Document dominance probe: owner=%s top_score=%.3f",
+                owner_id, top_score,
+            )
+            return top_score
+        except Exception:
+            logger.warning("Document dominance check failed", exc_info=True)
+            return 0.0
 
     @staticmethod
     def _build_platform_context(results: List[Dict[str, Any]]) -> str:

@@ -68,6 +68,29 @@ class Post(models.Model):
         choices=APPROVAL_STATUS_CHOICES,
         default='pending'
     )
+    rejection_reason = models.TextField(
+        verbose_name=_("Rejection Reason"),
+        blank=True,
+        default='',
+        help_text=_("Reason for rejection (only filled when status is rejected)")
+    )
+    approved_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_posts',
+        verbose_name=_("Approved By")
+    )
+    approval_date = models.DateTimeField(
+        verbose_name=_("Approval Date"),
+        null=True,
+        blank=True
+    )
+    view_count = models.PositiveIntegerField(
+        verbose_name=_("View Count"),
+        default=0
+    )
     
     if TYPE_CHECKING:
         comments: 'RelatedManager[Comment]'

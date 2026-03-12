@@ -13,6 +13,7 @@ from django.db import models
 from django.urls import reverse
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from accounts.blocking import exclude_hidden_users
 
 User = get_user_model()
 
@@ -93,18 +94,30 @@ def search_questions(request):
 
 def qa_home(request):
     # Posts populaires (les plus likés) - only approved
-    popular_posts = Post.objects.filter(approval_status='approved').annotate(
+    popular_posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    ).annotate(
         like_count=models.Count('likes')
     ).order_by('-like_count', '-created_at')[:5]
 
     # Posts récents - only approved
-    recent_posts = Post.objects.filter(approval_status='approved').order_by('-created_at')[:5]
+    recent_posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    ).order_by('-created_at')[:5]
 
     # Questions récentes
     recent_questions = Question.objects.order_by('-created_at')[:5]
 
     # Ressources (posts avec des images)
-    resources = Post.objects.exclude(image='').order_by('-created_at')[:5]
+    resources = exclude_hidden_users(
+        Post.objects.exclude(image=''),
+        request.user,
+        ('author',)
+    ).order_by('-created_at')[:5]
 
     context = {
         'popular_posts': popular_posts,
@@ -126,7 +139,11 @@ def feed(request):
     filter_type = request.GET.get('filter', 'all')
     
     # Only show approved posts - strict approval workflow
-    posts = Post.objects.filter(approval_status='approved')
+    posts = exclude_hidden_users(
+        Post.objects.filter(approval_status='approved'),
+        request.user,
+        ('author',)
+    )
     
     # Apply filters
     if filter_type == 'my_posts':
@@ -155,16 +172,39 @@ def feed(request):
 @login_and_verified_required
 def create_post(request):
     """Dedicated page for creating a new post."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            # All posts require admin approval - no exceptions
-            post.approval_status = 'pending'
-            post.save()
-            messages.info(request, _('Your post has been submitted and is pending admin approval.'))
-            return redirect('QA:feed')
+            try:
+                post = form.save(commit=False)
+                post.author = request.user
+                # All posts require admin approval - no exceptions
+                post.approval_status = 'pending'
+                
+                logger.info(
+                    f"[POST_CREATE] Creating post by user: {request.user.email}, "
+                    f"title: {post.get_localized_title()[:50]}"
+                )
+                
+                post.save()
+                
+                logger.info(
+                    f"[POST_CREATE] ✓ Post created successfully "
+                    f"(ID: {post.id}, Status: {post.approval_status})"
+                )
+                
+                messages.info(request, _('Your post has been submitted and is pending admin approval.'))
+                return redirect('QA:feed')
+                
+            except Exception as e:
+                logger.error(f"[POST_CREATE] ✗ Error creating post: {str(e)}", exc_info=True)
+                messages.error(request, _('An error occurred while creating your post. Please try again.'))
+        else:
+            logger.warning(f"[POST_CREATE] Form validation failed: {form.errors.as_json()}")
+            messages.error(request, _('Please correct the errors in the form.'))
     else:
         form = PostForm()
     
@@ -179,8 +219,12 @@ def create_post(request):
 @login_required
 @login_and_verified_required
 def post_detail(request, slug):
-    # Only allow viewing approved posts - pending posts only visible in Admin
-    post = get_object_or_404(Post, slug=slug, approval_status='approved')
+    # Staff/admin can view any post status. Regular users only approved posts.
+    base_qs = exclude_hidden_users(Post.objects.all(), request.user, ('author',))
+    if request.user.is_staff or request.user.is_superuser:
+        post = get_object_or_404(base_qs, slug=slug)
+    else:
+        post = get_object_or_404(base_qs.filter(approval_status='approved'), slug=slug)
     
     comment_form = CommentForm()
     return render(request, 'QA/post_detail.html', {
@@ -344,11 +388,17 @@ def edit_post(request, post_id):
         messages.error(request, 'You do not have permission to edit this post.')
         return redirect('QA:post_detail', slug=post.slug)
     
-    # Admin review mode
+    # Admin modes
     review_mode = request.GET.get('review') == '1' and is_admin
+    edit_only = request.GET.get('edit_only') == '1' and is_admin
+    read_only_review = review_mode and not edit_only
     is_pending = post.approval_status == 'pending'
 
     if request.method == 'POST':
+        if read_only_review:
+            messages.warning(request, _('This form is read-only in review mode. Use Edit mode to modify fields.'))
+            return redirect(request.get_full_path())
+
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
             # Gestion de la suppression d'image
@@ -384,6 +434,13 @@ def edit_post(request, post_id):
             
             post.save()
             messages.success(request, 'Your post has been successfully edited.')
+
+            if edit_only and request.GET.get('review_model') and request.GET.get('review_pk'):
+                return redirect(
+                    'pages:admin_view_item',
+                    model_type=request.GET.get('review_model'),
+                    pk=request.GET.get('review_pk'),
+                )
             
             if review_mode:
                 return redirect('pages:admin_news')
@@ -396,6 +453,8 @@ def edit_post(request, post_id):
         'post': post,
         'page': 'feed',
         'review_mode': review_mode,
+        'edit_only': edit_only,
+        'read_only_review': read_only_review,
         'is_pending': is_pending,
     })
 

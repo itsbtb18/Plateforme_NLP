@@ -134,7 +134,9 @@ class TopicForm(forms.ModelForm):
         for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
             target_field = ar_field if lang == 'ar' else en_field
             value = self.cleaned_data.get(generic_field, '')
+            # Set both the language-specific field AND the main field
             setattr(instance, target_field, value)
+            setattr(instance, generic_field, value)
         
         if commit:
             instance.save()

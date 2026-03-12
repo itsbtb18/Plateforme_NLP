@@ -28,7 +28,14 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 9
 
     def get_queryset(self):
-        queryset = Institution.objects.all()
+        queryset = Institution.objects.filter(approval_status='approved')
+        # Also show own pending submissions to the creator
+        if self.request.user.is_authenticated and not self.request.user.is_staff:
+            queryset = Institution.objects.filter(
+                Q(approval_status='approved') | Q(created_by=self.request.user)
+            )
+        elif self.request.user.is_staff:
+            queryset = Institution.objects.all()
         
         # Apply filters from form
         form = InstitutionFilterForm(self.request.GET)
@@ -99,28 +106,64 @@ class InstitutionDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return context
 
 
-class InstitutionCreateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView):
-    """Staff only: Create new institutions from admin panel."""
+class InstitutionCreateView(LoginAndVerifiedRequiredMixin, CreateView):
+    """All verified users can suggest institutions; staff-created ones are auto-approved."""
     model = Institution
     form_class = InstitutionForm
     template_name = 'institutions/institution_form.html'
-    
-    def test_func(self) -> bool:
-        return self.request.user.is_staff
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['mode'] = 'create'
         return context
-    
+
     def form_valid(self, form) -> HttpResponse:
+        import logging
+        logger = logging.getLogger(__name__)
+        
         form.instance.created_by = self.request.user
-        self.object = form.save()
-        messages.success(self.request, _("Institution created successfully!"))
-        return redirect(self.get_success_url())
+        if self.request.user.is_staff:
+            form.instance.approval_status = 'approved'
+            logger.info(f"[INSTITUTION_CREATE] Auto-approving institution by staff: {self.request.user.email}")
+        else:
+            form.instance.approval_status = 'pending'
+            logger.info(f"[INSTITUTION_CREATE] Setting institution to pending by user: {self.request.user.email}")
+        
+        try:
+            self.object = form.save()
+            logger.info(
+                f"[INSTITUTION_CREATE] ✓ Institution created successfully "
+                f"(ID: {self.object.id}, Name: {self.object.name}, Status: {self.object.approval_status})"
+            )
+            
+            if self.request.user.is_staff:
+                messages.success(self.request, _("Institution created successfully!"))
+            else:
+                messages.info(
+                    self.request,
+                    _("Your institution suggestion has been submitted and is pending admin review.")
+                )
+            return redirect(self.get_success_url())
+            
+        except Exception as e:
+            logger.error(f"[INSTITUTION_CREATE] ✗ Error creating institution: {str(e)}", exc_info=True)
+            messages.error(
+                self.request,
+                _("An error occurred while creating the institution. Please try again.")
+            )
+            return self.form_invalid(form)
     
+    def form_invalid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[INSTITUTION_CREATE] Form validation failed: {form.errors.as_json()}")
+        messages.error(self.request, _('Please correct the errors in the form.'))
+        return super().form_invalid(form)
+
     def get_success_url(self):
-        return reverse_lazy('pages:admin_institutions')
+        if self.request.user.is_staff:
+            return str(reverse_lazy('pages:admin_institutions'))
+        return str(reverse_lazy('institutions:institution_list'))
 
 
 class InstitutionUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):

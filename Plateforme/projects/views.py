@@ -1,9 +1,9 @@
 from django.utils import timezone
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from .models import Project, ProjectMember
+from .models import Project, ProjectMember, ProjectInvitation
 from django.db.models import Q
 from django.db.models import Exists, OuterRef
 from django.urls import reverse, reverse_lazy
@@ -18,9 +18,16 @@ from django.db import transaction
 from typing import TYPE_CHECKING, Any
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string
 import logging
 import re
+from accounts.blocking import exclude_hidden_users
+from django.views.decorators.http import require_http_methods
+from django.utils.html import escape
+from .forms import ProjectChatMessageForm
+from .models import ProjectChatRoom, ProjectChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,24 @@ def detect_language(query: str) -> str:
     if arabic_chars / total_chars > 0.3:
         return 'arabic'
     return 'english'
+
+
+def _can_manage_project_invitations(project: Project, user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user == project.coordinator:
+        return True
+    return ProjectMember.objects.filter(
+        project=project,
+        member=user,
+        status='accepted',
+        role__iexact='admin',
+    ).exists()
+
+
+def _ensure_project_chatroom(project: Project) -> ProjectChatRoom:
+    room, _ = ProjectChatRoom.objects.get_or_create(project=project)
+    return room
 
 
 class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -202,6 +227,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             )
             
             projects_qs = Project.objects.filter(pk__in=project_ids)
+            projects_qs = exclude_hidden_users(projects_qs, request.user, ('coordinator',))
 
             # Public list: strictly approved only
             projects_qs = projects_qs.filter(approval_status='approved')
@@ -228,6 +254,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
+        qs = exclude_hidden_users(qs, self.request.user, ('coordinator',))
 
         # Show approved projects + user's own projects (including pending)
         if self.request.GET.get('my_projects'):
@@ -284,6 +311,10 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         context['search_query'] = self.request.GET.get('q') or self.request.GET.get('search', '')
         context['current_sort'] = self.request.GET.get('sort', 'newest').strip()
         context['highlights'] = {}  # Empty for non-AJAX requests (no ES highlighting)
+        context['pending_project_invitations_count'] = ProjectInvitation.objects.filter(
+            invited_user=self.request.user,
+            status=ProjectInvitation.Status.PENDING,
+        ).count()
         return context
 
 
@@ -294,6 +325,7 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
     def get_queryset(self) -> QuerySet[Project]:
         qs = super().get_queryset()
+        qs = exclude_hidden_users(qs, self.request.user, ('coordinator',))
         # Approved projects visible to everyone; coordinators/staff can see their own
         if self.request.user.is_staff:
             return qs
@@ -333,13 +365,15 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             'pending_requests': pending_requests,
             'leave_requests': leave_requests,
             'is_coordinator': project.coordinator == self.request.user,
+            'can_invite_members': _can_manage_project_invitations(project, self.request.user),
             'is_member': current_member is not None,
             'has_pending_request': project.members.filter(
                 member=self.request.user,
                 status='pending'
             ).exists(),
             'has_pending_leave_request': current_member and current_member.leave_request_status == 'pending' if current_member else False,
-            'leave_request_rejected': current_member and current_member.leave_request_status == 'rejected' if current_member else False
+            'leave_request_rejected': current_member and current_member.leave_request_status == 'rejected' if current_member else False,
+            'pending_invitations_count': project.invitations.filter(status=ProjectInvitation.Status.PENDING).count(),
         })
         context['page'] = 'research_projects'
         return context
@@ -352,6 +386,10 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     success_url = reverse_lazy('projects:project_list')
 
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Set coordinator and approval status
         form.instance.coordinator = self.request.user
         try:
             response = super().form_valid(form)
@@ -362,6 +400,8 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
                 response = redirect(self.success_url)
             else:
                 raise
+        # Ensure project discussion room exists immediately after project creation.
+        _ensure_project_chatroom(form.instance)
         # Show pending approval message - don't notify all users until approved
         messages.info(
             self.request,
@@ -466,6 +506,19 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
             messages.success(self.request, _("Draft saved successfully."))
             return redirect(f"{reverse('pages:admin_projects')}?tab=pending")
 
+        # In admin edit-only mode, return to review detail page for approve/reject actions.
+        if (
+            self.request.user.is_staff
+            and self.request.GET.get('edit_only') == '1'
+            and self.request.GET.get('review_model')
+            and self.request.GET.get('review_pk')
+        ):
+            return redirect(
+                'pages:admin_view_item',
+                model_type=self.request.GET.get('review_model'),
+                pk=self.request.GET.get('review_pk'),
+            )
+
         return response
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -537,6 +590,7 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
         if member.status == 'pending':
             member.status = 'accepted'
             member.save()
+            _ensure_project_chatroom(project)
             
             # Notification au membre accepté via le service
             NotificationService.create_notification(
@@ -598,6 +652,270 @@ class ProjectMembersView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Det
         )
         context['page'] = 'research_projects'
         return context
+
+
+class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
+    def get(self, request: HttpRequest, pk: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
+        if not _can_manage_project_invitations(project, request.user):
+            return JsonResponse({'ok': False, 'error': _('Unauthorized.')}, status=403)
+
+        query = (request.GET.get('q') or '').strip()
+        if len(query) < 2:
+            return JsonResponse({'ok': True, 'results': []})
+
+        UserModel = get_user_model()
+        pending_ids = set(
+            str(uid)
+            for uid in ProjectInvitation.objects.filter(
+                project=project,
+                status=ProjectInvitation.Status.PENDING,
+            ).values_list('invited_user_id', flat=True)
+        )
+        member_ids = ProjectMember.objects.filter(
+            project=project,
+            status='accepted',
+        ).values_list('member_id', flat=True)
+
+        # Build search predicates only for fields that exist on the active User model.
+        user_field_names = {f.name for f in UserModel._meta.get_fields() if hasattr(f, 'name')}
+        searchable_fields = [
+            fname for fname in ('email', 'username', 'full_name', 'full_name_ar', 'full_name_en')
+            if fname in user_field_names
+        ]
+        if not searchable_fields:
+            return JsonResponse({'ok': True, 'results': []})
+
+        search_q = Q()
+        for fname in searchable_fields:
+            search_q |= Q(**{f"{fname}__icontains": query})
+
+        candidates = UserModel.objects.filter(search_q).exclude(
+            pk=request.user.pk
+        ).exclude(
+            pk__in=member_ids
+        )[:20]
+
+        results = []
+        for u in candidates:
+            display_name = getattr(u, 'get_full_name_display', None)
+            if callable(display_name):
+                display_name = display_name()
+            display_name = (display_name or u.email or '').strip()
+            avatar_url = ''
+            try:
+                if getattr(u, 'avatar', None):
+                    avatar_url = u.avatar.url
+            except Exception:
+                avatar_url = ''
+            results.append(
+                {
+                    'id': str(u.pk),
+                    'name': display_name,
+                    'username': getattr(u, 'username', '') or '',
+                    'email': u.email,
+                    'avatar': avatar_url,
+                    'already_invited': str(u.pk) in pending_ids,
+                }
+            )
+        return JsonResponse({'ok': True, 'results': results})
+
+
+class InviteProjectMembersView(LoginAndVerifiedRequiredMixin, View):
+    def post(self, request: HttpRequest, pk: str) -> HttpResponse:
+        project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
+        if not _can_manage_project_invitations(project, request.user):
+            return JsonResponse({'ok': False, 'error': _('Unauthorized.')}, status=403)
+
+        raw_ids = request.POST.getlist('invited_users[]') or request.POST.getlist('invited_users')
+        invited_ids = [uid for uid in raw_ids if uid]
+        if not invited_ids:
+            return JsonResponse({'ok': False, 'error': _('Select at least one user.')}, status=400)
+
+        UserModel = get_user_model()
+        users_map = {
+            str(user.pk): user
+            for user in UserModel.objects.filter(pk__in=invited_ids)
+        }
+        missing_ids = [uid for uid in invited_ids if uid not in users_map]
+        if missing_ids:
+            return JsonResponse({'ok': False, 'error': _('Some selected users do not exist.')}, status=400)
+
+        existing_member_ids = set(
+            str(uid)
+            for uid in ProjectMember.objects.filter(project=project, member_id__in=invited_ids).values_list('member_id', flat=True)
+        )
+        existing_pending_ids = set(
+            str(uid)
+            for uid in ProjectInvitation.objects.filter(
+                project=project,
+                invited_user_id__in=invited_ids,
+                status=ProjectInvitation.Status.PENDING,
+            ).values_list('invited_user_id', flat=True)
+        )
+
+        created = []
+        skipped = []
+        with transaction.atomic():
+            for uid in invited_ids:
+                if uid in existing_member_ids or uid in existing_pending_ids:
+                    skipped.append(uid)
+                    continue
+                invited_user = users_map[uid]
+                inv = ProjectInvitation.objects.create(
+                    project=project,
+                    invited_user=invited_user,
+                    invited_by=request.user,
+                    status=ProjectInvitation.Status.PENDING,
+                )
+                created.append(inv)
+                NotificationService.create_notification(
+                    recipient=invited_user,
+                    notification_type='PROJECT_INVITE',
+                    title=_("Project Invitation"),
+                    message=_("You have been invited to join the project '%(project)s'."),
+                    project_id=project.pk,
+                    sender_id=request.user.id,
+                    message_kwargs={'project': project.title},
+                )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse(
+                {
+                    'ok': True,
+                    'created': len(created),
+                    'skipped': len(skipped),
+                    'message': _("Invitations sent: %(count)s") % {'count': len(created)},
+                }
+            )
+
+        if created:
+            messages.success(request, _("Invitations sent: %(count)s") % {'count': len(created)})
+        if skipped:
+            messages.warning(request, _("Some users were skipped (already members or already invited)."))
+        return redirect('projects:project_detail', pk=pk)
+
+
+class ProjectInvitationsView(LoginAndVerifiedRequiredMixin, ListView):
+    model = ProjectInvitation
+    template_name = 'project_invitations.html'
+    context_object_name = 'invitations'
+
+    def get_queryset(self) -> QuerySet[ProjectInvitation]:
+        return ProjectInvitation.objects.filter(
+            invited_user=self.request.user,
+            status=ProjectInvitation.Status.PENDING,
+        ).select_related('project', 'invited_by', 'project__institution')
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        pending_invitation_projects = list(
+            context['invitations'].values_list('project_id', flat=True)
+        )
+        legacy_notification_project_ids = Notification.objects.filter(
+            recipient=user,
+            type__in=['PROJECT_INVITE', 'PROJECT_INVITATION'],
+        ).exclude(project_id__isnull=True).values_list('project_id', flat=True)
+        legacy_received_member_invites = ProjectMember.objects.filter(
+            member=user,
+            status='pending',
+            project_id__in=legacy_notification_project_ids,
+        ).exclude(project_id__in=pending_invitation_projects).select_related(
+            'project',
+            'project__coordinator',
+        )
+        incoming_join_requests = ProjectMember.objects.filter(
+            project__coordinator=user,
+            status='pending',
+        ).select_related('project', 'member').order_by('-created_at')[:120]
+        context['sent_invitations'] = ProjectInvitation.objects.filter(
+            invited_by=user,
+        ).select_related('project', 'invited_user', 'project__institution')[:80]
+        context['legacy_received_member_invites'] = legacy_received_member_invites
+        context['incoming_join_requests'] = incoming_join_requests
+        context['received_total_count'] = (
+            context['invitations'].count()
+            + legacy_received_member_invites.count()
+            + incoming_join_requests.count()
+        )
+        context['manageable_projects'] = Project.objects.filter(
+            Q(coordinator=user) |
+            Q(
+                members__member=user,
+                members__status='accepted',
+                members__role__iexact='admin',
+            )
+        ).distinct().order_by('-updated_at')[:20]
+        context['page'] = 'project_invitations'
+        return context
+
+
+class AcceptProjectInvitationView(LoginAndVerifiedRequiredMixin, View):
+    def post(self, request: HttpRequest, invitation_id: str) -> HttpResponse:
+        invitation = get_object_or_404(
+            ProjectInvitation.objects.select_related('project', 'invited_user', 'invited_by'),
+            pk=invitation_id,
+            invited_user=request.user,
+        )
+        if invitation.status != ProjectInvitation.Status.PENDING:
+            messages.warning(request, _("This invitation is no longer pending."))
+            return redirect('projects:project_invitations')
+
+        with transaction.atomic():
+            ProjectMember.objects.update_or_create(
+                project=invitation.project,
+                member=request.user,
+                defaults={'role': 'member', 'status': 'accepted'},
+            )
+            _ensure_project_chatroom(invitation.project)
+            invitation.status = ProjectInvitation.Status.ACCEPTED
+            invitation.save(update_fields=['status', 'updated_at'])
+
+        NotificationService.create_notification(
+            recipient=invitation.invited_by,
+            notification_type='SYSTEM',
+            title=_("Invitation accepted"),
+            message=_("%(user)s accepted your invitation to '%(project)s'."),
+            project_id=invitation.project.pk,
+            sender_id=request.user.id,
+            message_kwargs={
+                'user': getattr(request.user, 'get_full_name_display', request.user.email),
+                'project': invitation.project.title,
+            }
+        )
+        messages.success(request, _("You joined the project successfully."))
+        return redirect('projects:project_detail', pk=invitation.project.pk)
+
+
+class RejectProjectInvitationView(LoginAndVerifiedRequiredMixin, View):
+    def post(self, request: HttpRequest, invitation_id: str) -> HttpResponse:
+        invitation = get_object_or_404(
+            ProjectInvitation.objects.select_related('project', 'invited_user', 'invited_by'),
+            pk=invitation_id,
+            invited_user=request.user,
+        )
+        if invitation.status != ProjectInvitation.Status.PENDING:
+            messages.warning(request, _("This invitation is no longer pending."))
+            return redirect('projects:project_invitations')
+
+        invitation.status = ProjectInvitation.Status.REJECTED
+        invitation.save(update_fields=['status', 'updated_at'])
+
+        NotificationService.create_notification(
+            recipient=invitation.invited_by,
+            notification_type='SYSTEM',
+            title=_("Invitation rejected"),
+            message=_("%(user)s rejected your invitation to '%(project)s'."),
+            project_id=invitation.project.pk,
+            sender_id=request.user.id,
+            message_kwargs={
+                'user': getattr(request.user, 'get_full_name_display', request.user.email),
+                'project': invitation.project.title,
+            }
+        )
+        messages.info(request, _("Invitation rejected."))
+        return redirect('projects:project_invitations')
 
 
 class LeaveProjectView(LoginAndVerifiedRequiredMixin, View):
@@ -726,7 +1044,11 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = 'projects'
 
     def get_queryset(self) -> QuerySet[Project]:
-        qs = Project.objects.filter(approval_status='approved')
+        qs = exclude_hidden_users(
+            Project.objects.filter(approval_status='approved'),
+            self.request.user,
+            ('coordinator',)
+        )
         query = self.request.GET.get('q')
         if query:
             qs = qs.filter(
@@ -781,6 +1103,7 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
         if response == 'accept':
             join_request.status = 'accepted'
             join_request.save()
+            _ensure_project_chatroom(project)
             messages.success(request, _('Request accepted successfully.'))
             
             # Créer une notification pour le membre
@@ -808,3 +1131,142 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
             )
         
         return redirect('projects:project_detail', pk=pk)
+
+
+def _project_chat_access(project: Project, user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user == project.coordinator:
+        return True
+    return ProjectMember.objects.filter(project=project, member=user, status='accepted').exists()
+
+
+def _project_chat_blocked(project: Project, user) -> bool:
+    # Project discussion access is strictly tied to project membership.
+    return False
+
+
+@login_required
+@require_http_methods(["GET"])
+def project_chatroom(request: HttpRequest, pk: str) -> HttpResponse:
+    project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
+    if not _project_chat_access(project, request.user):
+        return HttpResponseForbidden(_("Only project members can access this chatroom."))
+    room = _ensure_project_chatroom(project)
+    room_messages = room.messages.filter(is_deleted=False).select_related("sender").prefetch_related("seen_by")
+    room_messages.filter().exclude(seen_by=request.user).exclude(sender=request.user).prefetch_related(None)
+    for msg in room_messages:
+        msg.seen_by.add(request.user)
+
+    member_projects = Project.objects.filter(
+        Q(coordinator=request.user) | Q(members__member=request.user, members__status='accepted')
+    ).distinct().order_by('-updated_at')
+
+    return render(
+        request,
+        "project_chatroom.html",
+        {
+            "project": project,
+            "room": room,
+            "chat_messages": room_messages,
+            "form": ProjectChatMessageForm(),
+            "member_projects": member_projects,
+            "page": "research_projects",
+        },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_chat_send(request: HttpRequest, pk: str) -> HttpResponse:
+    project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
+    if not _project_chat_access(project, request.user):
+        return JsonResponse({"ok": False, "error": _("Only members can send messages.")}, status=403)
+    room = _ensure_project_chatroom(project)
+    form = ProjectChatMessageForm(
+        request.POST,
+        request.FILES,
+        instance=ProjectChatMessage(room=room, sender=request.user),
+    )
+    if not form.is_valid():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "errors": form.errors, "non_field_errors": form.non_field_errors()}, status=400)
+        messages.error(request, _("Please correct chat form errors."))
+        return redirect("projects:project_chatroom", pk=project.pk)
+
+    msg = form.save(commit=False)
+    msg.room = room
+    msg.sender = request.user
+    msg.save()
+    msg.seen_by.add(request.user)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(
+            {
+                "ok": True,
+                "message": {
+                    "id": str(msg.id),
+                    "sender_id": str(msg.sender_id),
+                    "sender_name": request.user.get_full_name_display,
+                    "message_type": msg.message_type,
+                    "content": escape(msg.content),
+                    "file_url": msg.file_path.url if msg.file_path else "",
+                    "created_at": msg.created_at.strftime("%Y-%m-%d %H:%M"),
+                },
+            }
+        )
+    return redirect("projects:project_chatroom", pk=project.pk)
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def project_chat_delete_message(request: HttpRequest, pk: str, message_id: str) -> HttpResponse:
+    project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
+    if not _project_chat_access(project, request.user):
+        return JsonResponse({"ok": False, "error": _("Access denied.")}, status=403)
+
+    room, _ = ProjectChatRoom.objects.get_or_create(project=project)
+    msg = get_object_or_404(ProjectChatMessage, pk=message_id, room=room)
+    is_project_admin = request.user == project.coordinator or ProjectMember.objects.filter(
+        project=project,
+        member=request.user,
+        status='accepted',
+        role__iexact='admin',
+    ).exists()
+    if not (msg.sender_id == request.user.id or is_project_admin):
+        return JsonResponse({"ok": False, "error": _("Only sender or project admin can delete message.")}, status=403)
+
+    msg.is_deleted = True
+    msg.content = ""
+    msg.save(update_fields=["is_deleted", "content", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+@login_required
+def project_invitations_count_api(request):
+    """Return pending received items for project invitations UI badges."""
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
+    invitation_project_ids = list(
+        ProjectInvitation.objects.filter(
+            invited_user=request.user,
+            status=ProjectInvitation.Status.PENDING,
+        ).values_list('project_id', flat=True)
+    )
+    legacy_notification_project_ids = Notification.objects.filter(
+        recipient=request.user,
+        type__in=['PROJECT_INVITE', 'PROJECT_INVITATION'],
+    ).exclude(project_id__isnull=True).values_list('project_id', flat=True)
+    legacy_project_ids = list(
+        ProjectMember.objects.filter(
+            member=request.user,
+            status='pending',
+            project_id__in=legacy_notification_project_ids,
+        ).values_list('project_id', flat=True)
+    )
+    incoming_join_requests_count = ProjectMember.objects.filter(
+        project__coordinator=request.user,
+        status='pending',
+    ).count()
+    count = len(set(invitation_project_ids) | set(legacy_project_ids)) + incoming_join_requests_count
+    return JsonResponse({'ok': True, 'count': count})

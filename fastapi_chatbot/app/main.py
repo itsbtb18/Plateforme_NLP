@@ -16,6 +16,7 @@ from app.schemas import (
     UserDocQuestionRequest,
     LegalSearchRequest,
     PlatformSearchRequest,
+    EntityExplainRequest,
     SessionRenameRequest,
     ChatResponse,
     SessionResponse,
@@ -25,6 +26,7 @@ from app.schemas import (
     DocumentStatusResponse,
     DocumentListResponse,
     PlatformSearchResponse,
+    PlatformDocumentIngestResponse,
 )
 from app.services.chat_logic import get_chat_logic
 from app.services.memory import get_session_service
@@ -211,6 +213,59 @@ async def article_lookup(
     except Exception as e:
         logger.error("Article lookup error: %s", e)
         raise HTTPException(status_code=500, detail="Failed to look up articles")
+
+
+@app.post("/platform/entity_explain", response_model=ChatResponse)
+async def entity_explain(
+    request: EntityExplainRequest, db: AsyncSession = Depends(get_db)
+):
+    try:
+        return await get_chat_logic().handle_entity_explain(request, db)
+    except Exception as e:
+        logger.error("Entity explain error: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to explain entity")
+
+
+@app.post("/platform/document_ingest", response_model=PlatformDocumentIngestResponse)
+async def platform_document_ingest(
+    file: UploadFile = File(...),
+    session_id: str = Form(...),
+    user_id: Optional[str] = Form(None),
+    platform_document_id: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ingest a platform document (article/thesis/memoir PDF) into the
+    existing document pipeline.  Tags chunks with source='platform' so
+    they don't mix with user uploads."""
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename required")
+        file_bytes = await file.read()
+        result = await get_document_service().upload(
+            db=db,
+            file_bytes=file_bytes,
+            filename=file.filename,
+            session_id=session_id,
+            user_id=user_id,
+            source="platform",
+            platform_document_id=platform_document_id,
+        )
+        return PlatformDocumentIngestResponse(
+            document_id=result.document_id,
+            filename=result.filename,
+            status=result.status,
+            session_id=result.session_id,
+            message=result.message,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Platform document ingest error: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to ingest document")
 
 
 # ==================================================================
@@ -415,6 +470,8 @@ async def root():
             "platform_search": "POST /platform/search",
             "platform_stats": "GET /platform/stats",
             "article_lookup": "GET /platform/articles?keyword=...",
+            "entity_explain": "POST /platform/entity_explain",
+            "document_ingest": "POST /platform/document_ingest",
             "upload_document": "POST /upload_document",
             "document_status": "GET /document_status/{id}",
             "list_documents": "GET /documents/{session_id}",

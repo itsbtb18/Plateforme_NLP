@@ -209,6 +209,39 @@ html[dir="rtl"] body {
     font-size: 1.1rem;
 }
 
+.rp-hero-action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.rp-invitations-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.3rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--rp-radius-lg);
+    text-decoration: none;
+    color: #fff;
+    font-weight: 700;
+}
+
+.rp-invitations-count {
+    min-width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    padding: 0 0.35rem;
+}
+
 /* ===== SEARCH & FILTERS ===== */
 .rp-filters {
     max-width: 1200px;
@@ -541,7 +574,20 @@ html[dir="rtl"] .rp-filter-select {
     margin-top: auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 0.75rem;
+}
+
+.rp-footer-actions {
+    margin-inline-start: auto;
+}
+
+.rp-card-footer .card-top-actions {
+    margin: 0;
+}
+
+.rp-team-strip {
+    padding: 0.875rem 1.5rem 0;
 }
 
 .rp-team {
@@ -805,6 +851,13 @@ html[dir="rtl"] .rp-search-spinner {
                     </div>
                 </div>
                 
+                <div class="rp-hero-action rp-hero-action-stack">
+                    <a href="{% url 'projects:project_new' %}" class="rp-create-btn">
+                        <i class="bi bi-plus-lg"></i>
+                        {% translate "Create Project" %}
+                    </a>
+                </div>
+                
             </div>
         </div>
     </header>
@@ -910,7 +963,8 @@ html[dir="rtl"] .rp-search-spinner {
             {% load project_tags %}
             {% for project in projects %}
             <article class="rp-card">
-                <div class="rp-card-header">
+                <div class="rp-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; flex: 1;">
                     <span class="rp-status-badge {{ project.status }}">
                         {% if project.status == 'ongoing' %}
                         <i class="bi bi-play-circle-fill"></i>
@@ -927,6 +981,7 @@ html[dir="rtl"] .rp-search-spinner {
                         {% translate "Pending Review" %}
                     </span>
                     {% endif %}
+                    </div>
                 </div>
                 
                 <div class="rp-card-body">
@@ -949,7 +1004,7 @@ html[dir="rtl"] .rp-search-spinner {
                     {% endif %}
                 </div>
                 
-                <div class="rp-card-footer">
+                <div class="rp-team-strip">
                     <div class="rp-team">
                         <span class="rp-team-label">{% translate "Team" %}</span>
                         <div class="rp-avatars">
@@ -976,10 +1031,23 @@ html[dir="rtl"] .rp-search-spinner {
                             {% endwith %}
                         </div>
                     </div>
-                    <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
-                        {% translate "View" %}
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
+                </div>
+                
+                <div class="rp-card-footer">
+                    {% if project.approval_status == 'pending' and project.coordinator == request.user %}
+                        <a href="{% url 'projects:project_update' project.pk %}" class="rp-card-action" title="{% translate 'Edit Form' %}">
+                            {% translate "Edit Form" %}
+                            <i class="bi bi-file-earmark-text"></i>
+                        </a>
+                    {% else %}
+                        <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
+                            {% translate "View Details" %}
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    {% endif %}
+                    <div class="rp-footer-actions">
+                        {% include "includes/card_top_actions.html" with content_type="project" object_id=project.pk title=project.get_localized_title description=project.get_localized_description|truncatewords:40 category=project.get_status_display author=project.coordinator.get_full_name_display url=request.build_absolute_uri %}
+                    </div>
                 </div>
             </article>
             {% empty %}

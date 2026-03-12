@@ -44,7 +44,7 @@
                     <label class="form-label fw-bold">
                       <span class="badge bg-primary me-1">EN</span> {% trans "Title (English)" %}
                     </label>
-                    <input type="text" name="title_en" class="form-control"
+                    <input type="text" name="title_en" class="form-control" {% if read_only_review %}readonly disabled{% endif %}
                            value="{{ post.title_en|default:'' }}" 
                            placeholder="{% trans 'Enter English title' %}">
                   </div>
@@ -52,7 +52,7 @@
                     <label class="form-label fw-bold">
                       <span class="badge bg-success me-1">AR</span> {% trans "Title (Arabic)" %}
                     </label>
-                    <input type="text" name="title_ar" class="form-control" dir="rtl"
+                    <input type="text" name="title_ar" class="form-control" dir="rtl" {% if read_only_review %}readonly disabled{% endif %}
                            value="{{ post.title_ar|default:'' }}" 
                            placeholder="{% trans 'أدخل العنوان بالعربية' %}">
                   </div>
@@ -65,14 +65,14 @@
                     <label class="form-label fw-bold">
                       <span class="badge bg-primary me-1">EN</span> {% trans "Content (English)" %}
                     </label>
-                    <textarea name="content_en" class="form-control" rows="6"
+                    <textarea name="content_en" class="form-control" rows="6" {% if read_only_review %}readonly disabled{% endif %}
                               placeholder="{% trans 'Enter English content' %}">{{ post.content_en|default:'' }}</textarea>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label fw-bold">
                       <span class="badge bg-success me-1">AR</span> {% trans "Content (Arabic)" %}
                     </label>
-                    <textarea name="content_ar" class="form-control" rows="6" dir="rtl"
+                    <textarea name="content_ar" class="form-control" rows="6" dir="rtl" {% if read_only_review %}readonly disabled{% endif %}
                               placeholder="{% trans 'أدخل المحتوى بالعربية' %}">{{ post.content_ar|default:'' }}</textarea>
                   </div>
                 </div>
@@ -151,11 +151,21 @@
                 <i class="fas fa-arrow-left me-1"></i>{% trans "Back to Admin" %}
               </a>
               <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
-                  <i class="fas fa-save me-1"></i>{% trans "Save Draft" %}
+                {% if read_only_review and request.GET.review_model and request.GET.review_pk %}
+                <a href="?edit_only=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn btn-outline-primary">
+                  <i class="fas fa-edit me-1"></i>{% trans "Edit Form" %}
+                </a>
+                {% endif %}
+                {% if is_pending and request.GET.review_model and request.GET.review_pk %}
+                <button type="submit"
+                        class="btn btn-outline-danger"
+                        formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                        onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                  <i class="fas fa-times-circle me-1"></i>{% trans "Reject" %}
                 </button>
-                {% if is_pending %}
-                <button type="submit" name="action" value="approve" class="btn btn-success">
+                <button type="submit"
+                        class="btn btn-success"
+                        formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                   <i class="fas fa-check-circle me-1"></i>{% trans "Approve & Publish" %}
                 </button>
                 {% endif %}
@@ -177,4 +187,17 @@
     </div>
   </div>
 </div>
+{% if read_only_review %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('form input, form textarea, form select').forEach(function(el) {
+    const isHidden = el.type === 'hidden';
+    const isSubmit = el.type === 'submit' || el.type === 'button' || el.type === 'reset';
+    if (isHidden || isSubmit) return;
+    el.setAttribute('readonly', 'readonly');
+    el.setAttribute('disabled', 'disabled');
+  });
+});
+</script>
+{% endif %}
 {% endblock %}

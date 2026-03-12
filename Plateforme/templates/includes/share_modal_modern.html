@@ -1,0 +1,1059 @@
+{# templates/includes/share_modal_modern.html – Instagram-style Share Modal #}
+{% load i18n %}
+{% if user.is_authenticated %}
+<!-- ==================== MODERN INSTAGRAM-STYLE SHARE MODAL ==================== -->
+<div class="share-modal-modern" id="shareModalModern" role="dialog" aria-labelledby="shareModalLabel" aria-hidden="true">
+  <div class="share-modal-overlay"></div>
+  <div class="share-modal-container">
+    <div class="share-modal-content">
+      
+      <!-- Header -->
+      <div class="share-modal-header">
+        <h2 id="shareModalLabel">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة{% else %}{% trans "Share" %}{% endif %}</h2>
+        <button type="button" class="share-modal-close" aria-label="{% trans 'Close' %}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="share-modal-search">
+        <svg class="share-search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input 
+          type="text" 
+          id="shareSearchInput" 
+          class="share-search-input" 
+          placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن الأصدقاء أو المجموعات...{% else %}Search friends or groups...{% endif %}"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Item Preview (small) -->
+      <div class="share-item-preview" id="shareItemPreview">
+        <div class="share-item-type" id="shareItemType"></div>
+        <div class="share-item-title" id="shareItemTitle"></div>
+      </div>
+
+      <!-- Recipients List -->
+      <div class="share-friends-list" id="shareFriendsList">
+        <div class="share-loading">
+          <div class="share-spinner"></div>
+          <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جاري تحميل المستلمين...{% else %}Loading recipients...{% endif %}</p>
+        </div>
+      </div>
+
+      <!-- Optional Message Field -->
+      <div class="share-message-container" id="shareMessageContainer" style="display: none;">
+        <label class="share-message-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أضف رسالة{% else %}{% trans "Add a message" %}{% endif %}
+        </label>
+        <textarea 
+          id="shareMessageText" 
+          class="share-message-input" 
+          rows="3"
+          placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اكتب رسالة...{% else %}Write something...{% endif %}"
+        ></textarea>
+      </div>
+
+      <!-- Send Button -->
+      <div class="share-modal-footer">
+        <div class="share-selected-count" id="shareSelectedCount">
+          <span id="shareCountText">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 محدد{% else %}{% trans "0 selected" %}{% endif %}</span>
+        </div>
+        <button type="button" class="share-send-btn" id="shareSendBtn" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال{% else %}{% trans "Send" %}{% endif %}</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Success Toast Notification -->
+<div class="share-toast" id="shareToast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"></polyline>
+  </svg>
+  <span id="shareToastMessage">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تمت المشاركة بنجاح{% else %}{% trans "Shared successfully!" %}{% endif %}</span>
+</div>
+
+<style>
+/* ==================== SHARE MODAL MODERN STYLES ==================== */
+.share-modal-modern {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.share-modal-modern.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-modal-modern.show {
+  opacity: 1;
+}
+
+.share-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.share-modal-container {
+  position: relative;
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.share-modal-modern.show .share-modal-container {
+  transform: scale(1) translateY(0);
+}
+
+.share-modal-content {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* Header */
+.share-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.share-modal-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: #1f2937;
+}
+
+.share-modal-close {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  color: #6b7280;
+}
+
+.share-modal-close:hover {
+  background: #f3f4f6;
+}
+
+/* Search Box */
+.share-modal-search {
+  position: relative;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.share-search-icon {
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.share-search-input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  background: #f9fafb;
+  transition: all 0.2s;
+}
+
+.share-search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Item Preview */
+.share-item-preview {
+  padding: 12px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.share-item-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #667eea;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.share-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Friends List */
+.share-friends-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  max-height: 400px;
+}
+
+.share-friends-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.share-friends-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.share-friends-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+.share-friends-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Loading */
+.share-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.share-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: share-spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes share-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Friend Item */
+.share-list-section-title {
+  padding: 10px 24px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.share-friend-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.share-friend-item:hover {
+  background: #f9fafb;
+}
+
+.share-friend-item.selected {
+  background: #eff6ff;
+}
+
+.share-friend-checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  margin-right: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.share-friend-item.selected .share-friend-checkbox {
+  background: #667eea;
+  border-color: #667eea;
+}
+
+.share-friend-checkbox svg {
+  width: 14px;
+  height: 14px;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.share-friend-item.selected .share-friend-checkbox svg {
+  opacity: 1;
+}
+
+.share-friend-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  margin-right: 12px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.share-friend-avatar-link {
+  display: inline-flex;
+  border-radius: 50%;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.share-friend-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.share-friend-online {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #10b981;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.share-friend-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-friend-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-friend-status {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Message Container */
+.share-message-container {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.share-message-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.share-message-label svg {
+  color: #667eea;
+}
+
+.share-message-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.share-message-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Footer */
+.share-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.share-selected-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.share-send-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.share-send-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.share-send-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.share-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.share-send-btn.loading {
+  pointer-events: none;
+}
+
+.share-send-btn.loading svg {
+  animation: share-spin 0.8s linear infinite;
+}
+
+/* Toast Notification */
+.share-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1f2937;
+  color: white;
+  padding: 14px 24px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.share-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.share-toast svg {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+/* RTL Support */
+[dir="rtl"] .share-search-icon {
+  left: auto;
+  right: 38px;
+}
+
+[dir="rtl"] .share-search-input {
+  padding: 12px 42px 12px 16px;
+}
+
+[dir="rtl"] .share-friend-checkbox {
+  margin-right: 0;
+  margin-left: 12px;
+}
+
+[dir="rtl"] .share-friend-avatar {
+  margin-right: 0;
+  margin-left: 12px;
+}
+
+[dir="rtl"] .share-friend-online {
+  right: auto;
+  left: 2px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .share-modal-container {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .share-modal-content {
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100%;
+  }
+
+  .share-modal-header {
+    padding: 16px 20px;
+  }
+
+  .share-modal-search {
+    padding: 10px 20px;
+  }
+
+  .share-item-preview {
+    padding: 10px 20px;
+  }
+
+  .share-friend-item {
+    padding: 10px 20px;
+  }
+
+  .share-message-container {
+    padding: 12px 20px;
+  }
+
+  .share-modal-footer {
+    padding: 12px 20px;
+  }
+
+  .share-friends-list {
+    max-height: none;
+  }
+}
+
+/* Empty State */
+.share-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.share-empty-state svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.share-empty-state p {
+  font-size: 15px;
+  margin: 0;
+}
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const SHARE_URL = "{% url 'sharing:create_share' %}";
+  const GROUP_SHARE_URL = "{% url 'sharing:create_group_share' %}";
+  const SEARCH_URL = "{% url 'sharing:user_search' %}";
+  const GROUP_SEARCH_URL = "{% url 'sharing:group_search' %}";
+  const IS_AR = document.documentElement.lang && document.documentElement.lang.startsWith('ar');
+  const I18N = {
+    loadingRecipients: IS_AR ? 'جاري تحميل المستلمين...' : 'Loading recipients...',
+    noRecipients: IS_AR ? 'لا يوجد أصدقاء أو مجموعات' : 'No friends or groups found',
+    noFriends: IS_AR ? 'لا يوجد أصدقاء' : 'No friends found',
+    noGroups: IS_AR ? 'لا توجد مجموعات' : 'No groups found',
+    failedLoad: IS_AR ? 'تعذر تحميل المستلمين' : 'Failed to load recipients',
+    activeNow: IS_AR ? 'نشط الآن' : 'Active now',
+    groupChat: IS_AR ? 'دردشة جماعية' : 'Group chat',
+    friends: IS_AR ? 'الأصدقاء' : 'Friends',
+    groups: IS_AR ? 'المجموعات' : 'Groups',
+    selected0: IS_AR ? '0 محدد' : '0 selected',
+    selected1: IS_AR ? '1 محدد' : '1 selected',
+    selectedN: IS_AR ? 'محدد' : 'selected',
+    sending: IS_AR ? 'جارٍ الإرسال...' : 'Sending...',
+    sent1: IS_AR ? 'تمت المشاركة مع مستلم واحد' : 'Shared with 1 recipient!',
+    sentN: IS_AR ? 'تمت المشاركة مع' : 'Shared with',
+    recipients: IS_AR ? 'مستلمين' : 'recipients!',
+    failedShare: IS_AR ? 'فشل الإرسال' : 'Failed to share'
+  };
+  const CSRF_TEMPLATE = "{{ csrf_token }}";
+  const CSRF = () => {
+    const hidden = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (hidden && hidden.value) return hidden.value;
+    const cookie = document.cookie.split('; ').find(c => c.startsWith('csrftoken='));
+    if (cookie) return cookie.split('=')[1];
+    if (CSRF_TEMPLATE && CSRF_TEMPLATE !== "NOTPROVIDED") return CSRF_TEMPLATE;
+    return '';
+  };
+
+  // Translation map for content types
+  const CONTENT_TYPE_TRANSLATIONS = {
+    'tool': '{% trans "TOOL" %}',
+    'corpus': '{% trans "CORPUS" %}',
+    'course': '{% trans "COURSE" %}',
+    'project': '{% trans "PROJECT" %}',
+    'event': '{% trans "EVENT" %}',
+    'topic': '{% trans "TOPIC" %}',
+    'institution': '{% trans "INSTITUTION" %}',
+    'article': '{% trans "ARTICLE" %}',
+    'thesis': '{% trans "THESIS" %}',
+    'memoir': '{% trans "MEMOIR" %}',
+    'chatbot': '{% trans "AI RESPONSE" %}'
+  };
+
+  let contentType = '';
+  let objectId = '';
+  let selectedFriends = new Set();
+  let selectedGroups = new Set();
+  let allFriends = [];
+  let allGroups = [];
+  let searchTimer = null;
+
+  const modal = document.getElementById('shareModalModern');
+  const overlay = modal.querySelector('.share-modal-overlay');
+  const closeBtn = modal.querySelector('.share-modal-close');
+  const searchInput = document.getElementById('shareSearchInput');
+  const friendsList = document.getElementById('shareFriendsList');
+  const sendBtn = document.getElementById('shareSendBtn');
+  const countText = document.getElementById('shareCountText');
+  const messageContainer = document.getElementById('shareMessageContainer');
+  const messageInput = document.getElementById('shareMessageText');
+  const toast = document.getElementById('shareToast');
+  const toastMessage = document.getElementById('shareToastMessage');
+
+  // Open modal when share button clicked
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-share-type]');
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    contentType = btn.dataset.shareType;
+    objectId = btn.dataset.shareId;
+    const title = btn.dataset.shareTitle || '';
+
+    // Use translated content type
+    const translatedType = CONTENT_TYPE_TRANSLATIONS[contentType] || contentType.toUpperCase();
+    document.getElementById('shareItemType').textContent = translatedType;
+    document.getElementById('shareItemTitle').textContent = title;
+
+    openModal();
+  });
+
+  // Listen for custom event from chatbot share menu
+  document.addEventListener('openShareModal', function(e) {
+    const detail = e.detail || {};
+    
+    contentType = detail.type || '';
+    objectId = detail.id || '';
+    const title = detail.title || '';
+    
+    const translatedType = CONTENT_TYPE_TRANSLATIONS[contentType] || contentType.toUpperCase();
+    document.getElementById('shareItemType').textContent = translatedType;
+    document.getElementById('shareItemTitle').textContent = title;
+    
+    openModal();
+  });
+
+  function openModal() {
+    resetModal();
+    modal.classList.add('active');
+    setTimeout(() => modal.classList.add('show'), 10);
+    loadRecipients();
+  }
+
+  function closeModal() {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.classList.remove('active');
+      resetModal();
+    }, 300);
+  }
+
+  function resetModal() {
+    selectedFriends.clear();
+    selectedGroups.clear();
+    allFriends = [];
+    allGroups = [];
+    searchInput.value = '';
+    messageInput.value = '';
+    messageContainer.style.display = 'none';
+    updateSendButton();
+    friendsList.innerHTML = `
+      <div class="share-loading">
+        <div class="share-spinner"></div>
+        <p>${I18N.loadingRecipients}</p>
+      </div>
+    `;
+  }
+
+  async function loadRecipients(query = '') {
+    const [friends, groups] = await Promise.all([
+      loadFriends(query),
+      loadGroups(query),
+    ]);
+    allFriends = friends;
+    allGroups = groups;
+    renderRecipients(friends, groups);
+  }
+
+  async function loadFriends(query = '') {
+    try {
+      const url = query ? `${SEARCH_URL}?q=${encodeURIComponent(query)}` : SEARCH_URL + '?q=';
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const data = await res.json();
+      return data.users || [];
+    } catch (err) {
+      console.error('Failed to load friends:', err);
+      return [];
+    }
+  }
+
+  async function loadGroups(query = '') {
+    try {
+      const url = query ? `${GROUP_SEARCH_URL}?q=${encodeURIComponent(query)}` : GROUP_SEARCH_URL + '?q=';
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const data = await res.json();
+      return data.groups || [];
+    } catch (err) {
+      console.error('Failed to load groups:', err);
+      return [];
+    }
+  }
+
+  function renderRecipients(friends, groups) {
+    if (!friends.length && !groups.length) {
+      friendsList.innerHTML = `
+        <div class="share-empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <p>${I18N.noRecipients}</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+
+    if (friends.length) {
+      html += `<div class="share-list-section-title">${I18N.friends}</div>`;
+      html += friends.map(friend => {
+        const isSelected = selectedFriends.has(friend.id);
+        const initial = (friend.name || '?')[0].toUpperCase();
+        const profileUrl = friend.profile_url || '#';
+        const emailText = friend.email ? escapeHtml(friend.email) : I18N.activeNow;
+        const avatarHTML = friend.avatar
+          ? `<img src="${escapeHtml(friend.avatar)}" alt="${escapeHtml(friend.name)}">`
+          : initial;
+
+        return `
+          <div class="share-friend-item ${isSelected ? 'selected' : ''}" data-target-type="friend" data-target-id="${friend.id}" data-target-name="${escapeHtml(friend.name)}">
+            <div class="share-friend-checkbox">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <a href="${escapeHtml(profileUrl)}" class="share-friend-avatar-link share-profile-link" data-no-toggle="1">
+              <div class="share-friend-avatar">
+                ${avatarHTML}
+                <div class="share-friend-online"></div>
+              </div>
+            </a>
+            <div class="share-friend-info">
+              <div class="share-friend-name">${escapeHtml(friend.name)}</div>
+              <div class="share-friend-status">${emailText}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    if (groups.length) {
+      html += `<div class="share-list-section-title">${I18N.groups}</div>`;
+      html += groups.map(group => {
+        const isSelected = selectedGroups.has(group.id);
+        const initial = (group.name || '#')[0].toUpperCase();
+        const avatarHTML = group.avatar
+          ? `<img src="${escapeHtml(group.avatar)}" alt="${escapeHtml(group.name)}">`
+          : initial;
+
+        return `
+          <div class="share-friend-item ${isSelected ? 'selected' : ''}" data-target-type="group" data-target-id="${group.id}" data-target-name="${escapeHtml(group.name)}">
+            <div class="share-friend-checkbox">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="share-friend-avatar">
+              ${avatarHTML}
+            </div>
+            <div class="share-friend-info">
+              <div class="share-friend-name">${escapeHtml(group.name)}</div>
+              <div class="share-friend-status">${I18N.groupChat}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    friendsList.innerHTML = html;
+
+    // Attach click handlers
+    friendsList.querySelectorAll('.share-friend-item').forEach(item => {
+      item.addEventListener('click', toggleRecipient);
+    });
+    friendsList.querySelectorAll('.share-profile-link').forEach(link => {
+      link.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
+    });
+  }
+
+  function toggleRecipient() {
+    const targetId = this.dataset.targetId;
+    const targetType = this.dataset.targetType;
+    if (!targetId || !targetType) return;
+
+    if (targetType === 'group') {
+      if (selectedGroups.has(targetId)) {
+        selectedGroups.delete(targetId);
+        this.classList.remove('selected');
+      } else {
+        selectedGroups.add(targetId);
+        this.classList.add('selected');
+      }
+    } else {
+      if (selectedFriends.has(targetId)) {
+        selectedFriends.delete(targetId);
+        this.classList.remove('selected');
+      } else {
+        selectedFriends.add(targetId);
+        this.classList.add('selected');
+      }
+    }
+    updateSendButton();
+  }
+
+  function updateSendButton() {
+    const count = selectedFriends.size + selectedGroups.size;
+
+    if (count === 0) {
+      countText.textContent = I18N.selected0;
+      sendBtn.disabled = true;
+      messageContainer.style.display = 'none';
+    } else {
+      const text = count === 1 ? I18N.selected1 : `${count} ${I18N.selectedN}`;
+      countText.textContent = text;
+      sendBtn.disabled = false;
+      messageContainer.style.display = 'block';
+    }
+  }
+
+  async function sendShares() {
+    const totalSelected = selectedFriends.size + selectedGroups.size;
+    if (totalSelected === 0) return;
+
+    sendBtn.disabled = true;
+    sendBtn.classList.add('loading');
+    const originalHTML = sendBtn.innerHTML;
+    sendBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+      </svg>
+      <span>${I18N.sending}</span>
+    `;
+
+    const message = messageInput.value.trim();
+    const receivers = Array.from(selectedFriends);
+    const groups = Array.from(selectedGroups);
+    let successCount = 0;
+
+    for (const receiverId of receivers) {
+      try {
+        const res = await fetch(SHARE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF(),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            receiver_id: receiverId,
+            content_type: contentType,
+            object_id: objectId,
+            message: message
+          })
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (data.success || res.status === 409) {
+          successCount++;
+        }
+      } catch (err) {
+        console.error('Friend share failed', err);
+      }
+    }
+
+    for (const conversationId of groups) {
+      try {
+        const res = await fetch(GROUP_SHARE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF(),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            content_type: contentType,
+            object_id: objectId,
+            message: message
+          })
+        });
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (data.success) {
+          successCount++;
+        }
+      } catch (err) {
+        console.error('Group share failed', err);
+      }
+    }
+
+    // Show result
+    sendBtn.innerHTML = originalHTML;
+    sendBtn.classList.remove('loading');
+
+    if (successCount > 0) {
+      const msg = successCount === 1
+        ? I18N.sent1
+        : `${I18N.sentN} ${successCount} ${I18N.recipients}`;
+      showToast(msg);
+      closeModal();
+    } else {
+      showToast(I18N.failedShare, false);
+      sendBtn.disabled = false;
+    }
+  }
+
+  function showToast(message, success = true) {
+    toastMessage.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Event Listeners
+  overlay.addEventListener('click', closeModal);
+  closeBtn.addEventListener('click', closeModal);
+  sendBtn.addEventListener('click', sendShares);
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    const query = this.value.trim();
+    
+    if (query.length < 2) {
+      loadRecipients();
+      return;
+    }
+
+    searchTimer = setTimeout(() => {
+      loadRecipients(query);
+    }, 300);
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modal.classList.contains('active')) {
+      closeModal();
+    }
+  });
+
+})();
+</script>
+<!-- ==================== END MODERN SHARE MODAL ==================== -->
+{% endif %}

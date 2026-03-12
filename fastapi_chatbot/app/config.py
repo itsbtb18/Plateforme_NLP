@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Groq API – NEVER log or hardcode this value
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_MAX_TOKENS: int = 2048
+    GROQ_MAX_TOKENS: int = 4096
     GROQ_TEMPERATURE: float = 0.7
 
     # Embeddings
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # Vector Search
     TOP_K_RESULTS: int = 5
-    SIMILARITY_THRESHOLD: float = 0.35
+    SIMILARITY_THRESHOLD: float = 0.65
 
     # Rate Limiting
     MAX_REQUESTS_PER_MINUTE: int = 30

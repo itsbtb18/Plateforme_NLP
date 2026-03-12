@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "notifications",
     "search",
     "chatbot",
+    "direct_messages",
+    "sharing",
     "translate",
     "scraping",
     "settings",
@@ -79,6 +81,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "pages.middleware.SecurityLogMiddleware",
+    "pages.middleware.AdminPanelSecurityMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "accounts.two_factor_auth.TwoFactorAuthenticationMiddleware",
@@ -305,7 +309,9 @@ ELASTICSEARCH_DSL = {
         "sniff_on_start": False,  # Disable sniffing to prevent connection errors in Docker
     },
 }
-ELASTICSEARCH_DSL_AUTOSYNC = True
+# Disable autosync to prevent creation failures when Elasticsearch is unavailable
+# Resources can be manually indexed later using: python manage.py search_index --rebuild
+ELASTICSEARCH_DSL_AUTOSYNC = os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
@@ -333,5 +339,82 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": True,
         },
+        "resources": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "projects": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "forum": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "scraping": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
+
+# ============================================
+# GROQ LLM — Scraping Validation
+# ============================================
+GROQ_SCRAPING_API_KEY = os.getenv("GROQ_SCRAPING_API_KEY", "")
+GROQ_SCRAPING_MODEL = os.getenv("GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
+GROQ_SCRAPING_TIMEOUT = 30      # seconds per LLM call
+GROQ_SCRAPING_MAX_RETRIES = 2   # JSON-parse retries
+
+# ============================================
+# CELERY CONFIGURATION
+# ============================================
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://:redis123@redis:6379/3")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_SOFT_TIME_LIMIT = 600   # 10 min soft limit
+CELERY_TASK_TIME_LIMIT = 900        # 15 min hard limit
+CELERY_TASK_DEFAULT_QUEUE = "scraping"
+
+# Celery Beat schedule — auto-run all scrapers every 3 months
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "scrape-events-quarterly": {
+        "task": "scraping.tasks.run_scraper_task",
+        "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=0),
+        "args": ("events",),
+    },
+    "scrape-tools-quarterly": {
+        "task": "scraping.tasks.run_scraper_task",
+        "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=15),
+        "args": ("tools",),
+    },
+    "scrape-news-quarterly": {
+        "task": "scraping.tasks.run_scraper_task",
+        "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=30),
+        "args": ("news",),
+    },
+    "scrape-courses-quarterly": {
+        "task": "scraping.tasks.run_scraper_task",
+        "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=45),
+        "args": ("courses",),
+    },
+    "scrape-institutions-quarterly": {
+        "task": "scraping.tasks.run_scraper_task",
+        "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=4, minute=0),
+        "args": ("institutions",),
     },
 }

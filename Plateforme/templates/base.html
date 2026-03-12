@@ -41,6 +41,27 @@
     <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
     <style>
+      :root {
+        --site-header-height: 80px;
+      }
+
+      html, body {
+        scroll-padding-top: var(--site-header-height);
+      }
+
+      .site-header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        z-index: 2000 !important;
+      }
+
+      .main-container {
+        margin-top: var(--site-header-height) !important;
+      }
+
       /* Date input with calendar icon */
       input[type="text"][id*="date"],
       input[type="text"][id*="Date"],
@@ -85,6 +106,43 @@
       }
       .notification-badge:not(:empty) {
         display: block;
+      }
+
+      .sidebar-label-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .sidebar-chat-badge {
+        display: none !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-width: 18px !important;
+        min-height: 18px !important;
+        max-height: 18px !important;
+        aspect-ratio: 1 / 1;
+        padding: 0 !important;
+        border-radius: 50%;
+        background: #FF3B30;
+        color: #fff;
+        font-size: 0.64rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+        flex-shrink: 0;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 6px rgba(255, 59, 48, 0.28);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .sidebar-chat-badge.is-visible {
+        display: inline-flex !important;
       }
 
       /* ══════════════════════════════════════════════════════════════════════ */
@@ -511,6 +569,15 @@
         margin-right: auto;
         margin-left: 0;
       }
+
+      /* Respect online visibility preference from the profile switch */
+      html.user-online-hidden .cd-online-dot,
+      html.user-online-hidden .share-friend-online {
+        display: none !important;
+      }
+      html.user-online-hidden .share-friend-status {
+        display: none !important;
+      }
     </style>
 </head>
 <body>
@@ -584,6 +651,18 @@
                 --cmd-radius-dropdown: 12px;
                 --cmd-transition: 150ms ease;
             }
+
+            /* Navbar spacing fix: no gap between logo and search */
+            .header-container {
+                display: flex !important;
+                align-items: center !important;
+                gap: 0 !important;
+            }
+
+            .logo-container {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
             
             /* Container - Responsive flex */
             .cmd-search {
@@ -591,7 +670,8 @@
                 flex: 1 1 auto;
                 min-width: 200px;
                 width: auto;
-                margin: 0 12px;
+                margin: 0 !important;
+                padding: 0 !important;
                 z-index: 1000;
             }
             
@@ -1362,6 +1442,7 @@
                                 aria-expanded="false"
                                 title="{% trans 'Profile' %}">
                             <i class="fas fa-user-circle"></i>
+                            <span class="notification-badge" id="profileInvBadge"></span>
                             <span class="btn-label d-none d-xl-inline"></span>
                             <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                         </button>
@@ -1369,6 +1450,28 @@
                             <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-user"></i>
                                 <span>{% trans "Profile" %}</span>
+                            </a>
+                            <a href="{% url 'accounts:network_invitations' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-user-friends"></i>
+                                <span>
+                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        طلبات الصداقة
+                                    {% else %}
+                                        Friend requests
+                                    {% endif %}
+                                </span>
+                                <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
+                            </a>
+                            <a href="{% url 'projects:project_invitations' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-envelope-open-text"></i>
+                                <span>
+                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        دعوات المشاريع
+                                    {% else %}
+                                        Project invitations
+                                    {% endif %}
+                                </span>
+                                <span class="profile-inv-count" id="projectInvCount" hidden>0</span>
                             </a>
                             <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
                                 <i class="fas fa-sign-out-alt"></i>
@@ -1431,6 +1534,17 @@
                     <li><a class="{% if page == 'institutions' %}active{% endif %}" href="{% url 'institutions:institution_list' %}">
                         <i class="fas fa-university"></i><span>{% trans "Institutions" %}</span>
                     </a></li>
+                    {% if user.is_authenticated %}
+                    <li>
+                        <a class="{% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}" href="{% url 'direct_messages:inbox' %}">
+                            <i class="fas fa-comments"></i>
+                            <span class="sidebar-label-group">
+                                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المحادثات{% else %}{% trans "Discussions" %}{% endif %}</span>
+                                <span id="sidebarDmBadge" class="sidebar-chat-badge" aria-label="{% trans 'Unread messages' %}"></span>
+                            </span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if user.is_staff %}
                     <li><a class="{% if page == 'Admin' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
                         <i class="fas fa-tools"></i><span>{% trans "Admin" %}</span>
@@ -1458,6 +1572,21 @@
                 {% endif %}
             </div>
             {% endblock messages_container %}
+            
+            <script>
+            // Auto-show Django message toasts
+            document.addEventListener('DOMContentLoaded', function() {
+                var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+                var toastList = toastElList.map(function(toastEl) {
+                    var toast = new bootstrap.Toast(toastEl, {
+                        autohide: true,
+                        delay: 5000
+                    });
+                    toast.show();
+                    return toast;
+                });
+            });
+            </script>
             
             {% block content %}{% endblock %}
         </main>
@@ -1514,6 +1643,7 @@
     <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
         <i class="fas fa-robot"></i>
     </a>
+    <div id="profileMiniToast" class="profile-mini-toast" aria-live="polite"></div>
     {% endif %}
 
     <style>
@@ -1541,6 +1671,200 @@
     html[dir="rtl"] .chatbot-button {
         left: 30px;
         right: auto;
+    }
+
+    .profile-dropdown-pro {
+        width: 280px;
+        overflow: hidden;
+    }
+
+    .profile-dropdown-header {
+        display: flex;
+        justify-content: flex-end;
+        padding: 8px 10px 2px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .profile-settings-gear {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        color: #6b7280;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-settings-gear:hover {
+        color: #1D4ED8;
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+
+    .profile-menu-panels {
+        position: relative;
+        min-height: 170px;
+    }
+
+    .profile-menu-panel {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transform: translateX(16px);
+        pointer-events: none;
+        transition: transform 0.22s ease, opacity 0.22s ease;
+        padding: 4px 0 6px;
+    }
+
+    html[dir="rtl"] .profile-menu-panel {
+        transform: translateX(-16px);
+    }
+
+    .profile-menu-panel.is-active {
+        opacity: 1;
+        transform: translateX(0);
+        pointer-events: auto;
+    }
+
+    .profile-setting-toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .profile-setting-toggle-row span {
+        flex: 1;
+    }
+
+    .profile-switch {
+        width: 40px;
+        height: 22px;
+        border-radius: 999px;
+        border: none;
+        background: #d1d5db;
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.2s ease;
+    }
+
+    .profile-switch .profile-switch-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+        transition: transform 0.2s ease;
+    }
+
+    .profile-switch.is-on {
+        background: #1D4ED8;
+    }
+
+    .profile-switch.is-on .profile-switch-knob {
+        transform: translateX(18px);
+    }
+
+    .blocked-users-container {
+        margin: 4px 12px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #f8fafc;
+        max-height: 180px;
+        overflow: auto;
+    }
+
+    .blocked-user-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .blocked-user-row:last-child {
+        border-bottom: none;
+    }
+
+    .blocked-user-row.removing {
+        opacity: 0;
+        transform: translateX(10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .blocked-user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #e2e8f0;
+    }
+
+    .blocked-user-name {
+        flex: 1;
+        color: #334155;
+        font-size: 0.86rem;
+    }
+
+    .unblock-btn {
+        border: 1px solid #fecaca;
+        background: #fff5f5;
+        color: #b91c1c;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 4px 10px;
+        line-height: 1.2;
+    }
+
+    .unblock-btn:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
+    .blocked-empty {
+        font-size: 0.82rem;
+        color: #6b7280;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .profile-mini-toast {
+        position: fixed;
+        bottom: 18px;
+        inset-inline-end: 18px;
+        background: #0f172a;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        z-index: 1600;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .profile-mini-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .profile-inv-count {
+        margin-inline-start: 8px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
     }
     </style>
 
@@ -1614,6 +1938,213 @@
             // Profile icon dropdown toggle
             const profileIconBtn = document.getElementById('profileIconBtn');
             const profileDropdown = document.getElementById('profileDropdown');
+            const profileInvBadge = document.getElementById('profileInvBadge');
+            const profileInvCount = document.getElementById('profileInvCount');
+            const projectInvCount = document.getElementById('projectInvCount');
+            const profileSettingsGear = document.getElementById('profileSettingsGear');
+            const profileSettingsBack = document.getElementById('profileSettingsBack');
+            const profileMainPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="main"]') : null;
+            const profileSettingsPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="settings"]') : null;
+            const onlineStatusSwitch = document.getElementById('onlineStatusSwitch');
+            const chatNotificationsSwitch = document.getElementById('chatNotificationsSwitch');
+            const blockedListToggleBtn = document.getElementById('blockedListToggleBtn');
+            const blockedUsersContainer = document.getElementById('blockedUsersContainer');
+            const blockedUsersList = document.getElementById('blockedUsersList');
+            const blockedUsersEmpty = document.getElementById('blockedUsersEmpty');
+            const messageInvitesBtn = document.getElementById('messageInvitesBtn');
+            const profileMiniToast = document.getElementById('profileMiniToast');
+            const sidebarDmBadge = document.getElementById('sidebarDmBadge');
+
+            function showProfileToast(message) {
+                if (!profileMiniToast) return;
+                profileMiniToast.textContent = message;
+                profileMiniToast.classList.add('show');
+                setTimeout(() => profileMiniToast.classList.remove('show'), 1400);
+            }
+
+            function getCsrfToken() {
+                const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+                if (match && match[1] && match[1] !== 'NOTPROVIDED') return decodeURIComponent(match[1]);
+                return "{{ csrf_token }}" !== "NOTPROVIDED" ? "{{ csrf_token }}" : '';
+            }
+
+            function currentLangPrefix() {
+                const seg = window.location.pathname.split('/').filter(Boolean)[0];
+                if (seg === 'ar' || seg === 'en') return `/${seg}`;
+                return '';
+            }
+
+            function updateProfileInvBadge(friendCount, projectCount) {
+                const friendValue = Number(friendCount || 0);
+                const projectValue = Number(projectCount || 0);
+                const totalValue = friendValue + projectValue;
+                const totalText = totalValue > 99 ? '99+' : String(totalValue);
+                const friendText = friendValue > 99 ? '99+' : String(friendValue);
+                const projectText = projectValue > 99 ? '99+' : String(projectValue);
+                if (profileInvBadge) {
+                    profileInvBadge.textContent = totalValue > 0 ? totalText : '';
+                }
+                if (profileInvCount) {
+                    profileInvCount.textContent = friendText;
+                    profileInvCount.hidden = friendValue <= 0;
+                }
+                if (projectInvCount) {
+                    projectInvCount.textContent = projectText;
+                    projectInvCount.hidden = projectValue <= 0;
+                }
+            }
+
+            async function loadProfileInvitationsCount() {
+                if (!profileInvBadge && !profileInvCount && !projectInvCount) return;
+                try {
+                    const [friendResult, projectResult] = await Promise.allSettled([
+                        fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin'
+                        }),
+                        fetch(`${currentLangPrefix()}/projects/invitations/count/`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin'
+                        })
+                    ]);
+                    let friendCount = 0;
+                    let projectCount = 0;
+
+                    if (friendResult.status === 'fulfilled') {
+                        const friendRes = friendResult.value;
+                        const friendData = await friendRes.json().catch(() => ({}));
+                        if (friendRes.ok && friendData.ok) {
+                            friendCount = Number(friendData.count || 0);
+                        }
+                    }
+                    if (projectResult.status === 'fulfilled') {
+                        const projectRes = projectResult.value;
+                        const projectData = await projectRes.json().catch(() => ({}));
+                        if (projectRes.ok && projectData.ok) {
+                            projectCount = Number(projectData.count || 0);
+                        }
+                    }
+
+                    updateProfileInvBadge(friendCount, projectCount);
+                } catch (_) {
+                    // Keep silent to avoid noisy UI for transient network errors.
+                }
+            }
+
+            function updateSidebarDmBadge(count) {
+                if (!sidebarDmBadge) return;
+                const value = Number(count || 0);
+                if (value > 0) {
+                    sidebarDmBadge.textContent = value > 99 ? '99' : String(value);
+                    sidebarDmBadge.classList.add('is-visible');
+                } else {
+                    sidebarDmBadge.textContent = '';
+                    sidebarDmBadge.classList.remove('is-visible');
+                }
+            }
+
+            async function loadSidebarDmUnreadCount() {
+                if (!sidebarDmBadge) return;
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/messages/unread-count/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed');
+                    updateSidebarDmBadge(data.count || 0);
+                } catch (_) {
+                    // Keep silent for temporary network issues.
+                }
+            }
+
+            function setProfilePanel(target) {
+                if (!profileMainPanel || !profileSettingsPanel) return;
+                profileMainPanel.classList.toggle('is-active', target === 'main');
+                profileSettingsPanel.classList.toggle('is-active', target === 'settings');
+            }
+
+            function resetProfileSubMenu() {
+                setProfilePanel('main');
+                if (blockedUsersContainer) blockedUsersContainer.hidden = true;
+            }
+
+            function setSwitchState(el, isOn, key) {
+                if (!el) return;
+                el.classList.toggle('is-on', Boolean(isOn));
+                el.setAttribute('aria-pressed', String(Boolean(isOn)));
+                if (key) localStorage.setItem(key, isOn ? '1' : '0');
+            }
+
+            function applyOnlineVisibilityPreference(isOn) {
+                document.documentElement.classList.toggle('user-online-hidden', !isOn);
+                document.documentElement.classList.toggle('user-online-visible', !!isOn);
+            }
+
+            async function persistOnlineVisibility(isOn) {
+                try {
+                    await fetch(`${currentLangPrefix()}/accounts/network/online-visibility/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        credentials: 'same-origin',
+                        body: new URLSearchParams({ is_on: isOn ? '1' : '0' }).toString()
+                    });
+                } catch (_) {
+                    // keep silent; local UI state still updates
+                }
+            }
+
+            function loadSwitches() {
+                const onlineVisible = {% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %};
+                setSwitchState(onlineStatusSwitch, onlineVisible, 'ui_online_status');
+                applyOnlineVisibilityPreference(onlineVisible);
+                setSwitchState(chatNotificationsSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
+            }
+
+            const isArabicUi = document.documentElement.lang && document.documentElement.lang.toLowerCase().startsWith('ar');
+            const profileUiText = {
+                noBlockedUsers: isArabicUi ? 'لا يوجد مستخدمون محظورون حالياً' : 'No blocked users currently',
+                unblock: isArabicUi ? 'إلغاء الحظر' : 'Unblock',
+                blockedListLoadError: isArabicUi ? 'تعذر تحميل القائمة' : 'Unable to load list',
+                unblockDone: isArabicUi ? 'تم إلغاء الحظر' : 'Unblocked successfully',
+                unblockFailed: isArabicUi ? 'تعذر إلغاء الحظر' : 'Unblock failed'
+            };
+
+            async function loadBlockedUsers() {
+                if (!blockedUsersList || !blockedUsersEmpty || !blockedUsersContainer) return;
+                blockedUsersList.innerHTML = '';
+                blockedUsersEmpty.textContent = '...';
+                blockedUsersContainer.hidden = false;
+
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/accounts/network/blocked/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+                    const items = Array.isArray(data.items) ? data.items : [];
+                    if (!items.length) {
+                        blockedUsersEmpty.textContent = profileUiText.noBlockedUsers;
+                        return;
+                    }
+                    blockedUsersEmpty.textContent = '';
+                    blockedUsersList.innerHTML = items.map((u) => `
+                        <div class="blocked-user-row" data-user-id="${u.id}">
+                            ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
+                            <span class="blocked-user-name">${u.name}</span>
+                            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">${profileUiText.unblock}</button>
+                        </div>
+                    `).join('');
+                } catch (_) {
+                    blockedUsersEmpty.textContent = profileUiText.blockedListLoadError;
+                }
+            }
 
             if (profileIconBtn && profileDropdown) {
                 profileIconBtn.addEventListener('click', function(e) {
@@ -1632,7 +2163,12 @@
                     }
                     
                     // Toggle profile dropdown
-                    profileDropdown.classList.toggle('show');
+                    const opened = profileDropdown.classList.toggle('show');
+                    profileIconBtn.setAttribute('aria-expanded', String(opened));
+                    if (opened) {
+                        resetProfileSubMenu();
+                        loadSwitches();
+                    }
                 });
 
                 // Prevent dropdown from closing when clicking links inside
@@ -1640,6 +2176,103 @@
                     // Don't prevent navigation for links
                     if (e.target.tagName !== 'A' && !e.target.closest('a')) {
                         e.stopPropagation();
+                    }
+                });
+            }
+
+            loadSidebarDmUnreadCount();
+            setInterval(loadSidebarDmUnreadCount, 10000);
+
+            loadProfileInvitationsCount();
+            setInterval(loadProfileInvitationsCount, 60000);
+
+            if (profileSettingsGear) {
+                profileSettingsGear.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setProfilePanel('settings');
+                });
+            }
+
+            if (profileSettingsBack) {
+                profileSettingsBack.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setProfilePanel('main');
+                });
+            }
+
+            [onlineStatusSwitch, chatNotificationsSwitch].forEach(function(sw, idx) {
+                if (!sw) return;
+                sw.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const isOn = !sw.classList.contains('is-on');
+                    const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
+                    setSwitchState(sw, isOn, key);
+                    if (key === 'ui_online_status') {
+                        applyOnlineVisibilityPreference(isOn);
+                        await persistOnlineVisibility(isOn);
+                    }
+                });
+            });
+
+            // Apply server-backed preference even when the settings dropdown is not opened.
+            applyOnlineVisibilityPreference({% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %});
+
+            if (messageInvitesBtn) {
+                messageInvitesBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = "{% url 'notifications:list' %}";
+                });
+            }
+
+            if (blockedListToggleBtn) {
+                blockedListToggleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const open = blockedUsersContainer ? blockedUsersContainer.hidden : true;
+                    if (blockedUsersContainer) blockedUsersContainer.hidden = !open;
+                    if (open) loadBlockedUsers();
+                });
+            }
+
+            if (blockedUsersList) {
+                blockedUsersList.addEventListener('click', async function(e) {
+                    const btn = e.target.closest('[data-unblock-id]');
+                    if (!btn) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const userId = btn.dataset.unblockId;
+                    const row = btn.closest('.blocked-user-row');
+                    btn.disabled = true;
+
+                    try {
+                        const res = await fetch(`${currentLangPrefix()}/accounts/network/${userId}/unblock/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': getCsrfToken(),
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+                        if (row) {
+                            row.classList.add('removing');
+                            setTimeout(() => row.remove(), 200);
+                        }
+                        setTimeout(() => {
+                            if (!blockedUsersList.querySelector('.blocked-user-row') && blockedUsersEmpty) {
+                                blockedUsersEmpty.textContent = profileUiText.noBlockedUsers;
+                            }
+                        }, 230);
+                        showProfileToast(profileUiText.unblockDone);
+                    } catch (_) {
+                        btn.disabled = false;
+                        showProfileToast(profileUiText.unblockFailed);
                     }
                 });
             }
@@ -1691,6 +2324,7 @@
                     !profileIconBtn.contains(e.target)) {
                     profileDropdown.classList.remove('show');
                     if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+                    resetProfileSubMenu();
                 }
                 
                 // Add language dropdown closing
@@ -2481,20 +3115,285 @@
         
         // Get CSRF token
         function getCsrfToken() {
-            // First try from a hidden input (works even with CSRF_COOKIE_HTTPONLY)
+            // Use Django template tag (works even with CSRF_COOKIE_HTTPONLY=True)
+            const tmpl = "{{ csrf_token }}";
+            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
+            // Fallback: hidden input
             const input = document.querySelector('[name=csrfmiddlewaretoken]');
             if (input) return input.value;
-            // Fallback to cookie
-            const cookieValue = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('csrftoken='));
-            return cookieValue ? cookieValue.split('=')[1] : '';
+            return '';
         }
     })();
     </script>
     <!-- ══════════════════════════════════════════════════════════════════════ -->
     <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
     <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+    <script>
+    (function () {
+        function syncSiteHeaderHeight() {
+            const header = document.querySelector('.site-header');
+            if (!header) return;
+            const h = Math.max(1, Math.ceil(header.getBoundingClientRect().height || header.offsetHeight || 80));
+            document.documentElement.style.setProperty('--site-header-height', `${h}px`);
+        }
+
+        document.addEventListener('DOMContentLoaded', syncSiteHeaderHeight);
+        window.addEventListener('load', syncSiteHeaderHeight);
+        window.addEventListener('resize', syncSiteHeaderHeight);
+    })();
+    </script>
+
+    <!-- Instagram-Style Share Modal -->
+    {% include "includes/share_modal_modern.html" %}
+
+    <!-- Card Chatbot Context Handler -->
+    <script>
+    (function() {
+        'use strict';
+
+        function getCsrfToken() {
+            const tmpl = "{{ csrf_token }}";
+            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrfInput && csrfInput.value) return csrfInput.value;
+            return '';
+        }
+
+        function parseContext(btn) {
+            const raw = btn.dataset.context || '';
+            let parsed = null;
+            if (raw) {
+                try {
+                    parsed = JSON.parse(raw);
+                } catch (e) {
+                    parsed = null;
+                }
+            }
+
+            return {
+                type: btn.dataset.ct || btn.dataset.contentType || parsed?.type || '',
+                id: btn.dataset.oid || btn.dataset.objectId || parsed?.id || '',
+                title: btn.dataset.title || parsed?.title || '',
+                category: btn.dataset.category || parsed?.category || '',
+                author: btn.dataset.author || parsed?.author || '',
+                description: btn.dataset.description || parsed?.description || '',
+                file_content: btn.dataset.fileContent || parsed?.file_content || '',
+                url: btn.dataset.url || parsed?.url || '',
+                tags: btn.dataset.tags || ''
+            };
+        }
+
+        function extractContextFromDOM(btn, context) {
+            const scopedRoot = btn.closest('article, .card, .post-card, .tool-card, .rp-card, .eh-card, .ip-card, .course-hub-card, .corpus-card, .resource-card, .topic-card, form');
+            const findText = (selectors) => {
+                if (!scopedRoot) return '';
+                for (const selector of selectors) {
+                    const el = scopedRoot.querySelector(selector);
+                    const text = (el?.textContent || '').trim();
+                    if (text) return text.replace(/\s+/g, ' ');
+                }
+                return '';
+            };
+            const findValue = (selectors) => {
+                if (!scopedRoot) return '';
+                for (const selector of selectors) {
+                    const el = scopedRoot.querySelector(selector);
+                    const val = (el?.value || '').trim();
+                    if (val) return val;
+                }
+                return '';
+            };
+
+            const title = context.title || findText(['.tool-title-mini', '.corpus-title', '.rp-card-title', '.eh-card-title', '.ip-card-name', '.course-hub-card-title', '.card-title', 'h3', 'h2']) || findValue(['input[name*="title"]']);
+            const author = context.author || findText(['.tool-author-mini', '.meta-item .meta-value', '.rp-meta-item', '.eh-info-row span', '.author-name']) || findValue(['input[name*="author"]', 'input[name*="creator"]']);
+            const category = context.category || findText(['.tool-badge-mini', '.corpus-type-badge', '.rp-status-badge', '.eh-category-badge', '.badge', '.tag-pill']) || findValue(['select[name*="category"]', 'select[name*="field"]']);
+            const description = context.description || findText(['.rp-card-summary', '.eh-card-desc', '.ip-card-desc', '.post-text', '.card-description', 'p']) || findValue(['textarea[name*="description"]', 'textarea[name*="content"]']);
+
+            return {
+                ...context,
+                title,
+                author,
+                category,
+                description,
+                file_content: context.file_content || findValue(['textarea[name*="content"]', 'textarea[name*="text"]']) || ''
+            };
+        }
+
+        function buildContextMessages(context) {
+            const title = context.title || 'this resource';
+            const author = context.author || 'Unknown';
+            const category = context.category || 'General';
+            return {
+                title,
+                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. Catégorie : ${category}.`,
+                autoReply: `Je suis prêt à vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
+            };
+        }
+
+        function forceInjectInChatUI(context, targetWindow) {
+            try {
+                const hostWindow = targetWindow || window;
+                const doc = hostWindow.document;
+                if (!doc) return false;
+
+                const { systemContextMessage } = buildContextMessages(context);
+                const input = doc.querySelector('#user-input, #chat-input, textarea[name="message"], input[name="message"]');
+                if (!input) return false;
+
+                input.focus();
+                input.value = systemContextMessage;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const sendBtn = doc.querySelector('#send-button, .input-btn, .chat-send-btn, button[type="submit"]');
+                if (sendBtn) {
+                    sendBtn.click();
+                } else {
+                    input.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true
+                    }));
+                }
+                console.log('Données transférées au chatbot');
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function buildChatbotUrl(context, startNew) {
+            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
+            if (context.type && context.id) {
+                chatbotUrl.searchParams.set('type', context.type);
+                chatbotUrl.searchParams.set('id', context.id);
+            }
+            chatbotUrl.searchParams.set('source', 'card');
+            if (startNew) chatbotUrl.searchParams.set('new_analysis', '1');
+            return chatbotUrl.toString();
+        }
+
+        function pushContextToLocalChatbot(context, startNew) {
+            window.chatbotContext = context;
+            window.dispatchEvent(new CustomEvent('chatbot:set-context', { detail: { context, startNew } }));
+
+            const { systemContextMessage, autoReply } = buildContextMessages(context);
+
+            let bridged = false;
+            if (window.chat) {
+                try {
+                    if (typeof window.chat.setContext === 'function') {
+                        window.chat.setContext(context, { startNew });
+                    }
+                    if (typeof window.chat.open === 'function') {
+                        window.chat.open();
+                    }
+                    if (typeof window.chat.sendMessage === 'function') {
+                        window.chat.sendMessage(autoReply);
+                    }
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (window.myChatbot && typeof window.myChatbot.sendMessage === 'function') {
+                try {
+                    window.myChatbot.sendMessage(systemContextMessage, { role: 'system', hidden: true, silent: true, context: true, preserveHistory: !startNew });
+                    window.myChatbot.sendMessage(autoReply, { role: 'assistant', auto: true });
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (!bridged && typeof window.appendMessage === 'function') {
+                try {
+                    window.appendMessage(systemContextMessage, 'system', { hidden: true, context: true, preserveHistory: !startNew });
+                    window.appendMessage(autoReply, 'assistant', { auto: true });
+                    bridged = true;
+                } catch (e) {}
+            }
+
+            if (!bridged) {
+                window.dispatchEvent(new CustomEvent('chatbot:append-message', {
+                    detail: {
+                        messages: [
+                            { role: 'system', content: systemContextMessage, hidden: true, context: true, preserveHistory: !startNew },
+                            { role: 'assistant', content: autoReply, auto: true }
+                        ]
+                    }
+                }));
+            }
+
+            if (!bridged) {
+                bridged = forceInjectInChatUI(context, window);
+            }
+            if (bridged) {
+                console.log('Données transférées au chatbot');
+            }
+            return bridged;
+        }
+
+        function handleAskChatbot(btn) {
+            const context = extractContextFromDOM(btn, parseContext(btn));
+            const previousContextTitle = sessionStorage.getItem('chatbot_last_context_title') || '';
+            let startNew = false;
+
+            if (previousContextTitle && context.title && previousContextTitle !== context.title) {
+                const keepHistory = confirm("{% trans 'A previous chatbot context exists. Click OK to keep the same conversation and update context, or Cancel to start a new analysis.' %}");
+                startNew = !keepHistory;
+            }
+
+            sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
+                ...context,
+                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
+            }));
+            sessionStorage.setItem('chatbot_last_context_title', context.title || '');
+
+            const finalizeBridge = () => {
+                window.location.assign(buildChatbotUrl(context, startNew));
+            };
+
+            fetch("{% url 'chatbot:set_card_context' %}", {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    ...context,
+                    start_new: startNew
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to set chatbot context');
+                return response.json();
+            })
+            .then(() => {
+                finalizeBridge();
+            })
+            .catch(err => {
+                console.warn('Chatbot context endpoint failed, fallback bridge used:', err);
+                finalizeBridge();
+            });
+        }
+
+        // Backward-compatible global API for old onclick handlers
+        window.openChatbotWithContext = function(button) {
+            if (!button) return;
+            handleAskChatbot(button);
+        };
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.ask-chatbot-btn');
+            if (!btn) return;
+            e.preventDefault();
+            handleAskChatbot(btn);
+        });
+    })();
+    </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>

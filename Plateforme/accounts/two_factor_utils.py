@@ -5,6 +5,7 @@ import redis
 import secrets
 import string
 from django.conf import settings
+from django.utils.translation import get_language
 from datetime import datetime, timedelta
 import json
 import logging
@@ -22,6 +23,24 @@ redis_client = redis.StrictRedis(
 
 # Cooldown period between OTP requests (seconds)
 OTP_COOLDOWN_SECONDS = 60
+
+
+def _otp_msg(key: str) -> str:
+    """Return localized OTP messages without relying on .po availability."""
+    is_ar = (get_language() or "").startswith("ar")
+    ar = {
+        "expired": "انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد.",
+        "verified": "تم التحقق من الرمز بنجاح.",
+        "invalid": "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى.",
+        "error": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+    }
+    en = {
+        "expired": "OTP expired. Please request a new one.",
+        "verified": "OTP verified successfully.",
+        "invalid": "Invalid OTP code. Please try again.",
+        "error": "An error occurred. Please try again.",
+    }
+    return ar[key] if is_ar else en[key]
 
 def generate_otp(length=6):
     """
@@ -101,7 +120,7 @@ def verify_otp(user_id, submitted_code):
         if not stored_data:
             return {
                 'valid': False,
-                'message': 'OTP expired. Please request a new one.'
+                'message': _otp_msg('expired')
             }
         
         data = json.loads(stored_data)
@@ -113,7 +132,7 @@ def verify_otp(user_id, submitted_code):
             redis_client.delete(key)
             return {
                 'valid': False,
-                'message': 'OTP expired. Please request a new one.'
+                'message': _otp_msg('expired')
             }
         
         # Check if code matches
@@ -121,19 +140,19 @@ def verify_otp(user_id, submitted_code):
             redis_client.delete(key)  # Delete OTP after successful verification
             return {
                 'valid': True,
-                'message': 'OTP verified successfully.'
+                'message': _otp_msg('verified')
             }
         else:
             return {
                 'valid': False,
-                'message': 'Invalid OTP code. Please try again.'
+                'message': _otp_msg('invalid')
             }
     
     except Exception as e:
         logger.error(f"Error verifying OTP: {e}")
         return {
             'valid': False,
-            'message': 'An error occurred. Please try again.'
+            'message': _otp_msg('error')
         }
 
 def get_otp_expiry(user_id):

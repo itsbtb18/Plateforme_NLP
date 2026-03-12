@@ -1,0 +1,46 @@
+👩‍🔬 1. Amina - QA, Tests & Recommandations
+Mission : Tester manuellement toutes les fonctionnalités de chaque section (Translation, Account, Events, Forum, Institutions, Notifications, Projects, QA, Search, Resources, Front-end)
+
+
+analyser chaque folder pour avoir la loqique et si ya des bugs .... et recomenedations ce que il faut reste ce elimine dans radme file
+en dire tt la logiquee de chaque section avec des nvl recommendation
+//propositions 
+1. Section : Translation (i18n Django)
+Cible : settings.py, dossiers locale/, et templates.
+
+Prompt : "Analyse la configuration de l'internationalisation (i18n) dans ce projet Django. Vérifie dans les fichiers settings.py et les templates si les balises {% trans %} et {% blocktrans %} sont correctement utilisées. Identifie les chaînes de caractères 'hardcoded' (en dur) qui auraient été oubliées. La logique de changement de langue via les préfixes d'URL (ex: /ar/, /fr/) est-elle bien implémentée ? Propose une amélioration pour automatiser la détection de la langue du navigateur."
+
+👤 2. Section : Account (Profils & Auth)
+Cible : accounts/models.py, accounts/views.py, accounts/forms.py.
+
+Prompt : "Analyse la logique de gestion des comptes utilisateurs. Vérifie la sécurité de l'authentification et les validations dans ProfileEditView. Y a-t-il un risque de faille IDOR (un utilisateur modifiant le profil d'un autre via l'UUID dans l'URL) ? Vérifie si l'upload de l'avatar est sécurisé contre les fichiers malveillants. Amélioration future : Suggère comment implémenter un système de complétion de profil (en pourcentage) pour encourager les utilisateurs à remplir leur bio."
+
+📅 3. Section : Events & Projects
+Cible : events/ et projects/ (models et views).
+
+Prompt : "Examine la logique CRUD pour les événements et les projets. Vérifie la validation des dates : le système empêche-t-il une date de fin d'être antérieure à une date de début ? Analyse les permissions (LoginRequiredMixin, UserPassesTestMixin) pour s'assurer que seul le propriétaire peut modifier son projet. Recommandation README : Quels champs sont obligatoires ? Futur : Propose une logique pour lier automatiquement un projet à une institution via un système de suggestions."
+
+💬 4. Section : Forum & QA
+Cible : forum/ et qa/.
+
+Prompt : "Compare la logique du dossier Forum et du dossier QA. Le dossier QA implémente-t-il correctement le marquage d'une 'Meilleure Réponse' ? Vérifie s'il y a des protections contre le spam ou les votes multiples (upvotes). Analyse la sécurité des champs de texte : les entrées sont-elles protégées contre les attaques XSS (Cross-Site Scripting) ? Amélioration : Propose un système de points de réputation pour les utilisateurs actifs."
+
+🏢 5. Section : Institutions & Notifications
+Cible : institutions/ et notifications/.
+
+Prompt : "Analyse le dossier Institutions : comment la relation entre un utilisateur et une institution est-elle gérée ? Pour les Notifications, vérifie si la logique utilise des signaux Django (post_save). Est-ce que les notifications sont supprimées ou archivées après lecture pour éviter d'encombrer la base de données ? Futur : Comment pourrions-nous intégrer des notifications push ou par email ?"
+
+🔍 6. Section : Search & Resources (Logique IA/RAG)
+Cible : search/ et resources/.
+
+Prompt : "Analyse le moteur de recherche actuel. Est-il basé uniquement sur des filtres SQL __icontains ? En te basant sur les concepts de RAG (Retrieval Augmented Generation) et de recherche sémantique, propose une architecture pour transformer la section Resources en une base de connaissances intelligente. Identifie les bugs potentiels dans la gestion des fichiers volumineux (PDF/Docs) lors de l'upload."
+
+🎨 7. Section : Front-end & UI/UX
+Cible : templates/base.html, CSS, et JS.
+
+Prompt : "Analyse la structure globale des templates. Vérifie si le base.html gère correctement les blocs extra_css et extra_js pour éviter les conflits de chargement. Identifie les éléments qui pourraient poser problème sur mobile (Responsive design). Nettoyage : Y a-t-il des bibliothèques JS importées mais jamais utilisées ? Suggère une refonte de la barre de navigation pour inclure le sélecteur de langue et les notifications de manière plus fluide."
+
+📝 8. Audit pour le README (Synthèse)
+Cible : Tous les dossiers.
+
+Prompt : "En te basant sur l'analyse globale de tous les dossiers précédents, rédige une section 'Architecture Logicielle' pour le fichier README. Précise quelles fonctionnalités sont stables et lesquelles doivent être supprimées car redondantes (ex: différence entre Forum et QA si trop proches). Liste les dépendances critiques à installer absolument dans l'environnement virtuel."

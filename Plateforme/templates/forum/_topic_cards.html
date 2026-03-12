@@ -25,8 +25,8 @@
                 <i class="bi bi-chat-dots"></i>
             </a>
             {% if topic.creator == user or user.is_staff %}
-            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% translate 'Edit' %}">
-                <i class="bi bi-pencil"></i>
+            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% if topic.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
+                <i class="bi {% if topic.approval_status == 'pending' %}bi-file-earmark-text{% else %}bi-pencil{% endif %}"></i>
             </a>
             <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
                 <i class="bi bi-trash3"></i>
@@ -36,16 +36,17 @@
     </div>
     
     <div class="ft-content-col">
-        {% if topic.approval_status == 'pending' and topic.creator == user %}
-        <span class="ft-pending-badge">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <div>
+            {% if topic.approval_status == 'pending' and topic.creator == user %}
+            <span class="ft-pending-badge">
             <i class="bi bi-hourglass-split"></i>
             {% translate "Pending Approval" %}
         </span>
-        {% endif %}
-        
-        <h3 class="ft-topic-title">
-            <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
-        </h3>
+            {% endif %}
+            </div>
+            {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
+        </div>
         <p class="ft-topic-excerpt">{{ topic.get_localized_description|truncatechars:150 }}</p>
         
         <div class="ft-topic-tags">

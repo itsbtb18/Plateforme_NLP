@@ -1,1189 +1,320 @@
 {% extends "base.html" %}
-{% load static crispy_forms_tags i18n %}
-{% get_current_language as language_code %}
+{% load static i18n %}
 
-{% block title %}{% translate "Create Course" %} | {% translate "Course Builder" %}{% endblock %}
+{% block title %}{% trans "Create Course" %} - {% trans "Academic Platform" %}{% endblock %}
 
 {% block extra_styles %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<style>
-/* ===== COURSE BUILDER CSS ARCHITECTURE ===== */
-/* Scoped classes to prevent conflicts */
-
-:root {
-    /* Builder Theme Colors */
-    --builder-deep: #0f172a;
-    --builder-navy: #1e3a5f;
-    --builder-primary: #2563eb;
-    --builder-primary-light: #3b82f6;
-    --builder-primary-hover: #1d4ed8;
-    --builder-primary-glow: rgba(37, 99, 235, 0.12);
-    
-    /* Status Colors */
-    --builder-success: #059669;
-    --builder-success-bg: rgba(5, 150, 105, 0.1);
-    --builder-warning: #d97706;
-    --builder-warning-bg: rgba(217, 119, 6, 0.1);
-    --builder-error: #dc2626;
-    --builder-error-bg: rgba(220, 38, 38, 0.1);
-    
-    /* Surfaces */
-    --builder-white: #ffffff;
-    --builder-surface: #ffffff;
-    --builder-bg: #f8fafc;
-    --builder-muted: #f1f5f9;
-    --builder-subtle: #e2e8f0;
-    
-    /* Borders */
-    --builder-border: #e2e8f0;
-    --builder-border-hover: #cbd5e1;
-    --builder-border-focus: var(--builder-primary);
-    
-    /* Typography */
-    --builder-text: #0f172a;
-    --builder-text-secondary: #475569;
-    --builder-text-muted: #94a3b8;
-    
-    /* Effects */
-    --builder-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --builder-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
-    --builder-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-    --builder-shadow-card: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
-    --builder-shadow-hover: 0 10px 40px rgba(37, 99, 235, 0.12);
-    
-    /* Radii */
-    --builder-radius-sm: 6px;
-    --builder-radius-md: 10px;
-    --builder-radius-lg: 14px;
-    --builder-radius-xl: 20px;
-    --builder-radius-full: 9999px;
-}
-
-/* Typography */
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-html[dir="rtl"] body {
-    font-family: 'Tajawal', 'Inter', sans-serif;
-}
-
-/* ===== PAGE LAYOUT ===== */
-.course-builder-page {
-    min-height: 100vh;
-    background: var(--builder-bg);
-}
-
-/* ===== HERO HEADER ===== */
-.course-builder-hero {
-    background: linear-gradient(145deg, var(--builder-deep) 0%, var(--builder-navy) 100%);
-    padding: 2.5rem 0 4rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.course-builder-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: 
-        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(37, 99, 235, 0.2), transparent),
-        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    pointer-events: none;
-}
-
-.course-builder-hero-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-}
-
-/* Breadcrumb */
-.course-builder-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-    font-size: 0.85rem;
-}
-
-.course-builder-breadcrumb a {
-    color: rgba(255, 255, 255, 0.7);
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.course-builder-breadcrumb a:hover {
-    color: var(--builder-white);
-}
-
-.course-builder-breadcrumb span {
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.course-builder-breadcrumb .current {
-    color: var(--builder-white);
-    font-weight: 500;
-}
-
-/* Title Block */
-.course-builder-title-block {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.25rem;
-}
-
-.course-builder-icon-box {
-    width: 64px;
-    height: 64px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    border-radius: var(--builder-radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.course-builder-icon-box i {
-    font-size: 1.75rem;
-    color: var(--builder-white);
-}
-
-.course-builder-title-content h1 {
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 800;
-    color: var(--builder-white);
-    margin: 0 0 0.5rem;
-    letter-spacing: -0.3px;
-}
-
-.course-builder-title-content p {
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0;
-    max-width: 480px;
-}
-
-/* ===== PROGRESS STEPS ===== */
-.course-builder-progress {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    margin-top: 2rem;
-    padding: 1.25rem 1.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--builder-radius-full);
-}
-
-.course-builder-step {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-}
-
-.course-builder-step-num {
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.15);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.6);
-    transition: all 0.3s;
-}
-
-.course-builder-step-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.6);
-    transition: all 0.3s;
-}
-
-.course-builder-step.active .course-builder-step-num {
-    background: var(--builder-primary);
-    border-color: var(--builder-primary);
-    color: var(--builder-white);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
-}
-
-.course-builder-step.active .course-builder-step-label {
-    color: var(--builder-white);
-}
-
-.course-builder-step.completed .course-builder-step-num {
-    background: var(--builder-success);
-    border-color: var(--builder-success);
-    color: var(--builder-white);
-}
-
-.course-builder-step-line {
-    width: 50px;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.2);
-    margin: 0 0.75rem;
-}
-
-.course-builder-step.completed + .course-builder-step-line {
-    background: var(--builder-success);
-}
-
-@media (max-width: 768px) {
-    .course-builder-step-label {
-        display: none;
-    }
-    
-    .course-builder-step-line {
-        width: 30px;
-    }
-}
-
-/* ===== FORM CONTAINER ===== */
-.course-builder-container {
-    max-width: 900px;
-    margin: -2rem auto 0;
-    padding: 0 2rem 4rem;
-    position: relative;
-    z-index: 5;
-}
-
-.course-builder-form-card {
-    background: var(--builder-white);
-    border: 1px solid var(--builder-border);
-    border-radius: var(--builder-radius-xl);
-    box-shadow: var(--builder-shadow-card);
-    overflow: hidden;
-}
-
-/* ===== FORM SECTIONS ===== */
-.course-builder-section {
-    padding: 0;
-    border-bottom: 1px solid var(--builder-border);
-}
-
-.course-builder-section:last-of-type {
-    border-bottom: none;
-}
-
-.course-builder-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
-    padding: 1.25rem 1.75rem;
-    background: var(--builder-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.course-builder-section-header:hover {
-    background: var(--builder-subtle);
-}
-
-.course-builder-section-icon {
-    width: 40px;
-    height: 40px;
-    background: var(--builder-white);
-    border-radius: var(--builder-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: var(--builder-shadow-sm);
-}
-
-.course-builder-section-icon i {
-    font-size: 1.125rem;
-    color: var(--builder-primary);
-}
-
-.course-builder-section-title {
-    flex: 1;
-}
-
-.course-builder-section-title h2 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--builder-text);
-    margin: 0 0 0.125rem;
-}
-
-.course-builder-section-title p {
-    font-size: 0.8rem;
-    color: var(--builder-text-muted);
-    margin: 0;
-}
-
-.course-builder-section-toggle {
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--builder-text-muted);
-    transition: transform 0.25s;
-}
-
-.course-builder-section.collapsed .course-builder-section-toggle {
-    transform: rotate(-90deg);
-}
-
-html[dir="rtl"] .course-builder-section.collapsed .course-builder-section-toggle {
-    transform: rotate(90deg);
-}
-
-.course-builder-section-body {
-    padding: 1.75rem;
-    display: block;
-}
-
-.course-builder-section.collapsed .course-builder-section-body {
-    display: none;
-}
-
-/* ===== FORM FIELDS ===== */
-.course-builder-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-    margin-bottom: 1.25rem;
-}
-
-.course-builder-row.single {
-    grid-template-columns: 1fr;
-}
-
-@media (max-width: 640px) {
-    .course-builder-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-.course-builder-field {
-    margin-bottom: 1.25rem;
-}
-
-.course-builder-field:last-child {
-    margin-bottom: 0;
-}
-
-/* Floating Label Styles */
-.course-builder-field .form-group {
-    position: relative;
-    margin-bottom: 0;
-}
-
-.course-builder-field label {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--builder-text-secondary);
-    margin-bottom: 0.5rem;
-    transition: all 0.2s;
-}
-
-.course-builder-field .form-control,
-.course-builder-field .form-select,
-.course-builder-field select,
-.course-builder-field input[type="text"],
-.course-builder-field input[type="url"],
-.course-builder-field input[type="number"],
-.course-builder-field textarea {
-    width: 100%;
-    padding: 0.875rem 1rem;
-    background: var(--builder-muted);
-    border: 2px solid transparent;
-    border-radius: var(--builder-radius-md);
-    font-family: inherit;
-    font-size: 0.95rem;
-    color: var(--builder-text);
-    transition: all 0.25s;
-}
-
-.course-builder-field .form-control:hover,
-.course-builder-field .form-select:hover,
-.course-builder-field select:hover,
-.course-builder-field input:hover,
-.course-builder-field textarea:hover {
-    background: var(--builder-subtle);
-}
-
-.course-builder-field .form-control:focus,
-.course-builder-field .form-select:focus,
-.course-builder-field select:focus,
-.course-builder-field input:focus,
-.course-builder-field textarea:focus {
-    outline: none;
-    background: var(--builder-white);
-    border-color: var(--builder-primary);
-    box-shadow: 0 0 0 4px var(--builder-primary-glow);
-}
-
-.course-builder-field .form-control::placeholder,
-.course-builder-field input::placeholder,
-.course-builder-field textarea::placeholder {
-    color: var(--builder-text-muted);
-}
-
-.course-builder-field textarea {
-    min-height: 120px;
-    resize: vertical;
-}
-
-.course-builder-field .form-text,
-.course-builder-field .help-block {
-    font-size: 0.75rem;
-    color: var(--builder-text-muted);
-    margin-top: 0.375rem;
-}
-
-/* Error States */
-.course-builder-field .is-invalid,
-.course-builder-field .has-error input,
-.course-builder-field .has-error select,
-.course-builder-field .has-error textarea {
-    border-color: var(--builder-error) !important;
-    background: var(--builder-error-bg) !important;
-}
-
-.course-builder-field .invalid-feedback,
-.course-builder-field .error-block {
-    font-size: 0.75rem;
-    color: var(--builder-error);
-    margin-top: 0.375rem;
-}
-
-/* ===== DRAG & DROP ZONE ===== */
-.course-builder-dropzone {
-    position: relative;
-    padding: 2rem;
-    background: var(--builder-muted);
-    border: 2px dashed var(--builder-border);
-    border-radius: var(--builder-radius-lg);
-    text-align: center;
-    transition: all 0.25s;
-    cursor: pointer;
-}
-
-.course-builder-dropzone:hover {
-    border-color: var(--builder-primary);
-    background: var(--builder-primary-glow);
-}
-
-.course-builder-dropzone.dragover {
-    border-color: var(--builder-primary);
-    background: var(--builder-primary-glow);
-    transform: scale(1.01);
-}
-
-.course-builder-dropzone-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 1rem;
-    background: var(--builder-white);
-    border-radius: var(--builder-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--builder-shadow-sm);
-}
-
-.course-builder-dropzone-icon i {
-    font-size: 1.5rem;
-    color: var(--builder-primary);
-}
-
-.course-builder-dropzone h4 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--builder-text);
-    margin: 0 0 0.375rem;
-}
-
-.course-builder-dropzone p {
-    font-size: 0.85rem;
-    color: var(--builder-text-muted);
-    margin: 0 0 0.75rem;
-}
-
-.course-builder-dropzone-hint {
-    font-size: 0.75rem;
-    color: var(--builder-text-muted);
-    background: var(--builder-white);
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--builder-radius-full);
-    display: inline-block;
-}
-
-.course-builder-dropzone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-}
-
-/* ===== FOOTER ACTIONS ===== */
-.course-builder-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 1.75rem;
-    background: var(--builder-muted);
-    border-top: 1px solid var(--builder-border);
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.course-builder-footer-note {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--builder-text-muted);
-}
-
-.course-builder-footer-note i {
-    color: var(--builder-warning);
-}
-
-.course-builder-footer-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.course-builder-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    border-radius: var(--builder-radius-md);
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.25s;
-    border: none;
-}
-
-.course-builder-btn.secondary {
-    background: var(--builder-white);
-    color: var(--builder-text);
-    border: 1px solid var(--builder-border);
-}
-
-.course-builder-btn.secondary:hover {
-    background: var(--builder-muted);
-    border-color: var(--builder-border-hover);
-    color: var(--builder-text);
-}
-
-.course-builder-btn.primary {
-    background: linear-gradient(135deg, var(--builder-primary), var(--builder-primary-light));
-    color: var(--builder-white);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-}
-
-.course-builder-btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
-}
-
-.course-builder-btn.primary:active {
-    transform: translateY(0);
-}
-
-.course-builder-btn i {
-    font-size: 1rem;
-}
-
-/* ===== TRANSLATION GATE ===== */
-.course-builder-translation-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.875rem;
-    padding: 1rem 1.25rem;
-    background: var(--builder-primary-glow);
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    border-radius: var(--builder-radius-md);
-    margin-bottom: 1.5rem;
-}
-
-.course-builder-translation-note i {
-    font-size: 1.25rem;
-    color: var(--builder-primary);
-    flex-shrink: 0;
-    margin-top: 0.125rem;
-}
-
-.course-builder-translation-note p {
-    font-size: 0.85rem;
-    color: var(--builder-text-secondary);
-    margin: 0;
-    line-height: 1.5;
-}
-
-.course-builder-translation-note strong {
-    color: var(--builder-primary);
-}
-
-/* ===== RTL SUPPORT ===== */
-[dir="rtl"] .course-builder-breadcrumb,
-html[dir="rtl"] .course-builder-breadcrumb {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-title-block,
-html[dir="rtl"] .course-builder-title-block {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-title-content h1,
-[dir="rtl"] .course-builder-title-content p,
-html[dir="rtl"] .course-builder-title-content h1,
-html[dir="rtl"] .course-builder-title-content p {
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-footer,
-html[dir="rtl"] .course-builder-footer {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .course-builder-footer-actions,
-html[dir="rtl"] .course-builder-footer-actions {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .course-builder-section-header,
-html[dir="rtl"] .course-builder-section-header {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-section-body,
-html[dir="rtl"] .course-builder-section-body {
-    direction: rtl;
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-section-body input,
-[dir="rtl"] .course-builder-section-body textarea,
-[dir="rtl"] .course-builder-section-body select,
-html[dir="rtl"] .course-builder-section-body input,
-html[dir="rtl"] .course-builder-section-body textarea,
-html[dir="rtl"] .course-builder-section-body select {
-    text-align: right;
-    direction: rtl;
-}
-
-[dir="rtl"] .course-builder-section-body label,
-html[dir="rtl"] .course-builder-section-body label {
-    text-align: right;
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .course-builder-progress,
-html[dir="rtl"] .course-builder-progress {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .course-builder-field,
-html[dir="rtl"] .course-builder-field {
-    direction: rtl;
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-field label,
-html[dir="rtl"] .course-builder-field label {
-    text-align: right;
-}
-
-[dir="rtl"] .course-builder-field input,
-[dir="rtl"] .course-builder-field textarea,
-[dir="rtl"] .course-builder-field select,
-html[dir="rtl"] .course-builder-field input,
-html[dir="rtl"] .course-builder-field textarea,
-html[dir="rtl"] .course-builder-field select {
-    text-align: right;
-    direction: rtl;
-}
-
-[dir="rtl"] .course-builder-dropzone,
-html[dir="rtl"] .course-builder-dropzone {
-    direction: rtl;
-    text-align: center;
-}
-
-[dir="rtl"] .course-builder-dropzone h4,
-[dir="rtl"] .course-builder-dropzone p,
-html[dir="rtl"] .course-builder-dropzone h4,
-html[dir="rtl"] .course-builder-dropzone p {
-    text-align: center;
-}
-
-html[dir="rtl"] .course-builder-footer-actions {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .course-builder-footer-actions .course-builder-btn.primary {
-    order: -1;
-}
-
-html[dir="rtl"] .course-builder-footer-actions .course-builder-btn.secondary {
-    order: 0;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-    .course-builder-hero {
-        padding: 2rem 0 3rem;
-    }
-    
-    .course-builder-hero-container {
-        padding: 0 1rem;
-    }
-    
-    .course-builder-title-block {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    html[dir="rtl"] .course-builder-title-block {
-        flex-direction: column;
-    }
-    
-    .course-builder-container {
-        padding: 0 1rem 3rem;
-    }
-    
-    .course-builder-section-header {
-        padding: 1rem 1.25rem;
-    }
-    
-    .course-builder-section-body {
-        padding: 1.25rem;
-    }
-    
-    .course-builder-footer {
-        padding: 1.25rem;
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .course-builder-footer-actions {
-        justify-content: stretch;
-    }
-    
-    .course-builder-btn {
-        flex: 1;
-        justify-content: center;
-    }
-}
-
-/* ===== ANIMATIONS ===== */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.course-builder-section-body {
-    animation: slideDown 0.3s ease-out;
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<link rel="stylesheet" href="{% static 'css/course_form.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="course-builder-page" {% if language_code == 'ar' %}dir="rtl"{% else %}dir="ltr"{% endif %}>
-    
-    <!-- ============ HERO HEADER ============ -->
-    <header class="course-builder-hero">
-        <div class="course-builder-hero-container">
-            
-            <!-- Breadcrumb -->
-            <nav class="course-builder-breadcrumb">
-                <a href="{% url 'resources:course_list' %}">{% translate "Courses" %}</a>
-                <span><i class="bi bi-chevron-right"></i></span>
-                <span class="current">{% translate "Create New Course" %}</span>
-            </nav>
-            
-            <!-- Title Block -->
-            <div class="course-builder-title-block">
-                <div class="course-builder-icon-box">
-                    <i class="bi bi-mortarboard-fill"></i>
-                </div>
-                <div class="course-builder-title-content">
-                    <h1>{% translate "Course Builder" %}</h1>
-                    <p>{% translate "Create comprehensive educational content for the Arabic NLP Academy." %}</p>
-                </div>
-            </div>
-            
-            <!-- Progress Steps -->
-            <div class="course-builder-progress">
-                <div class="course-builder-step active" data-step="1">
-                    <span class="course-builder-step-num">1</span>
-                    <span class="course-builder-step-label">{% translate "Identity" %}</span>
-                </div>
-                <div class="course-builder-step-line"></div>
-                <div class="course-builder-step" data-step="2">
-                    <span class="course-builder-step-num">2</span>
-                    <span class="course-builder-step-label">{% translate "Content" %}</span>
-                </div>
-                <div class="course-builder-step-line"></div>
-                <div class="course-builder-step" data-step="3">
-                    <span class="course-builder-step-num">3</span>
-                    <span class="course-builder-step-label">{% translate "Academic Details" %}</span>
-                </div>
-                <div class="course-builder-step-line"></div>
-                <div class="course-builder-step" data-step="4">
-                    <span class="course-builder-step-num">4</span>
-                    <span class="course-builder-step-label">{% translate "Syllabus" %}</span>
-                </div>
-                <div class="course-builder-step-line"></div>
-                <div class="course-builder-step" data-step="5">
-                    <span class="course-builder-step-num">5</span>
-                    <span class="course-builder-step-label">{% translate "Prerequisites" %}</span>
-                </div>
-            </div>
-            
+<div class="page-wrapper">
+    <header class="page-header">
+        <div class="page-header-content">
+            <h1>{% trans "Create New Course" %}</h1>
+            <p>{% trans "Share your academic course with the NLP research community" %}</p>
         </div>
     </header>
     
-    <!-- ============ FORM CONTAINER ============ -->
-    <div class="course-builder-container">
-        <form method="post" enctype="multipart/form-data" class="course-builder-form-card" novalidate>
+    <div class="form-container">
+        <form method="post" enctype="multipart/form-data" id="course-form" novalidate>
             {% csrf_token %}
             <input type="hidden" name="resource_type" value="course">
             
-            <!-- ===== SECTION 1: COURSE IDENTITY ===== -->
-            <div class="course-builder-section" data-section="1">
-                <div class="course-builder-section-header" onclick="toggleSection(this)">
-                    <div class="course-builder-section-icon">
-                        <i class="bi bi-bookmark-star"></i>
-                    </div>
-                    <div class="course-builder-section-title">
-                        <h2>{% translate "Course Identity" %}</h2>
-                        <p>{% translate "Title, language, and primary categorization" %}</p>
-                    </div>
-                    <div class="course-builder-section-toggle">
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
+            <!-- Error Display -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
                 </div>
-                <div class="course-builder-section-body">
-                    
-                    <!-- Translation Note -->
-                    <div class="course-builder-translation-note">
-                        <i class="bi bi-translate"></i>
-                        <p>
-                            <strong>{% translate "Translation Gate:" %}</strong>
-                            {% translate "Enter content in your primary language. Once approved, administrators will provide translations for multilingual support." %}
-                        </p>
-                    </div>
-                    
-                    <div class="course-builder-field">
-                        {{ form.title_en|as_crispy_field }}
-                    </div>
-                    
-                    <div class="course-builder-field">
-                        {{ form.title_ar|as_crispy_field }}
-                    </div>
-                    
-                    <div class="course-builder-row">
-                        <div class="course-builder-field">
-                            {{ form.language|as_crispy_field }}
-                        </div>
-                        <div class="course-builder-field">
-                            {{ form.keywords|as_crispy_field }}
-                        </div>
-                    </div>
-                    
-                </div>
-            </div>
-            
-            <!-- ===== SECTION 2: EDUCATIONAL CONTENT ===== -->
-            <div class="course-builder-section" data-section="2">
-                <div class="course-builder-section-header" onclick="toggleSection(this)">
-                    <div class="course-builder-section-icon">
-                        <i class="bi bi-journal-text"></i>
-                    </div>
-                    <div class="course-builder-section-title">
-                        <h2>{% translate "Educational Content" %}</h2>
-                        <p>{% translate "Course description and learning materials" %}</p>
-                    </div>
-                    <div class="course-builder-section-toggle">
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="course-builder-section-body">
-                    
-                    <div class="course-builder-field">
-                        {{ form.description_en|as_crispy_field }}
-                    </div>
-                    
-                    <div class="course-builder-field">
-                        {{ form.description_ar|as_crispy_field }}
-                    </div>
-                    
-                    <div class="course-builder-field">
-                        {{ form.access_link|as_crispy_field }}
-                    </div>
-                    
-                    <!-- Drag & Drop Zone for Course Materials -->
-                    {% if form.file %}
-                    <div class="course-builder-field">
-                        <label>{% translate "Course Materials" %}</label>
-                        <div class="course-builder-dropzone" id="courseDropzone">
-                            <div class="course-builder-dropzone-icon">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                            </div>
-                            <h4>{% translate "Upload Course Materials" %}</h4>
-                            <p>{% translate "Drag & drop your course files here, or click to browse" %}</p>
-                            <span class="course-builder-dropzone-hint">
-                                {% translate "PDF, DOCX, PPTX up to 50MB" %}
-                            </span>
-                            {{ form.file }}
-                        </div>
-                    </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    {% if form.non_field_errors %}
+                        <ul>
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                        </ul>
                     {% endif %}
-                    
+                    {% if form.errors %}
+                        <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% if field != '__all__' %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
                 </div>
             </div>
+            {% endif %}
             
-            <!-- ===== SECTION 3: ACADEMIC DETAILS ===== -->
-            <div class="course-builder-section" data-section="3">
-                <div class="course-builder-section-header" onclick="toggleSection(this)">
-                    <div class="course-builder-section-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <div class="course-builder-section-title">
-                        <h2>{% translate "Academic Details" %}</h2>
-                        <p>{% translate "Institution, level, and academic year" %}</p>
-                    </div>
-                    <div class="course-builder-section-toggle">
-                        <i class="bi bi-chevron-down"></i>
+            <!-- 2-Column Grid Layout -->
+            <div class="form-grid">
+                
+                <!-- LEFT COLUMN: Upload Area (35%) -->
+                <div class="upload-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% trans "Upload Document" %}</h2>
+                            <p>{% trans "Syllabus, materials, or resources" %}</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-zone" id="upload-zone">
+                                <div class="upload-icon">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                </div>
+                                <div class="upload-title">{% trans "Drop file here" %}</div>
+                                <div class="upload-subtitle">{% trans "or click to browse" %}</div>
+                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".pdf,.doc,.docx,.ppt,.pptx">
+                            </div>
+                            
+                            <div class="file-preview" id="file-preview">
+                                <div class="file-icon">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name" id="file-name">filename.pdf</div>
+                                    <div class="file-size" id="file-size">2.5 MB</div>
+                                </div>
+                                <button type="button" class="file-remove" id="file-remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="course-builder-section-body">
-                    
-                    <div class="course-builder-row">
-                        <div class="course-builder-field">
-                            {{ form.course_field|as_crispy_field }}
+                
+                <!-- RIGHT COLUMN: Metadata Form (65%) -->
+                <div class="metadata-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% trans "Course Information" %}</h2>
+                            <p>{% trans "Provide essential course details" %}</p>
                         </div>
-                        <div class="course-builder-field">
-                            {{ form.academic_level|as_crispy_field }}
+                        <div class="card-body">
+                            
+                            <!-- Translation Toggle -->
+                            <div class="translation-toggle">
+                                <span class="translation-toggle-label">
+                                    <i class="bi bi-translate"></i> {% trans "Add Arabic Translation" %}
+                                </span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="translation-toggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- Title (English) -->
+                            <div class="form-group">
+                                <label for="id_title_en">
+                                    {% trans "Course Title (English)" %} <span class="required">*</span>
+                                </label>
+                                {{ form.title_en }}
+                            </div>
+                            
+                            <!-- Title (Arabic) - Conditional -->
+                            <div class="arabic-fields" id="arabic-title">
+                                <div class="form-group">
+                                    <label for="id_title_ar">{% trans "Course Title (Arabic)" %}</label>
+                                    {{ form.title_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Field & Level Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_course_field">
+                                        {% trans "Field of Study" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.course_field }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_academic_level">
+                                        {% trans "Academic Level" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.academic_level }}
+                                </div>
+                            </div>
+                            
+                            <!-- Institution & Year Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_course_institution">
+                                        {% trans "Institution" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.course_institution }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_academic_year">
+                                        {% trans "Academic Year" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.academic_year }}
+                                    <span class="form-text">{% trans "Format: 2023-2024" %}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Language -->
+                            <div class="form-group">
+                                <label for="id_language">
+                                    {% trans "Teaching Language" %} <span class="required">*</span>
+                                </label>
+                                {{ form.language }}
+                            </div>
+                            
+                            <!-- Description (English) -->
+                            <div class="form-group">
+                                <label for="id_description_en">{% trans "Description (English)" %} <span class="required">*</span></label>
+                                {{ form.description_en }}
+                            </div>
+                            
+                            <!-- Description (Arabic) - Conditional -->
+                            <div class="arabic-fields" id="arabic-description">
+                                <div class="form-group">
+                                    <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                                    {{ form.description_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Prerequisites -->
+                            <div class="form-group">
+                                <label for="id_prerequisites">{% trans "Prerequisites" %}</label>
+                                {{ form.prerequisites }}
+                                <span class="form-text">{% trans "List required prior knowledge" %}</span>
+                            </div>
+                            
+                            <!-- Syllabus -->
+                            <div class="form-group">
+                                <label for="id_syllabus">{% trans "Syllabus & Curriculum" %}</label>
+                                {{ form.syllabus }}
+                                <span class="form-text">{% trans "Detailed course outline" %}</span>
+                            </div>
+                            
+                            <!-- Keywords & Access Link -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_keywords">{% trans "Keywords" %}</label>
+                                    {{ form.keywords }}
+                                    <span class="form-text">{% trans "Comma-separated" %}</span>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_access_link">{% trans "Course Website" %}</label>
+                                    {{ form.access_link }}
+                                </div>
+                            </div>
+                            
+                            <!-- Form Actions -->
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" onclick="window.history.back()">
+                                    <i class="bi bi-x-lg"></i> {% trans "Cancel" %}
+                                </button>
+                                <button type="submit" class="btn-primary" id="submit-btn">
+                                    <i class="bi bi-check-lg"></i> {% trans "Create Course" %}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="course-builder-row">
-                        <div class="course-builder-field">
-                            {{ form.course_institution|as_crispy_field }}
-                        </div>
-                        <div class="course-builder-field">
-                            {{ form.academic_year|as_crispy_field }}
-                        </div>
-                    </div>
-                    
                 </div>
             </div>
-
-            <!-- ===== SECTION 4: SYLLABUS & CURRICULUM ===== -->
-            <div class="course-builder-section" data-section="4">
-                <div class="course-builder-section-header" onclick="toggleSection(this)">
-                    <div class="course-builder-section-icon">
-                        <i class="bi bi-list-columns-reverse"></i>
-                    </div>
-                    <div class="course-builder-section-title">
-                        <h2>{% translate "Syllabus & Curriculum" %}</h2>
-                        <p>{% translate "Describe the course syllabus and curriculum" %}</p>
-                    </div>
-                    <div class="course-builder-section-toggle">
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="course-builder-section-body">
-                    <div class="course-builder-field">
-                        {{ form.syllabus|as_crispy_field }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== SECTION 5: PREREQUISITES ===== -->
-            <div class="course-builder-section" data-section="5">
-                <div class="course-builder-section-header" onclick="toggleSection(this)">
-                    <div class="course-builder-section-icon">
-                        <i class="bi bi-check2-square"></i>
-                    </div>
-                    <div class="course-builder-section-title">
-                        <h2>{% translate "Prerequisites" %}</h2>
-                        <p>{% translate "List prerequisites for this course" %}</p>
-                    </div>
-                    <div class="course-builder-section-toggle">
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
-                </div>
-                <div class="course-builder-section-body">
-                    <div class="course-builder-field">
-                        {{ form.prerequisites|as_crispy_field }}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ===== FOOTER ACTIONS ===== -->
-            <div class="course-builder-footer">
-                <div class="course-builder-footer-note">
-                    <i class="bi bi-info-circle"></i>
-                    <span>{% translate "Courses will be reviewed by administrators before publishing." %}</span>
-                </div>
-                <div class="course-builder-footer-actions">
-                    <a href="{% url 'resources:course_list' %}" class="course-builder-btn secondary">
-                        <i class="bi bi-x-lg"></i>
-                        {% translate "Cancel" %}
-                    </a>
-                    <button type="submit" class="course-builder-btn primary">
-                        <i class="bi bi-check-lg"></i>
-                        {% translate "Create Course" %}
-                    </button>
-                </div>
-            </div>
-            
         </form>
     </div>
-    
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Hide non-course fields
-    const nonCourseFields = [
-        'document_type', 'document_format', 'tool_type', 'tool_version', 
-        'documentation', 'languages', 'corpus_language', 'corpus_size', 
-        'corpus_field', 'corpus_format', 'doi', 'journal', 
-        'publication_date', 'supervisor', 'thesis_institution', 
-        'defense_year', 'memoir_level', 'memoir_institution', 
-        'memoir_defense_year'
-    ];
+    // ===== Translation Toggle =====
+    const translationToggle = document.getElementById('translation-toggle');
+    const arabicFields = document.querySelectorAll('.arabic-fields');
     
-    nonCourseFields.forEach(field => {
-        const fieldElement = document.querySelector(`[name="${field}"]`);
-        if (fieldElement) {
-            const formGroup = fieldElement.closest('.form-group') || fieldElement.closest('.course-builder-field');
-            if (formGroup) formGroup.style.display = 'none';
-        }
-    });
-    
-    // Drag & Drop functionality
-    const dropzone = document.getElementById('courseDropzone');
-    if (dropzone) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, preventDefaults, false);
-        });
-        
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropzone.addEventListener(eventName, () => {
-                dropzone.classList.add('dragover');
-            }, false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, () => {
-                dropzone.classList.remove('dragover');
-            }, false);
-        });
-        
-        dropzone.addEventListener('drop', handleDrop, false);
-        
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            const fileInput = dropzone.querySelector('input[type="file"]');
-            if (fileInput && files.length > 0) {
-                fileInput.files = files;
-                updateDropzoneText(files[0].name);
-            }
-        }
-        
-        const fileInput = dropzone.querySelector('input[type="file"]');
-        if (fileInput) {
-            fileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    updateDropzoneText(this.files[0].name);
-                }
+    if (translationToggle) {
+        translationToggle.addEventListener('change', function() {
+            arabicFields.forEach(field => {
+                field.classList.toggle('active', this.checked);
             });
-        }
-        
-        function updateDropzoneText(filename) {
-            const h4 = dropzone.querySelector('h4');
-            const p = dropzone.querySelector('p');
-            if (h4) h4.textContent = filename;
-            if (p) p.textContent = '{% translate "File selected. Click to change." %}';
-            dropzone.style.borderColor = 'var(--builder-success)';
-            dropzone.style.background = 'var(--builder-success-bg)';
-        }
+        });
     }
     
-    // Progress step tracking based on filled fields
-    updateProgressSteps();
-    document.querySelectorAll('input, select, textarea').forEach(el => {
-        el.addEventListener('change', updateProgressSteps);
-        el.addEventListener('input', updateProgressSteps);
-    });
+    // ===== File Upload Drag & Drop =====
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const fileRemove = document.getElementById('file-remove');
     
-    function updateProgressSteps() {
-        const steps = document.querySelectorAll('.course-builder-step');
-        const sections = document.querySelectorAll('.course-builder-section');
+    if (uploadZone && fileInput) {
+        uploadZone.addEventListener('click', () => fileInput.click());
         
-        sections.forEach((section, index) => {
-            const inputs = section.querySelectorAll('input:not([type="hidden"]), select, textarea');
-            let filled = 0;
-            inputs.forEach(input => {
-                if (input.value && input.value.trim() !== '' && !input.closest('[style*="display: none"]')) {
-                    filled++;
-                }
-            });
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
             
-            const visibleInputs = Array.from(inputs).filter(input => !input.closest('[style*="display: none"]'));
-            
-            if (steps[index]) {
-                if (filled > 0 && filled >= visibleInputs.length * 0.5) {
-                    steps[index].classList.add('completed');
-                    steps[index].classList.remove('active');
-                } else if (filled > 0) {
-                    steps[index].classList.add('active');
-                    steps[index].classList.remove('completed');
-                }
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                displayFile(e.dataTransfer.files[0]);
             }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                displayFile(e.target.files[0]);
+            }
+        });
+    }
+    
+    function displayFile(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        uploadZone.style.display = 'none';
+        filePreview.classList.add('active');
+    }
+    
+    function clearFile() {
+        fileInput.value = '';
+        uploadZone.style.display = 'block';
+        filePreview.classList.remove('active');
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    if (fileRemove) {
+        fileRemove.addEventListener('click', function(e) {
+            e.stopPropagation();
+            clearFile();
+        });
+    }
+    
+    // ===== Submit Loading State =====
+    const form = document.getElementById('course-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
         });
     }
 });
-
-// Section toggle
-function toggleSection(header) {
-    const section = header.closest('.course-builder-section');
-    section.classList.toggle('collapsed');
-}
 </script>
 {% endblock %}

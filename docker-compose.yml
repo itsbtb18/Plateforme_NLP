@@ -32,7 +32,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -83,8 +83,7 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 5
     networks:
       - nlp_network
     restart: unless-stopped
@@ -107,6 +106,10 @@ services:
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      
       # Email (optional)
       EMAIL_HOST: ${EMAIL_HOST:-}
       EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -126,6 +129,10 @@ services:
       CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
       CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
       CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
+      
+      # Groq (scraping LLM validation)
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
     volumes:
       - ./Plateforme:/app
       - static_volume:/app/staticfiles
@@ -134,9 +141,8 @@ services:
       - "8888:8000"
     command: >
       sh -c "
-        python manage.py compilemessages --ignore=.venv &&
         python manage.py collectstatic --noinput &&
-        python manage.py migrate &&
+        python manage.py migrate --noinput &&
         daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
       "
     depends_on:
@@ -162,6 +168,9 @@ services:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_fastapi
+    cpus: 1.0
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -177,11 +186,18 @@ services:
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      # Disable parallelism — protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -191,7 +207,7 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --timeout-keep-alive 120
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -208,6 +224,9 @@ services:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_celery_worker
+    cpus: 1.0
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -222,10 +241,17 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      # Disable parallelism — protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
-    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=2
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=1
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
       interval: 30s
@@ -264,6 +290,68 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # ── Django Celery Worker (scraping background tasks) ──────────────
+  django_celery_worker:
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      FASTAPI_URL: http://fastapi:8000
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+    volumes:
+      - ./Plateforme:/app
+      - static_volume:/app/staticfiles
+      - ./Plateforme/media:/app/media
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # ── Django Celery Beat (periodic task scheduler) ──────────────────
+  django_celery_beat:
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_beat
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+    volumes:
+      - ./Plateforme:/app
+    command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - nlp_network
     restart: unless-stopped

@@ -114,6 +114,19 @@ class Institution(models.Model):
         blank=True
     )
 
+    APPROVAL_STATUS_CHOICES = (
+        ('pending', _('Pending')),
+        ('approved', _('Approved')),
+        ('rejected', _('Rejected')),
+    )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending',
+        verbose_name=_("Approval Status"),
+        help_text=_("Institution must be approved by admin before being publicly visible")
+    )
+
     class Meta:
         verbose_name = _("Institution")
         verbose_name_plural = _("Institutions")
