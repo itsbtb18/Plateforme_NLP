@@ -121,15 +121,15 @@ def admin_dashboard(request):
     last_year = today - datetime.timedelta(days=365)
     
     # Recent users - Type hint the queryset
-    recent_users: 'QuerySet[CustomUser]' = CustomUser.objects.filter(
+    recent_users_qs: 'QuerySet[CustomUser]' = CustomUser.objects.filter(
         date_joined__gte=today-datetime.timedelta(days=30)
-    ).order_by('-date_joined')[:10]
+    ).order_by('-date_joined')
     
     # Recent content
-    recent_publications = Document.objects.order_by('-creation_date').prefetch_related('authors')[:5]
+    recent_publications_qs = Document.objects.order_by('-creation_date').prefetch_related('authors')
     recent_corpora = Corpus.objects.all().order_by('-creation_date')[:5]
     recent_tools = NLPTool.objects.all().order_by('-creation_date')[:5]
-    recent_projects = Project.objects.all().order_by('-created_at')[:5]
+    recent_projects_qs = Project.objects.all().order_by('-created_at')
     
     # Count statistics
     users_count = CustomUser.objects.count()
@@ -272,7 +272,19 @@ def admin_dashboard(request):
         all_months.append(month.strftime('%Y-%m'))
     all_months.reverse()
 
-    chart_labels = [datetime.datetime.strptime(month, '%Y-%m').strftime('%b %Y') for month in all_months]
+    is_ar = (request.LANGUAGE_CODE or '').lower().startswith('ar')
+    ar_months = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ]
+
+    def _format_month_label(month_key):
+        dt = datetime.datetime.strptime(month_key, '%Y-%m')
+        if is_ar:
+            return f"{ar_months[dt.month - 1]} {dt.year}"
+        return dt.strftime('%b %Y')
+
+    chart_labels = [_format_month_label(month) for month in all_months]
     users_activity_data = []
     resources_activity_data = []
 
@@ -283,11 +295,11 @@ def admin_dashboard(request):
         resources_activity_data.append(monthly_resources_dict.get(month, 0))
 
     context = {
-        'recent_users': recent_users,
-        'recent_publications': recent_publications,
+        'recent_users': recent_users_qs[:10],
+        'recent_publications': recent_publications_qs[:5],
         'recent_corpora': recent_corpora,
         'recent_tools': recent_tools,
-        'recent_projects': recent_projects,
+        'recent_projects': recent_projects_qs[:5],
         'users_count': users_count,
         'resources_count': resources_count,
         'projects_count': projects_count,
@@ -311,6 +323,32 @@ def admin_dashboard(request):
         'forum_topics_data': json.dumps(forum_topics_data),
         'forum_messages_data': json.dumps(forum_messages_data),
     }
+
+    # Pagination for dashboard lists
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    users_paginator = Paginator(recent_users_qs, 10)
+    pubs_paginator = Paginator(recent_publications_qs, 10)
+    projects_paginator = Paginator(recent_projects_qs, 10)
+
+    users_page_obj = users_paginator.get_page(request.GET.get('users_page') or 1)
+    pubs_page_obj = pubs_paginator.get_page(request.GET.get('pubs_page') or 1)
+    projects_page_obj = projects_paginator.get_page(request.GET.get('projects_page') or 1)
+
+    context.update({
+        'users_page_obj': users_page_obj,
+        'pubs_page_obj': pubs_page_obj,
+        'projects_page_obj': projects_page_obj,
+        'users_pagination_qs': _build_query_string('users_page'),
+        'pubs_pagination_qs': _build_query_string('pubs_page'),
+        'projects_pagination_qs': _build_query_string('projects_page'),
+    })
 
     def _pending_queryset(model):
         field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
@@ -594,8 +632,13 @@ def admin_users(request):
         is_email_verified=False
     ).count()
     
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'users': qs,
+        'users': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
         'pending_users_count': pending_users_count,
         'filter_status': filter_status,
         'search': search,
@@ -805,9 +848,12 @@ def admin_user_history(request, user_id):
     pending_changes = UserStatusHistory.objects.filter(user=user, new_status='pending').count()
     new_accounts = UserStatusHistory.objects.filter(user=user, new_status='new').count()
 
+    paginator = Paginator(history_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
         'user_obj': user,
-        'recent_history': history_qs,
+        'recent_history': page_obj,
         'total_changes': total_changes,
         'activations': activations,
         'blocks': blocks,
@@ -819,6 +865,9 @@ def admin_user_history(request, user_id):
         'admins_activity': admins_activity,
         'pending_changes': pending_changes,
         'new_accounts': new_accounts,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'is_paginated': page_obj.has_other_pages(),
     }
 
     return render(request, 'admin/history.html', context)
@@ -916,8 +965,20 @@ def admin_publications(request):
     pending_count = pending_publications.count()
     approved_count = approved_publications.count()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    current_qs = pending_publications if tab == 'pending' else approved_publications
+    paginator = Paginator(current_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'publications': approved_publications if tab == 'approved' else pending_publications,
+        'publications': page_obj,
         'pending_publications': pending_publications,
         'approved_publications': approved_publications,
         'pending_count': pending_count,
@@ -926,6 +987,9 @@ def admin_publications(request):
         'filter_publication_type': publication_type,
         'search': search,
         'model_type': 'document',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/publications.html', context)
 
@@ -962,8 +1026,20 @@ def admin_corpora(request):
     available_fields = sorted(set(Corpus.objects.exclude(field='').values_list('field', flat=True)))
     available_formats = sorted(set(Corpus.objects.exclude(file_format='').values_list('file_format', flat=True)))
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    current_qs = pending_corpora if tab == 'pending' else approved_corpora
+    paginator = Paginator(current_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'corpora': approved_corpora if tab == 'approved' else pending_corpora,
+        'corpora': page_obj,
         'pending_corpora': pending_corpora,
         'approved_corpora': approved_corpora,
         'pending_count': pending_count,
@@ -975,6 +1051,9 @@ def admin_corpora(request):
         'available_fields': available_fields,
         'available_formats': available_formats,
         'model_type': 'corpus',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/corpora.html', context)
 
@@ -1008,8 +1087,20 @@ def admin_tools(request):
     pending_count = pending_tools.count()
     approved_count = approved_tools.count()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    current_qs = pending_tools if tab == 'pending' else approved_tools
+    paginator = Paginator(current_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'tools': approved_tools if tab == 'approved' else pending_tools,
+        'tools': page_obj,
         'pending_tools': pending_tools,
         'approved_tools': approved_tools,
         'pending_count': pending_count,
@@ -1019,6 +1110,9 @@ def admin_tools(request):
         'filter_language': supported_language,
         'search': search,
         'model_type': 'nlptool',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/tools.html', context)
 
@@ -1051,6 +1145,17 @@ def admin_projects(request):
         )
 
     projects = projects.order_by('-created_at')
+
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    paginator = Paginator(projects, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
 
     all_projects = Project.objects.all()
     total_count = all_projects.count()
@@ -1110,7 +1215,7 @@ def admin_projects(request):
         duration_trend_class = 'trend-neutral'
 
     context = {
-        'projects': projects,
+        'projects': page_obj,
         'pending_count': pending_count,
         'approved_count': approved_count,
         'active_tab': active_tab,
@@ -1125,6 +1230,9 @@ def admin_projects(request):
         'duration_trend_text': duration_trend_text,
         'duration_trend_class': duration_trend_class,
         'model_type': 'project',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/projects.html', context)
 
@@ -1172,9 +1280,20 @@ def admin_courses(request):
     else:
         growth_class = 'trend-neutral'
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    paginator = Paginator(approved_courses, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
         'pending_courses': pending_courses,
-        'approved_courses': approved_courses,
+        'approved_courses': page_obj,
         'pending_count': pending_count,
         'approved_count': approved_count,
         'active_tab': 'approved',
@@ -1186,6 +1305,9 @@ def admin_courses(request):
         'courses_growth': round(courses_growth, 2),
         'courses_growth_class': growth_class,
         'model_type': 'course',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/courses.html', context)
 
@@ -1223,6 +1345,14 @@ def admin_forum(request):
     pending_count = pending_topics.count()
     approved_count = approved_topics.count()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
     # Paginate based on active tab
     if tab == 'pending':
         paginator = Paginator(pending_topics, 10)
@@ -1244,6 +1374,9 @@ def admin_forum(request):
         'filter_status': status,
         'search': search,
         'model_type': 'topic',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/forum.html', context)
 
@@ -1341,8 +1474,19 @@ def admin_institutions(request):
         'country__name_ar'
     ).distinct()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    paginator = Paginator(approved_institutions, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'institutions': approved_institutions if tab == 'approved' else pending_institutions,
+        'institutions': page_obj if tab == 'approved' else pending_institutions,
         'pending_institutions': pending_institutions,
         'approved_institutions': approved_institutions,
         'pending_count': pending_count,
@@ -1354,6 +1498,9 @@ def admin_institutions(request):
         'search': search,
         'has_approval': has_approval,
         'model_type': 'institution',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/institutions.html', context)
 
@@ -1383,8 +1530,20 @@ def admin_news(request):
     pending_count = pending_posts.count()
     approved_count = approved_posts.count()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    current_qs = pending_posts if tab == 'pending' else approved_posts
+    paginator = Paginator(current_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'posts': approved_posts if tab == 'approved' else pending_posts,
+        'posts': page_obj,
         'pending_posts': pending_posts,
         'approved_posts': approved_posts,
         'pending_count': pending_count,
@@ -1392,6 +1551,9 @@ def admin_news(request):
         'active_tab': tab,
         'search': search,
         'model_type': 'post',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/news.html', context)
 
@@ -1450,8 +1612,20 @@ def admin_calls(request):
     pending_count = pending_calls.count()
     approved_count = approved_calls.count()
 
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
+    current_qs = pending_calls if tab == 'pending' else approved_calls
+    paginator = Paginator(current_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     context = {
-        'calls': approved_calls if tab == 'approved' else pending_calls,
+        'calls': page_obj,
         'pending_calls': pending_calls,
         'approved_calls': approved_calls,
         'pending_count': pending_count,
@@ -1461,6 +1635,9 @@ def admin_calls(request):
         'filter_timeline': timeline,
         'search': search,
         'model_type': 'event',
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'pagination_qs': _build_query_string('page'),
     }
     return render(request, 'admin/calls.html', context)
 
@@ -1556,8 +1733,19 @@ def admin_statistics(request):
         top_resources.append({'title': str(resource), 'views': resource.views_count})
     for resource in NLPTool.objects.filter(approval_status='approved').order_by('-views_count')[:1]:
         top_resources.append({'title': str(resource), 'views': resource.views_count})
+
+    def _build_query_string(exclude_key):
+        params = []
+        for key, value in request.GET.items():
+            if key == exclude_key:
+                continue
+            params.append((key, value))
+        return urlencode(params)
+
     top_resources.sort(key=lambda item: item['views'], reverse=True)
     top_resources = top_resources[:5]
+    top_paginator = Paginator(top_resources, 10)
+    top_page_obj = top_paginator.get_page(request.GET.get('top_page') or 1)
 
     context = {
         'stats': stats_qs,
@@ -1571,6 +1759,9 @@ def admin_statistics(request):
         'user_reg_dates': json.dumps(user_reg_dates),
         'user_reg_counts': json.dumps(user_reg_counts),
         'top_resources': top_resources,
+        'top_page_obj': top_page_obj,
+        'top_is_paginated': top_page_obj.has_other_pages(),
+        'top_pagination_qs': _build_query_string('top_page'),
     }
     return render(request, 'admin/statistics.html', context)
 
@@ -1634,7 +1825,7 @@ def admin_security(request):
             except ValueError:
                 pass
 
-        paginator = Paginator(logs_qs, 20)
+        paginator = Paginator(logs_qs, 10)
         page_obj = paginator.get_page(request.GET.get('page'))
         recent_logs = [
             SimpleNamespace(
@@ -1693,7 +1884,7 @@ def admin_security(request):
             except ValueError:
                 pass
 
-        paginator = Paginator(logs_qs, 20)
+        paginator = Paginator(logs_qs, 10)
         page_obj = paginator.get_page(request.GET.get('page'))
         recent_logs = page_obj.object_list
         last_24h = timezone.now() - timedelta(hours=24)
@@ -2016,7 +2207,7 @@ def admin_contact_list(request):
             Q(message__icontains=search_query)
         )
 
-    paginator = Paginator(messages_qs, 20)
+    paginator = Paginator(messages_qs, 10)
     page_number = request.GET.get('page')
     messages_page = paginator.get_page(page_number)
 

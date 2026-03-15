@@ -1,4 +1,5 @@
-﻿{% extends "base.html" %} {% load static %} {% load i18n %}
+﻿> Loubna:
+{% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
 {{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
@@ -12,6 +13,7 @@
 />
 {% endblock extra_styles %} 
 {% block content %}
+{% trans "Member" as member_label %}
 <!-- Modern Profile Page - Kodecolor Style -->
 <div class="profile-page-new">
   <div class="profile-container-new">
@@ -69,7 +71,7 @@
           <!-- User Info Section -->
           <div class="profile-user-info">
             <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
-            <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
+            <p class="profile-user-title">{{ user.get_speciality_display|default:member_label }}</p>
             
             {% if user.institution %}
             <p class="profile-user-location">
@@ -80,7 +82,8 @@
           </div>
         </div>
 
-        <!-- Verification Badge -->
+> Loubna:
+<!-- Verification Badge -->
         {% if user.is_verified %}
         <div class="verification-pill">
           <i class="fas fa-check-circle"></i>
@@ -147,7 +150,8 @@
           {% endif %}
         </div>
 
-        <!-- Social Links -->
+> Loubna:
+<!-- Social Links -->
         <div class="social-links-section">
           <div class="social-links-list">
             {% if user.linkedin_url %}
@@ -226,7 +230,8 @@
             <span><i class="fas fa-user-lock"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قائمة المحظورين{% else %}Blocked users{% endif %}</span>
           </button>
 
-          <div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
+> Loubna:
+<div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
             <div class="blocked-users-list" id="profileBlockedUsersList"></div>
             <div class="blocked-empty" id="profileBlockedUsersEmpty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مستخدمون محظورون حالياً{% else %}No blocked users currently{% endif %}</div>
           </div>
@@ -314,7 +319,8 @@
         </div>
       </div>
 
-      <div class="info-section-card profile-section-filter-card animate__animated animate__fadeInRight" id="profile-sections">
+> Loubna:
+<div class="info-section-card profile-section-filter-card animate__animated animate__fadeInRight" id="profile-sections">
         <h3 class="section-title">
           <i class="fas fa-layer-group"></i>
           {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تصفية الأقسام{% else %}Filter Sections{% endif %}
@@ -360,7 +366,8 @@
 
       <!-- ===== CONTRIBUTIONS SECTIONS ===== -->
 
-      <!-- Posts -->
+> Loubna:
+<!-- Posts -->
       {% if user_posts %}
       {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
@@ -370,7 +377,11 @@
         </h3>
         <div class="contrib-list">
           {% for post in user_posts %}
+          {% if post.slug %}
           <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
+          {% else %}
+          <div class="contrib-item">
+          {% endif %}
             <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">
@@ -383,7 +394,11 @@
               <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
               <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
             </div>
+          {% if post.slug %}
           </a>
+          {% else %}
+          </div>
+          {% endif %}
           {% endfor %}
         </div>
       </div>
@@ -422,19 +437,28 @@
         </h3>
         <div class="contrib-list">
           {% for resource in user_resources %}
+          {% if resource.document_type %}
           <a href="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}" class="contrib-item">
+          {% else %}
+          <div class="contrib-item">
+          {% endif %}
             <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ resource.get_localized_title|truncatechars:60 }}</span>
               <span class="contrib-date">{{ resource.creation_date|date:"j F Y" }}</span>
             </div>
+          {% if resource.document_type %}
           </a>
+          {% else %}
+          </div>
+          {% endif %}
           {% endfor %}
         </div>
       </div>
       {% endif %}
 
-      <!-- Tools -->
+> Loubna:
+<!-- Tools -->
       {% if user_tools %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
@@ -509,7 +533,8 @@
       {% endif %}
       {% endif %}
 
-      <!-- Forum Topics -->
+> Loubna:
+<!-- Forum Topics -->
       {% if user_topics %}
       {% if can_view_contributions %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
@@ -593,60 +618,61 @@
       </div>
       {% endif %}
 
-    </div>
+> Loubna:
+</div>
   </div>
 </div>
 <div class="profile-menu-toast" id="profileMenuToast" role="status" aria-live="polite"></div>
 <style>
   :root {
-    /* Platform Colors */
-    --primary-dark: #1A56DB;
-    --primary: #1A56DB;
-    --primary-light: #2d68e2;
-    --primary-lightest: rgba(26, 86, 219, 0.08);
+    /* Blue Minimal Notion Theme Colors */
+    --primary-dark: #3481f0;
+    --primary: #3481f0;
+    --primary-light: #5492f5;
+    --primary-lightest: rgba(52, 129, 240, 0.08);
     
     /* Secondary */
-    --secondary: #3f37c9;
+    --secondary: #6ba3f5;
     --accent: #34a853;
     
     /* Text Colors */
-    --text-dark: #202124;
-    --text-secondary: #4b5563;
-    --text-muted: #80868b;
+    --text-dark: #1a1a1a;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
     --text-light: #ffffff;
     
     /* Backgrounds */
-    --bg-light: #f5f7fa;
+    --bg-light: #f8f9fb;
     --bg-white: #ffffff;
     
     /* Shadows & Borders */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 3px 10px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 8px 22px rgba(15, 23, 42, 0.1);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 2px 6px rgba(52, 129, 240, 0.08);
+    --shadow-lg: 0 4px 12px rgba(52, 129, 240, 0.12);
     
     /* Radius */
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 16px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 12px;
     
     /* Transitions */
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition: all 0.25s ease;
   }
 
   /* ===== PAGE LAYOUT ===== */
   .profile-page-new {
     min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-    padding: 40px 20px;
+    background: #ffffff;
+    padding: 48px 20px;
     font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
   }
 
   .profile-container-new {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 40px;
+    grid-template-columns: 340px 1fr;
+    gap: 48px;
     align-items: start;
   }
 
@@ -660,7 +686,8 @@
     background: var(--bg-white);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.05);
+    border: 1px solid #e5e7eb;
     transition: var(--transition);
     position: relative;
   }
@@ -669,36 +696,41 @@
     position: absolute;
     top: 12px;
     inset-inline-end: 12px;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid #dbe3ef;
-    background: rgba(255, 255, 255, 0.96);
-    color: #64748b;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #f8f9fb;
+    color: #6b7280;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
+    box-shadow: none;
     z-index: 55;
+    transition: var(--transition);
   }
 
   .profile-card-settings-btn:hover {
-    color: #1D4ED8;
-    border-color: #bfdbfe;
-    background: #eff6ff;
+    color: var(--primary);
+    border-color: #d0e0ff;
+    background: #f0f6ff;
   }
 
   .profile-card:hover {
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.1);
+    transform: translateY(-1px);
   }
 
   /* Profile Picture */
   .profile-picture-container {
-    width: 100%;
-    aspect-ratio: 1;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 16px;
+    border-radius: 999px;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border: 3px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.12);
   }
 
   .profile-picture {
@@ -714,27 +746,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 80px;
+    font-size: 60px;
     color: rgba(255, 255, 255, 0.3);
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
   }
 
-  /* User Info */
   .profile-user-info {
     padding: 24px 16px;
     text-align: center;
   }
 
   .profile-user-name {
-    font-size: 1.4rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--text-dark);
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     line-height: 1.2;
   }
 
   .profile-user-title {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--primary);
     font-weight: 600;
     margin: 0 0 8px;
@@ -742,7 +773,7 @@
 
   .profile-user-location {
     font-size: 0.85rem;
-    color: #374151;
+    color: var(--text-secondary);
     margin: 0;
     display: flex;
     align-items: center;
@@ -752,8 +783,8 @@
 
   /* Verification Pill */
   .verification-pill {
-    background: rgba(16, 185, 129, 0.12);
-    color: #047857;
+    background: rgba(52, 129, 240, 0.12);
+    color: #1e40af;
     padding: 6px 10px;
     border-radius: 20px;
     font-size: 0.76rem;
@@ -774,7 +805,8 @@
     margin-bottom: 16px;
   }
 
-  .btn-action-primary,
+> Loubna:
+.btn-action-primary,
   .btn-action-secondary {
     padding: 10px 14px;
     border: none;
@@ -791,14 +823,15 @@
   }
 
   .btn-action-primary {
-    background: linear-gradient(180deg, #1f5bd9 0%, #1A56DB 100%);
+    background: var(--primary);
     color: var(--text-light);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.15);
   }
 
   .btn-action-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.14);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(52, 129, 240, 0.2);
   }
 
   .friend-action-btn.is-pending {
@@ -819,14 +852,14 @@
   }
 
   .btn-action-secondary {
-    background: transparent;
-    border: 2px solid var(--primary);
+    background: #f8f9fb;
+    border: 1px solid var(--primary);
     color: var(--primary);
   }
 
   .btn-action-secondary:hover {
-    background: var(--primary-lightest);
-    transform: translateY(-2px);
+    background: #f0f6ff;
+    transform: translateY(-1px);
   }
 
   .friend-menu-wrap {
@@ -881,7 +914,7 @@
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+    box-shadow: 0 4px 12px rgba(52, 129, 240, 0.12);
     padding: 16px;
     direction: ltr;
     text-align: left;
@@ -971,7 +1004,8 @@
     flex-shrink: 0;
   }
 
-  .profile-switch .profile-switch-knob {
+> Loubna:
+.profile-switch .profile-switch-knob {
     position: absolute;
     top: 2px;
     left: 2px;
@@ -1164,34 +1198,36 @@
     gap: 20px;
   }
 
-  .info-section-card {
+> Loubna:
+.info-section-card {
     background: var(--bg-white);
     border-radius: var(--radius-lg);
     padding: 24px;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.05);
+    border: 1px solid #e5e7eb;
     transition: var(--transition);
   }
 
   .info-section-card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.1);
+    transform: translateY(-1px);
   }
 
   .section-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--text-dark);
     margin: 0 0 16px;
     padding-bottom: 12px;
-    border-bottom: 3px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .section-title i {
     color: var(--primary);
-    font-size: 1.15rem;
+    font-size: 1rem;
   }
 
   /* Info Rows */
@@ -1360,35 +1396,39 @@
       gap: 24px;
     }
 
-    .profile-left-column {
+> Loubna:
+.profile-left-column {
       flex-direction: row;
       gap: 24px;
       align-items: flex-start;
     }
 
     .profile-card {
-      flex: 0 0 250px;
+      flex: 0 0 300px;
     }
 
     .profile-picture-container {
-      aspect-ratio: 1;
       width: 100%;
+      aspect-ratio: 1;
+      border-radius: 0;
+      margin: 0;
+      border: none;
     }
   }
 
   @media (max-width: 640px) {
     .profile-page-new {
-      padding: 20px 12px;
+      padding: 24px 12px;
     }
 
     .profile-container-new {
       grid-template-columns: 1fr;
-      gap: 20px;
+      gap: 16px;
     }
 
     .profile-left-column {
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
     .profile-card {
@@ -1464,16 +1504,16 @@
     gap: 12px;
     padding: 12px 14px;
     border-radius: var(--radius-md);
-    background: var(--bg-light);
+    background: #f8f9fb;
     text-decoration: none;
     transition: var(--transition);
-    border: 1px solid transparent;
+    border: 1px solid #e5e7eb;
   }
 
   .contrib-item:hover {
-    background: var(--primary-lightest);
-    border-color: var(--primary);
-    transform: translateX(4px);
+    background: #f0f6ff;
+    border-color: #d0e0ff;
+    transform: translateX(2px);
   }
 
   .contrib-icon {
@@ -1571,45 +1611,47 @@
     gap: 10px;
   }
 
-  .profile-filter-btn {
+> Loubna:
+.profile-filter-btn {
     display: flex;
     justify-content: space-between;
     flex-direction: row;
     align-items: center;
     gap: 8px;
     text-decoration: none;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 12px;
-    background: #ffffff;
-    color: #0f172a;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f8f9fb;
+    color: var(--text-dark);
     font-size: 0.86rem;
     font-weight: 600;
     padding: 10px 12px;
-    transition: all 0.2s ease;
+    transition: var(--transition);
   }
 
   .profile-filter-btn strong {
     display: inline-flex;
-    min-width: 26px;
-    height: 22px;
+    min-width: 22px;
+    height: 20px;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    background: rgba(59, 130, 246, 0.13);
-    color: #1d4ed8;
+    background: rgba(52, 129, 240, 0.12);
+    color: var(--primary);
     font-size: 0.75rem;
     font-weight: 700;
   }
 
   .profile-filter-btn:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+    border-color: #d0e0ff;
+    background: #f0f6ff;
+    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.1);
     transform: translateY(-1px);
   }
 
   .profile-filter-btn.is-active {
-    background: linear-gradient(120deg, #1d4ed8, #4f46e5);
-    border-color: transparent;
+    background: var(--primary);
+    border-color: var(--primary);
     color: #ffffff;
   }
 
@@ -1623,11 +1665,11 @@
     align-items: center;
     justify-content: center;
     min-width: 22px;
-    height: 22px;
+    height: 20px;
     padding: 0 7px;
     border-radius: 999px;
-    background: rgba(37, 99, 235, 0.12);
-    color: #1d4ed8;
+    background: rgba(52, 129, 240, 0.12);
+    color: var(--primary);
     font-size: 0.74rem;
     font-weight: 700;
   }
@@ -1706,111 +1748,7 @@
     text-align: right;
   }
 
-  /* ===== Glassmorphism Theme Override ===== */
-  .profile-page-new {
-    background:
-      radial-gradient(1200px 600px at 10% 0%, rgba(59,130,246,0.20), transparent 60%),
-      radial-gradient(900px 500px at 90% 10%, rgba(139,92,246,0.22), transparent 58%),
-      linear-gradient(135deg, #eef4ff 0%, #f8f6ff 45%, #f2f7ff 100%);
-    min-height: calc(100vh - 70px);
-  }
-
-  .profile-container-new {
-    max-width: 1240px;
-    gap: 24px;
-  }
-
-  .profile-card,
-  .info-section-card,
-  .profile-settings-panel,
-  .modal-delete {
-    background: rgba(255, 255, 255, 0.62) !important;
-    border: 1px solid rgba(255, 255, 255, 0.55) !important;
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    box-shadow:
-      0 10px 30px rgba(37, 99, 235, 0.08),
-      0 14px 42px rgba(99, 102, 241, 0.08) !important;
-    border-radius: 20px !important;
-  }
-
-  .profile-picture-container,
-  .profile-picture-placeholder {
-    border-radius: 999px !important;
-    width: 128px;
-    height: 128px;
-    aspect-ratio: unset;
-    margin: 18px auto 8px;
-    border: 3px solid rgba(255, 255, 255, 0.72);
-    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
-    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%);
-  }
-
-  .profile-user-info {
-    padding-top: 6px;
-  }
-
-  .section-title,
-  .profile-user-name {
-    color: #0f172a !important;
-  }
-
-  .profile-user-title {
-    color: #1d4ed8 !important;
-  }
-
-  .verification-pill {
-    background: rgba(5, 150, 105, 0.16) !important;
-    color: #065f46 !important;
-    border: 1px solid rgba(5, 150, 105, 0.24);
-  }
-
-  .head-stat-item {
-    background: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(148, 163, 184, 0.20);
-    border-radius: 12px;
-    padding: 10px 8px;
-  }
-
-  .btn-action-primary,
-  .btn-invite-new {
-    background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 55%, #6d28d9 100%) !important;
-    color: #fff !important;
-    border: 0 !important;
-    box-shadow: 0 10px 22px rgba(59, 130, 246, 0.28);
-  }
-
-  .btn-action-secondary {
-    background: rgba(255, 255, 255, 0.72) !important;
-    border: 1px solid rgba(37, 99, 235, 0.40) !important;
-    color: #1d4ed8 !important;
-  }
-
-  .contrib-item {
-    background: rgba(255, 255, 255, 0.52);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 14px;
-  }
-
-  .contrib-item:hover {
-    border-color: rgba(59, 130, 246, 0.35);
-    box-shadow: 0 8px 20px rgba(30, 64, 175, 0.14);
-  }
-
-  .profile-card-settings-btn,
-  .profile-menu-toggle {
-    background: rgba(255, 255, 255, 0.78) !important;
-    border: 1px solid rgba(148, 163, 184, 0.30) !important;
-  }
-
-  .info-structured-card,
-  .kpi-glass-card {
-    background: linear-gradient(140deg, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0.50)) !important;
-    border: 1px solid rgba(148, 163, 184, 0.28) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-radius: 20px;
-  }
+  /* ===== REMOVED: Conflicting Glassmorphism Theme ===== */
 
   .structured-info-grid {
     display: grid;
@@ -1873,7 +1811,8 @@
     font-weight: 700;
   }
 
-  .completion-track {
+> Loubna:
+.completion-track {
     height: 10px;
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.30);
@@ -1992,208 +1931,7 @@
     font-weight: 600;
   }
 
-  /* ===== Neon Dark Dashboard Override ===== */
-  .profile-page-new {
-    background: #ffffff !important;
-  }
-
-  .profile-card,
-  .info-section-card,
-  .profile-settings-panel,
-  .modal-delete {
-    background: linear-gradient(160deg, rgba(9, 18, 38, 0.88), rgba(7, 14, 30, 0.82)) !important;
-    border: 1px solid rgba(56, 189, 248, 0.22) !important;
-    box-shadow:
-      0 0 0 1px rgba(56, 189, 248, 0.08) inset,
-      0 14px 34px rgba(2, 6, 23, 0.62),
-      0 0 26px rgba(59, 130, 246, 0.12) !important;
-  }
-
-  .section-title,
-  .profile-user-name,
-  .contrib-title,
-  .info-value,
-  .structured-info-text strong {
-    color: #e2e8f0 !important;
-  }
-
-  .profile-user-title,
-  .info-label,
-  .contrib-date,
-  .contrib-subline,
-  .structured-info-text small,
-  .head-stat-label,
-  .bio-text {
-    color: #94a3b8 !important;
-  }
-
-  .section-title {
-    border-bottom-color: rgba(56, 189, 248, 0.55);
-  }
-
-  .section-title i {
-    color: #22d3ee !important;
-  }
-
-  .profile-picture-container,
-  .profile-picture-placeholder {
-    border-color: rgba(34, 211, 238, 0.65) !important;
-    box-shadow:
-      0 0 0 3px rgba(34, 211, 238, 0.10),
-      0 0 36px rgba(34, 211, 238, 0.38),
-      0 10px 26px rgba(2, 132, 199, 0.35) !important;
-    background: linear-gradient(145deg, #0f1f3d 0%, #1e3a8a 45%, #4f46e5 100%) !important;
-  }
-
-  .verification-pill {
-    background: rgba(20, 184, 166, 0.12) !important;
-    border-color: rgba(45, 212, 191, 0.35) !important;
-    color: #67e8f9 !important;
-  }
-
-  .profile-filter-btn,
-  .contrib-item,
-  .project-card .project-form-group-new,
-  .structured-info-item,
-  .kpi-chart-box {
-    background: linear-gradient(160deg, rgba(12, 22, 44, 0.78), rgba(8, 16, 32, 0.72)) !important;
-    border-color: rgba(56, 189, 248, 0.22) !important;
-  }
-
-  .profile-filter-btn {
-    color: #cbd5e1 !important;
-  }
-
-  .profile-filter-btn strong,
-  .section-count {
-    background: rgba(34, 211, 238, 0.15) !important;
-    color: #67e8f9 !important;
-  }
-
-  .profile-filter-btn.is-active,
-  .btn-action-primary,
-  .btn-invite-new {
-    background: linear-gradient(120deg, #0891b2, #2563eb 55%, #7c3aed) !important;
-    color: #ffffff !important;
-    box-shadow: 0 10px 26px rgba(37, 99, 235, 0.34) !important;
-  }
-
-  .btn-action-secondary {
-    background: rgba(15, 23, 42, 0.72) !important;
-    border-color: rgba(148, 163, 184, 0.45) !important;
-    color: #dbeafe !important;
-  }
-
-  .contrib-item:hover,
-  .profile-filter-btn:hover {
-    border-color: rgba(34, 211, 238, 0.56) !important;
-    box-shadow: 0 0 22px rgba(34, 211, 238, 0.16) !important;
-  }
-
-  .completion-track {
-    background: rgba(30, 41, 59, 0.86) !important;
-  }
-
-  .completion-bar {
-    background: linear-gradient(90deg, #06b6d4, #2563eb, #7c3aed) !important;
-  }
-
-  /* ===== Layout/Sections Reconstruction ===== */
-  .profile-container-new {
-    max-width: 1320px !important;
-    grid-template-columns: 320px minmax(0, 1fr) !important;
-    gap: 20px !important;
-  }
-
-  .profile-left-column {
-    position: sticky;
-    top: 0;
-  }
-
-  .profile-right-column {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    align-items: start;
-  }
-
-  .contact-card,
-  .basic-card,
-  .kpi-glass-card,
-  .bio-card,
-  .profile-section-filter-card {
-    min-height: 100%;
-  }
-
-  .basic-card {
-    order: -21;
-    grid-column: 1 / 2;
-  }
-
-  .profile-section-filter-card {
-    order: -20;
-    grid-column: 2 / 3;
-    padding: 14px !important;
-  }
-
-  .profile-section-filter-card .section-title {
-    margin-bottom: 10px !important;
-    padding-bottom: 8px !important;
-    font-size: 1rem !important;
-  }
-
-  .profile-section-filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-
-  .profile-filter-btn {
-    min-height: 38px;
-    padding: 7px 10px !important;
-    font-size: 0.8rem !important;
-  }
-
-  .profile-filter-btn strong {
-    min-width: 22px !important;
-    height: 20px !important;
-    font-size: 0.72rem !important;
-  }
-
-  .kpi-glass-card {
-    order: -18;
-    grid-column: 1 / -1;
-  }
-
-  .contrib-card {
-    min-height: 246px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .contrib-card .contrib-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .contrib-card .contrib-item {
-    padding: 11px 12px;
-    min-height: 62px;
-  }
-
-  .contrib-card .section-title {
-    margin-bottom: 12px !important;
-  }
-
-  .contrib-title {
-    line-height: 1.2;
-  }
-
-  .info-row {
-    grid-template-columns: 120px 1fr !important;
-    gap: 10px !important;
-    padding-bottom: 10px !important;
-  }
+  /* ===== REMOVED: Conflicting Neon Dark Dashboard Override ===== */
 
   .structured-info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -2267,7 +2005,8 @@
     z-index: 3100 !important;
   }
 
-  #deleteAccountModal.show {
+> Loubna:
+#deleteAccountModal.show {
     display: flex !important;
   }
 
@@ -2444,7 +2183,8 @@
     font-weight: 600;
   }
 
-  .profile-card .profile-user-location {
+> Loubna:
+.profile-card .profile-user-location {
     justify-content: center;
     font-size: 0.82rem;
     opacity: 0.92;
@@ -2615,7 +2355,8 @@
     padding: 6px 20px 20px !important;
   }
 
-  .profile-card,
+> Loubna:
+.profile-card,
   .info-section-card,
   .profile-settings-panel,
   .modal-delete,
@@ -2780,7 +2521,8 @@
     color: #111827 !important;
   }
 
-  #profileSettingsModal .profile-settings-close {
+> Loubna:
+#profileSettingsModal .profile-settings-close {
     width: 28px;
     height: 28px;
     border-radius: 8px;
@@ -2929,7 +2671,8 @@
     background: linear-gradient(145deg, #1e1b4b 0%, #1d4ed8 45%, #6d28d9 100%) !important;
   }
 
-  /* ===== Night Blue Theme (Chatbot-like) ===== */
+> Loubna:
+/* ===== Night Blue Theme (Chatbot-like) ===== */
   :root {
     --hub-deep-blue: #0f172a;
     --hub-navy: #1e3a5f;
@@ -3067,765 +2810,3 @@
     background: #ffffff !important;
     border: 1px solid #d9e1ee !important;
   }
-
-  /* ===== Final Readability Fixes ===== */
-  .profile-page-new .specialty-tag,
-  .profile-page-new .specialty-tag span,
-  .profile-page-new .specialty-tag i {
-    color: #ffffff !important;
-  }
-
-  .profile-page-new .verification-pill,
-  .profile-page-new .verification-pill span,
-  .profile-page-new .verification-pill i {
-    color: #dbeafe !important;
-  }
-
-  .profile-card .btn-action-primary,
-  .profile-card .btn-action-primary span,
-  .profile-card .btn-action-primary i {
-    color: #ffffff !important;
-  }
-
-  .profile-card .btn-action-secondary,
-  .profile-card .btn-action-secondary span,
-  .profile-card .btn-action-secondary i {
-    color: #e2e8f0 !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .profile-card .btn-delete-account,
-  .profile-card .btn-delete-account span,
-  .profile-card .btn-delete-account i {
-    color: #fecaca !important;
-    border-color: rgba(248, 113, 113, 0.45) !important;
-    background: rgba(239, 68, 68, 0.08) !important;
-  }
-
-  .profile-card .btn-delete-account:hover,
-  .profile-card .btn-delete-account:hover span,
-  .profile-card .btn-delete-account:hover i {
-    color: #ffffff !important;
-    background: #dc2626 !important;
-    border-color: #dc2626 !important;
-  }
-
-  /* ===== Minimal Blue polish (lines + charts containers) ===== */
-  .section-title {
-    border-bottom-color: #bfdbfe !important;
-  }
-
-  .info-row {
-    border-bottom-color: #e5edf8 !important;
-  }
-
-  .kpi-chart-box {
-    border-color: #dbeafe !important;
-    background: #ffffff !important;
-  }
-
-  /* ===== Final fix: bio readability + dark minimal section lines ===== */
-  .profile-card .profile-bio-inline {
-    background: rgba(15, 23, 42, 0.32) !important;
-    border: 1px solid rgba(96, 165, 250, 0.30) !important;
-    min-height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .profile-card .profile-bio-inline .bio-text {
-    color: #f1f5f9 !important;
-    font-weight: 500;
-    opacity: 1 !important;
-  }
-
-  .profile-card .profile-bio-label {
-    color: #cbd5e1 !important;
-  }
-
-  .section-title {
-    border-bottom-color: #1e3a8a !important;
-  }
-
-  .info-row {
-    border-bottom-color: rgba(30, 58, 138, 0.18) !important;
-  }
-
-  .contrib-item {
-    border-color: rgba(30, 58, 138, 0.14) !important;
-  }
-
-  .kpi-glass-card,
-  .kpi-chart-box,
-  .profile-section-filter-card,
-  .info-section-card {
-    border-color: rgba(30, 58, 138, 0.18) !important;
-  }
-
-  /* ===== Dark minimal blue: final unified accents ===== */
-  .section-title {
-    border-bottom-color: #1e3a8a !important;
-  }
-
-  .section-title i,
-  .profile-user-title,
-  .info-label {
-    color: #1e3a8a !important;
-  }
-
-  .profile-filter-btn strong,
-  .section-count {
-    background: rgba(30, 58, 138, 0.12) !important;
-    color: #1e3a8a !important;
-  }
-
-  .profile-filter-btn.is-active,
-  .btn-action-primary,
-  .btn-invite-new {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 62%, #2563eb 100%) !important;
-    color: #ffffff !important;
-  }
-
-  .btn-action-secondary,
-  .profile-card .btn-action-secondary {
-    border-color: rgba(30, 58, 138, 0.36) !important;
-    color: #dbeafe !important;
-  }
-
-</style>
-{% endblock content %} 
-{% block extra_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const deleteAccountModalRoot = document.getElementById('deleteAccountModal');
-    if (deleteAccountModalRoot && deleteAccountModalRoot.parentElement !== document.body) {
-      document.body.appendChild(deleteAccountModalRoot);
-    }
-
-    const langIsArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar";
-    const uiText = {
-      friend: langIsArabic ? "صديق" : "Friend",
-      blocked: langIsArabic ? "محظور" : "Blocked",
-      cancelRequest: langIsArabic ? "إلغاء الطلب" : "Cancel request",
-      confirm: langIsArabic ? "تأكيد" : "Confirm",
-      addFriend: langIsArabic ? "إضافة صديق" : "Add friend",
-      noBlockedUsers: langIsArabic ? "لا يوجد مستخدمون محظورون حالياً" : "No blocked users currently",
-      unblock: langIsArabic ? "إلغاء الحظر" : "Unblock",
-      loadBlockedError: langIsArabic ? "تعذر تحميل القائمة" : "Unable to load list",
-      copiedLink: langIsArabic ? "تم نسخ الرابط" : "Link copied",
-      copyLinkFailed: langIsArabic ? "تعذر نسخ الرابط" : "Could not copy link",
-      copiedLinkForShare: langIsArabic ? "تم نسخ الرابط للمشاركة" : "Link copied for sharing",
-      prepareLinkFailed: langIsArabic ? "تعذر تجهيز الرابط" : "Could not prepare link",
-      reportSaved: langIsArabic ? "تم تسجيل البلاغ" : "Report submitted",
-      blockedDone: langIsArabic ? "تم الحظر" : "User blocked",
-      blockedFailed: langIsArabic ? "فشل تنفيذ الحظر" : "Block failed",
-      moreSoon: langIsArabic ? "خيارات إضافية قريبًا" : "More options coming soon",
-    };
-
-    const kpiCard = document.getElementById("profileKpiCard");
-    if (kpiCard) {
-      const metrics = {
-        projects: parseInt(kpiCard.dataset.projects || "0", 10) || 0,
-        corpus: parseInt(kpiCard.dataset.corpus || "0", 10) || 0,
-        news: parseInt(kpiCard.dataset.news || "0", 10) || 0,
-        courses: parseInt(kpiCard.dataset.courses || "0", 10) || 0,
-        resources: parseInt(kpiCard.dataset.resources || "0", 10) || 0,
-        tools: parseInt(kpiCard.dataset.tools || "0", 10) || 0,
-        topics: parseInt(kpiCard.dataset.topics || "0", 10) || 0,
-        events: parseInt(kpiCard.dataset.events || "0", 10) || 0
-      };
-
-      const completionValueEl = document.getElementById("profileCompletionValue");
-      const completionBarEl = document.getElementById("profileCompletionBar");
-      const profileSignals = [
-        !!"{{ user.avatar|default:'' }}",
-        !!"{{ user.get_speciality_display|default:'' }}",
-        !!"{{ user.institution|default:'' }}",
-        !!"{{ user.get_localized_bio|default:'' }}",
-        metrics.projects > 0,
-        metrics.news > 0
-      ];
-      const completion = Math.round((profileSignals.filter(Boolean).length / profileSignals.length) * 100);
-      if (completionValueEl) completionValueEl.textContent = `${completion}%`;
-      if (completionBarEl) completionBarEl.style.width = `${completion}%`;
-
-      if (typeof Chart !== "undefined") {
-        const axisGridColor = "rgba(30, 58, 138, 0.16)";
-        const tickColor = "#334155";
-
-        const trendCanvas = document.getElementById("profileTrendChart");
-        if (trendCanvas) {
-          const trendTotal =
-            metrics.projects + metrics.news + metrics.courses + metrics.resources +
-            metrics.tools + metrics.corpus + metrics.topics + metrics.events;
-          const trendData = [
-            Math.max(0, Math.round(trendTotal * 0.38)),
-            Math.max(0, Math.round(trendTotal * 0.52)),
-            Math.max(0, Math.round(trendTotal * 0.64)),
-            Math.max(0, Math.round(trendTotal * 0.75)),
-            Math.max(0, Math.round(trendTotal * 0.88)),
-            Math.max(0, trendTotal)
-          ];
-          new Chart(trendCanvas, {
-            type: "line",
-            data: {
-              labels: langIsArabic ? ["ينا", "فبر", "مار", "أبر", "ماي", "يون"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-              datasets: [{
-                data: trendData,
-                borderColor: "#1e3a8a",
-                backgroundColor: "rgba(30, 58, 138, 0.12)",
-                tension: 0.35,
-                fill: true,
-                pointRadius: 3,
-                pointBackgroundColor: "#1d4ed8"
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                x: { grid: { color: axisGridColor }, ticks: { color: tickColor } },
-                y: { beginAtZero: true, grid: { color: axisGridColor }, ticks: { color: tickColor, precision: 0 } }
-              }
-            }
-          });
-        }
-
-        const barsCanvas = document.getElementById("profileBarsChart");
-        if (barsCanvas) {
-          new Chart(barsCanvas, {
-            type: "bar",
-            data: {
-              labels: langIsArabic
-                ? ["المشاريع", "الأخبار", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
-                : ["Projects", "News", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
-              datasets: [{
-                data: [
-                  metrics.projects,
-                  metrics.news,
-                  metrics.courses,
-                  metrics.resources,
-                  metrics.tools,
-                  metrics.corpus,
-                  metrics.topics,
-                  metrics.events
-                ],
-                borderRadius: 8,
-                backgroundColor: [
-                  "#1e3a8a",
-                  "#1d4ed8",
-                  "#2563eb",
-                  "#3b82f6",
-                  "#1e40af",
-                  "#1e3a8a",
-                  "#1d4ed8",
-                  "#2563eb"
-                ]
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                x: { grid: { display: false }, ticks: { color: tickColor } },
-                y: { beginAtZero: true, grid: { color: axisGridColor }, ticks: { color: tickColor, precision: 0 } }
-              }
-            }
-          });
-        }
-      }
-    }
-
-    function getCsrfToken() {
-      const cookieMatch = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-      const cookieToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
-      if (cookieToken && cookieToken !== 'NOTPROVIDED') return cookieToken;
-      const formToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
-      if (formToken && formToken !== 'NOTPROVIDED') return formToken;
-      const templateToken = "{{ csrf_token }}";
-      return templateToken && templateToken !== "NOTPROVIDED" ? templateToken : '';
-    }
-
-    function updateFriendButton(btn, state) {
-      const label = btn.querySelector('.friend-action-label');
-      const icon = btn.querySelector('i');
-      btn.dataset.state = state;
-      btn.classList.remove('is-pending', 'is-friend');
-      btn.disabled = false;
-      if (!label || !icon) return;
-      if (state === 'AMIS') {
-        label.textContent = uiText.friend;
-        icon.className = 'fas fa-user-check';
-        btn.classList.add('is-friend');
-      } else if (state === 'BLOQUE') {
-        label.textContent = uiText.blocked;
-        icon.className = 'fas fa-ban';
-        btn.classList.add('is-pending');
-        btn.disabled = true;
-      } else if (state === 'EN_ATTENTE_ENVOYE') {
-        label.textContent = uiText.cancelRequest;
-        icon.className = 'fas fa-clock';
-        btn.classList.add('is-pending');
-      } else if (state === 'EN_ATTENTE_RECU') {
-        label.textContent = uiText.confirm;
-        icon.className = 'fas fa-user-check';
-      } else {
-        label.textContent = uiText.addFriend;
-        icon.className = 'fas fa-user-plus';
-      }
-    }
-
-    const friendBtn = document.querySelector('.friend-action-btn');
-    const rejectBtn = document.querySelector('.friend-reject-btn');
-    const actionsContainer = document.querySelector('.profile-actions-new');
-    const settingsOpenBtn = document.getElementById('profileTopSettingsBtn');
-    const settingsModal = document.getElementById('profileSettingsModal');
-    const settingsBlockedToggleBtn = document.getElementById('profileBlockedListToggleBtn');
-    const settingsBlockedContainer = document.getElementById('profileBlockedUsersContainer');
-    const settingsBlockedList = document.getElementById('profileBlockedUsersList');
-    const settingsBlockedEmpty = document.getElementById('profileBlockedUsersEmpty');
-    const settingsOnlineSwitch = document.getElementById('profileOnlineSwitch');
-    const profileMenuWrap = document.querySelector('.profile-menu-wrap');
-    const profileMenuToggle = document.querySelector('.profile-menu-toggle');
-    const profileMenuDropdown = document.querySelector('.profile-menu-dropdown');
-    const profileMenuToast = document.getElementById('profileMenuToast');
-
-    function showMenuToast(message) {
-      if (!profileMenuToast) return;
-      profileMenuToast.textContent = message;
-      profileMenuToast.classList.add('show');
-      setTimeout(() => profileMenuToast.classList.remove('show'), 1700);
-    }
-
-    async function copyProfileLink() {
-      const value = window.location.href;
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(value);
-        return;
-      }
-      const area = document.createElement('textarea');
-      area.value = value;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      area.remove();
-    }
-
-    function actionUrl(userId, action) {
-      const base = friendBtn?.dataset.endpointBase || '';
-      if (base) {
-        return base.replace(/\/add\/?$/, `/${action}/`).replace('{{ user.id }}', userId);
-      }
-      const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
-      return `/${lang}/accounts/network/${userId}/${action}/`;
-    }
-
-    function setSwitchState(el, isOn, key) {
-      if (!el) return;
-      el.classList.toggle('is-on', Boolean(isOn));
-      el.setAttribute('aria-pressed', String(Boolean(isOn)));
-      if (key) localStorage.setItem(key, isOn ? '1' : '0');
-    }
-
-    function applyOnlineVisibilityPreference(isOn) {
-      document.documentElement.classList.toggle('user-online-hidden', !isOn);
-      document.documentElement.classList.toggle('user-online-visible', !!isOn);
-    }
-
-    async function persistOnlineVisibility(isOn) {
-      const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
-      try {
-        await fetch(`/${lang}/accounts/network/online-visibility/`, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          credentials: 'same-origin',
-          body: new URLSearchParams({ is_on: isOn ? '1' : '0' }).toString()
-        });
-      } catch (_) {
-        // keep silent; local UI state still updates
-      }
-    }
-
-    function loadProfileSettingsSwitches() {
-      const onlineVisible = {% if request.user.show_online_status %}true{% else %}false{% endif %};
-      setSwitchState(settingsOnlineSwitch, onlineVisible, 'ui_online_status');
-      applyOnlineVisibilityPreference(onlineVisible);
-    }
-
-    async function loadBlockedUsersInSettings() {
-      if (!settingsBlockedContainer || !settingsBlockedList || !settingsBlockedEmpty) return;
-      const apiUrl = settingsBlockedContainer.dataset.api;
-      settingsBlockedContainer.hidden = false;
-      settingsBlockedList.innerHTML = '';
-      settingsBlockedEmpty.textContent = '...';
-      try {
-        const res = await fetch(apiUrl, {
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
-          credentials: 'same-origin'
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-        const items = Array.isArray(data.items) ? data.items : [];
-        if (!items.length) {
-          settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
-          return;
-        }
-        settingsBlockedEmpty.textContent = '';
-        settingsBlockedList.innerHTML = items.map((u) => `
-          <div class="blocked-user-row" data-user-id="${u.id}">
-            ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
-            <span class="blocked-user-name">${u.name}</span>
-            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">${uiText.unblock}</button>
-          </div>
-        `).join('');
-      } catch (_) {
-        settingsBlockedEmpty.textContent = uiText.loadBlockedError;
-      }
-    }
-
-    function ensureFriendMenu(userId) {
-      if (!actionsContainer || actionsContainer.querySelector('.friend-menu-wrap')) return;
-      const friendCancelLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إلغاء{% else %}Cancel{% endif %}";
-      const friendDeleteLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}حذف الصديق{% else %}Delete friends{% endif %}";
-      const wrap = document.createElement('div');
-      wrap.className = 'friend-menu-wrap';
-      wrap.innerHTML = `
-        <div class="friend-menu" hidden>
-          <button type="button" class="friend-menu-item friend-cancel-btn" data-user-id="${userId}">${friendCancelLabel}</button>
-          <button type="button" class="friend-menu-item friend-remove-btn" data-user-id="${userId}">${friendDeleteLabel}</button>
-        </div>
-      `;
-      actionsContainer.appendChild(wrap);
-    }
-
-    function removeFriendMenu() {
-      actionsContainer?.querySelector('.friend-menu-wrap')?.remove();
-    }
-
-    if (friendBtn) {
-      updateFriendButton(friendBtn, friendBtn.dataset.state || 'NEUTRE');
-      friendBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const state = this.dataset.state || 'NEUTRE';
-        let action = 'add';
-        if (state === 'EN_ATTENTE_ENVOYE') action = 'cancel';
-        if (state === 'EN_ATTENTE_RECU') action = 'accept';
-        if (state === 'AMIS') {
-          ensureFriendMenu(userId);
-          const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-          if (menu) menu.hidden = !menu.hidden;
-          return;
-        }
-        if (state === 'BLOQUE') return;
-        this.dataset.loading = '1';
-        this.disabled = true;
-
-        // Optimistic UI
-        const previous = state;
-        if (action === 'add') updateFriendButton(this, 'EN_ATTENTE_ENVOYE');
-        if (action === 'cancel') updateFriendButton(this, 'NEUTRE');
-        if (action === 'accept') updateFriendButton(this, 'AMIS');
-        this.classList.add('btn-clicked');
-        setTimeout(() => this.classList.remove('btn-clicked'), 180);
-
-        try {
-          const res = await fetch(actionUrl(userId, action), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(this, data.state || this.dataset.state);
-          if (data.state === 'AMIS' && rejectBtn) {
-            rejectBtn.style.display = 'none';
-            ensureFriendMenu(userId);
-          } else if (data.state !== 'AMIS') {
-            removeFriendMenu();
-          }
-        } catch (e) {
-          updateFriendButton(this, previous);
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
-        }
-      });
-    }
-
-    if (rejectBtn) {
-      rejectBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const friendButton = document.querySelector('.friend-action-btn');
-        this.dataset.loading = '1';
-        this.disabled = true;
-        try {
-          const res = await fetch(actionUrl(userId, 'reject'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          if (friendButton) updateFriendButton(friendButton, 'NEUTRE');
-          this.style.display = 'none';
-        } catch (e) {
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
-        }
-      });
-    }
-
-    if (settingsOpenBtn && settingsModal) {
-      settingsOpenBtn.addEventListener('click', function () {
-        settingsModal.hidden = false;
-        loadProfileSettingsSwitches();
-      });
-      settingsModal.querySelectorAll('[data-close-settings]').forEach((el) => {
-        el.addEventListener('click', function () {
-          settingsModal.hidden = true;
-          if (settingsBlockedContainer) settingsBlockedContainer.hidden = true;
-        });
-      });
-    }
-
-    [settingsOnlineSwitch].forEach((sw) => {
-      if (!sw) return;
-      sw.addEventListener('click', async function () {
-        const on = !sw.classList.contains('is-on');
-        const key = 'ui_online_status';
-        setSwitchState(sw, on, key);
-        if (key === 'ui_online_status') {
-          applyOnlineVisibilityPreference(on);
-          await persistOnlineVisibility(on);
-        }
-      });
-    });
-
-    applyOnlineVisibilityPreference({% if request.user.show_online_status %}true{% else %}false{% endif %});
-
-    if (settingsBlockedToggleBtn) {
-      settingsBlockedToggleBtn.addEventListener('click', function () {
-        const willOpen = settingsBlockedContainer ? settingsBlockedContainer.hidden : true;
-        if (settingsBlockedContainer) settingsBlockedContainer.hidden = !willOpen;
-        if (willOpen) loadBlockedUsersInSettings();
-      });
-    }
-
-    if (settingsBlockedList) {
-      settingsBlockedList.addEventListener('click', async function (e) {
-        const btn = e.target.closest('[data-unblock-id]');
-        if (!btn) return;
-        const userId = btn.dataset.unblockId;
-        const row = btn.closest('.blocked-user-row');
-        btn.disabled = true;
-        try {
-          const res = await fetch(actionUrl(userId, 'unblock'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          if (row) {
-            row.classList.add('removing');
-            setTimeout(() => row.remove(), 210);
-          }
-          setTimeout(() => {
-            if (!settingsBlockedList.querySelector('.blocked-user-row') && settingsBlockedEmpty) {
-              settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
-            }
-          }, 240);
-        } catch (_) {
-          btn.disabled = false;
-        }
-      });
-    }
-
-    document.addEventListener('click', async function (e) {
-      if (profileMenuToggle && e.target.closest('.profile-menu-toggle')) {
-        if (profileMenuDropdown) {
-          profileMenuDropdown.hidden = !profileMenuDropdown.hidden;
-          profileMenuToggle.setAttribute('aria-expanded', String(!profileMenuDropdown.hidden));
-        }
-        return;
-      }
-
-      if (e.target.closest('.profile-menu-copy-link')) {
-        try {
-          await copyProfileLink();
-          showMenuToast(uiText.copiedLink);
-        } catch (_) {
-          showMenuToast(uiText.copyLinkFailed);
-        }
-        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
-        return;
-      }
-
-      if (e.target.closest('.profile-menu-share-message')) {
-        try {
-          await copyProfileLink();
-          showMenuToast(uiText.copiedLinkForShare);
-        } catch (_) {
-          showMenuToast(uiText.prepareLinkFailed);
-        }
-        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
-        return;
-      }
-
-      if (e.target.closest('.profile-menu-report')) {
-        showMenuToast(uiText.reportSaved);
-        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
-        return;
-      }
-
-      const blockBtn = e.target.closest('.profile-menu-block');
-      if (blockBtn && friendBtn) {
-        const userId = blockBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'NEUTRE';
-        updateFriendButton(friendBtn, 'BLOQUE');
-        try {
-          const res = await fetch(actionUrl(userId, 'block'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'BLOQUE');
-          showMenuToast(uiText.blockedDone);
-        } catch (err) {
-          updateFriendButton(friendBtn, prev);
-          showMenuToast(uiText.blockedFailed);
-          console.error(err);
-        }
-        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
-        return;
-      }
-
-      if (e.target.closest('.profile-menu-more')) {
-        showMenuToast(uiText.moreSoon);
-        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
-        return;
-      }
-
-      const cancelBtn = e.target.closest('.friend-cancel-btn');
-      if (cancelBtn) {
-        const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-        if (menu) menu.hidden = true;
-        return;
-      }
-
-      const removeBtn = e.target.closest('.friend-remove-btn');
-      if (removeBtn && friendBtn) {
-        const userId = removeBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'AMIS';
-        updateFriendButton(friendBtn, 'NEUTRE');
-        removeFriendMenu();
-        try {
-          const res = await fetch(actionUrl(userId, 'remove'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'NEUTRE');
-        } catch (err) {
-          updateFriendButton(friendBtn, prev);
-          if (prev === 'AMIS') ensureFriendMenu(userId);
-          console.error(err);
-        }
-        return;
-      }
-
-      const friendActionClick = e.target.closest('.friend-action-btn');
-      if (friendActionClick && (friendBtn?.dataset.state === 'AMIS')) {
-        return;
-      }
-
-      document.querySelectorAll('.friend-menu').forEach((m) => {
-        if (!m.closest('.friend-menu-wrap')?.contains(e.target)) m.hidden = true;
-      });
-      if (profileMenuDropdown && profileMenuWrap && !profileMenuWrap.contains(e.target)) {
-        profileMenuDropdown.hidden = true;
-        profileMenuToggle?.setAttribute('aria-expanded', 'false');
-      }
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && profileMenuDropdown && !profileMenuDropdown.hidden) {
-        profileMenuDropdown.hidden = true;
-        profileMenuToggle?.setAttribute('aria-expanded', 'false');
-      }
-    });
-
-    // ===== FORM VALIDATION =====
-    const projectForm = document.getElementById("addToProjectForm");
-    if (projectForm) {
-      projectForm.addEventListener("submit", function (e) {
-        const select = this.querySelector('select[name="project_id"]');
-        if (!select.value) {
-          e.preventDefault();
-          select.classList.add("is-invalid");
-          
-          let feedback = this.querySelector(".invalid-feedback");
-          if (!feedback) {
-            feedback = document.createElement("div");
-            feedback.className = "invalid-feedback";
-            feedback.textContent = '{% trans "Please select a project" %}';
-            feedback.style.display = "block";
-            select.parentNode.appendChild(feedback);
-          }
-        }
-      });
-
-      const select = projectForm.querySelector('select[name="project_id"]');
-      select.addEventListener("change", function () {
-        if (this.value) {
-          this.classList.remove("is-invalid");
-        }
-      });
-    }
-
-    // ===== SMOOTH SCROLL BEHAVIOR =====
-    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-      anchor.addEventListener("click", function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute("href"));
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth" });
-        }
-      });
-    });
-  });
-</script>
-{% endblock extra_scripts %}
-

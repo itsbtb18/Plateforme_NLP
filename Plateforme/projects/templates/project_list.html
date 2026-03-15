@@ -424,6 +424,11 @@ html[dir="rtl"] .rp-filter-select {
     grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
     gap: 1.5rem;
 }
+.rp-grid-pagination {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+}
 
 @media (max-width: 480px) {
     .rp-grid {
@@ -845,7 +850,7 @@ html[dir="rtl"] .rp-search-spinner {
                     
                     <div class="rp-stats">
                         <div class="rp-stat">
-                            <span class="rp-stat-value">{{ projects|length }}</span>
+                            <span class="rp-stat-value">{{ page_obj.paginator.count|default:projects|length }}</span>
                             <span class="rp-stat-label">{% translate "Projects" %}</span>
                         </div>
                     </div>
@@ -960,125 +965,7 @@ html[dir="rtl"] .rp-search-spinner {
     <!-- ============ PROJECTS GRID ============ -->
     <main class="rp-content">
         <div class="rp-grid" id="projects-grid">
-            {% load project_tags %}
-            {% for project in projects %}
-            <article class="rp-card">
-                <div class="rp-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
-                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; flex: 1;">
-                    <span class="rp-status-badge {{ project.status }}">
-                        {% if project.status == 'ongoing' %}
-                        <i class="bi bi-play-circle-fill"></i>
-                        {% elif project.status == 'completed' %}
-                        <i class="bi bi-check-circle-fill"></i>
-                        {% else %}
-                        <i class="bi bi-calendar-event"></i>
-                        {% endif %}
-                        {{ project.get_status_display }}
-                    </span>
-                    {% if project.approval_status == 'pending' and project.coordinator == request.user %}
-                    <span class="rp-approval-badge pending">
-                        <i class="bi bi-hourglass-split"></i>
-                        {% translate "Pending Review" %}
-                    </span>
-                    {% endif %}
-                    </div>
-                </div>
-                
-                <div class="rp-card-body">
-                    <h3 class="rp-card-title">
-                        <a href="{% url 'projects:project_detail' project.pk %}">{{ project|highlight_title:highlights|safe }}</a>
-                    </h3>
-                    <p class="rp-card-summary">{{ project|highlight_description:highlights|safe }}</p>
-                </div>
-                
-                <div class="rp-card-meta">
-                    <div class="rp-meta-item">
-                        <i class="bi bi-building"></i>
-                        {{ project.institution }}
-                    </div>
-                    {% if project.date_start %}
-                    <div class="rp-meta-item">
-                        <i class="bi bi-calendar3"></i>
-                        {{ project.date_start|date:"M Y" }}{% if project.date_end %} - {{ project.date_end|date:"M Y" }}{% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <div class="rp-team-strip">
-                    <div class="rp-team">
-                        <span class="rp-team-label">{% translate "Team" %}</span>
-                        <div class="rp-avatars">
-                            <!-- Coordinator -->
-                            <div class="rp-avatar" title="{{ project.coordinator.full_name }}">
-                                {% if project.coordinator.avatar %}
-                                <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
-                                {% else %}
-                                <span class="rp-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
-                                {% endif %}
-                            </div>
-                            {% with members=project.members.all|slice:":3" %}
-                            {% for member in members %}
-                            {% if member.status == 'accepted' %}
-                            <div class="rp-avatar" title="{{ member.member.full_name }}">
-                                {% if member.member.avatar %}
-                                <img src="{{ member.member.avatar.url }}" alt="{{ member.member.full_name }}">
-                                {% else %}
-                                <span class="rp-avatar-placeholder">{{ member.member.full_name|slice:":2"|upper }}</span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            {% endfor %}
-                            {% endwith %}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="rp-card-footer">
-                    {% if project.approval_status == 'pending' and project.coordinator == request.user %}
-                        <a href="{% url 'projects:project_update' project.pk %}" class="rp-card-action" title="{% translate 'Edit Form' %}">
-                            {% translate "Edit Form" %}
-                            <i class="bi bi-file-earmark-text"></i>
-                        </a>
-                    {% else %}
-                        <a href="{% url 'projects:project_detail' project.pk %}" class="rp-card-action">
-                            {% translate "View Details" %}
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
-                    {% endif %}
-                    <div class="rp-footer-actions">
-                        {% include "includes/card_top_actions.html" with content_type="project" object_id=project.pk title=project.get_localized_title description=project.get_localized_description|truncatewords:40 category=project.get_status_display author=project.coordinator.get_full_name_display url=request.build_absolute_uri %}
-                    </div>
-                </div>
-            </article>
-            {% empty %}
-            <div class="rp-empty">
-                <div class="rp-empty-icon">
-                    <i class="bi bi-folder2-open"></i>
-                </div>
-                <h3 class="rp-empty-title">
-                    {% if request.GET.search %}
-                    {% translate "No Projects Found" %}
-                    {% elif request.GET.my_projects %}
-                    {% translate "No Projects Yet" %}
-                    {% else %}
-                    {% translate "No Projects Available" %}
-                    {% endif %}
-                </h3>
-                <p class="rp-empty-text">
-                    {% if request.GET.search %}
-                    {% translate "Try adjusting your search terms or filters." %}
-                    {% elif request.GET.my_projects %}
-                    {% translate "You haven't created any research projects yet. Start your first one!" %}
-                    {% else %}
-                    {% translate "Be the first to create a research project and collaborate with others." %}
-                    {% endif %}
-                </p>
-                <a href="{% url 'projects:project_new' %}" class="rp-empty-btn">
-                    <i class="bi bi-plus-lg"></i>
-                    {% translate "Create Project" %}
-                </a>
-            </div>
-            {% endfor %}
+            {% include 'projects/_project_cards.html' %}
         </div>
     </main>
     

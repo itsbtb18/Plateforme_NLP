@@ -682,25 +682,7 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
             </div>
             
             {% if is_paginated %}
-            <nav class="pagination-wrapper" aria-label="{% translate 'Page navigation' %}">
-                <ul class="pagination">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&sort={{ current_sort }}&page=1"><i class="bi bi-chevron-double-left"></i></a></li>
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&sort={{ current_sort }}&page={{ page_obj.previous_page_number }}"><i class="bi bi-chevron-left"></i></a></li>
-                    {% endif %}
-                    {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&sort={{ current_sort }}&page={{ num }}">{{ num }}</a></li>
-                    {% endif %}
-                    {% endfor %}
-                    {% if page_obj.has_next %}
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&sort={{ current_sort }}&page={{ page_obj.next_page_number }}"><i class="bi bi-chevron-right"></i></a></li>
-                    <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&type={{ request.GET.type }}&sort={{ current_sort }}&page={{ page_obj.paginator.num_pages }}"><i class="bi bi-chevron-double-right"></i></a></li>
-                    {% endif %}
-                </ul>
-            </nav>
+              {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
             {% endif %}
             
             {% else %}

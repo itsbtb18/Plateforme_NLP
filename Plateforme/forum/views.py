@@ -30,6 +30,7 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         template_name = 'forum/topic_list.html'  # Ajout du prefixe 'forum/'
         context_object_name = 'topics'
         ordering = ['-created_at']  # Tri par date de creation decroissante
+        paginate_by = 10
 
         def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
             """Handle both AJAX and regular requests."""
@@ -46,10 +47,14 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
             """Return partial HTML for AJAX requests."""
             # Get the queryset with all filters applied
             topics = self.get_queryset()
+            page_obj, paginator, is_paginated = self.paginate_queryset(topics, self.paginate_by)
             
             # Build context for partial template
             context = {
-                'topics': topics,
+                'topics': page_obj,
+                'page_obj': page_obj,
+                'paginator': paginator,
+                'is_paginated': is_paginated,
                 'search_query': request.GET.get('q', ''),
                 'current_sort': request.GET.get('sort', ''),
                 'my_topics': request.GET.get('my_topics', ''),

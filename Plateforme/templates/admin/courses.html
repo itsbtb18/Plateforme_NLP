@@ -42,7 +42,7 @@
       <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
         <div class="n-search-wrap" style="flex:1;min-width:200px;">
           <i class="fas fa-search"></i>
-          <input type="text" name="search" class="n-search" placeholder="{% trans 'Search by title, author...' %}" value="{{ search }}">
+          <input type="text" name="search" class="n-search" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث حسب العنوان أو المؤلف...{% else %}{% trans 'Search by title, author...' %}{% endif %}" value="{{ search }}">
         </div>
         <select name="level" class="n-select">
           <option value="">{% trans "All Levels" %}</option>
@@ -86,6 +86,7 @@
       </tbody>
     </table>
   </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
   {% else %}
   <div class="n-card"><div class="n-empty"><i class="fas fa-graduation-cap"></i><h3>{% trans "No courses found." %}</h3></div></div>
   {% endif %}

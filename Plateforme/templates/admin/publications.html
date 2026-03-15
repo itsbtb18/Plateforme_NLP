@@ -28,11 +28,11 @@
         </div>
         <div class="n-form-group" style="flex:1;min-width:140px;margin:0;">
           <label for="date_from" class="n-form-label"><i class="fas fa-calendar" style="margin-inline-end:.3rem;"></i>{% trans "Start date" %}</label>
-          <input type="text" id="date_from" name="date_from" class="n-input" placeholder="dd/mm/yyyy" value="{{ request.GET.date_from }}">
+          <input type="text" id="date_from" name="date_from" class="n-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}يوم/شهر/سنة{% else %}dd/mm/yyyy{% endif %}" value="{{ request.GET.date_from }}">
         </div>
         <div class="n-form-group" style="flex:1;min-width:140px;margin:0;">
           <label for="date_to" class="n-form-label"><i class="fas fa-calendar" style="margin-inline-end:.3rem;"></i>{% trans "End date" %}</label>
-          <input type="text" id="date_to" name="date_to" class="n-input" placeholder="dd/mm/yyyy" value="{{ request.GET.date_to }}">
+          <input type="text" id="date_to" name="date_to" class="n-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}يوم/شهر/سنة{% else %}dd/mm/yyyy{% endif %}" value="{{ request.GET.date_to }}">
         </div>
         <div style="display:flex;gap:.5rem;">
           <button type="button" class="n-btn n-btn-outline" onclick="resetFilters()"><i class="fas fa-undo"></i> {% trans "Reset" %}</button>
@@ -71,7 +71,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for publication in pending_publications %}
+          {% for publication in publications %}
           <tr>
             <td>
               <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">
@@ -101,6 +101,7 @@
         </tbody>
       </table>
     </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
     {% else %}
     <div class="n-card"><div class="n-empty"><i class="fas fa-check-double"></i><h3>{% trans "No pending publications" %}</h3><p>{% trans "All submissions have been reviewed. Great work!" %}</p></div></div>
     {% endif %}
@@ -140,26 +141,8 @@
       </tbody>
     </table>
 
-    {% if is_paginated %}
-    <div class="n-pag">
-      {% if page_obj.has_previous %}
-      <a class="n-pg" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-double-left"></i></a>
-      <a class="n-pg" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-left"></i></a>
-      {% endif %}
-      {% for num in page_obj.paginator.page_range %}
-        {% if num == page_obj.number %}
-        <span class="n-pg on">{{ num }}</span>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <a class="n-pg" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-        {% endif %}
-      {% endfor %}
-      {% if page_obj.has_next %}
-      <a class="n-pg" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-right"></i></a>
-      <a class="n-pg" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-double-right"></i></a>
-      {% endif %}
-    </div>
-    {% endif %}
   </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
   {% else %}
   <div class="n-card"><div class="n-empty"><i class="fas fa-book-open"></i><h3>{% trans "No publications found" %}</h3><p>{% trans "Modify your search criteria or add new publications." %}</p><a href="{% url 'resources:create' %}" class="n-btn n-btn-blue" style="margin-top:.5rem;"><i class="fas fa-plus"></i> {% trans "Add a publication" %}</a></div></div>
   {% endif %}

@@ -73,7 +73,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for topic in pending_topics %}
+        {% for topic in topics %}
         <tr>
           <td>
             <div class="fw-semibold">{{ topic.get_localized_title }}</div>
@@ -137,7 +137,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for topic in approved_topics %}
+        {% for topic in topics %}
         <tr>
           <td>
             <div class="fw-semibold">{{ topic.get_localized_title }}</div>
@@ -185,23 +185,7 @@
 {% endif %}
 
 <!-- Pagination -->
-{% if topics.paginator.num_pages > 1 %}
-<div class="n-pag">
-  {% if topics.has_previous %}
-  <a href="?page={{ topics.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">&laquo;</a>
-  {% endif %}
-  {% for i in topics.paginator.page_range %}
-    {% if topics.number == i %}
-    <span class="n-pag-btn active">{{ i }}</span>
-    {% else %}
-    <a href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">{{ i }}</a>
-    {% endif %}
-  {% endfor %}
-  {% if topics.has_next %}
-  <a href="?page={{ topics.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}&tab={{ active_tab|default:'approved' }}" class="n-pag-btn">&raquo;</a>
-  {% endif %}
-</div>
-{% endif %}
+{% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteTopicModal" tabindex="-1" aria-labelledby="deleteTopicModalLabel" aria-hidden="true">

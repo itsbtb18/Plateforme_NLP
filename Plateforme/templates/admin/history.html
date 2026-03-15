@@ -257,26 +257,7 @@
           </table>
         </div>
 
-        <!-- Pagination -->
-        {% if is_paginated %}
-        <div class="hy-pag">
-          {% if page_obj.has_previous %}
-          <a class="hy-pg" href="?page=1{% if status_filter %}&status_filter={{ status_filter }}{% endif %}{% if admin_filter %}&admin_filter={{ admin_filter }}{% endif %}{% if period_filter %}&period_filter={{ period_filter }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
-          <a class="hy-pg" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status_filter={{ status_filter }}{% endif %}{% if admin_filter %}&admin_filter={{ admin_filter }}{% endif %}{% if period_filter %}&period_filter={{ period_filter }}{% endif %}"><i class="fas fa-angle-left"></i></a>
-          {% endif %}
-          {% for i in paginator.page_range %}
-            {% if page_obj.number == i %}
-            <span class="hy-pg on">{{ i }}</span>
-            {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-            <a class="hy-pg" href="?page={{ i }}{% if status_filter %}&status_filter={{ status_filter }}{% endif %}{% if admin_filter %}&admin_filter={{ admin_filter }}{% endif %}{% if period_filter %}&period_filter={{ period_filter }}{% endif %}">{{ i }}</a>
-            {% endif %}
-          {% endfor %}
-          {% if page_obj.has_next %}
-          <a class="hy-pg" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status_filter={{ status_filter }}{% endif %}{% if admin_filter %}&admin_filter={{ admin_filter }}{% endif %}{% if period_filter %}&period_filter={{ period_filter }}{% endif %}"><i class="fas fa-angle-right"></i></a>
-          <a class="hy-pg" href="?page={{ paginator.num_pages }}{% if status_filter %}&status_filter={{ status_filter }}{% endif %}{% if admin_filter %}&admin_filter={{ admin_filter }}{% endif %}{% if period_filter %}&period_filter={{ period_filter }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
-          {% endif %}
-        </div>
-        {% endif %}
+        {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
 
         {% else %}
         <div class="hy-empty">

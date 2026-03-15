@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from accounts.blocking import exclude_hidden_users
+from django.core.paginator import Paginator
 
 User = get_user_model()
 
@@ -157,11 +158,16 @@ def feed(request):
         # Default: all posts, newest first
         posts = posts.order_by('-created_at')
     
+    paginator = Paginator(posts, 10)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
     post_form = PostForm()
     comment_form = CommentForm()
-    
+
     return render(request, 'QA/feed.html', {
-        'posts': posts,
+        'posts': page_obj,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
         'post_form': post_form,
         'comment_form': comment_form,
         'page': 'feed',
