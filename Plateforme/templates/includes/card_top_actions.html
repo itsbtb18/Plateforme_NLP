@@ -19,6 +19,7 @@ Optional Parameters:
   - tags: Comma-separated tags
 {% endcomment %}
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 {% if user.is_authenticated %}
 <div class="card-top-actions">
     {# Send Button #}
@@ -36,7 +37,7 @@ Optional Parameters:
     {# Ask AI Button #}
     <button type="button"
             class="card-action-icon ask-chatbot-btn"
-            title="{% trans 'Ask chatbot about this' %}"
+            title="{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}"
             data-ct="{{ content_type }}"
             data-oid="{{ object_id }}"
             data-title="{{ title|default:''|truncatechars:200 }}"
@@ -47,9 +48,9 @@ Optional Parameters:
             data-url="{{ url|default:'' }}"
             data-tags="{{ tags|default:'' }}"
             data-context='{"title":"{{ title|default:""|truncatechars:200|escapejs }}","category":"{{ category|default:content_type|escapejs }}","author":"{{ author|default:""|truncatechars:120|escapejs }}","description":"{{ description|default:""|truncatechars:400|escapejs }}","file_content":"{{ file_content|default:""|truncatechars:1200|escapejs }}","url":"{{ url|default:""|escapejs }}","type":"{{ content_type|escapejs }}","id":"{{ object_id|escapejs }}"}'
-            aria-label="{% trans 'Ask AI' %}">
+            aria-label="{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}">
         <i class="fas fa-robot"></i>
-        <span>{% trans "Ask chatbot about this" %}</span>
+        <span>{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}</span>
     </button>
 </div>
 
