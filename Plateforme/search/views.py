@@ -288,8 +288,47 @@ class GlobalSearchView(TemplateView):
                 'link': url,
                 'score': hit.meta.score,
             }
-            # Add dynamic fields (author, language, etc) based on doc_type...
-            # (Truncated for brevity, but kept logic from your original snippet)
+            
+            # Add dynamic fields based on doc_type
+            if doc_type == 'user':
+                # Add avatar and bio for user results
+                result['avatar'] = getattr(hit, 'avatar', '')
+                result['bio'] = getattr(hit, 'bio', '')
+                result['email'] = getattr(hit, 'email', '')
+            elif doc_type == 'course':
+                result['language'] = getattr(hit, 'language', '')
+                result['academic_level'] = getattr(hit, 'academic_level', '')
+                result['field'] = getattr(hit, 'field', '')
+                if hasattr(hit, 'author') and isinstance(hit.author, dict):
+                    result['author'] = hit.author.get('full_name', '')
+            elif doc_type == 'tool':
+                result['language'] = getattr(hit, 'language', '')
+                result['tool_type'] = getattr(hit, 'tool_type', '')
+                if hasattr(hit, 'author') and isinstance(hit.author, dict):
+                    result['author'] = hit.author.get('full_name', '')
+            elif doc_type == 'corpus':
+                result['language'] = getattr(hit, 'language', '')
+                result['field'] = getattr(hit, 'field', '')
+                if hasattr(hit, 'author') and isinstance(hit.author, dict):
+                    result['author'] = hit.author.get('full_name', '')
+            elif doc_type == 'resource':
+                result['document_type'] = getattr(hit, 'document_type', '')
+                if hasattr(hit, 'author') and isinstance(hit.author, dict):
+                    result['author'] = hit.author.get('full_name', '')
+            elif doc_type == 'project':
+                result['status'] = getattr(hit, 'status', '')
+                result['coordinator'] = getattr(hit, 'coordinator', '')
+                result['institution'] = getattr(hit, 'institution', '')
+            elif doc_type == 'event':
+                result['event_type'] = getattr(hit, 'event_type', '')
+                result['location'] = getattr(hit, 'location', '')
+                result['organizer'] = getattr(hit, 'organizer', '')
+            elif doc_type == 'institution':
+                result['institution_type'] = getattr(hit, 'institution_type', '')
+                result['country'] = getattr(hit, 'country', '')
+                result['city'] = getattr(hit, 'city', '')
+                result['acronym'] = getattr(hit, 'acronym', '')
+            
             return result
         except Exception: return None
 
@@ -323,13 +362,17 @@ class GlobalSearchView(TemplateView):
             # Clean results for JSON (remove mark_safe objects)
             json_results = []
             for r in results:
-                json_results.append({
+                result_item = {
                     'title': str(r.get('title', '')).replace('<mark>', '').replace('</mark>', ''),
                     'type': r.get('type', ''),
                     'link': r.get('link', '#'),
                     'field': r.get('field', r.get('language', '')),
                     'language': r.get('language', ''),
-                })
+                }
+                # Add avatar for user results
+                if r.get('type') == 'user' and r.get('avatar'):
+                    result_item['avatar'] = r.get('avatar', '')
+                json_results.append(result_item)
             
             return JsonResponse({
                 'results': json_results,
@@ -454,7 +497,12 @@ class SearchAutocompleteView(View):
                 
                 # Only get top 3 per type for quick suggestions
                 search = search[:3]
-                search = search.source([config['title_field']])
+                
+                # For user type, also fetch avatar
+                if doc_type == 'user':
+                    search = search.source([config['title_field'], 'avatar'])
+                else:
+                    search = search.source([config['title_field']])
                 
                 response = search.execute()
                 
@@ -466,12 +514,20 @@ class SearchAutocompleteView(View):
                         except:
                             url = '#'
                         
-                        suggestions.append({
+                        suggestion = {
                             'title': str(title),
                             'type': doc_type,
                             'link': url,
                             'score': hit.meta.score,
-                        })
+                        }
+                        
+                        # Add avatar for user type
+                        if doc_type == 'user':
+                            avatar = getattr(hit, 'avatar', '')
+                            if avatar:
+                                suggestion['avatar'] = avatar
+                        
+                        suggestions.append(suggestion)
             except Exception as e:
                 logger.warning(f"Autocomplete error for {doc_type}: {e}")
                 continue
