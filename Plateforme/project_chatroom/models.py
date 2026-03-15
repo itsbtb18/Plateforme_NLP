@@ -22,7 +22,7 @@ class ProjectChat(models.Model):
     project = models.OneToOneField(
         Project,
         on_delete=models.CASCADE,
-        related_name='chatroom'
+        related_name='project_chatroom'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -72,7 +72,7 @@ class ProjectChatMessage(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='project_chat_messages'
+        related_name='projectchatroom_messages'
     )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
