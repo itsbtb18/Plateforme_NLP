@@ -680,7 +680,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     zone.addEventListener('drop', e => {
         const files = e.dataTransfer.files;
-        if (files.length) { input.files = files; showFile(files[0]); }
+        if (files.length) { 
+            // Use DataTransfer API to properly set files (read-only workaround)
+            const dt = new DataTransfer();
+            for (const file of files) {
+                dt.items.add(file);
+            }
+            input.files = dt.files;
+            showFile(files[0]); 
+        }
     });
 
     input.addEventListener('change', function () {

@@ -850,7 +850,7 @@ html[dir="rtl"] .rp-search-spinner {
                     
                     <div class="rp-stats">
                         <div class="rp-stat">
-                            <span class="rp-stat-value">{{ page_obj.paginator.count|default:projects|length }}</span>
+                            <span class="rp-stat-value" id="projects-total-count">{{ page_obj.paginator.count }}</span>
                             <span class="rp-stat-label">{% translate "Projects" %}</span>
                         </div>
                     </div>
@@ -1056,8 +1056,16 @@ html[dir="rtl"] .rp-search-spinner {
         tempDiv.innerHTML = html;
         const cardCount = tempDiv.querySelectorAll('.rp-card').length;
         
+        // Get paginator info from a hidden element if available
+        const paginatorDiv = tempDiv.querySelector('[data-paginator-count]');
+        let totalCount = cardCount;
+        
+        if (paginatorDiv) {
+            totalCount = parseInt(paginatorDiv.getAttribute('data-paginator-count')) || cardCount;
+        }
+        
         if (projectCountElement) {
-            projectCountElement.textContent = cardCount;
+            projectCountElement.textContent = totalCount;
         }
     }
     
