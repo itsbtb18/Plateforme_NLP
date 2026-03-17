@@ -903,7 +903,7 @@ html[dir="rtl"] .page-header h1 {
                         <label>{% trans "Upload Document" %}</label>
                         <div class="file-upload-zone" id="file-upload-zone">
                             <input type="file" name="uploaded_file" id="id_uploaded_file" 
-                                   accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.zip,.rar,.ppt,.pptx,.xls,.xlsx">
+                                accept=".pdf,.docx">
                             <div class="upload-icon">
                                 <i class="bi bi-cloud-arrow-up"></i>
                             </div>
@@ -921,6 +921,7 @@ html[dir="rtl"] .page-header h1 {
                                 </button>
                             </div>
                         </div>
+                        <span class="field-error" id="file-upload-error" style="display: none;"></span>
                         {% if form.uploaded_file.errors %}
                         {% for error in form.uploaded_file.errors %}
                         <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
@@ -1078,15 +1079,6 @@ html[dir="rtl"] .page-header h1 {
                 </div>
                 <div class="section-body">
                     <div class="field-grid">
-                        <div class="form-group{% if form.corpus_size.errors %} has-error{% endif %}">
-                            <label for="id_corpus_size">{% trans "Corpus Size" %}</label>
-                            {{ form.corpus_size }}
-                            {% if form.corpus_size.errors %}
-                            {% for error in form.corpus_size.errors %}
-                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
-                            {% endfor %}
-                            {% endif %}
-                        </div>
                         <div class="form-group{% if form.corpus_field.errors %} has-error{% endif %}">
                             <label for="id_corpus_field">{% trans "Field" %}</label>
                             {{ form.corpus_field }}
@@ -1096,15 +1088,6 @@ html[dir="rtl"] .page-header h1 {
                             {% endfor %}
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="form-group{% if form.corpus_format.errors %} has-error{% endif %}">
-                        <label for="id_corpus_format">{% trans "Format" %}</label>
-                        {{ form.corpus_format }}
-                        {% if form.corpus_format.errors %}
-                        {% for error in form.corpus_format.errors %}
-                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
-                        {% endfor %}
-                        {% endif %}
                     </div>
                 </div>
             </section>
@@ -1311,7 +1294,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     targetDiv.classList.add('visible');
                 }
             }
+
+            const currentFileInput = document.getElementById('id_uploaded_file');
+            if (currentFileInput) {
+                currentFileInput.setAttribute('accept', '.pdf,.docx');
+            }
         }
+
+        clearUploadError();
     }
 
     const resourceTypeSelect = document.getElementById('id_resource_type');
@@ -1327,6 +1317,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const filePreview = document.getElementById('file-preview');
     const fileName = document.getElementById('file-name');
     const btnRemoveFile = document.getElementById('btn-remove-file');
+    const fileUploadError = document.getElementById('file-upload-error');
+
+    const corpusFileTypes = {
+        extensions: ['.pdf', '.docx'],
+        mimeTypes: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    };
+
+    function showUploadError(message) {
+        if (!fileUploadError) {
+            return;
+        }
+        fileUploadError.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${message}`;
+        fileUploadError.style.display = 'inline-flex';
+    }
+
+    function clearUploadError() {
+        if (!fileUploadError) {
+            return;
+        }
+        fileUploadError.textContent = '';
+        fileUploadError.style.display = 'none';
+    }
+
+    function validateUploadedFile(file) {
+        if (!file) {
+            clearUploadError();
+            return true;
+        }
+
+        const selectedType = resourceTypeSelect ? resourceTypeSelect.value : '';
+        const maxSize = 50 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showUploadError('{% trans "File is too large. Maximum size is 50MB." %}');
+            return false;
+        }
+
+        if (selectedType === 'corpus') {
+            const lowerName = file.name.toLowerCase();
+            const hasValidExtension = corpusFileTypes.extensions.some(extension => lowerName.endsWith(extension));
+            const hasValidMimeType = corpusFileTypes.mimeTypes.includes(file.type);
+            if (!hasValidExtension || !hasValidMimeType) {
+                showUploadError('{% trans "Only PDF and DOCX files are accepted" %}');
+                return false;
+            }
+        }
+
+        clearUploadError();
+        return true;
+    }
     
     if (fileUploadZone && fileInput) {
         // Click to upload
@@ -1339,6 +1378,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // File selected
         fileInput.addEventListener('change', function() {
             if (this.files && this.files[0]) {
+                if (!validateUploadedFile(this.files[0])) {
+                    this.value = '';
+                    filePreview.classList.remove('visible');
+                    fileUploadZone.classList.remove('has-file');
+                    return;
+                }
                 displayFile(this.files[0]);
             }
         });
@@ -1359,6 +1404,12 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.remove('dragover');
             
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                if (!validateUploadedFile(e.dataTransfer.files[0])) {
+                    fileInput.value = '';
+                    filePreview.classList.remove('visible');
+                    fileUploadZone.classList.remove('has-file');
+                    return;
+                }
                 fileInput.files = e.dataTransfer.files;
                 displayFile(e.dataTransfer.files[0]);
             }
@@ -1371,14 +1422,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileInput.value = '';
                 filePreview.classList.remove('visible');
                 fileUploadZone.classList.remove('has-file');
+                clearUploadError();
             });
         }
         
         function displayFile(file) {
-            // Check file size (50MB max)
-            const maxSize = 50 * 1024 * 1024;
-            if (file.size > maxSize) {
-                alert('{% trans "File is too large. Maximum size is 50MB." %}');
+            if (!validateUploadedFile(file)) {
                 fileInput.value = '';
                 return;
             }
@@ -1402,7 +1451,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
     
     if (form && submitBtn) {
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', function(e) {
+            if (fileInput && fileInput.files && fileInput.files[0] && !validateUploadedFile(fileInput.files[0])) {
+                e.preventDefault();
+                return;
+            }
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
         });

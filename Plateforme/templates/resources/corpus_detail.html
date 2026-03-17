@@ -455,7 +455,6 @@ html[dir="rtl"] body {
     flex-shrink: 0;
 }
 
-.spec-icon.size { background: #dbeafe; color: #1e40af; }
 .spec-icon.field { background: #f3e8ff; color: #6b21a8; }
 .spec-icon.format { background: #dcfce7; color: #166534; }
 .spec-icon.language { background: #fef3c7; color: #92400e; }
@@ -1228,16 +1227,6 @@ html[dir="rtl"] .ai-badge-inline {
                     <div class="card-body">
                         <div class="specs-grid">
                             <div class="spec-item">
-                                <div class="spec-icon size">
-                                    <i class="bi bi-bar-chart"></i>
-                                </div>
-                                <div class="spec-info">
-                                    <div class="spec-label">{% trans "Size" %}</div>
-                                    <div class="spec-value">{{ object.size|default:"—" }} {% trans "words" %}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="spec-item">
                                 <div class="spec-icon field">
                                     <i class="bi bi-bookmark"></i>
                                 </div>
@@ -1248,22 +1237,32 @@ html[dir="rtl"] .ai-badge-inline {
                             </div>
                             
                             <div class="spec-item">
-                                <div class="spec-icon format">
-                                    <i class="bi bi-file-earmark-code"></i>
-                                </div>
-                                <div class="spec-info">
-                                    <div class="spec-label">{% trans "Format" %}</div>
-                                    <div class="spec-value">{{ object.file_format|upper|default:"—" }}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="spec-item">
                                 <div class="spec-icon language">
                                     <i class="bi bi-globe"></i>
                                 </div>
                                 <div class="spec-info">
                                     <div class="spec-label">{% trans "Language" %}</div>
                                     <div class="spec-value">{{ object.get_language_display }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="spec-item">
+                                <div class="spec-icon format">
+                                    <i class="bi bi-paperclip"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Attached File" %}</div>
+                                    <div class="spec-value">{% if object.uploaded_file %}{% trans "Available" %}{% else %}{% trans "Not provided" %}{% endif %}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="spec-item">
+                                <div class="spec-icon format">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                                <div class="spec-info">
+                                    <div class="spec-label">{% trans "Access Link" %}</div>
+                                    <div class="spec-value">{% if object.access_link %}{% trans "Available" %}{% else %}{% trans "Not provided" %}{% endif %}</div>
                                 </div>
                             </div>
                         </div>
@@ -1319,14 +1318,14 @@ html[dir="rtl"] .ai-badge-inline {
                     <div class="corpus-action-body">
                         <div class="corpus-action-stats">
                             <div class="corpus-action-stat">
-                                <i class="bi bi-bar-chart"></i>
-                                <span class="corpus-action-stat-value">{{ object.size|default:"—" }}</span>
-                                <span class="corpus-action-stat-label">{% trans "Words" %}</span>
+                                <i class="bi bi-bookmark"></i>
+                                <span class="corpus-action-stat-value">{{ object.get_field_display }}</span>
+                                <span class="corpus-action-stat-label">{% trans "Field" %}</span>
                             </div>
                             <div class="corpus-action-stat">
-                                <i class="bi bi-file-earmark-text"></i>
-                                <span class="corpus-action-stat-value">{{ object.file_format|upper|default:"PDF" }}</span>
-                                <span class="corpus-action-stat-label">{% trans "Format" %}</span>
+                                <i class="bi bi-paperclip"></i>
+                                <span class="corpus-action-stat-value">{% if object.uploaded_file %}{% trans "Ready" %}{% else %}{% trans "None" %}{% endif %}</span>
+                                <span class="corpus-action-stat-label">{% trans "File" %}</span>
                             </div>
                         </div>
                         
@@ -1415,10 +1414,10 @@ html[dir="rtl"] .ai-badge-inline {
                         </li>
                         <li class="metadata-item">
                             <span class="metadata-label">
-                                <i class="bi bi-file-earmark"></i>
-                                {% trans "Format" %}
+                                <i class="bi bi-bookmark"></i>
+                                {% trans "Field" %}
                             </span>
-                            <span class="metadata-value">{{ object.file_format|upper|default:"—" }}</span>
+                            <span class="metadata-value">{{ object.get_field_display }}</span>
                         </li>
                         <li class="metadata-item">
                             <span class="metadata-label">

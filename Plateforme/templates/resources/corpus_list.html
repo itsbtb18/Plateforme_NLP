@@ -1061,32 +1061,6 @@ html[dir="rtl"] .active-filter-tag button {
                     </div>
                 </div>
                 
-                <!-- Format Filter -->
-                <div class="filter-section">
-                    <h4 class="filter-section-title">
-                        <i class="bi bi-file-earmark-code"></i>
-                        {% trans "Format" %}
-                    </h4>
-                    <div class="filter-options" id="formatFilters">
-                        <label class="filter-option">
-                            <input type="checkbox" name="format" value="json" {% if 'json' in active_formats %}checked{% endif %}>
-                            <span class="filter-option-label">JSON</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" name="format" value="csv" {% if 'csv' in active_formats %}checked{% endif %}>
-                            <span class="filter-option-label">CSV</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" name="format" value="txt" {% if 'txt' in active_formats %}checked{% endif %}>
-                            <span class="filter-option-label">TXT</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" name="format" value="xml" {% if 'xml' in active_formats %}checked{% endif %}>
-                            <span class="filter-option-label">XML</span>
-                        </label>
-                    </div>
-                </div>
-                
                 <!-- Language Filter -->
                 <div class="filter-section">
                     <h4 class="filter-section-title">
@@ -1158,7 +1132,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Filter checkboxes
     const fieldCheckboxes = document.querySelectorAll('#fieldFilters input[type="checkbox"]');
-    const formatCheckboxes = document.querySelectorAll('#formatFilters input[type="checkbox"]');
     const languageCheckboxes = document.querySelectorAll('#languageFilters input[type="checkbox"]');
     
     let searchTimeout = null;
@@ -1178,13 +1151,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fieldCheckboxes.forEach(cb => {
             if (cb.checked) {
                 params.append('field', cb.value);
-            }
-        });
-        
-        // Format filters
-        formatCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                params.append('format', cb.value);
             }
         });
         
@@ -1264,13 +1230,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Format tags
-        formatCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                activeFiltersDisplay.appendChild(createFilterTag('format', cb.value, cb.value.toUpperCase()));
-            }
-        });
-        
         // Language tags
         languageCheckboxes.forEach(cb => {
             if (cb.checked) {
@@ -1311,7 +1270,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateClearButtonState() {
         const hasFilters = searchInput.value.trim() ||
             [...fieldCheckboxes].some(cb => cb.checked) ||
-            [...formatCheckboxes].some(cb => cb.checked) ||
             [...languageCheckboxes].some(cb => cb.checked);
         
         clearFiltersBtn.disabled = !hasFilters;
@@ -1320,7 +1278,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear all filters
     function clearAllFilters() {
         searchInput.value = '';
-        [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(cb => {
+        [...fieldCheckboxes, ...languageCheckboxes].forEach(cb => {
             cb.checked = false;
         });
         performSearch();
@@ -1349,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Filter checkboxes
-    [...fieldCheckboxes, ...formatCheckboxes, ...languageCheckboxes].forEach(checkbox => {
+    [...fieldCheckboxes, ...languageCheckboxes].forEach(checkbox => {
         checkbox.addEventListener('change', performSearch);
     });
     

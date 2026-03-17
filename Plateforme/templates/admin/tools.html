@@ -47,21 +47,29 @@
     {% if pending_tools %}
     <div class="n-card" style="margin-bottom:0;">
       <table class="n-tbl">
-        <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Type" %}</th><th>{% trans "Date" %}</th><th>{% trans "Status" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
+        <thead><tr><th>{% trans "Tool Name + Description" %}</th><th>{% trans "Category" %}</th><th>{% trans "Date" %}</th><th>{% trans "Status" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
         <tbody>
           {% for tool in tools %}
           <tr>
-            <td><a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ tool.get_localized_title }}</a></td>
+            <td>
+              <a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;display:block;">{{ tool.get_localized_title }}</a>
+              <p style="font-size:.75rem;color:var(--n-text-3);margin:.15rem 0 0;">{{ tool.get_localized_description|truncatechars:90 }}</p>
+            </td>
             <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ tool.get_tool_type_display }}</span></td>
             <td><span class="n-dt">{{ tool.creation_date|date:"d/m/Y H:i" }}</span></td>
-            <td><span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span></td>
+            <td><span class="n-status pending"><span class="n-dot"></span> PENDING</span></td>
             <td>
-              <div class="n-acts" style="justify-content:center;">
-                <a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
-                {% translate "Approve this tool?" as confirm_approve_tool %}
-                <form method="post" action="{% url 'pages:admin_approve_item' model_type='nlptool' pk=tool.id %}" style="display:inline;" onsubmit="return confirm('{{ confirm_approve_tool }}');">{% csrf_token %}<button type="submit" class="n-act n-act-green" title="{% trans 'Approve' %}"><i class="fas fa-check"></i></button></form>
-                {% translate "Reject and delete this tool?" as confirm_tool_msg %}
-                <form method="post" action="{% url 'pages:admin_reject_item' model_type='nlptool' pk=tool.id %}" style="display:inline;" onsubmit="return confirm('{{ confirm_tool_msg }}');">{% csrf_token %}<button type="submit" class="n-act n-act-red" title="{% trans 'Reject' %}"><i class="fas fa-times"></i></button></form>
+              <div class="n-acts" style="justify-content:center;align-items:center;gap:5px;">
+                <a href="{% url 'resources:tool_detail' tool.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+                <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+                <button
+                  type="button"
+                  class="n-act n-act-red js-tool-reject-btn"
+                  data-reject-url="{% url 'pages:admin_reject_item' model_type='nlptool' pk=tool.id %}"
+                  title="{% trans 'Reject' %}"
+                >
+                  <i class="fas fa-times"></i>
+                </button>
               </div>
             </td>
           </tr>
@@ -86,8 +94,8 @@
           <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ tool.get_tool_type_display }}</span></td>
           <td><span class="n-dt">{{ tool.creation_date|date:"d/m/Y H:i" }}</span></td>
           <td>
-            <div class="n-acts" style="justify-content:center;">
-              <a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+            <div class="n-acts" style="display:flex; align-items:center; gap:6px;">
+              <a href="{% url 'resources:tool_detail' tool.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
               <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
               <a href="{% url 'resources:resource-delete' type='tool' pk=tool.id %}" class="n-act n-act-red" onclick="return confirm('{% trans "Are you sure you want to delete this tool?" %}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
             </div>
@@ -103,4 +111,39 @@
   {% endif %}
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name){
+  const cookieValue=document.cookie.split('; ').find((row)=>row.startsWith(name+'='));
+  return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+}
+
+document.addEventListener('click', async function(event){
+  const rejectButton=event.target.closest('.js-tool-reject-btn');
+  if(!rejectButton){return;}
+
+  if(!confirm('Are you sure you want to reject this tool?')){return;}
+
+  const rejectUrl=rejectButton.dataset.rejectUrl;
+  const tableRow=rejectButton.closest('tr');
+
+  try{
+    const response=await fetch(rejectUrl,{
+      method:'POST',
+      headers:{
+        'X-CSRFToken': '{{ csrf_token }}' !== 'NOTPROVIDED' ? '{{ csrf_token }}' : (getCookie('csrftoken') || ''),
+        'X-Requested-With':'XMLHttpRequest',
+      },
+    });
+
+    if(!response.ok){throw new Error('Reject request failed');}
+    if(tableRow){tableRow.remove();}
+    alert('Tool rejected successfully.');
+  }catch(error){
+    alert('Failed to reject tool. Please try again.');
+  }
+});
+</script>
 {% endblock %}

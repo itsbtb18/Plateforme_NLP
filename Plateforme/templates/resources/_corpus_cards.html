@@ -27,23 +27,6 @@
             <div class="card-title-section">
                 <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                     <h3 class="corpus-title">{{ corpus.get_localized_title }}</h3>
-                    <!-- Approval Status Badge -->
-                    {% if corpus.approval_status == 'pending' %}
-                    <span class="status-badge status-pending">
-                        <i class="bi bi-clock-history"></i>
-                        {% trans "Pending" %}
-                    </span>
-                    {% elif corpus.approval_status == 'approved' %}
-                    <span class="status-badge status-approved">
-                        <i class="bi bi-check-circle"></i>
-                        {% trans "Approved" %}
-                    </span>
-                    {% elif corpus.approval_status == 'rejected' %}
-                    <span class="status-badge status-rejected">
-                        <i class="bi bi-x-circle"></i>
-                        {% trans "Rejected" %}
-                    </span>
-                    {% endif %}
                 </div>
                 <span class="corpus-type-badge {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
                     {{ corpus.get_field_display }}
@@ -72,17 +55,17 @@
         </div>
         
         <div class="card-tags">
-            {% if corpus.file_format %}
-            <span class="tag-pill {% if 'csv' in corpus.file_format|lower %}format-csv{% elif 'txt' in corpus.file_format|lower %}format-txt{% elif 'json' in corpus.file_format|lower %}format-json{% elif 'xml' in corpus.file_format|lower %}format-xml{% endif %}">
-                <i class="bi bi-file-earmark"></i>
-                {{ corpus.file_format|upper }}
-            </span>
-            {% endif %}
-            
             {% if corpus.language %}
             <span class="tag-pill {% if corpus.language == 'ar' %}lang-ar{% elif corpus.language == 'en' %}lang-en{% endif %}">
                 <i class="bi bi-globe"></i>
                 {{ corpus.get_language_display }}
+            </span>
+            {% endif %}
+
+            {% if corpus.uploaded_file %}
+            <span class="tag-pill">
+                <i class="bi bi-paperclip"></i>
+                {% trans "File Attached" %}
             </span>
             {% endif %}
             
@@ -95,17 +78,10 @@
         </div>
         
         <div class="card-footer">
-            {% if corpus.approval_status == 'pending' and corpus.author == request.user %}
-                <a href="{% url 'resources:resource-update' type='corpus' pk=corpus.id %}" class="btn-view" title="{% trans 'Edit Form' %}">
-                    <span>{% trans "Edit Form" %}</span>
-                    <i class="bi bi-file-earmark-text"></i>
-                </a>
-            {% else %}
-                <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
-                    <span>{% trans "View Details" %}</span>
-                    <i class="bi bi-arrow-right"></i>
-                </a>
-            {% endif %}
+            <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
+                <span>{% trans "View Details" %}</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
             <div class="card-footer-actions">
                 {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 category=corpus.get_field_display author=corpus.author.get_full_name_display url=request.build_absolute_uri %}
             </div>

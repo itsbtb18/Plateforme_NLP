@@ -614,6 +614,19 @@ html[dir="rtl"] body {
     color: #991B1B;
 }
 
+.upload-error {
+    display: none;
+    margin-top: 0.875rem;
+    padding: 0.75rem 0.875rem;
+    border-radius: var(--radius);
+    border: 1px solid #FCA5A5;
+    background: #FEF2F2;
+    color: #B91C1C;
+    font-size: 0.875rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .alert-icon {
     font-size: 1.25rem;
     flex-shrink: 0;
@@ -653,8 +666,6 @@ html[dir="rtl"] .translation-toggle {
     flex-direction: row-reverse;
 }
 
-<<<<<<< HEAD
-=======
 html[dir="rtl"] .translation-toggle-content {
     text-align: right;
 }
@@ -698,7 +709,6 @@ html[dir="rtl"] .upload-browse {
     flex-direction: row-reverse;
 }
 
->>>>>>> 59c6aadafb32adcc5cc6f6a5b7f8d2ae88ceab8f
 html[dir="rtl"] .file-preview {
     flex-direction: row-reverse;
 }
@@ -768,6 +778,15 @@ html[dir="rtl"] .keywords-container {
                 </div>
             </div>
             {% endif %}
+            <div class="alert alert-error" id="form-feedback" role="alert" style="display: none;">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    <ul id="form-feedback-list"></ul>
+                </div>
+            </div>
             
             <!-- 2-Column Grid Layout -->
             <div class="form-grid">
@@ -785,8 +804,8 @@ html[dir="rtl"] .keywords-container {
                                     <i class="bi bi-cloud-arrow-up"></i>
                                 </div>
                                 <div class="upload-title">{% trans "Drop file here" %}</div>
-                                <div class="upload-subtitle">{% trans "or click to browse" %}</div>
-                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
+                                <div class="upload-subtitle">{% trans "Only PDF and DOCX files are accepted" %}</div>
+                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".pdf,.docx">
                             </div>
                             
                             <div class="file-preview" id="file-preview">
@@ -794,12 +813,16 @@ html[dir="rtl"] .keywords-container {
                                     <i class="bi bi-file-earmark-check"></i>
                                 </div>
                                 <div class="file-info">
-                                    <div class="file-name" id="file-name">filename.txt</div>
+                                    <div class="file-name" id="file-name">document.pdf</div>
                                     <div class="file-size" id="file-size">2.5 MB</div>
                                 </div>
                                 <button type="button" class="file-remove" id="file-remove">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
+                            </div>
+                            <div class="upload-error" id="upload-error">
+                                <i class="bi bi-exclamation-circle"></i>
+                                <span id="upload-error-text"></span>
                             </div>
                         </div>
                     </div>
@@ -841,7 +864,7 @@ html[dir="rtl"] .keywords-container {
                                 </div>
                             </div>
                             
-                            <!-- Language & Size Row -->
+                            <!-- Language & Field Row -->
                             <div class="field-row">
                                 <div class="form-group">
                                     <label for="id_language">
@@ -851,29 +874,11 @@ html[dir="rtl"] .keywords-container {
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="id_corpus_size">
-                                        {% trans "Size" %} <span class="required">*</span>
-                                    </label>
-                                    {{ form.corpus_size }}
-                                    <span class="form-text">{% trans "Words or documents" %}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Field & Format Row -->
-                            <div class="field-row">
-                                <div class="form-group">
                                     <label for="id_corpus_field">
                                         {% trans "Field of Study" %} <span class="required">*</span>
                                     </label>
                                     {{ form.corpus_field }}
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="id_corpus_format">
-                                        {% trans "File Format" %} <span class="required">*</span>
-                                    </label>
-                                    {{ form.corpus_format }}
-                                    <span class="form-text">{% trans "e.g., TXT, CSV, JSON" %}</span>
+                                    <span class="form-text">{% trans "Choose the main academic area of the corpus" %}</span>
                                 </div>
                             </div>
                             
@@ -1022,6 +1027,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileName = document.getElementById('file-name');
     const fileSize = document.getElementById('file-size');
     const fileRemove = document.getElementById('file-remove');
+    const uploadError = document.getElementById('upload-error');
+    const uploadErrorText = document.getElementById('upload-error-text');
+    const formFeedback = document.getElementById('form-feedback');
+    const formFeedbackList = document.getElementById('form-feedback-list');
+
+    const allowedExtensions = ['.pdf', '.docx'];
+    const allowedMimeTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    const maxFileSize = 50 * 1024 * 1024;
+    let selectedFile = null;
     
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -1039,12 +1056,100 @@ document.addEventListener('DOMContentLoaded', function() {
             filePreview.classList.add('visible');
         }
     }
+
+    function showUploadError(message) {
+        if (uploadError && uploadErrorText) {
+            uploadErrorText.textContent = message;
+            uploadError.style.display = 'flex';
+        }
+    }
+
+    function clearUploadError() {
+        if (uploadError && uploadErrorText) {
+            uploadErrorText.textContent = '';
+            uploadError.style.display = 'none';
+        }
+    }
+
+    function showFormErrors(messages) {
+        if (!formFeedback || !formFeedbackList) {
+            return;
+        }
+
+        formFeedbackList.innerHTML = '';
+        messages.forEach(message => {
+            const item = document.createElement('li');
+            item.textContent = message;
+            formFeedbackList.appendChild(item);
+        });
+        formFeedback.style.display = 'flex';
+        formFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function clearFormErrors() {
+        if (!formFeedback || !formFeedbackList) {
+            return;
+        }
+        formFeedbackList.innerHTML = '';
+        formFeedback.style.display = 'none';
+    }
+
+    function validateCorpusFile(file) {
+        if (!file) {
+            clearUploadError();
+            return true;
+        }
+
+        const lowerName = file.name.toLowerCase();
+        const hasValidExtension = allowedExtensions.some(extension => lowerName.endsWith(extension));
+        const hasValidMimeType = allowedMimeTypes.includes(file.type);
+
+        if (file.size > maxFileSize) {
+            showUploadError('{% trans "File is too large. Maximum size is 50MB." %}');
+            return false;
+        }
+
+        if (!hasValidExtension || !hasValidMimeType) {
+            showUploadError('{% trans "Only PDF and DOCX files are accepted" %}');
+            return false;
+        }
+
+        clearUploadError();
+        return true;
+    }
+
+    function setSelectedFile(file) {
+        if (!fileInput) {
+            return;
+        }
+
+        if (!file) {
+            clearFile();
+            return;
+        }
+
+        if (!validateCorpusFile(file)) {
+            clearFile(true);
+            return;
+        }
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        selectedFile = file;
+        showFile(file);
+        clearFormErrors();
+    }
     
-    function clearFile() {
+    function clearFile(keepError = false) {
         if (fileInput && uploadZone && filePreview) {
             fileInput.value = '';
             uploadZone.classList.remove('has-file');
             filePreview.classList.remove('visible');
+        }
+        selectedFile = null;
+        if (!keepError) {
+            clearUploadError();
         }
     }
     
@@ -1068,8 +1173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadZone.addEventListener('drop', e => {
             const files = e.dataTransfer.files;
             if (files.length) {
-                fileInput.files = files;
-                showFile(files[0]);
+                setSelectedFile(files[0]);
             }
         });
         
@@ -1078,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         fileInput.addEventListener('change', function() {
             if (this.files.length) {
-                showFile(this.files[0]);
+                setSelectedFile(this.files[0]);
             }
         });
     }
@@ -1095,9 +1199,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
     
     if (form && submitBtn) {
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            clearFormErrors();
+            if (selectedFile && !validateCorpusFile(selectedFile)) {
+                clearFile(true);
+                return;
+            }
+
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
+
+            const formData = new FormData(form);
+            if (selectedFile) {
+                formData.set('uploaded_file', selectedFile);
+            }
+
+            try {
+                const response = await fetch(form.action || window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const messages = [];
+                    if (payload.errors) {
+                        Object.entries(payload.errors).forEach(([field, errors]) => {
+                            const errorList = Array.isArray(errors) ? errors : [errors];
+                            errorList.forEach(error => messages.push(`${field}: ${error}`));
+                        });
+                    }
+                    if (Array.isArray(payload.non_field_errors)) {
+                        payload.non_field_errors.forEach(error => messages.push(error));
+                    }
+
+                    if (payload.errors && payload.errors.uploaded_file) {
+                        showUploadError(payload.errors.uploaded_file.join(' '));
+                    }
+
+                    showFormErrors(messages.length ? messages : ['{% trans "Please correct the errors in the form and try again." %}']);
+                    return;
+                }
+
+                if (payload.redirect_url) {
+                    window.location.href = payload.redirect_url;
+                    return;
+                }
+            } catch (error) {
+                showFormErrors(['{% trans "An unexpected error occurred while uploading the corpus." %}']);
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
         });
     }
     
