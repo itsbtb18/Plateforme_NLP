@@ -273,7 +273,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_template_names(self):
         """Return partial template for AJAX requests"""
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return ['resources/_tool_cards.html']
+            return ['resources/_tool_grid_cards.html']
         return [self.template_name]
      
     def get_context_data(self, **kwargs):

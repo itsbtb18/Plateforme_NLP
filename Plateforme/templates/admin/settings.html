@@ -1,645 +1,561 @@
 {% extends 'base_admin.html' %}
-{% load i18n static widget_tweaks %}
+{% load i18n %}
+
 {% block title %}{% trans "Platform Settings" %}{% endblock %}
+
 {% block extra_css %}
 <style>
-    .settings-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding-top: 0; 
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        min-height: 100vh;
-        border-radius: 12px;
-    }
+  .set-wrap { padding: 1rem 0 2rem; }
+  .set-toolbar {
+    border: 1px solid #1e3a8a;
+    background: linear-gradient(180deg, #14284f 0%, #10213f 100%);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 72px;
+  }
+  .set-toolbar-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #e2e8f0;
+  }
+  .set-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .set-tool-btn {
+    border: 1px solid #3B82F6;
+    background: rgba(241, 245, 249, .06);
+    color: #93C5FD;
+    border-radius: 10px;
+    padding: .46rem .86rem;
+    font-size: .82rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .set-tool-btn:hover { border-color: #93C5FD; background: rgba(147, 197, 253, .18); color: #ffffff; }
+  .set-tool-btn.primary {
+    border-color: #3B82F6;
+    color: #3B82F6;
+    background: #DBEAFE;
+  }
+  .set-tool-btn.primary:hover { background: #BFDBFE; }
+  .set-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .set-card {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .set-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,.08); }
+  .set-label { font-size: .84rem; color: #64748b; margin: 0; }
+  .set-value { font-size: 2rem; font-weight: 800; color: #0f172a; line-height: 1; margin: 6px 0 0; }
+  .set-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem; border: 1px solid transparent;
+  }
+  .set-icon.settings { background: #eff6ff; border-color: #bfdbfe; color: #3B82F6; }
+  .set-icon.security { background: #fffbeb; border-color: #fed7aa; color: #d97706; }
+  .set-icon.feature { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
 
-    .settings-section {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
-        border-radius: 16px;
-        margin-bottom: 30px;
-        padding: 30px;
-        border: 2px solid transparent;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .settings-section:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
-    }
-
-    .settings-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 5px;
-        background: linear-gradient(90deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #9D4EDD);
-        background-size: 200% 100%;
-        animation: gradientShift 3s ease infinite;
-    }
-
-    @keyframes gradientShift {
-        0% { background-position: 0% 0%; }
-        50% { background-position: 100% 0%; }
-        100% { background-position: 0% 0%; }
-    }
-
-    .settings-section h2 {
-        margin-top: 0;
-        padding: 15px 0;
-        font-size: 1.6em;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-    }
-
-    .settings-section .section-description {
-        color: #60708f;
-        font-size: 0.95em;
-        margin-bottom: 25px;
-        font-style: italic;
-        padding: 12px 16px;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(240, 147, 251, 0.08));
-        border-left: 4px solid #667eea;
-        border-radius: 8px;
-    }
-
-    .form-group {
-        margin-bottom: 25px;
-        display: grid;
-        grid-template-columns: 250px 1fr;
-        gap: 20px;
-        align-items: start;
-    }
-
-    .form-group label {
-        font-weight: 700;
-        color: #2c3e50;
-        padding-top: 12px;
-        font-size: 1.05em;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .form-group input[type="text"],
-    .form-group input[type="email"],
-    .form-group input[type="url"],
-    .form-group input[type="number"],
-    .form-group textarea,
-    .form-group select {
-        padding: 14px 16px;
-        border: 2px solid #e8f0ff;
-        border-radius: 10px;
-        font-family: inherit;
-        font-size: 1em;
-        background: white;
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-
-    .form-group input[type="text"]:focus,
-    .form-group input[type="email"]:focus,
-    .form-group input[type="url"]:focus,
-    .form-group input[type="number"]:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 8px 25px rgba(102, 126, 234, 0.25);
-        transform: translateY(-2px);
-    }
-
-    .form-group textarea {
-        resize: vertical;
-        min-height: 110px;
-    }
-
-    .form-group input[type="checkbox"] {
-        margin-top: 8px;
-        width: 22px;
-        height: 22px;
-        cursor: pointer;
-        accent-color: #667eea;
-    }
-
-    .form-group .help-text {
-        font-size: 0.85em;
-        color: #95a5a6;
-        margin-top: 8px;
-    }
-
-    .form-group.checkbox-group {
-        grid-template-columns: 1fr;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .form-group.checkbox-group input[type="checkbox"] {
-        margin: 0;
-        order: -1;
-    }
-
-    .form-group.checkbox-group label {
-        background: none;
-        -webkit-text-fill-color: unset;
-    }
-
-    .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 18px;
-    }
-
-    .feature-item {
-        padding: 20px;
-        border: 2px solid transparent;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #ffffff 0%, #f5f7ff 100%);
-        position: relative;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        cursor: pointer;
-    }
-
-    .feature-item:nth-child(1) { border: 2px solid #FF6B6B; }
-    .feature-item:nth-child(2) { border: 2px solid #FFD93D; }
-    .feature-item:nth-child(3) { border: 2px solid #6BCB77; }
-    .feature-item:nth-child(4) { border: 2px solid #4D96FF; }
-    .feature-item:nth-child(5) { border: 2px solid #9D4EDD; }
-    .feature-item:nth-child(6) { border: 2px solid #FF4757; }
-    .feature-item:nth-child(7) { border: 2px solid #FFA502; }
-    .feature-item:nth-child(8) { border: 2px solid #1E90FF; }
-    .feature-item:nth-child(9) { border: 2px solid #FF1493; }
-    .feature-item:nth-child(10) { border: 2px solid #00CED1; }
-
-    .feature-item::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(255,107,107,0.05), rgba(255,107,107,0));
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
-    }
-
-    .feature-item:nth-child(1)::before { background: linear-gradient(135deg, rgba(255,107,107,0.1), rgba(255,107,107,0)); }
-    .feature-item:nth-child(2)::before { background: linear-gradient(135deg, rgba(255,217,61,0.1), rgba(255,217,61,0)); }
-    .feature-item:nth-child(3)::before { background: linear-gradient(135deg, rgba(107,203,119,0.1), rgba(107,203,119,0)); }
-    .feature-item:nth-child(4)::before { background: linear-gradient(135deg, rgba(77,150,255,0.1), rgba(77,150,255,0)); }
-    .feature-item:nth-child(5)::before { background: linear-gradient(135deg, rgba(157,78,221,0.1), rgba(157,78,221,0)); }
-
-    .feature-item:hover {
-        transform: translateY(-8px) scale(1.03);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
-    }
-
-    .feature-item:hover::before {
-        opacity: 1;
-    }
-
-    .feature-item label {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        cursor: pointer;
-        margin: 0;
-        font-weight: 600;
-        color: #2c3e50;
-        position: relative;
-        z-index: 2;
-    }
-
-    .feature-item input[type="checkbox"] {
-        margin: 0;
-        accent-color: #667eea;
-    }
-
-    .btn-container {
+  .set-panel-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+    background: #f8fafc;
+  }
+  .set-form-group {
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    align-items: start;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .set-form-group:last-child { border-bottom: none; }
+  .set-form-group label {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: .9rem;
+  }
+  .set-input, .set-select, .set-textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: .42rem .55rem;
+    font-size: .85rem;
+    width: 100%;
+    font-family: inherit;
+  }
+  .set-input:focus, .set-select:focus, .set-textarea:focus {
+    outline: none;
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  .set-textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  .set-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #3B82F6;
+  }
+  .set-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .set-checkbox-group label {
+    margin: 0;
+    font-weight: 600;
+    font-size: .9rem;
+    color: #0f172a;
+  }
+  .set-form-help {
+    font-size: .75rem;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .set-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .set-feature-item {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+  .set-feature-item:hover {
+    border-color: #3B82F6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  }
+  .set-feature-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin: 0;
+    font-weight: 600;
+    color: #0f172a;
+    font-size: .9rem;
+  }
+  .set-feature-item input[type="checkbox"] {
+    margin: 0;
+    accent-color: #3B82F6;
+  }
+  .set-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: .4rem .8rem;
+    border-radius: 999px;
+    font-size: .85rem;
+    font-weight: 700;
+  }
+  .set-status-badge.active {
+    background: #ecfdf5;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+  }
+  .set-status-badge.inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+  }
+  .set-info-box {
+    background: #f0f9ff;
+    border-left: 4px solid #3B82F6;
+    border-radius: 0 10px 10px 0;
+    padding: 12px 14px;
+    margin: .75rem 0;
+  }
+  .set-info-box h4 {
+    margin: 0 0 8px 0;
+    color: #1E40AF;
+    font-weight: 700;
+    font-size: .95rem;
+  }
+  .set-btn-group {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 40px;
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .set-btn {
+    border: 1px solid #3B82F6;
+    background: #3B82F6;
+    color: #fff;
+    border-radius: 10px;
+    padding: .42rem .8rem;
+    font-size: .85rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 150ms ease;
+  }
+  .set-btn:hover {
+    background: #2563EB;
+    border-color: #2563EB;
+  }
+  .set-btn.reset {
+    background: #fff;
+    color: #3B82F6;
+  }
+  .set-btn.reset:hover {
+    background: #eff6ff;
+  }
+  .set-panel {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 14px;
+    margin-bottom: 12px;
+  }
 
-    width: fit-content;      
-    margin-left: auto;       
-
-    padding: 15px 20px;
-    border-radius: 12px;
-}
-
-    .btn {
-        padding: 10px 22px;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95em;
-        cursor: pointer;
-        font-weight: 700;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-        transition: left 0.5s;
-    }
-
-    .btn:hover::before {
-        left: 100%;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-        text-decoration: none;
-        display: inline-block;
-    }
-
-    .btn-secondary:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4);
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 10px 18px;
-        border-radius: 25px;
-        font-size: 0.9em;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    .status-active {
-        background: linear-gradient(135deg, #6BCB77 0%, #4D96FF 100%);
-        color: white;
-    }
-
-    .status-inactive {
-        background: linear-gradient(135deg, #FF6B6B 0%, #f5576c 100%);
-        color: white;
-    }
-
-    .alert {
-        padding: 18px 20px;
-        border-radius: 12px;
-        margin-bottom: 25px;
-        border-left: 5px solid;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-    }
-
-    .alert-info {
-        background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
-        color: #01579B;
-        border-left-color: #1976D2;
-    }
-
-    .alert-success {
-        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
-        color: #1B5E20;
-        border-left-color: #388E3C;
-    }
-
-    @media (max-width: 768px) {
-        .settings-container {
-            padding: 20px 15px;
-        }
-
-        .settings-section {
-            padding: 20px;
-        }
-
-        .form-group {
-            grid-template-columns: 1fr;
-        }
-
-        .feature-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .btn {
-            padding: 12px 25px;
-            font-size: 0.95em;
-        }
-    }
+  @media (max-width: 1100px) {
+    .set-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .set-grid-3 { grid-template-columns: 1fr; }
+    .set-form-group { grid-template-columns: 1fr; }
+    .set-feature-grid { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
+
 {% block content %}
-<div class="settings-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(240, 147, 251, 0.1)); padding: 30px; border-radius: 16px; border: 2px solid rgba(102, 126, 234, 0.2);">
+<div class="set-wrap">
+  <!-- ─── Toolbar ───────────────────────────────────────────── -->
+  <div class="set-toolbar">
+    <div class="set-toolbar-title">
+      <i class="fas fa-cog"></i>
+      <span>{% trans "Platform Settings" %}</span>
+    </div>
+    <div class="set-toolbar-actions">
+      <span class="set-status-badge {% if settings.maintenance_mode %}inactive{% else %}active{% endif %}">
+        {% if settings.maintenance_mode %}
+            🔴 {% trans "Maintenance Mode" %}
+        {% else %}
+            🟢 {% trans "Platform Active" %}
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- ─── Stats Cards ─────────────────────────────────────── -->
+  <div class="set-grid-3">
+    <article class="set-card">
+      <div>
+        <p class="set-label">{% trans "Configuration Status" %}</p>
+        <p class="set-value">{% if settings.site_name %}✓{% else %}✗{% endif %}</p>
+      </div>
+      <span class="set-icon settings"><i class="fas fa-wrench"></i></span>
+    </article>
+    <article class="set-card">
+      <div>
+        <p class="set-label">{% trans "Email Setup" %}</p>
+        <p class="set-value">{% if settings.email_from_address %}✓{% else %}✗{% endif %}</p>
+      </div>
+      <span class="set-icon feature"><i class="fas fa-envelope"></i></span>
+    </article>
+    <article class="set-card">
+      <div>
+        <p class="set-label">{% trans "Features Active" %}</p>
+        <p class="set-value">12</p>
+      </div>
+      <span class="set-icon security"><i class="fas fa-star"></i></span>
+    </article>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- ─── Platform Information ───────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">📱 {% trans "Platform Information" %}</div>
+      <div class="set-form-group">
+        <label for="site_name">{% trans "Site Name" %}</label>
         <div>
-            <h1 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 2.2em; font-weight: 800;">⚙️ {% trans "Platform Settings" %}</h1>
-            <p style="color: #667eea; margin: 0; font-size: 1.1em; font-weight: 600;">✨ {% trans "Customize your platform with powerful configuration options" %}</p>
+          <input type="text" class="set-input" id="site_name" name="site_name" value="{{ settings.site_name }}" required maxlength="255">
+          <div class="set-form-help">{% trans "Name displayed across the platform" %}</div>
         </div>
-        <span class="status-badge {% if maintenance_mode %}status-inactive{% else %}status-active{% endif %}" style="padding: 15px 25px; font-size: 1em;">
-            {% if maintenance_mode %}
-                🔴 {% trans "Maintenance Mode Active" %}
-            {% else %}
-                🟢 {% trans "Platform Active" %}
-            {% endif %}
-        </span>
+      </div>
+      <div class="set-form-group">
+        <label for="site_description">{% trans "Description" %}</label>
+        <div>
+          <textarea class="set-textarea" id="site_description" name="site_description">{{ settings.site_description }}</textarea>
+          <div class="set-form-help">{% trans "Brief overview of your platform" %}</div>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="site_url">{% trans "Site URL" %}</label>
+        <div>
+          <input type="url" class="set-input" id="site_url" name="site_url" value="{{ settings.site_url }}" required>
+          <div class="set-form-help">{% trans "Main platform URL" %}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Email Configuration ───────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">📧 {% trans "Email Configuration" %}</div>
+      <div class="set-form-group">
+        <label for="email_from_name">{% trans "Sender Name" %}</label>
+        <div>
+          <input type="text" class="set-input" id="email_from_name" name="email_from_name" value="{{ settings.email_from_name }}" maxlength="255">
+          <div class="set-form-help">{% trans "Name shown in email From field" %}</div>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="email_from_address">{% trans "Sender Email" %}</label>
+        <div>
+          <input type="email" class="set-input" id="email_from_address" name="email_from_address" value="{{ settings.email_from_address }}">
+          <div class="set-form-help">{% trans "Email address for outgoing messages" %}</div>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="smtp_host">{% trans "SMTP Host" %}</label>
+        <div>
+          <input type="text" class="set-input" id="smtp_host" name="smtp_host" value="{{ settings.smtp_host }}" maxlength="255">
+          <div class="set-form-help">{% trans "SMTP server hostname" %}</div>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="smtp_port">{% trans "SMTP Port" %}</label>
+        <div>
+          <input type="number" class="set-input" id="smtp_port" name="smtp_port" value="{{ settings.smtp_port }}" min="1" max="65535">
+          <div class="set-form-help">{% trans "Usually 587 (TLS) or 465 (SSL)" %}</div>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label></label>
+        <div class="set-checkbox-group">
+          <input type="checkbox" class="set-checkbox" id="smtp_use_tls" name="smtp_use_tls" {% if settings.smtp_use_tls %}checked{% endif %}>
+          <label for="smtp_use_tls">{% trans "Use TLS Encryption" %}</label>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="admin_email">{% trans "Admin Email" %}</label>
+        <div>
+          <input type="email" class="set-input" id="admin_email" name="admin_email" value="{{ settings.admin_email }}">
+          <div class="set-form-help">{% trans "Receive admin notifications here" %}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Notifications ───────────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">🔔 {% trans "Notifications" %}</div>
+      <div class="set-form-group">
+        <label></label>
+        <div class="set-checkbox-group">
+          <input type="checkbox" class="set-checkbox" id="enable_email_notifications" name="enable_email_notifications" {% if settings.enable_email_notifications %}checked{% endif %}>
+          <label for="enable_email_notifications">{% trans "Enable Email Notifications" %}</label>
+        </div>
+      </div>
+
+      <!-- Notification types -->
+      <div class="set-info-box">
+        <h4><i class="fas fa-bell"></i> {% trans "Notification Types" %}</h4>
+        <div style="padding: 8px 0;">
+          <div class="set-form-group">
+            <label></label>
+            <div class="set-checkbox-group">
+              <input type="checkbox" class="set-checkbox" id="notify_on_user_registration" name="notify_on_user_registration" {% if settings.notify_on_user_registration %}checked{% endif %}>
+              <label for="notify_on_user_registration">{% trans "User Registration" %}</label>
+            </div>
+          </div>
+          <div class="set-form-group">
+            <label></label>
+            <div class="set-checkbox-group">
+              <input type="checkbox" class="set-checkbox" id="notify_on_resource_submission" name="notify_on_resource_submission" {% if settings.notify_on_resource_submission %}checked{% endif %}>
+              <label for="notify_on_resource_submission">{% trans "Resource Submission" %}</label>
+            </div>
+          </div>
+          <div class="set-form-group">
+            <label></label>
+            <div class="set-checkbox-group">
+              <input type="checkbox" class="set-checkbox" id="notify_on_forum_post" name="notify_on_forum_post" {% if settings.notify_on_forum_post %}checked{% endif %}>
+              <label for="notify_on_forum_post">{% trans "Forum Posts" %}</label>
+            </div>
+          </div>
+          <div class="set-form-group">
+            <label></label>
+            <div class="set-checkbox-group">
+              <input type="checkbox" class="set-checkbox" id="notify_on_event" name="notify_on_event" {% if settings.notify_on_event %}checked{% endif %}>
+              <label for="notify_on_event">{% trans "New Events" %}</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-form-group">
+        <label for="notification_email">{% trans "Alert Email" %}</label>
+        <div>
+          <input type="email" class="set-input" id="notification_email" name="notification_email" value="{{ settings.notification_email }}">
+          <div class="set-form-help">{% trans "Where to send notification alerts" %}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Feature Flags ──────────────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">⚙️ {% trans "Feature Flags" %}</div>
+      <div class="set-feature-grid">
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_user_registration" {% if settings.enable_user_registration %}checked{% endif %}>
+            {% trans "User Registration" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_social_login" {% if settings.enable_social_login %}checked{% endif %}>
+            {% trans "Social Login" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_two_factor_auth" {% if settings.enable_two_factor_auth %}checked{% endif %}>
+            {% trans "Two-Factor Auth" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_forum" {% if settings.enable_forum %}checked{% endif %}>
+            {% trans "Forum" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_qa" {% if settings.enable_qa %}checked{% endif %}>
+            {% trans "Q&A Section" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_events" {% if settings.enable_events %}checked{% endif %}>
+            {% trans "Events" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_projects" {% if settings.enable_projects %}checked{% endif %}>
+            {% trans "Projects" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_chatbot" {% if settings.enable_chatbot %}checked{% endif %}>
+            {% trans "Chatbot" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_resource_submission" {% if settings.enable_resource_submission %}checked{% endif %}>
+            {% trans "Resource Submission" %}
+          </label>
+        </div>
+        <div class="set-feature-item">
+          <label>
+            <input type="checkbox" name="enable_resource_approval" {% if settings.enable_resource_approval %}checked{% endif %}>
+            {% trans "Resource Approval" %}
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Security & Moderation ──────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">🛡️ {% trans "Security & Moderation" %}</div>
+      <div class="set-form-group">
+        <label></label>
+        <div class="set-checkbox-group">
+          <input type="checkbox" class="set-checkbox" id="enable_content_moderation" name="enable_content_moderation" {% if settings.enable_content_moderation %}checked{% endif %}>
+          <label for="enable_content_moderation">{% trans "Enable Content Moderation" %}</label>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label></label>
+        <div class="set-checkbox-group">
+          <input type="checkbox" class="set-checkbox" id="require_email_verification" name="require_email_verification" {% if settings.require_email_verification %}checked{% endif %}>
+          <label for="require_email_verification">{% trans "Require Email Verification" %}</label>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="max_upload_size_mb">{% trans "Max Upload Size" %}</label>
+        <div>
+          <input type="number" class="set-input" id="max_upload_size_mb" name="max_upload_size_mb" value="{{ settings.max_upload_size_mb }}" min="1" max="10000">
+          <div class="set-form-help">{% trans "Maximum file size in megabytes" %}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Maintenance Mode ──────────────────────────── -->
+    <section class="set-panel">
+      <div class="set-panel-head">🔧 {% trans "Maintenance Mode" %}</div>
+      <div class="set-form-group">
+        <label></label>
+        <div class="set-checkbox-group">
+          <input type="checkbox" class="set-checkbox" id="maintenance_mode" name="maintenance_mode" {% if settings.maintenance_mode %}checked{% endif %}>
+          <label for="maintenance_mode">{% trans "Enable Maintenance Mode" %}</label>
+        </div>
+      </div>
+      <div class="set-form-group">
+        <label for="maintenance_message">{% trans "Message" %}</label>
+        <div>
+          <textarea class="set-textarea" id="maintenance_message" name="maintenance_message" placeholder="{% trans 'We are performing maintenance…' %}">{{ settings.maintenance_message }}</textarea>
+          <div class="set-form-help">{% trans "Displayed to users during maintenance" %}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Buttons ────────────────────────────────── -->
+    <div class="set-panel">
+      <div class="set-btn-group">
+        <a href="{% url 'pages:admin_dashboard' %}" class="set-btn reset">{% trans "Cancel" %}</a>
+        <button type="submit" class="set-btn">💾 {% trans "Save Settings" %}</button>
+      </div>
     </div>
+  </form>
 
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-
-        <!-- PLATFORM INFORMATION -->
-        <div class="settings-section">
-            <h2>📱 {% trans "Plateform Informations" %}</h2>
-            <p class="section-description">{% trans "Configure basic platform identification and branding" %}</p>
-            
-            <div class="form-group">
-                <label for="site_name">{% trans "Site Name" %}</label>
-                <div>
-                    <input type="text" id="site_name" name="site_name" value="{{ settings.site_name }}" required maxlength="255">
-                    <div class="help-text">{% trans "Name of your platform" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="site_description">{% trans "Site Description" %}</label>
-                <div>
-                    <textarea id="site_description" name="site_description">{{ settings.site_description }}</textarea>
-                    <div class="help-text">{% trans "Brief description of your platform" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="site_url">{% trans "Site URL" %}</label>
-                <div>
-                    <input type="url" id="site_url" name="site_url" value="{{ settings.site_url }}" required>
-                    <div class="help-text">{% trans "Main URL of the platform" %}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- EMAIL CONFIGURATION -->
-        <div class="settings-section">
-            <h2>📧 {% trans "Email Configuration" %}</h2>
-            <p class="section-description">{% trans "Configure SMTP settings for outgoing emails" %}</p>
-            
-            <div class="form-group">
-                <label for="email_from_name">{% trans "From Name" %}</label>
-                <div>
-                    <input type="text" id="email_from_name" name="email_from_name" value="{{ settings.email_from_name }}" maxlength="255">
-                    <div class="help-text">{% trans "Display name in From field" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="email_from_address">{% trans "From Email Address" %}</label>
-                <div>
-                    <input type="email" id="email_from_address" name="email_from_address" value="{{ settings.email_from_address }}">
-                    <div class="help-text">{% trans "Sender email address" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="smtp_host">{% trans "SMTP Host" %}</label>
-                <div>
-                    <input type="text" id="smtp_host" name="smtp_host" value="{{ settings.smtp_host }}" maxlength="255">
-                    <div class="help-text">{% trans "SMTP server hostname" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="smtp_port">{% trans "SMTP Port" %}</label>
-                <div>
-                    <input type="number" id="smtp_port" name="smtp_port" value="{{ settings.smtp_port }}" min="1" max="65535">
-                    <div class="help-text">{% trans "SMTP port (usually 587 or 465)" %}</div>
-                </div>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="smtp_use_tls" name="smtp_use_tls" {% if settings.smtp_use_tls %}checked{% endif %}>
-                <label for="smtp_use_tls">{% trans "Use TLS Encryption" %}</label>
-            </div>
-
-            <div class="form-group">
-                <label for="admin_email">{% trans "Admin Email" %}</label>
-                <div>
-                    <input type="email" id="admin_email" name="admin_email" value="{{ settings.admin_email }}">
-                    <div class="help-text">{% trans "Email for admin notifications" %}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- NOTIFICATIONS -->
-        <div class="settings-section">
-            <h2>🔔 {% trans "Notifications" %}</h2>
-            <p class="section-description">{% trans "Control which notifications are enabled" %}</p>
-            
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="enable_email_notifications" name="enable_email_notifications" {% if settings.enable_email_notifications %}checked{% endif %}>
-                <label for="enable_email_notifications">{% trans "Enable Email Notifications" %}</label>
-            </div>
-
-            <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(240, 147, 251, 0.08)); border-radius: 12px; border-left: 5px solid #667eea;">
-                <h4 style="margin-top: 0; color: #667eea; font-weight: 700; font-size: 1.1em;">🔔 {% trans "Notification Types" %}</h4>
-                
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="notify_on_user_registration" name="notify_on_user_registration" {% if settings.notify_on_user_registration %}checked{% endif %}>
-                    <label for="notify_on_user_registration">{% trans "User Registration" %}</label>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="notify_on_resource_submission" name="notify_on_resource_submission" {% if settings.notify_on_resource_submission %}checked{% endif %}>
-                    <label for="notify_on_resource_submission">{% trans "Resource Submission" %}</label>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="notify_on_forum_post" name="notify_on_forum_post" {% if settings.notify_on_forum_post %}checked{% endif %}>
-                    <label for="notify_on_forum_post">{% trans "Forum Posts" %}</label>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="notify_on_event" name="notify_on_event" {% if settings.notify_on_event %}checked{% endif %}>
-                    <label for="notify_on_event">{% trans "New Events" %}</label>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="notification_email">{% trans "Notification Email" %}</label>
-                <div>
-                    <input type="email" id="notification_email" name="notification_email" value="{{ settings.notification_email }}">
-                    <div class="help-text">{% trans "Where to send notification alerts" %}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- FEATURE FLAGS -->
-        <div class="settings-section">
-            <h2>⚙️ {% trans "Feature Flags" %}</h2>
-            <p class="section-description">{% trans "Enable or disable platform features" %}</p>
-            
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_user_registration" {% if settings.enable_user_registration %}checked{% endif %}>
-                        {% trans "User Registration" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_social_login" {% if settings.enable_social_login %}checked{% endif %}>
-                        {% trans "Social Login" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_two_factor_auth" {% if settings.enable_two_factor_auth %}checked{% endif %}>
-                        {% trans "Two-Factor Auth" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_forum" {% if settings.enable_forum %}checked{% endif %}>
-                        {% trans "Forum" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_qa" {% if settings.enable_qa %}checked{% endif %}>
-                        {% trans "Q&A Section" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_events" {% if settings.enable_events %}checked{% endif %}>
-                        {% trans "Events" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_projects" {% if settings.enable_projects %}checked{% endif %}>
-                        {% trans "Projects" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_chatbot" {% if settings.enable_chatbot %}checked{% endif %}>
-                        {% trans "Chatbot" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_resource_submission" {% if settings.enable_resource_submission %}checked{% endif %}>
-                        {% trans "Resource Submission" %}
-                    </label>
-                </div>
-
-                <div class="feature-item">
-                    <label>
-                        <input type="checkbox" name="enable_resource_approval" {% if settings.enable_resource_approval %}checked{% endif %}>
-                        {% trans "Resource Approval" %}
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECURITY & MODERATION -->
-        <div class="settings-section">
-            <h2>🛡️ {% trans "Security & Moderation" %}</h2>
-            <p class="section-description">{% trans "Configure security and content moderation settings" %}</p>
-            
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="enable_content_moderation" name="enable_content_moderation" {% if settings.enable_content_moderation %}checked{% endif %}>
-                <label for="enable_content_moderation">{% trans "Enable Content Moderation" %}</label>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="require_email_verification" name="require_email_verification" {% if settings.require_email_verification %}checked{% endif %}>
-                <label for="require_email_verification">{% trans "Require Email Verification" %}</label>
-            </div>
-
-            <div class="form-group">
-                <label for="max_upload_size_mb">{% trans "Max Upload Size (MB)" %}</label>
-                <div>
-                    <input type="number" id="max_upload_size_mb" name="max_upload_size_mb" value="{{ settings.max_upload_size_mb }}" min="1" max="10000">
-                    <div class="help-text">{% trans "Maximum file upload size in megabytes" %}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MAINTENANCE -->
-        <div class="settings-section">
-            <h2>🔧 {% trans "Maintenance Mode" %}</h2>
-            <p class="section-description">{% trans "Put the platform in maintenance mode for updates" %}</p>
-            
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="maintenance_mode" name="maintenance_mode" {% if settings.maintenance_mode %}checked{% endif %}>
-                <label for="maintenance_mode">
-                    {% trans "Enable Maintenance Mode" %}
-                    <span style="color: #999; font-weight: normal;">({% trans "Non-staff users will see a maintenance page" %})</span>
-                </label>
-            </div>
-
-            <div class="form-group">
-                <label for="maintenance_message">{% trans "Maintenance Message" %}</label>
-                <div>
-                    <textarea id="maintenance_message" name="maintenance_message" placeholder="{% trans 'We are currently performing maintenance. We will be back online shortly.' %}">{{ settings.maintenance_message }}</textarea>
-                    <div class="help-text">{% trans "Message to display to users during maintenance" %}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SUBMIT BUTTONS -->
-        <div class="btn-container">
-            <button type="submit" class="btn btn-primary">💾 {% trans "Save Settings" %}</button>
-            <button type="button" onclick="window.location.reload();" class="btn btn-secondary">
-                   🚀 {% trans "Cancel" %}
-            </button>
-        </div>
-    </form>
-
-    <div style="margin-top: 50px; padding: 25px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(157, 78, 221, 0.08)); border-radius: 12px; border-left: 5px solid #667eea; color: #667eea; font-size: 0.95em; font-weight: 600;">
-        <p style="margin: 0;">📝 {% trans "Last updated" %}: <strong>{{ settings.updated_at|date:"SHORT_DATETIME_FORMAT" }}</strong>
-        {% if settings.updated_by %}
-            <br>👤 {% trans "by" %} <strong style="color: #764ba2;">{{ settings.updated_by.get_full_name|default:settings.updated_by.username }}</strong>
-        {% endif %}</p>
-    </div>
-<div class="container-fluid" style="padding-top:.5rem;">
-  <div class="pg-head"><div><h1><i class="fas fa-cog"></i> {% trans "Settings" %}</h1></div></div>
-  <div class="n-card"><div class="n-empty"><i class="fas fa-cog"></i><h3>{% trans "Coming soon" %}</h3><p>{% trans "To be implemented." %}</p></div></div>
+  <!-- ─── Info Box ───────────────────────────────── -->
+  <div class="set-info-box" style="margin-top:12px;margin-bottom:0;">
+    <strong>📝 {% trans "Last Updated" %}:</strong> 
+    {% if settings.updated_at %}
+      {{ settings.updated_at|date:"SHORT_DATETIME_FORMAT" }}
+      {% if settings.updated_by %} {% trans "by" %} <strong>{{ settings.updated_by.get_full_name|default:settings.updated_by.username }}</strong>{% endif %}
+    {% else %}
+      {% trans "Never" %}
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
-

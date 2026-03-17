@@ -891,7 +891,18 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                         {% endif %}
                         
                         <div class="sr-result-footer">
-                            {% if result.author %}
+                            {% if result.type == 'user' %}
+                                <div class="sr-result-author">
+                                    {% if result.avatar %}
+                                    <img src="{{ result.avatar }}" alt="{{ result.title }}" class="sr-result-author-avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    {% else %}
+                                    <span class="sr-result-author-avatar">
+                                        <i class="bi bi-person-fill"></i>
+                                    </span>
+                                    {% endif %}
+                                    <span>{{ result.title }}</span>
+                                </div>
+                            {% elif result.author %}
                             <div class="sr-result-author">
                                 <span class="sr-result-author-avatar">
                                     <i class="bi bi-person-fill"></i>
@@ -1127,6 +1138,14 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
             const color = typeColors[item.type] || '#64748b';
             const highlighted = highlightMatch(item.title, query);
             
+            // For user type, show avatar instead of icon
+            let iconHtml = '';
+            if (item.type === 'user' && item.avatar) {
+                iconHtml = `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" style="width: 2rem; height: 2rem; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                iconHtml = `<i class="bi ${icon}" style="color: ${color}; font-size: 1rem;"></i>`;
+            }
+            
             html += `
                 <div class="sr-autocomplete-item" data-query="${escapeHtml(item.title)}" style="
                     padding: 0.75rem 1rem;
@@ -1137,7 +1156,7 @@ html[dir="rtl"] .me-1 { margin-left: 0.25rem; margin-right: 0; }
                     border-bottom: 1px solid #f1f5f9;
                     transition: background 0.15s;
                 " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                    <i class="bi ${icon}" style="color: ${color}; font-size: 1rem;"></i>
+                    ${iconHtml}
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 0.9rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${highlighted}
