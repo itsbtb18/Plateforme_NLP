@@ -275,10 +275,6 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
     margin: 0 0 1.5rem;
 }
 
-/* Pagination */
-.ip-pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 2.5rem; }
-.ip-page-btn { padding: 0.5rem 1rem; border: 1px solid var(--ip-border); border-radius: 8px; text-decoration: none; color: var(--ip-text); }
-.ip-page-btn.active { background: var(--ip-primary); color: white; border-color: var(--ip-primary); }
 </style>
 {% endblock %}
 
@@ -383,34 +379,6 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
             </article>
             {% endfor %}
         </div>
-        <!-- Pagination -->
-        {% if is_paginated %}
-        <nav class="ip-pagination" aria-label="{% translate 'Pagination' %}">
-            {% if page_obj.has_previous %}
-            <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
-                <i class="bi bi-chevron-left"></i> {% translate "Previous" %}
-            </a>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                <span class="ip-page-btn active">{{ num }}</span>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
-                {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
-                {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
-                <span class="ip-page-btn" style="border: none; cursor: default;">&hellip;</span>
-                {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-            <a class="ip-page-btn" href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
-                {% translate "Next" %} <i class="bi bi-chevron-right"></i>
-            </a>
-            {% endif %}
-        </nav>
-        {% endif %}
 
         {% else %}
         <div style="text-align: center; padding: 50px; border: 2px dashed #e2e8f0; border-radius: 15px;">
@@ -418,6 +386,8 @@ html[dir="rtl"] .ip-card-link:hover i { transform: scaleX(-1) translateX(-4px); 
             <p style="margin-top: 15px; color: #64748b;">{% translate "No results found for your search." %}</p>
         </div>
         {% endif %}
+        <!-- Pagination -->
+        {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
     </main>
 </div>
 {% endblock %}

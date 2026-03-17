@@ -21,7 +21,7 @@
       <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
         <div class="n-form-group" style="flex:1;min-width:200px;margin:0;">
           <label for="search" class="n-form-label"><i class="fas fa-search" style="margin-inline-end:.3rem;"></i>{% trans "Research" %}</label>
-          <input type="text" id="search" name="search" class="n-input" value="{{ request.GET.search }}" placeholder="{% trans 'Title, description...' %}">
+          <input type="text" id="search" name="search" class="n-input" value="{{ request.GET.search }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}العنوان، الوصف...{% else %}{% trans 'Title, description...' %}{% endif %}">
         </div>
         <div style="display:flex;gap:.5rem;">
           <button type="button" class="n-btn n-btn-outline" onclick="document.getElementById('search').value='';window.location.href='{% url 'pages:admin_corpora' %}';"><i class="fas fa-undo"></i> {% trans "Reset" %}</button>
@@ -49,7 +49,7 @@
       <table class="n-tbl">
         <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Description" %}</th><th>{% trans "Date" %}</th><th>{% trans "Status" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
         <tbody>
-          {% for corpus in pending_corpora %}
+          {% for corpus in corpora %}
           <tr>
             <td><a href="{% url 'resources:corpus_detail' corpus.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ corpus.get_localized_title }}</a></td>
             <td style="max-width:220px;"><span class="n-dt">{{ corpus.get_localized_description|truncatewords:10 }}</span></td>
@@ -69,6 +69,7 @@
         </tbody>
       </table>
     </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
     {% else %}
     <div class="n-card"><div class="n-empty"><i class="fas fa-check-double"></i><h3>{% trans "No pending corpora" %}</h3><p>{% trans "All submissions have been reviewed." %}</p></div></div>
     {% endif %}
@@ -79,7 +80,7 @@
     <table class="n-tbl">
       <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Description" %}</th><th>{% trans "Date" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
       <tbody>
-        {% for corpus in approved_corpora %}
+        {% for corpus in corpora %}
         <tr>
           <td><a href="{% url 'resources:corpus_detail' corpus.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ corpus.get_localized_title }}</a></td>
           <td style="max-width:220px;"><span class="n-dt">{{ corpus.get_localized_description|truncatewords:10 }}</span></td>
@@ -95,14 +96,8 @@
         {% endfor %}
       </tbody>
     </table>
-    {% if is_paginated %}
-    <div class="n-pag">
-      {% if page_obj.has_previous %}<a class="n-pg" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-double-left"></i></a><a class="n-pg" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-left"></i></a>{% endif %}
-      {% for num in page_obj.paginator.page_range %}{% if num == page_obj.number %}<span class="n-pg on">{{ num }}</span>{% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<a class="n-pg" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>{% endif %}{% endfor %}
-      {% if page_obj.has_next %}<a class="n-pg" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-right"></i></a><a class="n-pg" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><i class="fas fa-angle-double-right"></i></a>{% endif %}
-    </div>
-    {% endif %}
   </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
   {% else %}
   <div class="n-card"><div class="n-empty"><i class="fas fa-database"></i><h3>{% trans "No corpus available" %}</h3><p>{% trans "You have not yet created a corpus or none match your search criteria." %}</p><a href="{% url 'resources:corpus-create' %}" class="n-btn n-btn-blue" style="margin-top:.5rem;"><i class="fas fa-plus"></i> {% trans "Create a corpus" %}</a></div></div>
   {% endif %}

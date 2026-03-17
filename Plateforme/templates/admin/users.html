@@ -334,25 +334,7 @@
       </tbody>
     </table>
 
-    {% if is_paginated %}
-    <nav class="u-pag" aria-label="Page navigation">
-      {% if page_obj.has_previous %}
-      <a class="u-pg" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
-      <a class="u-pg" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-left"></i></a>
-      {% endif %}
-      {% for i in paginator.page_range %}
-        {% if page_obj.number == i %}
-        <span class="u-pg on">{{ i }}</span>
-        {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-        <a class="u-pg" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ i }}</a>
-        {% endif %}
-      {% endfor %}
-      {% if page_obj.has_next %}
-      <a class="u-pg" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-right"></i></a>
-      <a class="u-pg" href="?page={{ paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
-      {% endif %}
-    </nav>
-    {% endif %}
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
   </div>
 
   {% else %}

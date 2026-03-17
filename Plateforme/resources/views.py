@@ -31,7 +31,7 @@ ResourceVariant = Union[Document, NLPTool, Course, Corpus]
 class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = 'resources/list.html'
     context_object_name = 'resources'
-    paginate_by = 9
+    paginate_by = 10
 
     def get_queryset(self) -> List[ResourceVariant]:
         search_query = self.request.GET.get('q', '')
@@ -237,7 +237,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
     model = NLPTool
     template_name = 'resources/tool_list.html'
     context_object_name = 'tools'
-    paginate_by = 12
+    paginate_by = 10
     
     def get_queryset(self):
         # STRICT: Only show APPROVED tools in the public section
@@ -302,7 +302,7 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Course
     template_name = 'resources/course_list.html'
     context_object_name = 'courses'
-    paginate_by = 12
+    paginate_by = 10
     
     def get_template_names(self):
         # Return partial template for AJAX requests (live search)
@@ -378,6 +378,7 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Article
     template_name = 'resources/article_list.html'
     context_object_name = 'articles'
+    paginate_by = 10
     
     def get_queryset(self):
         # Only show approved articles (staff sees all, users see own + approved)
@@ -398,6 +399,7 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Thesis
     template_name = 'resources/thesis_list.html'
     context_object_name = 'theses'
+    paginate_by = 10
     
     def get_queryset(self):
         # Only show approved theses (staff sees all, users see own + approved)
@@ -418,6 +420,7 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Memoir
     template_name = 'resources/memoir_list.html'
     context_object_name = 'memoirs'
+    paginate_by = 10
     
     def get_queryset(self):
         # Only show approved memoirs (staff sees all, users see own + approved)
@@ -438,8 +441,14 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Corpus
     template_name = 'resources/corpus_list.html'
     context_object_name = 'corpora'
-    paginate_by = 12
-    
+    paginate_by = 10
+
+    def get_template_names(self):
+        """Return partial template for AJAX requests."""
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return ['resources/_corpus_cards.html']
+        return [self.template_name]
+
     def get_queryset(self):
         # Users can see: their own corpus (any status) + all approved corpus
         # Staff sees all corpus

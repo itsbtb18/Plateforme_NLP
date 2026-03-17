@@ -53,13 +53,13 @@
         {% if active_tab %}<input type="hidden" name="tab" value="{{ active_tab }}">{% endif %}
         <div class="n-search-wrap" style="flex:1;min-width:200px;">
           <i class="fas fa-search"></i>
-          <input type="text" name="search" class="n-search" placeholder="{% trans 'Search projects...' %}" value="{{ search }}">
+          <input type="text" name="search" class="n-search" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن المشاريع...{% else %}{% trans 'Search projects...' %}{% endif %}" value="{{ search }}">
         </div>
         <select name="status" class="n-select">
-          <option value="">{% trans "All Statuses" %}</option>
-          <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>{% trans "Ongoing" %}</option>
-          <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>{% trans "Completed" %}</option>
-          <option value="planned" {% if filter_status == 'planned' %}selected{% endif %}>{% trans "Planned" %}</option>
+          <option value="">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}جميع الحالات{% else %}{% trans "All Statuses" %}{% endif %}</option>
+          <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد الإنجاز{% else %}{% trans "Ongoing" %}{% endif %}</option>
+          <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}مكتمل{% else %}{% trans "Completed" %}{% endif %}</option>
+          <option value="planned" {% if filter_status == 'planned' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}مخطط له{% else %}{% trans "Planned" %}{% endif %}</option>
         </select>
         <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
       </form>
@@ -99,10 +99,15 @@
               <p style="font-size:.75rem;color:var(--n-text-3);margin:.15rem 0 0;">{{ project.get_localized_description|truncatechars:90 }}</p>
             </td>
             <td>
-              {% if project.status == 'ongoing' %}<span class="n-status active"><span class="n-dot"></span> {% trans "Ongoing" %}</span>
-              {% elif project.status == 'completed' %}<span class="n-status completed"><span class="n-dot"></span> {% trans "Completed" %}</span>
-              {% elif project.status == 'planned' %}<span class="n-status pending"><span class="n-dot"></span> {% trans "Planned" %}</span>
-              {% else %}<span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span>{% endif %}
+              {% if project.status == 'ongoing' %}
+                <span class="n-status active"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد الإنجاز{% else %}{% trans "Ongoing" %}{% endif %}</span>
+              {% elif project.status == 'completed' %}
+                <span class="n-status completed"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مكتمل{% else %}{% trans "Completed" %}{% endif %}</span>
+              {% elif project.status == 'planned' %}
+                <span class="n-status pending"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مخطط له{% else %}{% trans "Planned" %}{% endif %}</span>
+              {% else %}
+                <span class="n-status pending"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد المراجعة{% else %}{% trans "Pending" %}{% endif %}</span>
+              {% endif %}
             </td>
             <td><span style="font-size:.82rem;">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span></td>
             <td><span class="n-dt">{{ project.created_at|date:"d M Y" }}</span></td>
@@ -118,12 +123,13 @@
         </tbody>
       </table>
     </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
     {% else %}
     <div class="n-card"><div class="n-empty"><i class="fas fa-clipboard-check"></i><h3>{% trans "No pending projects to review." %}</h3></div></div>
     {% endif %}
 
   {% else %}
-    {% if approved_projects %}
+    {% if projects %}
     <div class="n-card" style="margin-bottom:0;">
       <table class="n-tbl">
         <thead>
@@ -136,7 +142,7 @@
         </thead>
         <tbody>
           {% translate "Delete this project?" as confirm_delete_project %}
-          {% for project in approved_projects %}
+          {% for project in projects %}
           <tr>
             <td>
               <a href="{% url 'projects:project_detail' project.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;display:block;">{{ project.get_localized_title }}</a>
@@ -147,10 +153,15 @@
               </p>
             </td>
             <td>
-              {% if project.status == 'ongoing' %}<span class="n-status active"><span class="n-dot"></span> {% trans "Ongoing" %}</span>
-              {% elif project.status == 'completed' %}<span class="n-status completed"><span class="n-dot"></span> {% trans "Completed" %}</span>
-              {% elif project.status == 'planned' %}<span class="n-status pending"><span class="n-dot"></span> {% trans "Planned" %}</span>
-              {% else %}<span class="n-status-pill pending">{{ project.get_status_display }}</span>{% endif %}
+              {% if project.status == 'ongoing' %}
+                <span class="n-status active"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد الإنجاز{% else %}{% trans "Ongoing" %}{% endif %}</span>
+              {% elif project.status == 'completed' %}
+                <span class="n-status completed"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مكتمل{% else %}{% trans "Completed" %}{% endif %}</span>
+              {% elif project.status == 'planned' %}
+                <span class="n-status pending"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مخطط له{% else %}{% trans "Planned" %}{% endif %}</span>
+              {% else %}
+                <span class="n-status-pill pending">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد المراجعة{% else %}{{ project.get_status_display }}{% endif %}</span>
+              {% endif %}
             </td>
             <td>
               <span style="font-size:.8rem;background:var(--n-bg);padding:.2rem .5rem;border-radius:4px;color:var(--n-text-2);">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span>
@@ -172,6 +183,7 @@
         </tbody>
       </table>
     </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
     {% else %}
     <div class="n-card"><div class="n-empty"><i class="fas fa-folder-open"></i><h3>{% trans "No projects found." %}</h3></div></div>
     {% endif %}

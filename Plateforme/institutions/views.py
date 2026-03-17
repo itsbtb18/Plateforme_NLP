@@ -25,7 +25,7 @@ class InstitutionListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Institution
     template_name = 'institutions/institution_list.html'
     context_object_name = 'institutions'
-    paginate_by = 9
+    paginate_by = 10
 
     def get_queryset(self):
         queryset = Institution.objects.filter(approval_status='approved')

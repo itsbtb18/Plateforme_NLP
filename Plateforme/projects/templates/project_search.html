@@ -578,7 +578,7 @@ html[dir="rtl"] .ps-avatar:first-child { margin-right: 0; }
         {% if projects %}
         <div class="ps-results-header">
             <p class="ps-results-count">
-                {% blocktranslate count counter=projects|length %}
+                {% blocktranslate count counter=page_obj.paginator.count|default:projects|length %}
                 Found <strong>{{ counter }}</strong> project
                 {% plural %}
                 Found <strong>{{ counter }}</strong> projects
@@ -654,29 +654,7 @@ html[dir="rtl"] .ps-avatar:first-child { margin-right: 0; }
             {% endfor %}
         </div>
         
-        {% if is_paginated %}
-        <nav class="ps-pagination">
-            {% if page_obj.has_previous %}
-            <a href="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&page={{ page_obj.previous_page_number }}" class="ps-page-btn">
-                <i class="bi bi-chevron-left"></i>
-            </a>
-            {% endif %}
-            
-            {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <span class="ps-page-btn active">{{ num }}</span>
-            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-            <a href="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&page={{ num }}" class="ps-page-btn">{{ num }}</a>
-            {% endif %}
-            {% endfor %}
-            
-            {% if page_obj.has_next %}
-            <a href="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&page={{ page_obj.next_page_number }}" class="ps-page-btn">
-                <i class="bi bi-chevron-right"></i>
-            </a>
-            {% endif %}
-        </nav>
-        {% endif %}
+        {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
         
         {% else %}
         

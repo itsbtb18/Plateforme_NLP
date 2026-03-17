@@ -7,6 +7,7 @@ from .models import Project, ProjectMember, ProjectInvitation
 from django.db.models import Q
 from django.db.models import Exists, OuterRef
 from django.urls import reverse, reverse_lazy
+from django.core.paginator import Paginator
 from .forms import ProjectForm  
 from django.contrib.auth import get_user_model
 from notifications.models import Notification
@@ -74,6 +75,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     model = Project
     template_name = 'project_list.html'
     context_object_name = 'projects'
+    paginate_by = 10
     
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         """Handle both AJAX and regular requests."""
@@ -100,9 +102,16 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             projects = list(self.get_queryset())
             highlights = {}
         
+        page_number = request.GET.get('page') or 1
+        paginator = Paginator(projects, self.paginate_by)
+        page_obj = paginator.get_page(page_number)
+
         # Build context for partial template
         context = {
-            'projects': projects,
+            'projects': page_obj,
+            'page_obj': page_obj,
+            'paginator': paginator,
+            'is_paginated': page_obj.has_other_pages(),
             'highlights': highlights,
             'search_query': search_query,
             'request': request,
@@ -1042,6 +1051,7 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     model = Project
     template_name = 'project_search.html'
     context_object_name = 'projects'
+    paginate_by = 10
 
     def get_queryset(self) -> QuerySet[Project]:
         qs = exclude_hidden_users(
