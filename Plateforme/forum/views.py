@@ -71,61 +71,65 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         # Also return the count for updating stats
         return HttpResponse(html)
 
-    def get_queryset(self) -> QuerySet[Topic]:
-        qs = cast(QuerySet[Topic], super().get_queryset())
+        def get_queryset(self) -> QuerySet[Topic]:
+            qs = cast(QuerySet[Topic], super().get_queryset())
+            
+            # Public users see approved topics + their own pending topics
+            # so they can track moderation state directly in the forum list.
+            if self.request.user.is_staff or self.request.user.is_superuser:
+                qs = qs.all()
+            else:
+                qs = qs.filter(
+                    Q(approval_status='approved') |
+                    Q(approval_status='pending', creator=self.request.user)
+                )
+            qs = exclude_hidden_users(qs, self.request.user, ('creator',))
+            
+            # Filter: My Topics only - but still only approved ones
+            if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
+                qs = qs.filter(creator=self.request.user)
+            
+            # Backend search filtering
+            search_query = self.request.GET.get('q', '').strip()
+            if search_query:
+                qs = qs.filter(
+                    Q(title__icontains=search_query) |
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query) |
+                    Q(description__icontains=search_query) |
+                    Q(description_ar__icontains=search_query) |
+                    Q(description_en__icontains=search_query) |
+                    Q(creator__username__icontains=search_query) |
+                    Q(creator__full_name__icontains=search_query)
+                )
+            
+            # Sort options
+            sort = self.request.GET.get('sort', '')
+            if sort == 'newest':
+                qs = qs.order_by('-created_at')
+            elif sort == 'active':
+                # Sort by most chatrooms/activity
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
+            elif sort == 'popular':
+                # Sort by views (fallback to chatroom count if views not available)
+                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
+            else:
+                # Default: order by creation date
+                qs = qs.order_by('-created_at')
+            
+            return qs
 
-        # STRICT: Only show APPROVED topics in the community section
-        # Pending topics are only visible in the admin panel
-        qs = qs.filter(approval_status="approved")
-        qs = exclude_hidden_users(qs, self.request.user, ("creator",))
-
-        # Filter: My Topics only - but still only approved ones
-        if self.request.GET.get("my_topics") and self.request.user.is_authenticated:
-            qs = qs.filter(creator=self.request.user)
-
-        # Backend search filtering
-        search_query = self.request.GET.get("q", "").strip()
-        if search_query:
-            qs = qs.filter(
-                Q(title__icontains=search_query)
-                | Q(title_ar__icontains=search_query)
-                | Q(title_en__icontains=search_query)
-                | Q(description__icontains=search_query)
-                | Q(description_ar__icontains=search_query)
-                | Q(description_en__icontains=search_query)
-                | Q(creator__username__icontains=search_query)
-                | Q(creator__full_name__icontains=search_query)
-            )
-
-        # Sort options
-        sort = self.request.GET.get("sort", "")
-        if sort == "newest":
-            qs = qs.order_by("-created_at")
-        elif sort == "active":
-            # Sort by most chatrooms/activity
-            qs = qs.annotate(chatroom_count=Count("chatrooms")).order_by(
-                "-chatroom_count", "-created_at"
-            )
-        elif sort == "popular":
-            # Sort by views (fallback to chatroom count if views not available)
-            qs = qs.annotate(chatroom_count=Count("chatrooms")).order_by(
-                "-views", "-chatroom_count", "-created_at"
-            )
-        else:
-            # Default: order by creation date
-            qs = qs.order_by("-created_at")
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["page"] = "community"
-        context["search_query"] = self.request.GET.get("q", "")
-        context["total_chatrooms"] = ChatRoom.objects.count()
-        # Category filter context
-        context["current_sort"] = self.request.GET.get("sort", "")
-        context["my_topics"] = self.request.GET.get("my_topics", "")
-        return context
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            visible_topics_qs = self.get_queryset()
+            context['page'] = 'community'
+            context['search_query'] = self.request.GET.get('q', '')
+            context['total_topics'] = visible_topics_qs.count()
+            context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
+            # Category filter context
+            context['current_sort'] = self.request.GET.get('sort', '')
+            context['my_topics'] = self.request.GET.get('my_topics', '')
+            return context
 
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
@@ -141,26 +145,22 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         logger = logging.getLogger(__name__)
 
         form.instance.creator = self.request.user
-        # All new topics go through moderation, including staff-created topics.
-        form.instance.approval_status = "pending"
-        form.instance.is_approved = False  # Legacy field
-        logger.info(
-            f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}"
-        )
 
+        # Always require moderation approval for new forum topics.
+        form.instance.approval_status = 'pending'
+        form.instance.is_approved = False  # Legacy field
+        logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
+        
         try:
             response = super().form_valid(form)
             logger.info(
                 f"[TOPIC_CREATE] ✓ Topic created successfully "
                 f"(ID: {form.instance.id}, Title: {form.instance.title}, Status: {form.instance.approval_status})"
             )
-
+            
             messages.info(
                 self.request,
-                _(
-                    "Your topic '%(title)s' has been submitted and is pending admin review."
-                )
-                % {"title": form.instance.title},
+                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
             )
             return response
 
@@ -305,8 +305,8 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        topic = form.save(commit=False)
-
+        topic = form.instance
+        
         # Handle bilingual fields from admin review mode
         if self.request.POST.get("title_en"):
             topic.title_en = self.request.POST.get("title_en", "")
@@ -332,9 +332,18 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             topic.approval_status = "approved"
             topic.save()
             messages.success(self.request, _("Topic has been approved and published."))
-            return redirect("pages:admin_forum")
+            return redirect('pages:admin_forum')
 
-        topic.save()
+        # Keep moderation flow consistent with other sections:
+        # when a non-staff user edits an approved topic, move it back to pending.
+        previous_status = self.get_object().approval_status
+        if not (self.request.user.is_staff or self.request.user.is_superuser) and previous_status == 'approved':
+            topic.approval_status = 'pending'
+            topic.is_approved = False
+            messages.info(self.request, _("Your changes will be reviewed before becoming visible."))
+        else:
+            messages.success(self.request, _("Topic updated successfully."))
+
         return super().form_valid(form)
 
 

@@ -129,13 +129,11 @@ class ResourceForm(forms.Form):
     uploaded_file = forms.FileField(
         label=_("Upload Document"),
         required=False,
-        widget=forms.FileInput(
-            attrs={
-                "class": "form-control",
-                "accept": ".pdf,.doc,.docx,.txt,.csv,.json,.xml,.zip,.rar",
-            }
-        ),
-        help_text=_("Upload a PDF, Word document, or other file (max 50MB)"),
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '*/*'
+        }),
+        help_text=_("Upload any file type (max 50MB)")
     )
 
     # ==================== COURSE FIELDS ====================
@@ -551,46 +549,13 @@ class ResourceForm(forms.Form):
         return cleaned_data
 
     def clean_uploaded_file(self):
-        """Validate uploaded file size and type."""
-        uploaded_file = self.cleaned_data.get("uploaded_file")
+        """Validate uploaded file size."""
+        uploaded_file = self.cleaned_data.get('uploaded_file')
         if uploaded_file:
-            if uploaded_file.size > self.MAX_UPLOAD_SIZE:
-                raise forms.ValidationError(_("File size must not exceed 50MB."))
-
-            ext = os.path.splitext(uploaded_file.name)[1].lower()
-            content_type = (getattr(uploaded_file, "content_type", "") or "").lower()
-            resource_type = self.cleaned_data.get("resource_type")
-
-            if resource_type == "corpus":
-                if (
-                    ext not in self.CORPUS_ALLOWED_EXTENSIONS
-                    or content_type not in self.CORPUS_ALLOWED_MIME_TYPES
-                ):
-                    raise forms.ValidationError(
-                        _("Only PDF and DOCX files are accepted.")
-                    )
-            else:
-                allowed_extensions = {
-                    ".pdf",
-                    ".doc",
-                    ".docx",
-                    ".txt",
-                    ".csv",
-                    ".json",
-                    ".xml",
-                    ".zip",
-                    ".rar",
-                    ".ppt",
-                    ".pptx",
-                    ".xls",
-                    ".xlsx",
-                }
-                if ext not in allowed_extensions:
-                    raise forms.ValidationError(
-                        _(
-                            "File type not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, JSON, XML, ZIP, RAR, PPT, XLS"
-                        )
-                    )
+            # Check file size (50MB max)
+            max_size = 50 * 1024 * 1024  # 50MB in bytes
+            if uploaded_file.size > max_size:
+                raise forms.ValidationError(_("File is too large. Maximum size is 50MB."))
         return uploaded_file
 
     def save(self, instance=None):

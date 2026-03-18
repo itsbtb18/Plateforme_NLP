@@ -1,3 +1,650 @@
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Two-Factor Authentication" %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        html[dir="rtl"], html[dir="rtl"] body {
+            font-family: 'Tajawal', 'Poppins', sans-serif;
+        }
+
+        html[dir="rtl"] .page-title,
+        html[dir="rtl"] .page-subtitle,
+        html[dir="rtl"] .email-info,
+        html[dir="rtl"] label,
+        html[dir="rtl"] .timer-box,
+        html[dir="rtl"] .resend-hint {
+            text-align: right;
+        }
+
+        html[dir="rtl"] .page-title,
+        html[dir="rtl"] .page-subtitle {
+            text-align: center;
+        }
+
+        html[dir="rtl"] .email-info {
+            /* border-inline-start handles RTL automatically */
+        }
+
+        html[dir="rtl"] .form-buttons {
+            align-items: flex-start;
+        }
+
+        html[dir="rtl"] .fa-arrow-left::before {
+            content: "\f061"; /* arrow-right in RTL */
+        }
+
+        html[dir="rtl"] .message-box.error,
+        html[dir="rtl"] .message-box.success {
+            /* border-inline-start handles RTL automatically */
+        }
+
+        body {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 420px;
+            margin-inline: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 40px 30px;
+            position: relative;
+            z-index: 2;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .security-icon-section {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .security-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #34a853 0%, #2d8a47 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(52, 168, 83, 0.25);
+        }
+
+        .security-icon i {
+            font-size: 2.2rem;
+            color: white;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #202124;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #5f6368;
+            margin-bottom: 25px;
+        }
+
+        .email-info {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.04) 100%);
+            border-inline-start: 4px solid #1a73e8;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: #202124;
+        }
+
+        .email-info i {
+            margin-inline-end: 6px;
+        }
+
+        .email-info strong {
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #5f6368;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        label i {
+            margin-inline-end: 4px;
+        }
+
+        .otp-input-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .otp-input {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            text-align: center;
+            font-weight: 700;
+            color: #1a73e8;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .otp-input:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        input[type="text"]#otp_code {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            color: #202124;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+            text-align: center;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="text"]#otp_code:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        .timer-box {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            background: #fff8dc;
+            border-radius: 8px;
+            color: #856404;
+            font-size: 0.9rem;
+        }
+
+        .timer-box .remaining-time {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #d39e00;
+        }
+
+        .message-box {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .message-box.visible {
+            display: block;
+        }
+
+        .message-box.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-inline-start: 4px solid #dc3545;
+        }
+
+        .message-box.success {
+            background: #d4edda;
+            color: #155724;
+            border-inline-start: 4px solid #28a745;
+        }
+
+        .form-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn-verify,
+        .btn-resend {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-verify {
+            background: linear-gradient(135deg, #34a853 0%, #2d8a47 100%);
+            color: white;
+            box-shadow: 0 6px 20px rgba(52, 168, 83, 0.25);
+        }
+
+        .btn-verify:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(52, 168, 83, 0.35);
+        }
+
+        .btn-verify:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-resend {
+            background: white;
+            color: #1a73e8;
+            border: 2px solid #1a73e8;
+            padding: 12px 24px;
+        }
+
+        .btn-resend:hover {
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.04) 100%);
+            transform: translateY(-2px);
+        }
+
+        .resend-hint {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #5f6368;
+            margin-top: 15px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .btn-back {
+            background: white;
+            color: #dc3545;
+            border: 2px solid #dc3545;
+            padding: 12px 24px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            text-decoration: none;
+        }
+
+        .btn-back:hover {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.08) 0%, rgba(220, 53, 69, 0.04) 100%);
+            transform: translateY(-2px);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            .form-card {
+                padding: 30px 20px;
+                border-radius: 16px;
+            }
+
+            .page-title {
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .security-icon {
+                width: 70px;
+                height: 70px;
+            }
+
+            .security-icon i {
+                font-size: 1.8rem;
+            }
+
+            input[type="text"]#otp_code {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="form-card">
+            <!-- Security Icon -->
+            <div class="security-icon-section">
+                <div class="security-icon">
+                    <i class="fas fa-shield-halved"></i>
+                </div>
+            </div>
+
+            {% if is_signup_verification %}
+            <h1 class="page-title">{% trans "Verify Your Email" %}</h1>
+            <p class="page-subtitle">{% trans "Enter the code sent to your email to activate your account" %}</p>
+            {% else %}
+            <h1 class="page-title">{% trans "Verify Your Identity" %}</h1>
+            <p class="page-subtitle">{% trans "Enter the security code sent to your email" %}</p>
+            {% endif %}
+
+            <!-- Email Info -->
+            <div class="email-info">
+                <i class="fas fa-envelope"></i>
+                {% trans "Code sent to" %}: <strong>{{ user_email }}</strong>
+            </div>
+
+            <!-- Message Box (hidden by default, shown via JS) -->
+            <div class="message-box" id="messageBox"></div>
+
+            <!-- Form -->
+            <form id="otpForm" method="post">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label for="otp_code">
+                        <i class="fas fa-key"></i> {% trans "Security Code" %}
+                    </label>
+                    <input 
+                        type="text" 
+                        id="otp_code" 
+                        name="otp_code" 
+                        maxlength="6" 
+                        inputmode="numeric"
+                        placeholder="000000"
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+
+                <!-- Timer -->
+                <div class="timer-box">
+                    <div>⏱️ {% trans "Code expires in" %}</div>
+                    <div class="remaining-time">
+                        <span id="timerMinutes">5</span>:<span id="timerSeconds">00</span>
+                    </div>
+                </div>
+
+                <!-- Verify Button -->
+                <div class="form-buttons">
+                    <button type="submit" class="btn-verify" id="verifyBtn">
+                        <i class="fas fa-check"></i>
+                        {% trans "Verify Code" %}
+                    </button>
+                </div>
+            </form>
+
+            <!-- Resend and Help -->
+            <div class="resend-hint">
+                <p>{% trans "Didn't receive the code?" %}</p>
+                <button type="button" class="btn-resend" id="resendBtn" style="margin-top: 10px;">
+                    <i class="fas fa-envelope"></i>
+                    {% trans "Resend Code" %}
+                </button>
+            </div>
+
+            {% if is_signup_verification %}
+            <!-- Back to Sign Up -->
+            <a href="{% url 'accounts:cancel_2fa' %}?next=signup" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
+                <i class="fas fa-arrow-left"></i> {% trans "Back to Sign Up" %}
+            </a>
+            {% else %}
+            <!-- Use Different Email -->
+            <a href="{% url 'accounts:cancel_2fa' %}" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
+                <i class="fas fa-redo"></i> {% trans "Use Different Email" %}
+            </a>
+            {% endif %}
+
+            <!-- Back to Main Page -->
+            <a href="{% url 'accounts:cancel_2fa' %}?next=home" style="display:block; width:100%; padding:12px; margin-top:15px; background:#f8f9fa; color:#666; border:2px solid #ddd; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
+                <i class="fas fa-home"></i> {% trans "Back to Main Page" %}
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('otpForm');
+        const otpInput = document.getElementById('otp_code');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const resendBtn = document.getElementById('resendBtn');
+        const messageBox = document.getElementById('messageBox');
+        const timerMinutes = document.getElementById('timerMinutes');
+        const timerSeconds = document.getElementById('timerSeconds');
+
+        let remainingSeconds = {{ remaining_seconds|default:300 }};
+
+        // Timer countdown
+        function updateTimer() {
+            if (remainingSeconds <= 0) {
+                timerMinutes.textContent = '0';
+                timerSeconds.textContent = '00';
+                verifyBtn.disabled = true;
+                showMessage('Code expired. Please request a new one.', 'error');
+                return;
+            }
+            remainingSeconds--;
+            const minutes = Math.floor(remainingSeconds / 60);
+            const seconds = remainingSeconds % 60;
+            timerMinutes.textContent = minutes;
+            timerSeconds.textContent = seconds.toString().padStart(2, '0');
+            if (remainingSeconds > 0) {
+                setTimeout(updateTimer, 1000);
+            } else {
+                verifyBtn.disabled = true;
+                showMessage('Code expired. Please request a new one.', 'error');
+            }
+        }
+
+        // Show/hide messages
+        function showMessage(text, type = 'error') {
+            messageBox.textContent = '';
+            messageBox.innerHTML = text;
+            messageBox.className = 'message-box visible ' + type;
+        }
+
+        // Format OTP input (only digits)
+        otpInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+
+        // Focus on input on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            otpInput.focus();
+        });
+
+        // Verify OTP
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const otp = otpInput.value.trim();
+
+            if (!otp || otp.length !== 6) {
+                showMessage('&#9888; Please enter a valid 6-digit code.', 'error');
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="spinner"></i> Verifying...';
+
+            const formData = new FormData(form);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                if (data && data.success) {
+                    showMessage('✅ ' + (data.message || 'Verification successful'), 'success');
+                    setTimeout(function() {
+                        window.location.replace(data.redirect_url || '/');
+                    }, 800);
+                } else {
+                    var errorMsg = data && data.message ? data.message : 'Verification failed';
+                    showMessage('❌ ' + errorMsg, 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Code';
+                    otpInput.value = '';
+                    otpInput.focus();
+                }
+            })
+            .catch(function(error) {
+                console.error('Verification error:', error);
+                showMessage('❌ An error occurred. Please try again.', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Code';
+                otpInput.focus();
+            });
+        });
+
+        // Resend OTP
+        if (resendBtn) {
+            resendBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                resendBtn.disabled = true;
+                resendBtn.innerHTML = '<i class="spinner"></i> Sending...';
+
+                var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (!csrfToken) {
+                    showMessage('❌ Security token not found. Please refresh.', 'error');
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i class="fas fa-envelope"></i> Resend Code';
+                    return;
+                }
+
+                fetch('{% url "accounts:resend_otp" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken.value,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Resend failed');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data && data.success) {
+                        showMessage('✅ ' + (data.message || 'Code resent successfully'), 'success');
+                        remainingSeconds = 300;
+                        updateTimer();
+                        otpInput.value = '';
+                        otpInput.focus();
+                        verifyBtn.disabled = false;
+                    } else {
+                        var errorMsg = data && data.message ? data.message : 'Failed to resend code';
+                        showMessage('❌ ' + errorMsg, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Resend error:', error);
+                    showMessage('❌ Failed to resend. Please try again.', 'error');
+                })
+                .finally(function() {
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i class="fas fa-envelope"></i> Resend Code';
+                });
+            });
+        }
+
+        // Start timer
+        updateTimer();
+    </script>
+</body>
+</html>
+
 {% extends "base.html" %}
 {% load i18n %}
 
@@ -433,20 +1080,20 @@
             </div>
 
             {% if is_signup_verification %}
-            <!-- Back to Sign Up -->
-            <a href="{% url 'accounts:cancel_2fa' %}?next=signup" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
-                <i class="fas fa-arrow-left"></i> {% trans "Back to Sign Up" %}
+            <a href="{% url 'account_signup' %}" class="action-link accent">
+                <i class="fas fa-arrow-left"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى التسجيل{% else %}{% trans "Back to Sign Up" %}{% endif %}
             </a>
             {% else %}
-            <!-- Use Different Email -->
-            <a href="{% url 'accounts:cancel_2fa' %}" style="display:block; width:100%; padding:12px; margin-top:15px; background:#fff3cd; color:#856404; border:2px solid #ffc107; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
-                <i class="fas fa-redo"></i> {% trans "Use Different Email" %}
+            <a href="{% url 'accounts:account_logout' %}" class="action-link accent">
+                <i class="fas fa-redo"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استخدام بريد إلكتروني مختلف{% else %}{% trans "Use Different Email" %}{% endif %}
             </a>
             {% endif %}
 
-            <!-- Back to Main Page -->
-            <a href="{% url 'accounts:cancel_2fa' %}?next=home" style="display:block; width:100%; padding:12px; margin-top:15px; background:#f8f9fa; color:#666; border:2px solid #ddd; border-radius:10px; text-align:center; font-weight:600; text-decoration:none; transition:all 0.3s;">
-                <i class="fas fa-home"></i> {% trans "Back to Main Page" %}
+            <a href="{% url 'pages:home' %}" class="action-link neutral">
+                <i class="fas fa-home"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى الصفحة الرئيسية{% else %}{% trans "Back to Main Page" %}{% endif %}
             </a>
         </div>
     </div>

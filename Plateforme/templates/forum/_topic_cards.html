@@ -15,8 +15,32 @@
                 {% endif %}
             </div>
             <div class="ft-user-info">
-                <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                <div class="ft-user-name-row">
+                    <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                    {% if topic.approval_status == 'pending' and topic.creator == user %}
+                    <span class="ft-pending-badge">
+                        <i class="bi bi-hourglass-split"></i>
+                        {% translate "Pending Approval" %}
+                    </span>
+                    {% endif %}
+                    <div class="ft-topic-tags">
+                        <span class="ft-tag">
+                            <i class="bi bi-tag"></i>
+                            {% translate "NLP" %}
+                        </span>
+                        <span class="ft-tag">
+                            <i class="bi bi-globe2"></i>
+                            {% translate "Arabic" %}
+                        </span>
+                    </div>
+                </div>
                 <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                <div class="ft-user-topic-row">
+                    <h3 class="ft-topic-title">
+                        <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
+                    </h3>
+                    <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
+                </div>
             </div>
         </div>
         
@@ -36,28 +60,8 @@
     </div>
     
     <div class="ft-content-col">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-            <div>
-            {% if topic.approval_status == 'pending' and topic.creator == user %}
-            <span class="ft-pending-badge">
-            <i class="bi bi-hourglass-split"></i>
-            {% translate "Pending Approval" %}
-        </span>
-            {% endif %}
-            </div>
+        <div class="ft-content-actions">
             {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
-        </div>
-        <p class="ft-topic-excerpt">{{ topic.get_localized_description|truncatechars:150 }}</p>
-        
-        <div class="ft-topic-tags">
-            <span class="ft-tag">
-                <i class="bi bi-tag"></i>
-                {% translate "NLP" %}
-            </span>
-            <span class="ft-tag">
-                <i class="bi bi-globe2"></i>
-                {% translate "Arabic" %}
-            </span>
         </div>
     </div>
     

@@ -80,18 +80,9 @@ html[dir="rtl"] body {
     font-weight: 400;
 }
 
-/* ===== 2-COLUMN GRID LAYOUT ===== */
+/* ===== SINGLE SECTION LAYOUT ===== */
 .form-grid {
-    display: grid;
-    grid-template-columns: 35% 1fr;
-    gap: 2rem;
-    align-items: start;
-}
-
-@media (max-width: 1024px) {
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
+    display: block;
 }
 
 /* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
@@ -297,20 +288,23 @@ html[dir="rtl"] body {
 
 /* ===== UPLOAD ZONE - CLEAN & MINIMAL ===== */
 .upload-area {
-    position: sticky;
-    top: 2rem;
+    position: static;
+    top: auto;
 }
 
 .upload-zone {
-    /* Very fine dashed border - not thick */
-    border: 1px dashed #E5E7EB;
+    border: 1px dashed #D8DEEA;
     border-radius: var(--radius);
-    padding: 2rem 1.5rem;
+    padding: 1.1rem 1.25rem;
     text-align: center;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    /* Off-white background */
-    background: #FAFBFC;
+    background: linear-gradient(180deg, #FBFCFF 0%, #F8FAFD 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
 }
 
 .upload-zone:hover {
@@ -332,10 +326,18 @@ html[dir="rtl"] body {
     background: var(--success-light);
 }
 
+.upload-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
 .upload-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 1rem;
+    width: 44px;
+    height: 44px;
+    margin: 0;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -359,24 +361,72 @@ html[dir="rtl"] body {
 }
 
 .upload-title {
-    font-size: 0.9375rem;
-    font-weight: 500;
+    font-size: 0.92rem;
+    font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.2rem;
 }
 
 .upload-subtitle {
-    font-size: 0.8125rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
+}
+
+.upload-zone-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    justify-content: center;
+    width: 100%;
+}
+
+.upload-browse-btn {
+    border: 1px solid #C8CFDD;
+    background: var(--surface-white);
+    color: var(--text-primary);
+    border-radius: 10px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.upload-browse-btn:hover {
+    border-color: var(--primary-accent);
+    color: var(--primary-accent);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
+}
+
+.upload-zone-meta {
+    color: var(--text-muted);
+    font-size: 0.75rem;
 }
 
 .upload-zone input[type="file"] {
-    position: absolute;
-    left: -9999px;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}
+
+.upload-supported {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+}
+
+.upload-supported span {
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #EEF2FF;
+    color: #4C54D2;
+    font-size: 0.72rem;
+    font-weight: 600;
 }
 
 .file-preview {
@@ -702,7 +752,7 @@ html[dir="rtl"] .char-counter {
 }
 
 html[dir="rtl"] .upload-zone {
-    text-align: right;
+    text-align: center;
 }
 
 html[dir="rtl"] .upload-browse {
@@ -731,6 +781,8 @@ html[dir="rtl"] .keywords-container {
         position: static;
         order: -1;
     }
+
+    .upload-zone { align-items: center; }
 }
 </style>
 {% endblock %}
@@ -742,7 +794,7 @@ html[dir="rtl"] .keywords-container {
         <!-- Minimal Page Header -->
         <header class="page-header">
             <h1>{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New Corpus" %}{% endif %}</h1>
-            <p>{% trans "Upload your corpus file and provide key metadata" %}</p>
+            <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المدونة وأضف البيانات الوصفية الأساسية{% else %}{% trans "Upload your corpus file and provide key metadata" %}{% endif %}</p>
         </header>
         
         <form method="post" enctype="multipart/form-data" id="corpus-form" novalidate>
@@ -778,64 +830,56 @@ html[dir="rtl"] .keywords-container {
                 </div>
             </div>
             {% endif %}
-            <div class="alert alert-error" id="form-feedback" role="alert" style="display: none;">
-                <div class="alert-icon">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                </div>
-                <div class="alert-content">
-                    <h4>{% trans "Please correct the following errors:" %}</h4>
-                    <ul id="form-feedback-list"></ul>
-                </div>
-            </div>
             
-            <!-- 2-Column Grid Layout -->
+            <!-- Single Unified Section -->
             <div class="form-grid">
-                
-                <!-- LEFT COLUMN: Upload Area (35%) -->
-                <div class="upload-area">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>{% trans "Upload Document" %}</h2>
-                            <p>{% trans "Drag & drop or browse" %}</p>
-                        </div>
-                        <div class="card-body">
-                            <div class="upload-zone" id="upload-zone">
-                                <div class="upload-icon">
-                                    <i class="bi bi-cloud-arrow-up"></i>
-                                </div>
-                                <div class="upload-title">{% trans "Drop file here" %}</div>
-                                <div class="upload-subtitle">{% trans "Only PDF and DOCX files are accepted" %}</div>
-                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".pdf,.docx">
-                            </div>
-                            
-                            <div class="file-preview" id="file-preview">
-                                <div class="file-icon">
-                                    <i class="bi bi-file-earmark-check"></i>
-                                </div>
-                                <div class="file-info">
-                                    <div class="file-name" id="file-name">document.pdf</div>
-                                    <div class="file-size" id="file-size">2.5 MB</div>
-                                </div>
-                                <button type="button" class="file-remove" id="file-remove">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                            <div class="upload-error" id="upload-error">
-                                <i class="bi bi-exclamation-circle"></i>
-                                <span id="upload-error-text"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- RIGHT COLUMN: Metadata Form (65%) -->
                 <div class="metadata-area">
                     <div class="card">
                         <div class="card-header">
-                            <h2>{% trans "Academic Metadata" %}</h2>
-                            <p>{% trans "Provide essential information" %}</p>
+                            <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال المدونة{% else %}{% trans "Corpus Submission" %}{% endif %}</h2>
+                            <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملفك وأكمل جميع البيانات الوصفية في قسم واحد{% else %}{% trans "Upload your file and complete all metadata in one section" %}{% endif %}</p>
                         </div>
                         <div class="card-body">
+
+                            <!-- Upload File -->
+                            <div class="form-group">
+                                <label for="file-input">{% trans "Upload Document" %}</label>
+                                <div class="upload-zone" id="upload-zone">
+                                    <div class="upload-zone-content">
+                                        <div class="upload-icon">
+                                            <i class="bi bi-cloud-arrow-up"></i>
+                                        </div>
+                                        <div>
+                                            <div class="upload-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المدونة{% else %}{% trans "Upload corpus file" %}{% endif %}</div>
+                                            <div class="upload-subtitle">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اسحب وأفلت هنا أو استخدم الاستعراض{% else %}{% trans "Drag & drop here or use browse" %}{% endif %}</div>
+                                        </div>
+                                    </div>
+                                    <div class="upload-zone-actions">
+                                        <button type="button" class="upload-browse-btn" id="upload-browse-btn">
+                                            <i class="bi bi-folder2-open"></i> {% if LANGUAGE_CODE|slice:":2" == "ar" %}اختر ملفًا{% else %}{% trans "Choose file" %}{% endif %}
+                                        </button>
+                                    </div>
+                                    <span class="upload-zone-meta">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الحد الأقصى 50MB{% else %}50MB max{% endif %}</span>
+                                    <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept="*/*" hidden>
+                                </div>
+                                <div class="upload-supported">
+                                    <span>PDF</span><span>DOCX</span><span>TXT</span><span>CSV</span><span>JSON</span><span>ZIP</span>
+                                </div>
+                                
+                                <div class="file-preview" id="file-preview">
+                                    <div class="file-icon">
+                                        <i class="bi bi-file-earmark-check"></i>
+                                    </div>
+                                    <div class="file-info">
+                                        <div class="file-name" id="file-name">filename.txt</div>
+                                        <div class="file-size" id="file-size">2.5 MB</div>
+                                    </div>
+                                    <button type="button" class="file-remove" id="file-remove">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <span class="form-text">{% trans "All file types are accepted (max 50MB)." %}</span>
+                            </div>
                             
                             <!-- Translation Toggle -->
                             <div class="translation-toggle">
@@ -929,7 +973,6 @@ html[dir="rtl"] .keywords-container {
                         </div>
                     </div>
                 </div>
-                
             </div>
             
         </form>
@@ -1023,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== Drag & Drop Upload =====
     const uploadZone = document.getElementById('upload-zone');
     const fileInput = document.getElementById('file-input');
+    const uploadBrowseBtn = document.getElementById('upload-browse-btn');
     const filePreview = document.getElementById('file-preview');
     const fileName = document.getElementById('file-name');
     const fileSize = document.getElementById('file-size');
@@ -1179,6 +1223,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Click to upload
         uploadZone.addEventListener('click', () => fileInput.click());
+        if (uploadBrowseBtn) {
+            uploadBrowseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInput.click();
+            });
+        }
         
         fileInput.addEventListener('change', function() {
             if (this.files.length) {
