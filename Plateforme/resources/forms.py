@@ -88,9 +88,9 @@ class ResourceForm(forms.Form):
         required=False,
         widget=forms.FileInput(attrs={
             'class': 'form-control',
-            'accept': '.pdf,.doc,.docx,.txt,.csv,.json,.xml,.zip,.rar'
+            'accept': '*/*'
         }),
-        help_text=_("Upload a PDF, Word document, or other file (max 50MB)")
+        help_text=_("Upload any file type (max 50MB)")
     )
 
     # ==================== COURSE FIELDS ====================
@@ -483,20 +483,13 @@ class ResourceForm(forms.Form):
         return cleaned_data
 
     def clean_uploaded_file(self):
-        """Validate uploaded file size and type."""
+        """Validate uploaded file size."""
         uploaded_file = self.cleaned_data.get('uploaded_file')
         if uploaded_file:
             # Check file size (50MB max)
             max_size = 50 * 1024 * 1024  # 50MB in bytes
             if uploaded_file.size > max_size:
                 raise forms.ValidationError(_("File is too large. Maximum size is 50MB."))
-            
-            # Check file extension
-            import os
-            allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.csv', '.json', '.xml', '.zip', '.rar', '.ppt', '.pptx', '.xls', '.xlsx']
-            ext = os.path.splitext(uploaded_file.name)[1].lower()
-            if ext not in allowed_extensions:
-                raise forms.ValidationError(_("File type not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, JSON, XML, ZIP, RAR, PPT, XLS"))
         return uploaded_file
 
     def save(self, instance=None):

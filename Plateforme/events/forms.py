@@ -1,6 +1,8 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Event
 from django.utils.translation import gettext_lazy as _, get_language
+from institutions.models import Institution
 
 
 def get_active_language():
@@ -25,6 +27,15 @@ class EventForm(forms.ModelForm):
         'description': ('description_ar', 'description_en'),
         'location': ('location_ar', 'location_en'),
     }
+    OTHER_ORGANIZER_VALUE = "__other__"
+
+    # Store domains as a comma-separated string in the model, but expose
+    # them as a multiselect in the form.
+    domains = forms.MultipleChoiceField(
+        choices=Event.DOMAIN_CHOICES,
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+    )
     
     class Meta:
         model = Event
@@ -38,7 +49,6 @@ class EventForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': ('Event Title')}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
             'event_type': forms.Select(attrs={'class': 'form-select'}),
-            'domains': forms.TextInput(attrs={'class': 'form-control', 'placeholder': ('e.g., NLP, Speech Processing, Arabic Language')}),
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': ('Leave blank for virtual events')}),
             'start_date': forms.DateInput(attrs={'type': 'text', 'class': 'form-control', 'placeholder': ''}),
             'end_date': forms.DateInput(attrs={'type': 'text', 'class': 'form-control', 'placeholder': ''}),
@@ -64,6 +74,26 @@ class EventForm(forms.ModelForm):
                     kwargs['initial'][generic_field] = value
         
         super().__init__(*args, **kwargs)
+
+        # Convert stored CSV domains to list so multiselect is prefilled on edit.
+        if instance and instance.domains and not self.is_bound:
+            self.initial['domains'] = [d.strip() for d in instance.domains.split(',') if d.strip()]
+
+        # Add explicit "Other" choice to organizer list.
+        organizer_field = self.fields.get('organizer')
+        if organizer_field is not None and hasattr(organizer_field, "queryset"):
+            organizer_qs = organizer_field.queryset
+            organizer_choices = [(str(obj.pk), str(obj)) for obj in organizer_qs]
+            organizer_choices.append((self.OTHER_ORGANIZER_VALUE, _("Other")))
+            self.fields['organizer'] = forms.ChoiceField(
+                choices=organizer_choices,
+                required=True,
+                widget=forms.Select(attrs={'class': 'form-select'}),
+                label=_("Organizer"),
+            )
+            if instance and instance.organizer_id and not self.is_bound:
+                self.initial['organizer'] = str(instance.organizer_id)
+
         self._setup_bilingual_labels()
     
     def _setup_bilingual_labels(self):
@@ -100,6 +130,26 @@ class EventForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+    def clean_domains(self):
+        domains = self.cleaned_data.get('domains', [])
+        return ",".join(domains)
+
+    def clean_organizer(self):
+        organizer_value = self.cleaned_data.get('organizer')
+
+        if organizer_value == self.OTHER_ORGANIZER_VALUE:
+            other_institution = Institution.objects.filter(type='Other').order_by('name').first()
+            if other_institution:
+                return other_institution
+            raise ValidationError(
+                _("No organizer of type 'Other' exists yet. Please add one in institutions first.")
+            )
+
+        try:
+            return Institution.objects.get(pk=organizer_value)
+        except (Institution.DoesNotExist, ValueError, TypeError):
+            raise ValidationError(_("Please select a valid organizer."))
 
 
 class EventSearchForm(forms.Form):

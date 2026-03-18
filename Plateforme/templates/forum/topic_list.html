@@ -364,7 +364,24 @@ html[dir="rtl"] .ft-topic-card.is-pending {
 }
 
 /* Content Column */
-.ft-content-col { flex: 1; min-width: 0; }
+.ft-content-col { flex: 1; min-width: 0; position: relative; }
+html[dir="ltr"] .ft-content-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-right: 52px;
+}
+html[dir="rtl"] .ft-content-col { padding-left: 52px; }
+
+.ft-content-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+html[dir="rtl"] .ft-content-actions {
+    right: auto;
+    left: 0;
+}
 
 .ft-pending-badge {
     display: inline-flex;
@@ -388,6 +405,8 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     margin: 0 0 0.5rem;
     line-height: 1.4;
 }
+html[dir="ltr"] .ft-topic-title { text-align: left; align-self: stretch; }
+html[dir="rtl"] .ft-topic-title { text-align: right; align-self: stretch; }
 
 .ft-topic-title a {
     color: inherit;
@@ -407,6 +426,8 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+html[dir="ltr"] .ft-topic-excerpt { text-align: left; align-self: stretch; }
+html[dir="rtl"] .ft-topic-excerpt { text-align: right; align-self: stretch; }
 
 .ft-topic-tags {
     display: flex;
@@ -431,7 +452,7 @@ html[dir="rtl"] .ft-topic-card.is-pending {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 1rem;
     min-width: 140px;
 }
@@ -441,8 +462,9 @@ html[dir="rtl"] .ft-meta-col { align-items: flex-end; }
 .ft-user-meta {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
+    flex-wrap: nowrap;
 }
 
 .ft-user-avatar {
@@ -470,15 +492,108 @@ html[dir="rtl"] .ft-user-info { text-align: right; }
     margin: 0;
 }
 
+.ft-user-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+html[dir="ltr"] .ft-user-name-row {
+    justify-content: flex-start;
+}
+
+html[dir="rtl"] .ft-user-name-row {
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+.ft-user-name-row .ft-pending-badge {
+    margin: 0;
+}
+
+.ft-user-name-row .ft-topic-tags {
+    gap: 0.35rem;
+}
+
+.ft-user-name-row .ft-tag {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.7rem;
+}
+
 .ft-user-time {
     font-size: 0.75rem;
     color: var(--ft-text-muted);
     margin: 0;
 }
 
+.ft-user-topic-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.55rem;
+    flex-wrap: wrap;
+}
+
+html[dir="ltr"] .ft-user-topic-row {
+    justify-content: flex-start;
+}
+
+html[dir="rtl"] .ft-user-topic-row {
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+.ft-user-topic-row .ft-topic-title {
+    margin: 0;
+}
+
+.ft-inline-excerpt {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--ft-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+
+.ft-user-topic-row .ft-pending-badge {
+    margin: 0;
+    white-space: nowrap;
+}
+
+html[dir="rtl"] .ft-user-topic-row .ft-inline-excerpt,
+html[dir="rtl"] .ft-user-topic-row .ft-topic-title {
+    order: initial;
+}
+
+.ft-status-tags-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+html[dir="rtl"] .ft-status-tags-row {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+}
+
 .ft-card-actions {
     display: flex;
     gap: 0.5rem;
+    margin-top: auto;
+    align-self: flex-start;
+}
+
+html[dir="rtl"] .ft-card-actions { align-self: flex-end; }
+
+/* Arabic fallback + tighter right edge spacing for action buttons */
+:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .ft-card-actions {
+    align-self: flex-start !important;
+    margin-right: 0 !important;
+    margin-left: -1.1rem !important;
 }
 
 .ft-action-btn {
@@ -606,6 +721,8 @@ html[dir="rtl"] .ft-search-spinner {
     }
     .ft-user-info { text-align: left; }
     html[dir="rtl"] .ft-user-info { text-align: right; }
+    /* Arabic: keep action buttons on the right side of the row */
+    html[dir="rtl"] .ft-meta-col { flex-direction: row-reverse; }
 }
 
 @media (max-width: 640px) {
@@ -639,7 +756,7 @@ html[dir="rtl"] .ft-search-spinner {
                 
                 <div class="ft-hero-stats">
                     <div class="ft-stat">
-                        <div class="ft-stat-value">{{ page_obj.paginator.count|default:topics|length }}</div>
+                        <div class="ft-stat-value">{{ total_topics|default:topics|length }}</div>
                         <div class="ft-stat-label">{% translate "Topics" %}</div>
                     </div>
                     <div class="ft-stat">
@@ -733,8 +850,32 @@ html[dir="rtl"] .ft-search-spinner {
                             {% endif %}
                         </a>
                         <div class="ft-user-info">
-                            <p class="ft-user-name"><a href="{% url 'accounts:profile' topic.creator.pk %}" style="color: inherit; text-decoration: none;">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</a></p>
+                            <div class="ft-user-name-row">
+                                <p class="ft-user-name"><a href="{% url 'accounts:profile' topic.creator.pk %}" style="color: inherit; text-decoration: none;">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</a></p>
+                                {% if topic.approval_status == 'pending' and topic.creator == user %}
+                                <span class="ft-pending-badge">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    {% translate "Pending Approval" %}
+                                </span>
+                                {% endif %}
+                                <div class="ft-topic-tags">
+                                    <span class="ft-tag">
+                                        <i class="bi bi-tag"></i>
+                                        {% translate "NLP" %}
+                                    </span>
+                                    <span class="ft-tag">
+                                        <i class="bi bi-globe2"></i>
+                                        {% translate "Arabic" %}
+                                    </span>
+                                </div>
+                            </div>
                             <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                            <div class="ft-user-topic-row">
+                                <h3 class="ft-topic-title">
+                                    <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
+                                </h3>
+                                <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
+                            </div>
                         </div>
                     </div>
                     
@@ -754,32 +895,8 @@ html[dir="rtl"] .ft-search-spinner {
                 </div>
                 
                 <div class="ft-content-col">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <div style="flex: 1;">
-                    {% if topic.approval_status == 'pending' and topic.creator == user %}
-                    <span class="ft-pending-badge">
-                        <i class="bi bi-hourglass-split"></i>
-                        {% translate "Pending Approval" %}
-                    </span>
-                    {% endif %}
-                        </div>
+                    <div class="ft-content-actions">
                         {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
-                    </div>
-                    
-                    <h3 class="ft-topic-title">
-                        <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
-                    </h3>
-                    <p class="ft-topic-excerpt">{{ topic.get_localized_description|truncatechars:150 }}</p>
-                    
-                    <div class="ft-topic-tags">
-                        <span class="ft-tag">
-                            <i class="bi bi-tag"></i>
-                            {% translate "NLP" %}
-                        </span>
-                        <span class="ft-tag">
-                            <i class="bi bi-globe2"></i>
-                            {% translate "Arabic" %}
-                        </span>
                     </div>
                 </div>
                 

@@ -340,6 +340,179 @@ html[dir="rtl"] .ef-select {
     min-height: 100px;
 }
 
+.ef-domain-native {
+    display: none;
+}
+
+.ef-domain-picker {
+    position: relative;
+}
+
+.ef-domain-toggle {
+    width: 100%;
+    min-height: 48px;
+    border: 2px solid var(--ef-border);
+    border-radius: var(--ef-radius-md);
+    background: var(--ef-white);
+    padding: 0.55rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.ef-domain-toggle:focus {
+    outline: none;
+    border-color: var(--ef-primary);
+    box-shadow: var(--ef-shadow-focus);
+}
+
+.ef-domain-picker.error .ef-domain-toggle {
+    border-color: var(--ef-danger);
+}
+
+.ef-domain-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    flex: 1;
+}
+
+.ef-domain-placeholder {
+    font-size: 0.9rem;
+    color: var(--ef-text-muted);
+}
+
+.ef-domain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: var(--ef-primary-glow);
+    color: var(--ef-primary-dark);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.ef-domain-chip button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.ef-domain-chip button:hover {
+    background: rgba(37, 99, 235, 0.14);
+}
+
+.ef-domain-caret {
+    color: var(--ef-text-muted);
+    transition: transform 0.2s;
+}
+
+.ef-domain-picker.open .ef-domain-caret {
+    transform: rotate(180deg);
+}
+
+.ef-domain-dropdown {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: var(--ef-white);
+    box-shadow: 0 14px 38px rgba(15, 23, 42, 0.14);
+    z-index: 40;
+    display: none;
+    overflow: hidden;
+}
+
+.ef-domain-picker.open .ef-domain-dropdown {
+    display: block;
+}
+
+.ef-domain-search {
+    display: none;
+}
+
+.ef-domain-options {
+    max-height: 190px;
+    overflow: auto;
+    padding: 0.3rem;
+    background: #fff;
+}
+
+.ef-domain-options::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ef-domain-options::-webkit-scrollbar-thumb {
+    background: #c8d3e4;
+    border-radius: 999px;
+}
+
+.ef-domain-options::-webkit-scrollbar-thumb:hover {
+    background: #a9b9d1;
+}
+
+.ef-domain-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    border-radius: 10px;
+    padding: 0.6rem 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--ef-text);
+    transition: background 0.18s, color 0.18s;
+}
+
+.ef-domain-option:hover {
+    background: #f1f5fb;
+}
+
+.ef-domain-option.is-selected {
+    background: #e8f1ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.ef-domain-option-check {
+    opacity: 0;
+    font-size: 0.95rem;
+}
+
+.ef-domain-option.is-selected .ef-domain-option-check {
+    opacity: 1;
+}
+
+html[dir="rtl"] .ef-domain-option {
+    text-align: right;
+}
+
+html[dir="rtl"] .ef-domain-search i {
+    left: auto;
+    right: 1.25rem;
+}
+
+html[dir="rtl"] .ef-domain-search input {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+}
+
 /* Help Text */
 .ef-help-text {
     font-size: 0.75rem;
@@ -713,9 +886,10 @@ html[dir="rtl"] .ef-date-container input {
                                 <span class="required">*</span>
                             </label>
                             <select name="event_type" class="ef-select {% if form.event_type.errors %}error{% endif %}">
-                                <option value="">{% translate "Select event type" %}</option>
                                 {% for value, label in form.fields.event_type.choices %}
+                                {% if value %}
                                 <option value="{{ value }}" {% if form.event_type.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
                                 {% endfor %}
                             </select>
                             {% for error in form.event_type.errors %}
@@ -730,9 +904,10 @@ html[dir="rtl"] .ef-date-container input {
                                 <span class="required">*</span>
                             </label>
                             <select name="organizer" class="ef-select {% if form.organizer.errors %}error{% endif %}">
-                                <option value="">{% translate "Select organizer" %}</option>
                                 {% for value, label in form.fields.organizer.choices %}
+                                {% if value %}
                                 <option value="{{ value }}" {% if form.organizer.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
                                 {% endfor %}
                             </select>
                             {% for error in form.organizer.errors %}
@@ -744,12 +919,35 @@ html[dir="rtl"] .ef-date-container input {
                     <!-- Domains -->
                     <div class="ef-form-group">
                         <label class="ef-label">{% translate "Research Domains" %}</label>
-                        <select name="domains" class="ef-select {% if form.domains.errors %}error{% endif %}" multiple>
+                        <div class="ef-domain-picker {% if form.domains.errors %}error{% endif %}"
+                             id="domainPicker"
+                             data-placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}اختر مجالات البحث{% else %}{% translate 'Select research domains' %}{% endif %}">
+                            <button type="button" class="ef-domain-toggle" id="domainToggle" aria-expanded="false">
+                                <div class="ef-domain-chips" id="domainChips">
+                                    <span class="ef-domain-placeholder">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اختر مجالات البحث{% else %}{% translate "Select research domains" %}{% endif %}</span>
+                                </div>
+                                <i class="bi bi-chevron-down ef-domain-caret"></i>
+                            </button>
+                            <div class="ef-domain-dropdown" id="domainDropdown">
+                                <div class="ef-domain-options" id="domainOptions">
+                                    {% for value, label in form.fields.domains.choices %}
+                                    <button type="button"
+                                            class="ef-domain-option {% if form.domains.value and value in form.domains.value %}is-selected{% endif %}"
+                                            data-value="{{ value }}"
+                                            data-label="{{ label }}">
+                                        <span>{{ label }}</span>
+                                        <i class="bi bi-check2 ef-domain-option-check"></i>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <select name="domains" id="domainNativeSelect" class="ef-select ef-domain-native {% if form.domains.errors %}error{% endif %}" multiple>
                             {% for value, label in form.fields.domains.choices %}
-                            <option value="{{ value }}" {% if value in form.domains.value %}selected{% endif %}>{{ label }}</option>
+                            <option value="{{ value }}" {% if form.domains.value and value in form.domains.value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
                         </select>
-                        <p class="ef-help-text">{% translate "Hold Ctrl (Cmd on Mac) to select multiple domains" %}</p>
+                        <p class="ef-help-text">{% if LANGUAGE_CODE|slice:":2" == "ar" %}استخدم القائمة لاختيار المجالات، واضغط × لإزالة أي مجال محدد.{% else %}{% translate "Use the dropdown and click × to remove selected domains." %}{% endif %}</p>
                         {% for error in form.domains.errors %}
                         <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
                         {% endfor %}
@@ -1042,6 +1240,92 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { threshold: 0.5 });
     
     sections.forEach(section => observer.observe(section));
+
+    // Custom multi-select UI for research domains.
+    const domainPicker = document.getElementById('domainPicker');
+    const domainToggle = document.getElementById('domainToggle');
+    const domainDropdown = document.getElementById('domainDropdown');
+    const domainNativeSelect = document.getElementById('domainNativeSelect');
+    const domainOptions = document.querySelectorAll('.ef-domain-option');
+    const domainChips = document.getElementById('domainChips');
+
+    if (domainPicker && domainToggle && domainDropdown && domainNativeSelect && domainChips) {
+        const nativeOptions = Array.from(domainNativeSelect.options);
+
+        function getSelectedValues() {
+            return nativeOptions.filter(opt => opt.selected).map(opt => opt.value);
+        }
+
+        const placeholderText = domainPicker.dataset.placeholder || 'Select research domains';
+
+        function renderChips() {
+            const selected = nativeOptions.filter(opt => opt.selected);
+            if (!selected.length) {
+                domainChips.innerHTML = `<span class="ef-domain-placeholder">${placeholderText}</span>`;
+                return;
+            }
+
+            domainChips.innerHTML = '';
+            selected.forEach((opt) => {
+                const chip = document.createElement('span');
+                chip.className = 'ef-domain-chip';
+                chip.innerHTML = `
+                    <span>${opt.text}</span>
+                    <button type="button" data-remove-domain="${opt.value}" aria-label="Remove ${opt.text}">
+                        <i class="bi bi-x"></i>
+                    </button>
+                `;
+                domainChips.appendChild(chip);
+            });
+        }
+
+        function syncOptionButtons() {
+            const selectedSet = new Set(getSelectedValues());
+            domainOptions.forEach((btn) => {
+                const value = btn.getAttribute('data-value');
+                btn.classList.toggle('is-selected', selectedSet.has(value));
+            });
+        }
+
+        function setSelected(value, selected) {
+            const option = nativeOptions.find(opt => opt.value === value);
+            if (!option) return;
+            option.selected = selected;
+            syncOptionButtons();
+            renderChips();
+        }
+
+        domainToggle.addEventListener('click', () => {
+            const isOpen = domainPicker.classList.toggle('open');
+            domainToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        domainOptions.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const value = btn.getAttribute('data-value');
+                if (!value) return;
+                setSelected(value, !btn.classList.contains('is-selected'));
+            });
+        });
+
+        domainChips.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('[data-remove-domain]');
+            if (!removeBtn) return;
+            const value = removeBtn.getAttribute('data-remove-domain');
+            if (!value) return;
+            setSelected(value, false);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!domainPicker.contains(e.target)) {
+                domainPicker.classList.remove('open');
+                domainToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        syncOptionButtons();
+        renderChips();
+    }
 });
 </script>
 {% endblock %}

@@ -145,6 +145,23 @@
         display: inline-flex !important;
       }
 
+      .header-discussions-btn {
+        position: relative;
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+
+      .header-discussions-btn .sidebar-chat-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+      }
+
+      html[dir="rtl"] .header-discussions-btn .sidebar-chat-badge {
+        right: auto;
+        left: -4px;
+      }
+
       /* ══════════════════════════════════════════════════════════════════════ */
       /* MODERN NOTIFICATION DROPDOWN STYLES                                    */
       /* ══════════════════════════════════════════════════════════════════════ */
@@ -1520,6 +1537,12 @@
                     <!-- ══════════════════════════════════════════════════════════════════════ -->
                     <!-- END NOTIFICATION DROPDOWN                                              -->
                     <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <a href="{% url 'direct_messages:inbox' %}"
+                       class="action-btn icon-btn header-discussions-btn {% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}"
+                       title="{% trans 'Discussions' %}">
+                        <i class="fas fa-comments"></i>
+                        <span id="sidebarDmBadge" class="sidebar-chat-badge" aria-label="{% trans 'Unread messages' %}"></span>
+                    </a>
 
                     <div class="profile-icon-container action-dropdown-container">
                         <button class="action-btn icon-btn profile-icon-btn"
@@ -1620,17 +1643,6 @@
                     <li><a class="{% if page == 'institutions' %}active{% endif %}" href="{% url 'institutions:institution_list' %}">
                         <i class="fas fa-university"></i><span>{% trans "Institutions" %}</span>
                     </a></li>
-                    {% if user.is_authenticated %}
-                    <li>
-                        <a class="{% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}" href="{% url 'direct_messages:inbox' %}">
-                            <i class="fas fa-comments"></i>
-                            <span class="sidebar-label-group">
-                                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المحادثات{% else %}{% trans "Discussions" %}{% endif %}</span>
-                                <span id="sidebarDmBadge" class="sidebar-chat-badge" aria-label="{% trans 'Unread messages' %}"></span>
-                            </span>
-                        </a>
-                    </li>
-                    {% endif %}
                     {% if user.is_staff %}
                     <li><a class="{% if page == 'Admin' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
                         <i class="fas fa-tools"></i><span>{% trans "Admin" %}</span>
