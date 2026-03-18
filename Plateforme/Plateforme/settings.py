@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "accounts",
     "pages",
     "projects",
+    "project_chatroom",
     "forum",
     "events",
     "QA",
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
     "sharing",
     "translate",
     "scraping",
+    "settings",
     # Allauth
     "allauth",
     "allauth.account",

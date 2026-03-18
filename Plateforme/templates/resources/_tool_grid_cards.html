@@ -1,0 +1,76 @@
+{% load i18n %}
+{% load static %}
+
+<!-- ===== TOOL GRID CARDS — Matches Resource Card Design ===== -->
+{% if tools %}
+<div class="resource-grid" id="toolGrid">
+    {% for tool in tools %}
+    <article class="resource-card"
+             data-title="{{ tool.get_localized_title }}"
+             data-description="{{ tool.get_localized_description|truncatewords:25 }}"
+             data-type="tool"
+             data-author="{{ tool.author.get_full_name_display|default:'' }}"
+             data-keywords="{{ tool.keywords|default:'' }}">
+        <div class="card-accent-line type-tool"></div>
+        <div class="card-content">
+            <span class="card-type-badge type-tool">
+                <i class="bi bi-cpu"></i>
+                {% translate "Tool" %}
+            </span>
+            <h3 class="card-title">{{ tool.get_localized_title }}</h3>
+            <p class="card-description">
+                {{ tool.get_localized_description|truncatewords:25|default:_('No description provided') }}
+            </p>
+            <div class="card-meta">
+                <div class="meta-item">
+                    <i class="bi bi-person"></i>
+                    <span>{{ tool.author.get_full_name_display|default:_('Unknown') }}</span>
+                </div>
+                <div class="meta-item">
+                    <i class="bi bi-calendar3"></i>
+                    <span>{{ tool.creation_date|date:"M d, Y"|default:_("Not specified") }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-action">
+            {% if tool.approval_status == 'pending' and tool.author == request.user %}
+                <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}"
+                   class="btn-view-details"
+                   title="{% translate 'Edit Form' %}">
+                    <span>{% translate "Edit Form" %}</span>
+                    <i class="bi bi-file-earmark-text"></i>
+                </a>
+            {% else %}
+                <a href="{% url 'resources:tool_detail' tool.id %}"
+                   class="btn-view-details">
+                    <span>{% translate "View Details" %}</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            {% endif %}
+            {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 category=tool.get_tool_type_display author=tool.author.get_full_name_display url=request.build_absolute_uri %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+<!-- Results count -->
+<div class="results-count" style="margin-top: 1rem;">
+    {% translate "Showing" %} <strong>{{ tools|length }}</strong> {% translate "tools" %}
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="empty-state">
+    <div class="empty-illustration">
+        <i class="bi bi-gear"></i>
+    </div>
+    <h3>{% trans "No tools available" %}</h3>
+    <p>{% trans "No tools match your search. Try adjusting your filters or keywords." %}</p>
+    {% if user.is_authenticated %}
+    <a href="{% url 'resources:tool-create' %}" class="btn-reset">
+        <i class="bi bi-plus-lg"></i>
+        <span>{% trans "Add New Tool" %}</span>
+    </a>
+    {% endif %}
+</div>
+{% endif %}

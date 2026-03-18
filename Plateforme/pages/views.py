@@ -1956,8 +1956,71 @@ def admin_statistics(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_settings(request):
-    """Admin settings view"""
-    return render(request, "admin/settings.html")
+    """Admin settings view - handles display and update of global settings"""
+    from settings.models import GlobalSettings
+    from django.contrib import messages
+    
+    settings = GlobalSettings.get_settings()
+    
+    if request.method == 'POST':
+        try:
+            # Platform Information
+            settings.site_name = request.POST.get('site_name', settings.site_name)
+            settings.site_description = request.POST.get('site_description', settings.site_description)
+            settings.site_url = request.POST.get('site_url', settings.site_url)
+            
+            # Email Configuration
+            settings.email_from_name = request.POST.get('email_from_name', settings.email_from_name)
+            settings.email_from_address = request.POST.get('email_from_address', settings.email_from_address)
+            settings.smtp_host = request.POST.get('smtp_host', settings.smtp_host)
+            settings.smtp_port = int(request.POST.get('smtp_port', settings.smtp_port))
+            settings.smtp_use_tls = 'smtp_use_tls' in request.POST
+            settings.admin_email = request.POST.get('admin_email', settings.admin_email)
+            
+            # Notifications
+            settings.enable_email_notifications = 'enable_email_notifications' in request.POST
+            settings.notify_on_user_registration = 'notify_on_user_registration' in request.POST
+            settings.notify_on_resource_submission = 'notify_on_resource_submission' in request.POST
+            settings.notify_on_forum_post = 'notify_on_forum_post' in request.POST
+            settings.notify_on_event = 'notify_on_event' in request.POST
+            settings.notification_email = request.POST.get('notification_email', settings.notification_email)
+            
+            # Feature Flags
+            settings.enable_user_registration = 'enable_user_registration' in request.POST
+            settings.enable_social_login = 'enable_social_login' in request.POST
+            settings.enable_two_factor_auth = 'enable_two_factor_auth' in request.POST
+            settings.enable_forum = 'enable_forum' in request.POST
+            settings.enable_qa = 'enable_qa' in request.POST
+            settings.enable_events = 'enable_events' in request.POST
+            settings.enable_projects = 'enable_projects' in request.POST
+            settings.enable_chatbot = 'enable_chatbot' in request.POST
+            settings.enable_resource_submission = 'enable_resource_submission' in request.POST
+            settings.enable_resource_approval = 'enable_resource_approval' in request.POST
+            
+            # Security & Moderation
+            settings.enable_content_moderation = 'enable_content_moderation' in request.POST
+            settings.require_email_verification = 'require_email_verification' in request.POST
+            settings.max_upload_size_mb = int(request.POST.get('max_upload_size_mb', settings.max_upload_size_mb))
+            
+            # Maintenance
+            settings.maintenance_mode = 'maintenance_mode' in request.POST
+            settings.maintenance_message = request.POST.get('maintenance_message', settings.maintenance_message)
+            
+            # Save with admin user
+            settings.updated_by = request.user
+            settings.save()
+            
+            messages.success(request, '✅ Settings saved successfully!')
+            return redirect('pages:admin_settings')
+            
+        except Exception as e:
+            messages.error(request, f'Error saving settings: {str(e)}')
+    
+    context = {
+        'settings': settings,
+        'maintenance_mode': settings.maintenance_mode,
+    }
+    return render(request, 'admin/settings.html', context)
 
 
 @login_required
