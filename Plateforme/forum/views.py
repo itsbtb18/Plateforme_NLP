@@ -71,9 +71,15 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         def get_queryset(self) -> QuerySet[Topic]:
             qs = cast(QuerySet[Topic], super().get_queryset())
             
-            # STRICT: Only show APPROVED topics in the community section
-            # Pending topics are only visible in the admin panel
-            qs = qs.filter(approval_status='approved')
+            # Public users see approved topics + their own pending topics
+            # so they can track moderation state directly in the forum list.
+            if self.request.user.is_staff or self.request.user.is_superuser:
+                qs = qs.all()
+            else:
+                qs = qs.filter(
+                    Q(approval_status='approved') |
+                    Q(approval_status='pending', creator=self.request.user)
+                )
             qs = exclude_hidden_users(qs, self.request.user, ('creator',))
             
             # Filter: My Topics only - but still only approved ones
@@ -112,9 +118,11 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            visible_topics_qs = self.get_queryset()
             context['page'] = 'community'
             context['search_query'] = self.request.GET.get('q', '')
-            context['total_chatrooms'] = ChatRoom.objects.count()
+            context['total_topics'] = visible_topics_qs.count()
+            context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
             # Category filter context
             context['current_sort'] = self.request.GET.get('sort', '')
             context['my_topics'] = self.request.GET.get('my_topics', '')
@@ -133,16 +141,11 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
         logger = logging.getLogger(__name__)
         
         form.instance.creator = self.request.user
-        
-        # Auto-approve for staff, pending for regular users
-        if self.request.user.is_staff:
-            form.instance.approval_status = 'approved'
-            form.instance.is_approved = True  # Legacy field
-            logger.info(f"[TOPIC_CREATE] Auto-approving topic by staff: {self.request.user.email}")
-        else:
-            form.instance.approval_status = 'pending'
-            form.instance.is_approved = False  # Legacy field
-            logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
+
+        # Always require moderation approval for new forum topics.
+        form.instance.approval_status = 'pending'
+        form.instance.is_approved = False  # Legacy field
+        logger.info(f"[TOPIC_CREATE] Setting topic to pending by user: {self.request.user.email}")
         
         try:
             response = super().form_valid(form)
@@ -151,13 +154,10 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
                 f"(ID: {form.instance.id}, Title: {form.instance.title}, Status: {form.instance.approval_status})"
             )
             
-            if self.request.user.is_staff:
-                messages.success(self.request, _("Your topic has been published."))
-            else:
-                messages.info(
-                    self.request,
-                    _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
-                )
+            messages.info(
+                self.request,
+                _("Your topic '%(title)s' has been submitted and is pending admin review.") % {'title': form.instance.title}
+            )
             return response
             
         except Exception as e:
@@ -274,7 +274,7 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        topic = form.save(commit=False)
+        topic = form.instance
         
         # Handle bilingual fields from admin review mode
         if self.request.POST.get('title_en'):
@@ -300,8 +300,17 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             topic.save()
             messages.success(self.request, _("Topic has been approved and published."))
             return redirect('pages:admin_forum')
-        
-        topic.save()
+
+        # Keep moderation flow consistent with other sections:
+        # when a non-staff user edits an approved topic, move it back to pending.
+        previous_status = self.get_object().approval_status
+        if not (self.request.user.is_staff or self.request.user.is_superuser) and previous_status == 'approved':
+            topic.approval_status = 'pending'
+            topic.is_approved = False
+            messages.info(self.request, _("Your changes will be reviewed before becoming visible."))
+        else:
+            messages.success(self.request, _("Topic updated successfully."))
+
         return super().form_valid(form)
 
 class TopicDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
