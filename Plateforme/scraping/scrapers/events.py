@@ -6,8 +6,22 @@ NLP / CL conferences.
 import re
 import logging
 from .base import BaseScraper
+from scraping.enrichment_engine import enrich_scraped_item
+from scraping.file_downloader import (
+    try_download_document,
+    attach_file_to_model,
+)
+from scraping.field_mapping import calculate_completeness_score
 
 logger = logging.getLogger(__name__)
+
+# Convert list to comma-separated string safely
+def _safe_list_to_str(value):
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value if v)
+    if value is None:
+        return ""
+    return str(value)
 
 # ── Well-known NLP conference organising bodies ──────────────────────
 CONFERENCE_ORGS = {
@@ -30,267 +44,271 @@ CONFERENCE_ORGS = {
     "SIGARAB": {"name": "ACL Special Interest Group on Arabic NLP", "code": "SA"},
     "AICS": {"name": "AI Conference Series — MENA", "code": "AE"},
     "ICNLSP": {"name": "ICNLSP Organising Committee", "code": "DZ"},
+    "NeurIPS": {
+        "name": "Neural Information Processing Systems Foundation",
+        "code": "US",
+    },
 }
 
 # ── Curated future NLP events (used when live scraping yields nothing) ──
 CURATED_EVENTS = [
     {
-        "title": "ACL 2025 — 63rd Annual Meeting of the Association for Computational Linguistics",
+        "title": "ACL 2026 — 63rd Annual Meeting of the Association for Computational Linguistics",
         "description": "The premier international conference on computational linguistics and NLP, featuring research papers, tutorials, workshops, and demos on all aspects of language technology.",
         "event_type": "conference",
         "domains": "nlp,computational_linguistics,ai",
         "location": "Vienna, Austria",
-        "start_date": "2025-07-27",
-        "end_date": "2025-08-01",
-        "submission_deadline": "2025-02-15",
-        "website": "https://2025.aclweb.org/",
-        "contact_email": "acl2025@aclweb.org",
+        "start_date": "2026-07-27",
+        "end_date": "2026-08-01",
+        "submission_deadline": "2026-02-15",
+        "website": "https://2026.aclweb.org/",
+        "contact_email": "acl2026@aclweb.org",
         "org_key": "ACL",
     },
     {
-        "title": "EMNLP 2025 — Conference on Empirical Methods in Natural Language Processing",
+        "title": "EMNLP 2026 — Conference on Empirical Methods in Natural Language Processing",
         "description": "A major NLP conference focused on empirical methods and their application to language processing tasks including text classification, machine translation, and information extraction.",
         "event_type": "conference",
         "domains": "nlp,machine_learning,ai",
         "location": "Suzhou, China",
-        "start_date": "2025-11-05",
-        "end_date": "2025-11-09",
-        "submission_deadline": "2025-06-01",
-        "website": "https://2025.emnlp.org/",
-        "contact_email": "emnlp2025@emnlp.org",
+        "start_date": "2026-11-05",
+        "end_date": "2026-11-09",
+        "submission_deadline": "2026-06-01",
+        "website": "https://2026.emnlp.org/",
+        "contact_email": "emnlp2026@emnlp.org",
         "org_key": "EMNLP",
     },
     {
-        "title": "NAACL 2025 — North American Chapter of the ACL",
+        "title": "NAACL 2026 — North American Chapter of the ACL",
         "description": "Annual conference of the North American Chapter of the Association for Computational Linguistics bringing together researchers in NLP, speech, and information retrieval.",
         "event_type": "conference",
         "domains": "nlp,speech,ai",
         "location": "Albuquerque, New Mexico, USA",
-        "start_date": "2025-04-29",
-        "end_date": "2025-05-04",
-        "submission_deadline": "2024-10-15",
-        "website": "https://2025.naacl.org/",
-        "contact_email": "naacl2025@naacl.org",
+        "start_date": "2026-04-29",
+        "end_date": "2026-05-04",
+        "submission_deadline": "2026-10-15",
+        "website": "https://2026.naacl.org/",
+        "contact_email": "naacl2026@naacl.org",
         "org_key": "NAACL",
     },
     {
-        "title": "COLING 2025 — 31st International Conference on Computational Linguistics",
+        "title": "COLING 2026 — 31st International Conference on Computational Linguistics",
         "description": "One of the oldest international conferences on computational linguistics, covering theoretical and applied aspects of NLP including Arabic NLP.",
         "event_type": "conference",
         "domains": "nlp,linguistics,arabic_lang",
         "location": "Abu Dhabi, UAE",
-        "start_date": "2025-01-19",
-        "end_date": "2025-01-24",
-        "submission_deadline": "2024-09-16",
-        "website": "https://coling2025.org/",
-        "contact_email": "info@coling2025.org",
+        "start_date": "2026-01-19",
+        "end_date": "2026-01-24",
+        "submission_deadline": "2026-09-16",
+        "website": "https://coling2026.org/",
+        "contact_email": "info@coling2026.org",
         "org_key": "COLING",
     },
     {
-        "title": "EACL 2025 — European Chapter of the ACL",
+        "title": "EACL 2026 — European Chapter of the ACL",
         "description": "The European chapter gathering for the ACL community. Covers research on European and under-resourced languages, including Arabic dialect processing.",
         "event_type": "conference",
         "domains": "nlp,linguistics,ai",
         "location": "Dubrovnik, Croatia",
-        "start_date": "2025-03-31",
-        "end_date": "2025-04-04",
-        "submission_deadline": "2024-10-15",
-        "website": "https://2025.eacl.org/",
-        "contact_email": "eacl2025@eacl.org",
+        "start_date": "2026-03-31",
+        "end_date": "2026-04-04",
+        "submission_deadline": "2026-10-15",
+        "website": "https://2026.eacl.org/",
+        "contact_email": "eacl2026@eacl.org",
         "org_key": "EACL",
     },
     {
-        "title": "AAAI 2025 — AAAI Conference on Artificial Intelligence",
+        "title": "AAAI 2026 — AAAI Conference on Artificial Intelligence",
         "description": "Premier AI conference covering all areas of artificial intelligence including NLP, knowledge representation, planning, and machine learning.",
         "event_type": "conference",
         "domains": "ai,nlp,machine_learning",
         "location": "Philadelphia, Pennsylvania, USA",
-        "start_date": "2025-02-25",
-        "end_date": "2025-03-04",
-        "submission_deadline": "2024-08-15",
+        "start_date": "2026-02-25",
+        "end_date": "2026-03-04",
+        "submission_deadline": "2026-08-15",
         "website": "https://aaai.org/conference/aaai/aaai-25/",
         "contact_email": "aaai25@aaai.org",
         "org_key": "AAAI",
     },
     {
-        "title": "IJCNLP-AACL 2025 — International Joint Conference on NLP",
+        "title": "IJCNLP-AACL 2026 — International Joint Conference on NLP",
         "description": "Joint conference of the International Joint Conference on NLP and Asia-Pacific ACL chapter, highlighting NLP research from Asia-Pacific including Arabic NLP.",
         "event_type": "conference",
         "domains": "nlp,arabic_lang,ai",
         "location": "Bali, Indonesia",
-        "start_date": "2025-10-01",
-        "end_date": "2025-10-04",
-        "submission_deadline": "2025-05-15",
-        "website": "https://www.ijcnlp-aacl2025.org/",
-        "contact_email": "info@ijcnlp-aacl2025.org",
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-04",
+        "submission_deadline": "2026-05-15",
+        "website": "https://www.ijcnlp-aacl2026.org/",
+        "contact_email": "info@ijcnlp-aacl2026.org",
         "org_key": "AACL",
     },
     {
-        "title": "ArabicNLP 2025 — Workshop on Arabic Natural Language Processing",
+        "title": "ArabicNLP 2026 — Workshop on Arabic Natural Language Processing",
         "description": "Dedicated workshop for Arabic NLP research including morphological analysis, dialectal Arabic processing, sentiment analysis, and machine translation for Arabic.",
         "event_type": "workshop",
         "domains": "nlp,arabic_lang,linguistics,sentiment_analysis",
         "location": "Vienna, Austria",
-        "start_date": "2025-08-01",
-        "end_date": "2025-08-01",
-        "submission_deadline": "2025-05-15",
-        "website": "https://arabicnlp2025.sigarab.org/",
-        "contact_email": "arabicnlp2025@sigarab.org",
+        "start_date": "2026-08-01",
+        "end_date": "2026-08-01",
+        "submission_deadline": "2026-05-15",
+        "website": "https://arabicnlp2026.sigarab.org/",
+        "contact_email": "arabicnlp2026@sigarab.org",
         "org_key": "ANLP",
     },
     {
-        "title": "LREC-COLING 2025 — Language Resources and Evaluation Conference",
+        "title": "LREC-COLING 2026 — Language Resources and Evaluation Conference",
         "description": "Conference on language resources, evaluation methods, and tools. Special focus on low-resource languages and corpus creation for Arabic dialects.",
         "event_type": "conference",
         "domains": "nlp,linguistics,arabic_lang",
         "location": "Torino, Italy",
-        "start_date": "2025-05-20",
-        "end_date": "2025-05-25",
-        "submission_deadline": "2024-12-01",
-        "website": "https://lrec-coling-2025.org/",
-        "contact_email": "info@lrec-coling-2025.org",
+        "start_date": "2026-05-20",
+        "end_date": "2026-05-25",
+        "submission_deadline": "2026-12-01",
+        "website": "https://lrec-coling-2026.org/",
+        "contact_email": "info@lrec-coling-2026.org",
         "org_key": "LREC",
     },
     {
-        "title": "SIGIR 2025 — 48th International ACM SIGIR Conference",
+        "title": "SIGIR 2026 — 48th International ACM SIGIR Conference",
         "description": "The premier research conference in information retrieval, featuring work on search, recommendation, and NLP for information access.",
         "event_type": "conference",
         "domains": "nlp,ai,information_retrieval",
         "location": "Padua, Italy",
-        "start_date": "2025-07-13",
-        "end_date": "2025-07-18",
-        "submission_deadline": "2025-01-22",
-        "website": "https://sigir2025.org/",
-        "contact_email": "sigir2025@acm.org",
+        "start_date": "2026-07-13",
+        "end_date": "2026-07-18",
+        "submission_deadline": "2026-01-22",
+        "website": "https://sigir2026.org/",
+        "contact_email": "sigir2026@acm.org",
         "org_key": "SIGIR",
     },
     {
-        "title": "NeurIPS 2025 — Conference on Neural Information Processing Systems",
+        "title": "NeurIPS 2026 — Conference on Neural Information Processing Systems",
         "description": "Top machine learning conference featuring cutting-edge research on deep learning for NLP, transformers, large language models, and multimodal AI.",
         "event_type": "conference",
         "domains": "ai,nlp,machine_learning",
         "location": "San Diego, California, USA",
-        "start_date": "2025-12-09",
-        "end_date": "2025-12-15",
-        "submission_deadline": "2025-05-22",
+        "start_date": "2026-12-09",
+        "end_date": "2026-12-15",
+        "submission_deadline": "2026-05-22",
         "website": "https://neurips.cc/",
         "contact_email": "info@neurips.cc",
-        "org_key": "ACL",
+        "org_key": "NeurIPS",
     },
     {
-        "title": "WANLP 2025 — Workshop on Arabic NLP (co-located with EMNLP)",
+        "title": "WANLP 2026 — Workshop on Arabic NLP (co-located with EMNLP)",
         "description": "WANLP brings together researchers working on Arabic Natural Language Processing including MSA and dialectal Arabic, covering tasks such as POS tagging, NER, and text generation.",
         "event_type": "workshop",
         "domains": "nlp,arabic_lang,sentiment_analysis,machine_translation",
         "location": "Suzhou, China",
-        "start_date": "2025-11-09",
-        "end_date": "2025-11-09",
-        "submission_deadline": "2025-08-15",
-        "website": "https://wanlp2025.github.io/",
-        "contact_email": "wanlp2025@googlegroups.com",
+        "start_date": "2026-11-09",
+        "end_date": "2026-11-09",
+        "submission_deadline": "2026-08-15",
+        "website": "https://wanlp2026.github.io/",
+        "contact_email": "wanlp2026@googlegroups.com",
         "org_key": "ANLP",
     },
     # ── Arabic / North African / MENA Events ──
     {
-        "title": "ICNLSP 2025 — 8th International Conference on Natural Language and Speech Processing",
+        "title": "ICNLSP 2026 — 8th International Conference on Natural Language and Speech Processing",
         "description": "ICNLSP focuses on NLP and speech processing for Arabic and under-resourced languages. Covers morphological analysis, dialect identification, ASR, and TTS for Arabic variants.",
         "event_type": "conference",
         "domains": "nlp,arabic_lang,speech_processing",
         "location": "Algiers, Algeria",
-        "start_date": "2025-12-13",
-        "end_date": "2025-12-14",
-        "submission_deadline": "2025-09-15",
+        "start_date": "2026-12-13",
+        "end_date": "2026-12-14",
+        "submission_deadline": "2026-09-15",
         "website": "https://www.icnlsp.org/",
         "contact_email": "contact@icnlsp.org",
         "org_key": "ICNLSP",
     },
     {
-        "title": "ArabicNLP 2025 — 6th Workshop on Arabic NLP (co-located with ACL)",
+        "title": "ArabicNLP 2026 — 6th Workshop on Arabic NLP (co-located with ACL)",
         "description": "The flagship Arabic NLP workshop co-located with ACL. Covers Arabic morphological analysis, dialectal Arabic, machine translation, sentiment analysis, and Arabic LLMs.",
         "event_type": "workshop",
         "domains": "nlp,arabic_lang,machine_translation,sentiment_analysis",
         "location": "Vienna, Austria",
-        "start_date": "2025-08-01",
-        "end_date": "2025-08-01",
-        "submission_deadline": "2025-05-20",
-        "website": "https://arabicnlp2025.sigarab.org/",
+        "start_date": "2026-08-01",
+        "end_date": "2026-08-01",
+        "submission_deadline": "2026-05-20",
+        "website": "https://arabicnlp2026.sigarab.org/",
         "contact_email": "arabicnlp@sigarab.org",
         "org_key": "SIGARAB",
     },
     {
-        "title": "ICALP 2025 — International Conference on Arabic Language Processing",
+        "title": "ICALP 2026 — International Conference on Arabic Language Processing",
         "description": "Conference dedicated to Arabic language processing including NLP, text mining, information retrieval, and speech technology for Arabic and its dialects.",
         "event_type": "conference",
         "domains": "nlp,arabic_lang,speech_processing",
         "location": "Rabat, Morocco",
-        "start_date": "2025-10-15",
-        "end_date": "2025-10-17",
-        "submission_deadline": "2025-07-01",
+        "start_date": "2026-10-15",
+        "end_date": "2026-10-17",
+        "submission_deadline": "2026-07-01",
         "website": "https://icalp.org/",
         "contact_email": "info@icalp.org",
         "org_key": "SIGARAB",
     },
     {
-        "title": "AI & NLP Summit MENA 2025",
+        "title": "AI & NLP Summit MENA 2026",
         "description": "Industry and academic summit focused on AI and NLP applications in the MENA region, including Arabic chatbots, Arabic LLMs, and Arabic speech technology.",
         "event_type": "conference",
         "domains": "nlp,arabic_lang,llm_research,ai",
         "location": "Dubai, UAE",
-        "start_date": "2025-09-22",
-        "end_date": "2025-09-24",
-        "submission_deadline": "2025-06-15",
+        "start_date": "2026-09-22",
+        "end_date": "2026-09-24",
+        "submission_deadline": "2026-06-15",
         "website": "https://ainlpsummit.com/",
         "contact_email": "info@ainlpsummit.com",
         "org_key": "AICS",
     },
     {
-        "title": "North Africa AI Summit 2025",
+        "title": "North Africa AI Summit 2026",
         "description": "Regional summit bringing together AI researchers and practitioners from Algeria, Morocco, Tunisia, Libya, and Egypt. Covers NLP, computer vision, and AI for development.",
         "event_type": "conference",
         "domains": "ai,nlp,arabic_lang",
         "location": "Tunis, Tunisia",
-        "start_date": "2025-11-18",
-        "end_date": "2025-11-20",
-        "submission_deadline": "2025-08-01",
+        "start_date": "2026-11-18",
+        "end_date": "2026-11-20",
+        "submission_deadline": "2026-08-01",
         "website": "https://northafricaaisummit.org/",
         "contact_email": "contact@northafricaaisummit.org",
         "org_key": "AICS",
     },
     {
-        "title": "NADI 2025 — Nuanced Arabic Dialect Identification Shared Task",
+        "title": "NADI 2026 — Nuanced Arabic Dialect Identification Shared Task",
         "description": "Annual shared task on Arabic dialect identification covering 21 Arab countries. Includes subtasks on dialect-to-MSA translation and country-level dialect detection.",
         "event_type": "workshop",
         "domains": "nlp,arabic_lang,machine_translation",
         "location": "Vienna, Austria",
-        "start_date": "2025-08-01",
-        "end_date": "2025-08-01",
-        "submission_deadline": "2025-05-15",
+        "start_date": "2026-08-01",
+        "end_date": "2026-08-01",
+        "submission_deadline": "2026-05-15",
         "website": "https://nadi.dlnlp.ai/",
         "contact_email": "nadi@dlnlp.ai",
         "org_key": "ANLP",
     },
     {
-        "title": "Deep Learning Indaba 2025",
+        "title": "Deep Learning Indaba 2026",
         "description": "Africa's premier machine learning conference. Features research on African and Arabic NLP, low-resource language processing, and AI for African development.",
         "event_type": "conference",
         "domains": "ai,nlp,machine_learning",
         "location": "Dakar, Senegal",
-        "start_date": "2025-09-07",
-        "end_date": "2025-09-12",
-        "submission_deadline": "2025-04-30",
+        "start_date": "2026-09-07",
+        "end_date": "2026-09-12",
+        "submission_deadline": "2026-04-30",
         "website": "https://deeplearningindaba.com/",
         "contact_email": "info@deeplearningindaba.com",
         "org_key": "ACL",
     },
     {
-        "title": "IEEE AICCSA 2025 — ACS/IEEE International Conference on Computer Systems and Applications",
+        "title": "IEEE AICCSA 2026 — ACS/IEEE International Conference on Computer Systems and Applications",
         "description": "Long-running conference covering computer systems and applications in the Arab world, with dedicated tracks on Arabic NLP, text mining, and machine learning.",
         "event_type": "conference",
         "domains": "nlp,ai,arabic_lang",
         "location": "Cairo, Egypt",
-        "start_date": "2025-12-01",
-        "end_date": "2025-12-04",
-        "submission_deadline": "2025-08-15",
+        "start_date": "2026-12-01",
+        "end_date": "2026-12-04",
+        "submission_deadline": "2026-08-15",
         "website": "https://www.aiccsa.net/",
         "contact_email": "aiccsa@ieee.org",
         "org_key": "IEEE",
@@ -301,9 +319,9 @@ CURATED_EVENTS = [
         "event_type": "workshop",
         "domains": "nlp,arabic_lang,linguistics",
         "location": "Suzhou, China",
-        "start_date": "2025-11-09",
-        "end_date": "2025-11-09",
-        "submission_deadline": "2025-08-01",
+        "start_date": "2026-11-09",
+        "end_date": "2026-11-09",
+        "submission_deadline": "2026-08-01",
         "website": "https://sigarab.org/",
         "contact_email": "sigarab@googlegroups.com",
         "org_key": "SIGARAB",
@@ -319,7 +337,21 @@ class EventScraper(BaseScraper):
 
     def scrape(self):
         """Run all event-scraping strategies in order."""
-        self._scrape_wikicfp()
+        try:
+            from scraping.intelligence import generate_queries
+
+            dynamic_queries = generate_queries("events")
+            dynamic_terms = [
+                q.get("query", "") for q in dynamic_queries if q.get("query")
+            ]
+            if dynamic_terms:
+                search_terms = dynamic_terms[:5]
+            else:
+                search_terms = ["natural language processing", "NLP", "Arabic NLP"]
+        except Exception:
+            search_terms = ["natural language processing", "NLP", "Arabic NLP"]
+
+        self._scrape_wikicfp(search_terms)
         self._scrape_conferencealerts_algeria()
         self._scrape_allconferencealert_algeria()
         self._scrape_conferencealerts_country("morocco")
@@ -328,14 +360,10 @@ class EventScraper(BaseScraper):
         self._import_curated_events()
 
     # ── WikiCFP ──────────────────────────────────────────────────────
-    def _scrape_wikicfp(self):
+    def _scrape_wikicfp(self, search_terms):
         """Attempt to scrape upcoming NLP events from WikiCFP search."""
         url = "http://www.wikicfp.com/cfp/servlet/tool.search"
-        for query in (
-            "natural language processing",
-            "NLP",
-            "computational linguistics",
-        ):
+        for query in search_terms:
             resp = self.safe_request(url, params={"q": query, "year": "f"})
             if resp is None:
                 continue
@@ -428,7 +456,9 @@ class EventScraper(BaseScraper):
             from bs4 import BeautifulSoup
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            cards = soup.select(".conf-list .conf-item, .event-list li, table tr") or soup.find_all("div", class_=re.compile(r"conf|event"))
+            cards = soup.select(
+                ".conf-list .conf-item, .event-list li, table tr"
+            ) or soup.find_all("div", class_=re.compile(r"conf|event"))
 
             for card in cards:
                 try:
@@ -439,7 +469,11 @@ class EventScraper(BaseScraper):
                     if not title or len(title) < 5:
                         continue
                     href = link_tag.get("href", "")
-                    event_url = href if href.startswith("http") else f"https://conferencealerts.co.in{href}"
+                    event_url = (
+                        href
+                        if href.startswith("http")
+                        else f"https://conferencealerts.co.in{href}"
+                    )
 
                     text = card.get_text(" ", strip=True)
                     date_match = re.search(
@@ -451,7 +485,9 @@ class EventScraper(BaseScraper):
                     start = self.parse_date(date_match.group(0)) if date_match else None
 
                     city = ""
-                    city_match = re.search(r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I)
+                    city_match = re.search(
+                        r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I
+                    )
                     if city_match:
                         city = city_match.group(1).strip()
                     country_name = country.title()
@@ -469,10 +505,14 @@ class EventScraper(BaseScraper):
                         org_key="",
                     )
                 except Exception as exc:
-                    logger.debug("conferencealerts.co.in %s parse error: %s", country, exc)
+                    logger.debug(
+                        "conferencealerts.co.in %s parse error: %s", country, exc
+                    )
 
         except ImportError:
-            self.errors.append("beautifulsoup4 not installed — country scraping skipped")
+            self.errors.append(
+                "beautifulsoup4 not installed — country scraping skipped"
+            )
         except Exception as exc:
             self.errors.append(f"conferencealerts.co.in/{country} error: {exc}")
 
@@ -489,7 +529,9 @@ class EventScraper(BaseScraper):
 
             soup = BeautifulSoup(resp.text, "html.parser")
             # Each conference is typically in a card / list-item block
-            cards = soup.select(".conf-list .conf-item, .event-list li, table tr") or soup.find_all("div", class_=re.compile(r"conf|event"))
+            cards = soup.select(
+                ".conf-list .conf-item, .event-list li, table tr"
+            ) or soup.find_all("div", class_=re.compile(r"conf|event"))
 
             for card in cards:
                 try:
@@ -501,7 +543,11 @@ class EventScraper(BaseScraper):
                     if not title or len(title) < 5:
                         continue
                     href = link_tag.get("href", "")
-                    event_url = href if href.startswith("http") else f"https://conferencealerts.co.in{href}"
+                    event_url = (
+                        href
+                        if href.startswith("http")
+                        else f"https://conferencealerts.co.in{href}"
+                    )
 
                     # Extract text for date / city parsing
                     text = card.get_text(" ", strip=True)
@@ -517,7 +563,9 @@ class EventScraper(BaseScraper):
 
                     # City — often after the date or labelled "City:"
                     city = ""
-                    city_match = re.search(r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I)
+                    city_match = re.search(
+                        r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I
+                    )
                     if city_match:
                         city = city_match.group(1).strip()
                     location = f"{city}, Algeria" if city else "Algeria"
@@ -537,7 +585,9 @@ class EventScraper(BaseScraper):
                     logger.debug("conferencealerts.co.in parse error: %s", exc)
 
         except ImportError:
-            self.errors.append("beautifulsoup4 not installed — Algeria scraping skipped")
+            self.errors.append(
+                "beautifulsoup4 not installed — Algeria scraping skipped"
+            )
         except Exception as exc:
             self.errors.append(f"conferencealerts.co.in error: {exc}")
 
@@ -554,7 +604,9 @@ class EventScraper(BaseScraper):
 
             soup = BeautifulSoup(resp.text, "html.parser")
             # Events are in table rows or card blocks
-            rows = soup.select("table.searchResult tr, .conf-box, .event-item") or soup.find_all("tr")
+            rows = soup.select(
+                "table.searchResult tr, .conf-box, .event-item"
+            ) or soup.find_all("tr")
 
             for row in rows:
                 try:
@@ -565,7 +617,11 @@ class EventScraper(BaseScraper):
                     if not title or len(title) < 5:
                         continue
                     href = link_tag.get("href", "")
-                    event_url = href if href.startswith("http") else f"https://www.allconferencealert.com/{href}"
+                    event_url = (
+                        href
+                        if href.startswith("http")
+                        else f"https://www.allconferencealert.com/{href}"
+                    )
 
                     cells = row.find_all("td")
                     date_str = cells[1].get_text(strip=True) if len(cells) > 1 else ""
@@ -590,28 +646,39 @@ class EventScraper(BaseScraper):
                     logger.debug("allconferencealert.com parse error: %s", exc)
 
         except ImportError:
-            self.errors.append("beautifulsoup4 not installed — Algeria scraping skipped")
+            self.errors.append(
+                "beautifulsoup4 not installed — Algeria scraping skipped"
+            )
         except Exception as exc:
             self.errors.append(f"allconferencealert.com error: {exc}")
 
     # ── Curated fallback ─────────────────────────────────────────────
     def _import_curated_events(self):
         """Import well-known NLP conferences from the curated list."""
-        for item in CURATED_EVENTS:
+        from django.utils import timezone
+        import datetime
+
+        for event in CURATED_EVENTS:
+            event_date = datetime.datetime.strptime(
+                event["start_date"], "%Y-%m-%d"
+            ).replace(tzinfo=datetime.timezone.utc)
+            cutoff = timezone.now() - datetime.timedelta(days=30)
+            if event_date < cutoff:
+                continue
             self._create_event(
-                title=item["title"],
-                description=item["description"],
-                event_type=item.get("event_type", "conference"),
-                domains=item.get("domains", "nlp"),
-                location=item.get("location", ""),
-                start_date=self.parse_date(item["start_date"]),
-                end_date=self.parse_date(item["end_date"]),
+                title=event["title"],
+                description=event["description"],
+                event_type=event.get("event_type", "conference"),
+                domains=event.get("domains", "nlp"),
+                location=event.get("location", ""),
+                start_date=self.parse_date(event["start_date"]),
+                end_date=self.parse_date(event["end_date"]),
                 submission_deadline=self.parse_date(
-                    item.get("submission_deadline", "")
+                    event.get("submission_deadline", "")
                 ),
-                website=item.get("website", ""),
-                contact_email=item.get("contact_email", ""),
-                org_key=item.get("org_key", ""),
+                website=event.get("website", ""),
+                contact_email=event.get("contact_email", ""),
+                org_key=event.get("org_key", ""),
             )
 
     # ── Helpers ──────────────────────────────────────────────────────
@@ -636,8 +703,10 @@ class EventScraper(BaseScraper):
             self.items_skipped += 1
             return
 
+        title_en = title
+
         # Duplicate check
-        if Event.objects.filter(title_en__iexact=title).exists():
+        if self.is_duplicate(title_en, "events", Event):
             self.items_skipped += 1
             return
         if website and Event.objects.filter(website=website).exists():
@@ -651,6 +720,7 @@ class EventScraper(BaseScraper):
             return
 
         # ── LLM validation & enrichment (non-blocking) ──────────────
+        poster_url = ""
         try:
             from scraping.llm_validation import validate_item, apply_llm_enrichment
 
@@ -662,7 +732,9 @@ class EventScraper(BaseScraper):
                 "location": location,
                 "start_date": str(start_date) if start_date else "",
                 "end_date": str(end_date) if end_date else "",
-                "submission_deadline": str(submission_deadline) if submission_deadline else "",
+                "submission_deadline": str(submission_deadline)
+                if submission_deadline
+                else "",
                 "website": website,
                 "contact_email": contact_email,
             }
@@ -691,9 +763,11 @@ class EventScraper(BaseScraper):
                 description_ar = merged.get("description_ar") or description
                 contact_email = merged.get("contact_email") or contact_email
                 location = merged.get("location") or location
+                poster_url = merged.get("poster_url") or poster_url
                 logger.info(
                     "LLM enriched event '%s' (score=%s)",
-                    title, enriched.get("quality_score"),
+                    title,
+                    enriched.get("quality_score"),
                 )
             else:
                 title_ar = title
@@ -704,41 +778,99 @@ class EventScraper(BaseScraper):
             title_ar = title
             description_ar = description
 
+        title_en = title
+        description_en = description
+        location_en = location
+        location_ar = location
+        research_domains = domains
+
+        # Step 1: Enrich all missing fields
+        item_dict = {
+            "title_en": title_en,
+            "title_ar": title_ar,
+            "description_en": description_en,
+            "description_ar": description_ar,
+            "start_date": start_date,
+            "end_date": end_date,
+            "submission_deadline": submission_deadline,
+            "location_en": location_en,
+            "location_ar": location_ar,
+            "website": website,
+            "contact_email": contact_email,
+            "event_type": event_type,
+            "research_domains": research_domains,
+            "poster_url": poster_url,
+        }
+
+        item_dict = enrich_scraped_item(item_dict, "events")
+
+        # Step 2: Calculate completeness score
+        completeness = calculate_completeness_score(item_dict, "events")
+
+        # Step 3: Only save if completeness >= 40%
+        if completeness < 40:
+            self.items_skipped += 1
+            return
+
+        is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "events")
+        if not is_valid:
+            self.items_skipped += 1
+            logger.debug("Skipping event '%s' due to validation: %s", title, reason)
+            return
+
+        domains_value = _safe_list_to_str(item_dict.get("research_domains", ""))
+
+        # Step 4: Create the event with all enriched fields
         try:
-            Event.objects.create(
-                title=title,
-                title_en=title,
-                title_ar=title_ar,
-                description=description,
-                description_en=description,
-                description_ar=description_ar,
-                event_type=event_type,
-                domains=domains,
-                location=location,
-                location_en=location,
-                location_ar=location,
-                start_date=start_date,
-                end_date=end_date or start_date,
-                submission_deadline=submission_deadline,
-                website=website or "",
-                contact_email=contact_email or "info@conference.org",
+            event = Event.objects.create(
+                title=item_dict.get("title_en", "")[:300],
+                title_en=item_dict.get("title_en", "")[:300],
+                title_ar=item_dict.get("title_ar", "")[:300],
+                description=item_dict.get("description_en", ""),
+                description_en=item_dict.get("description_en", ""),
+                description_ar=item_dict.get("description_ar", ""),
+                start_date=item_dict.get("start_date"),
+                end_date=item_dict.get("end_date") or item_dict.get("start_date"),
+                submission_deadline=item_dict.get("submission_deadline"),
+                location=item_dict.get("location_en", "")[:200],
+                location_en=item_dict.get("location_en", "")[:200],
+                location_ar=item_dict.get("location_ar", "")[:200],
+                website=item_dict.get("website", ""),
+                contact_email=item_dict.get("contact_email", "")
+                or "info@conference.org",
+                event_type=item_dict.get("event_type", "conference"),
+                domains=domains_value,
                 organizer=organizer,
-                created_by=self.get_system_user(),
                 approval_status="pending",
+                created_by=self.get_system_user(),
                 is_approved=False,
             )
+
+            # Step 5: Try to download and attach poster PDF
+            poster_url = item_dict.get("poster_url", "")
+            if poster_url:
+                doc_file, filename = try_download_document([poster_url], "events")
+                if doc_file:
+                    try:
+                        attach_file_to_model(event, "attachment", doc_file, filename)
+                    except Exception:
+                        pass
+
             self.items_created += 1
             self.results.append(
                 {
-                    "title": self.truncate(title, 100),
-                    "location": location,
-                    "dates": f"{start_date} → {end_date}",
-                    "url": website,
+                    "title": self.truncate(item_dict.get("title_en", title), 100),
+                    "location": item_dict.get("location_en", location),
+                    "dates": (
+                        f"{item_dict.get('start_date')} → "
+                        f"{item_dict.get('end_date') or item_dict.get('start_date')}"
+                    ),
+                    "url": item_dict.get("website", website),
                 }
             )
         except Exception as exc:
-            self.errors.append(f"Failed to create event '{title}': {exc}")
-            logger.error("Failed to create event %s: %s", title, exc)
+            self.errors.append(f"Failed to create event '{title_en}': {exc}")
+            logger.error("Failed to create event %s: %s", title_en, exc)
 
     def _resolve_organizer(self, org_key):
         """Get or create an Institution that acts as the event organiser."""
@@ -761,7 +893,7 @@ class EventScraper(BaseScraper):
         )
 
     def _parse_date_range(self, text):
-        """Parse a date-range string like 'Aug 11, 2025 - Aug 16, 2025'."""
+        """Parse a date-range string like 'Aug 11, 2026 - Aug 16, 2026'."""
         if not text:
             return None, None
         parts = re.split(r"\s*[-–—]\s*", text, maxsplit=1)

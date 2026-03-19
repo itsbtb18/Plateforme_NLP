@@ -43,6 +43,14 @@ class Event(models.Model):
         ('rejected', _('Rejected')),
     )
     
+    source = models.CharField(
+        max_length=100,
+        blank=True,
+        default='manual',
+        help_text="Source of this event record: "
+                  "manual, scraped, custom_scrape, etc."
+    )
+    
     title = models.CharField(_('Title'), max_length=255)
     title_ar = models.CharField(_('Title (Arabic)'), max_length=255, blank=True, default='')
     title_en = models.CharField(_('Title (English)'), max_length=255, blank=True, default='')

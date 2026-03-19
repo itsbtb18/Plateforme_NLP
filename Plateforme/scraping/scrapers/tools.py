@@ -8,6 +8,12 @@ platform's ``NLPTool`` model.
 
 import logging
 from .base import BaseScraper
+from scraping.enrichment_engine import enrich_scraped_item
+from scraping.file_downloader import (
+    try_download_image,
+    attach_file_to_model,
+)
+from scraping.field_mapping import calculate_completeness_score
 
 logger = logging.getLogger(__name__)
 
@@ -260,8 +266,23 @@ class ToolScraper(BaseScraper):
     ]
 
     def scrape(self):
+        try:
+            from scraping.intelligence import generate_queries
+
+            dynamic_queries = generate_queries("tools")
+            hf_queries = [
+                q.get("query", "") for q in dynamic_queries if q.get("query")
+            ][:10]
+            if not hf_queries:
+                hf_queries = ["arabic nlp", "camelbert", "arabert"]
+        except Exception:
+            hf_queries = ["arabic nlp", "camelbert", "arabert"]
+
+        # Build query param dicts from dynamic queries
+        queries = [{"search": q, "limit": 10} for q in hf_queries]
+
         seen_ids = set()
-        for query_params in self.QUERIES:
+        for query_params in queries:
             params = {
                 "sort": "downloads",
                 "direction": "-1",
@@ -307,6 +328,7 @@ class ToolScraper(BaseScraper):
         # Build human-readable title
         short_name = model_id.split("/")[-1] if "/" in model_id else model_id
         title = short_name.replace("-", " ").replace("_", " ").title()
+        title_en = title
 
         access_url = f"https://huggingface.co/{model_id}"
 
@@ -314,7 +336,7 @@ class ToolScraper(BaseScraper):
         if NLPTool.objects.filter(access_link=access_url).exists():
             self.items_skipped += 1
             return
-        if NLPTool.objects.filter(title_en__iexact=title).exists():
+        if self.is_duplicate(title_en, "tools", NLPTool):
             self.items_skipped += 1
             return
 
@@ -337,34 +359,140 @@ class ToolScraper(BaseScraper):
         )
 
         # Keywords
-        keywords = ",".join([t for t in tags if not t.startswith("arxiv:")][:8])
+        keywords = [t for t in tags if not t.startswith("arxiv:")][:8]
+
+        title_ar = title
+        description_en = description
+        description_ar = description
+        access_link = access_url
+        documentation_url = access_url
+        version = "latest"
+        supported_languages = [
+            "arabic"
+            if lang == "ar"
+            else "english"
+            if lang == "en"
+            else "french"
+            if lang == "fr"
+            else "multilingual"
+        ]
+        primary_language = supported_languages[0]
+        thumbnail_url = (
+            model.get("thumbnail_url")
+            or model.get("avatarUrl")
+            or model.get("logo")
+            or ""
+        )
+
+        item_dict = {
+            "title_en": title_en,
+            "title_ar": title_ar,
+            "description_en": description_en,
+            "description_ar": description_ar,
+            "tool_type": tool_type,
+            "access_link": access_link,
+            "documentation_url": documentation_url,
+            "version": version,
+            "keywords": keywords,
+            "supported_languages": supported_languages,
+            "primary_language": primary_language,
+            "thumbnail_url": thumbnail_url,
+        }
+
+        item_dict = enrich_scraped_item(item_dict, "tools")
+        completeness = calculate_completeness_score(item_dict, "tools")
+
+        if completeness < 40:
+            self.items_skipped += 1
+            return
+
+        is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "tools")
+        if not is_valid:
+            self.items_skipped += 1
+            return
+
+        supported_lang_map = {
+            "arabic": "ar",
+            "english": "en",
+            "french": "fr",
+            "spanish": "es",
+            "multilingual": "ar",
+        }
+        primary_language_map = {
+            "arabic": "ar",
+            "english": "en",
+            "french": "en",
+            "bilingual": "en",
+            "multilingual": "en",
+        }
+        supported_value = item_dict.get("supported_languages", [])
+        if isinstance(supported_value, list) and supported_value:
+            supported_lang = supported_lang_map.get(
+                str(supported_value[0]).lower(), "ar"
+            )
+        else:
+            supported_lang = supported_lang_map.get(str(supported_value).lower(), "ar")
+        primary_lang = primary_language_map.get(
+            str(item_dict.get("primary_language", "arabic")).lower(), "ar"
+        )
 
         try:
-            NLPTool.objects.create(
-                title=title,
-                title_en=title,
-                title_ar=title,
-                description=description,
-                description_en=description,
-                description_ar=description,
-                tool_type=tool_type,
-                version="latest",
-                access_link=access_url,
-                documentation_link=access_url,
-                supported_languages=lang,
-                language="en",
-                keywords=keywords,
-                author=self.get_system_user(),
+            tool = NLPTool.objects.create(
+                title=item_dict.get("title_en", "")[:200],
+                title_en=item_dict.get("title_en", "")[:200],
+                title_ar=item_dict.get("title_ar", "")[:200],
+                description=item_dict.get("description_en", ""),
+                description_en=item_dict.get("description_en", ""),
+                description_ar=item_dict.get("description_ar", ""),
+                tool_type=item_dict.get("tool_type", "other"),
+                access_link=item_dict.get("access_link", ""),
+                documentation_link=item_dict.get("documentation_url", ""),
+                version=item_dict.get("version", ""),
+                keywords=", ".join(
+                    item_dict.get("keywords", [])
+                    if isinstance(item_dict.get("keywords"), list)
+                    else [item_dict.get("keywords", "")]
+                ),
+                supported_languages=supported_lang,
+                language=primary_lang,
                 approval_status="pending",
+                author=self.get_system_user(),
             )
+
+            # Try to download thumbnail/icon (non-fatal on any failure)
+            thumbnail_url = (item_dict.get("thumbnail_url") or "").strip()
+            if tool and getattr(tool, "pk", None) and thumbnail_url:
+                try:
+                    img_file, filename = try_download_image([thumbnail_url], "tools")
+                    if img_file and filename:
+                        attached = attach_file_to_model(
+                            tool,
+                            "thumbnail",
+                            img_file,
+                            filename,
+                        )
+                        if not attached:
+                            logger.warning(
+                                "Thumbnail attach returned False for tool=%s url=%s",
+                                tool.pk,
+                                thumbnail_url,
+                            )
+                except Exception as attach_exc:
+                    logger.warning(
+                        "Failed to attach thumbnail for tool=%s url=%s: %s",
+                        getattr(tool, "pk", "unknown"),
+                        thumbnail_url,
+                        attach_exc,
+                    )
+
             self.items_created += 1
             self.results.append(
                 {
-                    "title": self.truncate(title, 80),
+                    "title": self.truncate(item_dict.get("title_en", title), 80),
                     "type": pipeline_tag or "model",
                     "author": author,
                     "downloads": f"{downloads:,}",
-                    "url": access_url,
+                    "url": item_dict.get("access_link", access_url),
                 }
             )
         except Exception as exc:
@@ -379,12 +507,13 @@ class ToolScraper(BaseScraper):
 
         for item in self.CURATED_LLM_TOOLS:
             title = item["title"]
+            title_en = title
             url = item["url"]
 
             if NLPTool.objects.filter(access_link=url).exists():
                 self.items_skipped += 1
                 continue
-            if NLPTool.objects.filter(title_en__iexact=title).exists():
+            if self.is_duplicate(title_en, "tools", NLPTool):
                 self.items_skipped += 1
                 continue
 
@@ -397,34 +526,140 @@ class ToolScraper(BaseScraper):
                     lang = LANG_MAP[tag]
                     break
 
-            keywords = ",".join([t for t in tags if len(t) < 30][:8])
+            title_ar = title
+            description_en = item["description"]
+            description_ar = item["description"]
+            access_link = url
+            documentation_url = url
+            version = "latest"
+            keywords = [t for t in tags if len(t) < 30][:8]
+            supported_languages = [
+                "arabic"
+                if lang == "ar"
+                else "english"
+                if lang == "en"
+                else "french"
+                if lang == "fr"
+                else "multilingual"
+            ]
+            primary_language = supported_languages[0]
+            thumbnail_url = item.get("thumbnail_url", "")
+
+            item_dict = {
+                "title_en": title_en,
+                "title_ar": title_ar,
+                "description_en": description_en,
+                "description_ar": description_ar,
+                "tool_type": tool_type,
+                "access_link": access_link,
+                "documentation_url": documentation_url,
+                "version": version,
+                "keywords": keywords,
+                "supported_languages": supported_languages,
+                "primary_language": primary_language,
+                "thumbnail_url": thumbnail_url,
+            }
+
+            item_dict = enrich_scraped_item(item_dict, "tools")
+            completeness = calculate_completeness_score(item_dict, "tools")
+
+            if completeness < 40:
+                self.items_skipped += 1
+                continue
+
+            is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "tools")
+            if not is_valid:
+                self.items_skipped += 1
+                continue
+
+            supported_lang_map = {
+                "arabic": "ar",
+                "english": "en",
+                "french": "fr",
+                "spanish": "es",
+                "multilingual": "ar",
+            }
+            primary_language_map = {
+                "arabic": "ar",
+                "english": "en",
+                "french": "en",
+                "bilingual": "en",
+                "multilingual": "en",
+            }
+            supported_value = item_dict.get("supported_languages", [])
+            if isinstance(supported_value, list) and supported_value:
+                supported_lang = supported_lang_map.get(
+                    str(supported_value[0]).lower(), "ar"
+                )
+            else:
+                supported_lang = supported_lang_map.get(
+                    str(supported_value).lower(), "ar"
+                )
+            primary_lang = primary_language_map.get(
+                str(item_dict.get("primary_language", "arabic")).lower(), "ar"
+            )
 
             try:
-                NLPTool.objects.create(
-                    title=title,
-                    title_en=title,
-                    title_ar=title,
-                    description=item["description"],
-                    description_en=item["description"],
-                    description_ar=item["description"],
-                    tool_type=tool_type,
-                    version="latest",
-                    access_link=url,
-                    documentation_link=url,
-                    supported_languages=lang,
-                    language="en",
-                    keywords=keywords,
-                    author=self.get_system_user(),
+                tool = NLPTool.objects.create(
+                    title_en=item_dict.get("title_en", "")[:200],
+                    title_ar=item_dict.get("title_ar", "")[:200],
+                    description_en=item_dict.get("description_en", ""),
+                    description_ar=item_dict.get("description_ar", ""),
+                    tool_type=item_dict.get("tool_type", "other"),
+                    access_link=item_dict.get("access_link", ""),
+                    documentation_link=item_dict.get("documentation_url", ""),
+                    version=item_dict.get("version", ""),
+                    keywords=", ".join(
+                        item_dict.get("keywords", [])
+                        if isinstance(item_dict.get("keywords"), list)
+                        else [item_dict.get("keywords", "")]
+                    ),
+                    supported_languages=supported_lang,
+                    language=primary_lang,
                     approval_status="pending",
+                    title=item_dict.get("title_en", "")[:200],
+                    description=item_dict.get("description_en", ""),
+                    author=self.get_system_user(),
                 )
+
+                # Try to download thumbnail/icon (non-fatal on any failure)
+                thumbnail_url = (item_dict.get("thumbnail_url") or "").strip()
+                if tool and getattr(tool, "pk", None) and thumbnail_url:
+                    try:
+                        img_file, filename = try_download_image(
+                            [thumbnail_url], "tools"
+                        )
+                        if img_file and filename:
+                            attached = attach_file_to_model(
+                                tool,
+                                "thumbnail",
+                                img_file,
+                                filename,
+                            )
+                            if not attached:
+                                logger.warning(
+                                    "Thumbnail attach returned False for tool=%s url=%s",
+                                    tool.pk,
+                                    thumbnail_url,
+                                )
+                    except Exception as attach_exc:
+                        logger.warning(
+                            "Failed to attach thumbnail for tool=%s url=%s: %s",
+                            getattr(tool, "pk", "unknown"),
+                            thumbnail_url,
+                            attach_exc,
+                        )
+
                 self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(title, 80),
-                    "type": pipeline_tag or "llm",
-                    "author": item.get("author", ""),
-                    "downloads": "curated",
-                    "url": url,
-                })
+                self.results.append(
+                    {
+                        "title": self.truncate(item_dict.get("title_en", title), 80),
+                        "type": pipeline_tag or "llm",
+                        "author": item.get("author", ""),
+                        "downloads": "curated",
+                        "url": item_dict.get("access_link", url),
+                    }
+                )
             except Exception as exc:
                 self.errors.append(f"Failed to create curated tool '{title}': {exc}")
                 logger.error("Failed to create curated NLPTool %s: %s", title, exc)
@@ -437,47 +672,144 @@ class ToolScraper(BaseScraper):
 
         for item in self.CURATED_DATASETS:
             title = item["title"]
+            title_en = title
             url = item["url"]
 
             if NLPTool.objects.filter(access_link=url).exists():
                 self.items_skipped += 1
                 continue
-            if NLPTool.objects.filter(title_en__iexact=title).exists():
+            if self.is_duplicate(title_en, "tools", NLPTool):
                 self.items_skipped += 1
                 continue
 
             tool_type = item.get("tool_type", "tokenization")
             tags = item.get("tags", [])
-            keywords = ",".join([t for t in tags if len(t) < 30][:8])
+            title_ar = title
+            description_en = f"[Dataset] {item['description']}"
+            description_ar = description_en
+            access_link = url
+            documentation_url = url
+            version = "latest"
+            keywords = [t for t in tags if len(t) < 30][:8]
+            supported_languages = ["arabic"]
+            primary_language = "arabic"
+            thumbnail_url = item.get("thumbnail_url", "")
 
-            description = f"[Dataset] {item['description']}"
+            item_dict = {
+                "title_en": title_en,
+                "title_ar": title_ar,
+                "description_en": description_en,
+                "description_ar": description_ar,
+                "tool_type": tool_type,
+                "access_link": access_link,
+                "documentation_url": documentation_url,
+                "version": version,
+                "keywords": keywords,
+                "supported_languages": supported_languages,
+                "primary_language": primary_language,
+                "thumbnail_url": thumbnail_url,
+            }
+
+            item_dict = enrich_scraped_item(item_dict, "tools")
+            completeness = calculate_completeness_score(item_dict, "tools")
+
+            if completeness < 40:
+                self.items_skipped += 1
+                continue
+
+            is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "tools")
+            if not is_valid:
+                self.items_skipped += 1
+                continue
+
+            supported_lang_map = {
+                "arabic": "ar",
+                "english": "en",
+                "french": "fr",
+                "spanish": "es",
+                "multilingual": "ar",
+            }
+            primary_language_map = {
+                "arabic": "ar",
+                "english": "en",
+                "french": "en",
+                "bilingual": "en",
+                "multilingual": "en",
+            }
+            supported_value = item_dict.get("supported_languages", [])
+            if isinstance(supported_value, list) and supported_value:
+                supported_lang = supported_lang_map.get(
+                    str(supported_value[0]).lower(), "ar"
+                )
+            else:
+                supported_lang = supported_lang_map.get(
+                    str(supported_value).lower(), "ar"
+                )
+            primary_lang = primary_language_map.get(
+                str(item_dict.get("primary_language", "arabic")).lower(), "ar"
+            )
 
             try:
-                NLPTool.objects.create(
-                    title=title,
-                    title_en=title,
-                    title_ar=title,
-                    description=description,
-                    description_en=description,
-                    description_ar=description,
-                    tool_type=tool_type,
-                    version="latest",
-                    access_link=url,
-                    documentation_link=url,
-                    supported_languages="ar",
-                    language="en",
-                    keywords=keywords,
-                    author=self.get_system_user(),
+                tool = NLPTool.objects.create(
+                    title_en=item_dict.get("title_en", "")[:200],
+                    title_ar=item_dict.get("title_ar", "")[:200],
+                    description_en=item_dict.get("description_en", ""),
+                    description_ar=item_dict.get("description_ar", ""),
+                    tool_type=item_dict.get("tool_type", "other"),
+                    access_link=item_dict.get("access_link", ""),
+                    documentation_link=item_dict.get("documentation_url", ""),
+                    version=item_dict.get("version", ""),
+                    keywords=", ".join(
+                        item_dict.get("keywords", [])
+                        if isinstance(item_dict.get("keywords"), list)
+                        else [item_dict.get("keywords", "")]
+                    ),
+                    supported_languages=supported_lang,
+                    language=primary_lang,
                     approval_status="pending",
+                    title=item_dict.get("title_en", "")[:200],
+                    description=item_dict.get("description_en", ""),
+                    author=self.get_system_user(),
                 )
+
+                # Try to download thumbnail/icon (non-fatal on any failure)
+                thumbnail_url = (item_dict.get("thumbnail_url") or "").strip()
+                if tool and getattr(tool, "pk", None) and thumbnail_url:
+                    try:
+                        img_file, filename = try_download_image(
+                            [thumbnail_url], "tools"
+                        )
+                        if img_file and filename:
+                            attached = attach_file_to_model(
+                                tool,
+                                "thumbnail",
+                                img_file,
+                                filename,
+                            )
+                            if not attached:
+                                logger.warning(
+                                    "Thumbnail attach returned False for tool=%s url=%s",
+                                    tool.pk,
+                                    thumbnail_url,
+                                )
+                    except Exception as attach_exc:
+                        logger.warning(
+                            "Failed to attach thumbnail for tool=%s url=%s: %s",
+                            getattr(tool, "pk", "unknown"),
+                            thumbnail_url,
+                            attach_exc,
+                        )
+
                 self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(title, 80),
-                    "type": "dataset",
-                    "author": item.get("author", ""),
-                    "downloads": "curated",
-                    "url": url,
-                })
+                self.results.append(
+                    {
+                        "title": self.truncate(item_dict.get("title_en", title), 80),
+                        "type": "dataset",
+                        "author": item.get("author", ""),
+                        "downloads": "curated",
+                        "url": item_dict.get("access_link", url),
+                    }
+                )
             except Exception as exc:
                 self.errors.append(f"Failed to create dataset '{title}': {exc}")
                 logger.error("Failed to create dataset NLPTool %s: %s", title, exc)

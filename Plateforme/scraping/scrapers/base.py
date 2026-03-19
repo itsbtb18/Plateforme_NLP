@@ -4,6 +4,7 @@ Base scraper module providing the abstract foundation for all web scrapers.
 
 import logging
 import random
+import re
 import time
 import requests
 from abc import ABC, abstractmethod
@@ -29,10 +30,7 @@ _USER_AGENTS = [
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 "
         "(KHTML, like Gecko) Version/17.3 Safari/605.1.15"
     ),
-    (
-        "Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 "
-        "Firefox/125.0"
-    ),
+    ("Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0"),
     (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -61,10 +59,10 @@ class BaseScraper(ABC):
     category: str = "unknown"
 
     # Configurable defaults (sub-classes may override)
-    DEFAULT_TIMEOUT: int = 30        # seconds
-    MAX_RETRIES: int = 3             # retries on transient HTTP errors
-    BACKOFF_BASE: float = 2.0        # base seconds for exponential backoff
-    BACKOFF_MAX: float = 60.0        # cap for backoff sleep
+    DEFAULT_TIMEOUT: int = 30  # seconds
+    MAX_RETRIES: int = 3  # retries on transient HTTP errors
+    BACKOFF_BASE: float = 2.0  # base seconds for exponential backoff
+    BACKOFF_MAX: float = 60.0  # cap for backoff sleep
 
     def __init__(self):
         self.results: list = []
@@ -72,6 +70,13 @@ class BaseScraper(ABC):
         self.structured_errors: list[dict] = []
         self.items_created: int = 0
         self.items_skipped: int = 0
+        self.validation_stats = {
+            "passed": 0,
+            "failed_date": 0,
+            "failed_fields": 0,
+            "failed_freshness": 0,
+            "auto_filled": 0,
+        }
         self._system_user = None
         self._health_cache: dict = {}  # source_name → ScrapingSourceHealth
 
@@ -111,7 +116,7 @@ class BaseScraper(ABC):
         # Phase 6: compute domain classification & relevance scores
         intelligence_summary = self._run_intelligence()
 
-        return {
+        summary = {
             "scraper": self.name,
             "category": self.category,
             "items_created": self.items_created,
@@ -122,6 +127,8 @@ class BaseScraper(ABC):
             "results": self.results,
             "intelligence": intelligence_summary,
         }
+        summary["validation_stats"] = getattr(self, "validation_stats", {})
+        return summary
 
     # ------------------------------------------------------------------
     # Helpers – Elasticsearch signal management
@@ -158,31 +165,86 @@ class BaseScraper(ABC):
     # ------------------------------------------------------------------
 
     def get_system_user(self):
-        """Return (or lazily create) the platform's system-scraper user."""
-        if self._system_user is not None:
+        """
+        Get or create a dedicated system scraper user.
+        Never returns None. Always creates if missing.
+        """
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        SYSTEM_EMAIL = 'scraper-bot@nlp-platform.local'
+        SYSTEM_NAME = 'System Scraper Bot'
+        
+        if hasattr(self, '_system_user') and self._system_user:
             return self._system_user
-
+        
         try:
-            user = User.objects.get(email="system@nlp-platform.local")
-        except User.DoesNotExist:
-            user = User(
-                email="system@nlp-platform.local",
-                full_name_en="System Scraper",
-                full_name_ar="نظام الاستخراج",
-                full_name="System Scraper",
-                is_active=True,
-                is_staff=False,
-                is_email_verified=True,
-                status="active",
+            user = User.objects.filter(
+                email=SYSTEM_EMAIL
+            ).first()
+            
+            if not user:
+                # Create the system user safely
+                try:
+                    user = User.objects.create_user(
+                        email=SYSTEM_EMAIL,
+                        password=None,
+                        full_name=SYSTEM_NAME,
+                        full_name_en=SYSTEM_NAME,
+                        full_name_ar='روبوت نظام الاستخراج',
+                    )
+                    user.is_active = True
+                    user.is_staff = False
+                    user.is_superuser = False
+                    if hasattr(user, 'is_verified'):
+                        user.is_verified = True
+                    if hasattr(user, 'is_email_verified'):
+                        user.is_email_verified = True
+                    user.save()
+                except Exception:
+                    # If create_user fails due to custom
+                    # manager requirements, try get_or_create
+                    # with minimal fields
+                    user = User.objects.filter(
+                        is_superuser=True
+                    ).first()
+                    
+                    if not user:
+                        # Absolute last resort: raise clearly
+                        raise RuntimeError(
+                            "Cannot find or create system user "
+                            "for scraping. Please run: "
+                            "python manage.py createsuperuser"
+                        )
+            
+            self._system_user = user
+            return self._system_user
+            
+        except Exception as e:
+            self._log_error(
+                'get_system_user', str(e), 'system_user_init'
             )
-            user.set_unusable_password()
-            # bulk_create avoids post_save signals (ES indexing)
-            User.objects.bulk_create([user])
-            user = User.objects.get(email="system@nlp-platform.local")
-            logger.info("Created system user for web scraping")
+            # Try superuser fallback
+            User = get_user_model()
+            fallback = User.objects.filter(
+                is_superuser=True
+            ).first()
+            if fallback:
+                self._system_user = fallback
+                return fallback
+            raise RuntimeError(
+                f"Cannot get system user: {e}. "
+                "Create a superuser first."
+            )
 
-        self._system_user = user
-        return user
+    # ------------------------------------------------------------------
+    # Helpers – RSS / Atom feeds
+    # ------------------------------------------------------------------
+
+    def get_rss_scraper(self):
+        from scraping.scrapers.rss_scraper import RSSFeedScraper
+
+        return RSSFeedScraper(self)
 
     # ------------------------------------------------------------------
     # Helpers – related objects
@@ -253,6 +315,38 @@ class BaseScraper(ABC):
             logger.error("Error creating institution %s: %s", name, exc)
             return None
 
+    def is_duplicate(self, title, category, model_class):
+        """
+        Two-step duplicate detection:
+        Step 1: Exact match check (fast, O(1))
+        Step 2: Semantic similarity check (slower, embedding-based)
+        Returns True if duplicate found, False if new item.
+        """
+        normalized_title = (title or "").strip()
+        if not normalized_title:
+            return False
+
+        # Step 1: exact match (keep existing logic, fast)
+        field_names = {field.name for field in model_class._meta.get_fields()}
+        if "title_en" in field_names:
+            if model_class.objects.filter(title_en__iexact=normalized_title).exists():
+                return True
+        elif "name_en" in field_names:
+            if model_class.objects.filter(name_en__iexact=normalized_title).exists():
+                return True
+
+        # Step 2: semantic similarity (new)
+        try:
+            from scraping.embeddings import is_semantic_duplicate
+
+            if is_semantic_duplicate(normalized_title, category, threshold=0.88):
+                return True
+        except Exception as exc:
+            # If embedding check fails, fall back to exact only
+            self._log_error("semantic_dedup", str(exc), source=normalized_title)
+
+        return False
+
     # ------------------------------------------------------------------
     # Helpers – HTTP (with retry / backoff / circuit breaker)
     # ------------------------------------------------------------------
@@ -314,8 +408,10 @@ class BaseScraper(ABC):
                         min(self.BACKOFF_BASE * (2 ** (attempt - 1)), self.BACKOFF_MAX),
                     )
                     self._log_error(
-                        "rate_limited", f"429 from {url}",
-                        source=source_name, url=url,
+                        "rate_limited",
+                        f"429 from {url}",
+                        source=source_name,
+                        url=url,
                         extra={"attempt": attempt, "sleep": sleep},
                     )
                     time.sleep(sleep)
@@ -323,12 +419,14 @@ class BaseScraper(ABC):
 
                 if response.status_code >= 500:
                     sleep = min(
-                        self.BACKOFF_BASE * (2 ** (attempt - 1)), self.BACKOFF_MAX,
+                        self.BACKOFF_BASE * (2 ** (attempt - 1)),
+                        self.BACKOFF_MAX,
                     )
                     self._log_error(
                         "server_error",
                         f"{response.status_code} from {url}",
-                        source=source_name, url=url,
+                        source=source_name,
+                        url=url,
                         extra={"attempt": attempt, "sleep": sleep},
                     )
                     time.sleep(sleep)
@@ -344,11 +442,14 @@ class BaseScraper(ABC):
                 elapsed = time.monotonic() - t0
                 last_exc = exc
                 sleep = min(
-                    self.BACKOFF_BASE * (2 ** (attempt - 1)), self.BACKOFF_MAX,
+                    self.BACKOFF_BASE * (2 ** (attempt - 1)),
+                    self.BACKOFF_MAX,
                 )
                 self._log_error(
-                    "connection_error", str(exc),
-                    source=source_name, url=url,
+                    "connection_error",
+                    str(exc),
+                    source=source_name,
+                    url=url,
                     extra={"attempt": attempt, "sleep": sleep},
                 )
                 time.sleep(sleep)
@@ -357,11 +458,14 @@ class BaseScraper(ABC):
                 elapsed = time.monotonic() - t0
                 last_exc = exc
                 sleep = min(
-                    self.BACKOFF_BASE * (2 ** (attempt - 1)), self.BACKOFF_MAX,
+                    self.BACKOFF_BASE * (2 ** (attempt - 1)),
+                    self.BACKOFF_MAX,
                 )
                 self._log_error(
-                    "timeout", str(exc),
-                    source=source_name, url=url,
+                    "timeout",
+                    str(exc),
+                    source=source_name,
+                    url=url,
                     extra={"attempt": attempt, "timeout": timeout, "sleep": sleep},
                 )
                 time.sleep(sleep)
@@ -369,8 +473,10 @@ class BaseScraper(ABC):
             except requests.RequestException as exc:
                 last_exc = exc
                 self._log_error(
-                    "request_error", str(exc),
-                    source=source_name, url=url,
+                    "request_error",
+                    str(exc),
+                    source=source_name,
+                    url=url,
                     extra={"attempt": attempt},
                 )
                 break  # Non-transient — don't retry
@@ -385,7 +491,9 @@ class BaseScraper(ABC):
     # Helpers – circuit breaker & source health
     # ------------------------------------------------------------------
 
-    def _get_health(self, source_name: str, base_url: str = "") -> "ScrapingSourceHealth":
+    def _get_health(
+        self, source_name: str, base_url: str = ""
+    ) -> "ScrapingSourceHealth":
         """Return (or create) the health record for a source, with caching."""
         if source_name in self._health_cache:
             return self._health_cache[source_name]
@@ -406,7 +514,10 @@ class BaseScraper(ABC):
         return health.is_available()
 
     def report_success(
-        self, source_name: str, base_url: str = "", response_time: float | None = None,
+        self,
+        source_name: str,
+        base_url: str = "",
+        response_time: float | None = None,
     ):
         """Report a successful request to the health tracker."""
         health = self._get_health(source_name, base_url)
@@ -445,7 +556,11 @@ class BaseScraper(ABC):
         self.structured_errors.append(entry)
         logger.warning(
             "[%s] %s — %s (source=%s url=%s)",
-            self.category, error_type, message, source or self.name, url,
+            self.category,
+            error_type,
+            message,
+            source or self.name,
+            url,
         )
 
     # ------------------------------------------------------------------
@@ -471,14 +586,353 @@ class BaseScraper(ABC):
             return text
         return text[: max_len - 3] + "..."
 
-    @staticmethod
-    def clean_text(text: str) -> str:
-        """Remove excessive whitespace from text."""
+    def clean_text(self, text: str) -> str:
+        """Remove excessive whitespace from text.
+
+        If the text contains a significant proportion of Arabic characters
+        (> 10 %), Arabic-specific normalization is applied first.
+        """
         if not text:
             return ""
+
+        text = re.sub(r"\s+", " ", text).strip()
+
+        if self.detect_arabic_ratio(text) > 0.1:
+            text = self.normalize_arabic_text(text)
+        return text
+
+    # ------------------------------------------------------------------
+    # Arabic text normalization
+    # ------------------------------------------------------------------
+
+    def normalize_arabic_text(self, text):
+        """Normalize Arabic text for consistent storage and comparison.
+
+        Steps:
+        1. Strip tashkeel (diacritics).
+        2. Normalize alef variants (أ إ آ) → bare alef (ا).
+        3. Normalize teh marbuta (ة) → heh (ه).
+        4. Strip extra whitespace.
+        """
+        if not text or len(text.strip()) == 0:
+            return text
+        try:
+            import pyarabic.araby as araby
+
+            text = araby.strip_tashkeel(text)
+            text = araby.normalize_alef(text)
+            text = araby.normalize_lamalef(text)
+        except ImportError:
+            import re
+
+            # Manual fallback if pyarabic not available
+            # Remove diacritics
+            text = re.sub(r"[\u0617-\u061A\u064B-\u065F]", "", text)
+            # Normalize alef variants
+            text = re.sub(r"[أإآ]", "ا", text)
+            # Normalize teh marbuta
+            text = re.sub(r"ة", "ه", text)
+        return text.strip()
+
+    def detect_arabic_ratio(self, text):
+        """
+        Returns ratio of Arabic characters to total
+        alphabetic characters. Returns 0.0 if empty.
+        """
+        if not text or len(text.strip()) == 0:
+            return 0.0
         import re
 
-        return re.sub(r"\s+", " ", text).strip()
+        arabic_chars = len(
+            re.findall(r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]", text)
+        )
+        alpha_chars = len(re.findall(r"[^\W\d_]", text))
+        if alpha_chars == 0:
+            return 0.0
+        return arabic_chars / alpha_chars
+
+    # ------------------------------------------------------------------
+    # Language detection
+    # ------------------------------------------------------------------
+
+    def detect_language(self, text):
+        """
+        Detect the language of a text string.
+        Returns ISO language code: 'ar', 'fr', 'en', 'unknown'
+        Uses langdetect library with deterministic seed.
+        """
+        if not text or len(text.strip()) < 20:
+            return "unknown"
+
+        # First check Arabic using Unicode ratio (faster)
+        if self.detect_arabic_ratio(text) >= 0.30:
+            return "ar"
+
+        try:
+            from langdetect import detect, DetectorFactory
+            from langdetect.lang_detect_exception import LangDetectException
+
+            DetectorFactory.seed = 0  # deterministic
+            lang = detect(text)
+            # Only return languages we support
+            if lang in ["ar", "fr", "en"]:
+                return lang
+            return "unknown"
+        except Exception:
+            return "unknown"
+
+    def is_relevant_language(self, text):
+        """
+        Returns True if text is in Arabic, French, or English.
+        Returns True for unknown (give benefit of doubt).
+        Returns False for clearly irrelevant languages
+        like Chinese, Japanese, Korean, etc.
+        """
+        lang = self.detect_language(text)
+        return lang in ["ar", "fr", "en", "unknown"]
+
+    def is_event_date_valid(self, date_value, max_days_past=30, max_days_future=730):
+        if date_value is None:
+            return True
+        from django.utils import timezone
+        import datetime
+
+        now = timezone.now()
+        try:
+            if isinstance(date_value, str):
+                event_date = self.parse_date(date_value)
+                if not event_date:
+                    return True
+            else:
+                event_date = date_value
+            if not hasattr(event_date, "tzinfo"):
+                return True
+            if event_date.tzinfo is None:
+                import pytz
+
+                event_date = pytz.utc.localize(event_date)
+            past_limit = now - datetime.timedelta(days=max_days_past)
+            future_limit = now + datetime.timedelta(days=max_days_future)
+            return past_limit <= event_date <= future_limit
+        except Exception:
+            return True
+
+    def validate_required_fields(self, item, category):
+        REQUIRED = {
+            "events": [
+                ("title_en", 5),
+                ("description_en", 20),
+            ],
+            "tools": [
+                ("title_en", 3),
+                ("description_en", 20),
+                ("access_link", 5),
+            ],
+            "news": [
+                ("title_en", 10),
+                ("content_en", 50),
+            ],
+            "courses": [
+                ("title_en", 5),
+                ("description_en", 30),
+            ],
+            "institutions": [
+                ("name_en", 3),
+            ],
+        }
+        required = REQUIRED.get(category, [])
+        missing = []
+        for field_key, min_len in required:
+            value = item.get(field_key, "")
+            if not value or len(str(value).strip()) < min_len:
+                missing.append(field_key)
+        return len(missing) == 0, missing
+
+    def auto_fill_missing_fields(self, item, category):
+        """
+        Try to auto-fill missing Arabic fields using LLM
+        if title_en exists but title_ar is missing.
+        Returns updated item dict.
+        """
+        title_en = str(item.get("title_en", "")).strip()
+        desc_en = str(item.get("description_en", "")).strip()
+
+        if not title_en:
+            return item
+
+        needs_arabic_title = not str(item.get("title_ar", "")).strip()
+        needs_arabic_desc = not str(item.get("description_ar", "")).strip() and desc_en
+
+        if needs_arabic_title or needs_arabic_desc:
+            try:
+                from scraping.llm_validation import GroqLLMClient
+
+                client = GroqLLMClient()
+
+                prompt = f"""
+Translate these fields to Arabic. Return ONLY JSON, no other text.
+{{
+  "title_ar": "Arabic translation of: {title_en}",
+  "description_ar": "Arabic translation of: {desc_en[:300]}"
+}}
+"""
+                response = client._chat(prompt)
+                import json
+                import re
+
+                match = re.search(r"\{.*?\}", response, re.DOTALL)
+                if match:
+                    translations = json.loads(match.group())
+                    if needs_arabic_title:
+                        item["title_ar"] = translations.get("title_ar", title_en)
+                    if needs_arabic_desc:
+                        item["description_ar"] = translations.get(
+                            "description_ar", desc_en
+                        )
+            except Exception:
+                if needs_arabic_title:
+                    item["title_ar"] = title_en
+                if needs_arabic_desc:
+                    item["description_ar"] = desc_en
+
+        return item
+
+    def validate_and_prepare(self, item, category):
+        """
+        Run all validations. Returns (is_valid, item, reason)
+        Call this before saving any scraped item.
+        """
+        if not hasattr(self, "validation_stats"):
+            self.validation_stats = {
+                "passed": 0,
+                "failed_date": 0,
+                "failed_fields": 0,
+                "failed_freshness": 0,
+            }
+
+        if category == "events":
+            start_date = item.get("start_date") or item.get("date")
+            if not self.is_event_date_valid(start_date):
+                self.validation_stats["failed_date"] += 1
+                return False, item, "past_or_invalid_date"
+
+        if category == "news":
+            if not self.is_content_fresh(item, "news"):
+                self.validation_stats["failed_freshness"] += 1
+                return False, item, "content_too_old"
+
+        is_valid, missing = self.validate_required_fields(item, category)
+        if not is_valid:
+            self.validation_stats["failed_fields"] += 1
+            return False, item, f"missing_fields:{missing}"
+
+        self.validation_stats["passed"] += 1
+        return True, item, None
+
+    # ------------------------------------------------------------------
+    # Freshness filtering
+    # ------------------------------------------------------------------
+
+    def is_event_still_valid(self, event_date, grace_days=7):
+        """
+        Returns True if event is in the future or within grace_days of today.
+        Returns False if event has passed.
+        Returns True if date is None (unknown = keep it).
+        """
+        if event_date is None:
+            return True
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now().date()
+        if hasattr(event_date, "date"):
+            event_date = event_date.date()
+        cutoff = now - timedelta(days=grace_days)
+        return event_date >= cutoff
+
+    def is_news_fresh(self, published_date, max_age_days=365):
+        """
+        Returns True if news/paper was published within max_age_days.
+        Default: reject papers older than 1 year.
+        Returns True if date is None.
+        """
+        if published_date is None:
+            return True
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now().date()
+        if hasattr(published_date, "date"):
+            published_date = published_date.date()
+        cutoff = now - timedelta(days=max_age_days)
+        return published_date >= cutoff
+
+    def is_content_fresh(self, item, category, max_age_days=None):
+        DEFAULT_MAX_AGE = {
+            "news": 365,
+            "events": 30,
+            "tools": None,
+            "courses": None,
+            "institutions": None,
+        }
+        if max_age_days is None:
+            max_age_days = DEFAULT_MAX_AGE.get(category)
+        if max_age_days is None:
+            return True
+        from django.utils import timezone
+        import datetime
+
+        date_fields = [
+            "published_date",
+            "publication_date",
+            "date",
+            "start_date",
+            "created_at",
+        ]
+        item_date = None
+        for field in date_fields:
+            val = item.get(field)
+            if val:
+                item_date = self.parse_date(str(val))
+                if item_date:
+                    break
+        if not item_date:
+            return True
+        now = timezone.now()
+        if hasattr(item_date, "tzinfo"):
+            if item_date.tzinfo is None:
+                import pytz
+
+                item_date = pytz.utc.localize(item_date)
+        age_days = (now - item_date).days
+        return age_days <= max_age_days
+
+    def is_course_still_available(
+        self, end_date=None, last_updated=None, max_age_days=730
+    ):
+        """
+        Returns True if course has no end date (self-paced) or end date is
+        in future. Also checks if content is not too old (2 years).
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now().date()
+
+        if end_date is not None:
+            if hasattr(end_date, "date"):
+                end_date = end_date.date()
+            if end_date < now:
+                return False
+
+        if last_updated is not None:
+            if hasattr(last_updated, "date"):
+                last_updated = last_updated.date()
+            cutoff = now - timedelta(days=max_age_days)
+            if last_updated < cutoff:
+                return False
+
+        return True
 
     # ------------------------------------------------------------------
     # Phase 6: Intelligence — domain classification & scoring
@@ -499,6 +953,7 @@ class BaseScraper(ABC):
                 classify_domain_primary,
                 compute_relevance_score,
             )
+            from scraping.field_mapping import calculate_completeness_score
             from scraping.models import ScrapedItemMeta
         except Exception as exc:
             logger.debug("Intelligence module not available: %s", exc)
@@ -506,6 +961,7 @@ class BaseScraper(ABC):
 
         scored = 0
         domain_counts: dict[str, int] = {}
+        lang_counts: dict[str, int] = {}
         avg_score = 0.0
 
         for item in self.results:
@@ -516,9 +972,19 @@ class BaseScraper(ABC):
             # Build text for classification
             text = f"{title} {item.get('description', '')} {item.get('type', '')}"
 
+            # Language detection
+            detected_lang = self.detect_language(
+                item.get("title_en", "") + " " + item.get("description_en", "")
+            )
+            logger.debug(
+                "Language detected for '%s': %s",
+                title[:60],
+                detected_lang,
+            )
+
             # Classify
-            d_scores = classify_domain(text)
-            primary = classify_domain_primary(text)
+            domain_scores = classify_domain(text)
+            primary_domain = classify_domain_primary(text)
 
             # Score
             score = compute_relevance_score(
@@ -526,26 +992,62 @@ class BaseScraper(ABC):
                 has_description=bool(item.get("description") or item.get("type")),
                 has_website=bool(item.get("url")),
                 has_arabic=any(ord(c) > 0x0600 and ord(c) < 0x06FF for c in text),
-                domain_scores=d_scores,
+                domain_scores=domain_scores,
             )
 
+            completeness = calculate_completeness_score(item, self.category)
+
             # Store metadata
+            defaults = {
+                "domain_scores": domain_scores,
+                "primary_domain": primary_domain,
+                "relevance_score": score,
+                "completeness_score": completeness,
+            }
+            # Persist language if the model supports it
+            if hasattr(ScrapedItemMeta, "language"):
+                defaults["language"] = detected_lang
+            else:
+                logger.debug("ScrapedItemMeta has no language field for '%s'", title)
+
             try:
-                ScrapedItemMeta.objects.update_or_create(
+                item_title = item.get("title_en", "") or title
+                meta_record, _ = ScrapedItemMeta.objects.update_or_create(
                     category=self.category,
-                    item_title=title[:300],
-                    defaults={
-                        "domain_scores": d_scores,
-                        "primary_domain": primary,
-                        "relevance_score": score,
-                    },
+                    item_title=item_title[:300],
+                    defaults=defaults,
                 )
             except Exception:
-                pass  # Non-critical — don't fail the scrape
+                meta_record = None  # Non-critical — don't fail the scrape
+
+            # Compute and persist title embedding for semantic duplicate detection
+            if meta_record is not None:
+                try:
+                    from scraping.embeddings import get_embedding
+
+                    embedding = get_embedding(item.get("title_en", ""))
+                    if embedding:
+                        meta_record.title_embedding = embedding
+                        meta_record.save(update_fields=["title_embedding"])
+                except MemoryError as e:
+                    self._log_error(
+                        "embedding_oom",
+                        "Not enough RAM for embedding generation. "
+                        "Consider reducing batch size.",
+                        source=item.get("title_en", ""),
+                    )
+                except Exception as e:
+                    self._log_error(
+                        "embedding_failed",
+                        f"Embedding generation failed: {str(e)}. "
+                        f"Semantic deduplication disabled for this item.",
+                        source=item.get("title_en", ""),
+                    )
 
             scored += 1
             avg_score += score
-            domain_counts[primary] = domain_counts.get(primary, 0) + 1
+            domain_counts[primary_domain] = domain_counts.get(primary_domain, 0) + 1
+            lang_counts[detected_lang] = lang_counts.get(detected_lang, 0) + 1
 
         avg_score = round(avg_score / max(scored, 1), 1)
 
@@ -554,9 +1056,13 @@ class BaseScraper(ABC):
             "items_scored": scored,
             "avg_relevance_score": avg_score,
             "domain_distribution": domain_counts,
+            "language_distribution": lang_counts,
         }
         logger.info(
-            "Intelligence: scored %d items, avg=%.1f, domains=%s",
-            scored, avg_score, domain_counts,
+            "Intelligence: scored %d items, avg=%.1f, domains=%s, languages=%s",
+            scored,
+            avg_score,
+            domain_counts,
+            lang_counts,
         )
         return summary

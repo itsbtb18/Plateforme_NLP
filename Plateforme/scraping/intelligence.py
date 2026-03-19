@@ -10,6 +10,7 @@ Provides:
 5. **Trend Detection** — analyse last 6 months of scraping data
 """
 
+import datetime
 import logging
 import re
 from collections import Counter
@@ -234,8 +235,11 @@ _BASE_TERMS = [
     "North African NLP",
 ]
 
+_current_year = str(datetime.datetime.now().year)
+_next_year = str(datetime.datetime.now().year + 1)
+
 _MODIFIERS = [
-    "", "2024", "2025", "deep learning", "transformer",
+    "", _current_year, _next_year, "deep learning", "transformer",
     "bert", "dataset", "benchmark", "low-resource",
 ]
 
@@ -283,7 +287,7 @@ def generate_queries(
     # Category-specific additions
     if category == "events":
         extras = [
-            {"search": "Arabic NLP conference 2025", "limit": 10},
+            {"search": f"Arabic NLP conference {_current_year}", "limit": 10},
             {"search": "North Africa AI conference", "limit": 8},
             {"search": "MENA NLP workshop", "limit": 8},
         ]
@@ -306,7 +310,7 @@ def generate_queries(
 
     elif category == "news":
         extras = [
-            {"query": "Arabic NLP deep learning 2024", "limit": 15},
+            {"query": f"Arabic NLP deep learning {_current_year}", "limit": 15},
             {"query": "Maghreb AI research", "limit": 10},
             {"query": "dialectal Arabic processing", "limit": 10},
         ]
@@ -397,17 +401,18 @@ def classify_with_llm_fallback(text: str) -> dict[str, float]:
 
     # Lightweight LLM fallback for ambiguous or unknown items
     try:
-        from scraping.llm_validation import _call_groq
-
-        prompt = (
-            "Classify this text into ONE or more of these domains: "
-            "arabic_nlp, arabic_languages, speech_processing, llm_research. "
-            "Return ONLY a JSON object with domain keys and confidence scores "
-            "(0.0-1.0). Example: {\"arabic_nlp\": 0.8, \"llm_research\": 0.6}\n\n"
-            f"Text: {text[:500]}"
-        )
+        from scraping.llm_validation import GroqLLMClient
         import json
-        response = _call_groq(prompt, max_tokens=100)
+
+        client = GroqLLMClient()
+        system = (
+            "You are a research-domain classifier. "
+            "Return ONLY a JSON object with domain keys and confidence scores (0.0-1.0). "
+            "Valid domains: arabic_nlp, arabic_languages, speech_processing, llm_research. "
+            "Example: {\"arabic_nlp\": 0.8, \"llm_research\": 0.6}"
+        )
+        user_msg = f"Classify this text:\n\n{text[:500]}"
+        response = client._chat(system, user_msg)
         if response:
             # Extract JSON from response
             json_match = re.search(r"\{[^}]+\}", response)
@@ -437,6 +442,41 @@ SCORING_WEIGHTS = {
     "completeness": 0.15,   # How much metadata is filled in
 }
 
+
+def _safe_days_ago(date_value):
+    """
+    Safely compute days between a date/datetime
+    and now. Handles naive/aware datetime mixing.
+    Returns None if computation fails.
+    """
+    if date_value is None:
+        return None
+    try:
+        from django.utils import timezone
+        import datetime
+        
+        now = timezone.now()
+        
+        # Handle datetime.date (not datetime)
+        if isinstance(date_value, datetime.date) and \
+           not isinstance(date_value, datetime.datetime):
+            date_value = datetime.datetime.combine(
+                date_value,
+                datetime.time.min,
+                tzinfo=datetime.timezone.utc
+            )
+        
+        # Handle naive datetime
+        if isinstance(date_value, datetime.datetime):
+            if date_value.tzinfo is None:
+                import pytz
+                date_value = pytz.utc.localize(date_value)
+        
+        delta = now - date_value
+        return delta.days
+        
+    except Exception:
+        return None
 
 def compute_relevance_score(
     *,
@@ -476,19 +516,10 @@ def compute_relevance_score(
     # ── Recency score (0-1) ──
     recency = 0.5  # default for unknown date
     if created_date:
-        now = timezone.now()
-        if hasattr(created_date, "tzinfo") and created_date.tzinfo is None:
-            from django.utils.timezone import make_aware
-            try:
-                created_date = make_aware(created_date)
-            except Exception:
-                pass
-        try:
-            days_old = (now - created_date).days if hasattr(created_date, "days") else (now.date() - created_date).days
-        except (TypeError, AttributeError):
-            days_old = 180  # fallback
-
-        if days_old <= 30:
+        days_old = _safe_days_ago(created_date)
+        if days_old is None:
+            recency = 0.5
+        elif days_old <= 30:
             recency = 1.0
         elif days_old <= 90:
             recency = 0.85

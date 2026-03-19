@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from .models import ScrapingSource, ScrapingRun, ScrapingSourceHealth, ScrapedItemMeta
@@ -6,10 +7,74 @@ from .models import ScrapingSource, ScrapingRun, ScrapingSourceHealth, ScrapedIt
 
 @admin.register(ScrapingSource)
 class ScrapingSourceAdmin(admin.ModelAdmin):
-    list_display = ("name", "category_badge", "base_url", "is_active", "last_scraped")
-    list_filter = ("category", "is_active")
+    list_display = (
+        "name",
+        "category_badge",
+        "base_url",
+        "is_active",
+        "use_rss",
+        "use_llm_extraction",
+        "run_status_badge",
+        "last_run_items_created",
+        "last_scraped",
+        "run_now_button",
+    )
+    list_filter = (
+        "category",
+        "is_active",
+        "last_run_status",
+        "use_rss",
+        "use_llm_extraction",
+    )
     search_fields = ("name", "base_url")
-    readonly_fields = ("id", "created_at", "last_scraped")
+    readonly_fields = (
+        "id",
+        "created_at",
+        "last_scraped",
+        "last_run_status",
+        "last_run_error",
+        "last_run_items_created",
+    )
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "id",
+                    "name",
+                    "category",
+                    "base_url",
+                    "description",
+                    "is_active",
+                ),
+            },
+        ),
+        (
+            _("Scraping Options"),
+            {
+                "fields": ("use_rss", "use_llm_extraction", "scrape_config"),
+            },
+        ),
+        (
+            _("Last Run Info"),
+            {
+                "fields": (
+                    "last_scraped",
+                    "last_run_status",
+                    "last_run_items_created",
+                    "last_run_error",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": ("created_at",),
+            },
+        ),
+    )
 
     def category_badge(self, obj):
         colours = {
@@ -28,6 +93,45 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         )
 
     category_badge.short_description = _("Category")
+
+    def run_status_badge(self, obj):
+        colours = {
+            "success": "#10b981",
+            "failed": "#ef4444",
+            "pending": "#f59e0b",
+        }
+        colour = colours.get(obj.last_run_status, "#64748b")
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;">{}</span>',
+            colour,
+            obj.get_last_run_status_display(),
+        )
+
+    run_status_badge.short_description = _("Status")
+
+    def run_now_button(self, obj):
+        url = reverse("scraping:run_custom_source", args=[obj.pk])
+        return format_html(
+            '<a class="button" style="background:#6366f1;color:#fff;'
+            "padding:4px 12px;border-radius:6px;font-size:11px;"
+            'text-decoration:none;cursor:pointer;" '
+            "onclick=\"return runCustomSource(this, '{url}');\" "
+            'href="#">▶ Run</a>'
+            "<script>"
+            "function runCustomSource(el, url) {{"
+            '  el.textContent = "⏳ Running…";'
+            '  fetch(url, {{method:"POST", headers:{{"X-CSRFToken":document.querySelector("[name=csrfmiddlewaretoken]")?.value || ""}} }})'
+            "    .then(r => r.json())"
+            '    .then(d => {{ el.textContent = d.success ? "✅ " + d.items_created + " items" : "❌ Failed"; }})'
+            '    .catch(() => {{ el.textContent = "❌ Error"; }});'
+            "  return false;"
+            "}}"
+            "</script>",
+            url=url,
+        )
+
+    run_now_button.short_description = _("Action")
 
 
 @admin.register(ScrapingRun)
@@ -145,7 +249,7 @@ class ScrapingSourceHealthAdmin(admin.ModelAdmin):
         return format_html(
             '<div style="background:#e5e7eb;border-radius:4px;width:80px;height:14px;">'
             '<div style="background:{};width:{}%;height:100%;border-radius:4px;"></div>'
-            '</div> <small>{:.0f}%</small>',
+            "</div> <small>{:.0f}%</small>",
             colour,
             min(score, 100),
             score,
@@ -184,14 +288,22 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
         "category_badge",
         "primary_domain",
         "score_badge",
+        "completeness_badge",
         "created_at",
     )
     list_filter = ("category", "primary_domain")
     search_fields = ("item_title",)
     readonly_fields = (
-        "id", "category", "item_title", "item_id",
-        "domain_scores", "primary_domain", "relevance_score",
-        "created_at", "updated_at",
+        "id",
+        "category",
+        "item_title",
+        "item_id",
+        "domain_scores",
+        "primary_domain",
+        "relevance_score",
+        "completeness_score",
+        "created_at",
+        "updated_at",
     )
     ordering = ("-relevance_score",)
 
@@ -234,3 +346,20 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
         )
 
     score_badge.short_description = _("Score")
+
+    def completeness_badge(self, obj):
+        score = obj.completeness_score
+        if score >= 80:
+            colour = "#10b981"
+        elif score >= 50:
+            colour = "#f59e0b"
+        else:
+            colour = "#ef4444"
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:bold;">{:.0f}%</span>',
+            colour,
+            score,
+        )
+
+    completeness_badge.short_description = _("Completeness")

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "translate",
     "scraping",
     "settings",
+    "django_celery_beat",
     # Allauth
     "allauth",
     "allauth.account",
@@ -388,33 +389,33 @@ CELERY_TASK_SOFT_TIME_LIMIT = 600   # 10 min soft limit
 CELERY_TASK_TIME_LIMIT = 900        # 15 min hard limit
 CELERY_TASK_DEFAULT_QUEUE = "scraping"
 
-# Celery Beat schedule — auto-run all scrapers every 3 months
-# from celery.schedules import crontab
+# Celery Beat schedule — periodic scraping
+from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
-    # "scrape-events-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=0),
-    #     "args": ("events",),
-    # },
-    # "scrape-tools-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=15),
-    #     "args": ("tools",),
-    # },
-    # "scrape-news-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=30),
-    #     "args": ("news",),
-    # },
-    # "scrape-courses-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=45),
-    #     "args": ("courses",),
-    # },
-    # "scrape-institutions-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=4, minute=0),
-    #     "args": ("institutions",),
-    # },
+    'scrape-events-weekly': {
+        'task': 'scraping.tasks.run_scraper_task',
+        'schedule': crontab(hour=2, minute=0, day_of_week=1),
+        'args': ('events',),
+    },
+    'scrape-tools-weekly': {
+        'task': 'scraping.tasks.run_scraper_task',
+        'schedule': crontab(hour=3, minute=0, day_of_week=1),
+        'args': ('tools',),
+    },
+    'scrape-news-daily': {
+        'task': 'scraping.tasks.run_scraper_task',
+        'schedule': crontab(hour=4, minute=0),
+        'args': ('news',),
+    },
+    'scrape-courses-monthly': {
+        'task': 'scraping.tasks.run_scraper_task',
+        'schedule': crontab(hour=5, minute=0, day_of_month=1),
+        'args': ('courses',),
+    },
+    'scrape-institutions-monthly': {
+        'task': 'scraping.tasks.run_scraper_task',
+        'schedule': crontab(hour=6, minute=0, day_of_month=1),
+        'args': ('institutions',),
+    },
 }
