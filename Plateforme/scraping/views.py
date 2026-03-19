@@ -46,7 +46,11 @@ def dashboard(request):
 
     # Aggregate stats
     total_runs = ScrapingRun.objects.count()
-    total_created = sum(r.items_created for r in ScrapingRun.objects.all())
+    from django.db.models import Sum
+
+    total_created = (
+        ScrapingRun.objects.aggregate(total=Sum("items_created"))["total"] or 0
+    )
 
     # Per-category item counts from actual models
     from events.models import Event
@@ -128,7 +132,8 @@ def run_scraper(request, category):
         # Celery unavailable — fall back to synchronous execution
         logger.warning(
             "Celery dispatch failed (%s), running %s synchronously",
-            celery_exc, category,
+            celery_exc,
+            category,
         )
 
     # --- Synchronous fallback (original behaviour) ---
@@ -199,6 +204,7 @@ def task_status(request, run_id):
         if run.task_id:
             try:
                 from celery.result import AsyncResult
+
                 result = AsyncResult(run.task_id)
                 if result.successful():
                     task_data = result.result or {}
@@ -214,6 +220,69 @@ def task_status(request, run_id):
 
 
 @login_required
+@require_POST
+def run_custom_source(request, source_id):
+    """AJAX endpoint: run the custom domain scraper for a single source."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    from scraping.models import ScrapingSource
+    from scraping.scrapers.custom_scraper import CustomDomainScraper
+
+    try:
+        source = ScrapingSource.objects.get(id=source_id, is_active=True)
+    except ScrapingSource.DoesNotExist:
+        return JsonResponse({"error": "Source not found"}, status=404)
+
+    try:
+        scraper = CustomDomainScraper(source)
+        results = scraper.scrape()
+
+        items_created = len(results)
+        items_failed = getattr(scraper, "items_failed", 0)
+
+        # Determine real status based on results
+        if items_created == 0 and items_failed > 0:
+            # Everything failed
+            run_status = "failed"
+        elif items_failed > 0:
+            # Partial success
+            run_status = "partial"
+        else:
+            # All items succeeded
+            run_status = "success"
+
+        source.last_scraped = timezone.now()
+        source.last_run_status = run_status
+        source.last_run_items_created = items_created
+        source.last_run_error = (
+            f"{items_failed} items failed to save" if items_failed > 0 else ""
+        )
+        source.save()
+
+        return JsonResponse(
+            {
+                "success": items_created > 0 or items_failed == 0,
+                "items_created": items_created,
+                "items_failed": items_failed,
+                "run_status": run_status,
+                "source_name": source.name,
+            }
+        )
+    except Exception as e:
+        source.last_run_status = "failed"
+        source.last_run_error = str(e)[:500]
+        source.save()
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(e),
+            },
+            status=500,
+        )
+
+
+@login_required
 @user_passes_test(is_admin)
 @require_GET
 def trends(request):
@@ -223,10 +292,95 @@ def trends(request):
 
     try:
         from scraping.intelligence import detect_trends
+
         data = detect_trends(months=months)
         return JsonResponse({"status": "ok", **data})
     except Exception as exc:
         logger.exception("Trend detection failed: %s", exc)
         return JsonResponse(
-            {"status": "error", "message": str(exc)}, status=500,
+            {"status": "error", "message": str(exc)},
+            status=500,
         )
+
+
+@login_required
+@require_POST
+def add_custom_source(request):
+    """AJAX endpoint: add a new custom scraping source (staff only)."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    import json
+
+    try:
+        data = json.loads(request.body)
+        name = data.get("name", "").strip()
+        url = data.get("url", "").strip()
+        category = data.get("category", "events")
+        use_rss = data.get("use_rss", True)
+        use_llm = data.get("use_llm_extraction", True)
+
+        if not name or not url:
+            return JsonResponse({"error": "Name and URL are required"}, status=400)
+
+        if not url.startswith(("http://", "https://")):
+            return JsonResponse({"error": "Invalid URL format"}, status=400)
+
+        from scraping.models import ScrapingSource
+
+        source = ScrapingSource.objects.create(
+            name=name,
+            base_url=url,
+            category=category,
+            use_rss=use_rss,
+            use_llm_extraction=use_llm,
+            is_active=True,
+        )
+        return JsonResponse(
+            {
+                "success": True,
+                "id": str(source.id),
+                "name": source.name,
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def delete_custom_source(request, source_id):
+    """AJAX endpoint: delete a custom scraping source (staff only)."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    from scraping.models import ScrapingSource
+
+    try:
+        source = ScrapingSource.objects.get(id=source_id)
+        name = source.name
+        source.delete()
+        return JsonResponse({"success": True, "name": name})
+    except ScrapingSource.DoesNotExist:
+        return JsonResponse({"error": "Source not found"}, status=404)
+
+
+@login_required
+def list_custom_sources(request):
+    """AJAX endpoint: list all active custom scraping sources (staff only)."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    from scraping.models import ScrapingSource
+
+    sources = ScrapingSource.objects.filter(is_active=True).order_by("-created_at")
+    data = [
+        {
+            "id": str(s.id),
+            "name": s.name,
+            "url": s.base_url,
+            "category": s.category,
+            "last_scraped": s.last_scraped.isoformat() if s.last_scraped else None,
+            "last_run_status": s.last_run_status,
+            "last_run_items_created": s.last_run_items_created,
+        }
+        for s in sources
+    ]
+    return JsonResponse({"sources": data})

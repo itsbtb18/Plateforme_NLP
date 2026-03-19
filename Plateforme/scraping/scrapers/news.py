@@ -17,6 +17,13 @@ import time
 import xml.etree.ElementTree as ET
 from django.utils.text import slugify
 from .base import BaseScraper
+from scraping.enrichment_engine import enrich_scraped_item
+from scraping.file_downloader import (
+    try_download_document,
+    try_download_image,
+    attach_file_to_model,
+)
+from scraping.field_mapping import calculate_completeness_score
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +41,20 @@ class NewsScraper(BaseScraper):
     category = "news"
 
     def scrape(self):
+        try:
+            from scraping.intelligence import generate_queries
+
+            dynamic_queries = generate_queries("news")
+            dynamic_terms = [
+                q.get("query", "") for q in dynamic_queries if q.get("query")
+            ][:5]
+            if not dynamic_terms:
+                dynamic_terms = ["Arabic natural language processing"]
+        except Exception:
+            dynamic_terms = ["Arabic natural language processing"]
+
+        self._search_terms = dynamic_terms
+
         self._scrape_arxiv()
         self._scrape_semantic_scholar()
 
@@ -41,8 +62,18 @@ class NewsScraper(BaseScraper):
     def _scrape_arxiv(self):
         """Query the arXiv API for recent cs.CL (Computation & Language) papers."""
         url = "http://export.arxiv.org/api/query"
+
+        # Build search query from dynamic terms
+        if self._search_terms:
+            abs_terms = " OR ".join(
+                f"abs:{term.replace(' ', '+')}" for term in self._search_terms
+            )
+            search_query = f"cat:cs.CL AND ({abs_terms})"
+        else:
+            search_query = "cat:cs.CL AND (abs:arabic OR abs:NLP OR abs:language+model)"
+
         params = {
-            "search_query": "cat:cs.CL AND (abs:arabic OR abs:NLP OR abs:language+model)",
+            "search_query": search_query,
             "sortBy": "submittedDate",
             "sortOrder": "descending",
             "max_results": 20,
@@ -115,7 +146,11 @@ class NewsScraper(BaseScraper):
     S2_FIELDS = "title,abstract,year,url,authors,publicationDate"
     # Single broader query — avoids burning through S2's strict rate limits
     S2_QUERIES = [
-        {"query": "Arabic natural language processing NLP", "year": "2024-2026", "limit": 20},
+        {
+            "query": "Arabic natural language processing NLP",
+            "year": "2024-2026",
+            "limit": 20,
+        },
     ]
 
     def _scrape_semantic_scholar(self):
@@ -166,7 +201,9 @@ class NewsScraper(BaseScraper):
         for attempt in range(1, max_retries + 1):
             try:
                 resp = self.session.get(
-                    self.S2_API, params=params, timeout=30,
+                    self.S2_API,
+                    params=params,
+                    timeout=30,
                     headers={"Accept": "application/json"},
                 )
                 if resp.status_code == 429:
@@ -175,22 +212,34 @@ class NewsScraper(BaseScraper):
                     if retry_after and retry_after.isdigit():
                         wait = int(retry_after) + 2  # small buffer
                     else:
-                        wait = min(30 * (2 ** (attempt - 1)), 180)  # 30, 60, 120, 180, 180
+                        wait = min(
+                            30 * (2 ** (attempt - 1)), 180
+                        )  # 30, 60, 120, 180, 180
                     logger.warning(
                         "Semantic Scholar 429 — retrying in %ds (attempt %d/%d)",
-                        wait, attempt, max_retries,
+                        wait,
+                        attempt,
+                        max_retries,
                     )
                     time.sleep(wait)
                     continue
                 if resp.status_code == 504:
                     # Gateway timeout — brief retry
-                    logger.warning("Semantic Scholar 504 — retrying (attempt %d/%d)", attempt, max_retries)
+                    logger.warning(
+                        "Semantic Scholar 504 — retrying (attempt %d/%d)",
+                        attempt,
+                        max_retries,
+                    )
                     time.sleep(10 * attempt)
                     continue
                 resp.raise_for_status()
                 return resp.json()
             except _requests.ConnectionError:
-                logger.warning("Semantic Scholar connection error — retrying (attempt %d/%d)", attempt, max_retries)
+                logger.warning(
+                    "Semantic Scholar connection error — retrying (attempt %d/%d)",
+                    attempt,
+                    max_retries,
+                )
                 time.sleep(10 * attempt)
                 continue
             except _requests.RequestException as exc:
@@ -198,7 +247,9 @@ class NewsScraper(BaseScraper):
                 logger.error("Semantic Scholar request failed: %s", exc)
                 return None
 
-        logger.warning("Semantic Scholar API exhausted %d retries — skipping", max_retries)
+        logger.warning(
+            "Semantic Scholar API exhausted %d retries — skipping", max_retries
+        )
         return None
 
     # ── Create Post ──────────────────────────────────────────────────
@@ -220,8 +271,10 @@ class NewsScraper(BaseScraper):
         if not title:
             return
 
+        title_en = title
+
         # Duplicate check (by title similarity or URL)
-        if Post.objects.filter(title_en__iexact=title).exists():
+        if self.is_duplicate(title_en, "news", Post):
             self.items_skipped += 1
             return
 
@@ -231,11 +284,24 @@ class NewsScraper(BaseScraper):
             try:
                 from scraping.pdf_utils import download_and_extract
 
-                pdf_text = download_and_extract(pdf_url, session=self.session)
+                result = download_and_extract(pdf_url, session=self.session)
+                if result is not None and (isinstance(result, dict) or hasattr(result, "get")):
+                    if result.get("error"):
+                        self._log_error(
+                            "pdf_parse_failed",
+                            result.get("error"),
+                            source=pdf_url
+                        )
+                    pdf_text = result.get("full_text", "")
+                else:
+                    # backward compat: result is plain string
+                    pdf_text = result or ""
+
                 if pdf_text:
                     logger.info(
                         "Extracted %d chars from PDF: %s",
-                        len(pdf_text), title[:60],
+                        len(pdf_text),
+                        title[:60],
                     )
             except Exception as exc:
                 logger.debug("PDF extraction failed for %s: %s", title[:60], exc)
@@ -250,7 +316,10 @@ class NewsScraper(BaseScraper):
             )
 
             enrichment = enrich_paper(
-                title, abstract, authors=authors, pdf_text=pdf_text,
+                title,
+                abstract,
+                authors=authors,
+                pdf_text=pdf_text,
             )
             if enrichment:
                 logger.info(
@@ -307,22 +376,71 @@ class NewsScraper(BaseScraper):
             slug = f"{base_slug}-{counter}"
             counter += 1
 
+        keywords = [k.strip() for k in str(categories or "").split(",") if k.strip()]
+        authors_list = [a.strip() for a in str(authors or "").split(",") if a.strip()]
+
+        item_dict = {
+            "title_en": title_en,
+            "title_ar": title_ar,
+            "content_en": content_en,
+            "content_ar": content_ar,
+            "pdf_url": pdf_url,
+            "keywords": keywords,
+            "authors": authors_list,
+        }
+
+        item_dict = enrich_scraped_item(item_dict, "news")
+        completeness = calculate_completeness_score(item_dict, "news")
+
+        if completeness < 50:
+            self.items_skipped += 1
+            return
+
+        item_dict["published_date"] = published
+        item_dict["publication_date"] = published
+        item_dict["date"] = published
+
+        is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "news")
+        if not is_valid:
+            self.items_skipped += 1
+            logger.debug("Skipping news '%s' due to validation: %s", title, reason)
+            return
+
         try:
-            Post.objects.create(
-                title=title,
-                title_en=title,
-                title_ar=title_ar,
-                content=content_en,
-                content_en=content_en,
-                content_ar=content_ar,
+            post = Post.objects.create(
+                title=item_dict.get("title_en", "")[:300],
+                title_en=item_dict.get("title_en", "")[:300],
+                title_ar=item_dict.get("title_ar", "")[:300],
+                content=item_dict.get("content_en", ""),
+                content_en=item_dict.get("content_en", ""),
+                content_ar=item_dict.get("content_ar", ""),
                 slug=slug,
-                author=self.get_system_user(),
                 approval_status="pending",
+                author=self.get_system_user(),
             )
+
+            # Download actual PDF file and attach it
+            pdf_url = item_dict.get("pdf_url", "")
+            if pdf_url:
+                doc_file, filename = try_download_document([pdf_url], "news")
+                if doc_file:
+                    try:
+                        attach_file_to_model(
+                            post,
+                            "attached_file",
+                            doc_file,
+                            filename,
+                        )
+                    except Exception:
+                        try:
+                            attach_file_to_model(post, "file", doc_file, filename)
+                        except Exception:
+                            pass
+
             self.items_created += 1
             self.results.append(
                 {
-                    "title": self.truncate(title, 100),
+                    "title": self.truncate(item_dict.get("title_en", title), 100),
                     "url": source_url,
                     "published": str(published)[:10] if published else "",
                     "enriched": enrichment is not None,

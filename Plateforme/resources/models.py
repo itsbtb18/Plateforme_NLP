@@ -551,6 +551,12 @@ class NLPTool(ResourceBase):
         choices=SupportedLanguages.choices,
         default=SupportedLanguages.ARABIC,
     )
+    thumbnail = models.ImageField(
+        upload_to="tools/thumbnails/",
+        null=True,
+        blank=True,
+        help_text="Tool icon or thumbnail image",
+    )
 
     class Meta:
         verbose_name = _("NLP Tool")

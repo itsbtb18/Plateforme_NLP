@@ -8,8 +8,22 @@ linguistics and stores them as ``institutions.Institution`` instances.
 
 import logging
 from .base import BaseScraper
+from scraping.enrichment_engine import enrich_scraped_item
+from scraping.file_downloader import (
+    try_download_image,
+    attach_file_to_model,
+)
+from scraping.field_mapping import calculate_completeness_score
 
 logger = logging.getLogger(__name__)
+
+# Convert list to comma-separated string safely
+def _safe_list_to_str(value):
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value if v)
+    if value is None:
+        return ""
+    return str(value)
 
 # Map ROR / OpenAlex institution types → platform's Institution.type choices
 TYPE_MAP = {
@@ -31,6 +45,22 @@ TYPE_MAP = {
 }
 
 
+import json
+import os
+
+def _load_curated_institutions():
+    fixture_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'fixtures', 'curated_institutions.json'
+    )
+    try:
+        with open(fixture_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+_institutions_data = _load_curated_institutions()
+
 class InstitutionScraper(BaseScraper):
     """Scrape research institutions from ROR and OpenAlex APIs."""
 
@@ -44,6 +74,128 @@ class InstitutionScraper(BaseScraper):
         self._import_african_nlp_labs()
         self._import_north_african_institutions()
         self._import_arabic_institutions()
+
+    def _create_institution_with_enrichment(
+        self,
+        *,
+        name_en,
+        name_ar,
+        acronym,
+        institution_type,
+        country,
+        city_en,
+        city_ar,
+        description_en,
+        description_ar,
+        website,
+        email,
+        phone,
+        address_en,
+        address_ar,
+        logo_url,
+        research_specialties,
+    ):
+        from institutions.models import Institution
+
+        item_dict = {
+            "name_en": name_en,
+            "name_ar": name_ar,
+            "acronym": acronym,
+            "institution_type": institution_type,
+            "country": country,
+            "city_en": city_en,
+            "city_ar": city_ar,
+            "description_en": description_en,
+            "description_ar": description_ar,
+            "website": website,
+            "email": email,
+            "phone": phone,
+            "address_en": address_en,
+            "address_ar": address_ar,
+            "logo_url": logo_url,
+            "research_specialties": research_specialties,
+        }
+
+        item_dict = enrich_scraped_item(item_dict, "institutions")
+        completeness = calculate_completeness_score(item_dict, "institutions")
+
+        if completeness < 35:
+            self.items_skipped += 1
+            return None, item_dict
+
+        is_valid, item_dict, reason = self.validate_and_prepare(
+            item_dict, "institutions"
+        )
+        if not is_valid:
+            self.items_skipped += 1
+            return None, item_dict
+
+        type_map = {
+            "university": "University",
+            "research_center": "Research Center",
+            "research center": "Research Center",
+            "school": "School",
+            "other": "Other",
+            "University": "University",
+            "Research Center": "Research Center",
+            "School": "School",
+            "Other": "Other",
+        }
+        model_type = type_map.get(
+            str(item_dict.get("institution_type", "university")), "University"
+        )
+
+        country_obj = item_dict.get("country")
+        if not hasattr(country_obj, "id"):
+            country_name = str(country_obj or "Unknown")
+            country_obj = self.get_or_create_country(country_name, "XX")
+
+        try:
+            institution = Institution.objects.create(
+                name=item_dict.get("name_en", "")[:300],
+                name_en=item_dict.get("name_en", "")[:300],
+                name_ar=item_dict.get("name_ar", "")[:300],
+                acronym=item_dict.get("acronym", "")[:20],
+                type=model_type,
+                country=country_obj,
+                city=item_dict.get("city_en", "")[:100],
+                city_en=item_dict.get("city_en", "")[:100],
+                city_ar=item_dict.get("city_ar", "")[:100],
+                description=item_dict.get("description_en", ""),
+                description_en=item_dict.get("description_en", ""),
+                description_ar=item_dict.get("description_ar", ""),
+                website=item_dict.get("website", ""),
+                email=item_dict.get("email", ""),
+                phone=item_dict.get("phone", ""),
+                address=item_dict.get("address_en", ""),
+                address_en=item_dict.get("address_en", ""),
+                address_ar=item_dict.get("address_ar", ""),
+                research_specialties=_safe_list_to_str(item_dict.get("research_specialties", [])),
+                approval_status="pending",
+                created_by=self.get_system_user(),
+            )
+
+            # Try to download institution logo
+            logo_url = item_dict.get("logo_url", "")
+            if logo_url:
+                img_file, filename = try_download_image([logo_url], "institutions")
+                if img_file:
+                    try:
+                        attach_file_to_model(institution, "logo", img_file, filename)
+                    except Exception:
+                        pass
+
+            return institution, item_dict
+        except Exception as exc:
+            self.errors.append(
+                f"Failed to create institution '{item_dict.get('name_en', name_en)}': {exc}"
+            )
+            logger.error(
+                "Failed to create institution %s: %s",
+                item_dict.get("name_en", name_en),
+                exc,
+            )
+            return None, item_dict
 
     # ── ROR API ──────────────────────────────────────────────────────
     def _scrape_ror(self):
@@ -103,8 +255,10 @@ class InstitutionScraper(BaseScraper):
         if not name_ar:
             name_ar = name
 
+        name_en = name
+
         # Duplicate check
-        if Institution.objects.filter(name_en__iexact=name).exists():
+        if self.is_duplicate(name_en, "institutions", Institution):
             self.items_skipped += 1
             return
 
@@ -167,41 +321,37 @@ class InstitutionScraper(BaseScraper):
             if domain_match:
                 email_domain = f"info@{domain_match.group(1)}"
 
-        try:
-            Institution.objects.create(
-                name=name,
-                name_en=name,
-                name_ar=name_ar,
-                acronym=acronym[:20] if acronym else "",
-                type=inst_type,
-                country=country,
-                city=city,
-                city_en=city,
-                city_ar=city,
-                website=website,
-                email=email_domain,
-                phone="",
-                address=address,
-                address_en=address,
-                address_ar=address,
-                description=description,
-                description_en=description,
-                description_ar=description,
-                created_by=self.get_system_user(),
-            )
-            self.items_created += 1
-            self.results.append(
-                {
-                    "title": self.truncate(name, 80),
-                    "type": inst_type,
-                    "country": country_name,
-                    "city": city,
-                    "url": website,
-                }
-            )
-        except Exception as exc:
-            self.errors.append(f"Failed to create institution '{name}': {exc}")
-            logger.error("Failed to create institution %s: %s", name, exc)
+        institution, enriched_item = self._create_institution_with_enrichment(
+            name_en=name,
+            name_ar=name_ar,
+            acronym=acronym[:20] if acronym else "",
+            institution_type=inst_type,
+            country=country,
+            city_en=city,
+            city_ar=city,
+            description_en=description,
+            description_ar=description,
+            website=website,
+            email=email_domain,
+            phone="",
+            address_en=address,
+            address_ar=address,
+            logo_url="",
+            research_specialties=[],
+        )
+        if institution is None:
+            return
+
+        self.items_created += 1
+        self.results.append(
+            {
+                "title": self.truncate(enriched_item.get("name_en", name), 80),
+                "type": inst_type,
+                "country": country_name,
+                "city": city,
+                "url": enriched_item.get("website", website),
+            }
+        )
 
     # ── OpenAlex API ─────────────────────────────────────────────────
     def _scrape_openalex(self):
@@ -235,8 +385,10 @@ class InstitutionScraper(BaseScraper):
         if not name:
             return
 
+        name_en = name
+
         # Duplicate check
-        if Institution.objects.filter(name_en__iexact=name).exists():
+        if self.is_duplicate(name_en, "institutions", Institution):
             self.items_skipped += 1
             return
 
@@ -291,167 +443,40 @@ class InstitutionScraper(BaseScraper):
             if domain_match:
                 email_domain = f"info@{domain_match.group(1)}"
 
-        try:
-            Institution.objects.create(
-                name=name,
-                name_en=name,
-                name_ar=name,
-                acronym=acronym[:20] if acronym else "",
-                type=inst_type,
-                country=country,
-                city=city,
-                city_en=city,
-                city_ar=city,
-                website=homepage,
-                email=email_domain,
-                phone="",
-                address=address,
-                address_en=address,
-                address_ar=address,
-                description=description,
-                description_en=description,
-                description_ar=description,
-                created_by=self.get_system_user(),
-            )
-            self.items_created += 1
-            self.results.append(
-                {
-                    "title": self.truncate(name, 80),
-                    "type": inst_type,
-                    "country": country_name,
-                    "city": city,
-                    "url": homepage,
-                }
-            )
-        except Exception as exc:
-            self.errors.append(f"Failed to create institution '{name}': {exc}")
-            logger.error("Failed to create institution %s: %s", name, exc)
+        institution, enriched_item = self._create_institution_with_enrichment(
+            name_en=name,
+            name_ar=name,
+            acronym=acronym[:20] if acronym else "",
+            institution_type=inst_type,
+            country=country,
+            city_en=city,
+            city_ar=city,
+            description_en=description,
+            description_ar=description,
+            website=homepage,
+            email=email_domain,
+            phone="",
+            address_en=address,
+            address_ar=address,
+            logo_url="",
+            research_specialties=[],
+        )
+        if institution is None:
+            return
+
+        self.items_created += 1
+        self.results.append(
+            {
+                "title": self.truncate(enriched_item.get("name_en", name), 80),
+                "type": inst_type,
+                "country": country_name,
+                "city": city,
+                "url": enriched_item.get("website", homepage),
+            }
+        )
 
     # ── Algerian Universities ────────────────────────────────────────
-    ALGERIAN_UNIVERSITIES = [
-        {
-            "name": "University of Science and Technology Houari Boumediene",
-            "name_ar": "جامعة هواري بومدين للعلوم والتكنولوجيا",
-            "acronym": "USTHB",
-            "city": "Algiers",
-            "city_ar": "الجزائر",
-            "website": "https://www.usthb.dz",
-            "description": (
-                "Algeria's premier science and technology university, "
-                "with active research in computer science, AI, and NLP. "
-                "Hosts LRIA (Lab for Research in AI) with Arabic NLP focus."
-            ),
-        },
-        {
-            "name": "University of Algiers 1 Benyoucef Benkhedda",
-            "name_ar": "جامعة الجزائر 1 بن يوسف بن خدة",
-            "acronym": "UNIV-ALGER1",
-            "city": "Algiers",
-            "city_ar": "الجزائر",
-            "website": "https://www.univ-alger.dz",
-            "description": (
-                "One of Algeria's oldest and most prestigious universities, "
-                "with departments in computer science and linguistics."
-            ),
-        },
-        {
-            "name": "University of Oran 1 Ahmed Ben Bella",
-            "name_ar": "جامعة وهران 1 أحمد بن بلة",
-            "acronym": "UNIV-ORAN1",
-            "city": "Oran",
-            "city_ar": "وهران",
-            "website": "https://www.univ-oran1.dz",
-            "description": (
-                "Major western Algerian university with computer science "
-                "and AI research programs. Active in Arabic text processing."
-            ),
-        },
-        {
-            "name": "University of Constantine 1 Frères Mentouri",
-            "name_ar": "جامعة قسنطينة 1 الإخوة منتوري",
-            "acronym": "UMC1",
-            "city": "Constantine",
-            "city_ar": "قسنطينة",
-            "website": "https://www.umc.edu.dz",
-            "description": (
-                "Leading eastern Algerian university with research in "
-                "information systems, AI, and Arabic language processing."
-            ),
-        },
-        {
-            "name": "École nationale Supérieure d'Informatique",
-            "name_ar": "المدرسة الوطنية العليا للإعلام الآلي",
-            "acronym": "ESI",
-            "city": "Algiers",
-            "city_ar": "الجزائر",
-            "website": "https://www.esi.dz",
-            "description": (
-                "Algeria's top CS engineering school (formerly INI). "
-                "Research labs active in ML, NLP, and Arabic text mining."
-            ),
-        },
-        {
-            "name": "University of Tlemcen Abou Bekr Belkaïd",
-            "name_ar": "جامعة تلمسان أبو بكر بلقايد",
-            "acronym": "UNIV-TLEMCEN",
-            "city": "Tlemcen",
-            "city_ar": "تلمسان",
-            "website": "https://www.univ-tlemcen.dz",
-            "description": (
-                "Major Algerian university active in Arabic NLP, "
-                "machine translation, and information retrieval."
-            ),
-        },
-        {
-            "name": "University of Béjaïa Abderrahmane Mira",
-            "name_ar": "جامعة بجاية عبد الرحمان ميرة",
-            "acronym": "UNIV-BEJAIA",
-            "city": "Béjaïa",
-            "city_ar": "بجاية",
-            "website": "https://www.univ-bejaia.dz",
-            "description": (
-                "Kabylie region university with research in multilingual NLP "
-                "including Arabic, Amazigh, and French text processing."
-            ),
-        },
-        {
-            "name": "University of Batna 2 Mostefa Ben Boulaïd",
-            "name_ar": "جامعة باتنة 2 مصطفى بن بولعيد",
-            "acronym": "UNIV-BATNA2",
-            "city": "Batna",
-            "city_ar": "باتنة",
-            "website": "https://www.univ-batna2.dz",
-            "description": (
-                "University in the Aures region with ICT and CS programs "
-                "contributing to Arabic language technology."
-            ),
-        },
-        {
-            "name": "University of Blida 1 Saad Dahlab",
-            "name_ar": "جامعة البليدة 1 سعد دحلب",
-            "acronym": "UNIV-BLIDA1",
-            "city": "Blida",
-            "city_ar": "البليدة",
-            "website": "https://www.univ-blida.dz",
-            "description": (
-                "Algerian university near Algiers with CS and AI research, "
-                "including Arabic sentiment analysis and text classification."
-            ),
-        },
-        {
-            "name": "Centre de Recherche sur l'Information Scientifique et Technique",
-            "name_ar": "مركز البحث في الإعلام العلمي والتقني",
-            "acronym": "CERIST",
-            "city": "Algiers",
-            "city_ar": "الجزائر",
-            "website": "https://www.cerist.dz",
-            "description": (
-                "Algeria's national research center for scientific and "
-                "technical information. Active in NLP, Arabic IR, and text mining."
-            ),
-            "type": "Research Center",
-        },
-    ]
+    ALGERIAN_UNIVERSITIES = _institutions_data.get('algerian_universities', [])
 
     def _import_algerian_universities(self):
         """Import curated Algerian universities and research centres."""
@@ -461,188 +486,48 @@ class InstitutionScraper(BaseScraper):
 
         for item in self.ALGERIAN_UNIVERSITIES:
             name = item["name"]
-            if Institution.objects.filter(name_en__iexact=name).exists():
+            name_en = name
+            if self.is_duplicate(name_en, "institutions", Institution):
                 self.items_skipped += 1
                 continue
 
             city = item.get("city", "")
             address = f"{city}, Algeria" if city else "Algeria"
 
-            try:
-                Institution.objects.create(
-                    name=name,
-                    name_en=name,
-                    name_ar=item.get("name_ar", name),
-                    acronym=item.get("acronym", "")[:20],
-                    type=item.get("type", "University"),
-                    country=dz_country,
-                    city=city,
-                    city_en=city,
-                    city_ar=item.get("city_ar", city),
-                    website=item.get("website", ""),
-                    address=address,
-                    address_en=address,
-                    address_ar=f"{item.get('city_ar', city)}، الجزائر",
-                    description=item.get("description", ""),
-                    description_en=item.get("description", ""),
-                    description_ar=item.get("description", ""),
-                    created_by=self.get_system_user(),
-                )
-                self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(name, 80),
+            institution, enriched_item = self._create_institution_with_enrichment(
+                name_en=name,
+                name_ar=item.get("name_ar", name),
+                acronym=item.get("acronym", "")[:20],
+                institution_type=item.get("type", "University"),
+                country=dz_country,
+                city_en=city,
+                city_ar=item.get("city_ar", city),
+                description_en=item.get("description", ""),
+                description_ar=item.get("description", ""),
+                website=item.get("website", ""),
+                email=item.get("email", ""),
+                phone=item.get("phone", ""),
+                address_en=address,
+                address_ar=f"{item.get('city_ar', city)}، الجزائر",
+                logo_url=item.get("logo_url", ""),
+                research_specialties=item.get("research_specialties", []),
+            )
+            if institution is None:
+                continue
+
+            self.items_created += 1
+            self.results.append(
+                {
+                    "title": self.truncate(enriched_item.get("name_en", name), 80),
                     "type": item.get("type", "University"),
                     "country": "Algeria",
                     "city": city,
-                    "url": item.get("website", ""),
-                })
-            except Exception as exc:
-                self.errors.append(f"Failed to create institution '{name}': {exc}")
-                logger.error("Failed to create institution %s: %s", name, exc)
+                    "url": enriched_item.get("website", item.get("website", "")),
+                }
+            )
 
     # ── African NLP Labs & Arabic-speaking Institutions ──────────────
-    AFRICAN_NLP_LABS = [
-        {
-            "name": "Masakhane NLP",
-            "name_ar": "مساخاني للمعالجة اللغوية",
-            "acronym": "MASAKHANE",
-            "city": "Pan-African",
-            "country_code": "ZA",
-            "country_name": "South Africa",
-            "website": "https://www.masakhane.io",
-            "type": "Research Center",
-            "description": (
-                "Grassroots community of African NLP researchers building "
-                "datasets, models, and tools for African languages."
-            ),
-        },
-        {
-            "name": "InstaDeep AI Lab",
-            "name_ar": "إنستاديب مختبر الذكاء الاصطناعي",
-            "acronym": "INSTADEEP",
-            "city": "Tunis",
-            "country_code": "TN",
-            "country_name": "Tunisia",
-            "website": "https://www.instadeep.com",
-            "type": "Research Center",
-            "description": (
-                "Tunisian-founded AI research lab working on decision-making AI, "
-                "NLP, and biological sequence processing."
-            ),
-        },
-        {
-            "name": "Cairo University — Faculty of Computers & AI",
-            "name_ar": "جامعة القاهرة — كلية الحاسبات والذكاء الاصطناعي",
-            "acronym": "CU-FCAI",
-            "city": "Cairo",
-            "country_code": "EG",
-            "country_name": "Egypt",
-            "website": "https://fcai.cu.edu.eg",
-            "type": "University",
-            "description": (
-                "Egypt's leading AI faculty with extensive Arabic NLP "
-                "research including Arabic NER and AraBERT."
-            ),
-        },
-        {
-            "name": "King Abdulaziz City for Science and Technology",
-            "name_ar": "مدينة الملك عبدالعزيز للعلوم والتقنية",
-            "acronym": "KACST",
-            "city": "Riyadh",
-            "country_code": "SA",
-            "country_name": "Saudi Arabia",
-            "website": "https://www.kacst.edu.sa",
-            "type": "Research Center",
-            "description": (
-                "Saudi Arabia's national science agency funding Arabic NLP research, "
-                "speech recognition, and language computing standards."
-            ),
-        },
-        {
-            "name": "African Institute for Mathematical Sciences",
-            "name_ar": "المعهد الأفريقي للعلوم الرياضية",
-            "acronym": "AIMS",
-            "city": "Kigali",
-            "country_code": "RW",
-            "country_name": "Rwanda",
-            "website": "https://nexteinstein.org",
-            "type": "Research Center",
-            "description": (
-                "Pan-African centres of excellence hosting ML and NLP research "
-                "programs focused on African language technology."
-            ),
-        },
-        {
-            "name": "University of Cape Town — NLP Group",
-            "name_ar": "جامعة كيب تاون — مجموعة المعالجة اللغوية",
-            "acronym": "UCT-NLP",
-            "city": "Cape Town",
-            "country_code": "ZA",
-            "country_name": "South Africa",
-            "website": "https://www.cs.uct.ac.za",
-            "type": "University",
-            "description": (
-                "NLP research covering African languages, low-resource NLP, "
-                "and cross-lingual transfer learning."
-            ),
-        },
-        {
-            "name": "Mohammed VI Polytechnic University",
-            "name_ar": "جامعة محمد السادس متعددة التخصصات التقنية",
-            "acronym": "UM6P",
-            "city": "Ben Guerir",
-            "country_code": "MA",
-            "country_name": "Morocco",
-            "website": "https://www.um6p.ma",
-            "type": "University",
-            "description": (
-                "Moroccan research university with AI and Data Science center, "
-                "active in Arabic NLP and Amazigh language processing."
-            ),
-        },
-        {
-            "name": "Qatar Computing Research Institute",
-            "name_ar": "معهد قطر لبحوث الحوسبة",
-            "acronym": "QCRI",
-            "city": "Doha",
-            "country_code": "QA",
-            "country_name": "Qatar",
-            "website": "https://www.hbku.edu.qa/en/qcri",
-            "type": "Research Center",
-            "description": (
-                "Leading Arabic NLP research institute producing FARASA "
-                "and contributions in Arabic MT and dialect identification."
-            ),
-        },
-        {
-            "name": "New York University Abu Dhabi — CAMeL Lab",
-            "name_ar": "جامعة نيويورك أبوظبي — مختبر كاميل",
-            "acronym": "NYUAD-CAMEL",
-            "city": "Abu Dhabi",
-            "country_code": "AE",
-            "country_name": "United Arab Emirates",
-            "website": "https://nyuad.nyu.edu/en/research/faculty-labs-and-projects/camel-lab.html",
-            "type": "Research Center",
-            "description": (
-                "CAMeL Lab producing CAMeLBERT, CAMeL Tools, and "
-                "foundational Arabic NLP research."
-            ),
-        },
-        {
-            "name": "King Abdullah University of Science and Technology",
-            "name_ar": "جامعة الملك عبدالله للعلوم والتقنية",
-            "acronym": "KAUST",
-            "city": "Thuwal",
-            "country_code": "SA",
-            "country_name": "Saudi Arabia",
-            "website": "https://www.kaust.edu.sa",
-            "type": "University",
-            "description": (
-                "Saudi research university with strong AI and NLP groups, "
-                "including Arabic language models and cross-lingual NLP."
-            ),
-        },
-    ]
+    AFRICAN_NLP_LABS = _institutions_data.get('african_nlp_labs', [])
 
     def _import_african_nlp_labs(self):
         """Import curated African and Arabic-speaking NLP institutions."""
@@ -650,335 +535,57 @@ class InstitutionScraper(BaseScraper):
 
         for item in self.AFRICAN_NLP_LABS:
             name = item["name"]
-            if Institution.objects.filter(name_en__iexact=name).exists():
+            name_en = name
+            if self.is_duplicate(name_en, "institutions", Institution):
                 self.items_skipped += 1
                 continue
 
             country = self.get_or_create_country(
-                item["country_name"], item["country_code"],
+                item["country_name"],
+                item["country_code"],
             )
             city = item.get("city", "")
-            address = f"{city}, {item['country_name']}" if city else item["country_name"]
+            address = (
+                f"{city}, {item['country_name']}" if city else item["country_name"]
+            )
 
-            try:
-                Institution.objects.create(
-                    name=name,
-                    name_en=name,
-                    name_ar=item.get("name_ar", name),
-                    acronym=item.get("acronym", "")[:20],
-                    type=item.get("type", "University"),
-                    country=country,
-                    city=city,
-                    city_en=city,
-                    city_ar=city,
-                    website=item.get("website", ""),
-                    address=address,
-                    address_en=address,
-                    address_ar=address,
-                    description=item.get("description", ""),
-                    description_en=item.get("description", ""),
-                    description_ar=item.get("description", ""),
-                    created_by=self.get_system_user(),
-                )
-                self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(name, 80),
+            institution, enriched_item = self._create_institution_with_enrichment(
+                name_en=name,
+                name_ar=item.get("name_ar", name),
+                acronym=item.get("acronym", "")[:20],
+                institution_type=item.get("type", "University"),
+                country=country,
+                city_en=city,
+                city_ar=city,
+                description_en=item.get("description", ""),
+                description_ar=item.get("description", ""),
+                website=item.get("website", ""),
+                email=item.get("email", ""),
+                phone=item.get("phone", ""),
+                address_en=address,
+                address_ar=address,
+                logo_url=item.get("logo_url", ""),
+                research_specialties=item.get("research_specialties", []),
+            )
+            if institution is None:
+                continue
+
+            self.items_created += 1
+            self.results.append(
+                {
+                    "title": self.truncate(enriched_item.get("name_en", name), 80),
                     "type": item.get("type", "University"),
                     "country": item["country_name"],
                     "city": city,
-                    "url": item.get("website", ""),
-                })
-            except Exception as exc:
-                self.errors.append(f"Failed to create institution '{name}': {exc}")
-                logger.error("Failed to create institution %s: %s", name, exc)
+                    "url": enriched_item.get("website", item.get("website", "")),
+                }
+            )
 
     # ── North African Institutions (Morocco, Tunisia, Libya, Egypt) ──
-    NORTH_AFRICAN_INSTITUTIONS = [
-        {
-            "name": "Mohammed V University in Rabat",
-            "name_ar": "جامعة محمد الخامس بالرباط",
-            "acronym": "UM5",
-            "city": "Rabat",
-            "country_code": "MA",
-            "country_name": "Morocco",
-            "website": "https://www.um5.ac.ma",
-            "type": "University",
-            "description": (
-                "Morocco's premier university with research in AI, NLP, "
-                "and Arabic text processing. Home to several CS departments."
-            ),
-        },
-        {
-            "name": "Cadi Ayyad University",
-            "name_ar": "جامعة القاضي عياض",
-            "acronym": "UCA",
-            "city": "Marrakech",
-            "country_code": "MA",
-            "country_name": "Morocco",
-            "website": "https://www.uca.ma",
-            "type": "University",
-            "description": (
-                "Major Moroccan university with CS and data science programs, "
-                "active in Arabic and Amazigh language technology."
-            ),
-        },
-        {
-            "name": "International University of Rabat",
-            "name_ar": "الجامعة الدولية بالرباط",
-            "acronym": "UIR",
-            "city": "Rabat",
-            "country_code": "MA",
-            "country_name": "Morocco",
-            "website": "https://www.uir.ac.ma",
-            "type": "University",
-            "description": (
-                "Private Moroccan university with AI and data science center, "
-                "contributing to Arabic NLP and Darija processing research."
-            ),
-        },
-        {
-            "name": "University of Tunis El Manar",
-            "name_ar": "جامعة تونس المنار",
-            "acronym": "UTM",
-            "city": "Tunis",
-            "country_code": "TN",
-            "country_name": "Tunisia",
-            "website": "https://www.utm.rnu.tn",
-            "type": "University",
-            "description": (
-                "Tunisia's leading research university with strong CS and AI programs. "
-                "Active in Arabic text mining and information retrieval."
-            ),
-        },
-        {
-            "name": "University of Sfax",
-            "name_ar": "جامعة صفاقس",
-            "acronym": "US",
-            "city": "Sfax",
-            "country_code": "TN",
-            "country_name": "Tunisia",
-            "website": "https://www.uss.rnu.tn",
-            "type": "University",
-            "description": (
-                "Major Tunisian university with active research in "
-                "NLP, data mining, and Arabic language processing."
-            ),
-        },
-        {
-            "name": "University of Sousse",
-            "name_ar": "جامعة سوسة",
-            "acronym": "USSOUSSE",
-            "city": "Sousse",
-            "country_code": "TN",
-            "country_name": "Tunisia",
-            "website": "https://www.uc.rnu.tn",
-            "type": "University",
-            "description": (
-                "Tunisian university with computer science faculty "
-                "contributing to Arabic text classification and NLP."
-            ),
-        },
-        {
-            "name": "University of Tripoli",
-            "name_ar": "جامعة طرابلس",
-            "acronym": "UOT",
-            "city": "Tripoli",
-            "country_code": "LY",
-            "country_name": "Libya",
-            "website": "https://www.uot.edu.ly",
-            "type": "University",
-            "description": (
-                "Libya's largest university with CS department, "
-                "contributing to Arabic NLP and language technology."
-            ),
-        },
-        {
-            "name": "Nile University",
-            "name_ar": "جامعة النيل",
-            "acronym": "NU",
-            "city": "Cairo",
-            "country_code": "EG",
-            "country_name": "Egypt",
-            "website": "https://www.nu.edu.eg",
-            "type": "University",
-            "description": (
-                "Egyptian research university with AI and NLP focus, "
-                "active in Arabic language understanding and generation."
-            ),
-        },
-        {
-            "name": "Egypt-Japan University of Science and Technology",
-            "name_ar": "الجامعة المصرية اليابانية للعلوم والتكنولوجيا",
-            "acronym": "E-JUST",
-            "city": "Alexandria",
-            "country_code": "EG",
-            "country_name": "Egypt",
-            "website": "https://www.ejust.edu.eg",
-            "type": "University",
-            "description": (
-                "Joint Egyptian-Japanese university with strong CS and AI programs, "
-                "research in Arabic NLP and cross-lingual learning."
-            ),
-        },
-        {
-            "name": "Ain Shams University — Faculty of Computer & Information Sciences",
-            "name_ar": "جامعة عين شمس — كلية الحاسبات والمعلومات",
-            "acronym": "ASU-FCIS",
-            "city": "Cairo",
-            "country_code": "EG",
-            "country_name": "Egypt",
-            "website": "https://cis.asu.edu.eg",
-            "type": "University",
-            "description": (
-                "Leading Egyptian CIS faculty with Arabic NLP research, "
-                "including named entity recognition and sentiment analysis."
-            ),
-        },
-    ]
+    NORTH_AFRICAN_INSTITUTIONS = _institutions_data.get('north_african_institutions', [])
 
     # ── Arabic/Gulf Institutions ─────────────────────────────────────
-    ARABIC_INSTITUTIONS = [
-        {
-            "name": "King Saud University",
-            "name_ar": "جامعة الملك سعود",
-            "acronym": "KSU",
-            "city": "Riyadh",
-            "country_code": "SA",
-            "country_name": "Saudi Arabia",
-            "website": "https://www.ksu.edu.sa",
-            "type": "University",
-            "description": (
-                "Saudi Arabia's first university with extensive Arabic NLP "
-                "research including text mining, NER, and corpus development."
-            ),
-        },
-        {
-            "name": "King Fahd University of Petroleum and Minerals",
-            "name_ar": "جامعة الملك فهد للبترول والمعادن",
-            "acronym": "KFUPM",
-            "city": "Dhahran",
-            "country_code": "SA",
-            "country_name": "Saudi Arabia",
-            "website": "https://www.kfupm.edu.sa",
-            "type": "University",
-            "description": (
-                "Top Saudi technical university with AI and NLP research "
-                "including Arabic information retrieval and text processing."
-            ),
-        },
-        {
-            "name": "Khalifa University",
-            "name_ar": "جامعة خليفة",
-            "acronym": "KU",
-            "city": "Abu Dhabi",
-            "country_code": "AE",
-            "country_name": "United Arab Emirates",
-            "website": "https://www.ku.ac.ae",
-            "type": "University",
-            "description": (
-                "UAE research university with AI and robotics center, "
-                "contributing to Arabic NLP and language modeling."
-            ),
-        },
-        {
-            "name": "Mohamed bin Zayed University of Artificial Intelligence",
-            "name_ar": "جامعة محمد بن زايد للذكاء الاصطناعي",
-            "acronym": "MBZUAI",
-            "city": "Abu Dhabi",
-            "country_code": "AE",
-            "country_name": "United Arab Emirates",
-            "website": "https://mbzuai.ac.ae",
-            "type": "University",
-            "description": (
-                "World's first graduate-level AI university. Key contributor "
-                "to Jais Arabic LLM and Arabic NLP research."
-            ),
-        },
-        {
-            "name": "Qatar University",
-            "name_ar": "جامعة قطر",
-            "acronym": "QU",
-            "city": "Doha",
-            "country_code": "QA",
-            "country_name": "Qatar",
-            "website": "https://www.qu.edu.qa",
-            "type": "University",
-            "description": (
-                "Qatar's national university with CS and engineering research "
-                "in Arabic NLP, text mining, and information retrieval."
-            ),
-        },
-        {
-            "name": "American University of Beirut",
-            "name_ar": "الجامعة الأمريكية في بيروت",
-            "acronym": "AUB",
-            "city": "Beirut",
-            "country_code": "LB",
-            "country_name": "Lebanon",
-            "website": "https://www.aub.edu.lb",
-            "type": "University",
-            "description": (
-                "Premier Lebanese university with CS faculty contributing to "
-                "Arabic NLP, sentiment analysis, and Levantine dialect processing."
-            ),
-        },
-        {
-            "name": "Jordan University of Science and Technology",
-            "name_ar": "جامعة العلوم والتكنولوجيا الأردنية",
-            "acronym": "JUST",
-            "city": "Irbid",
-            "country_code": "JO",
-            "country_name": "Jordan",
-            "website": "https://www.just.edu.jo",
-            "type": "University",
-            "description": (
-                "Jordan's top technical university with research in "
-                "Arabic NLP, machine translation, and text mining."
-            ),
-        },
-        {
-            "name": "Sultan Qaboos University",
-            "name_ar": "جامعة السلطان قابوس",
-            "acronym": "SQU",
-            "city": "Muscat",
-            "country_code": "OM",
-            "country_name": "Oman",
-            "website": "https://www.squ.edu.om",
-            "type": "University",
-            "description": (
-                "Oman's premier national university with CS department "
-                "active in Arabic information retrieval and NLP."
-            ),
-        },
-        {
-            "name": "University of Khartoum",
-            "name_ar": "جامعة الخرطوم",
-            "acronym": "UofK",
-            "city": "Khartoum",
-            "country_code": "SD",
-            "country_name": "Sudan",
-            "website": "https://www.uofk.edu",
-            "type": "University",
-            "description": (
-                "Sudan's oldest university with computer science research "
-                "in Arabic text processing and Sudanese dialect NLP."
-            ),
-        },
-        {
-            "name": "KINDI Center for Computing Research",
-            "name_ar": "مركز الكندي لأبحاث الحوسبة",
-            "acronym": "KINDI",
-            "city": "Doha",
-            "country_code": "QA",
-            "country_name": "Qatar",
-            "website": "https://www.qu.edu.qa/research/kindi",
-            "type": "Research Center",
-            "description": (
-                "Computing research center at Qatar University, "
-                "focused on Arabic text analytics and cybersecurity NLP."
-            ),
-        },
-    ]
+    ARABIC_INSTITUTIONS = _institutions_data.get('arabic_institutions', [])
 
     def _import_north_african_institutions(self):
         """Import curated North African NLP institutions."""
@@ -986,47 +593,51 @@ class InstitutionScraper(BaseScraper):
 
         for item in self.NORTH_AFRICAN_INSTITUTIONS:
             name = item["name"]
-            if Institution.objects.filter(name_en__iexact=name).exists():
+            name_en = name
+            if self.is_duplicate(name_en, "institutions", Institution):
                 self.items_skipped += 1
                 continue
 
             country = self.get_or_create_country(
-                item["country_name"], item["country_code"],
+                item["country_name"],
+                item["country_code"],
             )
             city = item.get("city", "")
-            address = f"{city}, {item['country_name']}" if city else item["country_name"]
+            address = (
+                f"{city}, {item['country_name']}" if city else item["country_name"]
+            )
 
-            try:
-                Institution.objects.create(
-                    name=name,
-                    name_en=name,
-                    name_ar=item.get("name_ar", name),
-                    acronym=item.get("acronym", "")[:20],
-                    type=item.get("type", "University"),
-                    country=country,
-                    city=city,
-                    city_en=city,
-                    city_ar=city,
-                    website=item.get("website", ""),
-                    address=address,
-                    address_en=address,
-                    address_ar=address,
-                    description=item.get("description", ""),
-                    description_en=item.get("description", ""),
-                    description_ar=item.get("description", ""),
-                    created_by=self.get_system_user(),
-                )
-                self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(name, 80),
+            institution, enriched_item = self._create_institution_with_enrichment(
+                name_en=name,
+                name_ar=item.get("name_ar", name),
+                acronym=item.get("acronym", "")[:20],
+                institution_type=item.get("type", "University"),
+                country=country,
+                city_en=city,
+                city_ar=city,
+                description_en=item.get("description", ""),
+                description_ar=item.get("description", ""),
+                website=item.get("website", ""),
+                email=item.get("email", ""),
+                phone=item.get("phone", ""),
+                address_en=address,
+                address_ar=address,
+                logo_url=item.get("logo_url", ""),
+                research_specialties=item.get("research_specialties", []),
+            )
+            if institution is None:
+                continue
+
+            self.items_created += 1
+            self.results.append(
+                {
+                    "title": self.truncate(enriched_item.get("name_en", name), 80),
                     "type": item.get("type", "University"),
                     "country": item["country_name"],
                     "city": city,
-                    "url": item.get("website", ""),
-                })
-            except Exception as exc:
-                self.errors.append(f"Failed to create institution '{name}': {exc}")
-                logger.error("Failed to create institution %s: %s", name, exc)
+                    "url": enriched_item.get("website", item.get("website", "")),
+                }
+            )
 
     def _import_arabic_institutions(self):
         """Import curated Arabic/Gulf NLP institutions."""
@@ -1034,44 +645,62 @@ class InstitutionScraper(BaseScraper):
 
         for item in self.ARABIC_INSTITUTIONS:
             name = item["name"]
-            if Institution.objects.filter(name_en__iexact=name).exists():
+            name_en = name
+            if self.is_duplicate(name_en, "institutions", Institution):
                 self.items_skipped += 1
                 continue
 
             country = self.get_or_create_country(
-                item["country_name"], item["country_code"],
+                item["country_name"],
+                item["country_code"],
             )
             city = item.get("city", "")
-            address = f"{city}, {item['country_name']}" if city else item["country_name"]
+            address = (
+                f"{city}, {item['country_name']}" if city else item["country_name"]
+            )
 
-            try:
-                Institution.objects.create(
-                    name=name,
-                    name_en=name,
-                    name_ar=item.get("name_ar", name),
-                    acronym=item.get("acronym", "")[:20],
-                    type=item.get("type", "University"),
-                    country=country,
-                    city=city,
-                    city_en=city,
-                    city_ar=city,
-                    website=item.get("website", ""),
-                    address=address,
-                    address_en=address,
-                    address_ar=address,
-                    description=item.get("description", ""),
-                    description_en=item.get("description", ""),
-                    description_ar=item.get("description", ""),
-                    created_by=self.get_system_user(),
+            validation_item = {
+                "name_en": name,
+            }
+            is_valid, validation_item, reason = self.validate_and_prepare(
+                validation_item, "institutions"
+            )
+            if not is_valid:
+                self.items_skipped += 1
+                logger.debug(
+                    "Skipping institution '%s' due to validation: %s", name, reason
                 )
-                self.items_created += 1
-                self.results.append({
-                    "title": self.truncate(name, 80),
+                continue
+            name = validation_item.get("name_en") or name
+
+            institution, enriched_item = self._create_institution_with_enrichment(
+                name_en=name,
+                name_ar=item.get("name_ar", name),
+                acronym=item.get("acronym", "")[:20],
+                institution_type=item.get("type", "University"),
+                country=country,
+                city_en=city,
+                city_ar=city,
+                description_en=item.get("description", ""),
+                description_ar=item.get("description", ""),
+                website=item.get("website", ""),
+                email=item.get("email", ""),
+                phone=item.get("phone", ""),
+                address_en=address,
+                address_ar=address,
+                logo_url=item.get("logo_url", ""),
+                research_specialties=item.get("research_specialties", []),
+            )
+            if institution is None:
+                continue
+
+            self.items_created += 1
+            self.results.append(
+                {
+                    "title": self.truncate(enriched_item.get("name_en", name), 80),
                     "type": item.get("type", "University"),
                     "country": item["country_name"],
                     "city": city,
-                    "url": item.get("website", ""),
-                })
-            except Exception as exc:
-                self.errors.append(f"Failed to create institution '{name}': {exc}")
-                logger.error("Failed to create institution %s: %s", name, exc)
+                    "url": enriched_item.get("website", item.get("website", "")),
+                }
+            )

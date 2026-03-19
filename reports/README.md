@@ -1,458 +1,849 @@
-# Arabic NLP Platform — Chatbot Module
+# 🕷️ Web Scraping Module — NLP Platform
 
-## Overview
+## Table of Contents
 
-The chatbot is a **RAG-based (Retrieval-Augmented Generation) conversational AI** system built for the Arabic NLP Research Platform. It helps researchers and students navigate the platform, explore Arabic NLP concepts, query legal frameworks, upload and analyse documents, and search platform content — all in **Arabic, French, and English**.
+1. [What is Web Scraping?](#what-is-web-scraping)
+2. [Module Overview](#module-overview)
+3. [Architecture](#architecture)
+4. [Scrapers in Detail](#scrapers-in-detail)
+5. [Data Sources](#data-sources)
+6. [Models & Database](#models--database)
+7. [Admin Panel Integration](#admin-panel-integration)
+8. [Running Scrapers](#running-scrapers)
+9. [How Each Scraper Works](#how-each-scraper-works)
+10. [Safety & Data Quality](#safety--data-quality)
+11. [Configuration & Customisation](#configuration--customisation)
+12. [Troubleshooting](#troubleshooting)
+13. [File Structure](#file-structure)
 
-The system is split into two layers:
+---
 
-| Layer | Technology | Role |
-|-------|-----------|------|
-| **Backend API** | FastAPI (Python 3.11) | RAG pipeline, LLM inference, vector search, document processing |
-| **Frontend Proxy** | Django (Plateforme) | Authentication, UI rendering, session bridging, rate limiting |
+## What is Web Scraping?
+
+**Web scraping** is the automated process of extracting data from websites and online APIs. Instead of manually copying information, a scraper program sends HTTP requests to web pages or APIs, parses the returned content (HTML, JSON, XML), and extracts structured data.
+
+In the context of this NLP platform, web scraping is used to **automatically discover and import** academic resources related to Natural Language Processing (NLP) — including conferences, tools, research papers, courses, and institutions — from credible sources on the internet.
+
+### How It Works (Simplified)
+
+```
+1. Scraper sends HTTP request  →  Target API / Website
+2. Target responds with data   →  JSON / XML / HTML
+3. Scraper parses the response →  Extracts structured fields
+4. Data is validated           →  Duplicate check, field validation
+5. Records created in database →  Django model instances (pending approval)
+```
+
+### Why Not Just Manual Entry?
+
+| Manual Entry | Web Scraping |
+|---|---|
+| Time-consuming | Automated in seconds |
+| Limited by human effort | Can process hundreds of records |
+| May miss updates | Can be re-run to catch new data |
+| Prone to typos | Consistent, structured data |
+| Doesn't scale | Easily expandable with new sources |
+
+---
+
+## Module Overview
+
+The scraping module is a standalone Django app (`scraping/`) that provides:
+
+- **5 specialised scrapers** — one for each resource category (Events, Tools, News, Courses, Institutions)
+- **Admin-only access** — only platform administrators can trigger scrapers
+- **Professional dashboard** — a tabbed interface inside the admin panel with real-time feedback
+- **Run logging** — every scraping execution is recorded with status, item counts, and errors
+- **Duplicate detection** — scrapers check for existing records before creating new ones
+- **Elasticsearch safety** — ES indexing is temporarily disabled during scraping to prevent signal crashes
+- **Pending approval workflow** — all scraped items are created with `approval_status='pending'` so admins can review them
+
+### What Gets Scraped
+
+| Category | Target Model | Sources | Typical Yield |
+|---|---|---|---|
+| **Events** | `events.Event` | WikiCFP + ConferenceAlerts (Algeria, Morocco, Tunisia, Egypt) + AllConferenceAlert Algeria + 22 curated Arabic/MENA events | ~30 events |
+| **Tools** | `resources.NLPTool` | HuggingFace Hub API (14 queries) + 10 curated LLMs/speech models + 7 Arabic datasets | ~70 tools |
+| **News** | `QA.Post` | arXiv API + Semantic Scholar (with retry/backoff) | ~20 papers |
+| **Courses** | `resources.Course` | MIT OCW + Coursera (7 NLP courses) + YouTube (7 playlists) + 10 curated | ~34 courses |
+| **Institutions** | `institutions.Institution` | ROR + OpenAlex + 10 Algerian + 10 African/Arabic labs + 10 North African + 10 Arabic/Gulf | ~108 institutions |
 
 ---
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         User Browser                             │
-│                    (chat.html — JavaScript)                       │
-└────────────────┬─────────────────────────────────────────────────┘
-                 │  HTTP (JSON)
-                 ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              Django — chatbot/views.py                            │
-│  • Authentication (@login_required)                              │
-│  • Rate limiting (30 req/min per user)                           │
-│  • Mode routing (conversation, quick, legal, platform, upload,   │
-│    ask_document)                                                 │
-│  • File validation (PDF, DOCX, TXT, XLSX — max 20 MB)           │
-│  • Session bridging (Django ChatSession ↔ FastAPI session_id)    │
-│  • User profile injection (name, institution, speciality)        │
-└────────────────┬─────────────────────────────────────────────────┘
-                 │  HTTP (internal network)
-                 ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              FastAPI — app/main.py (v4.0.0)                      │
-│  • 18+ REST endpoints                                            │
-│  • RAG orchestration via ChatLogic                               │
-│  • Intent classification → query routing → LLM generation        │
-│  • Async SQLAlchemy + Qdrant + Elasticsearch                     │
-└───┬──────────┬──────────┬──────────┬──────────┬──────────────────┘
-    │          │          │          │          │
-    ▼          ▼          ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────────┐
-│Postgres│ │ Qdrant │ │Elastic │ │ Redis  │ │ Celery Worker  │
-│(pgvec) │ │(vector)│ │(search)│ │(cache) │ │(doc processing)│
-└────────┘ └────────┘ └────────┘ └────────┘ └────────────────┘
-                                                    │
-                                                    ▼
-                                              ┌──────────┐
-                                              │ Groq API │
-                                              │(LLaMA 3) │
-                                              └──────────┘
-```
-
----
-
-## RAG Pipeline (Per Conversation Turn)
-
-The core pipeline is implemented in `app/services/chat_logic.py`:
+### System Diagram
 
 ```
-User Question
-     │
-     ▼
-1. Language Detection ─── langdetect + Arabic script heuristic → ar / fr / en
-     │
-     ▼
-2. Intent Classification ─── heuristic pattern matching (7 intents)
-     │                        • conceptual_question
-     │                        • platform_query
-     │                        • legal_query
-     │                        • document_query
-     │                        • user_query
-     │                        • metadata_query
-     │                        • general_knowledge
-     │
-     ▼
-3. Query Routing ─── directs to the correct data source(s)
-     │   ├── conceptual_question → Qdrant hybrid search (all collections)
-     │   ├── platform_query     → Elasticsearch + PostgreSQL
-     │   ├── legal_query        → Qdrant (legal_documents collection)
-     │   ├── document_query     → Qdrant (document_chunks, owner-scoped)
-     │   ├── user_query         → PostgreSQL (user profile lookup)
-     │   ├── metadata_query     → PostgreSQL (platform stats)
-     │   └── general_knowledge  → Direct LLM (no retrieval)
-     │
-     ▼
-4. Context Assembly
-     │   ├── Retrieved documents (weighted, deduplicated, reranked)
-     │   ├── Platform data (verified facts — highest priority)
-     │   ├── Navigation hints (platform links)
-     │   ├── User profile (injected only for identity queries)
-     │   └── Conversation memory (recent messages + rolling summary)
-     │
-     ▼
-5. LLM Generation ─── Groq API (LLaMA 3.3 70B)
-     │   ├── Trilingual system prompts (ar / fr / en)
-     │   ├── Source-specific rules (legal, platform, etc.)
-     │   └── Mandatory rules (no hallucinated dates, source citations, etc.)
-     │
-     ▼
-6. Persist ─── Save user + assistant messages to PostgreSQL
-               Auto-title session from first question
+┌─────────────────────────────────────────────────┐
+│                  Admin Panel                     │
+│  ┌─────────────────────────────────────────────┐ │
+│  │        Scraping Dashboard (AJAX)            │ │
+│  │  [Events] [Tools] [News] [Courses] [Inst.] │ │
+│  │        ▼ Click "Run Scraper"                │ │
+│  └─────────────────────────────────────────────┘ │
+│           │ POST /scraping/run/<category>/       │
+│           ▼                                      │
+│  ┌─────────────────────────────────────────────┐ │
+│  │           views.py → run_scraper()          │ │
+│  │  1. Create ScrapingRun (status=running)     │ │
+│  │  2. Get scraper instance from registry      │ │
+│  │  3. Call scraper.run()                      │ │
+│  │  4. Update ScrapingRun (status=completed)   │ │
+│  │  5. Return JSON response                    │ │
+│  └─────────────────────────────────────────────┘ │
+│           │                                      │
+│           ▼                                      │
+│  ┌─────────────────────────────────────────────┐ │
+│  │          BaseScraper.run()                  │ │
+│  │  • Disable ES indexing (monkey-patch)       │ │
+│  │  • Call self.scrape() (abstract)            │ │
+│  │  • Re-enable ES indexing                    │ │
+│  │  • Return summary dict                     │ │
+│  └─────────────────────────────────────────────┘ │
+│           │                                      │
+│           ▼                                      │
+│  ┌──────────────────────────────────────┐        │
+│  │ Concrete Scraper (e.g. EventScraper) │        │
+│  │  • HTTP requests to external APIs    │        │
+│  │  • Parse responses                   │        │
+│  │  • Create Django model instances     │        │
+│  │  • Track created/skipped counts      │        │
+│  └──────────────────────────────────────┘        │
+│           │                                      │
+│           ▼                                      │
+│  ┌──────────────────────────────────────┐        │
+│  │     PostgreSQL Database               │        │
+│  │  Event, NLPTool, Course, Post,       │        │
+│  │  Institution, ScrapingRun tables     │        │
+│  └──────────────────────────────────────┘        │
+└─────────────────────────────────────────────────┘
+```
+
+### Key Design Decisions
+
+1. **Abstract Base Class (`BaseScraper`)** — All scrapers inherit from a common base that provides HTTP session management, date parsing, system user creation, country/institution helpers, and ES signal safety.
+
+2. **Registry Pattern** — Scrapers are registered in `scrapers/__init__.py` via a `SCRAPERS` dictionary. The view layer looks up scrapers by category key, making it easy to add new scrapers.
+
+3. **Synchronous Execution** — Scrapers run synchronously within the Django request. Since they typically complete in 5–30 seconds, there's no need for Celery task queues.
+
+4. **Curated Fallback Data** — Events and Courses scrapers include hardcoded lists of well-known NLP conferences and courses. This ensures meaningful data even when external APIs are unavailable.
+
+5. **ES Signal Monkey-Patching** — The platform uses `django-elasticsearch-dsl` which triggers indexing on every `post_save`. During scraping (which creates many records), this is temporarily disabled to prevent performance issues and potential crashes.
+
+---
+
+## Scrapers in Detail
+
+### 1. Events Scraper (`scrapers/events.py`)
+
+**What it does:** Discovers NLP conferences, workshops, and events.
+
+**Sources:**
+- **WikiCFP** (wikicfp.com) — Scrapes the Call For Papers website for NLP-related events by searching for keywords ("natural language processing", "NLP", "computational linguistics"). Parses HTML tables using BeautifulSoup.
+- **ConferenceAlerts Algeria** (conferencealerts.co.in/algeria) — Scrapes upcoming academic conferences in Algeria. Extracts title, dates, city, and links from cards/lists.
+- **AllConferenceAlert Algeria** (allconferencealert.com/algeria.html) — Alternative Algerian conference source. Parses table rows for title, date, city, and category.
+- **Curated List** — 12 major NLP conferences manually maintained in the source code (ACL, EMNLP, NAACL, COLING, EACL, AAAI, IJCNLP-AACL, ArabicNLP, LREC-COLING, SIGIR, NeurIPS, WANLP).
+
+**How it works:**
+1. Tries WikiCFP search with 3 different queries
+2. Scrapes ConferenceAlerts Algeria and AllConferenceAlert Algeria for regional events
+3. Parses HTML rows (2 rows per event: title + dates/location)
+4. Falls back to curated event list
+5. For each event, resolves the organising institution (creates if needed)
+6. Creates `events.Event` with all fields filled (title, description, dates, location, organizer, etc.)
+
+**Target Model Fields (`events.Event`):**
+- `title` / `title_en` / `title_ar` — Event name in both languages
+- `description` / `description_en` / `description_ar` — Full description
+- `event_type` — conference, workshop, seminar, etc.
+- `domains` — NLP sub-domains (comma-separated)
+- `location` / `location_en` / `location_ar` — Venue city+country
+- `start_date`, `end_date`, `submission_deadline` — Key dates
+- `website` — Official event URL
+- `contact_email` — Contact address
+- `organizer` — FK to `institutions.Institution`
+- `created_by` — FK to the system scraper user
+- `approval_status` — Set to `"pending"`
+
+### 2. Tools Scraper (`scrapers/tools.py`)
+
+**What it does:** Discovers NLP tools and models from the HuggingFace Hub.
+
+**Sources:**
+- **HuggingFace Hub API** (`huggingface.co/api/models`) — A REST API that returns metadata for machine learning models. Searched with 14 queries focused on Arabic NLP, LLMs, and speech models.
+- **Curated Arabic LLMs** — 10 handpicked Arabic/multilingual LLMs and NLP toolkits including Jais (13B/30B), AceGPT, ALLaM, Whisper Arabic, MMS, CAMeL Tools, FARASA, Stanza Arabic, and AraBERT v2.
+- **Curated Arabic Datasets** — 7 HuggingFace datasets for Arabic NLP: Arabic Speech Corpus, HARD (sentiment), ARCD (QA), LABR (reviews), WikiANN-Arabic (NER), Calliar (Algerian dialect), NADI (dialect identification).
+
+**How it works:**
+1. Sends 14 separate API queries (arabic nlp, camelbert, arabert, arabic speech recognition, jais arabic, arabic llm, etc.)
+2. Deduplicates by model ID across queries
+3. Maps HuggingFace pipeline tags to platform tool types (e.g., `text-classification` → `sentiment_analysis`)
+4. Maps language tags (ar, en, fr, es) to platform language codes
+5. Imports curated LLM tools and speech models with detailed descriptions
+6. Imports curated Arabic datasets as NLPTool entries prefixed with `[Dataset]`
+7. Creates `resources.NLPTool` with model details, download counts, tags, and link
+
+**Target Model Fields (`resources.NLPTool`):**
+- `title` / `title_en` / `title_ar` — Human-readable model name
+- `description` / `description_en` / `description_ar` — Model details (author, pipeline, downloads, tags)
+- `tool_type` — Mapped from pipeline tag  
+- `version` — Set to `"latest"`
+- `access_link` — HuggingFace model page URL
+- `documentation_link` — Same as access link
+- `supported_languages` — Primary language code
+- `language` — Content language
+- `keywords` — From model tags
+
+### 3. News Scraper (`scrapers/news.py`)
+
+**What it does:** Discovers recent NLP research papers from academic databases.
+
+**Sources:**
+- **arXiv API** (`export.arxiv.org/api/query`) — Queries the cs.CL (Computation & Language) category for recent papers about Arabic/NLP/language models. Returns Atom XML.
+- **Semantic Scholar API** (`api.semanticscholar.org`) — Searches for Arabic NLP papers from 2024–2025. Returns JSON.
+
+**How it works:**
+1. Queries arXiv for 20 most recent cs.CL papers matching Arabic/NLP keywords
+2. Parses Atom XML to extract title, authors, abstract, links, categories
+3. Queries Semantic Scholar for 15 Arabic NLP papers
+4. For each paper, creates a `QA.Post` (the platform's news model) with:
+   - Rich markdown content (authors, abstract, links to full paper/PDF)
+   - Unique slug generated from title
+
+**Target Model Fields (`QA.Post`):**
+- `title` / `title_en` / `title_ar` — Paper title
+- `content` / `content_en` / `content_ar` — Markdown body with authors, abstract, links
+- `slug` — URL-safe unique identifier
+- `author` — FK to system scraper user
+- `approval_status` — Set to `"pending"`
+
+### 4. Courses Scraper (`scrapers/courses.py`)
+
+**What it does:** Discovers NLP courses from universities.
+
+**Sources:**
+- **MIT OpenCourseWare API** (`ocw.mit.edu/api/v0/search/`) — Searches for NLP-related courses. May return 404 if API is deprecated.
+- **Coursera** — 7 curated NLP courses: NLP Specialization (DeepLearning.AI), ML with Python (IBM), Deep Learning Specialization (Andrew Ng), Intro to LLMs (Google Cloud), Applied Text Mining (U Michigan), Prompt Engineering (Vanderbilt), Arabic for Beginners (Al-Azhar).
+- **YouTube Playlists** — 7 curated NLP video playlists: Arabic NLP Full Course, Stanford CS224N, HuggingFace NLP Course, NLP Zero to Hero (Arabic subtitles), ML in Arabic (Hesham Asem), CMU CS 11-747, Arabic AI and Deep Learning.
+- **Curated List** — 10 well-known NLP courses from top universities (Stanford CS224N, CMU CS11-711, MIT 6.8610, McGill COMP 550, Oxford DL-NLP, NYU Abu Dhabi Arabic NLP, HuggingFace Course, Stanford SLP, ETH Multilingual NLP, UIUC Text Mining).
+
+**How it works:**
+1. Tries MIT OCW API search
+2. Imports Coursera NLP courses (creates institution per course provider)
+3. Imports YouTube NLP playlists (creates "YouTube Educational Content" institution)
+4. Imports curated university courses with full syllabi
+5. For each course, resolves/creates the university institution
+6. Creates `resources.Course` with all academic details
+
+**Target Model Fields (`resources.Course`):**
+- `title` / `title_en` / `title_ar` — Course name
+- `description` / `description_en` / `description_ar` — Course overview
+- `field` — NLP sub-field (nlp, ml, text_mining, etc.)
+- `academic_level` — bachelor / master
+- `teacher` — FK to system user
+- `institution` — FK to `institutions.Institution`
+- `academic_year` — Auto-generated (e.g., "2025-2026")
+- `access_link` — Course website
+- `language` — Content language
+- `keywords` — NLP-related keywords
+- `prerequisites` — Required background
+- `syllabus` — Week-by-week topics
+
+### 5. Institutions Scraper (`scrapers/institutions.py`)
+
+**What it does:** Discovers universities and research centres active in NLP.
+
+**Sources:**
+- **ROR API v2** (`api.ror.org/organizations`) — The Research Organization Registry, a community-led registry of research organisations. Searched with 4 queries. Uses v2 format (names/locations/links arrays).
+- **OpenAlex API** (`api.openalex.org/institutions`) — Open scholarly metadata. Searched for institutions with NLP/Arabic research output.
+- **Algerian Universities** — 10 curated Algerian institutions: USTHB, University of Algiers 1, University of Oran 1, University of Constantine 1, ESI, University of Tlemcen, University of Béjaïa, University of Batna 2, University of Blida 1, and CERIST (research centre).
+- **African & Arabic NLP Labs** — 10 curated research labs and institutions: Masakhane NLP (South Africa), InstaDeep (Tunisia), Cairo University FCAI (Egypt), KACST (Saudi Arabia), AIMS (Rwanda), UCT NLP Group (South Africa), UM6P (Morocco), QCRI (Qatar), NYU Abu Dhabi CAMeL Lab (UAE), KAUST (Saudi Arabia).
+
+**How it works:**
+1. Queries ROR with 4 keywords, deduplicates by ROR ID
+2. Parses v2 format: extracts display name from `names[]`, location from `locations[].geonames_details`, website from `links[]`
+3. Queries OpenAlex for 15 institutions
+4. Imports 10 curated Algerian universities with bilingual fields (Arabic/English)
+5. Imports 10 curated African and Arabic NLP laboratories
+6. Parses geo data, works count, and citations count
+7. Creates `institutions.Institution` with detailed descriptions
+
+**Target Model Fields (`institutions.Institution`):**
+- `name` / `name_en` / `name_ar` — Institution name
+- `acronym` — Short form (e.g., "MIT")
+- `type` — University, Research Center, Other
+- `country` — FK to `institutions.Country`
+- `city` / `city_en` / `city_ar` — City name
+- `website` — Official URL
+- `email` — Contact email
+- `phone` — Contact phone
+- `address` / `address_en` / `address_ar` — Physical address
+- `description` / `description_en` / `description_ar` — Institution overview
+- `created_by` — FK to system scraper user
+
+---
+
+## Models & Database
+
+The scraping app defines four models in `scraping/models.py`:
+
+### ScrapingSource
+
+Configurable source definition (currently populated via admin):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `name` | CharField | Source name |
+| `category` | CharField | events / tools / news / courses / institutions |
+| `base_url` | URLField | Source URL |
+| `description` | TextField | Source description |
+| `is_active` | BooleanField | Whether source is enabled |
+| `last_scraped` | DateTimeField | Last successful scrape |
+| `created_at` | DateTimeField | Auto-set on creation |
+
+### ScrapingRun
+
+Log of each scraping execution:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `category` | CharField | Which scraper was run |
+| `status` | CharField | running / completed / failed |
+| `items_found` | PositiveIntegerField | Total items discovered |
+| `items_created` | PositiveIntegerField | New items created in DB |
+| `items_skipped` | PositiveIntegerField | Items skipped (duplicates) |
+| `errors` | TextField | Error messages (newline-separated) |
+| `started_at` | DateTimeField | When the run started |
+| `completed_at` | DateTimeField | When the run finished |
+| `triggered_by` | ForeignKey(User) | Admin who triggered it |
+| `duration` | Property | Computed from started_at/completed_at |
+
+### ScrapingSourceHealth
+
+Per-source health tracking with circuit breaker state (Phase 5):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `category` | CharField | Scraper category |
+| `source_name` | CharField | Logical source name (e.g. "WikiCFP") |
+| `base_url` | URLField | Source base URL |
+| `total_attempts` | PositiveIntegerField | Lifetime request count |
+| `total_successes` | PositiveIntegerField | Successful requests |
+| `total_failures` | PositiveIntegerField | Failed requests |
+| `consecutive_failures` | PositiveIntegerField | Current failure streak |
+| `health_score` | FloatField | 0–100, decays on failure, recovers on success |
+| `circuit_state` | CharField | closed / open / half_open |
+| `circuit_opened_at` | DateTimeField | When circuit was tripped |
+| `circuit_cooldown_seconds` | PositiveIntegerField | Seconds before half-open probe |
+| `last_attempt_at` | DateTimeField | Most recent request time |
+| `last_success_at` | DateTimeField | Most recent success |
+| `last_failure_at` | DateTimeField | Most recent failure |
+| `avg_response_time` | FloatField | Exponential moving average (seconds) |
+| `last_error` | TextField | Most recent error message |
+
+### ScrapedItemMeta
+
+Per-item intelligence metadata created by the scoring pipeline (Phase 6):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `category` | CharField | events / tools / news / courses / institutions |
+| `item_title` | CharField(300) | Title of the scored item |
+| `item_id` | UUIDField | Optional FK reference to the original model record |
+| `domain_scores` | JSONField | Dict of domain → confidence (e.g. `{"arabic_nlp": 0.6}`) |
+| `primary_domain` | CharField | Best-matching domain or `"general"` |
+| `relevance_score` | FloatField | 0–100 composite score |
+| `created_at` | DateTimeField | Auto-set on creation |
+| `updated_at` | DateTimeField | Auto-updated |
+
+Indexed on `(category, primary_domain)` and `-relevance_score`.
+
+---
+
+## Admin Panel Integration
+
+The scraping dashboard is accessible **only to administrators** through the admin panel sidebar.
+
+### Access Control
+
+- Views are protected with `@login_required` + `@user_passes_test(is_admin)` decorators
+- `is_admin` checks `user.is_staff or user.is_superuser`
+- The scraping link appears in the admin sidebar (in `base_admin.html`), not in the main user sidebar
+
+### Template Inheritance
+
+```
+base_admin.html
+    └── scraping/dashboard.html
+```
+
+The dashboard extends `base_admin.html` and renders inside the admin panel layout with the standard admin sidebar navigation.
+
+### URL Routing
+
+```
+/<lang>/scraping/                → scraping:dashboard   (GET)
+/<lang>/scraping/run/<category>/ → scraping:run_scraper  (POST, AJAX)
+```
+
+URLs are defined in `scraping/urls.py` and included in the main URL configuration under `i18n_patterns`.
+
+---
+
+## Running Scrapers
+
+### Method 1: Admin Dashboard (Recommended)
+
+1. Log in as an admin user
+2. Navigate to the **Admin Panel** from the sidebar
+3. Click **Web Scraping** in the admin sidebar
+4. Select a category tab (Events, Tools, News, Courses, Institutions)
+5. Click **"Run Scraper"**
+6. Watch real-time progress (loading spinner → summary + results table)
+
+### Method 2: Management Command (CLI)
+
+```bash
+# Run a specific scraper
+python manage.py run_scraper --category events
+python manage.py run_scraper --category tools
+python manage.py run_scraper --category news
+python manage.py run_scraper --category courses
+python manage.py run_scraper --category institutions
+
+# Run ALL scrapers sequentially
+python manage.py run_scraper --all
+```
+
+### Method 3: Inside Docker
+
+```bash
+docker compose exec web python manage.py run_scraper --all
+docker compose exec web python manage.py run_scraper --category events
 ```
 
 ---
 
-## Knowledge Sources
+## How Each Scraper Works
 
-### 1. Qdrant Vector Collections
+### Execution Flow (All Scrapers)
 
-Five collections store dense vector embeddings (768-dim, `paraphrase-multilingual-mpnet-base-v2`):
+```python
+scraper = get_scraper("events")  # From registry
+result = scraper.run()           # Returns summary dict
+```
 
-| Collection | Content | Boost |
-|-----------|---------|-------|
-| `platform_docs` | Platform feature documentation | ×1.10 |
-| `nlp_knowledge` | Arabic NLP concepts, terminology, techniques | ×1.00 |
-| `resources` | Articles, datasets, projects, tutorials | ×1.00 (+ geo boost) |
-| `legal_documents` | GDPR, EU AI Act, Arab data protection, copyright, ethics | ×1.05 |
-| `document_chunks` | User-uploaded document chunks (owner-scoped) | ×1.15 |
+Inside `run()`:
+1. **Disable ES indexing** — `_disable_es_indexing()` monkey-patches the ES registry
+2. **Call `scrape()`** — The abstract method implemented by each scraper
+3. **Re-enable ES indexing** — `_enable_es_indexing()` restores original methods
+4. **Return summary** — `{"items_created": N, "items_skipped": N, "errors": [...], "results": [...]}`
 
-### 2. Elasticsearch Indices
+### System User
 
-Mirrors Django's search indices for platform content — courses, tools, corpora, events, projects, institutions, users. Returns direct platform URLs.
+All scraped items are attributed to a **system user** (`system@nlp-platform.local`). This user:
+- Is created automatically on first scraper run
+- Has an unusable password (cannot log in)
+- Is created via `bulk_create()` to avoid triggering ES `post_save` signals
+- Is cached in `self._system_user` for the duration of a scraping run
 
-### 3. PostgreSQL
+### Duplicate Detection
 
-Structured data — user profiles, session metadata, platform statistics, navigation.
+Each scraper checks for existing records before creating new ones:
+- **Events**: Checks `title_en__iexact` and `website` uniqueness
+- **Tools**: Checks `access_link` and `title_en__iexact` uniqueness
+- **News**: Checks `title_en__iexact` and `slug` uniqueness
+- **Courses**: Checks `title_en__iexact` uniqueness
+- **Institutions**: Checks `name_en__iexact` uniqueness
 
----
+This means running a scraper multiple times is safe — it will only create new items.
 
-## Hybrid Search & Retrieval
+### Country & Institution Auto-Creation
 
-Implemented in `app/services/retrieval/`:
+The base scraper provides helpers:
+- `get_or_create_country(name_en, code)` — Creates a `Country` if it doesn't exist
+- `get_or_create_institution(name, **kwargs)` — Creates an `Institution` (with country, city, website, etc.) if not found by `name_en__iexact`
 
-- **Hybrid search** (`hybrid.py`): queries all Qdrant collections in parallel, applies per-source weight boosts and geo-proximity boosts
-- **Deduplication** (`reranker.py`): Jaccard similarity at 0.85 threshold removes near-duplicate chunks
-- **Reranking** (`reranker.py`): re-encodes top results and computes fresh cosine similarity against the query
-- **Filters** (`filters.py`): language, jurisdiction, owner_id, session_id payload filters
-
----
-
-## Conversation Memory
-
-Managed by `app/services/memory/session.py`:
-
-- Last **20 messages** retained per session (configurable)
-- **Token budget**: 1,500 tokens for history, 500 for summary
-- **Rolling summarisation**: at 12-message threshold, Celery generates a summary via Groq and stores it on the session
-- Token counting on every persisted message
+These are used by Events (conference organisers) and Courses (universities).
 
 ---
 
-## Document Processing
+## Safety & Data Quality
 
-Upload → Celery → Qdrant pipeline:
+### Approval Workflow
 
-1. **Upload** (`POST /upload_document`): validates file type/size, extracts raw text (PDF, DOCX, TXT, XLSX)
-2. **Celery task** (`app/tasks/document_tasks.py`): chunks text (512 tokens, 64 overlap), generates embeddings, upserts to Qdrant `document_chunks` collection
-3. **Query** (`POST /ask_document`): searches only the user's own document chunks in Qdrant, generates answer via Groq
+All scraped items are created with `approval_status='pending'`. This means:
+- They appear in the admin panel's pending approval queue
+- They are **not visible** to regular users until an admin approves them
+- Admins can review, edit, or reject items before they go live
 
-Supported file types: `.pdf`, `.docx`, `.doc`, `.txt`, `.xlsx` (max 20 MB)
+### Rate Limiting & Politeness
 
----
+- Each scraper uses a shared `requests.Session` with **rotating User-Agent** strings (5-agent pool)
+- Default timeout is 30 seconds (configurable via `DEFAULT_TIMEOUT` class attribute)
+- Transient failures (429, 5xx, connection errors, timeouts) trigger **automatic retry with exponential back-off**
+- Base backoff is 2s, doubling per attempt, capped at 60s (configurable via `BACKOFF_BASE` / `BACKOFF_MAX`)
+- Max retries default to 3 (configurable via `MAX_RETRIES`)
+- The HuggingFace scraper limits to ~100 models across 14 queries
+- The ROR and OpenAlex APIs are free and rate-limit-friendly
+- arXiv requests respect the API's built-in pagination
 
-## Chat Modes
+### Circuit Breaker
 
-The Django frontend exposes multiple modes through a single `/chatbot/ask/` endpoint:
+Each external source is tracked by the `ScrapingSourceHealth` model. When a source fails repeatedly:
 
-| Mode | Description | FastAPI Endpoint |
-|------|-------------|-----------------|
-| `conversation` | Full RAG pipeline with session context | `POST /conversation` |
-| `quick` | Stateless quick question (no context) | `POST /query` |
-| `legal` | Legal knowledge base search | `POST /legal_search` |
-| `platform` | Platform content search (courses, tools, etc.) | `POST /platform/search` |
-| `upload` | Upload document for analysis | `POST /upload_document` |
-| `ask_document` | Question about uploaded document(s) | `POST /ask_document` |
+1. **Health score** starts at 100 and loses 15 points per failure / gains 10 per success
+2. Circuit **trips open** when score drops below 25 *or* 3 consecutive failures occur
+3. While open, all requests to that source are **skipped** (no wasted time)
+4. After a cooldown period (default 300s), the circuit moves to **half-open** and allows one probe request
+5. If the probe succeeds the circuit **closes**; if it fails, it **re-opens**
 
----
+Admins can view source health in the Django admin under **Source Health Records**.
 
-## API Endpoints (FastAPI)
+### Error Handling
 
-### Knowledge Retrieval
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/conversation` | Full RAG conversation with session memory |
-| `POST` | `/query` | Quick stateless question |
-| `POST` | `/legal_search` | Legal knowledge base search |
+- Individual item failures don't crash the entire scraper run
+- **Structured errors** are collected in `self.structured_errors` with type, source, URL, timestamp, and extra metadata
+- Legacy `self.errors` list is maintained for backward compatibility
+- The `ScrapingRun` record tracks all errors
+- Network failures are caught by `safe_request()` with per-attempt logging
 
-### Platform Queries
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/platform/search` | Search platform content by type |
-| `GET` | `/platform/stats` | Platform statistics |
-| `GET` | `/platform/articles` | Article lookup by keyword |
+### Elasticsearch Safety
 
-### User Documents
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/upload_document` | Upload PDF/DOCX/TXT/XLSX for analysis |
-| `GET` | `/document_status/{id}` | Check document processing status |
-| `GET` | `/documents/{session_id}` | List documents in a session |
-| `POST` | `/ask_document` | Ask question about uploaded documents |
-
-### Session Management
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/sessions` | Create new chat session |
-| `GET` | `/sessions` | List user sessions |
-| `GET` | `/sessions/{id}/history` | Get session message history |
-| `PATCH` | `/sessions/{id}/title` | Rename session |
-| `POST` | `/sessions/{id}/end` | End (deactivate) session |
-| `DELETE` | `/sessions/{id}` | Delete session and all messages |
-
-### System
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check |
-| `GET` | `/warmup` | Pre-warm embedding model |
+- ES indexing is disabled during scraping via monkey-patching `registry.update` and `registry.delete`
+- This prevents cascading `post_save` signal errors when creating many records
+- Indexing is restored in a `finally` block to guarantee re-enablement
 
 ---
 
-## Data Models
+## Configuration & Customisation
 
-### FastAPI (PostgreSQL)
+### Adding a New Scraper
 
-| Model | Table | Purpose |
-|-------|-------|---------|
-| `PlatformDoc` | `platform_docs` | Platform feature documentation |
-| `NLPKnowledge` | `nlp_knowledge` | Arabic NLP concepts and terminology |
-| `Resource` | `resources` | Research resources (articles, datasets, etc.) |
-| `LegalDocument` | `legal_documents` | Legal/regulatory knowledge base |
-| `UserDocument` | `user_documents` | User-uploaded document metadata |
-| `DocumentChunk` | `document_chunks` | Individual text chunks (vectors in Qdrant) |
-| `ChatSession` | `chat_sessions` | Session tracking with summary and language |
-| `ChatMessage` | `chat_messages` | Message history with token counts |
+1. Create a new file in `scraping/scrapers/` (e.g., `datasets.py`)
+2. Subclass `BaseScraper` and implement `scrape()`:
 
-### Django
+```python
+from .base import BaseScraper
 
-| Model | Purpose |
-|-------|---------|
-| `ChatSession` | Mirrors FastAPI sessions, linked to Django User |
-| `ChatMessage` | Local message copy for history display |
-| `ChatFeedback` | User ratings (1–5) on bot responses |
+class DatasetScraper(BaseScraper):
+    name = "NLP Datasets"
+    category = "datasets"
+
+    def scrape(self):
+        # Your scraping logic here
+        pass
+```
+
+3. Register it in `scraping/scrapers/__init__.py`:
+
+```python
+from .datasets import DatasetScraper
+
+SCRAPERS = {
+    # ... existing scrapers ...
+    "datasets": DatasetScraper,
+}
+
+CATEGORY_META = {
+    # ... existing meta ...
+    "datasets": {
+        "label": "Datasets",
+        "icon": "fa-database",
+        "color": "#f59e0b",
+        "description": "Discover NLP datasets from the web.",
+        "sources": ["HuggingFace Datasets", "Papers With Code"],
+    },
+}
+```
+
+4. Add the category to `ScrapingSource.CATEGORY_CHOICES` in `models.py`
+5. Run `python manage.py makemigrations scraping && python manage.py migrate`
+
+### Modifying Curated Data
+
+- **Events**: Edit `CURATED_EVENTS` list in `scrapers/events.py`
+- **Courses**: Edit `CURATED_COURSES`, `COURSERA_COURSES`, or `YOUTUBE_PLAYLISTS` lists in `scrapers/courses.py`
+- **Tools**: Edit `CURATED_LLM_TOOLS` or `CURATED_DATASETS` lists in `scrapers/tools.py`
+- **Institutions**: Edit `ALGERIAN_UNIVERSITIES` or `AFRICAN_NLP_LABS` lists in `scrapers/institutions.py`
+- **Conference organisers**: Edit `CONFERENCE_ORGS` dict in `scrapers/events.py`
+
+### Adjusting API Limits
+
+- **HuggingFace**: Edit `QUERIES` list in `scrapers/tools.py` (change `limit` values)
+- **arXiv**: Edit `max_results` in `news.py` `_scrape_arxiv()` params
+- **ROR**: Results per query controlled by the API (default ~20)
+- **OpenAlex**: Edit `per_page` in `institutions.py` `_scrape_openalex()` params
 
 ---
 
-## Project Structure
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|---|---|---|
+| "beautifulsoup4 is not installed" | `bs4` not in container | `pip install beautifulsoup4 lxml` inside Docker |
+| WikiCFP returns no results | Site may be down or blocking | Curated events still import; circuit breaker will skip future attempts |
+| MIT OCW returns 404 | API endpoint deprecated | Curated courses still import |
+| Semantic Scholar returns 429 | Rate limit exceeded | Scraper retries 5× with exponential backoff (30s–180s); arXiv data still works |
+| "Circuit open for X — skipping" | Source failed too many times | Check Source Health in admin; health recovers after cooldown |
+| "Scraper error: ..." | Network timeout or API change | Check structured error logs; scraper records partial results |
+| Duplicate items not created | Working as intended | Scraper checks for existing records |
+| Items not visible to users | Pending approval | Admin must approve items in the admin panel |
+
+### Logs
+
+Scraper logs are written to Django's logging system under the `scraping.scrapers` namespace:
+
+```python
+# In settings.py, you can add:
+LOGGING = {
+    'loggers': {
+        'scraping': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
+    },
+}
+```
+
+### Checking Scraping History
+
+In the Django admin (`/admin/`), navigate to:
+- **Scraping Sources** — View/edit source configurations
+- **Scraping Runs** — View all past runs with status, counts, and errors
+- **Source Health Records** — View per-source health scores, circuit breaker states, failure counts, and average response times
+
+Or use the Web Scraping dashboard in the admin panel — each category tab shows its recent runs.
+
+---
+
+## File Structure
 
 ```
-fastapi_chatbot/
-├── app/
-│   ├── main.py                 # FastAPI app, 18+ endpoints, lifespan
-│   ├── config.py               # Pydantic settings (env vars)
-│   ├── db.py                   # Async SQLAlchemy engine + migrations
-│   ├── models.py               # 8 SQLAlchemy models
-│   ├── schemas.py              # Pydantic request/response schemas
-│   ├── celery_app.py           # Celery config (3 queues)
-│   │
-│   ├── services/
-│   │   ├── chat_logic.py       # RAG orchestrator (classify → route → generate)
-│   │   ├── language.py         # Trilingual language detection
-│   │   ├── elasticsearch_service.py  # ES index search (platform content)
-│   │   ├── platform_queries.py # PostgreSQL platform data queries
-│   │   │
-│   │   ├── classifier/         # Intent classification
-│   │   │   ├── engine.py       # Heuristic-based classifier (7 intents)
-│   │   │   └── patterns.py     # Regex patterns for classification
-│   │   │
-│   │   ├── router/             # Query routing
-│   │   │   └── engine.py       # Routes intents to data sources
-│   │   │
-│   │   ├── retrieval/          # Vector search & ranking
-│   │   │   ├── search.py       # Per-collection Qdrant search
-│   │   │   ├── hybrid.py       # Weighted multi-source search
-│   │   │   ├── reranker.py     # Deduplication + cosine reranking
-│   │   │   └── filters.py      # Qdrant payload filters
-│   │   │
-│   │   ├── llm/                # LLM inference
-│   │   │   ├── client.py       # Groq API client (async)
-│   │   │   └── prompts.py      # Trilingual system prompts & rules
-│   │   │
-│   │   ├── memory/             # Conversation memory
-│   │   │   ├── session.py      # Session CRUD + history management
-│   │   │   └── tokens.py       # Token estimation
-│   │   │
-│   │   ├── documents/          # Document processing
-│   │   │   ├── service.py      # Upload, status, listing
-│   │   │   ├── processor.py    # PDF/DOCX/TXT/XLSX text extraction
-│   │   │   └── embeddings.py   # Multilingual sentence-transformer
-│   │   │
-│   │   └── qdrant/             # Vector database
-│   │       ├── client.py       # Qdrant client wrapper
-│   │       └── collections.py  # Collection names & payload schemas
-│   │
-│   ├── tasks/                  # Celery background tasks
-│   │   ├── document_tasks.py   # Chunking + embedding generation
-│   │   ├── ingestion_tasks.py  # Batch knowledge base ingestion
-│   │   ├── summary_tasks.py    # Chat history summarisation
-│   │   └── maintenance_tasks.py # Cleanup & reindexing
-│   │
-│   └── ingestion/              # Knowledge base loaders
-│       ├── ingest_platform_docs.py
-│       ├── ingest_nlp_knowledge.py
-│       ├── ingest_resources.py
-│       ├── ingest_nlp_resources.py
-│       └── ingest_legal_docs.py
+scraping/
+├── __init__.py                  # Django app init
+├── admin.py                     # Django admin registration (ScrapingSource, ScrapingRun, ScrapingSourceHealth, ScrapedItemMeta)
+├── apps.py                      # Django app config
+├── intelligence.py              # Intelligence module (keyword expansion, query gen, domain classification, scoring, trends)
+├── models.py                    # ScrapingSource + ScrapingRun + ScrapingSourceHealth + ScrapedItemMeta models
+├── urls.py                      # URL routing (dashboard + run endpoint)
+├── views.py                     # Dashboard view + AJAX run_scraper endpoint
+├── README.md                    # This documentation
 │
-├── Dockerfile                  # Multi-stage build (Python 3.11 + PyTorch CPU)
-├── requirements.txt            # 20+ dependencies
-└── test_*.py                   # Test files
+├── scrapers/
+│   ├── __init__.py              # Scraper registry (SCRAPERS dict, CATEGORY_META)
+│   ├── base.py                  # BaseScraper abstract class (ES safety, retry/backoff, circuit breaker, UA rotation, intelligence)
+│   ├── events.py                # EventScraper (WikiCFP + curated conferences + MENA events)
+│   ├── tools.py                 # ToolScraper (HuggingFace Hub API)
+│   ├── news.py                  # NewsScraper (arXiv + Semantic Scholar)
+│   ├── courses.py               # CourseScraper (MIT OCW + curated courses)
+│   └── institutions.py          # InstitutionScraper (ROR + OpenAlex + North African + Arabic institutions)
+│
+├── management/
+│   └── commands/
+│       └── run_scraper.py       # CLI: python manage.py run_scraper --category <cat>
+│
+├── migrations/
+│   ├── 0001_initial.py          # Initial migration
+│   ├── 0002_scrapingrun_task_id.py
+│   ├── 0003_add_scraping_source_health.py  # ScrapingSourceHealth model
+│   └── 0004_add_scraped_item_meta.py       # ScrapedItemMeta model (Phase 6)
+│
+└── templates/
+    └── scraping/
+        └── dashboard.html       # Professional admin dashboard (tabbed, AJAX, responsive)
 ```
 
+---
+
+## Dependencies
+
+| Package | Version | Purpose |
+|---|---|---|
+| `requests` | (bundled with Django) | HTTP requests to APIs |
+| `beautifulsoup4` | 4.12.3 | HTML parsing (WikiCFP) |
+| `lxml` | 5.3.0 | Fast HTML/XML parser backend |
+| `python-dateutil` | (bundled) | Fuzzy date parsing |
+
+These are listed in the platform's `requirements.txt`.
+
+---
+
+## API Endpoints Used
+
+| API | Endpoint | Method | Auth |
+|---|---|---|---|
+| WikiCFP | `http://www.wikicfp.com/cfp/servlet/tool.search` | GET | None |
+| ConferenceAlerts | `https://conferencealerts.co.in/algeria` | GET | None |
+| AllConferenceAlert | `https://www.allconferencealert.com/algeria.html` | GET | None |
+| HuggingFace | `https://huggingface.co/api/models` | GET | None |
+| arXiv | `http://export.arxiv.org/api/query` | GET | None |
+| Semantic Scholar | `https://api.semanticscholar.org/graph/v1/paper/search` | GET | None |
+| MIT OCW | `https://ocw.mit.edu/api/v0/search/` | GET | None |
+| ROR | `https://api.ror.org/organizations` | GET | None |
+| OpenAlex | `https://api.openalex.org/institutions` | GET | None (mailto) |
+
+All APIs are **free and open**. No API keys are required.
+
+---
+
+## Phase 4 — Arabic, African & Algerian Source Expansion
+
+Phase 4 expanded every scraper category with regional and specialised sources:
+
+| Scraper | New Sources Added | Items |
+|---|---|---|
+| **Events** | ConferenceAlerts Algeria, AllConferenceAlert Algeria | Algerian academic conferences |
+| **Tools** | 6 new HF queries (speech, LLMs), 10 curated LLMs/toolkits, 7 Arabic datasets | Arabic LLMs (Jais, AceGPT, ALLaM), speech models (Whisper, MMS), NLP toolkits (CAMeL, FARASA, Stanza) |
+| **Courses** | 7 Coursera NLP courses, 7 YouTube NLP playlists | Online courses from DeepLearning.AI, IBM, Google Cloud, Stanford, HuggingFace, Arabic channels |
+| **Institutions** | 10 Algerian universities, 10 African/Arabic NLP labs | USTHB, ESI, CERIST, Masakhane, InstaDeep, QCRI, CAMeL Lab, UM6P, KAUST |
+| **News** | Improved S2 retry (5 retries, exponential backoff, 504/ConnectionError handling) | More reliable paper fetching |
+
+### Semantic Scholar Rate-Limit Fix
+
+The S2 API retry logic was upgraded:
+- **Max retries:** 3 → 5
+- **Backoff:** exponential `min(30 × 2^attempt, 180s)` instead of linear `15 × attempt`
+- **New error handling:** 504 Gateway Timeout + ConnectionError retries
+- **Retry-After header:** respected with +2s buffer
+- **Warning removal:** error message that generated visible warnings was removed
+
+---
+
+## Phase 5 — Web Scraping Failure Handling & Improvements
+
+Phase 5 hardened the scraping infrastructure with production-grade failure handling:
+
+### Changes Summary
+
+| Feature | Location | Description |
+|---|---|---|
+| **Retry + exponential backoff** | `base.py` `safe_request()` | Transient errors (429, 5xx, connection, timeout) retry up to `MAX_RETRIES` with exponential sleep |
+| **User-Agent rotation** | `base.py` `_rotate_user_agent()` | 5-string UA pool, rotated per request attempt |
+| **Circuit breaker** | `base.py` + `models.py` | `check_source()` / `report_success()` / `report_failure()` tied to `ScrapingSourceHealth` |
+| **Source health score** | `ScrapingSourceHealth.health_score` | 0–100 float, −15 per failure, +10 per success |
+| **Per-source failure tracking** | `ScrapingSourceHealth` model | Tracks total/consecutive failures, last error, avg response time |
+| **Configurable timeout** | `BaseScraper.DEFAULT_TIMEOUT` | Class-level attribute (default 30s), overridable per scraper |
+| **Structured error logs** | `base.py` `_log_error()` | Each error is a dict with type, message, source, URL, timestamp, extras |
+| **Admin panel** | `admin.py` | Health bar, circuit badge, response time display in `ScrapingSourceHealthAdmin` |
+
+### Circuit Breaker State Machine
+
 ```
-Plateforme/chatbot/             # Django frontend module
-├── views.py                    # Proxy to FastAPI (ask_bot, session mgmt)
-├── models.py                   # ChatSession, ChatMessage, ChatFeedback
-├── urls.py                     # 7 URL patterns
-├── admin.py                    # Django admin registration
-└── templates/chatbot/chat.html # Chat UI
+                  success
+    ┌──────────────────────────────┐
+    │                              │
+    ▼          failure ×3          │
+  CLOSED ─────────────────────► OPEN
+    ▲                              │
+    │          cooldown elapsed    │
+    │              (300s)          ▼
+    │                          HALF-OPEN
+    │          success             │
+    └──────────────────────────────┘
+              failure → re-OPEN
+```
+
+### Configurable Scraper Attributes
+
+Sub-classes can override these class attributes:
+
+```python
+class MyCustomScraper(BaseScraper):
+    DEFAULT_TIMEOUT = 45       # seconds per request
+    MAX_RETRIES = 5            # retry attempts for transient errors
+    BACKOFF_BASE = 3.0         # initial backoff sleep (seconds)
+    BACKOFF_MAX = 120.0        # maximum backoff cap (seconds)
 ```
 
 ---
 
-## Technology Stack
+## Phase 6 — Scraping Intelligence
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **API Framework** | FastAPI 0.115 | Async REST API |
-| **LLM** | Groq API (LLaMA 3.3 70B) | Text generation |
-| **Embeddings** | sentence-transformers (paraphrase-multilingual-mpnet-base-v2) | 768-dim multilingual vectors |
-| **Vector DB** | Qdrant 1.12 | Semantic search (5 collections) |
-| **Search Engine** | Elasticsearch 8.x | Platform content full-text search |
-| **Relational DB** | PostgreSQL + pgvector | Structured data + session state |
-| **Task Queue** | Celery + Redis | Document processing, summarisation |
-| **Cache** | Redis 7 | Rate limiting, session cache |
-| **Web Framework** | Django 5.x | Authentication, UI, frontend proxy |
-| **Language Detection** | langdetect + heuristics | ar / fr / en classification |
-| **Reverse Proxy** | Nginx | Load balancing, static files |
-| **Container** | Docker Compose | Multi-service orchestration |
+Phase 6 adds an intelligence layer that classifies, scores, and tracks every scraped item across four NLP research domains.
 
----
+### New Module: `intelligence.py`
 
-## Docker Services
+| Feature | Function | Description |
+|---|---|---|
+| **Keyword expansion** | `expand_keywords(seeds, max_results)` | Expands seed terms using a 4-domain ontology (~30+ keywords per domain, Arabic + English) |
+| **Auto query generation** | `generate_queries(category, max_queries)` | Combines base terms × year modifiers + Arabic terms + category-specific extras |
+| **Domain classification** | `classify_domain(text)` | Rule-based regex matching against ontology keywords; returns `{domain: confidence}` |
+| **LLM fallback** | `classify_with_llm_fallback(text)` | Falls back to Groq LLM only when rule-based confidence < 0.5 (cost-efficient) |
+| **Relevance scoring** | `compute_relevance_score(...)` | Weighted 0–100 score: recency (25%), relevance (30%), source health (15%), popularity (15%), completeness (15%) |
+| **Trend detection** | `detect_trends(months)` | Analyses last N months of data: top domains, growing topics, top sources, category counts, monthly activity |
 
-The chatbot runs as part of an 8-service Docker Compose stack:
+### Four Research Domains
 
-| Service | Container | Port |
-|---------|-----------|------|
-| PostgreSQL (pgvector) | `nlp_postgres` | 5432 |
-| Redis | `nlp_redis` | 6379 |
-| Qdrant | `nlp_qdrant` | 6333, 6334 (gRPC) |
-| Elasticsearch | `nlp_elasticsearch` | 9200 |
-| Django | `nlp_django` | 8888→8000 |
-| FastAPI | `nlp_fastapi` | 8000 |
-| Celery Worker | `nlp_celery_worker` | — |
-| Nginx | `nlp_nginx` | 80, 443 |
+| Domain Key | English Label | Description |
+|---|---|---|
+| `arabic_nlp` | Arabic NLP | Text processing, NER, sentiment analysis, morphology, tokenization |
+| `arabic_languages` | Arabic Languages | Dialectology, MSA, corpus linguistics, linguistic resources |
+| `speech_processing` | Speech Processing | ASR, TTS, speaker recognition, speech synthesis |
+| `llm_research` | LLM Research | Large language models, fine-tuning, RLHF, prompt engineering |
 
----
+Each domain has 30+ English keywords and 10+ Arabic keywords in the ontology.
 
-## Configuration
+### Scoring System
 
-All settings are loaded from environment variables (see `app/config.py`):
+Items are ranked on a 0–100 scale using 5 weighted factors:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | — | PostgreSQL async connection string |
-| `GROQ_API_KEY` | — | Groq API key (**required, never logged**) |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` | LLM model |
-| `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | Embedding model |
-| `QDRANT_HOST` | `qdrant` | Qdrant hostname |
-| `ELASTICSEARCH_HOST` | `http://elasticsearch:9200` | Elasticsearch URL |
-| `SIMILARITY_THRESHOLD` | `0.35` | Minimum vector similarity score |
-| `CHUNK_SIZE` | `512` | Document chunk size (tokens) |
-| `CHUNK_OVERLAP` | `64` | Chunk overlap |
-| `MAX_UPLOAD_SIZE_MB` | `20` | Max upload file size |
-| `HISTORY_SUMMARY_THRESHOLD` | `12` | Messages before summarisation |
-| `MAX_HISTORY_MESSAGES` | `20` | Max messages in context window |
-| `TOKEN_BUDGET_HISTORY` | `1500` | Token budget for chat history |
-| `TOKEN_BUDGET_SUMMARY` | `500` | Token budget for session summary |
+| Factor | Weight | Calculation |
+|---|---|---|
+| Recency | 25% | Tiered by age: <30 days = 100, <90 days = 80, <180 days = 60, <365 days = 40, else 20 |
+| Relevance | 30% | Best domain match score × 100 |
+| Source Health | 15% | `ScrapingSourceHealth.health_score` (0–100) |
+| Popularity | 15% | `log10(downloads + citations + 1) / 7 × 100`, capped at 100 |
+| Completeness | 15% | Proportion of optional fields present (description, website, Arabic content) |
 
----
+### Integration with Scrapers
 
-## Multilingual Support
+After every `scraper.run()`, the base class automatically:
+1. Classifies each new result via `classify_domain()`
+2. Computes a relevance score via `compute_relevance_score()`
+3. Creates/updates a `ScrapedItemMeta` record with domain scores and ranking
+4. Returns an `intelligence` summary in the result dict
 
-The chatbot natively supports three languages:
+### New Institutions (Phase 6)
 
-- **Arabic (ar)** — primary language, full Arabic NLP domain expertise
-- **French (fr)** — full support with translated prompts and rules
-- **English (en)** — full support, default fallback
+**North African (10):** Mohammed V University (MA), Cadi Ayyad University (MA), International University of Rabat (MA), University of Tunis El Manar (TN), University of Sfax (TN), University of Sousse (TN), University of Tripoli (LY), Nile University (EG), E-JUST (EG), Ain Shams University (EG)
 
-Language is auto-detected per message using:
-1. Arabic Unicode script ratio (≥30% → Arabic)
-2. `langdetect` library for French vs English
-3. The LLM responds in the same language as the user's question
+**Arabic/Gulf (10):** King Saud University (SA), KFUPM (SA), Khalifa University (AE), MBZUAI (AE), Qatar University (QA), American University of Beirut (LB), JUST (JO), Sultan Qaboos University (OM), University of Khartoum (SD), KINDI Center for AI (QA)
 
----
+### New Events (Phase 6)
 
-## Security
+**10 Arabic/MENA conferences:** ICNLSP 2025 (Algiers), ArabicNLP 2025 (Vienna), ICALP 2025 (Rabat), AI & NLP Summit MENA 2025 (Dubai), North Africa AI Summit 2025 (Tunis), NADI 2025 (Vienna), Deep Learning Indaba 2025 (Dakar), IEEE AICCSA 2025 (Cairo), SIGARAB Workshop 2025 (Suzhou)
 
-- All endpoints behind Django `@login_required` authentication
-- Rate limiting: 30 requests/minute per user (Django cache)
-- File upload validation: type whitelist, size limit
-- API key never logged (`GROQ_API_KEY`)
-- User email addresses never exposed in LLM responses (enforced via prompt rules)
-- Document access scoped by `user_id` (ownership enforcement)
-- CORS configured (should be restricted in production)
+**New country scrapers:** ConferenceAlerts for Morocco, Tunisia, and Egypt.
 
----
+### Trends API Endpoint
 
-## Celery Task Queues
+```
+GET /<lang>/scraping/trends/?months=6
+```
 
-| Queue | Tasks |
-|-------|-------|
-| `chatbot` | Chat history summarisation, text summarisation |
-| `documents` | Document chunking + embedding, collection reindexing |
-| `ingestion` | Batch knowledge base ingestion, web crawling |
+Returns JSON with:
+- `top_domains` — Most active research domains with counts
+- `growing_topics` — Domains with highest growth percentage
+- `top_sources` — Healthiest and most productive sources
+- `category_counts` — Items per category (events, tools, news, courses, institutions)
+- `monthly_activity` — Items created per month
 
-Task limits: 10 min soft / 15 min hard timeout, `acks_late` for reliability.
+Staff-only access. `months` parameter is clamped to 1–24.
 
----
+### Admin Panel
 
-## Document Session Isolation
-
-Each chat session is an **isolated document workspace**. Uploaded documents are only accessible within the session they were uploaded to.
-
-- Qdrant filter uses BOTH `owner_id` AND `session_id` (AND logic)
-- `document_chunks` excluded from hybrid search — only queried in `document_query` mode
-- `document_query` intent requires explicit document references ("in this document", "my PDF", etc.)
-- `SOFT_DOCUMENT_PATTERN` disabled — generic verbs no longer trigger document retrieval
-
-## Retrieval Quality Control
-
-| Setting | Value |
-|---------|-------|
-| `SIMILARITY_THRESHOLD` (global) | 0.65 |
-| `nlp_knowledge` per-collection | 0.55 |
-| `legal_documents` per-collection | 0.60 |
-| `document_chunks` per-collection | 0.65 |
-| `platform_docs` / `resources` | 0.50 |
-| Context quality filter | 0.60 (below = dropped) |
-
-Clean context injection — no metadata, scores, titles, or source labels passed to LLM.
-
-## LLM Prompt Architecture
-
-- 16 mandatory rules per language (Rule 16: Response Expansion)
-- RAG context labelled as "Background knowledge" (not "documents" or "context")
-- Structured, detailed, academic-quality answers enforced
-- `GROQ_MAX_TOKENS`: 4096 for both RAG and non-RAG modes
-
----
-
-**Version:** 5.0.0
-**Last Updated:** March 2026
+`ScrapedItemMeta` is registered in the admin with:
+- Color-coded category badges
+- Score badges (green ≥70, amber ≥40, red <40)
+- Filters by category and primary domain
+- Search by item title
+- Ordered by highest relevance score
