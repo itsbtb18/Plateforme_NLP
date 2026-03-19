@@ -4,11 +4,12 @@ URL configuration for Plateforme project.
 
 from django.contrib import admin
 from django.urls import include, path
-from django.conf.urls.static import static
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
+from django.views.static import serve
+from django.urls import re_path
 
 
 # ============================================
@@ -53,7 +54,9 @@ urlpatterns += i18n_patterns(
 )
 
 
-# Serve static and media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve static and media files for direct Django access (e.g. :8888)
+# Nginx still serves these in the reverse-proxy path.
+urlpatterns += [
+    re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
+    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+]

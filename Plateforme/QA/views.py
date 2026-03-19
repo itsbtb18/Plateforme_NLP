@@ -152,6 +152,8 @@ def qa_home(request):
 @login_and_verified_required
 def feed(request):
     """Research Feed with filtering and sorting support."""
+    from pages.content_parser import extract_paper_metadata
+
     # Get filter parameter
     filter_type = request.GET.get("filter", "all")
 
@@ -174,6 +176,16 @@ def feed(request):
 
     paginator = Paginator(posts, 10)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
+
+    for post in page_obj.object_list:
+        localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+        # Full abstract (no truncation) for news list
+        post.news_meta = extract_paper_metadata(localized_content or '', max_abstract_length=None)
+        # Fallback: use model title/content when parser returns empty (e.g. plain Arabic text)
+        if not post.news_meta.get('title'):
+            post.news_meta['title'] = post.get_localized_title() if hasattr(post, 'get_localized_title') else (post.title_en or post.title_ar or post.title)
+        if not post.news_meta.get('abstract') and localized_content:
+            post.news_meta['abstract'] = localized_content
 
     post_form = PostForm()
     comment_form = CommentForm()
@@ -257,6 +269,7 @@ def create_post(request):
 @login_required
 @login_and_verified_required
 def post_detail(request, slug):
+    from pages.content_parser import extract_paper_metadata
     # Staff/admin can view any post status. Regular users only approved posts.
     base_qs = exclude_hidden_users(Post.objects.all(), request.user, ("author",))
     if request.user.is_staff or request.user.is_superuser:
@@ -269,6 +282,23 @@ def post_detail(request, slug):
     ) and post.approval_status != "approved":
         raise Http404(_("Post not found."))
 
+    # Extract metadata for News posts (full abstract on detail page)
+    localized_content = post.get_localized_content()
+    if localized_content:
+        post.news_meta = extract_paper_metadata(localized_content, max_abstract_length=None)
+        if not post.news_meta.get('title'):
+            post.news_meta['title'] = post.get_localized_title() or post.title
+        if not post.news_meta.get('abstract') and localized_content:
+            post.news_meta['abstract'] = localized_content
+    else:
+        post.news_meta = {
+            'title': post.get_localized_title() or post.title,
+            'all_authors': '',
+            'first_author': '',
+            'year': '',
+            'abstract': '',
+            'link': ''
+        }
     comment_form = CommentForm()
     return render(
         request,
@@ -427,6 +457,8 @@ def delete_comment(request, comment_id):
 @login_required
 @login_and_verified_required
 def edit_post(request, post_id):
+    from pages.content_parser import extract_paper_metadata
+
     post = get_object_or_404(Post, id=post_id)
 
     # Check permission: author, staff, or superuser
@@ -468,18 +500,16 @@ def edit_post(request, post_id):
 
             post = form.save(commit=False)
 
-            # Handle bilingual fields from admin review mode
-            if review_mode:
-                if request.POST.get("title_en"):
+            # Handle bilingual fields from admin review mode or any admin edit
+            if review_mode or is_admin:
+                if request.POST.get("title_en") is not None:
                     post.title_en = request.POST.get("title_en", "")
-                    post.title = request.POST.get(
-                        "title_en", post.title
-                    )  # Set main title
-                if request.POST.get("title_ar"):
+                    post.title = request.POST.get("title_en", post.title) or post.title
+                if request.POST.get("title_ar") is not None:
                     post.title_ar = request.POST.get("title_ar", "")
-                if request.POST.get("content_en"):
+                if request.POST.get("content_en") is not None:
                     post.content_en = request.POST.get("content_en", "")
-                if request.POST.get("content_ar"):
+                if request.POST.get("content_ar") is not None:
                     post.content_ar = request.POST.get("content_ar", "")
 
             # Handle "Approve & Publish" action
@@ -502,12 +532,18 @@ def edit_post(request, post_id):
                     model_type=request.GET.get("review_model"),
                     pk=request.GET.get("review_pk"),
                 )
-
             if review_mode:
                 return redirect("pages:admin_news")
             return redirect("QA:post_detail", slug=post.slug)
     else:
         form = PostForm(instance=post)
+
+    localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+    preview_meta = extract_paper_metadata(localized_content or '')
+
+    from pages.content_parser import extract_structured_content
+    parsed_en = extract_structured_content(post.content_en or post.content or '')
+    parsed_ar = extract_structured_content(post.content_ar or '')
 
     return render(
         request,
@@ -520,9 +556,12 @@ def edit_post(request, post_id):
             "edit_only": edit_only,
             "read_only_review": read_only_review,
             "is_pending": is_pending,
+            "preview_meta": preview_meta,
+            "is_admin": is_admin,
+            "parsed_en": parsed_en,
+            "parsed_ar": parsed_ar,
         },
     )
-
 
 @login_required
 @require_POST

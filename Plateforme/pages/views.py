@@ -1657,6 +1657,8 @@ def admin_institutions(request):
 @user_passes_test(is_admin)
 def admin_news(request):
     """Admin news/posts management with approval workflow"""
+    from pages.content_parser import extract_paper_metadata
+
     search = request.GET.get("search", "").strip()
     tab = request.GET.get("tab", "approved")
 
@@ -1677,6 +1679,7 @@ def admin_news(request):
 
     pending_count = pending_posts.count()
     approved_count = approved_posts.count()
+    total_count = pending_count + approved_count
 
     def _build_query_string(exclude_key):
         params = []
@@ -1690,12 +1693,18 @@ def admin_news(request):
     paginator = Paginator(current_qs, 10)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
+    # Build structured metadata so list rows can use the same "new design" content style.
+    for post in page_obj.object_list:
+        localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+        post.news_meta = extract_paper_metadata(localized_content or '')
+
     context = {
         "posts": page_obj,
         "pending_posts": pending_posts,
         "approved_posts": approved_posts,
         "pending_count": pending_count,
         "approved_count": approved_count,
+        "total_count": total_count,
         "active_tab": tab,
         "search": search,
         "model_type": "post",
@@ -1726,8 +1735,20 @@ def admin_news_delete(request, post_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_news_view(request, post_id):
+    from pages.content_parser import extract_structured_content, extract_paper_metadata
     post = get_object_or_404(Post, id=post_id)
-    return render(request, "admin/news_view.html", {"post": post})
+
+    # Parse content into structured format
+    content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+    parsed_content = extract_structured_content(content)
+    preview_meta = extract_paper_metadata(content)
+
+    context = {
+        "post": post,
+        "parsed_content": parsed_content,
+        "preview_meta": preview_meta,
+    }
+    return render(request, "admin/news_view.html", context)
 
 
 @login_required
@@ -2884,11 +2905,12 @@ def admin_approve_item(request, model_type, pk):
             % {"title": title},
         )
 
-    # Redirect to the edit page with review context (or edit-only mode)
+    # Redirect to the edit page with review context (or editable review mode)
     edit_url = get_edit_url(model_type, pk)
     if edit_mode:
         review_qs = urlencode(
             {
+                "review": "1",
                 "edit_only": "1",
                 "review_model": model_type,
                 "review_pk": str(pk),
@@ -2972,6 +2994,17 @@ def admin_reject_item(request, model_type, pk):
 
         # Keep the existing behavior used by working reject flows: delete rejected items.
         item.delete()
+
+        # If not AJAX (e.g. form POST from admin news view), redirect instead of JSON
+        if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+            redirect_name = REDIRECT_MAP.get(normalized_model_type, "pages:admin_dashboard")
+            if normalized_model_type == "post":
+                redirect_name = "pages:admin_news"
+            return redirect(redirect_name)
+
         return JsonResponse({"success": True})
     except Exception as exc:
+        if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+            messages.error(request, _("Failed to reject: %(error)s") % {"error": str(exc)})
+            return redirect("pages:admin_news")
         return JsonResponse({"success": False, "error": str(exc)}, status=500)

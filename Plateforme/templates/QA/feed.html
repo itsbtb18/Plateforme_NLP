@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
 {% load i18n %}
 {% get_current_language as language_code %}
@@ -642,13 +642,31 @@ html[dir="rtl"] .post-dropdown .feed-dropdown-menu { right: auto; left: 0; }
 .post-dropdown .feed-dropdown-item.danger:hover { background: var(--feed-danger-bg); }
 
 /* Post Content */
-.post-content { padding: 0 1.5rem 1rem; }
+.post-content { padding: 1rem 1.5rem 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* Scrapped/Research News Card - Better design */
+.feed-research-card { display: flex; flex-direction: column; gap: 0.75rem; }
+.feed-scraped-card { padding: 0.1rem 0; }
+.feed-research-title { margin: 0; font-size: 1.15rem; font-weight: 700; line-height: 1.4; color: var(--feed-text-primary); letter-spacing: -0.01em; }
+.feed-research-authors { margin: 0; color: var(--feed-text-secondary); font-size: 0.9rem; line-height: 1.5; display: flex; align-items: center; gap: 0.4rem; }
+.feed-research-authors i { color: var(--feed-accent); font-size: 0.85rem; flex-shrink: 0; }
+.feed-research-year { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: var(--feed-accent-glow); color: var(--feed-accent); font-size: 0.8rem; font-weight: 600; }
+.feed-research-abstract { padding: 1rem 1.1rem; border-inline-start: 4px solid var(--feed-accent); background: linear-gradient(90deg, rgba(37, 99, 235, 0.06) 0%, transparent 100%); border-radius: 0 10px 10px 0; overflow: visible; }
+.feed-research-abstract p { margin: 0; white-space: pre-wrap; line-height: 1.75; color: var(--feed-text-secondary); font-size: 0.92rem; word-break: break-word; }
+.feed-research-link { font-weight: 600; text-decoration: none; color: var(--feed-accent); display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; padding: 0.4rem 0; transition: color 0.2s, gap 0.2s; }
+.feed-research-link:hover { color: var(--feed-accent-hover); gap: 0.6rem; }
+html[dir="rtl"] .feed-research-abstract { border-inline-start: none; border-inline-end: 4px solid var(--feed-accent); background: linear-gradient(270deg, rgba(37, 99, 235, 0.06) 0%, transparent 100%); border-radius: 10px 0 0 10px; direction: rtl; text-align: start; }
+html[dir="rtl"] .feed-research-card { font-family: 'Tajawal', 'Inter', sans-serif; text-align: start; direction: rtl; }
+html[dir="rtl"] .feed-research-abstract p { direction: rtl; text-align: start; }
+.feed-scraped-rtl { font-family: 'Tajawal', 'Inter', sans-serif; direction: rtl; }
+.feed-scraped-rtl .feed-research-title { font-weight: 800; }
+.feed-scraped-rtl .feed-research-abstract p { font-size: 0.95rem; line-height: 1.8; }
 
 .post-text {
     font-size: 0.9375rem;
     line-height: 1.7;
     color: var(--feed-text-primary);
-    margin: 0 0 1rem;
+    margin: 0;
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -1127,7 +1145,8 @@ html[dir="rtl"] .search-input::placeholder { text-align: right; }
 html[dir="rtl"] .create-post-input { text-align: right; }
 
 /* Post cards: text alignment */
-html[dir="rtl"] .post-author-info h3 { text-align: start; }
+html[dir="rtl"] .post-author-info { text-align: right; }
+html[dir="rtl"] .post-author-info h3 { text-align: right; }
 html[dir="rtl"] .post-content { text-align: start; }
 html[dir="rtl"] .post-text { text-align: start; }
 
@@ -1147,12 +1166,36 @@ html[dir="rtl"] .post-actions-social {
     justify-content: flex-end;
 }
 
-html[dir="rtl"] .post-header {
+/* RTL: scraper/author info on RIGHT, action buttons on LEFT */
+/* Use feed-rtl class (set when Arabic) - more reliable than html[dir] */
+.feed-rtl .post-header {
+    flex-direction: row;
+    direction: rtl;
+    justify-content: space-between;
+}
+.feed-rtl .post-author {
     flex-direction: row-reverse;
+    text-align: right;
+}
+.feed-rtl .post-header-actions {
+    flex-direction: row;
+    direction: ltr; /* Keep buttons LTR for icon consistency */
+    margin-right: 0 !important;
+    margin-left: 0 !important;
 }
 
+html[dir="rtl"] .post-header {
+    flex-direction: row;
+    direction: rtl;
+    justify-content: space-between;
+}
+html[dir="rtl"] .post-author {
+    flex-direction: row-reverse;
+    text-align: right;
+}
 html[dir="rtl"] .post-header-actions {
     margin-right: 0 !important;
+    margin-left: 0 !important;
 }
 
 html[dir="rtl"] .share-dropdown-menu {
@@ -1224,9 +1267,13 @@ html[dir="rtl"] .share-dropdown-menu {
 }
 
 :is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .search-pill,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .create-post-header,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .post-header {
+:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .create-post-header {
     flex-direction: row-reverse;
+}
+/* post-header: author RIGHT, buttons LEFT - use row + direction:rtl, NOT row-reverse */
+:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .post-header {
+    flex-direction: row !important;
+    direction: rtl !important;
 }
 
 :is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .feed-page .search-icon {
@@ -1246,7 +1293,7 @@ html[dir="rtl"] .share-dropdown-menu {
 {% endblock %}
 
 {% block content %}
-<div class="feed-page">
+<div class="feed-page {% if language_code|slice:':2' == 'ar' %}feed-rtl{% endif %}">
     <!-- Hero Section -->
     <header class="feed-hero">
         <div class="hero-container">
@@ -1378,7 +1425,38 @@ html[dir="rtl"] .share-dropdown-menu {
 
                 <!-- Post Content -->
                 <div class="post-content">
-                    <p class="post-text">{{ post.get_localized_content }}</p>
+                    {% if post.news_meta.title or post.news_meta.abstract or post.news_meta.all_authors %}
+                    <div class="feed-research-card feed-scraped-card {% if language_code|slice:':2' == 'ar' %}feed-scraped-rtl{% endif %}">
+                        {% if post.news_meta.title %}
+                        <h4 class="feed-research-title">
+                            {{ post.news_meta.title }}
+                        </h4>
+                        {% endif %}
+                        {% if post.news_meta.all_authors %}
+                        <p class="feed-research-authors">
+                            <i class="fas fa-user"></i>
+                            <span>{{ post.news_meta.all_authors }}</span>
+                        </p>
+                        {% endif %}
+                        {% if post.news_meta.year %}
+                        <span class="feed-research-year">
+                            <i class="fas fa-calendar"></i>
+                            {{ post.news_meta.year }}
+                        </span>
+                        {% endif %}
+                        {% if post.news_meta.abstract %}
+                        <div class="feed-research-abstract">
+                            <p>{{ post.news_meta.abstract }}</p>
+                        </div>
+                        {% endif %}
+                        {% if post.news_meta.link %}
+                        <a href="{{ post.news_meta.link }}" target="_blank" rel="noopener noreferrer" class="feed-research-link">
+                            <i class="fas fa-external-link-alt"></i>
+                            {% trans "Read the full paper" %}
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% else %}
 
                     <!-- Post Media -->
                     {% if post.image %}
@@ -1400,6 +1478,7 @@ html[dir="rtl"] .share-dropdown-menu {
                         </a>
                     </div>
                     {% endif %}
+                {% endif %}
                 </div>
 
                 <!-- Post Stats -->
