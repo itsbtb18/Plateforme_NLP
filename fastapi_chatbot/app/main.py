@@ -6,6 +6,7 @@ Thin controller layer. All business logic lives in services/.
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db, init_db
 from app.config import get_settings
@@ -32,6 +33,7 @@ from app.services.chat_logic import get_chat_logic
 from app.services.memory import get_session_service
 from app.services.documents import get_document_service
 from app.services.platform_queries import get_platform_query_service
+import json
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -135,6 +137,32 @@ async def conversation(
     except Exception as e:
         logger.error("Conversation error: %s", e)
         raise HTTPException(status_code=500, detail="Failed to process conversation")
+
+
+async def _stream_conversation(request: ConversationRequest, db: AsyncSession):
+    """Generator that yields SSE-formatted chunks."""
+    try:
+        async for chunk in get_chat_logic().handle_conversation_stream(request, db):
+            line = json.dumps(chunk, ensure_ascii=False) + "\n"
+            yield f"data: {line}\n\n"
+    except Exception as e:
+        logger.error("Stream conversation error: %s", e)
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+
+@app.post("/conversation/stream")
+async def conversation_stream(
+    request: ConversationRequest, db: AsyncSession = Depends(get_db)
+):
+    return StreamingResponse(
+        _stream_conversation(request, db),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/query", response_model=ChatResponse)

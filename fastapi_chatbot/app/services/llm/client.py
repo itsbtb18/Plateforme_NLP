@@ -18,7 +18,8 @@ from app.services.llm.prompts import (
 import asyncio
 import logging
 import time
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, AsyncGenerator
+import threading
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -155,6 +156,72 @@ class GroqClient:
 
         return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
 
+    async def generate_answer_with_context_stream(
+        self,
+        question: str,
+        context: str,
+        language: str = "en",
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        session_summary: Optional[str] = None,
+        source_type: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        """RAG-augmented answer generation — streams tokens as they arrive."""
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        if source_type:
+            system += source_rules(language, source_type)
+        system += identity_hint(username, language)
+
+        if session_summary:
+            system += f"\n\n[Previous conversation summary]\n{session_summary}"
+
+        messages: List[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system}
+        ]
+        if chat_history:
+            messages.extend(chat_history)
+
+        user_msg = rag_prompt(question, context, language)
+        messages.append({"role": "user", "content": user_msg})
+
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=settings.GROQ_MAX_TOKENS,
+                stream=True,
+            )
+        except Exception as e:
+            logger.error("Groq streaming error: %s", type(e).__name__)
+            yield self._fallback_message("en")
+            return
+
+        queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_event_loop()
+
+        def consume():
+            try:
+                for chunk in stream:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    content = (delta.content or "") if delta else ""
+                    if content:
+                        asyncio.run_coroutine_threadsafe(queue.put(content), loop)
+            except Exception as e:
+                logger.error("Groq stream consume error: %s", e)
+            finally:
+                asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+
+        thread = threading.Thread(target=consume)
+        thread.start()
+
+        while True:
+            content = await queue.get()
+            if content is None:
+                break
+            yield content
+
     async def quick_answer(self, question: str, language: str = "en", username: Optional[str] = None) -> str:
         """Answer without retrieved context.
 
@@ -192,6 +259,62 @@ class GroqClient:
             {"role": "user", "content": question},
         ]
         return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
+
+    async def quick_answer_stream(
+        self, question: str, language: str = "en", username: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """Answer without context — streams tokens as they arrive."""
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        guardrails = {
+            "ar": "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. لا تروّج للمنصة تلقائياً.",
+            "fr": "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. Si vous n'êtes pas sûr, dites-le clairement. Ne faites pas la promotion de la plateforme spontanément.",
+            "en": "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. If you are unsure, say so clearly. Do not promote the platform spontaneously.",
+        }
+        system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
+
+        messages: List[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": question},
+        ]
+
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=settings.GROQ_MAX_TOKENS,
+                stream=True,
+            )
+        except Exception as e:
+            logger.error("Groq quick_answer stream error: %s", type(e).__name__)
+            yield self._fallback_message(language)
+            return
+
+        queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_event_loop()
+
+        def consume():
+            try:
+                for chunk in stream:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    content = (delta.content or "") if delta else ""
+                    if content:
+                        asyncio.run_coroutine_threadsafe(queue.put(content), loop)
+            except Exception as e:
+                logger.error("Groq stream consume error: %s", e)
+            finally:
+                asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+
+        thread = threading.Thread(target=consume)
+        thread.start()
+
+        while True:
+            content = await queue.get()
+            if content is None:
+                break
+            yield content
 
     # ------------------------------------------------------------------
     # Helpers
