@@ -28,7 +28,7 @@ from app.services.retrieval.filters import build_user_doc_filter
 from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc, EntityExplainRequest
 from app.models import ChatSession, UserDocument
 from sqlalchemy import select, func as sqlfunc
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, AsyncGenerator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -417,6 +417,252 @@ class ChatLogic:
             retrieved_docs=self._to_schema(routing.retrieved_docs),
             platform_results=show_cards or None,
         )
+
+    async def handle_conversation_stream(
+        self,
+        request: ConversationRequest,
+        db: AsyncSession,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Stream conversation tokens as they arrive (SSE-style)."""
+        has_docs = False
+        if request.user_id:
+            doc_count = await db.execute(
+                select(sqlfunc.count())
+                .select_from(UserDocument)
+                .where(
+                    UserDocument.user_id == request.user_id,
+                    UserDocument.status == "completed",
+                )
+            )
+            has_docs = (doc_count.scalar() or 0) > 0
+
+        session_row: ChatSession | None = None
+        if request.session_id:
+            result = await db.execute(
+                select(ChatSession).where(
+                    ChatSession.session_id == request.session_id
+                )
+            )
+            session_row = result.scalars().first()
+
+        classification = self.classifier.classify(
+            request.question,
+            has_session_docs=has_docs,
+        )
+        language = classification.language
+
+        _doc_session_handled = False
+        if session_row and has_docs and request.user_id:
+            if (
+                session_row.active_document_session
+                and self._is_document_deactivation(request.question)
+            ):
+                session_row.active_document_session = False
+                session_row.active_document_id = None
+                session_row.low_doc_similarity_streak = 0
+                _doc_session_handled = True
+            elif session_row.active_document_session:
+                doc_score = self._check_document_dominance(
+                    request.question, owner_id=request.user_id,
+                )
+                if doc_score < 0.30:
+                    streak = (session_row.low_doc_similarity_streak or 0) + 1
+                    session_row.low_doc_similarity_streak = streak
+                    if streak >= 3:
+                        session_row.active_document_session = False
+                        session_row.active_document_id = None
+                        session_row.low_doc_similarity_streak = 0
+                        _doc_session_handled = True
+                    else:
+                        classification = QueryClassification(
+                            intent="document_query",
+                            language=language,
+                            confidence=max(doc_score, 0.50),
+                            qdrant_collections=["document_chunks"],
+                            qdrant_type_filter="document",
+                        )
+                        _doc_session_handled = True
+                else:
+                    session_row.low_doc_similarity_streak = 0
+                    classification = QueryClassification(
+                        intent="document_query",
+                        language=language,
+                        confidence=doc_score,
+                        qdrant_collections=["document_chunks"],
+                        qdrant_type_filter="document",
+                    )
+                    _doc_session_handled = True
+            elif self._is_document_activation(request.question):
+                session_row.active_document_session = True
+                session_row.active_document_id = None
+                session_row.low_doc_similarity_streak = 0
+                classification = QueryClassification(
+                    intent="document_query",
+                    language=language,
+                    confidence=0.95,
+                    qdrant_collections=["document_chunks"],
+                    qdrant_type_filter="document",
+                )
+                _doc_session_handled = True
+
+        if (
+            not _doc_session_handled
+            and has_docs
+            and request.user_id
+            and classification.intent != "document_query"
+        ):
+            skip_dominance = (
+                self._is_generic_conceptual(request.question)
+                and not self._has_document_reference(request.question)
+            )
+            if not skip_dominance:
+                doc_score = self._check_document_dominance(
+                    request.question, owner_id=request.user_id,
+                )
+                if doc_score >= 0.65:
+                    classification = QueryClassification(
+                        intent="document_query",
+                        language=language,
+                        confidence=doc_score,
+                        qdrant_collections=["document_chunks"],
+                        qdrant_type_filter="document",
+                    )
+                    if session_row:
+                        session_row.active_document_session = True
+                        session_row.active_document_id = None
+                        session_row.low_doc_similarity_streak = 0
+
+        if classification.confidence <= 0.60 and not _doc_session_handled:
+            scores = self.classifier._score_all_intents(
+                request.question, has_session_docs=has_docs,
+            )
+            if any(v > 0 for v in scores.values()):
+                top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
+                resolved = await self.classifier.llm_resolve_ambiguity(
+                    request.question, language, top_2,
+                )
+                if resolved and resolved != classification.intent:
+                    classification = self.classifier._build_classification(
+                        resolved, language, 0.80,
+                    )
+                    if resolved == "platform_query":
+                        from app.services.classifier.patterns import extract_resource_type
+                        classification.detected_resource_type = extract_resource_type(
+                            request.question
+                        )
+
+        routing: RoutingResult = await self.router.route(
+            question=request.question,
+            classification=classification,
+            db=db,
+            session_id=request.session_id,
+            user_id=request.user_id,
+            user_country=request.user_country,
+            user_city=request.user_city,
+            user_email=getattr(request, "user_email", None),
+        )
+
+        context = self._build_context(routing.retrieved_docs)
+        _profile_intents = {"user_query", "metadata_query"}
+        user_ctx = ""
+        if classification.intent in _profile_intents:
+            user_ctx = self._build_user_context(request)
+        if user_ctx:
+            context = (
+                ("[User Profile]\n" + user_ctx + "\n\n" + context)
+                if context
+                else ("[User Profile]\n" + user_ctx)
+            )
+
+        _card_intents = {"platform_query"}
+        if routing.platform_results and classification.intent in _card_intents:
+            real_results = [r for r in routing.platform_results if r.get("type") != "no_data"]
+            platform_ctx = self._build_platform_context(real_results) if real_results else ""
+            if platform_ctx:
+                context = (
+                    ("[Verified Data]\n" + platform_ctx + "\n\n[Additional Context]\n" + context)
+                    if context
+                    else ("[Verified Data]\n" + platform_ctx)
+                )
+
+        if routing.nav_hints and routing.nav_hints.get("suggestions"):
+            nav_ctx = self._build_nav_context(routing.nav_hints)
+            context = (
+                (context + "\n\n--- Navigation ---\n" + nav_ctx) if context else nav_ctx
+            )
+
+        chat_history = await self.sessions.get_recent_messages(request.session_id, db)
+        session_summary = await self.sessions.get_summary(request.session_id, db)
+
+        source = routing.primary_source
+        answer = ""
+
+        if context and (not routing.skip_retrieval or user_ctx):
+            async for chunk in self.groq.generate_answer_with_context_stream(
+                question=request.question,
+                context=context,
+                language=language,
+                chat_history=chat_history,
+                session_summary=session_summary,
+                source_type=source,
+                username=getattr(request, "user_name", None),
+            ):
+                answer += chunk
+                yield {"delta": chunk}
+            if GroqClient.is_fallback(answer):
+                answer = ""
+                source = "groq"
+                async for chunk in self.groq.quick_answer_stream(
+                    request.question, language,
+                    username=getattr(request, "user_name", None),
+                ):
+                    answer += chunk
+                    yield {"delta": chunk}
+            if source == "none":
+                source = "groq"
+        else:
+            source = "groq"
+            async for chunk in self.groq.quick_answer_stream(
+                request.question, language,
+                username=getattr(request, "user_name", None),
+            ):
+                answer += chunk
+                yield {"delta": chunk}
+
+        await self.sessions.save_message(
+            request.session_id, "user", request.question, None, language, db
+        )
+        await self.sessions.save_message(
+            request.session_id,
+            "assistant",
+            answer,
+            source,
+            language,
+            db,
+            retrieved_count=len(routing.retrieved_docs),
+        )
+        await self.sessions.auto_title(request.session_id, request.question, db)
+        await self.sessions.maybe_trigger_summarisation(request.session_id, db)
+        await self.sessions.update_language(request.session_id, language, db)
+
+        show_cards = (
+            [c for c in routing.platform_results if c.get("type") != "no_data"]
+            if classification.intent in _card_intents and routing.platform_results
+            else None
+        )
+        if show_cards is not None and len(show_cards) == 0:
+            show_cards = None
+
+        retrieved_schema = self._to_schema(routing.retrieved_docs)
+        yield {
+            "done": True,
+            "answer": answer,
+            "source": source,
+            "session_id": request.session_id,
+            "lang": language,
+            "retrieved_docs": [d.model_dump() if hasattr(d, "model_dump") else d for d in (retrieved_schema or [])],
+            "platform_results": show_cards,
+        }
 
     # ------------------------------------------------------------------
     # Quick query (no context / no session)

@@ -283,6 +283,8 @@ html[dir="rtl"] .lang-panel{right:auto;left:0}
 }
 .lang-option .fa-check{font-size:.7rem;color:var(--hub-accent)}
 
+/* Typing speed control removed */
+
 /* ==========================================================================
    CHAT BODY
    ========================================================================== */
@@ -485,11 +487,13 @@ html[dir="rtl"] .answer-citations{padding-left:0;padding-right:36px}
 
 /* Typing cursor */
 .typing-cursor{
-    display:inline-block;width:2px;height:1em;
+    display:inline-block;width:1px;height:1em;
     background:var(--hub-accent);margin-left:2px;
-    animation:blink .7s ease-in-out infinite;
+    opacity:.6;
+    animation:blink .885s ease-in-out infinite;
     vertical-align:text-bottom;border-radius:1px;
 }
+.typing-cursor-fast{animation:blink .24s ease-in-out infinite;opacity:.5;width:1px}
 html[dir="rtl"] .typing-cursor{margin-left:0;margin-right:2px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
@@ -800,6 +804,7 @@ input[type="file"]{display:none}
                         </div>
                     </div>
 
+                    <!-- Typing speed control removed by request -->
                     <a href="{% url 'pages:home' %}" class="h-btn" title="{% trans 'Home' %}">
                         <i class="fas fa-arrow-left"></i>
                     </a>
@@ -889,6 +894,10 @@ input[type="file"]{display:none}
         const renameCanc  = document.getElementById('rename-cancel');
         const langWrap    = document.getElementById('lang-wrap');
         const langBtn     = document.getElementById('lang-btn');
+        const typingSpeedWrap = document.getElementById('typing-speed-wrap');
+        const typingSpeedBtn  = document.getElementById('typing-speed-btn');
+        const typingSpeedPanel= document.getElementById('typing-speed-panel');
+        const typingSpeedLabel= document.getElementById('typing-speed-label');
 
         /* ── State ── */
         let currentSessionId = null;
@@ -898,6 +907,7 @@ input[type="file"]{display:none}
         let activeDocumentId = null;
         let renameTargetSid  = null;
         let platformActive   = false;
+        let typingSpeedMult  = 1;
 
         /* ── Helpers ── */
         function csrf(){
@@ -958,6 +968,25 @@ input[type="file"]{display:none}
         document.addEventListener('click',function(e){
             if(!langWrap.contains(e.target)) langWrap.classList.remove('open');
         });
+
+        if(typingSpeedBtn){
+            typingSpeedBtn.addEventListener('click',function(e){
+                e.preventDefault();e.stopPropagation();
+                typingSpeedPanel.classList.toggle('open');
+            });
+        }
+        document.addEventListener('click',function(e){
+            if(typingSpeedWrap&&!typingSpeedWrap.contains(e.target)) typingSpeedPanel&&typingSpeedPanel.classList.remove('open');
+        });
+        if(typingSpeedPanel){
+            typingSpeedPanel.querySelectorAll('.typing-speed-opt').forEach(function(btn){
+                btn.addEventListener('click',function(){
+                    typingSpeedMult=parseFloat(btn.dataset.speed);
+                    typingSpeedLabel.textContent=typingSpeedMult+'x';
+                    typingSpeedPanel.classList.remove('open');
+                });
+            });
+        }
 
         /* ============================================================
            SIDEBAR
@@ -1200,20 +1229,69 @@ input[type="file"]{display:none}
                 headers['Content-Type']='application/json';
                 var payload={mode:mode,question:question,session_id:currentSessionId||''};
                 body=JSON.stringify(payload);
-                var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
-                thinkEl.remove();
-                var ct=resp.headers.get('content-type');
-                if(ct&&ct.includes('text/html')) throw new Error("{% trans 'Server error. Please try again.' %}");
-                var data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||data.detail||'Error '+resp.status);
 
-                if(data.session_id) currentSessionId=data.session_id;
+                if(mode==='conversation'){
+                    /* Streaming response — ChatGPT-style progressive display */
+                    var resp=await fetch('{% url "chatbot:ask_stream" %}',{method:'POST',headers:headers,body:body});
+                    thinkEl.remove();
+                    if(!resp.ok){
+                        var errData=await resp.json().catch(function(){return {error:resp.statusText}});
+                        throw new Error(errData.error||errData.detail||'Error '+resp.status);
+                    }
+                    var streamState=addAnswerStreamingStart();
+                    var reader=resp.body.getReader();
+                    var decoder=new TextDecoder();
+                    var buf='';
+                    var done=false;
+                    while(!done){
+                        var r=await reader.read();
+                        if(r.done) break;
+                        buf+=decoder.decode(r.value,{stream:true});
+                        var parts=buf.split('\n\n');
+                        buf=parts.pop();
+                        for(var p=0;p<parts.length;p++){
+                            var chunk=parts[p];
+                            var dataMatch=chunk.match(/^data: (.+)$/m);
+                            if(dataMatch){
+                                try{
+                                    var obj=JSON.parse(dataMatch[1]);
+                                    if(obj.error){addSystem(obj.error,'error');done=true;break}
+                                    if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                    if(obj.done){
+                                        if(obj.session_id) currentSessionId=obj.session_id;
+                                        finalizeStreamingAnswer(streamState,obj);
+                                        done=true;break;
+                                    }
+                                }catch(parseErr){}
+                            }
+                        }
+                    }
+                    if(!done&&buf){
+                        var dataMatch=buf.match(/^data: (.+)$/m);
+                        if(dataMatch){
+                            try{
+                                var obj=JSON.parse(dataMatch[1]);
+                                if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.done){
+                                    if(obj.session_id) currentSessionId=obj.session_id;
+                                    finalizeStreamingAnswer(streamState,obj);
+                                }
+                            }catch(parseErr){}
+                        }
+                    }
+                }else{
+                    var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
+                    thinkEl.remove();
+                    var ct=resp.headers.get('content-type');
+                    if(ct&&ct.includes('text/html')) throw new Error("{% trans 'Server error. Please try again.' %}");
+                    var data=await resp.json();
+                    if(!resp.ok) throw new Error(data.error||data.detail||'Error '+resp.status);
 
-                if(false){
-                    /* upload handled above in multi-file block */
+                    if(data.session_id) currentSessionId=data.session_id;
+
+                    if(mode==='platform'&&data.results) renderPlatformResults(data);
+                    else if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,data.platform_results||null,true);
                 }
-                if(mode==='platform'&&data.results) renderPlatformResults(data);
-                else if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,data.platform_results||null,true);
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('Send:',e);addSystem(e.message,'error')}
             finally{setLoading(false)}
@@ -1263,6 +1341,110 @@ input[type="file"]{display:none}
                 +'<span class="thinking-text">{% trans "Thinking" %}...</span>'
                 +'</div>';
             msgsArea.appendChild(d);scrollBottom();return d;
+        }
+
+        function addAnswerStreamingStart(){
+            var block=document.createElement('div');block.className='answer-block';
+            block.innerHTML='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>'
+                +'<div class="answer-body"><span class="typing-cursor"></span></div>';
+            var bodyEl=block.querySelector('.answer-body');
+            msgsArea.appendChild(block);
+            scrollBottom();
+            var state={block:block,bodyEl:bodyEl,accumulated:'',displayedLen:0,typingId:null,done:false,pendingFinalize:null};
+            function doFinalize(){
+                var data=state.pendingFinalize;
+                if(!data)return;
+                state.pendingFinalize=null;
+                state.done=true;
+                if(state.typingId){clearTimeout(state.typingId);state.typingId=null}
+                if(data.lang==='ar') state.block.setAttribute('dir','rtl');
+                var extracted=extractCitations(data.answer||state.accumulated||'');
+                var srcs=buildSources(data.source,data.retrieved_docs,data.platform_results);
+                state.bodyEl.innerHTML=renderMd(extracted.body);
+                if(extracted.citations.length>0){
+                    var citeDiv=document.createElement('div');citeDiv.className='answer-citations';
+                    citeDiv.innerHTML=extracted.citations.map(function(c){return '<span class="answer-cite"><i class="fas fa-bookmark"></i> '+esc(c)+'</span>';}).join('');
+                    state.block.insertBefore(citeDiv,state.bodyEl);
+                }
+                if(srcs.length>0){
+                    var srcDiv=document.createElement('div');srcDiv.className='sources-row';
+                    srcDiv.innerHTML=srcs.map(function(s){return '<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';}).join('');
+                    state.block.insertBefore(srcDiv,state.bodyEl);
+                }
+                if(data.platform_results&&data.platform_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildCards(data.platform_results));
+                }
+                scrollBottom();
+            }
+            function getSegments(txt){
+                return (txt.match(/(?:\s+|\S+)/g)||[]);
+            }
+            function tick(){
+                if(state.done){return}
+                var segs=getSegments(state.accumulated);
+                if(segs.length===0){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var len=0,startLen=state.displayedLen,chunkWords=0;
+                var isFast=typingSpeedMult>=1.5;
+                /* Dynamic chunks: 2–6 words / 20–80 chars; lean larger when speed is high */
+                var targetWords=isFast?4+Math.floor(Math.random()*3):2+Math.floor(Math.random()*3);
+                var targetChars=isFast?60+Math.floor(Math.random()*21):30+Math.floor(Math.random()*31);
+                var maxChars=isFast?90:80;var maxWords=isFast?7:6;
+                var endIdx=-1;
+                for(var i=0;i<segs.length;i++){
+                    len+=segs[i].length;
+                    if(len>startLen){
+                        if(/\S/.test(segs[i]))chunkWords++;
+                        var chunkChars=len-startLen;
+                        if(chunkChars>=maxChars||chunkWords>=maxWords){endIdx=i;break}
+                        if((chunkWords>=targetWords&&chunkChars>=20)||(chunkChars>=targetChars&&chunkWords>=2)){endIdx=i;break}
+                    }
+                }
+                if(endIdx<0){endIdx=segs.length-1;len=state.accumulated.length}
+                else{len=0;for(var k=0;k<=endIdx;k++)len+=segs[k].length}
+                if(len<=state.displayedLen){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var chunkChars=len-state.displayedLen;
+                state.displayedLen=len;
+                var shown=state.accumulated.substring(0,state.displayedLen);
+                state.bodyEl.innerHTML=renderMd(shown)+'<span class="typing-cursor'+(isFast?' typing-cursor-fast':'')+'"></span>';
+                scrollBottom();
+                var lastSeg=segs[endIdx]||'';
+                var lastChar=lastSeg.charAt(lastSeg.length-1);
+
+                /* Base delay: chunkChars × 1.6 / speedMult (target 10–80ms) */
+                var base=(chunkChars*1.6)/(typingSpeedMult||1);
+                base=Math.min(Math.max(base,10),80);
+                /* Small chunks slightly faster; large chunks 15–20% slower */
+                if(chunkChars<40){base*=0.95;}
+                else if(chunkChars>80){base*=(1.15 + Math.random()*0.05);}
+                /* Micro-jitter ±8–10ms for softer rhythm */
+                var jitter=(8+Math.random()*2)*(Math.random()<0.5?-1:1);
+                base+=jitter;
+                base=Math.min(Math.max(base,10),80);
+                /* Punctuation pauses */
+                if(/[.!?]/.test(lastChar)){base+=100+Math.floor(Math.random()*61);}
+                else if(/[,;:]/.test(lastChar)){base+=60+Math.floor(Math.random()*31);}
+                if(/[\n\r]/.test(lastSeg)){base+=40+Math.floor(Math.random()*31);}
+
+                var delay=Math.max(10,Math.round(base));
+                state.typingId=setTimeout(tick,delay);
+            }
+            state.scheduleTick=function(){state.typingId=setTimeout(tick,0)};
+            tick();
+            return state;
+        }
+        function updateStreamingAnswer(state,chunk){
+            state.accumulated+=chunk;
+        }
+        function finalizeStreamingAnswer(state,data){
+            state.pendingFinalize=data;
+            state.accumulated=data.answer||state.accumulated;
+            if(state.displayedLen>=state.accumulated.length&&state.scheduleTick){state.scheduleTick();return}
         }
 
         function addAnswer(text,source,lang,docs,platResults,animate){

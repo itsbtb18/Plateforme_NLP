@@ -1,5 +1,5 @@
 from datetime import datetime
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -1028,6 +1028,114 @@ def ask_bot(request):
             },
             status=500,
         )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ask_bot_stream(request):
+    """Stream conversation response (SSE) — conversation mode only."""
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": _("Authentication required"), "source": "error"}, status=401
+        )
+
+    allowed, _ = check_rate_limit(request.user.id)
+    if not allowed:
+        return JsonResponse(
+            {
+                "error": _("Too many requests. Please wait a moment."),
+                "source": "error",
+            },
+            status=429,
+        )
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse(
+            {"error": _("Invalid request format."), "source": "error"}, status=400
+        )
+
+    mode = data.get("mode", "conversation")
+    question = data.get("question", "").strip()
+    session_id = data.get("session_id", "")
+    user_id = _get_user_id(request.user)
+    context_prompt = ""
+    context_metadata = {}
+
+    payload_context = data.get("context")
+    if isinstance(payload_context, dict):
+        context_prompt = _build_card_context_prompt(payload_context)
+        context_metadata = payload_context
+    else:
+        context_prompt, context_metadata = _get_request_content_context(request)
+
+    request.session.pop("chatbot_card_context", None)
+    request.session.pop("chatbot_context_prompt", None)
+    request.session.modified = True
+
+    try:
+        if not session_id:
+            session_id = _create_fastapi_session(request.user)
+    except requests.exceptions.RequestException as e:
+        logger.error("FastAPI unreachable for session creation: %s", e)
+        return JsonResponse(
+            {
+                "error": _(
+                    "Chatbot service is temporarily unavailable. Please try again in a moment."
+                ),
+                "source": "error",
+            },
+            status=503,
+        )
+
+    user_profile = _build_user_profile(request.user)
+
+    if mode != "conversation" or not question:
+        return JsonResponse(
+            {"error": _("Streaming is only available for conversation mode."), "source": "error"},
+            status=400,
+        )
+
+    if question:
+        save_message(session_id, "user", question)
+
+    effective_question = _inject_context_into_question(question, context_prompt)
+
+    def stream_generator():
+        try:
+            resp = requests.post(
+                f"{FASTAPI_URL}/conversation/stream",
+                json={
+                    "question": effective_question,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "max_history": CHATBOT_MAX_HISTORY,
+                    "max_tokens": min(CHATBOT_MAX_TOKENS, 8192),
+                    **user_profile,
+                },
+                headers=get_api_headers(),
+                stream=True,
+                timeout=CHATBOT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=1024):
+                if chunk:
+                    yield chunk
+        except requests.exceptions.RequestException as e:
+            logger.error("Stream proxy error: %s", e)
+            err_msg = _(
+                "Chatbot service is temporarily unavailable. Please try again in a moment."
+            )
+            yield f"data: {json.dumps({'error': err_msg})}\n\n".encode("utf-8")
+
+    response = StreamingHttpResponse(
+        stream_generator(),
+        content_type="text/event-stream",
+    )
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 @csrf_exempt
