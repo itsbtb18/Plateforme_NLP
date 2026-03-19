@@ -838,7 +838,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             if article:
                 initial.update(
                     {
-                        "document_format": resource.file_format,
+                        "document_format": getattr(resource, "file_format", ""),
                         "journal": article.journal,
                         "publication_date": article.publication_date,
                         "doi": article.doi or "",
@@ -850,7 +850,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             if thesis:
                 initial.update(
                     {
-                        "document_format": resource.file_format,
+                        "document_format": getattr(resource, "file_format", ""),
                         "supervisor": thesis.supervisor,
                         "thesis_institution": thesis.institution.id
                         if thesis.institution
@@ -864,7 +864,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             if memoir:
                 initial.update(
                     {
-                        "document_format": resource.file_format,
+                        "document_format": getattr(resource, "file_format", ""),
                         "memoir_level": memoir.academic_level,
                         "memoir_institution": memoir.institution.id
                         if memoir.institution
@@ -973,11 +973,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             and self.request.GET.get("review_model")
             and self.request.GET.get("review_pk")
         ):
-            return redirect(
-                "pages:admin_view_item",
-                model_type=self.request.GET.get("review_model"),
-                pk=self.request.GET.get("review_pk"),
-            )
+            return redirect(self.request.get_full_path())
 
         # In review mode, redirect back to admin
         if self.request.GET.get("review") == "1" and self.request.user.is_staff:

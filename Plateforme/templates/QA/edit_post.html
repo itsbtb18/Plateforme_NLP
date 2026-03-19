@@ -2,6 +2,13 @@
 {% block title %}
 {% trans "Edit post" %}
 {% endblock %}
+{% block extra_styles %}
+<style>
+.qa-admin-actions {
+  direction: ltr;
+}
+</style>
+{% endblock %}
  {% block content %}
 <div class="container mt-4">
   <div class="row">
@@ -150,23 +157,22 @@
               <a href="{% url 'pages:admin_news' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-1"></i>{% trans "Back to Admin" %}
               </a>
-              <div class="d-flex gap-2">
-                {% if read_only_review and request.GET.review_model and request.GET.review_pk %}
-                <a href="?edit_only=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn btn-outline-primary">
-                  <i class="fas fa-edit me-1"></i>{% trans "Edit Form" %}
-                </a>
-                {% endif %}
-                {% if is_pending and request.GET.review_model and request.GET.review_pk %}
+              <div class="d-flex qa-admin-actions" style="gap: 0.75rem; align-items: center;">
+                {% if not read_only_review and is_pending and request.GET.review_model and request.GET.review_pk %}
+                <button type="submit" class="btn btn-primary" style="min-width: 170px; display: inline-flex; justify-content: center; align-items: center;">
+                  <i class="fas fa-save me-2"></i>{% trans "Save changes" %}
+                </button>
                 <button type="submit"
                         class="btn btn-outline-danger"
                         formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
-                        onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                        style="min-width: 170px; display: inline-flex; justify-content: center; align-items: center;">
                   <i class="fas fa-times-circle me-1"></i>{% trans "Reject" %}
                 </button>
                 <button type="submit"
                         class="btn btn-success"
-                        formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
-                  <i class="fas fa-check-circle me-1"></i>{% trans "Approve & Publish" %}
+                        formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                        style="min-width: 170px; display: inline-flex; justify-content: center; align-items: center;">
+                  <i class="fas fa-check-circle me-1"></i>{% trans "Accept" %}
                 </button>
                 {% endif %}
               </div>

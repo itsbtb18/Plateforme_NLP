@@ -12,6 +12,9 @@ from datetime import timedelta
 
 from accounts.models import Friendship
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 from .forms import GroupCreateForm, MessageCreateForm
 from .models import Conversation, ConversationParticipant, Message, _pair_order
 from projects.models import Project, ProjectChatRoom
@@ -184,12 +187,17 @@ def inbox(request):
         if not project_title:
             project_title = getattr(project, "title_display", None) or getattr(project, "title", "")
 
+        lang = get_language() or ""
+        subtitle = _("Project discussion")
+        if lang.startswith("ar"):
+            subtitle = "نقاش المشروع"
+
         primary_conversations.append(
             {
                 "conversation": None,
                 "title": project_title,
                 "avatar_url": "",
-                "subtitle": _("Project discussion"),
+                "subtitle": subtitle,
                 "other": None,
                 "last_message": None,
                 "last_activity": (last_project_msg.created_at if last_project_msg else room.created_at),
@@ -232,6 +240,12 @@ def start_conversation(request, user_id):
         if request.method == "GET":
             return redirect("direct_messages:inbox")
         return JsonResponse({"ok": False, "error": _("Chat is forbidden because one user is blocked.")}, status=403)
+
+    # Private discussions are only allowed between accepted friends.
+    if not _is_accepted_friend(request.user, other):
+        if request.method == "GET":
+            return redirect("direct_messages:inbox")
+        return JsonResponse({"ok": False, "error": _("You can only start a conversation with accepted friends.")}, status=403)
 
     first, second = _pair_order(request.user, other)
     conversation, created = Conversation.objects.get_or_create(
@@ -283,6 +297,31 @@ def thread(request, conversation_id):
                     conversation.requested_by = None
                     conversation.save(update_fields=["status", "is_accepted", "requested_by"])
             msg.save()
+
+            # Broadcast freshly persisted message to all participants via Channels.
+            try:
+                channel_layer = get_channel_layer()
+                if channel_layer is not None:
+                    async_to_sync(channel_layer.group_send)(
+                        f"dm_{conversation.id}",
+                        {
+                            "type": "dm_message",
+                            "id": str(msg.id),
+                            "sender_id": str(msg.sender_id),
+                            "sender_name": _display_name(request.user),
+                            "sender_avatar_url": request.user.avatar.url
+                            if getattr(request.user, "avatar", None)
+                            else "",
+                            "message_type": msg.message_type,
+                            "content": msg.content,
+                            "file_url": msg.file_path.url if msg.file_path else "",
+                            "created_at": timezone.localtime(msg.created_at).strftime("%H:%M"),
+                        },
+                    )
+            except Exception:
+                # Don't break sending if websocket broadcast fails.
+                pass
+
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
                 file_url = msg.file_path.url if msg.file_path else ""
                 return JsonResponse(

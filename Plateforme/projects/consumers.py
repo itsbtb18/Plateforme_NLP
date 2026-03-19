@@ -15,6 +15,15 @@ class ProjectChatConsumer(WebsocketConsumer):
     room: Optional[ProjectChatRoom] = None
     user: Optional[Any] = None
 
+    @staticmethod
+    def _display_name(user: Any) -> str:
+        raw = getattr(user, "get_full_name_display", "")
+        name = raw() if callable(raw) else raw
+        name = (str(name) if name is not None else "").strip()
+        if name:
+            return name
+        return (getattr(user, "email", "") or "").strip()
+
     def _is_member(self, user, project: Project) -> bool:
         if user == project.coordinator:
             return True
@@ -68,7 +77,7 @@ class ProjectChatConsumer(WebsocketConsumer):
                 {
                     "type": "chat_typing",
                     "user_id": str(self.user.id),
-                    "user_name": escape(self.user.get_full_name_display),
+                    "user_name": escape(self._display_name(self.user)),
                 },
             )
             return
@@ -91,9 +100,10 @@ class ProjectChatConsumer(WebsocketConsumer):
                 "type": "chat_message",
                 "message_id": str(msg.id),
                 "sender_id": str(self.user.id),
-                "sender_name": escape(self.user.get_full_name_display),
+                "sender_name": escape(self._display_name(self.user)),
                 "content": escape(msg.content),
                 "message_type": msg.message_type,
+                "file_url": msg.file_path.url if msg.file_path else "",
                 "created_at": msg.created_at.strftime("%Y-%m-%d %H:%M"),
             },
         )
@@ -108,6 +118,7 @@ class ProjectChatConsumer(WebsocketConsumer):
                     "sender_name": event["sender_name"],
                     "content": event["content"],
                     "message_type": event["message_type"],
+                    "file_url": event.get("file_url", ""),
                     "created_at": event["created_at"],
                     "is_current_user": bool(self.user and str(self.user.id) == event["sender_id"]),
                 }

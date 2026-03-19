@@ -317,71 +317,92 @@
 /* ===== FORM ACTIONS ===== */
 .form-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--eng-border);
     margin-top: 1rem;
 }
 
-.btn-cancel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: transparent;
-    color: var(--eng-text-secondary);
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: 2px solid var(--eng-border);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
+.resource-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: stretch;
+    margin-inline-start: auto;
+    direction: ltr;
 }
 
-.btn-cancel:hover {
-    border-color: var(--eng-text-secondary);
-    color: var(--eng-text);
-}
-
-.btn-submit {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 2rem;
-    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
-    color: white;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.btn-reject {
+.btn-cancel,
+.btn-submit,
+.btn-reject,
+.btn-accept {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
+    padding: 0.95rem 1.75rem;
+    min-height: 60px;
+    min-width: 190px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    border-radius: 14px;
     text-decoration: none;
-    border: 1px solid #ef4444;
-    background: #ffffff;
-    color: #dc2626;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #274c77;
+    border: 2px solid var(--eng-border);
+    box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14);
+}
+
+.btn-cancel:hover {
+    border-color: #bfd0e6;
+    background: #f8fbff;
+    color: #1d4f91;
+    transform: translateY(-1px);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-reject {
+    border: none;
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.24);
 }
 
 .btn-reject:hover {
-    background: #fee2e2;
-    border-color: #dc2626;
-    color: #b91c1c;
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    color: #ffffff;
     transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(220, 38, 38, 0.3);
+}
+
+.btn-accept {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.24);
+}
+
+.btn-accept:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(5, 150, 105, 0.3);
 }
 
 .btn-submit:hover {
@@ -439,6 +460,11 @@ html[dir="rtl"] .form-group select {
 
 html[dir="rtl"] .form-actions {
     flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .resource-admin-actions {
+    margin-inline-start: 0;
+    margin-inline-end: auto;
 }
 
 html[dir="rtl"] .btn-cancel,
@@ -607,8 +633,14 @@ ul.list-unstyled.checkbox-grid {
         flex-direction: column;
         gap: 1rem;
     }
+
+    .resource-admin-actions {
+        flex-direction: column;
+        margin-inline-start: 0;
+        width: 100%;
+    }
     
-    .btn-cancel, .btn-submit, .btn-reject {
+    .btn-cancel, .btn-submit, .btn-reject, .btn-accept {
         width: 100%;
         justify-content: center;
     }
@@ -940,14 +972,15 @@ ul.list-unstyled.checkbox-grid {
                     <i class="bi bi-arrow-left"></i>
                     {% trans "Back to Admin" %}
                 </a>
-                <div style="display: flex; gap: 0.75rem;">
-                    {% if not edit_only and request.GET.review_model and request.GET.review_pk %}
-                    <a href="?edit_only=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn-cancel">
-                        <i class="bi bi-pencil-square"></i>
-                        {% trans "Edit Form" %}
-                    </a>
+                <div class="resource-admin-actions">
+                    {% if edit_only %}
+                    <button type="submit" class="btn-submit" id="submit-btn">
+                        <span class="spinner"></span>
+                        <i class="bi bi-check2"></i>
+                        <span class="btn-text">{% trans "Save Changes" %}</span>
+                    </button>
                     {% endif %}
-                    {% if is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
+                    {% if edit_only and is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
                     <button type="submit"
                             class="btn-reject"
                             formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
@@ -956,11 +989,10 @@ ul.list-unstyled.checkbox-grid {
                         <span>{% trans "Reject" %}</span>
                     </button>
                     <button type="submit"
-                            class="btn-submit"
-                            formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
-                            style="background: linear-gradient(135deg, #059669, #10b981);">
+                            class="btn-accept"
+                            formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                         <i class="bi bi-check-circle"></i>
-                        <span>{% trans "Approve & Publish" %}</span>
+                        <span>{% trans "Accept" %}</span>
                     </button>
                     {% endif %}
                 </div>
@@ -970,7 +1002,7 @@ ul.list-unstyled.checkbox-grid {
                     {% trans "Cancel" %}
                 </a>
                 {% if review_mode and is_pending and user.is_staff %}
-                <button type="submit" name="approve_and_publish" value="1" class="btn-submit" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <button type="submit" name="approve_and_publish" value="1" class="btn-accept">
                     <i class="bi bi-check-circle"></i>
                     <span class="btn-text">{% trans "Approve & Publish" %}</span>
                 </button>
@@ -980,6 +1012,21 @@ ul.list-unstyled.checkbox-grid {
                     <i class="bi bi-check2"></i>
                     <span class="btn-text">{% trans "Save Changes" %}</span>
                 </button>
+                {% if edit_only and is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
+                <button type="submit"
+                        class="btn-reject"
+                        formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                        onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                    <i class="bi bi-x-circle"></i>
+                    <span>{% trans "Reject" %}</span>
+                </button>
+                <button type="submit"
+                        class="btn-accept"
+                        formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
+                    <i class="bi bi-check-circle"></i>
+                    <span>{% trans "Accept" %}</span>
+                </button>
+                {% endif %}
                 {% endif %}
             </div>
             

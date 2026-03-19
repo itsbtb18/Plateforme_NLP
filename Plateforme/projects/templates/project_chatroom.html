@@ -5,31 +5,42 @@
 
 {% block extra_styles %}
 <style>
-  .pc-page { min-height: calc(100vh - 80px); background: #f8fafc; }
+  :root {
+    /* Blue-forward palette for the chat base + project list */
+    --pc-bg: #e9f1ff;
+    --pc-surface: #f8fbff;
+    --pc-line: #cfdaf1;
+    --pc-ink: #0f1f3d;
+    --pc-muted: #5c6b86;
+    --pc-accent: #1f6bff;
+    --pc-accent-soft: #d9e7ff;
+    --pc-outgoing: linear-gradient(135deg, #1f6bff 0%, #1246b5 100%);
+  }
+  .pc-page { min-height: calc(100vh - 80px); background: var(--pc-bg); }
   .pc-shell {
     max-width: 1300px;
     margin: 12px auto;
-    border: 1px solid #dbe3ef;
-    border-radius: 16px;
+    border: 1px solid var(--pc-line);
+    border-radius: 26px;
     overflow: hidden;
-    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
-    background: #fff;
+    box-shadow: 0 18px 44px rgba(59,108,245,0.12);
+    background: var(--pc-surface);
     display: grid;
     grid-template-columns: 280px 1fr;
     min-height: calc(100vh - 130px);
   }
   .pc-sidebar {
-    background: linear-gradient(180deg, #0f172a, #172554);
-    color: #e2e8f0;
-    border-inline-end: 1px solid rgba(148, 163, 184, 0.25);
+    background: linear-gradient(180deg, #e0ebff, #d5e4ff);
+    color: var(--pc-ink);
+    border-inline-end: 1px solid var(--pc-line);
     display: flex;
     flex-direction: column;
   }
   .pc-sidebar-head {
     padding: 14px 12px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+    border-bottom: 1px solid var(--pc-line);
     font-size: 0.92rem;
-    font-weight: 700;
+    font-weight: 800;
   }
   .pc-projects {
     overflow-y: auto;
@@ -39,19 +50,23 @@
     gap: 6px;
   }
   .pc-project-link {
-    color: #cbd5e1;
+    color: var(--pc-ink);
     text-decoration: none;
-    padding: 9px 10px;
-    border-radius: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.84rem;
+    font-size: 0.86rem;
+    background: #eaf2ff;
+    border: 1px solid var(--pc-line);
+    font-weight: 700;
   }
-  .pc-project-link:hover { background: rgba(148, 163, 184, 0.16); color: #fff; }
+  .pc-project-link:hover { background: #dbe8ff; border-color: rgba(31,107,255,0.35); }
   .pc-project-link.active {
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
-    color: #fff;
+    background: #c9dcff;
+    border-color: rgba(31,107,255,0.55);
+    color: var(--pc-ink);
   }
 
   .pc-main { display: flex; flex-direction: column; min-width: 0; }
@@ -60,40 +75,86 @@
     top: 0;
     z-index: 8;
     padding: 12px 14px;
-    border-bottom: 1px solid #334155;
-    background: #0f172a;
+    border-bottom: 1px solid var(--pc-line);
+    background: var(--pc-surface);
   }
-  .pc-title { margin: 0; font-size: 1.02rem; font-weight: 700; color: #f1f5f9; }
-  .pc-subtitle { font-size: 0.78rem; color: #cbd5e1; }
+  .pc-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .pc-head-row-rtl {
+    flex-direction: row-reverse !important;
+    justify-content: space-between;
+  }
+  .pc-head-main { min-width: 0; }
+  .pc-title {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--pc-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pc-title .pc-hash { font-weight: 900; }
+  html[dir="rtl"] .pc-title { flex-direction: row-reverse; }
+  .pc-subtitle { font-size: 0.78rem; color: var(--pc-muted); }
+  .pc-head-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(59,108,245,0.28);
+    color: var(--pc-ink);
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--pc-accent-soft);
+    white-space: nowrap;
+  }
+  .pc-head-link:hover { background: #dce8ff; }
 
   .pc-messages {
     flex: 1;
     overflow-y: auto;
-    background: #f8fafc;
-    padding: 12px;
+    background: linear-gradient(180deg, #f6f9ff, #eef3ff);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
   }
   .pc-empty {
-    margin: 18px auto;
-    color: #64748b;
+    margin: 40px auto;
+    color: var(--pc-muted);
     text-align: center;
+    border: 1px dashed var(--pc-line);
+    border-radius: 12px;
+    background: #fff;
+    padding: 16px 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: center;
   }
   .pc-row { display: flex; margin-bottom: 10px; animation: fadeIn .16s ease; }
   .pc-row.mine { justify-content: flex-end; }
   .pc-msg { max-width: min(78%, 700px); display: flex; flex-direction: column; gap: 3px; }
-  .pc-meta { font-size: 0.72rem; color: #64748b; padding-inline: 4px; }
+  .pc-meta { font-size: 0.72rem; color: var(--pc-muted); padding-inline: 4px; }
   .pc-row.mine .pc-meta { text-align: end; }
-  .pc-sender { font-weight: 700; color: #1e3a8a; font-size: 0.75rem; }
+  .pc-sender { font-weight: 700; color: var(--pc-ink); font-size: 0.75rem; }
   .pc-bubble {
-    border-radius: 14px;
-    padding: 9px 12px;
-    background: #e5e7eb;
-    color: #0f172a;
+    border-radius: 18px;
+    padding: 11px 14px;
+    background: #fff;
+    color: var(--pc-ink);
     line-height: 1.45;
     word-break: break-word;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   }
   .pc-row.mine .pc-bubble {
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    background: var(--pc-outgoing);
     color: #fff;
   }
   .pc-bubble a { color: inherit; text-decoration: underline; }
@@ -123,8 +184,8 @@
   }
 
   .pc-compose {
-    border-top: 1px solid #e2e8f0;
-    background: #fff;
+    border-top: 1px solid var(--pc-line);
+    background: var(--pc-surface);
     padding: 10px 12px;
   }
   .pc-compose-row {
@@ -135,10 +196,10 @@
   .pc-tool {
     width: 36px;
     height: 36px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--pc-line);
     background: #fff;
     border-radius: 999px;
-    color: #475569;
+    color: var(--pc-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -165,8 +226,8 @@
     border: 0;
     border-radius: 999px;
     color: #fff;
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.35);
+    background: linear-gradient(135deg, #1c3f94, #2f63e0);
+    box-shadow: 0 10px 22px rgba(32, 70, 150, 0.35);
   }
   .pc-file-input { display: none; }
   .pc-drop {
@@ -191,6 +252,32 @@
     display: none;
   }
   .pc-file-preview.show { display: block; }
+
+  html[dir="rtl"] .pc-shell {
+    direction: rtl;
+  }
+  html[dir="rtl"] .pc-sidebar {
+    border-inline-end: 0;
+    border-inline-start: 1px solid rgba(148, 163, 184, 0.25);
+  }
+  html[dir="rtl"] .pc-project-link,
+  html[dir="rtl"] .pc-head-main,
+  html[dir="rtl"] .pc-msg,
+  html[dir="rtl"] .pc-bubble,
+  html[dir="rtl"] .pc-meta,
+  html[dir="rtl"] .pc-input {
+    text-align: right;
+  }
+  html[dir="rtl"] .pc-compose-row { flex-direction: row-reverse; }
+  html[dir="rtl"] .pc-head-row {
+    flex-direction: row-reverse !important;
+    justify-content: space-between;
+  }
+  html[dir="rtl"] .pc-head-main { order: 2; text-align: right; }
+  html[dir="rtl"] .pc-head-link { order: 1; margin-inline-start: 12px; }
+  html[dir="rtl"] .pc-input {
+    direction: rtl;
+  }
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -220,18 +307,29 @@
 
     <section class="pc-main">
       <header class="pc-head">
-        <h2 class="pc-title"># {{ project.get_localized_title|default:project.title }}</h2>
-        <div class="pc-subtitle">
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-            دردشة خاصة لأعضاء المشروع فقط
-          {% else %}
-            {% trans "Private chat for project members only" %}
-          {% endif %}
+        <div class="pc-head-row {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}pc-head-row-rtl{% endif %}">
+          <div class="pc-head-main">
+            <h2 class="pc-title">
+              <span class="pc-hash">#</span>
+              <span class="pc-title-text">{{ project.get_localized_title|default:project.title }}</span>
+            </h2>
+            <div class="pc-subtitle">
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                دردشة خاصة بأعضاء المشروع فقط
+              {% else %}
+                {% trans "Private chat for project members only" %}
+              {% endif %}
+            </div>
+          </div>
+          <a href="{% url 'projects:project_detail' project.pk %}" class="pc-head-link">
+            <i class="bi bi-arrow-up-right-circle"></i>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المشروع{% else %}{% trans "Project" %}{% endif %}
+          </a>
         </div>
       </header>
 
-      <div id="pcMessages" class="pc-messages">
-        {% for m in messages %}
+      <div id="pcMessages" class="pc-messages" data-download-label="{% trans 'Download file' %}" data-sent-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}أُرسلت{% else %}{% trans 'Sent' %}{% endif %}">
+        {% for m in chat_messages %}
           <div class="pc-row {% if m.sender_id == request.user.id %}mine{% endif %}" data-message-id="{{ m.id }}">
             <div class="pc-msg">
               {% if m.sender_id != request.user.id %}
@@ -261,7 +359,11 @@
                 {{ m.created_at|date:"Y-m-d H:i" }}
                 {% if m.sender_id == request.user.id %}
                   - <span class="{% if m.seen_by.count > 1 %}pc-seen{% endif %}">
-                    {% if m.seen_by.count > 1 %}{% trans "Seen" %}{% else %}{% trans "Sent" %}{% endif %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                      {% if m.seen_by.count > 1 %}مقروء{% else %}مُرسَل{% endif %}
+                    {% else %}
+                      {% if m.seen_by.count > 1 %}{% trans "Seen" %}{% else %}{% trans "Sent" %}{% endif %}
+                    {% endif %}
                   </span>
                 {% endif %}
               </div>
@@ -269,16 +371,13 @@
           </div>
         {% empty %}
           <p class="pc-empty">
-            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-              لا توجد رسائل بعد.
-            {% else %}
-              {% trans "No messages yet." %}
-            {% endif %}
+            <i class="bi bi-chat-square-dots"></i>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد رسائل بعد{% else %}{% trans "No messages yet." %}{% endif %}
           </p>
         {% endfor %}
       </div>
 
-      <div id="pcTyping" class="pc-typing"></div>
+      <div id="pcTyping" class="pc-typing" data-typing-suffix="{% trans 'is typing...' %}"></div>
 
       <div class="pc-compose">
         <form id="pcForm" method="post" action="{% url 'projects:project_chat_send' project.pk %}" enctype="multipart/form-data">
@@ -311,6 +410,9 @@
     const emojiBtn = document.getElementById("pcEmojiBtn");
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     const roomUrl = `${wsScheme}://${window.location.host}/ws/projects/chat/{{ project.id }}/`;
+    const typingSuffix = typingEl ? (typingEl.dataset.typingSuffix || "is typing...") : "is typing...";
+    const downloadLabel = roomEl ? (roomEl.dataset.downloadLabel || "Download file") : "Download file";
+    const sentLabel = roomEl ? (roomEl.dataset.sentLabel || "Sent") : "Sent";
     let socket = null;
     let typingTimer = null;
 
@@ -322,7 +424,8 @@
         socket.onmessage = function (ev) {
           const data = JSON.parse(ev.data || "{}");
           if (data.event === "typing") {
-            typingEl.textContent = `${data.user_name} is typing...`;
+            if (!typingEl) return;
+            typingEl.textContent = `${data.user_name} ${typingSuffix}`;
             setTimeout(() => { typingEl.textContent = ""; }, 1200);
             return;
           }
@@ -334,14 +437,23 @@
 
     function appendMessage(data) {
       if (!roomEl) return;
+      const isFile = data.message_type === "file" && data.file_url;
+      const isImage = isFile && /(\.jpe?g|\.png|\.gif|\.webp)$/i.test(data.file_url || "");
+      const bubbleBody = isFile
+        ? (isImage
+            ? `<div class="pc-image"><img src="${data.file_url}" alt="{% trans 'Attachment' %}"></div>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`
+            : `<a href="${data.file_url}" class="pc-file-link" target="_blank" rel="noopener"><i class="bi bi-paperclip"></i> ${downloadLabel}</a>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`)
+        : (data.content || "");
       const row = document.createElement("div");
       row.className = "pc-row" + (data.is_current_user ? " mine" : "");
       row.innerHTML = `
         <div class="pc-msg">
           ${data.is_current_user ? "" : `<div class="pc-sender">${data.sender_name || ""}</div>`}
-          <div class="pc-bubble">${data.content || ""}</div>
-          <div class="pc-meta">${data.created_at || ""}${data.is_current_user ? " - Sent" : ""}</div>
+          <div class="pc-bubble">${bubbleBody}</div>
+          <div class="pc-meta">${data.created_at || ""}${data.is_current_user ? ` - ${sentLabel}` : ""}</div>
         </div>`;
+      const emptyState = roomEl.querySelector(".pc-empty");
+      if (emptyState) emptyState.remove();
       roomEl.appendChild(row);
       roomEl.scrollTop = roomEl.scrollHeight;
     }
@@ -376,7 +488,7 @@
     }
     if (emojiBtn && input) {
       emojiBtn.addEventListener("click", () => {
-        input.value += " 😀";
+        input.value += " :)";
         input.focus();
       });
     }
@@ -402,9 +514,7 @@
         if (input) input.value = "";
         if (fileInput) fileInput.value = "";
         updatePreview();
-        if (socket && socket.readyState === WebSocket.OPEN && data.message && !data.message.file_url) {
-          socket.send(JSON.stringify({ message: data.message.content || "" }));
-        } else {
+        if (!(socket && socket.readyState === WebSocket.OPEN)) {
           window.location.reload();
         }
       });

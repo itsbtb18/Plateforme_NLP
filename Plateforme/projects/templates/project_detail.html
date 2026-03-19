@@ -1139,8 +1139,11 @@ html[dir="rtl"] .pd-timeline-dot {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.65rem 0.8rem;
-    border-bottom: 1px solid #e6edf8;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
     gap: 0.75rem;
 }
 
@@ -1162,7 +1165,26 @@ html[dir="rtl"] .pd-timeline-dot {
 
 .invite-user-email {
     color: #64748b;
-    font-size: 0.8rem;
+    font-size: 0.86rem;
+}
+.invite-user-btn {
+    border: 1px solid #3b6cf5;
+    color: #fff;
+    background: linear-gradient(135deg, #5d8cff, #3b6cf5);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(59,108,245,0.16);
+}
+.invite-user-btn.added {
+    background: #e8efff;
+    color: #1f2d3d;
+    border-color: #cbd5f7;
+}
+.invite-user-btn[disabled] {
+    opacity: .6;
+    cursor: not-allowed;
 }
 
 .invite-empty {
@@ -1256,17 +1278,9 @@ html[dir="rtl"] .pd-timeline-dot {
                     </button>
                     {% endif %}
                     {% if is_coordinator %}
-                    <a href="{% url 'projects:project_update' project.pk %}" class="pd-btn pd-btn-secondary">
-                        <i class="bi bi-pencil"></i>
-                        {% translate "Edit" %}
-                    </a>
                     <a href="{% url 'projects:project_members' project.pk %}" class="pd-btn pd-btn-secondary">
                         <i class="bi bi-people"></i>
                         {% translate "Manage Team" %}
-                    </a>
-                    <a href="{% url 'projects:project_delete' project.pk %}" class="pd-btn pd-btn-danger">
-                        <i class="bi bi-trash"></i>
-                        {% translate "Delete" %}
                     </a>
                     {% endif %}
                 </div>
@@ -1330,30 +1344,6 @@ html[dir="rtl"] .pd-timeline-dot {
                 {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
                 <a class="pd-review-btn back" href="{% url 'pages:admin_projects' %}?tab=pending">
                     <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
-                </a>
-                <a class="pd-review-btn edit" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
-                    <i class="bi bi-pencil-square"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}
-                </a>
-                <form method="post" action="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="pd-review-form">
-                    {% csrf_token %}
-                    <button type="submit" class="pd-review-btn reject">
-                        <i class="bi bi-x-circle"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% translate "Refuse" %}{% endif %}
-                    </button>
-                </form>
-                <form method="post" action="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="pd-review-form">
-                    {% csrf_token %}
-                    <button type="submit" class="pd-review-btn approve">
-                        <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
-                    </button>
-                </form>
-                {% elif is_coordinator %}
-                <a href="{% url 'projects:project_update' pk=project.pk %}" class="pd-btn-action btn-edit">
-                    <i class="bi bi-pencil"></i>
-                    <span>{% translate "Edit" %}</span>
-                </a>
-                <a href="{% url 'projects:project_delete' pk=project.pk %}" class="pd-btn-action btn-delete">
-                    <i class="bi bi-trash"></i>
-                    <span>{% translate "Delete" %}</span>
                 </a>
                 {% endif %}
             </div>
@@ -1729,26 +1719,43 @@ html[dir="rtl"] .pd-timeline-dot {
         feedbackEl.style.display = 'none';
         resultsEl.style.display = 'block';
         items.forEach(function(user) {
-            const row = document.createElement('label');
+            const row = document.createElement('div');
             row.className = 'invite-result-item';
             row.innerHTML = `
                 <span class="invite-user-main">
                     <span class="invite-user-name"></span>
                     <span class="invite-user-email"></span>
                 </span>
-                <input type="checkbox" class="invite-user-checkbox">
+                <button type="button" class="invite-user-btn"></button>
             `;
             row.querySelector('.invite-user-name').textContent = user.name || user.email;
             row.querySelector('.invite-user-email').textContent = user.email;
-            const checkbox = row.querySelector('.invite-user-checkbox');
-            checkbox.checked = selectedUsers.has(user.id);
-            checkbox.addEventListener('change', function() {
-                if (checkbox.checked) {
-                    selectedUsers.add(user.id);
-                } else {
-                    selectedUsers.delete(user.id);
+            const btn = row.querySelector('.invite-user-btn');
+            const updateBtn = () => {
+                if (user.already_invited) {
+                    btn.textContent = "{% translate 'Invited' %}";
+                    btn.disabled = true;
+                    btn.classList.remove('added');
+                    return;
                 }
+                if (selectedUsers.has(user.id)) {
+                    btn.textContent = "{% translate 'Added' %}";
+                    btn.classList.add('added');
+                } else {
+                    btn.textContent = "{% translate 'Invite' %}";
+                    btn.classList.remove('added');
+                }
+            };
+            btn.addEventListener('click', function() {
+                if (user.already_invited) return;
+                if (selectedUsers.has(user.id)) {
+                    selectedUsers.delete(user.id);
+                } else {
+                    selectedUsers.add(user.id);
+                }
+                updateBtn();
             });
+            updateBtn();
             resultsEl.appendChild(row);
         });
     }

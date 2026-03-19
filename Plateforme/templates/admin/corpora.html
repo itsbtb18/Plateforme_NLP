@@ -56,18 +56,9 @@
             <td><span class="n-dt">{{ corpus.creation_date|date:"d/m/Y H:i" }}</span></td>
             <td><span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span></td>
             <td>
-              <div class="n-acts" style="justify-content:center;align-items:center;gap:5px;">
-                <a href="{% url 'resources:corpus_detail' corpus.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
-                <a href="{% url 'resources:resource-update' type='corpus' pk=corpus.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
-                <button
-                  type="button"
-                  class="n-act n-act-red js-corpus-reject-btn"
-                  data-reject-url="{% url 'pages:admin_reject_item' model_type='corpus' pk=corpus.id %}"
-                  title="{% trans 'Reject' %}"
-                >
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
+              {% url 'pages:admin_view_item' model_type='corpus' pk=corpus.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='corpus' pk=corpus.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='corpus' item_pk=corpus.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
             </td>
           </tr>
           {% endfor %}

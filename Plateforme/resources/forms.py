@@ -65,9 +65,11 @@ class ResourceForm(forms.Form):
     title_en = forms.CharField(
         label=_("Title * (English)"),
         max_length=200,
+        required=False,
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
+                "spellcheck": "false",
                 "placeholder": _("Enter the title in English"),
             }
         ),
@@ -80,16 +82,19 @@ class ResourceForm(forms.Form):
             attrs={
                 "class": "form-control",
                 "dir": "rtl",
+                "spellcheck": "false",
                 "placeholder": _("أدخل العنوان بالعربية"),
             }
         ),
     )
     description_en = forms.CharField(
         label=_("Description * (English)"),
+        required=False,
         widget=forms.Textarea(
             attrs={
                 "class": "form-control",
                 "rows": 3,
+                "spellcheck": "false",
                 "placeholder": _("Enter the description in English"),
             }
         ),
@@ -102,6 +107,7 @@ class ResourceForm(forms.Form):
                 "class": "form-control",
                 "rows": 3,
                 "dir": "rtl",
+                "spellcheck": "false",
                 "placeholder": _("أدخل الوصف بالعربية"),
             }
         ),
@@ -460,6 +466,10 @@ class ResourceForm(forms.Form):
 
         cleaned_data = super().clean()
         resource_type = cleaned_data.get("resource_type")
+        title_en = (cleaned_data.get("title_en") or "").strip()
+        title_ar = (cleaned_data.get("title_ar") or "").strip()
+        description_en = (cleaned_data.get("description_en") or "").strip()
+        description_ar = (cleaned_data.get("description_ar") or "").strip()
 
         logger.info(
             f"[RESOURCE_FORM] Validating form for resource_type: {resource_type}"
@@ -496,6 +506,16 @@ class ResourceForm(forms.Form):
         logger.info(
             f"[RESOURCE_FORM] Required fields for {resource_type}: {required_fields}"
         )
+
+        if not title_en and not title_ar:
+            message = _("Please provide a title in English or Arabic")
+            self.add_error("title_en", message)
+            self.add_error("title_ar", message)
+
+        if not description_en and not description_ar:
+            message = _("Please provide a description in English or Arabic")
+            self.add_error("description_en", message)
+            self.add_error("description_ar", message)
 
         for field in required_fields:
             if not cleaned_data.get(field):
@@ -568,16 +588,18 @@ class ResourceForm(forms.Form):
             f"[RESOURCE_CREATE] Starting save for resource type: {resource_type}, user: {self.user.email if self.user else 'None'}"
         )
 
-        title_en = self.cleaned_data["title_en"]
-        title_ar = self.cleaned_data.get("title_ar") or ""
-        desc_en = self.cleaned_data["description_en"]
-        desc_ar = self.cleaned_data.get("description_ar") or ""
+        title_en = (self.cleaned_data.get("title_en") or "").strip()
+        title_ar = (self.cleaned_data.get("title_ar") or "").strip()
+        desc_en = (self.cleaned_data.get("description_en") or "").strip()
+        desc_ar = (self.cleaned_data.get("description_ar") or "").strip()
+        legacy_title = title_en or title_ar
+        legacy_description = desc_en or desc_ar
 
         common_data = {
-            "title": title_en,  # Legacy field
+            "title": legacy_title,
             "title_en": title_en,
             "title_ar": title_ar,
-            "description": desc_en,  # Legacy field
+            "description": legacy_description,
             "description_en": desc_en,
             "description_ar": desc_ar,
             "author": self.user,
@@ -596,10 +618,10 @@ class ResourceForm(forms.Form):
         )
 
         if self.is_update and instance:
-            instance.title = title_en
+            instance.title = legacy_title
             instance.title_en = title_en
             instance.title_ar = title_ar
-            instance.description = desc_en
+            instance.description = legacy_description
             instance.description_en = desc_en
             instance.description_ar = desc_ar
             instance.keywords = self.cleaned_data["keywords"]
@@ -630,7 +652,8 @@ class ResourceForm(forms.Form):
                 instance.save()
             elif resource_type == "article":
                 instance.document_type = Document.DocumentType.ARTICLE
-                instance.file_format = self.cleaned_data["document_format"]
+                if hasattr(instance, "file_format") and "document_format" in self.cleaned_data:
+                    instance.file_format = self.cleaned_data["document_format"]
                 instance.save()
                 article = instance.article
                 article.doi = self.cleaned_data.get("doi", "")
@@ -639,7 +662,8 @@ class ResourceForm(forms.Form):
                 article.save()
             elif resource_type == "thesis":
                 instance.document_type = Document.DocumentType.THESIS
-                instance.file_format = self.cleaned_data["document_format"]
+                if hasattr(instance, "file_format") and "document_format" in self.cleaned_data:
+                    instance.file_format = self.cleaned_data["document_format"]
                 instance.save()
                 thesis = instance.thesis
                 thesis.supervisor = self.cleaned_data["supervisor"]
@@ -648,7 +672,8 @@ class ResourceForm(forms.Form):
                 thesis.save()
             elif resource_type == "memoir":
                 instance.document_type = Document.DocumentType.MEMOIR
-                instance.file_format = self.cleaned_data["document_format"]
+                if hasattr(instance, "file_format") and "document_format" in self.cleaned_data:
+                    instance.file_format = self.cleaned_data["document_format"]
                 instance.save()
                 memoir = instance.memoir
                 memoir.academic_level = self.cleaned_data["memoir_level"]
@@ -699,11 +724,16 @@ class ResourceForm(forms.Form):
                     return corpus
 
                 elif resource_type == "article":
-                    doc = Document.objects.create(
+                    doc_create_kwargs = {
                         **common_data,
-                        document_type=Document.DocumentType.ARTICLE,
-                        file_format=self.cleaned_data["document_format"],
-                    )
+                        "document_type": Document.DocumentType.ARTICLE,
+                    }
+                    if (
+                        hasattr(Document, "file_format")
+                        and "document_format" in self.cleaned_data
+                    ):
+                        doc_create_kwargs["file_format"] = self.cleaned_data["document_format"]
+                    doc = Document.objects.create(**doc_create_kwargs)
                     Article.objects.create(
                         document=doc,
                         doi=self.cleaned_data.get("doi", ""),
@@ -716,11 +746,16 @@ class ResourceForm(forms.Form):
                     return doc
 
                 elif resource_type == "thesis":
-                    doc = Document.objects.create(
+                    doc_create_kwargs = {
                         **common_data,
-                        document_type=Document.DocumentType.THESIS,
-                        file_format=self.cleaned_data["document_format"],
-                    )
+                        "document_type": Document.DocumentType.THESIS,
+                    }
+                    if (
+                        hasattr(Document, "file_format")
+                        and "document_format" in self.cleaned_data
+                    ):
+                        doc_create_kwargs["file_format"] = self.cleaned_data["document_format"]
+                    doc = Document.objects.create(**doc_create_kwargs)
                     Thesis.objects.create(
                         document=doc,
                         supervisor=self.cleaned_data["supervisor"],
@@ -733,11 +768,16 @@ class ResourceForm(forms.Form):
                     return doc
 
                 elif resource_type == "memoir":
-                    doc = Document.objects.create(
+                    doc_create_kwargs = {
                         **common_data,
-                        document_type=Document.DocumentType.MEMOIR,
-                        file_format=self.cleaned_data["document_format"],
-                    )
+                        "document_type": Document.DocumentType.MEMOIR,
+                    }
+                    if (
+                        hasattr(Document, "file_format")
+                        and "document_format" in self.cleaned_data
+                    ):
+                        doc_create_kwargs["file_format"] = self.cleaned_data["document_format"]
+                    doc = Document.objects.create(**doc_create_kwargs)
                     Memoir.objects.create(
                         document=doc,
                         academic_level=self.cleaned_data["memoir_level"],

@@ -36,6 +36,30 @@ class EventForm(forms.ModelForm):
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
     )
+    title_en = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    title_ar = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+    )
+    description_en = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+    )
+    description_ar = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'dir': 'rtl'}),
+    )
+    location_en = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    location_ar = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+    )
     
     class Meta:
         model = Event
@@ -61,19 +85,22 @@ class EventForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         instance = kwargs.get('instance', None)
-        
-        # Pre-populate from bilingual fields based on current language
+
         if instance:
             if 'initial' not in kwargs:
                 kwargs['initial'] = {}
-            lang = get_active_language()
             for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
-                target_field = ar_field if lang == 'ar' else en_field
-                value = getattr(instance, target_field, '') or getattr(instance, generic_field, '')
-                if value:
-                    kwargs['initial'][generic_field] = value
-        
+                kwargs['initial'][en_field] = getattr(instance, en_field, '') or ''
+                kwargs['initial'][ar_field] = getattr(instance, ar_field, '') or ''
+                kwargs['initial'][generic_field] = getattr(instance, en_field, '') or getattr(instance, ar_field, '') or getattr(instance, generic_field, '')
+
         super().__init__(*args, **kwargs)
+
+        # The template edits bilingual fields directly, so the legacy base fields
+        # must not block validation when they are omitted from POST.
+        self.fields['title'].required = False
+        self.fields['description'].required = False
+        self.fields['location'].required = False
 
         # Convert stored CSV domains to list so multiselect is prefilled on edit.
         if instance and instance.domains and not self.is_bound:
@@ -117,19 +144,53 @@ class EventForm(forms.ModelForm):
     
     def save(self, commit=True):
         instance = super().save(commit=False)
-        
-        # Save to bilingual fields based on active language
-        lang = get_active_language()
-        for generic_field, (ar_field, en_field) in self.BILINGUAL_FIELDS.items():
-            target_field = ar_field if lang == 'ar' else en_field
-            value = self.cleaned_data.get(generic_field, '')
-            # Set both the base field and the language-specific field
-            setattr(instance, generic_field, value)
-            setattr(instance, target_field, value)
+
+        title_en = (self.cleaned_data.get('title_en') or '').strip()
+        title_ar = (self.cleaned_data.get('title_ar') or '').strip()
+        description_en = (self.cleaned_data.get('description_en') or '').strip()
+        description_ar = (self.cleaned_data.get('description_ar') or '').strip()
+        location_en = (self.cleaned_data.get('location_en') or '').strip()
+        location_ar = (self.cleaned_data.get('location_ar') or '').strip()
+
+        instance.title_en = title_en
+        instance.title_ar = title_ar
+        instance.description_en = description_en
+        instance.description_ar = description_ar
+        instance.location_en = location_en
+        instance.location_ar = location_ar
+
+        instance.title = title_en or title_ar
+        instance.description = description_en or description_ar
+        instance.location = location_en or location_ar
         
         if commit:
             instance.save()
         return instance
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        title_en = (cleaned_data.get('title_en') or '').strip()
+        title_ar = (cleaned_data.get('title_ar') or '').strip()
+        description_en = (cleaned_data.get('description_en') or '').strip()
+        description_ar = (cleaned_data.get('description_ar') or '').strip()
+        location_en = (cleaned_data.get('location_en') or '').strip()
+        location_ar = (cleaned_data.get('location_ar') or '').strip()
+
+        if not title_en and not title_ar:
+            message = _("Please provide a title in English or Arabic.")
+            self.add_error('title_en', message)
+            self.add_error('title_ar', message)
+
+        if not description_en and not description_ar:
+            message = _("Please provide a description in English or Arabic.")
+            self.add_error('description_en', message)
+            self.add_error('description_ar', message)
+
+        cleaned_data['title'] = title_en or title_ar
+        cleaned_data['description'] = description_en or description_ar
+        cleaned_data['location'] = location_en or location_ar
+        return cleaned_data
 
     def clean_domains(self):
         domains = self.cleaned_data.get('domains', [])
