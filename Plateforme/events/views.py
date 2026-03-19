@@ -240,11 +240,7 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             and self.request.GET.get('review_model')
             and self.request.GET.get('review_pk')
         ):
-            return redirect(
-                'pages:admin_view_item',
-                model_type=self.request.GET.get('review_model'),
-                pk=self.request.GET.get('review_pk'),
-            )
+            return redirect(self.request.get_full_path())
         return response
 
     def get_context_data(self, **kwargs):

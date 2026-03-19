@@ -58,9 +58,9 @@ class ProjectForm(forms.ModelForm):
         lang = get_active_language()
         
         if lang == 'ar':
-            self.fields['title'].label = _("Title (Arabic / العنوان)")
+            self.fields['title'].label = _("Title (Arabic)")
             self.fields['title'].help_text = _("Enter the project title in Arabic")
-            self.fields['description'].label = _("Description (Arabic / الوصف)")
+            self.fields['description'].label = _("Description (Arabic)")
             self.fields['description'].help_text = _("Enter the description in Arabic")
         else:
             self.fields['title'].label = _("Title (English)")
@@ -123,9 +123,22 @@ class ProjectChatMessageForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         lang = get_active_language()
         if lang == "ar":
-            self.fields["content"].widget.attrs["placeholder"] = "اكتب رسالة..."
+            self.fields["content"].widget.attrs.update(
+                {
+                    # Fallback literal to avoid missing compiled translations
+                    "placeholder": "اكتب رسالة...",
+                    "dir": "rtl",
+                    "style": "text-align: right;",
+                }
+            )
         else:
-            self.fields["content"].widget.attrs["placeholder"] = "Write a message..."
+            self.fields["content"].widget.attrs.update(
+                {
+                    "placeholder": _("Write a message..."),
+                    "dir": "ltr",
+                    "style": "text-align: left;",
+                }
+            )
 
     class Meta:
         model = ProjectChatMessage

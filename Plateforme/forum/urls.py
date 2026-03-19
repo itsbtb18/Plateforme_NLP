@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import TopicListView, TopicCreateView, TopicUpdateView, TopicDeleteView, ChatRoomDetailView, ChatRoomCreateView, MessageDeleteView, ChatRoomListView, MessageUpdateView, BanUserView, UnbanUserView, TopicToggleStatusView, ChatRoomUpdateView, ChatRoomDeleteView
+from .views import TopicListView, TopicCreateView, TopicDetailView, TopicUpdateView, TopicDeleteView, ChatRoomDetailView, ChatRoomCreateView, MessageDeleteView, ChatRoomListView, MessageUpdateView, BanUserView, UnbanUserView, TopicToggleStatusView, ChatRoomUpdateView, ChatRoomDeleteView
 app_name = 'forum'
 
 urlpatterns = [
     path('topics/', TopicListView.as_view(), name='topic-list'),
     path('topics/new/', TopicCreateView.as_view(), name='topic-new'),
+    path('topics/<uuid:pk>/', TopicDetailView.as_view(), name='topic-detail'),
     path('topics/<uuid:pk>/edit/', TopicUpdateView.as_view(), name='topic-update'),
     path('topics/<uuid:pk>/delete/', TopicDeleteView.as_view(), name='topic-delete'),
     path('topics/<uuid:pk>/toggle-status/', TopicToggleStatusView.as_view(), name='topic-toggle-status'),

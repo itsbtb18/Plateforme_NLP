@@ -100,18 +100,9 @@
           </td>
           <td><span class="n-status n-status-amber">{% trans "Pending" %}</span></td>
           <td>
-            <div class="n-acts">
-              <a href="{% url 'events:event_update' call.pk %}?review=1" class="n-act" title="{% trans 'Review & Edit' %}"><i class="fas fa-edit"></i></a>
-              <form method="post" action="{% url 'pages:admin_approve_item' model_type='event' pk=call.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="n-act n-act-green" title="{% trans 'Approve' %}"><i class="fas fa-check"></i></button>
-              </form>
-              {% translate "Are you sure you want to reject this call?" as confirm_msg %}
-              <form method="post" action="{% url 'pages:admin_reject_item' model_type='event' pk=call.pk %}" style="display:inline;" onsubmit="return confirm('{{ confirm_msg }}');">
-                {% csrf_token %}
-                <button type="submit" class="n-act n-act-red" title="{% trans 'Reject & Delete' %}"><i class="fas fa-times"></i></button>
-              </form>
-            </div>
+            {% url 'pages:admin_view_item' model_type='event' pk=call.id as view_url %}
+            {% url 'pages:admin_approve_item' model_type='event' pk=call.id as review_url %}
+            {% include 'admin/_pending_actions.html' with model_type='event' item_pk=call.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
           </td>
         </tr>
         {% empty %}

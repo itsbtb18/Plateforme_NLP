@@ -266,37 +266,46 @@ html[dir="rtl"] .tu-label .lang-badge { margin-left: 0; margin-right: 0.5rem; }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 1.25rem;
     padding: 1.5rem 2rem;
     background: var(--tu-muted);
     border-top: 1px solid var(--tu-border);
 }
 
-.tu-footer-left { display: flex; gap: 0.75rem; }
-.tu-footer-right { display: flex; gap: 0.75rem; }
+.tu-footer-left { display: flex; gap: 0.9rem; }
+.tu-footer-right { display: flex; gap: 0.9rem; }
+.tu-admin-actions { direction: ltr; }
 
 .tu-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border-radius: var(--tu-radius-md);
+    padding: 0.95rem 1.75rem;
+    min-width: 190px;
+    min-height: 60px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    border-radius: 14px;
     text-decoration: none;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .tu-btn-primary { background: var(--tu-primary); color: var(--tu-white); }
 .tu-btn-primary:hover { background: var(--tu-primary-dark); color: var(--tu-white); }
 
-.tu-btn-success { background: var(--tu-success); color: var(--tu-white); }
-.tu-btn-success:hover { background: #059669; color: var(--tu-white); }
+.tu-btn-success { background: linear-gradient(135deg, #059669, #10b981); color: var(--tu-white); box-shadow: 0 8px 20px rgba(5, 150, 105, 0.24); }
+.tu-btn-success:hover { background: linear-gradient(135deg, #047857, #059669); color: var(--tu-white); transform: translateY(-2px); box-shadow: 0 12px 26px rgba(5, 150, 105, 0.3); }
 
-.tu-btn-secondary { background: var(--tu-white); color: var(--tu-text-secondary); border: 1px solid var(--tu-border); }
-.tu-btn-secondary:hover { background: var(--tu-subtle); color: var(--tu-text); }
+.tu-btn-secondary { background: transparent; color: #274c77; border: 2px solid var(--tu-border); box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14); }
+.tu-btn-secondary:hover { background: #f8fbff; color: #1d4f91; border-color: #bfd0e6; transform: translateY(-1px); }
+
+.tu-btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); color: var(--tu-white); box-shadow: 0 8px 20px rgba(220, 38, 38, 0.24); }
+.tu-btn-danger:hover { background: linear-gradient(135deg, #b91c1c, #dc2626); color: var(--tu-white); transform: translateY(-2px); box-shadow: 0 12px 26px rgba(220, 38, 38, 0.3); }
 
 @media (max-width: 768px) {
     .tu-hero { padding: 1.5rem 0 3rem; }
@@ -464,23 +473,36 @@ html[dir="rtl"] .tu-label .lang-badge { margin-left: 0; margin-right: 0.5rem; }
                 
                 <div class="tu-card-footer">
                     <div class="tu-footer-left">
-                        <a href="{% if review_mode %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:chatroom-list' topic.pk %}{% endif %}" class="tu-btn tu-btn-secondary">
+                        <a href="{% if review_mode or request.GET.edit_only == '1' %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:topic-detail' topic.pk %}{% endif %}" class="tu-btn tu-btn-secondary">
                             <i class="bi bi-x-lg"></i>{% translate "Cancel" %}
                         </a>
                     </div>
-                    <div class="tu-footer-right">
-                        {% if review_mode and is_pending %}
+                    <div class="tu-footer-right tu-admin-actions">
+                        {% if is_pending and review_mode or is_pending and request.GET.edit_only == "1" %}
+                        <button type="submit" class="tu-btn tu-btn-primary">
+                            <i class="bi bi-check-lg"></i>{% translate "Save Changes" %}
+                        </button>
                         {% if request.GET.review_model and request.GET.review_pk %}
                         <button type="submit"
-                                class="tu-btn tu-btn-secondary"
-                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
-                                onclick="return confirm('{% translate "Are you sure you want to reject this request?" %}');">
+                                class="tu-btn tu-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                             <i class="bi bi-x-circle"></i>{% translate "Reject" %}
                         </button>
                         <button type="submit"
                                 class="tu-btn tu-btn-success"
                                 formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
-                            <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
+                            <i class="bi bi-check-circle"></i>{% translate "Accept" %}
+                        </button>
+                        {% else %}
+                        <button type="submit"
+                                class="tu-btn tu-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type='topic' pk=topic.pk %}">
+                            <i class="bi bi-x-circle"></i>{% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="tu-btn tu-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type='topic' pk=topic.pk %}">
+                            <i class="bi bi-check-circle"></i>{% translate "Accept" %}
                         </button>
                         {% endif %}
                         {% else %}

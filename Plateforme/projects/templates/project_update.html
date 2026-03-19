@@ -281,6 +281,14 @@ html[dir="rtl"] .pf-select {
     background: linear-gradient(135deg, #047857, #059669);
     color: var(--pf-white);
 }
+.pf-btn-danger {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: var(--pf-white);
+}
+.pf-btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    color: var(--pf-white);
+}
 
 /* ===== FILE UPLOAD ===== */
 .pf-file-zone {
@@ -378,6 +386,13 @@ html[dir="rtl"] .pf-select {
 .pf-btn-primary:hover { background: var(--pf-primary-dark); color: var(--pf-white); }
 .pf-btn-secondary { background: var(--pf-white); color: var(--pf-text-secondary); border: 1px solid var(--pf-border); }
 .pf-btn-secondary:hover { background: var(--pf-subtle); color: var(--pf-text); }
+
+.pf-admin-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    direction: ltr;
+}
 
 html[dir="rtl"] .pf-btn .bi-arrow-left,
 html[dir="rtl"] .pf-btn .bi-arrow-right { transform: scaleX(-1); }
@@ -692,23 +707,42 @@ html[dir="rtl"] .pf-btn .bi-arrow-right { transform: scaleX(-1); }
 
                 <!-- Form Footer -->
                 <div class="pf-form-footer">
-                    {% if review_mode %}
+                    {% if review_mode or request.GET.edit_only == "1" %}
                     <a href="{% url 'pages:admin_projects' %}?tab=pending" class="pf-btn pf-btn-secondary">
-                        <i class="bi bi-arrow-left"></i>{% translate "Back to Admin" %}
+                        <i class="bi bi-x-lg"></i>{% translate "Cancel" %}
                     </a>
-                    <div style="display: flex; gap: 0.75rem;">
-                        {% if is_pending and request.GET.review_model and request.GET.review_pk %}
+                    <div class="pf-admin-actions">
+                        <button type="submit" class="pf-btn pf-btn-primary" style="min-width: 170px; justify-content: center;">
+                            <i class="bi bi-check-lg"></i>{% translate "Save Changes" %}
+                        </button>
+                        {% if is_pending %}
+                        {% if request.GET.review_model and request.GET.review_pk %}
                         <button type="submit"
-                                class="pf-btn pf-btn-secondary"
+                                class="pf-btn pf-btn-danger"
                                 formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
-                                onclick="return confirm('{% translate "Are you sure you want to reject this request?" %}');">
+                                style="min-width: 170px; justify-content: center;">
                             <i class="bi bi-x-circle"></i>{% translate "Reject" %}
                         </button>
                         <button type="submit"
                                 class="pf-btn pf-btn-success"
-                                formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
-                            <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
+                                formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                                style="min-width: 170px; justify-content: center;">
+                            <i class="bi bi-check-circle"></i>{% translate "Accept" %}
                         </button>
+                        {% else %}
+                        <button type="submit"
+                                class="pf-btn pf-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type='project' pk=project.pk %}"
+                                style="min-width: 170px; justify-content: center;">
+                            <i class="bi bi-x-circle"></i>{% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="pf-btn pf-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type='project' pk=project.pk %}"
+                                style="min-width: 170px; justify-content: center;">
+                            <i class="bi bi-check-circle"></i>{% translate "Accept" %}
+                        </button>
+                        {% endif %}
                         {% endif %}
                     </div>
                     {% else %}

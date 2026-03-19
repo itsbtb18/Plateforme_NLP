@@ -269,7 +269,6 @@ def validate_project_chat_file(uploaded_file):
 
 class ProjectChatRoom(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='chat_rooms')
     project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='chatroom_room')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -298,7 +297,6 @@ class ProjectChatMessage(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     room = models.ForeignKey(ProjectChatRoom, on_delete=models.CASCADE, related_name='messages')
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='project_chat_sent_messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_project_chat_messages')
     message_type = models.CharField(max_length=10, choices=MessageType.choices, default=MessageType.TEXT)
     content = models.TextField(blank=True, default='')

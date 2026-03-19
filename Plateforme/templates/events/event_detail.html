@@ -1095,21 +1095,6 @@ html[dir="rtl"] .ai-badge-inline {
                 <a class="ed-review-btn back" href="{% url 'pages:admin_calls' %}?tab=pending">
                     <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
                 </a>
-                <a class="ed-review-btn edit" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
-                    <i class="bi bi-pencil-square"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}
-                </a>
-                <form method="post" action="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="ed-review-form">
-                    {% csrf_token %}
-                    <button type="submit" class="ed-review-btn reject">
-                        <i class="bi bi-x-circle"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% translate "Refuse" %}{% endif %}
-                    </button>
-                </form>
-                <form method="post" action="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}" class="ed-review-form">
-                    {% csrf_token %}
-                    <button type="submit" class="ed-review-btn approve">
-                        <i class="bi bi-check-circle"></i>{% translate "Approve & Publish" %}
-                    </button>
-                </form>
                 {% elif request.user == event.author %}
                 <a href="{% url 'events:event-update' pk=event.pk %}" class="ed-btn-action btn-edit">
                     <i class="bi bi-pencil"></i>
@@ -1330,23 +1315,6 @@ html[dir="rtl"] .ai-badge-inline {
                     <i class="bi bi-clock"></i>
                     {{ event.days_until_deadline }} {% translate "days left" %}
                 </span>
-            </div>
-            {% endif %}
-            
-            <!-- Owner Actions -->
-            {% if user == event.created_by or user.is_staff %}
-            <div class="ed-owner-actions">
-                <div class="ed-owner-title">{% translate "Manage Event" %}</div>
-                <div class="ed-owner-btns">
-                    <a href="{% url 'events:event_update' event.pk %}" class="ed-owner-btn">
-                        <i class="bi bi-pencil"></i>
-                        {% translate "Edit Event" %}
-                    </a>
-                    <a href="{% url 'events:event_delete' event.pk %}" class="ed-owner-btn danger">
-                        <i class="bi bi-trash3"></i>
-                        {% translate "Delete Event" %}
-                    </a>
-                </div>
             </div>
             {% endif %}
             
