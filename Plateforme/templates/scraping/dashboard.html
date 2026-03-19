@@ -35,10 +35,15 @@
 .ws-loading p{color:var(--n-text-3);font-size:.82rem}
 
 /* Result summary grid */
-.ws-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
+.ws-summary{display:grid;grid-template-columns:repeat(7,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
 .ws-summary-item{text-align:center}
 .ws-summary-item .ws-num{font-size:1.35rem;font-weight:700;line-height:1}
 .ws-summary-item .ws-lbl{font-size:.68rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.ws-validation-summary{padding:.55rem 1.25rem .85rem;background:var(--n-bg);font-size:.78rem;color:var(--n-text-2);border-bottom:1px solid var(--n-border-s)}
+.ws-val-ok{color:var(--n-green);font-weight:600}
+.ws-val-date{color:var(--n-amber);font-weight:600}
+.ws-val-fields{color:var(--n-red);font-weight:600}
+.ws-val-autofill{color:var(--n-blue);font-weight:600}
 
 /* Errors callout */
 .ws-errors{background:var(--n-red-bg);border-inline-start:3px solid var(--n-red);border-radius:0 var(--n-radius-sm) var(--n-radius-sm) 0;padding:.75rem 1.15rem;margin:1rem 1.25rem}
@@ -58,6 +63,43 @@
 @media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.n-st-grid{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:576px){.ws-summary{grid-template-columns:1fr}.n-st-grid{grid-template-columns:1fr!important}}
+
+/* ── Custom Sources: Modal ──────────────────────────────────── */
+.ws-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+.ws-modal-overlay.active{display:flex}
+.ws-modal{background:var(--n-card);border-radius:var(--n-radius);box-shadow:0 20px 60px rgba(0,0,0,.2);width:95%;max-width:560px;max-height:90vh;overflow-y:auto;animation:wsFade .2s ease}
+.ws-modal-head{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid var(--n-border-s)}
+.ws-modal-head h3{margin:0;font-size:1rem;display:flex;align-items:center;gap:.5rem}
+.ws-modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--n-text-3);padding:0;line-height:1}
+.ws-modal-close:hover{color:var(--n-text)}
+.ws-modal-body{padding:1.25rem 1.5rem}
+
+/* ── Custom Sources: Form ───────────────────────────────────── */
+.ws-form-group{margin-bottom:1rem}
+.ws-form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--n-text-2);margin-bottom:.35rem}
+.ws-form-group input,.ws-form-group select,.ws-form-group textarea{width:100%;padding:.55rem .75rem;border:1px solid var(--n-border);border-radius:var(--n-radius-sm);font-size:.84rem;background:var(--n-bg);color:var(--n-text);transition:border-color .15s;box-sizing:border-box}
+.ws-form-group input:focus,.ws-form-group select:focus,.ws-form-group textarea:focus{outline:none;border-color:var(--n-blue)}
+.ws-form-check{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+.ws-form-check input[type="checkbox"]{width:auto;accent-color:var(--n-blue)}
+.ws-form-check label{margin:0;font-size:.82rem;font-weight:500;color:var(--n-text-2)}
+.ws-adv-toggle{background:none;border:none;color:var(--n-blue);font-size:.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:.35rem;margin-bottom:.5rem}
+.ws-adv-toggle:hover{text-decoration:underline}
+.ws-form-submit{width:100%;padding:.6rem;border:none;border-radius:8px;background:var(--n-blue);color:#fff;font-weight:600;font-size:.88rem;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+.ws-form-submit:hover{opacity:.85}
+.ws-form-submit:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Custom Sources: Status badges & action buttons ─────────── */
+.ws-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;color:#fff}
+.ws-status.success{background:#10b981}.ws-status.failed{background:#ef4444}.ws-status.pending{background:#f59e0b}
+.ws-act-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;transition:opacity .15s;color:#fff}
+.ws-act-btn:hover{opacity:.8}
+.ws-act-btn.run{background:var(--n-blue)}.ws-act-btn.del{background:#ef4444}
+.ws-act-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Toast notification ─────────────────────────────────────── */
+.ws-toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:8px;color:#fff;font-size:.84rem;font-weight:500;z-index:2000;animation:wsToastIn .3s ease;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.ws-toast.success{background:#10b981}.ws-toast.error{background:#ef4444}.ws-toast.info{background:var(--n-blue)}
+@keyframes wsToastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 </style>
 {% endblock %}
 
@@ -186,6 +228,102 @@
 </div>
 {% endfor %}
 
+<!-- ─── Custom Scraping Sources ──────────────────────────────── -->
+<div class="n-card" style="margin-top:2rem" id="custom-sources-section">
+  <div class="n-card-head" style="flex-wrap:wrap;gap:.75rem">
+    <div>
+      <h3 class="n-card-title"><i class="fas fa-globe" style="color:var(--n-blue)"></i> {% trans "Custom Scraping Sources" %}</h3>
+      <p style="margin:.15rem 0 0;font-size:.8rem;color:var(--n-text-3)">{% trans "Add any website and let the AI extract relevant content automatically" %}</p>
+    </div>
+    <button class="ws-run-btn" onclick="openAddSourceModal()">
+      <i class="fas fa-plus"></i> <span class="ws-btn-label">{% trans "Add New Source" %}</span>
+    </button>
+  </div>
+
+  <div class="n-card-body" style="padding:0">
+    <!-- Sources table -->
+    <div class="table-responsive" id="custom-sources-table-wrap" style="display:none">
+      <table class="n-tbl" id="custom-sources-table">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "URL" %}</th>
+            <th>{% trans "Category" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Last Scraped" %}</th>
+            <th>{% trans "Items Created" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody id="custom-sources-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Empty state -->
+    <div class="n-empty" id="custom-sources-empty" style="padding:2.5rem 1rem">
+      <i class="fas fa-globe" style="font-size:2rem;color:var(--n-text-3);opacity:.4"></i>
+      <h3 style="margin:.75rem 0 .25rem;font-size:.95rem">{% trans "No custom sources yet" %}</h3>
+      <p style="font-size:.82rem;color:var(--n-text-3);margin:0">{% trans "Click \"+ Add New Source\" to get started" %}</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Add Source Modal ─────────────────────────────────────── -->
+<div class="ws-modal-overlay" id="addSourceModal">
+  <div class="ws-modal">
+    <div class="ws-modal-head">
+      <h3><i class="fas fa-plus-circle" style="color:var(--n-blue)"></i> {% trans "Add New Source" %}</h3>
+      <button class="ws-modal-close" onclick="closeAddSourceModal()" type="button">&times;</button>
+    </div>
+    <div class="ws-modal-body">
+      <form id="addSourceForm" onsubmit="submitAddSource(event)">
+        <div class="ws-form-group">
+          <label for="src-name">{% trans "Source Name" %} *</label>
+          <input type="text" id="src-name" name="name" required placeholder="{% trans "e.g. NLP Conference Calendar" %}">
+        </div>
+        <div class="ws-form-group">
+          <label for="src-url">{% trans "Website URL" %} *</label>
+          <input type="url" id="src-url" name="base_url" required placeholder="https://example.com">
+        </div>
+        <div class="ws-form-group">
+          <label for="src-cat">{% trans "Category" %}</label>
+          <select id="src-cat" name="category">
+            <option value="events">{% trans "Events" %}</option>
+            <option value="tools">{% trans "Tools" %}</option>
+            <option value="news" selected>{% trans "News" %}</option>
+            <option value="courses">{% trans "Courses" %}</option>
+            <option value="institutions">{% trans "Institutions" %}</option>
+          </select>
+        </div>
+        <div class="ws-form-check">
+          <input type="checkbox" id="src-rss" name="use_rss" checked>
+          <label for="src-rss">{% trans "Try RSS Feed first" %}</label>
+        </div>
+        <div class="ws-form-check">
+          <input type="checkbox" id="src-llm" name="use_llm_extraction" checked>
+          <label for="src-llm">{% trans "Use AI extraction" %}</label>
+        </div>
+
+        <!-- Advanced: CSS Selectors -->
+        <button type="button" class="ws-adv-toggle" onclick="toggleAdvanced()">
+          <i class="fas fa-chevron-right" id="adv-chevron" style="font-size:.6rem;transition:transform .2s"></i>
+          {% trans "Advanced: CSS Selectors" %}
+        </button>
+        <div id="adv-selectors" style="display:none">
+          <div class="ws-form-group">
+            <label for="src-config">{% trans "CSS Selectors (JSON)" %}</label>
+            <textarea id="src-config" name="scrape_config" rows="4" placeholder='{"title_selector": "h2, h3", "desc_selector": "p", "link_selector": "a"}'></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="ws-form-submit" id="addSourceSubmit">
+          <i class="fas fa-plus-circle"></i> {% trans "Add Source" %}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% csrf_token %}
 {% endblock %}
 
@@ -200,6 +338,9 @@
         created:    '{% trans "Created" %}',
         skipped:    '{% trans "Skipped" %}',
         duration:   '{% trans "Duration" %}',
+      passedValidation: '{% trans "Passed Validation" %}',
+      rejectedDate: '{% trans "Rejected (Date)" %}',
+      rejectedFields: '{% trans "Rejected (Fields)" %}',
         warnings:   '{% trans "warning(s)" %}',
         noItems:    '{% trans "No new items found." %}',
         scraped:    '{% trans "Scraped Items" %}',
@@ -314,6 +455,13 @@
     function renderResults(cat, data) {
         var container = document.getElementById('results-' + cat);
         var h = '';
+      var validationStats = data.validation_stats || {};
+      var passedValidation = Number(validationStats.passed || 0);
+      var rejectedDate = Number(validationStats.failed_date || 0);
+      var rejectedFreshness = Number(validationStats.failed_freshness || 0);
+      var rejectedFields = Number(validationStats.failed_fields || 0);
+      var autoFilledArabic = Number(validationStats.auto_filled || 0);
+      container.dataset.failedFreshness = String(rejectedFreshness);
 
         /* Summary */
         h += '<div class="n-card" style="margin-top:1rem"><div class="ws-summary">';
@@ -321,7 +469,16 @@
         h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-green)">'+(data.items_created||0)+'</div><div class="ws-lbl">'+I18N.created+'</div></div>';
         h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-text-3)">'+(data.items_skipped||0)+'</div><div class="ws-lbl">'+I18N.skipped+'</div></div>';
         h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-blue-dark)">'+(data.duration ? data.duration.toFixed(1)+'s' : '—')+'</div><div class="ws-lbl">'+I18N.duration+'</div></div>';
+      h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-green)">'+passedValidation+'</div><div class="ws-lbl">'+I18N.passedValidation+'</div></div>';
+      h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-amber)">'+rejectedDate+'</div><div class="ws-lbl">'+I18N.rejectedDate+'</div></div>';
+      h += '<div class="ws-summary-item"><div class="ws-num" style="color:var(--n-red)">'+rejectedFields+'</div><div class="ws-lbl">'+I18N.rejectedFields+'</div></div>';
         h += '</div>';
+      h += '<div class="ws-validation-summary">';
+      h += '<span class="ws-val-ok">'+passedValidation+' items passed validation</span> • ';
+      h += '<span class="ws-val-date">'+rejectedDate+' rejected (past date)</span> • ';
+      h += '<span class="ws-val-fields">'+rejectedFields+' rejected (missing fields)</span> • ';
+      h += '<span class="ws-val-autofill">'+autoFilledArabic+' auto-filled Arabic fields</span>';
+      h += '</div>';
 
         /* Errors */
         if (data.errors && data.errors.length) {
@@ -389,6 +546,239 @@
         d.textContent = String(text);
         return d.innerHTML;
     }
+
+    /* ================================================================
+       Custom Sources — modal, form, table, run, delete, toast
+       ================================================================ */
+
+    var dashboardBase = '{% url "scraping:dashboard" %}'.replace(/\/?$/, '');
+
+    /* ── Toast notification ────────────────────────────────────── */
+    window.showToast = function(message, type) {
+        type = type || 'info';
+        var t = document.createElement('div');
+        t.className = 'ws-toast ' + type;
+        var icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+        t.innerHTML = '<i class="fas ' + icon + '"></i> ' + escapeHtml(message);
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 3000);
+        setTimeout(function(){ t.remove(); }, 3500);
+    };
+
+    /* ── Modal open / close ────────────────────────────────────── */
+    window.openAddSourceModal = function() {
+        document.getElementById('addSourceModal').classList.add('active');
+    };
+    window.closeAddSourceModal = function() {
+        document.getElementById('addSourceModal').classList.remove('active');
+        document.getElementById('addSourceForm').reset();
+        document.getElementById('adv-selectors').style.display = 'none';
+        document.getElementById('adv-chevron').style.transform = '';
+    };
+    /* Close on overlay click */
+    document.getElementById('addSourceModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAddSourceModal();
+    });
+    /* Close on Escape */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('addSourceModal').classList.contains('active')) {
+            closeAddSourceModal();
+        }
+    });
+
+    /* ── Advanced toggle ───────────────────────────────────────── */
+    window.toggleAdvanced = function() {
+        var el = document.getElementById('adv-selectors');
+        var ch = document.getElementById('adv-chevron');
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            ch.style.transform = 'rotate(90deg)';
+        } else {
+            el.style.display = 'none';
+            ch.style.transform = '';
+        }
+    };
+
+    /* ── Submit new source ─────────────────────────────────────── */
+    window.submitAddSource = function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('addSourceSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="ws-spin" style="display:inline-block"></span> {% trans "Adding…" %}';
+
+        var configRaw = document.getElementById('src-config').value.trim();
+        var configObj = {};
+        if (configRaw) {
+            try { configObj = JSON.parse(configRaw); } catch(err) {
+                showToast('{% trans "Invalid JSON in CSS Selectors" %}', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus-circle"></i> {% trans "Add Source" %}';
+                return;
+            }
+        }
+
+        var payload = {
+            name:               document.getElementById('src-name').value.trim(),
+            base_url:           document.getElementById('src-url').value.trim(),
+            category:           document.getElementById('src-cat').value,
+            use_rss:            document.getElementById('src-rss').checked,
+            use_llm_extraction: document.getElementById('src-llm').checked,
+            scrape_config:      configObj,
+        };
+
+        fetch(dashboardBase + '/sources/add/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+        .then(function(res) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus-circle"></i> {% trans "Add Source" %}';
+            if (res.ok) {
+                showToast('{% trans "Source added successfully!" %}', 'success');
+                closeAddSourceModal();
+                loadCustomSources();
+            } else {
+                showToast(res.data.error || '{% trans "Failed to add source" %}', 'error');
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus-circle"></i> {% trans "Add Source" %}';
+            showToast('{% trans "Network error" %}: ' + err, 'error');
+        });
+    };
+
+    /* ── Load custom sources table ─────────────────────────────── */
+    function loadCustomSources() {
+        fetch(dashboardBase + '/sources/list/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var sources = data.sources || [];
+            renderSourcesTable(sources);
+        })
+        .catch(function() {
+            /* Endpoint doesn't exist yet — show empty state */
+            renderSourcesTable([]);
+        });
+    }
+
+    /* ── Render sources table ──────────────────────────────────── */
+    function renderSourcesTable(sources) {
+        var tbody = document.getElementById('custom-sources-tbody');
+        var tableWrap = document.getElementById('custom-sources-table-wrap');
+        var empty = document.getElementById('custom-sources-empty');
+
+        if (!sources.length) {
+            tableWrap.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        tableWrap.style.display = 'block';
+        empty.style.display = 'none';
+
+        var catColours = {events:'#6366f1',tools:'#10b981',news:'#f59e0b',courses:'#3b82f6',institutions:'#8b5cf6'};
+        var h = '';
+
+        sources.forEach(function(s) {
+            var colour = catColours[s.category] || '#64748b';
+            var statusCls = s.last_run_status || 'pending';
+            var statusLabel = statusCls.charAt(0).toUpperCase() + statusCls.slice(1);
+            var scraped = s.last_scraped || '—';
+            var shortUrl = s.base_url;
+            try { shortUrl = new URL(s.base_url).hostname; } catch(e) {}
+
+            h += '<tr id="src-row-' + s.id + '">';
+            h += '<td style="font-weight:600">' + escapeHtml(s.name) + '</td>';
+            h += '<td><a href="' + escapeHtml(s.base_url) + '" target="_blank" rel="noopener" style="color:var(--n-blue);font-size:.8rem">' + escapeHtml(shortUrl) + ' <i class="fas fa-external-link-alt" style="font-size:.6rem"></i></a></td>';
+            h += '<td><span style="background:' + colour + ';color:#fff;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:500">' + escapeHtml(s.category_display || s.category) + '</span></td>';
+            h += '<td><span class="ws-status ' + statusCls + '">' + escapeHtml(statusLabel) + '</span></td>';
+            h += '<td style="font-size:.8rem;color:var(--n-text-3)">' + escapeHtml(scraped) + '</td>';
+            h += '<td style="font-weight:600;text-align:center">' + (s.last_run_items_created || 0) + '</td>';
+            h += '<td style="white-space:nowrap">';
+            h += '<button class="ws-act-btn run" onclick="runCustomSource(\'' + s.id + '\', this)" title="{% trans "Run Now" %}"><i class="fas fa-play"></i> {% trans "Run" %}</button> ';
+            h += '<button class="ws-act-btn del" onclick="deleteCustomSource(\'' + s.id + '\', this)" title="{% trans "Delete" %}"><i class="fas fa-trash-alt"></i></button>';
+            h += '</td>';
+            h += '</tr>';
+        });
+
+        tbody.innerHTML = h;
+    }
+
+    /* ── Run custom source ─────────────────────────────────────── */
+    window.runCustomSource = function(sourceId, btn) {
+        btn.disabled = true;
+        var origHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="ws-spin" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wsSpin .7s linear infinite"></span>';
+
+        fetch(dashboardBase + '/run-custom/' + sourceId + '/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+        })
+        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+        .then(function(res) {
+            btn.disabled = false;
+            if (res.ok && res.data.success) {
+                btn.innerHTML = '<i class="fas fa-check"></i> ' + res.data.items_created;
+                btn.style.background = '#10b981';
+                showToast(res.data.source_name + ': ' + res.data.items_created + ' {% trans "items created" %}', 'success');
+                /* Refresh table to get updated status */
+                setTimeout(loadCustomSources, 1500);
+            } else {
+                btn.innerHTML = origHTML;
+                showToast(res.data.error || '{% trans "Scraping failed" %}', 'error');
+            }
+            /* Reset button after a delay */
+            setTimeout(function(){ btn.innerHTML = origHTML; btn.style.background = ''; }, 5000);
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = origHTML;
+            showToast('{% trans "Network error" %}: ' + err, 'error');
+        });
+    };
+
+    /* ── Delete custom source ──────────────────────────────────── */
+    window.deleteCustomSource = function(sourceId, btn) {
+        if (!confirm('{% trans "Delete this source? This cannot be undone." %}')) return;
+        btn.disabled = true;
+
+        fetch(dashboardBase + '/sources/delete/' + sourceId + '/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+        })
+        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+        .then(function(res) {
+            if (res.ok) {
+                var row = document.getElementById('src-row-' + sourceId);
+                if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(function(){ row.remove(); checkEmptyTable(); }, 350); }
+                showToast('{% trans "Source deleted" %}', 'success');
+            } else {
+                btn.disabled = false;
+                showToast(res.data.error || '{% trans "Failed to delete source" %}', 'error');
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            showToast('{% trans "Network error" %}: ' + err, 'error');
+        });
+    };
+
+    function checkEmptyTable() {
+        var rows = document.querySelectorAll('#custom-sources-tbody tr');
+        if (!rows.length) {
+            document.getElementById('custom-sources-table-wrap').style.display = 'none';
+            document.getElementById('custom-sources-empty').style.display = 'block';
+        }
+    }
+
+    /* ── Initial load ──────────────────────────────────────────── */
+    loadCustomSources();
+
 })();
 </script>
 {% endblock %}

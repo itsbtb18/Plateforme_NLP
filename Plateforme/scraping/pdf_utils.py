@@ -11,7 +11,6 @@ Limits:
   - Download timeout: 30 s
 """
 
-import io
 import logging
 from typing import Optional
 
@@ -20,10 +19,10 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ─── Defaults ────────────────────────────────────────────────────────
-MAX_PDF_BYTES = 20 * 1024 * 1024   # 20 MB
-MAX_PAGES = 3                       # first N pages
-MAX_CHARS = 12_000                  # truncate extracted text
-DOWNLOAD_TIMEOUT = 30               # seconds
+MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_PAGES = 3  # first N pages
+MAX_CHARS = 12_000  # truncate extracted text
+DOWNLOAD_TIMEOUT = 30  # seconds
 
 
 def download_pdf(
@@ -65,7 +64,11 @@ def download_pdf(
         for chunk in resp.iter_content(chunk_size=65_536):
             total += len(chunk)
             if total > max_bytes:
-                logger.info("PDF exceeded %d bytes during download, aborting: %s", max_bytes, url)
+                logger.info(
+                    "PDF exceeded %d bytes during download, aborting: %s",
+                    max_bytes,
+                    url,
+                )
                 resp.close()
                 return None
             chunks.append(chunk)
@@ -79,73 +82,185 @@ def download_pdf(
     return None
 
 
-def extract_text(
-    pdf_bytes: bytes,
-    *,
-    max_pages: int = MAX_PAGES,
-    max_chars: int = MAX_CHARS,
-) -> Optional[str]:
+class ExtractionResult(str):
     """
-    Extract text from the first *max_pages* of a PDF.
+    String subclass that also carries structured extraction data.
 
-    Returns the concatenated text (truncated to *max_chars*), or ``None``
-    if extraction fails.
+    Old callers that treat the return value as a plain string (truthiness
+    check, ``len()``, slicing …) keep working.  New callers can access the
+    dict-style payload::
+
+        result = extract_text(pdf_bytes)
+        print(result)                    # the full text (str)
+        print(result['sections'])        # section dict
+        print(result['page_count'])      # int
     """
-    if not pdf_bytes:
-        return None
+
+    def __new__(cls, result_dict: dict):
+        text = result_dict.get("full_text", "")
+        instance = super().__new__(cls, text)
+        instance._data = result_dict
+        return instance
+
+    # dict-style access -------------------------------------------------
+    def __getitem__(self, key):  # result['sections']
+        if isinstance(key, str):
+            return self._data[key]
+        return super().__getitem__(key)  # str slicing still works
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def keys(self):
+        return self._data.keys()
+
+    def items(self):
+        return self._data.items()
+
+    def values(self):
+        return self._data.values()
+
+
+def extract_text(pdf_bytes, max_chars=12000):
+    """
+    Extract text from PDF with section detection.
+    Returns dict with keys:
+    - full_text: complete extracted text (string)
+    - sections: dict with abstract, introduction,
+      methodology, results, conclusion, references
+    - page_count: number of pages
+    - error: error message if any
+    """
+    import fitz
+    import re
+
+    sections = {
+        "abstract": "",
+        "introduction": "",
+        "methodology": "",
+        "results": "",
+        "conclusion": "",
+        "references": "",
+    }
+
+    SECTION_PATTERNS = {
+        "abstract": [
+            r"\babstract\b",
+            r"\bملخص\b",
+            r"\brésumé\b",
+            r"\babrégé\b",
+        ],
+        "introduction": [
+            r"\bintroduction\b",
+            r"\b1[\.\s]+introduction\b",
+            r"\bمقدمة\b",
+        ],
+        "methodology": [
+            r"\bmethodology\b",
+            r"\bmethod\b",
+            r"\bapproach\b",
+            r"\bproposed method\b",
+            r"\bمنهجية\b",
+            r"\bنهج\b",
+            r"\bméthode\b",
+            r"\bméthodologie\b",
+        ],
+        "results": [
+            r"\bresults\b",
+            r"\bexperiments\b",
+            r"\bevaluation\b",
+            r"\bنتائج\b",
+            r"\bتجارب\b",
+            r"\brésultats\b",
+            r"\bexpériences\b",
+        ],
+        "conclusion": [
+            r"\bconclusion\b",
+            r"\bconclusions\b",
+            r"\bsummary\b",
+            r"\bخاتمة\b",
+            r"\باستنتاج\b",
+        ],
+        "references": [
+            r"\breferences\b",
+            r"\bbibliography\b",
+            r"\bالمراجع\b",
+            r"\bالمصادر\b",
+            r"\bréférences\b",
+            r"\bbibliographie\b",
+        ],
+    }
+
+    compiled = {}
+    for section_name, patterns in SECTION_PATTERNS.items():
+        combined = "|".join(f"({p})" for p in patterns)
+        compiled[section_name] = re.compile(combined, re.IGNORECASE | re.UNICODE)
 
     try:
-        import fitz  # PyMuPDF
-    except ImportError:
-        logger.warning("PyMuPDF (fitz) not installed — PDF extraction unavailable")
-        return None
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        page_count = len(doc)
+        full_text = ""
+        current_section = None
 
-    try:
-        doc = fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf")
-    except Exception as exc:
-        logger.warning("Failed to open PDF: %s", exc)
-        return None
+        for page in doc:
+            if len(full_text) >= max_chars:
+                break
 
-    try:
-        pages_text: list[str] = []
-        page_count = min(len(doc), max_pages)
+            page_text = page.get_text("text")
+            full_text += page_text + "\n"
 
-        for i in range(page_count):
-            page = doc[i]
-            text = page.get_text("text")
-            if text:
-                pages_text.append(text.strip())
+            for line in page_text.split("\n"):
+                line_clean = line.strip()
+                if len(line_clean) < 2:
+                    continue
+                for section_name, pattern in compiled.items():
+                    if pattern.search(line_clean):
+                        current_section = section_name
+                        break
 
-        full_text = "\n\n".join(pages_text)
-        if not full_text.strip():
-            return None
+                if current_section and current_section != "references":
+                    sections[current_section] += line + "\n"
 
-        # Truncate to max_chars
-        if len(full_text) > max_chars:
-            full_text = full_text[:max_chars] + "\n[… truncated]"
-
-        return full_text
-
-    except Exception as exc:
-        logger.warning("PDF text extraction error: %s", exc)
-        return None
-    finally:
         doc.close()
+
+        # Truncate
+        full_text = full_text[:max_chars]
+        for key in sections:
+            sections[key] = sections[key][:2000].strip()
+
+        return {
+            "full_text": full_text,
+            "sections": sections,
+            "page_count": page_count,
+            "error": None,
+        }
+
+    except Exception as e:
+        return {
+            "full_text": "",
+            "sections": sections,
+            "page_count": 0,
+            "error": str(e),
+        }
 
 
 def download_and_extract(
     url: str,
     *,
     session: Optional[requests.Session] = None,
-    max_pages: int = MAX_PAGES,
     max_chars: int = MAX_CHARS,
-) -> Optional[str]:
+) -> Optional[ExtractionResult]:
     """
-    One-shot: download a PDF and extract text.
+    One-shot: download a PDF and extract text with section detection.
 
-    Returns extracted text or ``None`` on any failure.
+    Returns an :class:`ExtractionResult` (``str`` subclass with dict-style
+    access to ``full_text``, ``sections``, ``page_count``) or ``None`` on
+    download failure.  Old callers that treat the return value as a plain
+    string keep working unchanged.
     """
     pdf_bytes = download_pdf(url, session=session)
     if pdf_bytes is None:
         return None
-    return extract_text(pdf_bytes, max_pages=max_pages, max_chars=max_chars)
+    result = extract_text(pdf_bytes, max_chars=max_chars)
+    # Return ExtractionResult even if full_text is empty, so callers can read 'error'
+    return ExtractionResult(result)
