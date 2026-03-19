@@ -69,6 +69,17 @@ class Event(models.Model):
         choices=APPROVAL_STATUS_CHOICES,
         default='pending'
     )
+    approval_date = models.DateTimeField(_('Approval Date'), null=True, blank=True)
+    approved_by = models.ForeignKey(
+        get_user_model(),
+        related_name='approved_events',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Approved By'),
+    )
+    rejection_reason = models.TextField(_('Rejection Reason'), blank=True, default='')
+    view_count = models.IntegerField(_('View Count'), default=0, validators=[MinValueValidator(0)])
     start_date = models.DateField(_('Start Date'))
     end_date = models.DateField(_('End Date'))
     submission_deadline = models.DateField(_('Submission Deadline'), null=True, blank=True)

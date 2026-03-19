@@ -711,7 +711,7 @@ html[dir="rtl"] .ef-date-container input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     padding: 1.5rem 2rem;
     background: var(--ef-muted);
     border-top: 1px solid var(--ef-border);
@@ -722,15 +722,19 @@ html[dir="rtl"] .ef-date-container input {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.75rem;
+    padding: 0.95rem 1.75rem;
+    min-width: 190px;
+    min-height: 60px;
     font-family: inherit;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.98rem;
+    font-weight: 700;
     border: 2px solid transparent;
-    border-radius: var(--ef-radius-md);
+    border-radius: 14px;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.25s;
+    box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .ef-btn-primary {
@@ -744,15 +748,49 @@ html[dir="rtl"] .ef-date-container input {
     box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
 }
 
+.ef-btn-success {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: var(--ef-white);
+    border-color: transparent;
+}
+
+.ef-btn-success:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35);
+}
+
+.ef-btn-danger {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: var(--ef-white);
+    border-color: transparent;
+}
+
+.ef-btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.35);
+}
+
 .ef-btn-ghost {
     background: transparent;
-    color: var(--ef-text-secondary);
+    color: #274c77;
     border-color: var(--ef-border);
+    box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14);
 }
 
 .ef-btn-ghost:hover {
-    border-color: var(--ef-text-muted);
-    background: var(--ef-white);
+    border-color: #bfd0e6;
+    background: #f8fbff;
+    color: #1d4f91;
+    transform: translateY(-1px);
+}
+
+.ef-admin-actions {
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+    direction: ltr;
 }
 
 @media (max-width: 500px) {
@@ -1146,25 +1184,41 @@ html[dir="rtl"] .ef-date-container input {
             
             <!-- Form Actions -->
             <div class="ef-actions">
-                {% if review_mode and is_pending %}
+                {% if is_pending and review_mode or is_pending and request.GET.edit_only == "1" %}
                     <a href="{% url 'pages:admin_calls' %}?tab=pending" class="ef-btn ef-btn-ghost">
-                        <i class="bi bi-arrow-left"></i>
-                        {% translate "Back to Admin" %}
+                        <i class="bi bi-x-lg"></i>
+                        {% translate "Cancel" %}
                     </a>
-                    <div style="display:flex; gap:0.75rem;">
+                    <div class="ef-admin-actions">
+                        <button type="submit" class="ef-btn ef-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            {% translate "Save Changes" %}
+                        </button>
                         {% if request.GET.review_model and request.GET.review_pk %}
                         <button type="submit"
-                                class="ef-btn ef-btn-ghost"
-                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
-                                onclick="return confirm('{% translate "Are you sure you want to reject this request?" %}');">
+                                class="ef-btn ef-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                             <i class="bi bi-x-circle"></i>
                             {% translate "Reject" %}
                         </button>
                         <button type="submit"
-                                class="ef-btn ef-btn-primary"
+                                class="ef-btn ef-btn-success"
                                 formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
                             <i class="bi bi-check-circle"></i>
-                            {% translate "Approve & Publish" %}
+                            {% translate "Accept" %}
+                        </button>
+                        {% else %}
+                        <button type="submit"
+                                class="ef-btn ef-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type='event' pk=form.instance.pk %}">
+                            <i class="bi bi-x-circle"></i>
+                            {% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="ef-btn ef-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type='event' pk=form.instance.pk %}">
+                            <i class="bi bi-check-circle"></i>
+                            {% translate "Accept" %}
                         </button>
                         {% endif %}
                     </div>

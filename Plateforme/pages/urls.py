@@ -126,6 +126,11 @@ urlpatterns = [
         name="admin_reject_item",
     ),
     path(
+        "admin/delete/<str:model_type>/<uuid:pk>/",
+        views.admin_delete_item,
+        name="admin_delete_item",
+    ),
+    path(
         "admin/review/<str:model_type>/<uuid:pk>/",
         views.admin_review_item_api,
         name="admin_review_item_api",

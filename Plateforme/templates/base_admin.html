@@ -71,6 +71,14 @@
         align-items: center;
         gap: 0.4rem;
       }
+      .n-acts-pending {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        margin-inline: auto;
+      }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -354,6 +362,28 @@
         }
 
         document.querySelectorAll('main tr').forEach(function (row) {
+<<<<<<< HEAD
+          // Keep page-specific action sets intact (modern admin tables define their own n-act buttons).
+          if (row.querySelector('.n-acts .n-act')) {
+=======
+          // Keep modern pending action groups untouched (View/Edit/Delete),
+          // but still hide any legacy approve/reject controls in the same row.
+          if (row.querySelector('.n-acts .n-act')) {
+            row.querySelectorAll('form[action*="/admin/approve/"], form[action*="/admin/reject/"]').forEach(function (formEl) {
+              formEl.style.display = 'none';
+            });
+            row.querySelectorAll('a[href*="/admin/approve/"], a[href*="/admin/reject/"], a.icon-btn.approve').forEach(function (aEl) {
+              // Keep modern pending action links (view/edit/delete) visible.
+              if (aEl.closest('.n-acts')) return;
+              aEl.style.display = 'none';
+            });
+            row.querySelectorAll('button.action-btn-approve, button.action-btn-reject, .ab-approve, .ab-reject').forEach(function (btn) {
+              btn.style.display = 'none';
+            });
+>>>>>>> 35dc2dbbf46f1742c6007b00a21f75c4d18d7cbe
+            return;
+          }
+
           const approveForm = row.querySelector('form[action*="/admin/approve/"]');
           const reviewApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
             return normalizeUrl(a.href).indexOf('/admin/approve/') !== -1;
@@ -407,6 +437,7 @@
           });
           row.querySelectorAll('a[href*="/admin/approve/"], a[href*="/admin/reject/"], a.icon-btn.approve').forEach(function (aEl) {
             if (aEl.classList.contains('admin-global-eye-btn')) return;
+            if (aEl.closest('.n-acts')) return;
             aEl.style.display = 'none';
           });
           row.querySelectorAll('button.action-btn-approve, button.action-btn-reject, .ab-approve, .ab-reject').forEach(function (btn) {

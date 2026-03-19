@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ topic.get_localized_title }} | {% translate "Discussion Details" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+    --td-primary: #2563eb;
+    --td-ink: #0f172a;
+    --td-subtle: #475569;
+    --td-muted: #f8fafc;
+    --td-surface: #ffffff;
+    --td-border: #e2e8f0;
+    --td-success: #059669;
+    --td-warning: #d97706;
+    --td-danger: #dc2626;
+    --td-radius: 18px;
+    --td-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.td-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 32%),
+        linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+    padding: 2rem 1rem 4rem;
+}
+
+.td-shell {
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+.td-card {
+    background: var(--td-surface);
+    border: 1px solid var(--td-border);
+    border-radius: 24px;
+    box-shadow: var(--td-shadow);
+    overflow: hidden;
+}
+
+.td-hero {
+    padding: 2rem;
+    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+    color: #fff;
+}
+
+.td-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.td-breadcrumb a {
+    color: rgba(255,255,255,0.72);
+    text-decoration: none;
+}
+
+.td-breadcrumb .current {
+    color: #fff;
+    font-weight: 600;
+}
+
+.td-title {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 800;
+}
+
+.td-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    color: rgba(255,255,255,0.82);
+    font-size: 0.95rem;
+}
+
+.td-body {
+    padding: 2rem;
+}
+
+.td-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1.5rem;
+}
+
+.td-panel {
+    border: 1px solid var(--td-border);
+    border-radius: var(--td-radius);
+    background: var(--td-surface);
+    padding: 1.4rem;
+}
+
+.td-panel h2 {
+    margin: 0 0 1rem;
+    font-size: 1.05rem;
+    color: var(--td-ink);
+}
+
+.td-description {
+    color: var(--td-subtle);
+    line-height: 1.75;
+    white-space: pre-line;
+}
+
+.td-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.td-status.pending { background: rgba(217, 119, 6, 0.14); color: var(--td-warning); }
+.td-status.approved { background: rgba(5, 150, 105, 0.14); color: var(--td-success); }
+.td-status.rejected { background: rgba(220, 38, 38, 0.14); color: var(--td-danger); }
+
+.td-facts {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.td-fact-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+}
+
+.td-fact-value {
+    color: var(--td-ink);
+    font-weight: 600;
+}
+
+.td-chatrooms {
+    margin-top: 1.5rem;
+}
+
+.td-chatroom-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.td-chatroom {
+    border: 1px solid var(--td-border);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    background: var(--td-muted);
+}
+
+.td-chatroom-name {
+    margin: 0 0 0.35rem;
+    color: var(--td-ink);
+    font-weight: 700;
+}
+
+.td-chatroom-desc {
+    margin: 0;
+    color: var(--td-subtle);
+    line-height: 1.6;
+}
+
+.td-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.85rem;
+    padding: 0 2rem 2rem;
+}
+
+.td-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+    padding: 0.9rem 1.3rem;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 700;
+    border: 1px solid var(--td-border);
+}
+
+.td-btn-secondary {
+    background: #fff;
+    color: var(--td-subtle);
+}
+
+.td-btn-primary {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-color: transparent;
+    color: #fff;
+}
+
+@media (max-width: 800px) {
+    .td-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .td-actions {
+        flex-direction: column;
+        padding: 0 1.25rem 1.25rem;
+    }
+
+    .td-btn {
+        width: 100%;
+    }
+
+    .td-hero,
+    .td-body {
+        padding: 1.25rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="td-page">
+    <div class="td-shell">
+        <div class="td-card">
+            <div class="td-hero">
+                <div class="td-breadcrumb">
+                    <a href="{% if request.GET.admin_review %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:topic-list' %}{% endif %}">
+                        {% if request.GET.admin_review %}{% translate "Admin Community" %}{% else %}{% translate "Discussion Hub" %}{% endif %}
+                    </a>
+                    <span>/</span>
+                    <span class="current">{% translate "Details" %}</span>
+                </div>
+                <h1 class="td-title">{{ topic.get_localized_title }}</h1>
+                <div class="td-meta">
+                    <span>{{ topic.creator.full_name|default:topic.creator.username }}</span>
+                    <span>{{ topic.created_at|date:"d/m/Y H:i" }}</span>
+                    <span>{% if topic.is_closed %}{% translate "Closed" %}{% else %}{% translate "Open" %}{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="td-body">
+                <div class="td-grid">
+                    <section class="td-panel">
+                        <h2>{% translate "Description" %}</h2>
+                        <div class="td-description">{{ topic.get_localized_description|default:topic.description }}</div>
+                    </section>
+
+                    <aside class="td-panel">
+                        <h2>{% translate "Overview" %}</h2>
+                        <div class="td-facts">
+                            <div>
+                                <span class="td-fact-label">{% translate "Status" %}</span>
+                                <span class="td-status {{ topic.approval_status }}">{{ topic.get_approval_status_display }}</span>
+                            </div>
+                            {% if topic.rejection_reason %}
+                            <div>
+                                <span class="td-fact-label">{% translate "Rejection Reason" %}</span>
+                                <div class="td-fact-value">{{ topic.rejection_reason }}</div>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <span class="td-fact-label">{% translate "Chat Rooms" %}</span>
+                                <div class="td-fact-value">{{ chatrooms|length }}</div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+                <section class="td-chatrooms">
+                    <div class="td-panel">
+                        <h2>{% translate "Related Chat Rooms" %}</h2>
+                        <div class="td-chatroom-list">
+                            {% for chatroom in chatrooms %}
+                            <article class="td-chatroom">
+                                <h3 class="td-chatroom-name">{{ chatroom.get_localized_name }}</h3>
+                                <p class="td-chatroom-desc">{{ chatroom.get_localized_description|default:chatroom.description }}</p>
+                            </article>
+                            {% empty %}
+                            <p class="td-chatroom-desc">{% translate "No chat rooms are attached to this topic yet." %}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="td-actions">
+                <a class="td-btn td-btn-secondary" href="{% if request.GET.admin_review %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:topic-list' %}{% endif %}">
+                    {% translate "Back" %}
+                </a>
+                {% if request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                <a class="td-btn td-btn-primary" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
+                    {% translate "Edit Form" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

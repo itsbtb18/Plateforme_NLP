@@ -11,8 +11,8 @@
       <div>
         <h1><i class="fas fa-book-open"></i> {% trans "Publication management" %}</h1>
       </div>
-      {% if pending_publications_count > 0 %}
-      <span class="pg-badge"><i class="fas fa-clock"></i> {{ pending_publications_count }} {% trans "pending" %}</span>
+      {% if pending_count > 0 %}
+      <span class="pg-badge"><i class="fas fa-clock"></i> {{ pending_count }} {% trans "pending" %}</span>
       {% endif %}
     </div>
     <a href="{% url 'resources:create' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "Add a publication" %}</a>
@@ -82,18 +82,9 @@
             <td><span class="n-dt">{{ publication.creation_date|date:"d/m/Y H:i" }}</span></td>
             <td><span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span></td>
             <td>
-              <div class="n-acts" style="justify-content:center;align-items:center;gap:5px;">
-                <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" class="n-act" title="{% trans 'View publication' %}"><i class="fas fa-eye"></i></a>
-                <a href="{% url 'resources:resource-update' publication.document_type publication.id %}" class="n-act" title="{% trans 'Edit publication' %}"><i class="fas fa-edit"></i></a>
-                <button
-                  type="button"
-                  class="n-act n-act-red js-publication-reject-btn"
-                  data-reject-url="{% url 'pages:admin_reject_item' model_type='document' pk=publication.id %}"
-                  title="{% trans 'Reject' %}"
-                >
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
+              {% url 'pages:admin_view_item' model_type='document' pk=publication.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='document' pk=publication.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='document' item_pk=publication.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
             </td>
           </tr>
           {% endfor %}

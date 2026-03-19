@@ -862,9 +862,6 @@ html[dir="rtl"] .keywords-container {
                                     <span class="upload-zone-meta">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الحد الأقصى 50MB{% else %}50MB max{% endif %}</span>
                                     <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept="*/*" hidden>
                                 </div>
-                                <div class="upload-supported">
-                                    <span>PDF</span><span>DOCX</span><span>TXT</span><span>CSV</span><span>JSON</span><span>ZIP</span>
-                                </div>
                                 
                                 <div class="file-preview" id="file-preview">
                                     <div class="file-icon">
@@ -878,7 +875,14 @@ html[dir="rtl"] .keywords-container {
                                         <i class="bi bi-x-lg"></i>
                                     </button>
                                 </div>
+<<<<<<< HEAD
+=======
+                                <div class="upload-error" id="upload-error" role="alert">
+                                    <i class="bi bi-exclamation-circle"></i>
+                                    <span id="upload-error-text"></span>
+                                </div>
                                 <span class="form-text">{% trans "All file types are accepted (max 50MB)." %}</span>
+>>>>>>> 35dc2dbbf46f1742c6007b00a21f75c4d18d7cbe
                             </div>
                             
                             <!-- Translation Toggle -->
@@ -892,12 +896,13 @@ html[dir="rtl"] .keywords-container {
                                 </label>
                             </div>
                             
-                            <!-- Title (English) -->
+                            <!-- Title -->
                             <div class="form-group">
                                 <label for="id_title_en">
-                                    {% trans "Title (English)" %} <span class="required">*</span>
+                                    {% trans "Title (English)" %}
                                 </label>
                                 {{ form.title_en }}
+                                <span class="form-text">{% trans "Fill in English or Arabic." %}</span>
                             </div>
                             
                             <!-- Title (Arabic) - Conditional -->
@@ -926,10 +931,11 @@ html[dir="rtl"] .keywords-container {
                                 </div>
                             </div>
                             
-                            <!-- Description (English) -->
+                            <!-- Description -->
                             <div class="form-group">
                                 <label for="id_description_en">{% trans "Description (English)" %}</label>
                                 {{ form.description_en }}
+                                <span class="form-text">{% trans "Fill in English or Arabic." %}</span>
                             </div>
                             
                             <!-- Description (Arabic) - Conditional -->
@@ -959,6 +965,15 @@ html[dir="rtl"] .keywords-container {
                             
                             <!-- Submit Button -->
                             <div class="btn-submit-wrapper">
+                                <div class="alert alert-error" id="form-feedback" style="display:none;" role="alert">
+                                    <div class="alert-icon">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    </div>
+                                    <div class="alert-content">
+                                        <h4>{% trans "Please correct the following errors:" %}</h4>
+                                        <ul id="form-feedback-list"></ul>
+                                    </div>
+                                </div>
                                 <button type="submit" class="btn-submit" id="submit-btn">
                                     <span class="spinner"></span>
                                     <i class="bi bi-check2"></i>
@@ -1076,11 +1091,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const formFeedback = document.getElementById('form-feedback');
     const formFeedbackList = document.getElementById('form-feedback-list');
 
-    const allowedExtensions = ['.pdf', '.docx'];
-    const allowedMimeTypes = [
-        'application/pdf',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
     const maxFileSize = 50 * 1024 * 1024;
     let selectedFile = null;
     
@@ -1144,17 +1154,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         }
 
-        const lowerName = file.name.toLowerCase();
-        const hasValidExtension = allowedExtensions.some(extension => lowerName.endsWith(extension));
-        const hasValidMimeType = allowedMimeTypes.includes(file.type);
-
         if (file.size > maxFileSize) {
             showUploadError('{% trans "File is too large. Maximum size is 50MB." %}');
-            return false;
-        }
-
-        if (!hasValidExtension || !hasValidMimeType) {
-            showUploadError('{% trans "Only PDF and DOCX files are accepted" %}');
             return false;
         }
 

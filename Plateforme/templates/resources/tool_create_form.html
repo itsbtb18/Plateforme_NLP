@@ -471,6 +471,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     width: 1px;
     height: 1px;
     opacity: 0;
+    pointer-events: none; /* ✅ IMPORTANT: empêche le double clic */
 }
 
 .icon-preview-circle {
@@ -984,63 +985,177 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== Icon Upload =====
-    const iconZone = document.getElementById('icon-upload-zone');
-    const iconInput = document.getElementById('icon-input');
-    const iconPreviewImg = document.getElementById('icon-preview-img');
-    const iconFilePreview = document.getElementById('icon-file-preview');
-    const iconFileName = document.getElementById('icon-file-name');
-    const iconFileSize = document.getElementById('icon-file-size');
-    const iconFileRemove = document.getElementById('icon-file-remove');
+    // ===== ICON UPLOAD - VERSION CORRIGÉE =====
+    (function initIconUpload() {
+        const iconZone = document.getElementById('icon-upload-zone');
+        const iconInput = document.getElementById('icon-input');
+        const iconPreviewCircle = document.getElementById('icon-preview-circle');
+        const iconPreviewImg = document.getElementById('icon-preview-img');
+        const iconFilePreview = document.getElementById('icon-file-preview');
+        const iconFileName = document.getElementById('icon-file-name');
+        const iconFileSize = document.getElementById('icon-file-size');
+        const iconFileRemove = document.getElementById('icon-file-remove');
 
-    function formatSize(bytes) {
-        if (!bytes) return '0 Bytes';
-        const k = 1024, s = ['Bytes','KB','MB','GB'];
-        const i = Math.floor(Math.log(bytes)/Math.log(k));
-        return (bytes/Math.pow(k,i)).toFixed(2) + ' ' + s[i];
-    }
+        if (!iconZone || !iconInput) return;
+        
+        // Évite la double initialisation
+        if (iconZone._iconUploadInitialized) return;
+        iconZone._iconUploadInitialized = true;
 
-    function showIcon(file) {
-        iconFileName.textContent = file.name;
-        iconFileSize.textContent = formatSize(file.size);
-        iconZone.classList.add('has-file');
-        iconFilePreview.classList.add('visible');
-
-        // Image preview
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = e => { iconPreviewImg.src = e.target.result; };
-            reader.readAsDataURL(file);
+        // Fonction pour formater la taille du fichier
+        function formatSize(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-    }
 
-    function clearIcon() {
-        iconInput.value = '';
-        iconZone.classList.remove('has-file');
-        iconFilePreview.classList.remove('visible');
-        iconPreviewImg.src = '';
-    }
+        // Fonction pour afficher l'icône sélectionnée
+        function showIcon(file) {
+            if (!file) return;
+            
+            iconFileName.textContent = file.name;
+            iconFileSize.textContent = formatSize(file.size);
+            iconZone.classList.add('has-file');
+            iconFilePreview.classList.add('visible');
 
-    if (iconZone && iconInput && iconPreviewImg && iconFilePreview && iconFileName && iconFileSize && iconFileRemove) {
-        ['dragenter','dragover','dragleave','drop'].forEach(ev =>
-            iconZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
-        );
-        ['dragenter','dragover'].forEach(ev =>
-            iconZone.addEventListener(ev, () => iconZone.classList.add('drag-over'))
-        );
-        ['dragleave','drop'].forEach(ev =>
-            iconZone.addEventListener(ev, () => iconZone.classList.remove('drag-over'))
-        );
-        iconZone.addEventListener('drop', e => {
-            const f = e.dataTransfer.files[0];
-            if (f) { iconInput.files = e.dataTransfer.files; showIcon(f); }
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    iconPreviewImg.src = e.target.result;
+                    iconPreviewImg.style.display = 'block';
+                    const iconIcon = iconPreviewCircle.querySelector('i');
+                    if (iconIcon) iconIcon.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Fonction pour effacer l'icône
+        function clearIcon() {
+            iconInput.value = '';
+            iconZone.classList.remove('has-file', 'drag-over');
+            iconFilePreview.classList.remove('visible');
+            iconPreviewImg.src = '';
+            iconPreviewImg.style.display = 'none';
+            const iconIcon = iconPreviewCircle.querySelector('i');
+            if (iconIcon) iconIcon.style.display = 'block';
+        }
+
+        // ===== DRAG & DROP =====
+        iconZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            iconZone.classList.add('drag-over');
         });
-        iconZone.addEventListener('click', () => iconInput.click());
-        iconInput.addEventListener('change', function() {
-            if (this.files[0]) showIcon(this.files[0]);
+
+        iconZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            iconZone.classList.remove('drag-over');
         });
-        iconFileRemove.addEventListener('click', e => { e.stopPropagation(); clearIcon(); });
-    }
+
+        iconZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            iconZone.classList.remove('drag-over');
+
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                // Créer un DataTransfer pour simuler la sélection
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                iconInput.files = dataTransfer.files;
+                showIcon(file);
+            }
+        });
+
+        // ===== SOLUTION POUR LE DOUBLE CLIC =====
+        // Désactiver complètement les événements sur l'input natif
+        iconInput.style.pointerEvents = 'none';
+        iconInput.style.position = 'absolute';
+        iconInput.style.opacity = '0';
+        iconInput.style.left = '-9999px';
+        
+        iconInput.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        // Créer un input temporaire pour éviter les conflits
+        function openFileDialog() {
+            // Créer un nouvel input file temporaire
+            const tempInput = document.createElement('input');
+            tempInput.type = 'file';
+            tempInput.accept = 'image/*';
+            tempInput.style.position = 'absolute';
+            tempInput.style.opacity = '0';
+            tempInput.style.pointerEvents = 'none';
+            document.body.appendChild(tempInput);
+            
+            // Gérer la sélection du fichier
+            tempInput.addEventListener('change', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    
+                    // Copier le fichier vers l'input original
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    iconInput.files = dataTransfer.files;
+                    
+                    // Afficher l'aperçu
+                    showIcon(file);
+                }
+                
+                // Nettoyer
+                document.body.removeChild(tempInput);
+            });
+            
+            // Déclencher le clic après un petit délai
+            setTimeout(() => {
+                tempInput.click();
+            }, 10);
+        }
+
+        // Gérer le clic sur la zone d'upload
+        iconZone.addEventListener('click', function(e) {
+            // Ignorer si on clique sur le bouton de suppression
+            if (e.target.closest('#icon-file-remove')) {
+                return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Ouvrir la boîte de dialogue
+            openFileDialog();
+        });
+
+        // Gérer le bouton de suppression
+        if (iconFileRemove) {
+            iconFileRemove.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                clearIcon();
+            });
+        }
+
+        // Nettoyer à la soumission du formulaire
+        const form = document.getElementById('tool-form');
+        if (form) {
+            form.addEventListener('submit', function() {
+                // Nettoyer les inputs temporaires s'il y en a
+                const tempInputs = document.querySelectorAll('input[type="file"][temp]');
+                tempInputs.forEach(input => input.remove());
+            });
+        }
+
+    })();
 
     // ===== URL Validation =====
     function validateUrl(inputEl, feedbackEl) {
@@ -1048,16 +1163,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
 
         inputEl.classList.remove('url-valid', 'url-invalid');
-        feedbackEl.innerHTML = '';
+        if (feedbackEl) feedbackEl.innerHTML = '';
 
         if (!val) return;
 
         if (pattern.test(val)) {
             inputEl.classList.add('url-valid');
-            feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+            if (feedbackEl) {
+                feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+            }
         } else {
             inputEl.classList.add('url-invalid');
-            feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
+            if (feedbackEl) {
+                feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
+            }
         }
     }
 
@@ -1066,10 +1185,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const repoFeedback = document.getElementById('repo-feedback');
     const docsFeedback = document.getElementById('docs-feedback');
 
-    if (repoInput) repoInput.addEventListener('input', () => validateUrl(repoInput, repoFeedback));
-    if (docsInput) docsInput.addEventListener('input', () => validateUrl(docsInput, docsFeedback));
-    if (repoInput?.value) validateUrl(repoInput, repoFeedback);
-    if (docsInput?.value) validateUrl(docsInput, docsFeedback);
+    if (repoInput) repoInput.addEventListener('input', function() { validateUrl(repoInput, repoFeedback); });
+    if (docsInput) docsInput.addEventListener('input', function() { validateUrl(docsInput, docsFeedback); });
+    if (repoInput && repoInput.value) validateUrl(repoInput, repoFeedback);
+    if (docsInput && docsInput.value) validateUrl(docsInput, docsFeedback);
 
     // ===== Character Counters =====
     function setupCounter(textareaId, counterId, max) {
@@ -1111,7 +1230,10 @@ document.addEventListener('DOMContentLoaded', function() {
      'memoir_institution','memoir_defense_year','title','description'
     ].forEach(field => {
         const el = document.querySelector(`[name="${field}"]`);
-        if (el) { const fg = el.closest('.form-group'); if (fg) fg.style.display = 'none'; }
+        if (el) { 
+            const fg = el.closest('.form-group'); 
+            if (fg) fg.style.display = 'none'; 
+        }
     });
 
 });

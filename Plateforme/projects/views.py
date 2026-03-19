@@ -28,11 +28,14 @@ from django.http import HttpRequest, HttpResponse
 from django.http import JsonResponse, Http404, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string
+from accounts.models import Friendship
 import logging
 import re
 from accounts.blocking import exclude_hidden_users
 from django.views.decorators.http import require_http_methods
 from django.utils.html import escape
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .forms import ProjectChatMessageForm
 from .models import ProjectChatRoom, ProjectChatMessage
 
@@ -75,6 +78,27 @@ def _can_manage_project_invitations(project: Project, user) -> bool:
 def _ensure_project_chatroom(project: Project) -> ProjectChatRoom:
     room, _ = ProjectChatRoom.objects.get_or_create(project=project)
     return room
+
+
+def _serialize_user(user, pending_ids):
+    display_name = getattr(user, "get_full_name_display", None)
+    if callable(display_name):
+        display_name = display_name()
+    display_name = (display_name or user.email or "").strip()
+    avatar_url = ""
+    try:
+        if getattr(user, "avatar", None):
+            avatar_url = user.avatar.url
+    except Exception:
+        avatar_url = ""
+    return {
+        "id": str(user.pk),
+        "name": display_name,
+        "username": getattr(user, "username", "") or "",
+        "email": user.email,
+        "avatar": avatar_url,
+        "already_invited": str(user.pk) in pending_ids,
+    }
 
 
 class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -764,9 +788,6 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
             return JsonResponse({"ok": False, "error": _("Unauthorized.")}, status=403)
 
         query = (request.GET.get("q") or "").strip()
-        if len(query) < 2:
-            return JsonResponse({"ok": True, "results": []})
-
         UserModel = get_user_model()
         pending_ids = set(
             str(uid)
@@ -779,6 +800,23 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
             project=project,
             status="accepted",
         ).values_list("member_id", flat=True)
+
+        # Friend list to show by default
+        friend_ids = set()
+        for a, b in Friendship.objects.filter(
+            status=Friendship.Status.ACCEPTED
+        ).filter(Q(requester=request.user) | Q(addressee=request.user)).values_list("requester_id", "addressee_id"):
+            friend_ids.update([a, b])
+        friend_ids.discard(request.user.id)
+        friend_ids -= set(member_ids)
+        friend_ids -= set(int(pid) for pid in pending_ids if pid.isdigit())
+
+        UserModel = get_user_model()
+        if len(query) < 2:
+            candidates = UserModel.objects.filter(id__in=friend_ids)[:20]
+            return JsonResponse(
+                {"ok": True, "results": [_serialize_user(u, pending_ids) for u in candidates]}
+            )
 
         # Build search predicates only for fields that exist on the active User model.
         user_field_names = {
@@ -808,28 +846,7 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
             .exclude(pk__in=member_ids)[:20]
         )
 
-        results = []
-        for u in candidates:
-            display_name = getattr(u, "get_full_name_display", None)
-            if callable(display_name):
-                display_name = display_name()
-            display_name = (display_name or u.email or "").strip()
-            avatar_url = ""
-            try:
-                if getattr(u, "avatar", None):
-                    avatar_url = u.avatar.url
-            except Exception:
-                avatar_url = ""
-            results.append(
-                {
-                    "id": str(u.pk),
-                    "name": display_name,
-                    "username": getattr(u, "username", "") or "",
-                    "email": u.email,
-                    "avatar": avatar_url,
-                    "already_invited": str(u.pk) in pending_ids,
-                }
-            )
+        results = [_serialize_user(u, pending_ids) for u in candidates]
         return JsonResponse({"ok": True, "results": results})
 
 
@@ -1336,10 +1353,10 @@ def project_chatroom(request: HttpRequest, pk: str) -> HttpResponse:
         .select_related("sender")
         .prefetch_related("seen_by")
     )
-    room_messages.filter().exclude(seen_by=request.user).exclude(
-        sender=request.user
-    ).prefetch_related(None)
-    for msg in room_messages:
+    unseen_messages = room_messages.exclude(sender=request.user).exclude(
+        seen_by=request.user
+    )
+    for msg in unseen_messages:
         msg.seen_by.add(request.user)
 
     member_projects = (
@@ -1397,6 +1414,29 @@ def project_chat_send(request: HttpRequest, pk: str) -> HttpResponse:
     msg.sender = request.user
     msg.save()
     msg.seen_by.add(request.user)
+    sender_raw = getattr(request.user, "get_full_name_display", "")
+    sender_name = sender_raw() if callable(sender_raw) else sender_raw
+    sender_name = (str(sender_name) if sender_name is not None else "").strip() or request.user.email
+
+    # Broadcast freshly persisted message to all room participants via Channels.
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer is not None:
+            async_to_sync(channel_layer.group_send)(
+                f"project_chat_{project.pk}",
+                {
+                    "type": "chat_message",
+                    "message_id": str(msg.id),
+                    "sender_id": str(msg.sender_id),
+                    "sender_name": escape(sender_name),
+                    "content": escape(msg.content),
+                    "message_type": msg.message_type,
+                    "file_url": msg.file_path.url if msg.file_path else "",
+                    "created_at": msg.created_at.strftime("%Y-%m-%d %H:%M"),
+                },
+            )
+    except Exception:
+        logger.exception("Project chat websocket broadcast failed for project=%s", project.pk)
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse(
@@ -1405,7 +1445,7 @@ def project_chat_send(request: HttpRequest, pk: str) -> HttpResponse:
                 "message": {
                     "id": str(msg.id),
                     "sender_id": str(msg.sender_id),
-                    "sender_name": request.user.get_full_name_display,
+                    "sender_name": sender_name,
                     "message_type": msg.message_type,
                     "content": escape(msg.content),
                     "file_url": msg.file_path.url if msg.file_path else "",

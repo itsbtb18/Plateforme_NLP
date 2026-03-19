@@ -683,6 +683,24 @@ def admin_review_save_api(request, model_type, pk):
             updated_fields.append(field_name)
             break
 
+    action = (payload.get("action") or "").strip().lower()
+    if action in {"accept", "approve"} and hasattr(item, "approval_status"):
+        setattr(item, "approval_status", "approved")
+        updated_fields.append("approval_status")
+        if hasattr(item, "is_approved"):
+            setattr(item, "is_approved", True)
+            updated_fields.append("is_approved")
+    elif action == "reject" and hasattr(item, "approval_status"):
+        setattr(item, "approval_status", "rejected")
+        updated_fields.append("approval_status")
+        if hasattr(item, "is_approved"):
+            setattr(item, "is_approved", False)
+            updated_fields.append("is_approved")
+        rejection_reason = (payload.get("rejection_reason") or "").strip()
+        if rejection_reason and hasattr(item, "rejection_reason"):
+            setattr(item, "rejection_reason", rejection_reason)
+            updated_fields.append("rejection_reason")
+
     if updated_fields:
         item.save(update_fields=list(dict.fromkeys(updated_fields)))
 
@@ -1657,6 +1675,8 @@ def admin_institutions(request):
 @user_passes_test(is_admin)
 def admin_news(request):
     """Admin news/posts management with approval workflow"""
+    from pages.content_parser import extract_paper_metadata
+
     search = request.GET.get("search", "").strip()
     tab = request.GET.get("tab", "approved")
 
@@ -1677,6 +1697,7 @@ def admin_news(request):
 
     pending_count = pending_posts.count()
     approved_count = approved_posts.count()
+    total_count = pending_count + approved_count
 
     def _build_query_string(exclude_key):
         params = []
@@ -1690,12 +1711,18 @@ def admin_news(request):
     paginator = Paginator(current_qs, 10)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
+    # Build structured metadata so list rows can use the same "new design" content style.
+    for post in page_obj.object_list:
+        localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+        post.news_meta = extract_paper_metadata(localized_content or '')
+
     context = {
         "posts": page_obj,
         "pending_posts": pending_posts,
         "approved_posts": approved_posts,
         "pending_count": pending_count,
         "approved_count": approved_count,
+        "total_count": total_count,
         "active_tab": tab,
         "search": search,
         "model_type": "post",
@@ -1726,8 +1753,20 @@ def admin_news_delete(request, post_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_news_view(request, post_id):
+    from pages.content_parser import extract_structured_content, extract_paper_metadata
     post = get_object_or_404(Post, id=post_id)
-    return render(request, "admin/news_view.html", {"post": post})
+
+    # Parse content into structured format
+    content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+    parsed_content = extract_structured_content(content)
+    preview_meta = extract_paper_metadata(content)
+
+    context = {
+        "post": post,
+        "parsed_content": parsed_content,
+        "preview_meta": preview_meta,
+    }
+    return render(request, "admin/news_view.html", context)
 
 
 @login_required
@@ -2778,11 +2817,8 @@ def get_view_url(model_type, pk):
     if model_type == "post":
         return reverse("pages:admin_news_view", kwargs={"post_id": pk})
 
-    # Topic has no dedicated detail template; keep review mode (read-only in template)
     if model_type == "topic":
-        return reverse(
-            "pages:admin_approve_item", kwargs={"model_type": model_type, "pk": pk}
-        )
+        return reverse("forum:topic-detail", kwargs={"pk": pk})
 
     return reverse("pages:admin_dashboard")
 
@@ -2884,11 +2920,12 @@ def admin_approve_item(request, model_type, pk):
             % {"title": title},
         )
 
-    # Redirect to the edit page with review context (or edit-only mode)
+    # Redirect to the edit page with review context (or editable review mode)
     edit_url = get_edit_url(model_type, pk)
     if edit_mode:
         review_qs = urlencode(
             {
+                "review": "1",
                 "edit_only": "1",
                 "review_model": model_type,
                 "review_pk": str(pk),
@@ -2952,6 +2989,19 @@ def admin_reject_item(request, model_type, pk):
     if item is None:
         return JsonResponse({"success": False, "error": "Item not found"}, status=404)
 
+    def _response_success(normalized_type):
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": True, "new_status": "rejected"})
+        redirect_name = REDIRECT_MAP.get(normalized_type, "pages:admin_dashboard")
+        return redirect(f"{reverse(redirect_name)}?tab=pending")
+
+    def _response_error(message, status_code):
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": message}, status=status_code)
+        messages.error(request, _(message))
+        redirect_name = REDIRECT_MAP.get(normalized_model_type, "pages:admin_dashboard")
+        return redirect(f"{reverse(redirect_name)}?tab=pending")
+
     try:
         author = (
             getattr(item, "author", None)
@@ -2960,18 +3010,81 @@ def admin_reject_item(request, model_type, pk):
             or getattr(item, "created_by", None)
         )
         title = getattr(item, "title", str(item))
+        rejection_reason = (request.POST.get("reason") or "").strip()
 
         if author:
             NotificationService.create_notification(
                 recipient=author,
                 notification_type="POST_REJECTED",
                 title=_("Your submission has been rejected"),
-                message=_("Your submission '%(title)s' has been rejected and removed."),
+                message=_("Your submission '%(title)s' has been rejected."),
                 message_kwargs={"title": title},
             )
 
-        # Keep the existing behavior used by working reject flows: delete rejected items.
-        item.delete()
-        return JsonResponse({"success": True})
+        # Moderation workflow state transition: pending -> rejected.
+        fields_to_update = []
+        if hasattr(item, "approval_status"):
+            item.approval_status = "rejected"
+            fields_to_update.append("approval_status")
+        if hasattr(item, "is_approved"):
+            item.is_approved = False
+            fields_to_update.append("is_approved")
+        if rejection_reason and hasattr(item, "rejection_reason"):
+            item.rejection_reason = rejection_reason
+            fields_to_update.append("rejection_reason")
+        if fields_to_update:
+            item.save(update_fields=list(dict.fromkeys(fields_to_update)))
+        else:
+            # Fallback for models without approval fields.
+            item.delete()
+
+        return _response_success(normalized_model_type)
     except Exception as exc:
-        return JsonResponse({"success": False, "error": str(exc)}, status=500)
+        return _response_error(str(exc), 500)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_delete_item(request, model_type, pk):
+    """Hard-delete an item from admin pending lists."""
+    if request.method != "POST":
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+        messages.error(request, _("Method not allowed"))
+        return redirect("pages:admin_dashboard")
+
+    normalized_model_type = {
+        "publication": "document",
+        "tool": "nlptool",
+        "forum": "topic",
+        "news": "post",
+    }.get(model_type, model_type)
+
+    if normalized_model_type not in MODEL_MAP:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": "Invalid model type"}, status=400)
+        messages.error(request, _("Invalid model type."))
+        return redirect("pages:admin_dashboard")
+
+    Model = MODEL_MAP[normalized_model_type]
+    item = Model.objects.filter(pk=pk).first()
+    if item is None:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": "Item not found"}, status=404)
+        messages.error(request, _("Item not found."))
+        return redirect("pages:admin_dashboard")
+
+    try:
+        title = getattr(item, "title", None) or getattr(item, "name", str(item))
+        item.delete()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": True})
+        messages.success(request, _("'%(title)s' has been deleted.") % {"title": title})
+        redirect_name = REDIRECT_MAP.get(normalized_model_type, "pages:admin_dashboard")
+        return redirect(f"{reverse(redirect_name)}?tab=pending")
+    except Exception as exc:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": str(exc)}, status=500)
+        messages.error(request, str(exc))
+        redirect_name = REDIRECT_MAP.get(normalized_model_type, "pages:admin_dashboard")
+        return redirect(f"{reverse(redirect_name)}?tab=pending")

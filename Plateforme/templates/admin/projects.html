@@ -104,18 +104,9 @@
             <td><span style="font-size:.82rem;">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span></td>
             <td><span class="n-dt">{{ project.created_at|date:"d M Y" }}</span></td>
             <td>
-              <div class="n-acts" style="justify-content:center;align-items:center;gap:5px;">
-                <a href="{% url 'projects:project_detail' project.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
-                <a href="{% url 'projects:project_update' project.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
-                <button
-                  type="button"
-                  class="n-act n-act-red js-project-reject-btn"
-                  data-reject-url="{% url 'pages:admin_reject_item' model_type='project' pk=project.id %}"
-                  title="{% trans 'Reject' %}"
-                >
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
+              {% url 'pages:admin_view_item' model_type='project' pk=project.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='project' pk=project.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='project' item_pk=project.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
             </td>
           </tr>
           {% endfor %}

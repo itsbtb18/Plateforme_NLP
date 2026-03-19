@@ -622,6 +622,18 @@ html[dir="rtl"] .pd-share-menu {
     color: var(--pd-text-muted);
     margin: 0;
 }
+
+/* Scrapped/Research news - RTL support */
+.pd-research-abstract {
+    padding: 1rem;
+    border-inline-start: 3px solid var(--pd-primary);
+    background: rgba(37, 99, 235, 0.05);
+    border-radius: 6px;
+}
+.pd-research-abstract h4 { margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: 600; color: var(--pd-text); text-transform: uppercase; letter-spacing: 0.02em; }
+.pd-research-abstract p { margin: 0; font-size: 0.95rem; color: var(--pd-text-secondary); line-height: 1.7; white-space: pre-wrap; }
+html[dir="rtl"] .pd-research-abstract { border-inline-start: none; border-inline-end: 3px solid var(--pd-primary); }
+html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; text-align: start; }
 </style>
 {% endblock %}
 
@@ -668,9 +680,58 @@ html[dir="rtl"] .pd-share-menu {
             </div>
             
             <div class="pd-card-body">
+                <!-- Display News metadata if available -->
+                {% if post.news_meta.title or post.news_meta.abstract %}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <!-- Title -->
+                    {% if post.news_meta.title %}
+                    <h2 style="margin:0;font-size:1.5rem;font-weight:700;line-height:1.35;color:var(--pd-text);">
+                        {{ post.news_meta.title }}
+                    </h2>
+                    {% endif %}
+                    
+                    <!-- Authors -->
+                    {% if post.news_meta.all_authors %}
+                    <div style="display:flex;align-items:center;gap:.5rem;font-size:.95rem;color:var(--pd-text-secondary);">
+                        <i style="color:var(--pd-primary);" class="bi bi-person"></i>
+                        <span>{{ post.news_meta.all_authors }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Year -->
+                    {% if post.news_meta.year %}
+                    <div style="display:flex;align-items:center;gap:.5rem;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;padding:.4rem .8rem;border-radius:999px;background:rgba(37, 99, 235, 0.1);color:var(--pd-primary);font-size:.85rem;font-weight:600;">
+                            <i style="margin-inline-end:.4rem;" class="bi bi-calendar"></i>
+                            {{ post.news_meta.year }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Abstract -->
+                    {% if post.news_meta.abstract %}
+                    <div class="pd-research-abstract">
+                        <h4>{% trans "Abstract" %}</h4>
+                        <p>{{ post.news_meta.abstract }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- External Link -->
+                    {% if post.news_meta.link %}
+                    <div style="margin-top:.5rem;">
+                        <a href="{{ post.news_meta.link }}" target="_blank" rel="noopener noreferrer" class="pd-btn pd-btn-primary">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            {% trans "Read the full paper" %}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <!-- Fallback to regular post content -->
                 <p class="pd-content">{{ post.content }}</p>
                 {% if post.image %}
                 <img src="{{ post.image.url }}" alt="{% trans 'Post image' %}" class="pd-image">
+                {% endif %}
                 {% endif %}
             </div>
             
