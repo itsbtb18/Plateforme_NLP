@@ -220,11 +220,16 @@ async def search_legal_documents(
     category: Optional[str] = None,
     language: Optional[str] = None,
 ) -> List[Dict]:
-    """Search legal / regulatory knowledge base.
+    """Search legal / regulatory knowledge base — cross-lingual.
 
-    When *language* is provided, same-language documents are prioritised
-    by first searching with language filter.  If too few results,
-    a cross-language fallback is performed.
+    BGE-M3 maps Arabic, French, and English into the same vector space,
+    so a query in Arabic will naturally match French legal documents.
+    We intentionally do NOT filter by language — the embedding similarity
+    handles cross-lingual matching.  Only jurisdiction and category
+    filters are applied.
+
+    The *language* parameter is kept in the signature for backward
+    compatibility but is no longer used for filtering.
     """
     try:
         k = top_k or settings.TOP_K_RESULTS
@@ -233,72 +238,55 @@ async def search_legal_documents(
 
         qe = embedding_svc.encode_single(query)
 
-        # Phase 6: prioritise same-language laws
-        if language:
-            lang_filter = build_legal_filter(jurisdiction, category, language)
-            lang_hits = qdrant.search(
-                collection=COLLECTION_LEGAL_DOCUMENTS,
-                query_vector=qe,
-                limit=k,
-                query_filter=lang_filter,
-                score_threshold=0.50,
-            )
-            if len(lang_hits) >= max(1, k // 2):
-                hits = lang_hits
-            else:
-                # Not enough same-language results — fall back to all languages
-                base_filter = build_legal_filter(jurisdiction, category)
-                all_hits = qdrant.search(
-                    collection=COLLECTION_LEGAL_DOCUMENTS,
-                    query_vector=qe,
-                    limit=k,
-                    score_threshold=0.50,
-                    query_filter=base_filter,
-                )
-                # Merge: same-language first, then cross-language
-                seen_ids = {h["id"] for h in lang_hits}
-                hits = lang_hits + [h for h in all_hits if h["id"] not in seen_ids]
-                hits = hits[:k]
-        else:
-            base_filter = build_legal_filter(jurisdiction, category)
-            hits = qdrant.search(
-                collection=COLLECTION_LEGAL_DOCUMENTS,
-                query_vector=qe,
-                limit=k,
-                query_filter=base_filter,
-                score_threshold=0.50,
-            )
+        # Cross-lingual: search ALL languages, filter only by
+        # jurisdiction/category.  BGE-M3 handles multilingual matching.
+        base_filter = build_legal_filter(jurisdiction, category)
+        hits = qdrant.search(
+            collection=COLLECTION_LEGAL_DOCUMENTS,
+            query_vector=qe,
+            limit=k,
+            query_filter=base_filter,
+            score_threshold=0.40,
+        )
 
         if not hits:
             return []
 
-        ids = [h["id"] for h in hits]
-        score_map = {h["id"]: h["score"] for h in hits}
+        # Extract real DB IDs from payload
+        results_map = {}
+        for h in hits:
+            doc_id = h["payload"].get("doc_id")
+            if doc_id is None:
+                # Fallback to h["id"] if doc_id is missing (backward compat)
+                doc_id = int(h["id"])
+            
+            if doc_id not in results_map:
+                results_map[doc_id] = {
+                    "score": h["score"],
+                    "content": h["payload"].get("content", ""),
+                    "article": h["payload"].get("article_heading"),
+                }
 
-        stmt = select(LegalDocument).where(LegalDocument.id.in_(ids))
+        doc_ids = list(results_map.keys())
+        stmt = select(LegalDocument).where(LegalDocument.id.in_(doc_ids))
         rows = (await db.execute(stmt)).scalars().all()
         row_map = {r.id: r for r in rows}
 
         results = []
-        for pid in ids:
-            r = row_map.get(pid)
+        for doc_id, meta in results_map.items():
+            r = row_map.get(doc_id)
             if not r:
                 continue
-            sim = score_map[pid]
-            # Qdrant server-side score_threshold already filters low-quality
-            # results — no need to double-filter here.
+            
             results.append(
                 {
                     "id": r.id,
                     "title": r.title,
-                    "content": r.content,
-                    "jurisdiction": r.jurisdiction,
-                    "category": r.category,
-                    "language": r.language,
-                    "source_reference": r.source_reference,
-                    "keywords": r.keywords,
+                    "content": meta["content"],
+                    "article_heading": meta["article"],
+                    "similarity": meta["score"],
                     "source": "legal",
-                    "similarity": sim,
+                    "language": r.language,
                 }
             )
         return results

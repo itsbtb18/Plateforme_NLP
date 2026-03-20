@@ -72,6 +72,22 @@ async def lifespan(app: FastAPI):
     get_groq_client()
     logger.info("Groq client preloaded")
 
+    # Populate BM25 indices from Qdrant payloads (background, non-blocking)
+    import asyncio
+
+    async def _populate_bm25():
+        try:
+            from app.services.retrieval.bm25 import build_from_qdrant
+            from app.services.qdrant.collections import ALL_COLLECTIONS
+
+            for coll in ALL_COLLECTIONS:
+                build_from_qdrant(coll)
+            logger.info("BM25 indices populated for all non-empty collections")
+        except Exception as e:
+            logger.warning("BM25 startup population failed (non-fatal): %s", e)
+
+    asyncio.create_task(_populate_bm25())
+
     logger.info("FastAPI chatbot service ready")
     yield
     logger.info("Shutting down FastAPI chatbot service...")
@@ -166,10 +182,10 @@ async def conversation_stream(
 
 
 @app.post("/query", response_model=ChatResponse)
-async def quick_query(request: QuickQueryRequest):
+async def quick_query(request: QuickQueryRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await get_chat_logic().handle_quick_query(
-            request.question, request.language
+            request.question, db, request.language
         )
     except Exception as e:
         logger.error("Quick query error: %s", e)

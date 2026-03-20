@@ -28,12 +28,18 @@ settings = get_settings()
 class GroqClient:
     """Client for Groq API interactions — NEVER logs the API key."""
 
-    def __init__(self):
-        api_key = settings.GROQ_API_KEY
-        if not api_key:
-            raise ValueError("GROQ_API_KEY not configured")
-        self.client = Groq(api_key=api_key, timeout=60.0)
-        self.model = settings.GROQ_MODEL
+    def __init__(self, api_key: str = None, model_name: str = None):
+        """Initialise the client with a specific key and model.
+        
+        Defaults to settings.GROQ_API_KEY / settings.GROQ_MODEL if not provided.
+        """
+        self.api_key = api_key or settings.GROQ_API_KEY
+        self.model = model_name or settings.GROQ_MODEL
+        
+        if not self.api_key:
+            logger.warning("GROQ_API_KEY is not set. LLM features will fail.")
+
+        self.client = Groq(api_key=self.api_key, timeout=60.0)
         logger.info("Groq client initialised – model: %s", self.model)
 
     # ------------------------------------------------------------------
@@ -340,12 +346,27 @@ class GroqClient:
         return any(m in text for m in _markers)
 
 
-# Singleton
+# Singletons
 _groq_client = None
+_internal_groq_client = None
 
 
 def get_groq_client() -> GroqClient:
+    """Get the primary (user-facing chatbot) client."""
     global _groq_client
     if _groq_client is None:
         _groq_client = GroqClient()
     return _groq_client
+
+
+def get_internal_groq_client() -> GroqClient:
+    """Get the internal client (for classification, rewriting, etc.)."""
+    global _internal_groq_client
+    if _internal_groq_client is None:
+        # If internal key is missing, fallback to primary key
+        key = settings.GROQ_INTERNAL_API_KEY or settings.GROQ_API_KEY
+        # If internal model is missing, fallback to primary model
+        model = settings.GROQ_INTERNAL_MODEL or settings.GROQ_MODEL
+        
+        _internal_groq_client = GroqClient(api_key=key, model_name=model)
+    return _internal_groq_client

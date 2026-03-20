@@ -23,15 +23,20 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/2"
 
-    # Groq API – NEVER log or hardcode this value
+    # Groq API — Chatbot (User-facing)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_MAX_TOKENS: int = 4096
+    
+    # Groq API — Internal (Classification, Rewriting, Faithfulness)
+    GROQ_INTERNAL_API_KEY: str = ""
+    GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
+    
+    GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
     # Embeddings
-    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-    EMBEDDING_DIMENSION: int = 768
+    EMBEDDING_MODEL: str = "BAAI/bge-m3"
+    EMBEDDING_DIMENSION: int = 1024
 
     # App Settings
     ENVIRONMENT: str = "development"

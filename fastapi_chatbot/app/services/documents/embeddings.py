@@ -19,6 +19,7 @@ class EmbeddingService:
     """Generate dense vector embeddings for text."""
 
     _MULTILINGUAL_MODELS = {
+        "BAAI/bge-m3",
         "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
         "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         "sentence-transformers/distiluse-base-multilingual-cased-v2",
