@@ -60,20 +60,26 @@ async def lifespan(app: FastAPI):
     get_qdrant_service().ensure_collections()
     logger.info("Qdrant collections ready")
 
-    # Preload the embedding model so it's ready before the first request
-    from app.services.documents.embeddings import get_embedding_service
-
-    get_embedding_service()
-    logger.info("Embedding model preloaded")
-
-    # Preload the Groq client
-    from app.services.llm.client import get_groq_client
-
-    get_groq_client()
-    logger.info("Groq client preloaded")
-
-    # Populate BM25 indices from Qdrant payloads (background, non-blocking)
+    # Heavy warmups are non-blocking so /health can become available quickly.
     import asyncio
+
+    async def _warmup_embeddings():
+        try:
+            from app.services.documents.embeddings import get_embedding_service
+
+            get_embedding_service()
+            logger.info("Embedding model warmup complete")
+        except Exception as e:
+            logger.warning("Embedding warmup failed (non-fatal): %s", e)
+
+    async def _warmup_llm_client():
+        try:
+            from app.services.llm.client import get_groq_client
+
+            get_groq_client()
+            logger.info("Groq client warmup complete")
+        except Exception as e:
+            logger.warning("Groq warmup failed (non-fatal): %s", e)
 
     async def _populate_bm25():
         try:
@@ -86,6 +92,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("BM25 startup population failed (non-fatal): %s", e)
 
+    asyncio.create_task(_warmup_embeddings())
+    asyncio.create_task(_warmup_llm_client())
     asyncio.create_task(_populate_bm25())
 
     logger.info("FastAPI chatbot service ready")

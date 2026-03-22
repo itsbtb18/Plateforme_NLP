@@ -89,12 +89,38 @@ _IDENTITY_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Pasted-result analysis prompts can contain words like "author"/"open"
+# from UI cards and be misclassified as platform queries.
+_ANALYZE_ANSWER_RE = re.compile(
+    r"(?:\b(?:analy[sz]e|explain|interpret|review)\b|"
+    r"\b(?:analyse|expliquer|interpr[eé]ter)\b|"
+    r"(?:حلل|اشرح|فسر))"
+    r".*"
+    r"(?:\banswer\b|\br[eé]ponse\b|(?:الإجابة|الجواب))",
+    re.IGNORECASE,
+)
+
 
 class QueryClassifier:
     """LLM zero-shot classifier with regex fast-path and fallback."""
 
     def __init__(self):
         self.lang_service = get_language_service()
+
+    def _force_conceptual_for_answer_analysis(
+        self,
+        question: str,
+        intent: str,
+    ) -> bool:
+        """Return True when a pasted-answer analysis should be conceptual.
+
+        This avoids routing to platform search just because pasted snippets
+        include UI terms such as "author" and "open".
+        """
+        if intent != "platform_query":
+            return False
+        q = question.strip()
+        return len(q) >= 80 and bool(_ANALYZE_ANSWER_RE.search(q))
 
     # ------------------------------------------------------------------
     # Synchronous fast-path (no LLM needed for trivial queries)
@@ -171,6 +197,9 @@ class QueryClassifier:
 
         result = self._build_classification(top_intent, language, confidence)
 
+        if self._force_conceptual_for_answer_analysis(q, result.intent):
+            return self._build_classification("conceptual_question", language, 0.80)
+
         if top_intent == "platform_query":
             result.detected_resource_type = extract_resource_type(q)
 
@@ -226,6 +255,15 @@ class QueryClassifier:
                     q[:60], intent, language,
                 )
                 result = self._build_classification(intent, language, 0.95)
+
+                if self._force_conceptual_for_answer_analysis(q, result.intent):
+                    logger.info(
+                        "Classifier correction: forcing conceptual_question "
+                        "for pasted-answer analysis query"
+                    )
+                    return self._build_classification(
+                        "conceptual_question", language, 0.90,
+                    )
 
                 if intent == "platform_query":
                     result.detected_resource_type = extract_resource_type(q)

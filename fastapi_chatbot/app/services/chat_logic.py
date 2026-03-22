@@ -427,7 +427,14 @@ class ChatLogic:
             source = "groq"
 
         # ── Phase 6: Faithfulness verification ────────────────────────
-        if source != "groq" and context:
+        # Only enforce safe substitution for legal answers. Applying the
+        # legal fallback to NLP/platform answers causes unrelated replies
+        # (e.g. "what is RAG") to collapse into legal-safe text.
+        _enforce_legal_faithfulness = (
+            classification.intent == "legal_query"
+            or source == "legal_documents"
+        )
+        if source != "groq" and context and _enforce_legal_faithfulness:
             is_faithful = await verify_faithfulness(
                 answer, context, language, intent=classification.intent,
             )
@@ -437,6 +444,13 @@ class ChatLogic:
                 )
                 answer = get_faithfulness_fallback(language)
                 source = "groq"  # Mark as LLM-generated fallback
+        elif source != "groq" and context:
+            logger.debug(
+                "Skipping legal-safe faithfulness substitution for non-legal "
+                "response (intent=%s, source=%s)",
+                classification.intent,
+                source,
+            )
 
         # Step 6: Persist messages
         await self.sessions.save_message(

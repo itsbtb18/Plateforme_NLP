@@ -13,9 +13,14 @@ Pipeline integration (in chat_logic.py):
 """
 
 import logging
+import asyncio
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+_VERIFY_TIMEOUT_SECONDS = 6.0
+_VERIFY_MAX_RETRIES = 1
+_VERIFY_BASE_DELAY = 0.25
 
 # Intents that skip faithfulness verification (no RAG context)
 _SKIP_INTENTS = {
@@ -53,8 +58,8 @@ async def verify_faithfulness(
 
         client = get_internal_groq_client()
 
-        # Truncate context if too long (keep within token limits)
-        truncated_context = context[:3000] if len(context) > 3000 else context
+        # Keep verifier context short to limit latency under load.
+        truncated_context = context[:1800] if len(context) > 1800 else context
         truncated_answer = answer[:2000] if len(answer) > 2000 else answer
 
         prompt = FAITHFULNESS_PROMPT.format(
@@ -67,8 +72,15 @@ async def verify_faithfulness(
             {"role": "user", "content": prompt},
         ]
 
-        response = await client.chat_completion(
-            messages, temperature=0.0, max_tokens=10,
+        response = await asyncio.wait_for(
+            client.chat_completion(
+                messages,
+                temperature=0.0,
+                max_tokens=10,
+                max_retries=_VERIFY_MAX_RETRIES,
+                base_delay=_VERIFY_BASE_DELAY,
+            ),
+            timeout=_VERIFY_TIMEOUT_SECONDS,
         )
 
         verdict = response.strip().lower().replace('"', '').replace("'", "")
