@@ -1039,7 +1039,7 @@ def ask_bot_stream(request):
             {"error": _("Authentication required"), "source": "error"}, status=401
         )
 
-    allowed, _ = check_rate_limit(request.user.id)
+    allowed, remaining = check_rate_limit(request.user.id)
     if not allowed:
         return JsonResponse(
             {
