@@ -32,6 +32,23 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# ---------------------------------------------------------------------------
+# Phase 3: Explicit intent → route mapping (documentation only).
+# The actual routing logic is in QueryRouter.route(), but this table
+# provides a single reference for understanding the intent→source mapping.
+# ---------------------------------------------------------------------------
+ROUTING_TABLE = {
+    "general_knowledge":   {"source": "groq",       "retrieval": None,             "note": "Direct LLM, no retrieval"},
+    "user_query":          {"source": "postgresql",  "retrieval": "platform_qs",    "note": "PostgreSQL user lookup"},
+    "metadata_query":      {"source": "postgresql",  "retrieval": "platform_qs",    "note": "Stats, counts, navigation"},
+    "platform_query":      {"source": "postgresql",  "retrieval": "platform_qs",    "note": "Platform resources search"},
+    "conceptual_question": {"source": "qdrant",      "retrieval": "hybrid_search",  "note": "Dense + BM25 → semantic knowledge"},
+    "legal_query":         {"source": "qdrant",      "retrieval": "legal_search",   "note": "Dense + BM25 → legal documents"},
+    "document_query":      {"source": "qdrant",      "retrieval": "user_doc_search","note": "User uploaded docs"},
+    "bug_query":           {"source": "qdrant",      "retrieval": "hybrid_search",  "note": "Bug-related knowledge"},
+}
+
+
 
 # ---------------------------------------------------------------------------
 # Routing result
@@ -268,7 +285,6 @@ class QueryRouter:
                 query=question,
                 db=db,
                 top_k=settings.TOP_K_RESULTS,
-                language=lang,
             )
             result.retrieved_docs = docs
             result.primary_source = "legal" if docs else "none"

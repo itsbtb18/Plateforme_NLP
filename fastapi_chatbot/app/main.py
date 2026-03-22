@@ -60,17 +60,41 @@ async def lifespan(app: FastAPI):
     get_qdrant_service().ensure_collections()
     logger.info("Qdrant collections ready")
 
-    # Preload the embedding model so it's ready before the first request
-    from app.services.documents.embeddings import get_embedding_service
+    # Heavy warmups are non-blocking so /health can become available quickly.
+    import asyncio
 
-    get_embedding_service()
-    logger.info("Embedding model preloaded")
+    async def _warmup_embeddings():
+        try:
+            from app.services.documents.embeddings import get_embedding_service
 
-    # Preload the Groq client
-    from app.services.llm.client import get_groq_client
+            get_embedding_service()
+            logger.info("Embedding model warmup complete")
+        except Exception as e:
+            logger.warning("Embedding warmup failed (non-fatal): %s", e)
 
-    get_groq_client()
-    logger.info("Groq client preloaded")
+    async def _warmup_llm_client():
+        try:
+            from app.services.llm.client import get_groq_client
+
+            get_groq_client()
+            logger.info("Groq client warmup complete")
+        except Exception as e:
+            logger.warning("Groq warmup failed (non-fatal): %s", e)
+
+    async def _populate_bm25():
+        try:
+            from app.services.retrieval.bm25 import build_from_qdrant
+            from app.services.qdrant.collections import ALL_COLLECTIONS
+
+            for coll in ALL_COLLECTIONS:
+                build_from_qdrant(coll)
+            logger.info("BM25 indices populated for all non-empty collections")
+        except Exception as e:
+            logger.warning("BM25 startup population failed (non-fatal): %s", e)
+
+    asyncio.create_task(_warmup_embeddings())
+    asyncio.create_task(_warmup_llm_client())
+    asyncio.create_task(_populate_bm25())
 
     logger.info("FastAPI chatbot service ready")
     yield
@@ -166,10 +190,10 @@ async def conversation_stream(
 
 
 @app.post("/query", response_model=ChatResponse)
-async def quick_query(request: QuickQueryRequest):
+async def quick_query(request: QuickQueryRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await get_chat_logic().handle_quick_query(
-            request.question, request.language
+            request.question, db, request.language
         )
     except Exception as e:
         logger.error("Quick query error: %s", e)

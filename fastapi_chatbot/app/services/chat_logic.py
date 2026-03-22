@@ -1,11 +1,13 @@
 """
-Chat logic — pure RAG orchestration (v5.0 — Retrieval Strategy).
+Chat logic — pure RAG orchestration (v6.0 — Upgraded Pipeline).
 
 Pipeline per conversation turn:
-  1. Classify intent  (query_classifier)
-  2. Route retrieval   (query_router)
+  0. Rewrite query     (query_rewriter — Phase 5)
+  1. Classify intent   (query_classifier — Phase 2: LLM zero-shot)
+  2. Route retrieval   (query_router — Phase 3)
   3. Build context     (this module)
   4. Generate answer   (groq_client)
+  4b. Verify answer    (faithfulness — Phase 6)
   5. Persist messages  (session_service)
 
 Session CRUD, document management, and message storage are handled by
@@ -28,7 +30,10 @@ from app.services.retrieval.filters import build_user_doc_filter
 from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc, EntityExplainRequest
 from app.models import ChatSession, UserDocument
 from sqlalchemy import select, func as sqlfunc
-from typing import List, Dict, Optional, Any, AsyncGenerator
+from typing import List, Dict, Optional, Any, AsyncGenerator, Union
+from app.services.query_rewriter import rewrite_query
+from app.services.faithfulness import verify_faithfulness, get_faithfulness_fallback
+from app.services.classifier.patterns import extract_resource_type
 import logging
 
 logger = logging.getLogger(__name__)
@@ -69,19 +74,23 @@ class ChatLogic:
             )
             has_docs = (doc_count.scalar() or 0) > 0
 
-        # Phase 4.1: Load session row for document-session state
-        session_row: ChatSession | None = None
-        if request.session_id:
-            result = await db.execute(
-                select(ChatSession).where(
-                    ChatSession.session_id == request.session_id
-                )
-            )
-            session_row = result.scalars().first()
-
-        # Step 1-2: Detect language + classify intent
-        classification = self.classifier.classify(
+        # ── Phase 5: Query rewriting for multi-turn conversations ─────
+        chat_history_for_rewrite = await self.sessions.get_recent_messages(
+            request.session_id, db,
+        )
+        effective_question = await rewrite_query(
             request.question,
+            chat_history_for_rewrite or [],
+        )
+        if effective_question != request.question:
+            logger.info(
+                "Query rewritten: '%s' → '%s'",
+                request.question[:50], effective_question[:50],
+            )
+
+        # Step 1-2: Detect language + classify intent (Phase 2: LLM zero-shot primary)
+        classification = await self.classifier.classify_with_llm(
+            effective_question,
             has_session_docs=has_docs,
         )
         language = classification.language
@@ -105,6 +114,16 @@ class ChatLogic:
         #   4. Fallback               → Phase 4 dominance check (one-shot)
 
         _doc_session_handled = False
+
+        # Phase 4.1: Load session row for document-session state
+        session_row: ChatSession | None = None
+        if request.session_id:
+            result = await db.execute(
+                select(ChatSession).where(
+                    ChatSession.session_id == request.session_id
+                )
+            )
+            session_row = result.scalars().first()
 
         if session_row and has_docs and request.user_id:
             # ── 1. Deactivation check ────────────────────────────────
@@ -243,7 +262,9 @@ class ChatLogic:
             # If all scores are 0, the classifier intentionally defaulted
             # to conceptual_question — don't let LLM override that.
             if any(v > 0 for v in scores.values()):
-                top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
+                # Explicit list cast and annotation for linter
+                all_intents: List[str] = list(sorted(scores, key=lambda k: float(scores[k]), reverse=True))
+                top_2 = all_intents[:2]
                 resolved = await self.classifier.llm_resolve_ambiguity(
                     request.question, language, top_2,
                 )
@@ -255,14 +276,14 @@ class ChatLogic:
                         resolved, language, 0.80,
                     )
                     if resolved == "platform_query":
-                        from app.services.classifier.patterns import extract_resource_type
                         classification.detected_resource_type = extract_resource_type(
-                            request.question
+                            effective_question
                         )
 
         # Step 3: Route to correct data source(s)
+        # Use the rewritten question for retrieval (better standalone context)
         routing: RoutingResult = await self.router.route(
-            question=request.question,
+            question=effective_question,
             classification=classification,
             db=db,
             session_id=request.session_id,
@@ -286,6 +307,27 @@ class ChatLogic:
         user_ctx = ""
         if classification.intent in _profile_intents:
             user_ctx = self._build_user_context(request)
+            
+            # ── Phase 13: Identity shortcut ──────────────────────────
+            # If it's a direct "who am i" query, skip full RAG generation.
+            if self._is_identity_query(request.question) and getattr(request, "user_name", None):
+                uname = request.user_name
+                if language == "ar":
+                    answer = f"أنت {uname} (اسم المستخدم)."
+                elif language == "fr":
+                    answer = f"Vous êtes {uname} (le nom d'utilisateur)."
+                else:
+                    answer = f"You are {uname} (the username)."
+                
+                await self.sessions.save_message(request.session_id, "user", request.question, None, language, db)
+                await self.sessions.save_message(request.session_id, "assistant", answer, "profile", language, db)
+                return ChatResponse(
+                    answer=answer,
+                    source="profile",
+                    session_id=request.session_id,
+                    lang=language,
+                )
+
         logger.info(
             "User profile injection: user_name=%s, user_email=%s, ctx_len=%d",
             getattr(request, "user_name", None),
@@ -383,6 +425,32 @@ class ChatLogic:
             )
             answer = await self.groq.quick_answer(request.question, language, username=getattr(request, "user_name", None))
             source = "groq"
+
+        # ── Phase 6: Faithfulness verification ────────────────────────
+        # Only enforce safe substitution for legal answers. Applying the
+        # legal fallback to NLP/platform answers causes unrelated replies
+        # (e.g. "what is RAG") to collapse into legal-safe text.
+        _enforce_legal_faithfulness = (
+            classification.intent == "legal_query"
+            or source == "legal_documents"
+        )
+        if source != "groq" and context and _enforce_legal_faithfulness:
+            is_faithful = await verify_faithfulness(
+                answer, context, language, intent=classification.intent,
+            )
+            if not is_faithful:
+                logger.warning(
+                    "Faithfulness check failed — substituting safe fallback"
+                )
+                answer = get_faithfulness_fallback(language)
+                source = "groq"  # Mark as LLM-generated fallback
+        elif source != "groq" and context:
+            logger.debug(
+                "Skipping legal-safe faithfulness substitution for non-legal "
+                "response (intent=%s, source=%s)",
+                classification.intent,
+                source,
+            )
 
         # Step 6: Persist messages
         await self.sessions.save_message(
@@ -537,7 +605,9 @@ class ChatLogic:
                 request.question, has_session_docs=has_docs,
             )
             if any(v > 0 for v in scores.values()):
-                top_2 = sorted(scores, key=scores.get, reverse=True)[:2]
+                # Explicitly cast to list for linter slicing
+                all_intents = list(sorted(scores, key=lambda k: float(scores[k]), reverse=True))
+                top_2 = all_intents[:2]
                 resolved = await self.classifier.llm_resolve_ambiguity(
                     request.question, language, top_2,
                 )
@@ -546,7 +616,6 @@ class ChatLogic:
                         resolved, language, 0.80,
                     )
                     if resolved == "platform_query":
-                        from app.services.classifier.patterns import extract_resource_type
                         classification.detected_resource_type = extract_resource_type(
                             request.question
                         )
@@ -669,9 +738,47 @@ class ChatLogic:
     # ------------------------------------------------------------------
 
     async def handle_quick_query(
-        self, question: str, language: Optional[str] = None
+        self,
+        question: str,
+        db: Optional[AsyncSession] = None,
+        language: Optional[str] = None,
     ) -> ChatResponse:
-        lang = language or self.classifier.classify(question).language
+        classification = self.classifier.classify(question)
+        lang = language or classification.language
+        
+        # If it's a retrieval intent, do a simplified RAG flow (no DB persistence)
+        retrieval_intents = {"legal_query", "nlp_knowledge", "platform_query", "resource_query", "conceptual_question"}
+        if classification.intent in retrieval_intents:
+            try:
+                # 1. Route
+                routing = await self.router.route(
+                    question=question,
+                    classification=classification,
+                    db=db, # Now we have it!
+                )
+                
+                # 2. Build context
+                context = self._build_context(routing.retrieved_docs)
+                
+                # 3. Generate
+                if context:
+                    answer = await self.groq.generate_answer_with_context(
+                        question=question,
+                        context=context,
+                        language=lang,
+                        source_type=routing.primary_source
+                    )
+                    return ChatResponse(
+                        answer=answer,
+                        source=routing.primary_source,
+                        session_id="quick_query",
+                        lang=lang,
+                        retrieved_docs=self._to_schema(routing.retrieved_docs)
+                    )
+            except Exception as e:
+                logger.error("Quick query RAG failed: %s", e)
+                # Fall back to direct LLM
+        
         answer = await self.groq.quick_answer(question, lang)
         return ChatResponse(
             answer=answer,
@@ -697,7 +804,8 @@ class ChatLogic:
         if not session or not session.pdf_context:
             raise ValueError("No PDF context found for this session")
 
-        pdf_ctx = str(session.pdf_context)[:10000]
+        # Explicit cast to string and safety check
+        pdf_ctx = str(session.pdf_context or "")[:10000]
         chat_history = await self.sessions.get_recent_messages(session_id, db)
         session_summary = await self.sessions.get_summary(session_id, db)
         answer = await self.groq.generate_answer_with_context(
@@ -957,7 +1065,7 @@ class ChatLogic:
         if not docs:
             return ""
 
-        quality_threshold = 0.60
+        quality_threshold = 0.40
 
         # Check if these are user-uploaded document chunks
         is_user_doc = any(d.get("source") == "user_document" for d in docs)
@@ -967,7 +1075,10 @@ class ChatLogic:
             from collections import defaultdict
 
             by_file: dict[str, list[str]] = defaultdict(list)
-            for doc in docs[:10]:
+            # Explicit list cast and slicing for linter
+            all_docs = list(docs or [])
+            subset = all_docs[:10]
+            for doc in subset:
                 fname = doc.get("title", "Untitled")
                 content = doc.get("content", "")[:800]
                 by_file[fname].append(content)
@@ -987,7 +1098,10 @@ class ChatLogic:
 
         # Clean content only — no metadata, scores, titles, or source labels
         parts = []
-        for doc in quality_docs[:5]:
+        # Explicit list cast and annotation for linter
+        all_docs: List[Dict] = list(quality_docs or [])
+        subset = all_docs[:5]
+        for doc in subset:
             content = doc.get("content", "")[:800]
             if content.strip():
                 parts.append(content.strip())
@@ -1071,6 +1185,19 @@ class ChatLogic:
             r")",
             q,
             re.I,
+        ))
+
+    @staticmethod
+    def _is_identity_query(question: str) -> bool:
+        """Return True if the question is a direct identity probe like 'who am i'."""
+        import re
+        q = question.strip().lower()
+        return bool(re.search(
+            r"^(?:who am i|what is my name|what's my name"
+            r"|qui suis-je|quel est mon nom"
+            r"|من أنا|ما اسمي|ما هو اسمي)\??$",
+            q,
+            re.I
         ))
 
     @staticmethod
@@ -1268,16 +1395,18 @@ class ChatLogic:
     def _to_schema(docs: List[Dict]) -> Optional[List[RetrievedDoc]]:
         if not docs:
             return None
-        return [
-            RetrievedDoc(
+        # Explicit list cast for linter
+        all_docs = list(docs or [])
+        results = []
+        for d in all_docs[:5]:
+            results.append(RetrievedDoc(
                 id=d.get("id", 0),
                 title=d.get("title", "N/A"),
                 content=d.get("content", "")[:200] + "...",
                 source=d.get("source", "unknown"),
                 similarity=d.get("similarity", 0.0),
-            )
-            for d in docs[:5]
-        ]
+            ))
+        return results
 
 
 # Singleton

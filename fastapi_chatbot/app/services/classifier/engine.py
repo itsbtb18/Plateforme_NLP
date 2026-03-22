@@ -1,13 +1,15 @@
 """
-Confidence-based intent classifier for routing queries.
+Intent classifier — LLM zero-shot primary, regex fallback.
 
-Phase 10 rewrite: scores all intents simultaneously, selects highest
-confidence, and uses LLM classification fallback when ambiguous.
+Phase 2 rewrite: LLM zero-shot classification is the primary method.
+Regex patterns are kept as a fast-path for trivial cases (greetings,
+identity) and as a fallback when the LLM call fails.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict
 
 from app.services.language import get_language_service
 from app.services.classifier.patterns import (
@@ -18,8 +20,8 @@ from app.services.classifier.patterns import (
     DOCUMENT_PATTERNS,
     BUG_PATTERNS,
     GENERAL_KNOWLEDGE_PATTERNS,
-    CONCEPTUAL_QUESTION_PATTERNS,
     USER_QUERY_PATTERNS,
+    CONTRIBUTOR_SEARCH_PATTERNS,
     extract_resource_type,
 )
 
@@ -33,7 +35,7 @@ _AMBIGUITY_MARGIN = 0.15
 class QueryClassification:
     """Immutable classification output."""
 
-    intent: str  # one of the 7 intents
+    intent: str  # one of the 8 intents
     language: str  # ar | fr | en
     confidence: float = 1.0  # 0.0–1.0
     qdrant_collections: List[str] = field(default_factory=list)
@@ -66,15 +68,85 @@ _INTENT_PARAMS: Dict[str, dict] = {
     "conceptual_question": {"qdrant_collections": ["nlp_knowledge"]},
 }
 
+# Greetings / short social messages — no LLM needed
+_GREETING_RE = re.compile(
+    r"^\s*(?:"
+    r"hi|hello|hey|yo|hiya|howdy|greetings|good\s*(?:morning|afternoon|evening|day)|"
+    r"thanks?(?:\s*you)?|thank\s*u|welcome|"
+    r"bonjour|salut|bonsoir|coucou|bonne\s*(?:journée|soirée)|merci|"
+    r"مرحبا|مرحبًا|سلام|أهلا|السلام عليكم|صباح الخير|مساء الخير|أهلاً|هلا|شكرا|شكراً"
+    r")\s*[!?.]*\s*$",
+    re.IGNORECASE,
+)
+
+# Chatbot identity — no LLM needed
+_IDENTITY_RE = re.compile(
+    r"(?:"
+    r"\bwho are you\b|\bwhat are you\b|\btell me about yourself\b|\bintroduce yourself\b|"
+    r"\bqui es[- ]tu\b|\bqu'es[- ]tu\b|\bprésentez?[- ](?:toi|vous)\b|"
+    r"من أنت|ما أنت|عرّف (?:عن )?نفسك"
+    r")",
+    re.IGNORECASE,
+)
+
+# Pasted-result analysis prompts can contain words like "author"/"open"
+# from UI cards and be misclassified as platform queries.
+_ANALYZE_ANSWER_RE = re.compile(
+    r"(?:\b(?:analy[sz]e|explain|interpret|review)\b|"
+    r"\b(?:analyse|expliquer|interpr[eé]ter)\b|"
+    r"(?:حلل|اشرح|فسر))"
+    r".*"
+    r"(?:\banswer\b|\br[eé]ponse\b|(?:الإجابة|الجواب))",
+    re.IGNORECASE,
+)
+
 
 class QueryClassifier:
-    """Confidence-based intent classifier with LLM fallback."""
+    """LLM zero-shot classifier with regex fast-path and fallback."""
 
     def __init__(self):
         self.lang_service = get_language_service()
 
+    def _force_conceptual_for_answer_analysis(
+        self,
+        question: str,
+        intent: str,
+    ) -> bool:
+        """Return True when a pasted-answer analysis should be conceptual.
+
+        This avoids routing to platform search just because pasted snippets
+        include UI terms such as "author" and "open".
+        """
+        if intent != "platform_query":
+            return False
+        q = question.strip()
+        return len(q) >= 80 and bool(_ANALYZE_ANSWER_RE.search(q))
+
     # ------------------------------------------------------------------
-    # Public entry point
+    # Synchronous fast-path (no LLM needed for trivial queries)
+    # ------------------------------------------------------------------
+
+    def classify_fast(self, question: str) -> Optional[QueryClassification]:
+        """Fast regex-only classification for trivial cases.
+
+        Returns a classification for greetings and identity questions,
+        or None if LLM classification is needed.
+        """
+        q = question.strip()
+        language = self.lang_service.detect(q)
+
+        # Greetings → general_knowledge (no retrieval needed)
+        if _GREETING_RE.match(q):
+            return self._build_classification("general_knowledge", language, 0.99)
+
+        # Identity questions → general_knowledge
+        if _IDENTITY_RE.search(q):
+            return self._build_classification("general_knowledge", language, 0.99)
+
+        return None
+
+    # ------------------------------------------------------------------
+    # Synchronous classify (regex scoring — kept as fallback)
     # ------------------------------------------------------------------
 
     def classify(
@@ -83,16 +155,19 @@ class QueryClassifier:
         *,
         has_session_docs: bool = False,
     ) -> QueryClassification:
-        """
-        Classify a user question using multi-intent scoring.
+        """Classify using regex patterns — used as fallback when LLM fails.
 
         Scores all intents simultaneously, picks the highest-confidence
         match.  When the top two intents are within a narrow margin,
-        the result is flagged as ambiguous (confidence capped at 0.60)
-        so the caller can optionally invoke LLM disambiguation.
+        the result is flagged as ambiguous (confidence capped at 0.60).
         """
         language = self.lang_service.detect(question)
         q = question.strip()
+
+        # Try fast-path first
+        fast = self.classify_fast(q)
+        if fast:
+            return fast
 
         scores = self._score_all_intents(q, has_session_docs)
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -100,23 +175,19 @@ class QueryClassifier:
         top_intent, top_score = ranked[0]
         runner_up_score = ranked[1][1] if len(ranked) > 1 else 0.0
 
-        # Check for ambiguity
+        _AMBIGUITY_MARGIN = 0.15
         is_ambiguous = (
             top_score > 0 and (top_score - runner_up_score) < _AMBIGUITY_MARGIN
         )
 
         if top_score == 0:
-            # No pattern matched → default conceptual_question
-            return self._build_classification(
-                "conceptual_question", language, 0.50
-            )
+            return self._build_classification("conceptual_question", language, 0.50)
 
         if is_ambiguous:
-            # Confidence is capped to signal uncertainty
             confidence = min(top_score, 0.60)
             logger.info(
-                "Ambiguous classification: top=%s(%.2f) runner_up=%s(%.2f) → "
-                "using %s with capped confidence %.2f",
+                "Ambiguous classification (regex fallback): top=%s(%.2f) "
+                "runner_up=%s(%.2f) → using %s with capped confidence %.2f",
                 ranked[0][0], ranked[0][1],
                 ranked[1][0], ranked[1][1],
                 top_intent, confidence,
@@ -126,14 +197,96 @@ class QueryClassifier:
 
         result = self._build_classification(top_intent, language, confidence)
 
-        # Attach resource type for platform queries
+        if self._force_conceptual_for_answer_analysis(q, result.intent):
+            return self._build_classification("conceptual_question", language, 0.80)
+
         if top_intent == "platform_query":
             result.detected_resource_type = extract_resource_type(q)
 
         return result
 
     # ------------------------------------------------------------------
-    # Async LLM fallback (can be called by chat_logic when ambiguous)
+    # Async LLM zero-shot classification (PRIMARY method)
+    # ------------------------------------------------------------------
+
+    async def classify_with_llm(
+        self,
+        question: str,
+        *,
+        has_session_docs: bool = False,
+    ) -> QueryClassification:
+        """Primary classification using LLM zero-shot.
+
+        Falls back to regex-based classify() on LLM failure.
+        """
+        language = self.lang_service.detect(question)
+        q = question.strip()
+
+        # Fast-path for trivial queries (no LLM call needed)
+        fast = self.classify_fast(q)
+        if fast:
+            return fast
+
+        # LLM zero-shot classification
+        try:
+            from app.services.llm import get_internal_groq_client
+            from app.services.llm.prompts import CLASSIFICATION_PROMPT, VALID_INTENTS
+
+            client = get_internal_groq_client()
+            prompt = CLASSIFICATION_PROMPT.format(query=q)
+
+            messages = [
+                {"role": "system", "content": "You are an intent classifier. Respond with only the intent name."},
+                {"role": "user", "content": prompt},
+            ]
+
+            response = await client.chat_completion(
+                messages, temperature=0.0, max_tokens=20,
+            )
+
+            # Parse the intent from LLM response
+            intent = response.strip().lower().replace('"', '').replace("'", "").replace(".", "")
+            # Handle cases where LLM returns the intent with underscores or spaces
+            intent = intent.replace(" ", "_")
+
+            if intent in VALID_INTENTS:
+                logger.info(
+                    "LLM classification: query='%s' → intent=%s lang=%s",
+                    q[:60], intent, language,
+                )
+                result = self._build_classification(intent, language, 0.95)
+
+                if self._force_conceptual_for_answer_analysis(q, result.intent):
+                    logger.info(
+                        "Classifier correction: forcing conceptual_question "
+                        "for pasted-answer analysis query"
+                    )
+                    return self._build_classification(
+                        "conceptual_question", language, 0.90,
+                    )
+
+                if intent == "platform_query":
+                    result.detected_resource_type = extract_resource_type(q)
+
+                return result
+            else:
+                logger.warning(
+                    "LLM returned invalid intent '%s' for query '%s', "
+                    "falling back to regex",
+                    intent, q[:60],
+                )
+
+        except Exception as e:
+            logger.warning(
+                "LLM classification failed (%s), falling back to regex",
+                type(e).__name__,
+            )
+
+        # Fallback to regex-based classification
+        return self.classify(question, has_session_docs=has_session_docs)
+
+    # ------------------------------------------------------------------
+    # Async LLM disambiguation (kept for backward compat)
     # ------------------------------------------------------------------
 
     async def llm_resolve_ambiguity(
@@ -186,7 +339,7 @@ class QueryClassifier:
         return None
 
     # ------------------------------------------------------------------
-    # Multi-intent scoring
+    # Multi-intent scoring (regex-based, kept as fallback)
     # ------------------------------------------------------------------
 
     def _score_all_intents(
@@ -195,7 +348,6 @@ class QueryClassifier:
         """Compute a confidence score (0.0–1.0) for every intent."""
         scores: Dict[str, float] = {}
 
-        # Count how many patterns match per intent
         scores["user_query"] = self._match_score(
             text, USER_QUERY_PATTERNS, base=0.90,
         )
@@ -214,21 +366,17 @@ class QueryClassifier:
         scores["platform_query"] = self._match_score(
             text, PLATFORM_PATTERNS, base=0.85,
         )
+        scores["platform_query"] = max(
+            scores["platform_query"],
+            self._match_score(text, CONTRIBUTOR_SEARCH_PATTERNS, base=0.92)
+        )
         scores["general_knowledge"] = self._match_score(
             text, GENERAL_KNOWLEDGE_PATTERNS, base=0.82,
         )
-        # Platform keywords add a weaker signal — but only when the
-        # question doesn't already look like general knowledge.
-        if self._has_platform_keywords(text) and scores["general_knowledge"] == 0.0:
+        if self._has_platform_keywords(text) and scores["general_knowledge"] == 0.0 and scores["legal_query"] == 0.0:
             scores["platform_query"] = max(
                 scores["platform_query"], 0.65,
             )
-
-        # conceptual_question uses pattern matching; falls back to 0.0
-        # so it remains the default when nothing else matches.
-        scores["conceptual_question"] = self._match_score(
-            text, CONCEPTUAL_QUESTION_PATTERNS, base=0.85,
-        )
 
         return scores
 
@@ -247,7 +395,6 @@ class QueryClassifier:
         count = sum(1 for p in patterns if p.search(text))
         if count == 0:
             return 0.0
-        # Diminishing returns per extra match
         bonus = min(count - 1, 3) * 0.03
         return min(base + bonus, 0.98)
 
@@ -276,7 +423,7 @@ class QueryClassifier:
 # ---------------------------------------------------------------------------
 # Singleton
 # ---------------------------------------------------------------------------
-_classifier: QueryClassifier | None = None
+_classifier: Optional[QueryClassifier] = None
 
 
 def get_query_classifier() -> QueryClassifier:

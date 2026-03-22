@@ -546,6 +546,42 @@ html[dir="rtl"] .p-card:hover .p-card-link i{transform:translateX(-4px) scaleX(-
 .p-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .meta-tag{font-size:.65rem;padding:3px 10px;border-radius:var(--radius-full);background:var(--hub-muted);color:var(--hub-text-secondary);font-weight:500}
 
+/* Selected context preview before auto explanation */
+.context-preview-wrap{padding-left:36px;margin-bottom:8px;animation:msgIn .3s ease both}
+html[dir="rtl"] .context-preview-wrap{padding-left:0;padding-right:36px}
+.context-preview-label{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--hub-text-muted);margin-bottom:8px;
+}
+.context-preview-label i{font-size:.72rem;color:var(--hub-accent)}
+.context-preview-card{
+    background:linear-gradient(145deg,#ffffff 0%,#f8fafc 100%);
+    border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    padding:14px 16px;
+    box-shadow:var(--shadow-card);
+    max-width:680px;
+}
+.context-preview-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.context-preview-title{font-size:.9rem;font-weight:700;color:var(--hub-text-primary)}
+.context-preview-desc{font-size:.82rem;color:var(--hub-text-secondary);line-height:1.55}
+.context-preview-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.context-preview-actions{margin-top:10px;display:flex;justify-content:flex-end}
+html[dir="rtl"] .context-preview-actions{justify-content:flex-start}
+.context-preview-link{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.78rem;font-weight:700;color:var(--hub-accent);
+    text-decoration:none;padding:6px 10px;border-radius:var(--radius-md);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    transition:all var(--transition-fast);
+}
+.context-preview-link:hover{
+    border-color:var(--hub-border-hover);
+    background:var(--hub-muted);
+    color:var(--hub-accent-hover);
+}
+
 /* ==========================================================================
    SYSTEM / ERROR
    ========================================================================== */
@@ -1350,7 +1386,7 @@ input[type="file"]{display:none}
             var bodyEl=block.querySelector('.answer-body');
             msgsArea.appendChild(block);
             scrollBottom();
-            var state={block:block,bodyEl:bodyEl,accumulated:'',displayedLen:0,typingId:null,done:false,pendingFinalize:null};
+            var state={block:block,bodyEl:bodyEl,accumulated:'',displayedLen:0,typingId:null,done:false,pendingFinalize:null,skipPlatformResults:false};
             function doFinalize(){
                 var data=state.pendingFinalize;
                 if(!data)return;
@@ -1371,7 +1407,7 @@ input[type="file"]{display:none}
                     srcDiv.innerHTML=srcs.map(function(s){return '<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';}).join('');
                     state.block.insertBefore(srcDiv,state.bodyEl);
                 }
-                if(data.platform_results&&data.platform_results.length>0){
+                if(!state.skipPlatformResults && data.platform_results&&data.platform_results.length>0){
                     state.block.insertAdjacentHTML('beforeend',buildCards(data.platform_results));
                 }
                 scrollBottom();
@@ -1583,6 +1619,111 @@ input[type="file"]{display:none}
 
         function setLoading(v){isLoading=v;sendBtn.disabled=v;chatInput.disabled=v}
 
+        function entityIcon(type){
+            var icons={
+                course:{icon:'<i class="fas fa-graduation-cap"></i>',cls:'pci-course'},
+                tool:{icon:'<i class="fas fa-wrench"></i>',cls:'pci-tool'},
+                corpus:{icon:'<i class="fas fa-database"></i>',cls:'pci-corpus'},
+                resource:{icon:'<i class="fas fa-book-open"></i>',cls:'pci-resource'},
+                event:{icon:'<i class="fas fa-calendar-alt"></i>',cls:'pci-event'},
+                project:{icon:'<i class="fas fa-project-diagram"></i>',cls:'pci-project'},
+                institution:{icon:'<i class="fas fa-university"></i>',cls:'pci-institution'},
+                user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
+                post:{icon:'<i class="fas fa-newspaper"></i>',cls:'pci-resource'}
+            };
+            return icons[type]||{icon:'<i class="fas fa-link"></i>',cls:'pci-resource'};
+        }
+
+        function normalizeEntityContext(ctx){
+            return {
+                type:(ctx.type||ctx.contentType||'resource').toString().trim().toLowerCase(),
+                title:(ctx.title||'').toString().trim(),
+                description:(ctx.description||'').toString().trim(),
+                category:(ctx.category||'').toString().trim(),
+                author:(ctx.author||'').toString().trim(),
+                url:(ctx.url||ctx.link||'').toString().trim()
+            };
+        }
+
+        function safeEntityUrl(url){
+            if(!url) return '';
+            var u=url.toString().trim();
+            if(!u) return '';
+            if(u.startsWith('/')) return u;
+            if(/^https?:\/\//i.test(u)) return u;
+            return '';
+        }
+
+        function cleanContextText(value){
+            if(!value) return '';
+            return value
+                .toString()
+                .replace(/[*_`#]/g,' ')
+                .replace(/<[^>]+>/g,' ')
+                .replace(/\[(.*?)\]\((.*?)\)/g,'$1')
+                .replace(/\s+/g,' ')
+                .trim();
+        }
+
+        function trimSentence(text,maxLen){
+            var t=(text||'').trim();
+            if(!t||t.length<=maxLen) return t;
+            var cut=t.slice(0,maxLen);
+            var lastSpace=cut.lastIndexOf(' ');
+            if(lastSpace>80) cut=cut.slice(0,lastSpace);
+            return cut.replace(/[\s,;:.]+$/,'')+'...';
+        }
+
+        function buildContextSummary(ctx){
+            var rawDesc=cleanContextText(ctx.description||'');
+            if(!rawDesc) return '';
+
+            var authorsMatch=rawDesc.match(/Authors?\s*:\s*(.+?)(?=\s+Year\s*:|\s+Abstract\s*:|$)/i);
+            var yearMatch=rawDesc.match(/Year\s*:\s*(\d{4})/i);
+            var abstractMatch=rawDesc.match(/Abstract\s*:\s*(.+)$/i);
+
+            if(authorsMatch||yearMatch||abstractMatch){
+                var authors=authorsMatch?trimSentence(authorsMatch[1],120):'';
+                var year=yearMatch?yearMatch[1]:'';
+                var abstractText=abstractMatch?trimSentence(abstractMatch[1],220):trimSentence(rawDesc,220);
+                var head='';
+                if(authors&&year) head='Research item by '+authors+' ('+year+'). ';
+                else if(authors) head='Research item by '+authors+'. ';
+                else if(year) head='Research item published in '+year+'. ';
+                return (head+abstractText).trim();
+            }
+
+            if(ctx.type==='tool' || /\bdataset\b/i.test(ctx.category||'') || /^\s*\[dataset\]/i.test(rawDesc)){
+                var normalized=rawDesc.replace(/^\s*\[dataset\]\s*/i,'Dataset: ');
+                return trimSentence(normalized,220);
+            }
+
+            return trimSentence(rawDesc,220);
+        }
+
+        function addEntityContextCard(rawCtx){
+            var ctx=normalizeEntityContext(rawCtx||{});
+            if(!ctx.title) return;
+            var ico=entityIcon(ctx.type);
+            var href=safeEntityUrl(ctx.url);
+            var summary=buildContextSummary(ctx);
+            var block=document.createElement('div');
+            block.className='context-preview-wrap';
+            var tags=[ctx.type,ctx.category,ctx.author].filter(Boolean).slice(0,3)
+                .map(function(v){return '<span class="meta-tag">'+esc(v)+'</span>'}).join('');
+
+            block.innerHTML=''
+                +'<div class="context-preview-label"><i class="fas fa-compass"></i><span>{% trans "Selected Context" %}</span></div>'
+                +'<div class="context-preview-card">'
+                +'<div class="context-preview-head"><div class="p-card-icon '+ico.cls+'">'+ico.icon+'</div><div class="context-preview-title">'+esc(ctx.title)+'</div></div>'
+                +(summary?'<div class="context-preview-desc">'+esc(summary)+'</div>':'')
+                +(tags?'<div class="context-preview-meta">'+tags+'</div>':'')
+                +(href?'<div class="context-preview-actions"><a class="context-preview-link" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">{% trans "Open Resource" %} <i class="fas fa-arrow-up-right-from-square"></i></a></div>':'')
+                +'</div>';
+            msgsArea.appendChild(block);
+            scrollBottom();
+        }
+
         /* ============================================================
            AUTO-EXPLAIN: when chatbot opens from an entity detail page
            ============================================================ */
@@ -1591,6 +1732,7 @@ input[type="file"]{display:none}
             if(!raw||raw==='{}') return;
             var ctx;
             try{ctx=JSON.parse(raw)}catch(e){return}
+            ctx=normalizeEntityContext(ctx);
             if(!ctx.title) return;
 
             /* Ensure we have a session */
@@ -1605,33 +1747,96 @@ input[type="file"]{display:none}
             }
 
             showMsgs();
-            addUserMsg("{% trans 'Tell me about' %}: "+ctx.title);
+            addEntityContextCard(ctx);
             setLoading(true);
             var thinkEl=addThinking();
 
             try{
                 var payload={
-                    mode:'platform_entity',
+                    mode:'conversation',
+                    question:'{% trans "Explain this selected content naturally and comprehensively, covering key ideas and important context. Write conversationally without formal section headings." %}',
                     session_id:currentSessionId,
-                    entity_context:{
-                        type:ctx.contentType||'resource',
+                    context:{
+                        type:ctx.type||'resource',
                         title:ctx.title||'',
                         description:ctx.description||'',
                         category:ctx.category||'',
                         author:ctx.author||'',
-                        url:ctx.link||''
+                        url:ctx.url||''
                     }
                 };
-                var resp=await fetch('{% url "chatbot:ask" %}',{
+
+                var resp=await fetch('{% url "chatbot:ask_stream" %}',{
                     method:'POST',
                     headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
                     body:JSON.stringify(payload)
                 });
                 thinkEl.remove();
-                var data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
-                if(data.session_id) currentSessionId=data.session_id;
-                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,true);
+
+                if(!resp.ok){
+                    // Fallback to non-stream path if stream endpoint is unavailable.
+                    var fallbackResp=await fetch('{% url "chatbot:ask" %}',{
+                        method:'POST',
+                        headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                        body:JSON.stringify({
+                            mode:'platform_entity',
+                            session_id:currentSessionId,
+                            entity_context:payload.context
+                        })
+                    });
+                    var fallbackData=await fallbackResp.json();
+                    if(!fallbackResp.ok) throw new Error(fallbackData.error||'Error '+fallbackResp.status);
+                    if(fallbackData.session_id) currentSessionId=fallbackData.session_id;
+                    if(fallbackData.answer) addAnswer(fallbackData.answer,fallbackData.source,fallbackData.lang,null,null,false);
+                    loadSessions();
+                    return;
+                }
+
+                var streamState=addAnswerStreamingStart();
+                streamState.skipPlatformResults=true;
+                var reader=resp.body.getReader();
+                var decoder=new TextDecoder();
+                var buf='';
+                var done=false;
+
+                while(!done){
+                    var r=await reader.read();
+                    if(r.done) break;
+                    buf+=decoder.decode(r.value,{stream:true});
+                    var parts=buf.split('\n\n');
+                    buf=parts.pop();
+                    for(var p=0;p<parts.length;p++){
+                        var chunk=parts[p];
+                        var dataMatch=chunk.match(/^data: (.+)$/m);
+                        if(dataMatch){
+                            try{
+                                var obj=JSON.parse(dataMatch[1]);
+                                if(obj.error){addSystem(obj.error,'error');done=true;break}
+                                if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.done){
+                                    if(obj.session_id) currentSessionId=obj.session_id;
+                                    finalizeStreamingAnswer(streamState,obj);
+                                    done=true;break;
+                                }
+                            }catch(parseErr){}
+                        }
+                    }
+                }
+
+                if(!done&&buf){
+                    var dataMatch=buf.match(/^data: (.+)$/m);
+                    if(dataMatch){
+                        try{
+                            var obj=JSON.parse(dataMatch[1]);
+                            if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                            if(obj.done){
+                                if(obj.session_id) currentSessionId=obj.session_id;
+                                finalizeStreamingAnswer(streamState,obj);
+                            }
+                        }catch(parseErr){}
+                    }
+                }
+
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
             finally{setLoading(false)}
