@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('resources', '0011_alter_corpus_options_remove_document_file_format_and_more'),
+        ("resources", "0009_corpus_rejection_reason_course_rejection_reason_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='nlptool',
-            name='thumbnail',
-            field=models.ImageField(blank=True, help_text='Tool icon or thumbnail image', null=True, upload_to='tools/thumbnails/'),
+            model_name="nlptool",
+            name="thumbnail",
+            field=models.ImageField(
+                blank=True,
+                help_text="Tool icon or thumbnail image",
+                null=True,
+                upload_to="tools/thumbnails/",
+            ),
         ),
     ]

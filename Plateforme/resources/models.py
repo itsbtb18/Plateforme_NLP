@@ -283,6 +283,14 @@ class Course(ResourceBase):
         MASTER = "master", _("Master")
         DOCTORATE = "doctorate", _("Doctorate")
 
+    class Platform(models.TextChoices):
+        COURSERA = "coursera", _("Coursera")
+        YOUTUBE = "youtube", _("YouTube")
+        MIT = "mit", _("MIT")
+        EDX = "edx", _("edX")
+        UNIVERSITY = "university", _("University")
+        OTHER = "other", _("Other")
+
     field = models.CharField(
         max_length=50,
         choices=FieldChoices.choices,  # Modifié ici
@@ -332,6 +340,64 @@ class Course(ResourceBase):
         blank=True,
         default="",
         help_text=_("Describe the syllabus and curriculum of this course"),
+    )
+
+    instructor = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_("Instructor"),
+    )
+    duration = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name=_("Duration"),
+    )
+    platform = models.CharField(
+        max_length=30,
+        choices=Platform.choices,
+        default=Platform.OTHER,
+        verbose_name=_("Platform"),
+    )
+    enrollment_url = models.URLField(
+        null=True,
+        blank=True,
+        verbose_name=_("Enrollment URL"),
+    )
+    thumbnail = models.ImageField(
+        upload_to="courses/thumbnails/",
+        null=True,
+        blank=True,
+        verbose_name=_("Thumbnail"),
+    )
+    is_free = models.BooleanField(default=True, verbose_name=_("Is Free"))
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("Price"),
+    )
+    certificate_available = models.BooleanField(
+        default=False,
+        verbose_name=_("Certificate Available"),
+    )
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("Start Date"),
+    )
+    source_url = models.URLField(
+        null=True,
+        blank=True,
+        verbose_name=_("Source URL"),
+    )
+    source_name = models.CharField(
+        max_length=120,
+        null=True,
+        blank=True,
+        verbose_name=_("Source Name"),
     )
 
     class Meta:
@@ -543,7 +609,66 @@ class NLPTool(ResourceBase):
         null=True,
         help_text=_("URL of the official documentation"),
     )
-    last_updated = models.DateField(auto_now=True, verbose_name=_("Last Updated"))
+    github_url = models.URLField(
+        verbose_name=_("GitHub URL"),
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=_("Primary GitHub repository URL for this tool"),
+    )
+    demo_url = models.URLField(
+        verbose_name=_("Demo URL"),
+        blank=True,
+        null=True,
+    )
+    paper_url = models.URLField(
+        verbose_name=_("Paper URL"),
+        blank=True,
+        null=True,
+    )
+    license = models.CharField(
+        max_length=100,
+        verbose_name=_("License"),
+        blank=True,
+        null=True,
+    )
+    stars_count = models.IntegerField(
+        verbose_name=_("Stars Count"),
+        blank=True,
+        null=True,
+    )
+    last_updated = models.DateField(
+        verbose_name=_("Last Updated"),
+        blank=True,
+        null=True,
+    )
+    installation_instructions = models.TextField(
+        verbose_name=_("Installation Instructions"),
+        blank=True,
+        null=True,
+    )
+    use_cases = models.JSONField(
+        verbose_name=_("Use Cases"),
+        blank=True,
+        null=True,
+    )
+    author_organization = models.CharField(
+        max_length=255,
+        verbose_name=_("Author Organization"),
+        blank=True,
+        null=True,
+    )
+    source_url = models.URLField(
+        verbose_name=_("Source URL"),
+        blank=True,
+        null=True,
+    )
+    source_name = models.CharField(
+        max_length=120,
+        verbose_name=_("Source Name"),
+        blank=True,
+        null=True,
+    )
     supported_languages = models.CharField(
         max_length=255,
         verbose_name=_("Supported Languages"),

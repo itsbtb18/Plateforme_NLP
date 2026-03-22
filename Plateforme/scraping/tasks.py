@@ -6,10 +6,20 @@ returns immediately while scraping runs asynchronously.
 """
 
 import logging
+import time
 from celery import shared_task
 from django.utils import timezone
 
 from .scrapers import get_scraper, CATEGORY_META
+from .metrics import (
+    scrape_runs_total,
+    scrape_duration_seconds,
+    scrape_items_total,
+    scrape_source_duration_seconds,
+    scrape_source_items_total,
+    update_source_health_metrics,
+    update_scrape_queue_lag_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +36,9 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
     """
     from .models import ScrapingRun
 
+    started_at = time.monotonic()
+    category_tier = str(CATEGORY_META.get(category, {}).get("tier", 4))
+
     # Resolve or create the ScrapingRun record
     run = None
     if run_id:
@@ -38,6 +51,7 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         triggered_by = None
         if user_id:
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             triggered_by = User.objects.filter(pk=user_id).first()
 
@@ -57,6 +71,16 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         run.errors = f"Unknown category: {category}"
         run.completed_at = timezone.now()
         run.save(update_fields=["status", "errors", "completed_at"])
+        scrape_runs_total.labels(category=category, status="failed").inc()
+        scrape_duration_seconds.labels(category=category).observe(
+            time.monotonic() - started_at
+        )
+        scrape_source_duration_seconds.labels(
+            category=category,
+            source_name="all_sources",
+            source_tier=category_tier,
+        ).observe(time.monotonic() - started_at)
+        update_scrape_queue_lag_metrics(force=True)
         return {"status": "error", "message": run.errors}
 
     try:
@@ -71,9 +95,50 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         run.completed_at = timezone.now()
         run.save()
 
+        scrape_runs_total.labels(category=category, status="success").inc()
+        scrape_duration_seconds.labels(category=category).observe(
+            time.monotonic() - started_at
+        )
+        scrape_source_duration_seconds.labels(
+            category=category,
+            source_name="all_sources",
+            source_tier=category_tier,
+        ).observe(time.monotonic() - started_at)
+        scrape_items_total.labels(category=category, outcome="found").inc(
+            run.items_found
+        )
+        scrape_items_total.labels(category=category, outcome="created").inc(
+            run.items_created
+        )
+        scrape_items_total.labels(category=category, outcome="skipped").inc(
+            run.items_skipped
+        )
+        if run.items_created:
+            scrape_source_items_total.labels(
+                category=category,
+                source_name="all_sources",
+                outcome="saved",
+            ).inc(run.items_created)
+        if run.items_skipped:
+            scrape_source_items_total.labels(
+                category=category,
+                source_name="all_sources",
+                outcome="skipped_dedup",
+            ).inc(run.items_skipped)
+        update_source_health_metrics(category=category)
+        update_scrape_queue_lag_metrics(force=True)
+
         logger.info(
-            "Scraper %s completed: %d created, %d skipped",
-            category, run.items_created, run.items_skipped,
+            "scrape_run_completed",
+            extra={
+                "category": category,
+                "source_name": "all_sources",
+                "items_created": run.items_created,
+                "items_skipped": run.items_skipped,
+                "items_found": run.items_found,
+                "task_id": self.request.id,
+                "run_id": str(run.pk),
+            },
         )
 
         return {
@@ -92,5 +157,31 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         run.errors = str(exc)
         run.completed_at = timezone.now()
         run.save(update_fields=["status", "errors", "completed_at"])
-        logger.exception("Scraper %s failed", category)
+
+        scrape_runs_total.labels(category=category, status="failed").inc()
+        scrape_duration_seconds.labels(category=category).observe(
+            time.monotonic() - started_at
+        )
+        scrape_source_duration_seconds.labels(
+            category=category,
+            source_name="all_sources",
+            source_tier=category_tier,
+        ).observe(time.monotonic() - started_at)
+        scrape_source_items_total.labels(
+            category=category,
+            source_name="all_sources",
+            outcome="skipped_error",
+        ).inc(1)
+        update_source_health_metrics(category=category)
+        update_scrape_queue_lag_metrics(force=True)
+
+        logger.exception(
+            "scrape_run_failed",
+            extra={
+                "category": category,
+                "source_name": "all_sources",
+                "task_id": self.request.id,
+                "run_id": str(run.pk),
+            },
+        )
         raise  # Re-raise so Celery marks the task as FAILURE

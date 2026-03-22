@@ -3,12 +3,16 @@ Base scraper module providing the abstract foundation for all web scrapers.
 """
 
 import logging
+import os
 import random
 import re
 import time
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from difflib import SequenceMatcher
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from dateutil import parser as date_parser
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -103,7 +107,13 @@ class BaseScraper(ABC):
 
     def run(self) -> dict:
         """Execute the full scraping pipeline and return a summary dict."""
-        logger.info("Starting scraper: %s", self.name)
+        logger.info(
+            "scraper_started",
+            extra={
+                "category": self.category,
+                "source_name": self.name,
+            },
+        )
         self._disable_es_indexing()
         try:
             self.scrape()
@@ -170,19 +180,18 @@ class BaseScraper(ABC):
         Never returns None. Always creates if missing.
         """
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
-        
-        SYSTEM_EMAIL = 'scraper-bot@nlp-platform.local'
-        SYSTEM_NAME = 'System Scraper Bot'
-        
-        if hasattr(self, '_system_user') and self._system_user:
+
+        SYSTEM_EMAIL = "scraper-bot@nlp-platform.local"
+        SYSTEM_NAME = "System Scraper Bot"
+
+        if hasattr(self, "_system_user") and self._system_user:
             return self._system_user
-        
+
         try:
-            user = User.objects.filter(
-                email=SYSTEM_EMAIL
-            ).first()
-            
+            user = User.objects.filter(email=SYSTEM_EMAIL).first()
+
             if not user:
                 # Create the system user safely
                 try:
@@ -191,24 +200,22 @@ class BaseScraper(ABC):
                         password=None,
                         full_name=SYSTEM_NAME,
                         full_name_en=SYSTEM_NAME,
-                        full_name_ar='روبوت نظام الاستخراج',
+                        full_name_ar="روبوت نظام الاستخراج",
                     )
                     user.is_active = True
                     user.is_staff = False
                     user.is_superuser = False
-                    if hasattr(user, 'is_verified'):
+                    if hasattr(user, "is_verified"):
                         user.is_verified = True
-                    if hasattr(user, 'is_email_verified'):
+                    if hasattr(user, "is_email_verified"):
                         user.is_email_verified = True
                     user.save()
                 except Exception:
                     # If create_user fails due to custom
                     # manager requirements, try get_or_create
                     # with minimal fields
-                    user = User.objects.filter(
-                        is_superuser=True
-                    ).first()
-                    
+                    user = User.objects.filter(is_superuser=True).first()
+
                     if not user:
                         # Absolute last resort: raise clearly
                         raise RuntimeError(
@@ -216,25 +223,20 @@ class BaseScraper(ABC):
                             "for scraping. Please run: "
                             "python manage.py createsuperuser"
                         )
-            
+
             self._system_user = user
             return self._system_user
-            
+
         except Exception as e:
-            self._log_error(
-                'get_system_user', str(e), 'system_user_init'
-            )
+            self._log_error("get_system_user", str(e), "system_user_init")
             # Try superuser fallback
             User = get_user_model()
-            fallback = User.objects.filter(
-                is_superuser=True
-            ).first()
+            fallback = User.objects.filter(is_superuser=True).first()
             if fallback:
                 self._system_user = fallback
                 return fallback
             raise RuntimeError(
-                f"Cannot get system user: {e}. "
-                "Create a superuser first."
+                f"Cannot get system user: {e}. Create a superuser first."
             )
 
     # ------------------------------------------------------------------
@@ -245,6 +247,347 @@ class BaseScraper(ABC):
         from scraping.scrapers.rss_scraper import RSSFeedScraper
 
         return RSSFeedScraper(self)
+
+    def _is_download_enabled(self) -> bool:
+        raw = os.getenv("SCRAPING_DOWNLOAD_ENABLED", "true").strip().lower()
+        return raw not in {"0", "false", "no", "off"}
+
+    def _max_concurrent_downloads(self) -> int:
+        raw = os.getenv("SCRAPING_MAX_CONCURRENT_DOWNLOADS", "3").strip()
+        try:
+            value = int(raw)
+        except ValueError:
+            value = 3
+        return max(1, value)
+
+    @staticmethod
+    def _coerce_url_list(value) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            urls = [str(v).strip() for v in value if str(v).strip()]
+        else:
+            text = str(value).strip()
+            urls = [text] if text else []
+        deduped = []
+        seen = set()
+        for url in urls:
+            if not url:
+                continue
+            if url in seen:
+                continue
+            seen.add(url)
+            deduped.append(url)
+        return deduped
+
+    @staticmethod
+    def _is_probable_pdf_url(url: str) -> bool:
+        lower = (url or "").lower()
+        return ".pdf" in lower or "arxiv.org/pdf/" in lower
+
+    def _collect_page_media_urls(self, page_url: str, category: str) -> dict:
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin
+
+        result = {"images": [], "pdfs": []}
+        if not page_url:
+            return result
+
+        response = self.safe_request(
+            page_url,
+            timeout=12,
+            source_name=f"media:{category}",
+        )
+        if not response:
+            return result
+
+        soup = BeautifulSoup(response.text or "", "html.parser")
+        images: list[str] = []
+        pdfs: list[str] = []
+
+        def add_image(url: str):
+            clean = (url or "").strip()
+            if not clean:
+                return
+            images.append(urljoin(page_url, clean))
+
+        def add_pdf(url: str):
+            clean = (url or "").strip()
+            if not clean:
+                return
+            pdfs.append(urljoin(page_url, clean))
+
+        og_image = soup.select_one("meta[property='og:image']")
+        if og_image and og_image.get("content"):
+            add_image(og_image.get("content"))
+
+        twitter_image = soup.select_one("meta[name='twitter:image']")
+        if twitter_image and twitter_image.get("content"):
+            add_image(twitter_image.get("content"))
+
+        if category == "institutions":
+            logo_like = soup.select_one(
+                "img[src*='logo' i], img[alt*='logo' i], img[class*='logo' i]"
+            )
+            if logo_like and logo_like.get("src"):
+                add_image(logo_like.get("src"))
+
+        first_image = soup.select_one("article img, .content img, main img, img")
+        if first_image and first_image.get("src"):
+            width_attr = first_image.get("width")
+            try:
+                width_value = int(str(width_attr)) if width_attr else 999
+            except ValueError:
+                width_value = 999
+            if category != "news" or width_value >= 200:
+                add_image(first_image.get("src"))
+
+        for anchor in soup.select("a[href]"):
+            href = (anchor.get("href") or "").strip()
+            text = self._normalize_text(anchor.get_text(" ", strip=True))
+            if not href:
+                continue
+
+            if self._is_probable_pdf_url(href):
+                add_pdf(href)
+                continue
+
+            if category == "events":
+                if any(
+                    token in text
+                    for token in [
+                        "programme",
+                        "brochure",
+                        "call for papers",
+                        "appel a communications",
+                        "appel à communications",
+                        "cfa",
+                    ]
+                ):
+                    add_pdf(href)
+
+            if category == "tools":
+                if any(token in text for token in ["documentation", "paper", "arxiv"]):
+                    add_pdf(href)
+
+            if category == "courses":
+                if any(
+                    token in text for token in ["syllabus", "curriculum", "programme"]
+                ):
+                    add_pdf(href)
+
+        link_icon = soup.select_one("link[rel='icon'], link[rel='shortcut icon']")
+        if link_icon and link_icon.get("href"):
+            add_image(link_icon.get("href"))
+
+        result["images"] = list(dict.fromkeys(images))
+        result["pdfs"] = list(dict.fromkeys(pdfs))
+        return result
+
+    def _resolve_media_candidates(self, item_data: dict, category: str) -> dict:
+        from urllib.parse import urlparse
+
+        image_urls: list[str] = []
+        pdf_urls: list[str] = []
+
+        image_urls.extend(self._coerce_url_list(item_data.get("thumbnail_url")))
+        image_urls.extend(self._coerce_url_list(item_data.get("image_url")))
+        image_urls.extend(self._coerce_url_list(item_data.get("logo_url")))
+        image_urls.extend(self._coerce_url_list(item_data.get("banner_image_url")))
+
+        pdf_urls.extend(self._coerce_url_list(item_data.get("pdf_url")))
+        pdf_urls.extend(self._coerce_url_list(item_data.get("syllabus_file_url")))
+        pdf_urls.extend(self._coerce_url_list(item_data.get("documentation_pdf_url")))
+        pdf_urls.extend(self._coerce_url_list(item_data.get("pdf_attachments")))
+
+        page_urls = []
+        page_urls.extend(self._coerce_url_list(item_data.get("website")))
+        page_urls.extend(self._coerce_url_list(item_data.get("source_url")))
+        page_urls.extend(self._coerce_url_list(item_data.get("access_link")))
+        page_urls.extend(self._coerce_url_list(item_data.get("course_url")))
+
+        for page_url in list(dict.fromkeys(page_urls))[:3]:
+            try:
+                found = self._collect_page_media_urls(page_url, category)
+                image_urls.extend(found.get("images", []))
+                pdf_urls.extend(found.get("pdfs", []))
+            except Exception as exc:
+                self._log_error(
+                    "media_discovery",
+                    str(exc),
+                    source=category,
+                    url=page_url,
+                )
+
+        if category == "news":
+            arxiv_id = (item_data.get("arxiv_id") or "").strip()
+            if arxiv_id:
+                arxiv_abs_url = f"https://arxiv.org/abs/{arxiv_id}"
+                try:
+                    found = self._collect_page_media_urls(arxiv_abs_url, category)
+                    image_urls.extend(found.get("images", []))
+                except Exception:
+                    pass
+                pdf_urls.append(f"https://arxiv.org/pdf/{arxiv_id}.pdf")
+
+        if category == "tools":
+            github_url = (item_data.get("github_url") or "").strip()
+            parsed = urlparse(github_url)
+            path_parts = [p for p in parsed.path.split("/") if p]
+            if len(path_parts) >= 1:
+                owner = path_parts[0]
+                api_resp = self.safe_request(
+                    f"https://api.github.com/users/{owner}",
+                    source_name="media:tools:github",
+                    headers={"Accept": "application/vnd.github+json"},
+                    timeout=10,
+                )
+                if api_resp is not None:
+                    try:
+                        payload = api_resp.json()
+                        owner_id = payload.get("id")
+                        if owner_id:
+                            image_urls.append(
+                                f"https://avatars.githubusercontent.com/u/{owner_id}"
+                            )
+                        avatar_url = payload.get("avatar_url")
+                        if avatar_url:
+                            image_urls.append(str(avatar_url))
+                    except Exception:
+                        pass
+
+        if category in {"tools", "institutions"}:
+            for key in ("website", "access_link", "source_url"):
+                for base in self._coerce_url_list(item_data.get(key)):
+                    parsed = urlparse(base)
+                    if parsed.scheme and parsed.netloc:
+                        image_urls.append(
+                            f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+                        )
+
+        if category == "courses":
+            course_url = (
+                item_data.get("course_url") or item_data.get("access_link") or ""
+            ).strip()
+            playlist_match = re.search(r"[?&]list=([A-Za-z0-9_-]+)", course_url)
+            video_match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{6,})", course_url)
+            if video_match:
+                video_id = video_match.group(1)
+                image_urls.append(
+                    f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+                )
+            elif playlist_match:
+                image_urls.extend(
+                    self._coerce_url_list(item_data.get("youtube_thumbnail_url"))
+                )
+
+        return {
+            "images": list(dict.fromkeys([u for u in image_urls if u])),
+            "pdfs": list(dict.fromkeys([u for u in pdf_urls if u])),
+        }
+
+    def _download_media(self, item_data: dict, category: str) -> dict:
+        """Download item media assets in parallel; never raise.
+
+        Adds local path keys:
+          - image_local_path
+          - pdf_local_path
+        """
+        if not isinstance(item_data, dict):
+            return item_data
+
+        if not self._is_download_enabled():
+            item_data["image_local_path"] = item_data.get("image_local_path") or ""
+            item_data["pdf_local_path"] = item_data.get("pdf_local_path") or ""
+            return item_data
+
+        try:
+            from scraping.file_downloader import download_file
+
+            media = self._resolve_media_candidates(item_data, category)
+            image_candidates = media.get("images", [])
+            pdf_candidates = media.get("pdfs", [])
+
+            tasks = []
+            with ThreadPoolExecutor(
+                max_workers=self._max_concurrent_downloads()
+            ) as pool:
+                for url in image_candidates:
+                    tasks.append(
+                        (
+                            "image",
+                            url,
+                            pool.submit(
+                                download_file,
+                                url,
+                                category,
+                                item_name=self._item_display_name(item_data),
+                                file_type="image",
+                            ),
+                        )
+                    )
+                for url in pdf_candidates:
+                    tasks.append(
+                        (
+                            "pdf",
+                            url,
+                            pool.submit(
+                                download_file,
+                                url,
+                                category,
+                                item_name=self._item_display_name(item_data),
+                                file_type="document",
+                            ),
+                        )
+                    )
+
+                image_local_path = ""
+                image_content = None
+                pdf_local_path = ""
+                pdf_content = None
+
+                future_to_meta = {
+                    future: (kind, src_url) for kind, src_url, future in tasks
+                }
+
+                for future in as_completed(future_to_meta):
+                    kind, src_url = future_to_meta[future]
+                    try:
+                        content_file, filename, _mime = future.result()
+                    except Exception as exc:
+                        self._log_error(
+                            "media_download",
+                            str(exc),
+                            source=category,
+                            url=src_url,
+                        )
+                        continue
+
+                    if not filename:
+                        continue
+
+                    if kind == "image" and not image_local_path:
+                        image_local_path = filename
+                        image_content = content_file
+                    if kind == "pdf" and not pdf_local_path:
+                        pdf_local_path = filename
+                        pdf_content = content_file
+
+                item_data["image_local_path"] = image_local_path
+                item_data["image_content_file"] = image_content
+                item_data["pdf_local_path"] = pdf_local_path
+                item_data["pdf_content_file"] = pdf_content
+
+        except Exception as exc:
+            self._log_error(
+                "media_pipeline",
+                str(exc),
+                source=category,
+            )
+            item_data.setdefault("image_local_path", "")
+            item_data.setdefault("pdf_local_path", "")
+
+        return item_data
 
     # ------------------------------------------------------------------
     # Helpers – related objects
@@ -315,6 +658,336 @@ class BaseScraper(ABC):
             logger.error("Error creating institution %s: %s", name, exc)
             return None
 
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return re.sub(r"\s+", " ", (value or "")).strip().lower()
+
+    @staticmethod
+    def _normalize_url(value: str, strip_www: bool = False) -> str:
+        raw = (value or "").strip()
+        if not raw:
+            return ""
+        parsed = urlparse(raw)
+        scheme = (parsed.scheme or "https").lower()
+        netloc = (parsed.netloc or "").lower()
+        if strip_www and netloc.startswith("www."):
+            netloc = netloc[4:]
+        path = (parsed.path or "").rstrip("/")
+        return f"{scheme}://{netloc}{path}"
+
+    @staticmethod
+    def _title_similarity(left: str, right: str) -> float:
+        return SequenceMatcher(
+            None,
+            BaseScraper._normalize_text(left),
+            BaseScraper._normalize_text(right),
+        ).ratio()
+
+    @staticmethod
+    def _extract_instructor(value: str) -> str:
+        text = value or ""
+        match = re.search(r"(?:instructor|teacher)\s*[:\-]\s*([^\n\r]+)", text, re.I)
+        if not match:
+            return ""
+        return BaseScraper._normalize_text(match.group(1))
+
+    @staticmethod
+    def _item_display_name(item_data: dict) -> str:
+        for key in ("title_en", "title", "name_en", "name"):
+            value = (item_data.get(key) or "").strip()
+            if value:
+                return value
+        return "untitled"
+
+    def _set_duplicate_match(self, existing_obj):
+        self._last_duplicate_match_id = str(getattr(existing_obj, "id", ""))
+
+    def _record_duplicate_skip(self, category: str, item_data: dict, reason: str):
+        item_label = self._item_display_name(item_data)
+        matched_id = getattr(self, "_last_duplicate_match_id", "")
+        reason_code = self._normalize_skip_reason(reason)
+        logger.info(
+            "item_skipped",
+            extra={
+                "category": category,
+                "source_name": self.name,
+                "item_title": item_label,
+                "item_id": matched_id or "unknown",
+                "skip_reason": reason_code,
+            },
+        )
+        try:
+            from scraping.models import ScrapedItemMeta
+
+            ScrapedItemMeta.objects.update_or_create(
+                category=category,
+                item_title=item_label[:300],
+                defaults={
+                    "item_id": matched_id,
+                    "skip_reason": reason_code,
+                    "was_skipped": True,
+                },
+            )
+        except Exception as exc:
+            self._log_error("dedup_skip_meta", str(exc), source=item_label)
+
+    @staticmethod
+    def _normalize_skip_reason(reason: str) -> str:
+        lowered = BaseScraper._normalize_text(reason or "")
+        if "doi" in lowered:
+            return "dedup_doi"
+        if "arxiv" in lowered:
+            return "dedup_arxiv"
+        if "ror" in lowered:
+            return "dedup_ror"
+        if "embed" in lowered:
+            return "dedup_embedding"
+        if "url" in lowered or "website" in lowered or "link" in lowered:
+            return "dedup_url"
+        if "name" in lowered or "title" in lowered or "exact" in lowered:
+            return "dedup_name"
+        return "dedup_similarity"
+
+    def _dedup_event(self, item_data: dict) -> tuple[bool, str]:
+        from events.models import Event
+
+        website_url = (
+            item_data.get("website_url") or item_data.get("website") or ""
+        ).strip()
+        if website_url:
+            existing = Event.objects.filter(website__iexact=website_url).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "event website_url exact match"
+
+        organizer = item_data.get("organizer")
+        start_date = item_data.get("start_date")
+        end_date = item_data.get("end_date") or start_date
+        if organizer and start_date and end_date:
+            start_window = start_date - timedelta(days=3)
+            end_window = end_date + timedelta(days=3)
+            queryset = Event.objects.all()
+            if hasattr(organizer, "id"):
+                queryset = queryset.filter(organizer=organizer)
+            else:
+                organizer_name = self._normalize_text(str(organizer))
+                queryset = queryset.filter(organizer__name_en__iexact=organizer_name)
+            existing = queryset.filter(
+                start_date__lte=end_window,
+                end_date__gte=start_window,
+            ).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "event same organizer + overlapping date range"
+
+        candidate_title = item_data.get("title_en") or item_data.get("title") or ""
+        if candidate_title:
+            for event in Event.objects.only("id", "title", "title_en"):
+                existing_title = event.title_en or event.title
+                if self._title_similarity(candidate_title, existing_title) >= 0.85:
+                    self._set_duplicate_match(event)
+                    return True, "event title similarity >= 85%"
+
+        return False, ""
+
+    def _dedup_tool(self, item_data: dict) -> tuple[bool, str]:
+        from resources.models import NLPTool
+
+        github_url = (item_data.get("github_url") or "").strip()
+        if github_url:
+            existing = NLPTool.objects.filter(github_url__iexact=github_url).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "tool github_url exact match"
+
+        access_link = (item_data.get("access_link") or "").strip()
+        if access_link:
+            existing = NLPTool.objects.filter(access_link__iexact=access_link).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "tool access_link exact match"
+
+        item_name = self._normalize_text(
+            item_data.get("title_en") or item_data.get("title")
+        )
+        if item_name:
+            for tool in NLPTool.objects.only("id", "title", "title_en"):
+                existing_name = self._normalize_text(tool.title_en or tool.title)
+                if existing_name == item_name:
+                    self._set_duplicate_match(tool)
+                    return True, "tool name exact match"
+
+        if item_name:
+            for tool in NLPTool.objects.only("id", "title", "title_en"):
+                existing_name = tool.title_en or tool.title
+                if self._title_similarity(item_name, existing_name) >= 0.90:
+                    self._set_duplicate_match(tool)
+                    return True, "tool name similarity >= 90%"
+
+        return False, ""
+
+    def _dedup_news(self, item_data: dict) -> tuple[bool, str]:
+        from QA.models import Post
+
+        arxiv_id = (item_data.get("arxiv_id") or "").strip()
+        if arxiv_id:
+            existing = Post.objects.filter(arxiv_id__iexact=arxiv_id).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "news arxiv_id exact match"
+
+        doi = (item_data.get("doi") or "").strip()
+        if doi:
+            existing = Post.objects.filter(doi__iexact=doi).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "news doi exact match"
+
+        source_url = self._normalize_url(item_data.get("source_url"))
+        if source_url:
+            source_url_noslash = source_url.rstrip("/")
+            for post in Post.objects.only("id", "source_url"):
+                if (
+                    self._normalize_url(post.source_url).rstrip("/")
+                    == source_url_noslash
+                ):
+                    self._set_duplicate_match(post)
+                    return True, "news source_url exact match"
+
+        candidate_title = item_data.get("title_en") or item_data.get("title") or ""
+        if candidate_title:
+            for post in Post.objects.only("id", "title", "title_en"):
+                existing_title = post.title_en or post.title
+                if self._title_similarity(candidate_title, existing_title) >= 0.85:
+                    self._set_duplicate_match(post)
+                    return True, "news title similarity >= 85%"
+
+        return False, ""
+
+    def _dedup_course(self, item_data: dict) -> tuple[bool, str]:
+        from resources.models import Course
+
+        course_url = (
+            item_data.get("course_url") or item_data.get("access_link") or ""
+        ).strip()
+        if course_url:
+            existing = Course.objects.filter(access_link__iexact=course_url).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "course access_link exact match"
+
+        incoming_title = item_data.get("title_en") or item_data.get("title") or ""
+        incoming_instructor = self._normalize_text(item_data.get("instructor") or "")
+        if not incoming_instructor:
+            incoming_instructor = self._extract_instructor(
+                item_data.get("description_en") or ""
+            )
+
+        if incoming_title and incoming_instructor:
+            incoming_pair = (
+                f"{self._normalize_text(incoming_title)} {incoming_instructor}"
+            )
+            for course in Course.objects.only(
+                "id", "title", "title_en", "description", "description_en"
+            ):
+                existing_title = course.title_en or course.title
+                existing_instructor = self._extract_instructor(
+                    course.description_en or course.description
+                )
+                if not existing_instructor:
+                    continue
+                existing_pair = (
+                    f"{self._normalize_text(existing_title)} {existing_instructor}"
+                )
+                if SequenceMatcher(None, incoming_pair, existing_pair).ratio() >= 0.85:
+                    self._set_duplicate_match(course)
+                    return True, "course (title + instructor) similarity >= 85%"
+
+        if incoming_title:
+            for course in Course.objects.only("id", "title", "title_en"):
+                existing_title = course.title_en or course.title
+                if self._title_similarity(incoming_title, existing_title) >= 0.90:
+                    self._set_duplicate_match(course)
+                    return True, "course title similarity >= 90%"
+
+        return False, ""
+
+    def _dedup_institution(self, item_data: dict) -> tuple[bool, str]:
+        from institutions.models import Institution
+
+        ror_id = (item_data.get("ror_id") or "").strip()
+        if ror_id:
+            existing = Institution.objects.filter(ror_id__iexact=ror_id).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "institution ror_id exact match"
+
+        website_url = self._normalize_url(
+            item_data.get("website_url") or item_data.get("website"), strip_www=True
+        )
+        if website_url:
+            for institution in Institution.objects.only("id", "website"):
+                if (
+                    self._normalize_url(institution.website, strip_www=True)
+                    == website_url
+                ):
+                    self._set_duplicate_match(institution)
+                    return True, "institution normalized website_url exact match"
+
+        incoming_name = item_data.get("name_en") or item_data.get("name") or ""
+        if incoming_name:
+            for institution in Institution.objects.only("id", "name", "name_en"):
+                existing_name = institution.name_en or institution.name
+                if self._title_similarity(incoming_name, existing_name) >= 0.90:
+                    self._set_duplicate_match(institution)
+                    return True, "institution name similarity >= 90%"
+
+        return False, ""
+
+    def _check_duplicate_policy(self, category, item_data) -> tuple[bool, str]:
+        self._last_duplicate_match_id = ""
+
+        deterministic_checks = {
+            "events": self._dedup_event,
+            "tools": self._dedup_tool,
+            "news": self._dedup_news,
+            "courses": self._dedup_course,
+            "institutions": self._dedup_institution,
+        }
+
+        check_fn = deterministic_checks.get(category)
+        if check_fn:
+            is_dup, reason = check_fn(item_data)
+            if is_dup:
+                self._record_duplicate_skip(category, item_data, reason)
+                return True, reason
+
+        semantic_title = (
+            item_data.get("title_en")
+            or item_data.get("title")
+            or item_data.get("name_en")
+            or item_data.get("name")
+            or ""
+        )
+        if semantic_title:
+            try:
+                from scraping.embeddings import find_semantic_duplicate
+
+                duplicate_meta = find_semantic_duplicate(
+                    semantic_title, category, threshold=0.88
+                )
+                if duplicate_meta is not None:
+                    self._last_duplicate_match_id = str(
+                        getattr(duplicate_meta, "item_id", "") or duplicate_meta.id
+                    )
+                    reason = "semantic fallback similarity >= 88%"
+                    self._record_duplicate_skip(category, item_data, reason)
+                    return True, reason
+            except Exception as exc:
+                self._log_error("semantic_dedup", str(exc), source=semantic_title)
+
+        return False, ""
+
     def is_duplicate(self, title, category, model_class):
         """
         Two-step duplicate detection:
@@ -322,30 +995,9 @@ class BaseScraper(ABC):
         Step 2: Semantic similarity check (slower, embedding-based)
         Returns True if duplicate found, False if new item.
         """
-        normalized_title = (title or "").strip()
-        if not normalized_title:
-            return False
-
-        # Step 1: exact match (keep existing logic, fast)
-        field_names = {field.name for field in model_class._meta.get_fields()}
-        if "title_en" in field_names:
-            if model_class.objects.filter(title_en__iexact=normalized_title).exists():
-                return True
-        elif "name_en" in field_names:
-            if model_class.objects.filter(name_en__iexact=normalized_title).exists():
-                return True
-
-        # Step 2: semantic similarity (new)
-        try:
-            from scraping.embeddings import is_semantic_duplicate
-
-            if is_semantic_duplicate(normalized_title, category, threshold=0.88):
-                return True
-        except Exception as exc:
-            # If embedding check fails, fall back to exact only
-            self._log_error("semantic_dedup", str(exc), source=normalized_title)
-
-        return False
+        item_data = {"title_en": title, "title": title}
+        is_dup, _ = self._check_duplicate_policy(category, item_data)
+        return is_dup
 
     # ------------------------------------------------------------------
     # Helpers – HTTP (with retry / backoff / circuit breaker)
@@ -1059,10 +1711,14 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
             "language_distribution": lang_counts,
         }
         logger.info(
-            "Intelligence: scored %d items, avg=%.1f, domains=%s, languages=%s",
-            scored,
-            avg_score,
-            domain_counts,
-            lang_counts,
+            "intelligence_scored",
+            extra={
+                "category": self.category,
+                "source_name": self.name,
+                "items_scored": scored,
+                "avg_relevance_score": avg_score,
+                "domain_distribution": domain_counts,
+                "language_distribution": lang_counts,
+            },
         )
         return summary

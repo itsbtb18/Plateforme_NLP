@@ -15,9 +15,7 @@ _model = None
 def get_embedding_model():
     global _model
     if _model is None:
-        _model = SentenceTransformer(
-            'paraphrase-multilingual-MiniLM-L12-v2'
-        )
+        _model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
     return _model
 
 
@@ -39,17 +37,28 @@ def is_semantic_duplicate(new_title, category, threshold=0.88):
     from scraping.models import ScrapedItemMeta
     from pgvector.django import CosineDistance
 
+    return find_semantic_duplicate(new_title, category, threshold=threshold) is not None
+
+
+def find_semantic_duplicate(new_title, category, threshold=0.88):
+    """Return the closest matching ``ScrapedItemMeta`` row when duplicate.
+
+    Returns ``None`` when no semantic duplicate exists above threshold.
+    """
+    from scraping.models import ScrapedItemMeta
+    from pgvector.django import CosineDistance
+
     new_embedding = get_embedding(new_title)
     if new_embedding is None:
-        return False
+        return None
 
-    similar = ScrapedItemMeta.objects.filter(
-        category=category,
-        title_embedding__isnull=False
-    ).annotate(
-        distance=CosineDistance('title_embedding', new_embedding)
-    ).filter(
-        distance__lt=(1 - threshold)
-    ).exists()
-
-    return similar
+    return (
+        ScrapedItemMeta.objects.filter(
+            category=category,
+            title_embedding__isnull=False,
+        )
+        .annotate(distance=CosineDistance("title_embedding", new_embedding))
+        .filter(distance__lt=(1 - threshold))
+        .order_by("distance")
+        .first()
+    )

@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 from decouple import config
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -17,12 +18,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-your-default-key")
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1,*",
-    cast=lambda v: [s.strip() for s in v.split(",")],
-)
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
+
+if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
+    raise ImproperlyConfigured(
+        "Refusing to start with default SECRET_KEY while DEBUG is False."
+    )
+
+if not DEBUG and "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "Refusing to start with wildcard ALLOWED_HOSTS while DEBUG is False."
+    )
 
 # Applications
 INSTALLED_APPS = [
@@ -112,11 +123,24 @@ TEMPLATES = [
 # ASGI / Channels
 ASGI_APPLICATION = "Plateforme.asgi.application"
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+CHANNEL_LAYER_BACKEND = os.getenv("CHANNEL_LAYER_BACKEND", "redis").strip().lower()
+
+if CHANNEL_LAYER_BACKEND == "redis":
+    CHANNEL_REDIS_URL = os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6379/5")
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNEL_REDIS_URL],
+            },
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
 
 # Redis Cache Configuration
 redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -225,7 +249,8 @@ CSRF_COOKIE_SAMESITE = "Lax"
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = "DENY"
+
+X_FRAME_OPTIONS = "DENY"
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -312,7 +337,9 @@ ELASTICSEARCH_DSL = {
 }
 # Disable autosync to prevent creation failures when Elasticsearch is unavailable
 # Resources can be manually indexed later using: python manage.py search_index --rebuild
-ELASTICSEARCH_DSL_AUTOSYNC = os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
+ELASTICSEARCH_DSL_AUTOSYNC = (
+    os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
+)
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
@@ -368,14 +395,16 @@ LOGGING = {
 # ============================================
 GROQ_SCRAPING_API_KEY = os.getenv("GROQ_SCRAPING_API_KEY", "")
 GROQ_SCRAPING_MODEL = os.getenv("GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
-GROQ_SCRAPING_TIMEOUT = 30      # seconds per LLM call
-GROQ_SCRAPING_MAX_RETRIES = 2   # JSON-parse retries
+GROQ_SCRAPING_TIMEOUT = 30  # seconds per LLM call
+GROQ_SCRAPING_MAX_RETRIES = 2  # JSON-parse retries
 
 # ============================================
 # CELERY CONFIGURATION
 # ============================================
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://:redis123@redis:6379/3")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4")
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4"
+)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -385,37 +414,6 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_SOFT_TIME_LIMIT = 600   # 10 min soft limit
-CELERY_TASK_TIME_LIMIT = 900        # 15 min hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 min soft limit
+CELERY_TASK_TIME_LIMIT = 900  # 15 min hard limit
 CELERY_TASK_DEFAULT_QUEUE = "scraping"
-
-# Celery Beat schedule — periodic scraping
-from celery.schedules import crontab
-
-CELERY_BEAT_SCHEDULE = {
-    'scrape-events-weekly': {
-        'task': 'scraping.tasks.run_scraper_task',
-        'schedule': crontab(hour=2, minute=0, day_of_week=1),
-        'args': ('events',),
-    },
-    'scrape-tools-weekly': {
-        'task': 'scraping.tasks.run_scraper_task',
-        'schedule': crontab(hour=3, minute=0, day_of_week=1),
-        'args': ('tools',),
-    },
-    'scrape-news-daily': {
-        'task': 'scraping.tasks.run_scraper_task',
-        'schedule': crontab(hour=4, minute=0),
-        'args': ('news',),
-    },
-    'scrape-courses-monthly': {
-        'task': 'scraping.tasks.run_scraper_task',
-        'schedule': crontab(hour=5, minute=0, day_of_month=1),
-        'args': ('courses',),
-    },
-    'scrape-institutions-monthly': {
-        'task': 'scraping.tasks.run_scraper_task',
-        'schedule': crontab(hour=6, minute=0, day_of_month=1),
-        'args': ('institutions',),
-    },
-}

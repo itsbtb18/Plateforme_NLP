@@ -1,5 +1,9 @@
 import feedparser
 from datetime import datetime
+from urllib.parse import urljoin
+
+from bs4 import BeautifulSoup
+
 from scraping.scrapers.base import BaseScraper
 
 
@@ -11,21 +15,185 @@ class RSSFeedScraper:
 
     COMMON_FEED_PATHS = [
         "/feed",
-        "/feed.xml",
         "/rss",
-        "/rss.xml",
         "/atom.xml",
-        "/feed/rss",
-        "/blog/feed",
+        "/feed.xml",
+        "/rss.xml",
         "/news/feed",
-        "/events/feed",
-        "/index.xml",
-        "/feeds/posts/default",
-        "/api/feed",
+        "/blog/feed",
     ]
 
     def __init__(self, base_scraper: BaseScraper):
         self.base = base_scraper
+
+    def auto_discover_feeds(self, url) -> list[str]:
+        """
+        Discover RSS/Atom feeds for a website URL.
+
+        Strategy:
+          1) try common feed paths
+          2) parse homepage <link rel="alternate" ...> tags
+
+        Returns a unique list of discovered feed URLs.
+        Never raises.
+        """
+        base_url = (url or "").strip().rstrip("/")
+        if not base_url:
+            return []
+
+        discovered = []
+        seen = set()
+
+        def _add_feed(candidate_url: str):
+            normalized = (candidate_url or "").strip()
+            if not normalized or normalized in seen:
+                return
+            seen.add(normalized)
+            discovered.append(normalized)
+
+        # 1) Probe common feed paths.
+        for path in self.COMMON_FEED_PATHS:
+            candidate = urljoin(base_url + "/", path.lstrip("/"))
+            try:
+                response = self.base.safe_request(
+                    candidate,
+                    timeout=10,
+                    source_name="rss_auto_discovery",
+                )
+                if not response or response.status_code >= 400:
+                    continue
+
+                content_type = (response.headers.get("Content-Type") or "").lower()
+                is_xml_like = any(
+                    token in content_type
+                    for token in ("rss", "atom", "xml", "application/feed")
+                )
+                if is_xml_like:
+                    _add_feed(response.url or candidate)
+                    continue
+
+                parsed = feedparser.parse(response.text)
+                if parsed.entries:
+                    _add_feed(response.url or candidate)
+            except Exception:
+                continue
+
+        # 2) Parse <link rel="alternate" ...> from the main page HTML.
+        try:
+            response = self.base.safe_request(
+                base_url,
+                timeout=10,
+                source_name="rss_auto_discovery",
+            )
+            if response and response.status_code < 400:
+                soup = BeautifulSoup(response.text or "", "html.parser")
+                for link in soup.select("link[rel]"):
+                    rel_attr = link.get("rel") or []
+                    rel_values = [str(v).lower() for v in rel_attr]
+                    if "alternate" not in rel_values:
+                        continue
+
+                    feed_type = (link.get("type") or "").lower().strip()
+                    if feed_type not in (
+                        "application/rss+xml",
+                        "application/atom+xml",
+                    ):
+                        continue
+
+                    href = (link.get("href") or "").strip()
+                    if not href:
+                        continue
+                    _add_feed(urljoin(base_url + "/", href))
+        except Exception:
+            return discovered
+
+        return discovered
+
+    def parse_feed_items(self, feed_url, max_items=50) -> list[dict]:
+        """
+        Parse RSS/Atom feed items and normalize to a common schema.
+
+        Output keys:
+          title, description, url, published_date, author, image_url
+
+        Returns an empty list on any failure.
+        Never raises.
+        """
+        try:
+            parsed = feedparser.parse(feed_url)
+            entries = parsed.entries or []
+        except Exception:
+            return []
+
+        items = []
+        for entry in entries[: max(int(max_items or 50), 0)]:
+            try:
+                title = (entry.get("title") or "").strip()
+                url = (entry.get("link") or entry.get("id") or "").strip()
+
+                description = (entry.get("summary") or "").strip()
+                if not description and entry.get("content"):
+                    content_nodes = entry.get("content") or []
+                    if content_nodes:
+                        description = (content_nodes[0].get("value") or "").strip()
+                if description:
+                    description = BeautifulSoup(description, "html.parser").get_text(
+                        separator=" ", strip=True
+                    )
+
+                published_date = None
+                time_value = entry.get("published_parsed") or entry.get(
+                    "updated_parsed"
+                )
+                if time_value:
+                    try:
+                        published_date = datetime(*time_value[:6])
+                    except Exception:
+                        published_date = None
+
+                author = (entry.get("author") or "").strip() or (
+                    entry.get("dc_creator") or ""
+                ).strip()
+
+                image_url = ""
+                media_content = entry.get("media_content") or []
+                for media in media_content:
+                    media_type = (media.get("type") or "").lower()
+                    media_url = (media.get("url") or "").strip()
+                    if media_url and ("image" in media_type or not media_type):
+                        image_url = media_url
+                        break
+
+                if not image_url:
+                    media_thumbs = entry.get("media_thumbnail") or []
+                    if media_thumbs:
+                        image_url = (media_thumbs[0].get("url") or "").strip()
+
+                if not image_url:
+                    for link in entry.get("links") or []:
+                        href = (link.get("href") or "").strip()
+                        link_type = (link.get("type") or "").lower()
+                        if href and "image" in link_type:
+                            image_url = href
+                            break
+
+                if not title and not url:
+                    continue
+
+                items.append(
+                    {
+                        "title": title,
+                        "description": description,
+                        "url": url,
+                        "published_date": published_date,
+                        "author": author,
+                        "image_url": image_url,
+                    }
+                )
+            except Exception:
+                continue
+
+        return items
 
     def scrape_feed(self, feed_url, category="events"):
         """
@@ -34,16 +202,24 @@ class RSSFeedScraper:
         """
         try:
             feed = feedparser.parse(feed_url)
+            feed_title = feed.feed.get("title", feed_url)
         except Exception as e:
             self.base._log_error("rss_scraper", str(e), feed_url)
             return []
 
+        parsed_items = self.parse_feed_items(feed_url)
         items = []
-        feed_title = feed.feed.get("title", feed_url)
-
-        for entry in feed.entries:
+        for parsed_item in parsed_items:
             try:
-                item_dict = self._extract_entry_fields(entry, feed_url)
+                item_dict = {
+                    "title_en": parsed_item.get("title", ""),
+                    "description_en": parsed_item.get("description", "")[:1000],
+                    "url": parsed_item.get("url", ""),
+                    "published_date": parsed_item.get("published_date"),
+                    "author": parsed_item.get("author", ""),
+                    "image_url": parsed_item.get("image_url", ""),
+                    "source_url": feed_url,
+                }
                 item_dict["source_name"] = feed_title
 
                 # Improvement 2: For items with short descriptions (< 200 chars),
@@ -145,9 +321,7 @@ class RSSFeedScraper:
 
             soup = BeautifulSoup(response.text, "html.parser")
             # Remove clutter
-            for tag in soup(
-                ["nav", "footer", "script", "style", "header", "aside"]
-            ):
+            for tag in soup(["nav", "footer", "script", "style", "header", "aside"]):
                 tag.decompose()
             # Try to find article body
             article = (
@@ -167,25 +341,5 @@ class RSSFeedScraper:
         Tries common feed URL patterns.
         Returns feed URL if found, None otherwise.
         """
-        base = website_url.rstrip("/")
-
-        for path in self.COMMON_FEED_PATHS:
-            candidate = base + path
-            try:
-                response = self.base.safe_request(candidate, timeout=10)
-                if not response:
-                    continue
-                if response.status_code != 200:
-                    continue
-                content_type = response.headers.get("Content-Type", "")
-                if any(t in content_type for t in ["rss", "xml", "atom", "feed"]):
-                    return candidate
-                # Also try parsing as feed even without
-                # correct content-type header
-                parsed = feedparser.parse(response.text)
-                if parsed.entries:
-                    return candidate
-            except Exception:
-                continue
-
-        return None
+        discovered = self.auto_discover_feeds(website_url)
+        return discovered[0] if discovered else None
