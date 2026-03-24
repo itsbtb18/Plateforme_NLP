@@ -107,7 +107,68 @@ Validate, enrich, translate, and return the strict JSON schema.\
 """
 
 
+CUSTOM_EXTRACTION_INSTRUCTIONS = {
+    "events": (
+        "Extract event entries from this page. Include title, description, url, date, "
+        "location, event_type (conference/workshop/seminar/cfp), and organizer if visible."
+    ),
+    "tools": (
+        "Extract from this page: tool name, what it does, programming language, "
+        "github link if present, license, installation command if shown, "
+        "supported languages (arabic/english/etc)."
+    ),
+    "news": (
+        "Extract research/news entries from this page. Include title, summary, url, "
+        "publication date, and source name if visible."
+    ),
+    "courses": (
+        "Extract: course title, instructor name, institution, course level "
+        "(beginner/intermediate/advanced), language of instruction, duration, "
+        "whether it is free, platform name."
+    ),
+    "institutions": (
+        "Extract: institution full name, acronym, type (university/research lab/center), "
+        "country, city, website, main research areas, director name if shown."
+    ),
+}
+
+
+def build_custom_extraction_prompt(category: str, page_text: str) -> tuple[str, str]:
+    """Build category-specific prompts for flexible custom-source extraction."""
+    normalized_category = (category or "").strip().lower()
+    instruction = CUSTOM_EXTRACTION_INSTRUCTIONS.get(
+        normalized_category,
+        CUSTOM_EXTRACTION_INSTRUCTIONS["news"],
+    )
+
+    system_prompt = (
+        "You are a strict extraction assistant for Arabic NLP curation. "
+        "Return only a valid JSON array. No markdown. No explanation."
+    )
+    user_prompt = f"""
+Category: {normalized_category or "auto"}
+
+Task:
+{instruction}
+
+Output format:
+- Return ONLY a JSON array.
+- Each object may include any relevant fields, but always include:
+  - title or name
+  - description (or summary)
+  - url (if available)
+  - date (if available, ISO YYYY-MM-DD preferred)
+- If no items are present, return [].
+- Do not invent facts.
+
+Webpage text:
+{page_text}
+"""
+    return system_prompt, user_prompt
+
+
 # ─── GroqLLMClient ─────────────────────────────────────────────────
+
 
 class GroqLLMClient:
     """Thin wrapper around the Groq Chat Completions API."""
@@ -120,9 +181,14 @@ class GroqLLMClient:
         max_retries: Optional[int] = None,
     ):
         self.api_key = api_key or getattr(settings, "GROQ_SCRAPING_API_KEY", "")
-        self.model = model or getattr(settings, "GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
-        self.timeout = timeout or getattr(settings, "GROQ_SCRAPING_TIMEOUT", 30)
-        self.max_retries = max_retries or getattr(settings, "GROQ_SCRAPING_MAX_RETRIES", 2)
+        self.model = model or getattr(
+            settings, "GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile"
+        )
+        configured_timeout = timeout or getattr(settings, "GROQ_SCRAPING_TIMEOUT", 30)
+        self.timeout = max(1, min(int(configured_timeout), 30))
+        self.max_retries = max_retries or getattr(
+            settings, "GROQ_SCRAPING_MAX_RETRIES", 2
+        )
         self._session = requests.Session()
 
     @property
@@ -169,6 +235,7 @@ class GroqLLMClient:
 
 # ─── JSON parsing helpers ──────────────────────────────────────────
 
+
 def _extract_json(text: str) -> Optional[dict]:
     """Try to extract a JSON object from LLM output (may contain fences)."""
     if not text:
@@ -199,6 +266,7 @@ def _validate_schema(obj: dict) -> bool:
 
 
 # ─── Public API ────────────────────────────────────────────────────
+
 
 class LLMValidator:
     """
@@ -252,14 +320,17 @@ class LLMValidator:
 
             logger.debug(
                 "LLM JSON parse attempt %d/%d failed (category=%s)",
-                attempt, self.client.max_retries, category,
+                attempt,
+                self.client.max_retries,
+                category,
             )
             # Brief pause before retry
             time.sleep(0.3)
 
         logger.warning(
             "LLM validation gave up after %d retries for category=%s",
-            self.client.max_retries, category,
+            self.client.max_retries,
+            category,
         )
         return None
 
@@ -435,7 +506,8 @@ def enrich_paper(
 
         logger.debug(
             "Paper enrichment JSON attempt %d/%d failed",
-            attempt, client.max_retries,
+            attempt,
+            client.max_retries,
         )
         time.sleep(0.3)
 

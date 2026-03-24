@@ -1,5 +1,8 @@
 import uuid
 from django.db import models
+from django.db import transaction
+from django.db.models import F, Value
+from django.db.models.functions import Greatest, Least
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -197,75 +200,124 @@ class ScrapingSourceHealth(models.Model):
     CIRCUIT_THRESHOLD = 25.0  # score below which circuit opens
     CONSECUTIVE_TRIP = 3  # consecutive failures to trip circuit
 
+    def _locked(self):
+        return type(self).objects.select_for_update().get(pk=self.pk)
+
     def record_success(self, response_time: float | None = None):
         """Record a successful request to this source."""
         now = timezone.now()
-        self.total_attempts += 1
-        self.total_successes += 1
-        self.consecutive_failures = 0
-        self.last_attempt_at = now
-        self.last_success_at = now
-        self.health_score = min(100.0, self.health_score + self.SUCCESS_RECOVERY)
+        with transaction.atomic():
+            locked = self._locked()
+            updates = {
+                "total_attempts": F("total_attempts") + 1,
+                "total_successes": F("total_successes") + 1,
+                "consecutive_failures": 0,
+                "last_attempt_at": now,
+                "last_success_at": now,
+                "health_score": Least(
+                    Value(100.0),
+                    F("health_score") + Value(self.SUCCESS_RECOVERY),
+                ),
+            }
 
-        if response_time is not None:
-            if self.avg_response_time is None:
-                self.avg_response_time = response_time
-            else:
-                # Exponential moving average
-                self.avg_response_time = (
-                    0.7 * self.avg_response_time + 0.3 * response_time
-                )
+            if response_time is not None:
+                if locked.avg_response_time is None:
+                    updates["avg_response_time"] = response_time
+                else:
+                    # Exponential moving average
+                    updates["avg_response_time"] = (
+                        0.7 * locked.avg_response_time + 0.3 * response_time
+                    )
 
-        # Close circuit if it was half-open
-        if self.circuit_state == "half_open":
-            self.circuit_state = "closed"
-            self.circuit_opened_at = None
+            # Half-open probe succeeded -> close breaker
+            if locked.circuit_state == "half_open":
+                updates["circuit_state"] = "closed"
+                updates["circuit_opened_at"] = None
 
-        self.save()
+            type(self).objects.filter(pk=self.pk).update(**updates)
+
+        self.refresh_from_db()
 
     def record_failure(self, error: str = ""):
         """Record a failed request and evaluate circuit breaker."""
         now = timezone.now()
-        self.total_attempts += 1
-        self.total_failures += 1
-        self.consecutive_failures += 1
-        self.last_attempt_at = now
-        self.last_failure_at = now
-        self.health_score = max(0.0, self.health_score - self.FAILURE_PENALTY)
-        if error:
-            self.last_error = error[:2000]
+        with transaction.atomic():
+            locked = self._locked()
+            projected_health = max(0.0, locked.health_score - self.FAILURE_PENALTY)
+            projected_failures = locked.consecutive_failures + 1
 
-        # Trip the circuit breaker
-        if self.circuit_state == "closed" and (
-            self.health_score < self.CIRCUIT_THRESHOLD
-            or self.consecutive_failures >= self.CONSECUTIVE_TRIP
-        ):
-            self.circuit_state = "open"
-            self.circuit_opened_at = now
+            updates = {
+                "total_attempts": F("total_attempts") + 1,
+                "total_failures": F("total_failures") + 1,
+                "consecutive_failures": F("consecutive_failures") + 1,
+                "last_attempt_at": now,
+                "last_failure_at": now,
+                "health_score": Greatest(
+                    Value(0.0),
+                    F("health_score") - Value(self.FAILURE_PENALTY),
+                ),
+            }
+            if error:
+                updates["last_error"] = error[:2000]
 
-        # Half-open probe failed → re-open
-        if self.circuit_state == "half_open":
-            self.circuit_state = "open"
-            self.circuit_opened_at = now
+            # Closed breaker trips on threshold or consecutive failures
+            if locked.circuit_state == "closed" and (
+                projected_health < self.CIRCUIT_THRESHOLD
+                or projected_failures >= self.CONSECUTIVE_TRIP
+            ):
+                updates["circuit_state"] = "open"
+                updates["circuit_opened_at"] = now
 
-        self.save()
+            # Half-open probe failed -> reopen breaker
+            if locked.circuit_state == "half_open":
+                updates["circuit_state"] = "open"
+                updates["circuit_opened_at"] = now
+
+            type(self).objects.filter(pk=self.pk).update(**updates)
+
+        self.refresh_from_db()
 
     def is_available(self) -> bool:
         """Check whether this source should be queried right now."""
-        if self.circuit_state == "closed":
-            return True
+        now = timezone.now()
+        with transaction.atomic():
+            locked = self._locked()
 
-        if self.circuit_state == "open" and self.circuit_opened_at:
-            elapsed = (timezone.now() - self.circuit_opened_at).total_seconds()
-            if elapsed >= self.circuit_cooldown_seconds:
-                # Transition to half-open for one probe attempt
-                self.circuit_state = "half_open"
-                self.save(update_fields=["circuit_state"])
+            if locked.circuit_state == "closed":
                 return True
-            return False
 
-        # half_open — allow exactly one probe
-        return self.circuit_state == "half_open"
+            if locked.circuit_state == "open":
+                if locked.circuit_opened_at is None:
+                    return False
+
+                elapsed = (now - locked.circuit_opened_at).total_seconds()
+                if elapsed < locked.circuit_cooldown_seconds:
+                    return False
+
+                # Cooldown passed: atomically move to half-open and claim probe.
+                type(self).objects.filter(pk=self.pk).update(
+                    circuit_state="half_open",
+                    circuit_opened_at=now,
+                    last_attempt_at=now,
+                )
+                self.refresh_from_db()
+                return True
+
+            # half_open: allow only one in-flight probe claim.
+            half_open_since = locked.circuit_opened_at or now
+            probe_already_claimed = (
+                locked.last_attempt_at is not None
+                and locked.last_attempt_at >= half_open_since
+            )
+            if probe_already_claimed:
+                return False
+
+            type(self).objects.filter(pk=self.pk).update(
+                circuit_opened_at=half_open_since,
+                last_attempt_at=now,
+            )
+            self.refresh_from_db()
+            return True
 
 
 class ScrapedItemMeta(models.Model):
@@ -276,6 +328,20 @@ class ScrapedItemMeta(models.Model):
     category + item_title for lightweight lookups.
     """
 
+    SKIP_REASON_CHOICES = [
+        ("dedup_url", "Dedup URL"),
+        ("dedup_name", "Dedup Name"),
+        ("dedup_similarity", "Dedup Similarity"),
+        ("dedup_embedding", "Dedup Embedding"),
+        ("dedup_doi", "Dedup DOI"),
+        ("dedup_arxiv", "Dedup arXiv"),
+        ("dedup_ror", "Dedup ROR"),
+        ("download_fail", "Download Failed"),
+        ("validation_fail", "Validation Failed"),
+        ("enrichment_fail", "Enrichment Failed"),
+        ("circuit_open", "Circuit Open"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category = models.CharField(_("Category"), max_length=50)
     item_title = models.CharField(_("Item Title"), max_length=300)
@@ -285,6 +351,19 @@ class ScrapedItemMeta(models.Model):
         blank=True,
         default="",
         help_text=_("UUID of the scraped item in its source table."),
+    )
+    skip_reason = models.CharField(
+        _("Skip Reason"),
+        max_length=32,
+        choices=SKIP_REASON_CHOICES,
+        null=True,
+        blank=True,
+        help_text=_("Reason why this scraped candidate was skipped as duplicate."),
+    )
+    was_skipped = models.BooleanField(
+        _("Was Skipped"),
+        default=False,
+        help_text=_("Whether this candidate was skipped in ingestion."),
     )
 
     # Domain classification (JSON: {"arabic_nlp": 0.85, "llm_research": 0.6})
@@ -308,6 +387,17 @@ class ScrapedItemMeta(models.Model):
         help_text=_(
             "Composite score 0-100 combining recency, relevance, health, popularity."
         ),
+    )
+    enrichment_status = models.CharField(
+        _("Enrichment Status"),
+        max_length=20,
+        choices=[
+            ("not_enriched", "Not Enriched"),
+            ("partial", "Partial"),
+            ("complete", "Complete"),
+        ],
+        default="not_enriched",
+        help_text=_("Whether deep enrichment fully succeeded for this item."),
     )
     completeness_score = models.FloatField(
         default=0.0,
@@ -337,3 +427,33 @@ class ScrapedItemMeta(models.Model):
 
     def __str__(self):
         return f"{self.item_title[:60]} — {self.primary_domain} ({self.relevance_score:.0f})"
+
+    def save(self, *args, **kwargs):
+        previous_reason = None
+        previous_was_skipped = False
+        if self.pk:
+            existing = (
+                type(self)
+                .objects.filter(pk=self.pk)
+                .only("skip_reason", "was_skipped")
+                .first()
+            )
+            if existing is not None:
+                previous_reason = existing.skip_reason
+                previous_was_skipped = bool(existing.was_skipped)
+
+        super().save(*args, **kwargs)
+
+        reason = (self.skip_reason or "").strip()
+        if (
+            self.was_skipped
+            and reason
+            and (reason != (previous_reason or "") or not previous_was_skipped)
+        ):
+            try:
+                from scraping.metrics import record_skip_reason
+
+                record_skip_reason(self.category, reason)
+            except Exception:
+                # Metrics emission must not break persistence.
+                pass

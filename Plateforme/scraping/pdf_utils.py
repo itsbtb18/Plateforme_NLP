@@ -5,7 +5,7 @@ Uses PyMuPDF (fitz) to extract text from academic PDFs.
 Designed to be failure-safe — never raises on bad/corrupt PDFs.
 
 Limits:
-  - Max download size: 20 MB (configurable)
+    - Max download size: 50 MB (configurable)
   - Max pages extracted: configurable (default first 3 pages)
   - Max characters returned: configurable (default 12 000)
   - Download timeout: 30 s
@@ -19,7 +19,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ─── Defaults ────────────────────────────────────────────────────────
-MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_PDF_BYTES = 50 * 1024 * 1024  # 50 MB
 MAX_PAGES = 3  # first N pages
 MAX_CHARS = 12_000  # truncate extracted text
 DOWNLOAD_TIMEOUT = 30  # seconds
@@ -40,14 +40,24 @@ def download_pdf(
     if not url:
         return None
 
+    try:
+        from scraping.file_downloader import validate_url_safety
+
+        validate_url_safety(url)
+    except Exception as exc:
+        logger.warning("PDF URL rejected by SSRF safety validation: %s", exc)
+        return None
+
     http = session or requests.Session()
     try:
         # Stream to check Content-Length before downloading fully
         resp = http.get(url, timeout=timeout, stream=True)
         resp.raise_for_status()
 
-        content_type = resp.headers.get("Content-Type", "")
-        if "pdf" not in content_type and not url.lower().endswith(".pdf"):
+        content_type = (
+            resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        )
+        if content_type != "application/pdf":
             logger.debug("Skipping non-PDF content-type: %s", content_type)
             resp.close()
             return None

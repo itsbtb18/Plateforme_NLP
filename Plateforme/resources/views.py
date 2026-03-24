@@ -1,40 +1,38 @@
-from django.http import Http404, JsonResponse
-from django.utils.timezone import now
-from django.shortcuts import redirect, render, get_object_or_404
-from django.views.generic import ListView, DetailView
-from django.views.generic.edit import CreateView, FormView, UpdateView, DeleteView
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse, reverse_lazy
-from django.db.models import Q, F
-from django.contrib import messages
-from .forms import ResourceForm
-from django.conf import settings
-from accounts.views import LoginAndVerifiedRequiredMixin
-from django.db import models
-from .models import (
-    Document,
-    NLPTool,
-    Article,
-    Thesis,
-    Memoir,
-    Course,
-    Corpus,
-    ResourceBase,
-)
-from django.contrib.auth import get_user_model
-from notifications.models import Notification
-from django.utils.translation import gettext_lazy as _
-from django.views.decorators.http import require_GET
 import logging
 import os
-from typing import Any, Dict, List, Optional, Sequence, Union, cast, Type
-from accounts.blocking import exclude_hidden_users, blocked_user_ids_for
+from collections.abc import Sequence
+from typing import cast
+
+from accounts.blocking import blocked_user_ids_for, exclude_hidden_users
+from accounts.views import LoginAndVerifiedRequiredMixin
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db import models
+from django.db.models import Q
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
+from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_GET
+from django.views.generic import DetailView, ListView
+from django.views.generic.edit import DeleteView, FormView
+
+from .forms import ResourceForm
+from .models import (
+    Article,
+    Corpus,
+    Course,
+    Document,
+    Memoir,
+    NLPTool,
+    ResourceBase,
+    Thesis,
+)
 
 logger = logging.getLogger(__name__)
 
-ResourceVariant = Union[Document, NLPTool, Course, Corpus]
+ResourceVariant = Document | NLPTool | Course | Corpus
 
 
 class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -42,7 +40,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = "resources"
     paginate_by = 10
 
-    def get_queryset(self) -> List[ResourceVariant]:
+    def get_queryset(self) -> list[ResourceVariant]:
         search_query = self.request.GET.get("q", "")
         resource_type = self.request.GET.get("type", "")
         field_filter = self.request.GET.get("field", "")
@@ -126,7 +124,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
                 )
             querysets.append(corpora)
 
-        combined: List[ResourceVariant] = []
+        combined: list[ResourceVariant] = []
         for qs in querysets:
             for obj in qs:
                 obj.resource_type = self.get_resource_type(obj)
@@ -323,8 +321,8 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
 
     def get_template_names(self):
         """Return partial template for AJAX requests"""
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return ['resources/_tool_grid_cards.html']
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return ["resources/_tool_grid_cards.html"]
         return [self.template_name]
 
     def get_context_data(self, **kwargs):
@@ -577,7 +575,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     template_name = "resources/resource_detail.html"
     context_object_name = "object"
 
-    TYPE_MODELS: Dict[str, Type[models.Model]] = {
+    TYPE_MODELS: dict[str, type[models.Model]] = {
         "tool": NLPTool,
         "nlp_tool": NLPTool,
         "course": Course,
@@ -587,7 +585,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         "corpus": Corpus,
     }
 
-    MODEL_VIEW_NAMES: Dict[str, str] = {
+    MODEL_VIEW_NAMES: dict[str, str] = {
         "nlptool": "tool",
         "course": "course",
         "article": "article",
@@ -596,7 +594,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         "corpus": "corpus",
     }
 
-    URL_NAMES: Dict[str, str] = {
+    URL_NAMES: dict[str, str] = {
         "tool": "tool_list",
         "course": "course_list",
         "article": "article_list",
@@ -621,7 +619,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         if resource_type in ["article", "thesis", "memoir"]:
             try:
                 obj = get_object_or_404(model, pk=pk)
-            except Http404:
+            except Http404 as err:
                 document = get_object_or_404(Document, pk=pk)
                 if resource_type == "article" and hasattr(document, "article"):
                     obj = document.article
@@ -636,7 +634,7 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                 else:
                     raise Http404(
                         f"No {resource_type.capitalize()} matches the given query."
-                    )
+                    ) from err
         else:
             obj = get_object_or_404(model, pk=pk)
 
@@ -740,7 +738,7 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     template_name = "resources/resource_update_form.html"
 
     # Updated TYPE_MODELS to treat article, thesis, memoir as top-level types
-    TYPE_MODELS: Dict[str, Type[ResourceBase]] = {
+    TYPE_MODELS: dict[str, type[ResourceBase]] = {
         "tool": NLPTool,
         "nlp_tool": NLPTool,
         "course": Course,
@@ -1495,12 +1493,13 @@ def _extract_text_from_pdf(file_path: str) -> str:
     return "\n\n".join(pages_text)
 
 
-def _ocr_page(page) -> Optional[str]:
+def _ocr_page(page) -> str | None:
     """Run Tesseract OCR on a PDF page rendered as an image."""
     try:
-        from PIL import Image
-        import pytesseract
         import io
+
+        import pytesseract
+        from PIL import Image
 
         # Render page at 300 DPI for good OCR quality
         pix = page.get_pixmap(dpi=300)
@@ -1542,12 +1541,12 @@ def _extract_text_from_txt(file_path: str) -> str:
     """Read plain text files with encoding detection."""
     for encoding in ("utf-8", "utf-8-sig", "cp1256", "iso-8859-6", "latin-1"):
         try:
-            with open(file_path, "r", encoding=encoding) as f:
+            with open(file_path, encoding=encoding) as f:
                 return f.read()
         except (UnicodeDecodeError, LookupError):
             continue
     # Last resort — binary read and ignore errors
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+    with open(file_path, encoding="utf-8", errors="ignore") as f:
         return f.read()
 
 
@@ -1562,11 +1561,11 @@ def convert_to_text(request, pk):
     """
     # Find the resource across all concrete models
     resource = None
-    for Model in (Course, Corpus, Document, NLPTool, Article, Thesis, Memoir):
+    for model_cls in (Course, Corpus, Document, NLPTool, Article, Thesis, Memoir):
         try:
-            resource = Model.objects.get(pk=pk)
+            resource = model_cls.objects.get(pk=pk)
             break
-        except Model.DoesNotExist:
+        except model_cls.DoesNotExist:
             continue
 
     if resource is None:

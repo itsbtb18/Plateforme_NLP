@@ -1,902 +1,1032 @@
 """
-NLP Events scraper — sources: WikiCFP + curated fallback list of major
-NLP / CL conferences.
+Tiered NLP events scraper with Algerian-first source priority.
+
+Execution order:
+  Tier 1: Algerian sources (always first)
+  Tier 2: Arabic/MENA sources
+  Tier 3: African sources
+  Tier 4: Global sources
 """
 
-import re
 import logging
-from .base import BaseScraper
+import re
+from urllib.parse import urljoin, urlparse
+
+from bs4 import BeautifulSoup
+
 from scraping.enrichment_engine import enrich_scraped_item
-from scraping.file_downloader import (
-    try_download_document,
-    attach_file_to_model,
-)
+from scraping.file_downloader import attach_file_to_model
 from scraping.field_mapping import calculate_completeness_score
+from scraping.models import ScrapedItemMeta
+from scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-# Convert list to comma-separated string safely
-def _safe_list_to_str(value):
-    if isinstance(value, list):
-        return ", ".join(str(v) for v in value if v)
-    if value is None:
-        return ""
-    return str(value)
 
-# ── Well-known NLP conference organising bodies ──────────────────────
-CONFERENCE_ORGS = {
-    "ACL": {"name": "Association for Computational Linguistics", "code": "US"},
-    "EMNLP": {"name": "Association for Computational Linguistics", "code": "US"},
-    "NAACL": {"name": "Association for Computational Linguistics", "code": "US"},
-    "EACL": {"name": "European Chapter of ACL", "code": "DE"},
-    "COLING": {
-        "name": "International Committee on Computational Linguistics",
-        "code": "US",
-    },
-    "LREC": {"name": "European Language Resources Association", "code": "FR"},
-    "AAAI": {"name": "Association for the Advancement of AI", "code": "US"},
-    "IJCAI": {"name": "International Joint Conferences on AI", "code": "US"},
-    "AACL": {"name": "Asia-Pacific Chapter of ACL", "code": "JP"},
-    "SIGIR": {"name": "ACM Special Interest Group on IR", "code": "US"},
-    "WSDM": {"name": "ACM WSDM", "code": "US"},
-    "ANLP": {"name": "Arabic NLP Community", "code": "SA"},
-    "IEEE": {"name": "IEEE Computer Society", "code": "US"},
-    "SIGARAB": {"name": "ACL Special Interest Group on Arabic NLP", "code": "SA"},
-    "AICS": {"name": "AI Conference Series — MENA", "code": "AE"},
-    "ICNLSP": {"name": "ICNLSP Organising Committee", "code": "DZ"},
-    "NeurIPS": {
-        "name": "Neural Information Processing Systems Foundation",
-        "code": "US",
-    },
+PRIORITY_SCORE = {
+    "algerian": 100,
+    "mena": 75,
+    "african": 50,
+    "global": 25,
 }
 
-# ── Curated future NLP events (used when live scraping yields nothing) ──
-CURATED_EVENTS = [
-    {
-        "title": "ACL 2026 — 63rd Annual Meeting of the Association for Computational Linguistics",
-        "description": "The premier international conference on computational linguistics and NLP, featuring research papers, tutorials, workshops, and demos on all aspects of language technology.",
-        "event_type": "conference",
-        "domains": "nlp,computational_linguistics,ai",
-        "location": "Vienna, Austria",
-        "start_date": "2026-07-27",
-        "end_date": "2026-08-01",
-        "submission_deadline": "2026-02-15",
-        "website": "https://2026.aclweb.org/",
-        "contact_email": "acl2026@aclweb.org",
-        "org_key": "ACL",
-    },
-    {
-        "title": "EMNLP 2026 — Conference on Empirical Methods in Natural Language Processing",
-        "description": "A major NLP conference focused on empirical methods and their application to language processing tasks including text classification, machine translation, and information extraction.",
-        "event_type": "conference",
-        "domains": "nlp,machine_learning,ai",
-        "location": "Suzhou, China",
-        "start_date": "2026-11-05",
-        "end_date": "2026-11-09",
-        "submission_deadline": "2026-06-01",
-        "website": "https://2026.emnlp.org/",
-        "contact_email": "emnlp2026@emnlp.org",
-        "org_key": "EMNLP",
-    },
-    {
-        "title": "NAACL 2026 — North American Chapter of the ACL",
-        "description": "Annual conference of the North American Chapter of the Association for Computational Linguistics bringing together researchers in NLP, speech, and information retrieval.",
-        "event_type": "conference",
-        "domains": "nlp,speech,ai",
-        "location": "Albuquerque, New Mexico, USA",
-        "start_date": "2026-04-29",
-        "end_date": "2026-05-04",
-        "submission_deadline": "2026-10-15",
-        "website": "https://2026.naacl.org/",
-        "contact_email": "naacl2026@naacl.org",
-        "org_key": "NAACL",
-    },
-    {
-        "title": "COLING 2026 — 31st International Conference on Computational Linguistics",
-        "description": "One of the oldest international conferences on computational linguistics, covering theoretical and applied aspects of NLP including Arabic NLP.",
-        "event_type": "conference",
-        "domains": "nlp,linguistics,arabic_lang",
-        "location": "Abu Dhabi, UAE",
-        "start_date": "2026-01-19",
-        "end_date": "2026-01-24",
-        "submission_deadline": "2026-09-16",
-        "website": "https://coling2026.org/",
-        "contact_email": "info@coling2026.org",
-        "org_key": "COLING",
-    },
-    {
-        "title": "EACL 2026 — European Chapter of the ACL",
-        "description": "The European chapter gathering for the ACL community. Covers research on European and under-resourced languages, including Arabic dialect processing.",
-        "event_type": "conference",
-        "domains": "nlp,linguistics,ai",
-        "location": "Dubrovnik, Croatia",
-        "start_date": "2026-03-31",
-        "end_date": "2026-04-04",
-        "submission_deadline": "2026-10-15",
-        "website": "https://2026.eacl.org/",
-        "contact_email": "eacl2026@eacl.org",
-        "org_key": "EACL",
-    },
-    {
-        "title": "AAAI 2026 — AAAI Conference on Artificial Intelligence",
-        "description": "Premier AI conference covering all areas of artificial intelligence including NLP, knowledge representation, planning, and machine learning.",
-        "event_type": "conference",
-        "domains": "ai,nlp,machine_learning",
-        "location": "Philadelphia, Pennsylvania, USA",
-        "start_date": "2026-02-25",
-        "end_date": "2026-03-04",
-        "submission_deadline": "2026-08-15",
-        "website": "https://aaai.org/conference/aaai/aaai-25/",
-        "contact_email": "aaai25@aaai.org",
-        "org_key": "AAAI",
-    },
-    {
-        "title": "IJCNLP-AACL 2026 — International Joint Conference on NLP",
-        "description": "Joint conference of the International Joint Conference on NLP and Asia-Pacific ACL chapter, highlighting NLP research from Asia-Pacific including Arabic NLP.",
-        "event_type": "conference",
-        "domains": "nlp,arabic_lang,ai",
-        "location": "Bali, Indonesia",
-        "start_date": "2026-10-01",
-        "end_date": "2026-10-04",
-        "submission_deadline": "2026-05-15",
-        "website": "https://www.ijcnlp-aacl2026.org/",
-        "contact_email": "info@ijcnlp-aacl2026.org",
-        "org_key": "AACL",
-    },
-    {
-        "title": "ArabicNLP 2026 — Workshop on Arabic Natural Language Processing",
-        "description": "Dedicated workshop for Arabic NLP research including morphological analysis, dialectal Arabic processing, sentiment analysis, and machine translation for Arabic.",
-        "event_type": "workshop",
-        "domains": "nlp,arabic_lang,linguistics,sentiment_analysis",
-        "location": "Vienna, Austria",
-        "start_date": "2026-08-01",
-        "end_date": "2026-08-01",
-        "submission_deadline": "2026-05-15",
-        "website": "https://arabicnlp2026.sigarab.org/",
-        "contact_email": "arabicnlp2026@sigarab.org",
-        "org_key": "ANLP",
-    },
-    {
-        "title": "LREC-COLING 2026 — Language Resources and Evaluation Conference",
-        "description": "Conference on language resources, evaluation methods, and tools. Special focus on low-resource languages and corpus creation for Arabic dialects.",
-        "event_type": "conference",
-        "domains": "nlp,linguistics,arabic_lang",
-        "location": "Torino, Italy",
-        "start_date": "2026-05-20",
-        "end_date": "2026-05-25",
-        "submission_deadline": "2026-12-01",
-        "website": "https://lrec-coling-2026.org/",
-        "contact_email": "info@lrec-coling-2026.org",
-        "org_key": "LREC",
-    },
-    {
-        "title": "SIGIR 2026 — 48th International ACM SIGIR Conference",
-        "description": "The premier research conference in information retrieval, featuring work on search, recommendation, and NLP for information access.",
-        "event_type": "conference",
-        "domains": "nlp,ai,information_retrieval",
-        "location": "Padua, Italy",
-        "start_date": "2026-07-13",
-        "end_date": "2026-07-18",
-        "submission_deadline": "2026-01-22",
-        "website": "https://sigir2026.org/",
-        "contact_email": "sigir2026@acm.org",
-        "org_key": "SIGIR",
-    },
-    {
-        "title": "NeurIPS 2026 — Conference on Neural Information Processing Systems",
-        "description": "Top machine learning conference featuring cutting-edge research on deep learning for NLP, transformers, large language models, and multimodal AI.",
-        "event_type": "conference",
-        "domains": "ai,nlp,machine_learning",
-        "location": "San Diego, California, USA",
-        "start_date": "2026-12-09",
-        "end_date": "2026-12-15",
-        "submission_deadline": "2026-05-22",
-        "website": "https://neurips.cc/",
-        "contact_email": "info@neurips.cc",
-        "org_key": "NeurIPS",
-    },
-    {
-        "title": "WANLP 2026 — Workshop on Arabic NLP (co-located with EMNLP)",
-        "description": "WANLP brings together researchers working on Arabic Natural Language Processing including MSA and dialectal Arabic, covering tasks such as POS tagging, NER, and text generation.",
-        "event_type": "workshop",
-        "domains": "nlp,arabic_lang,sentiment_analysis,machine_translation",
-        "location": "Suzhou, China",
-        "start_date": "2026-11-09",
-        "end_date": "2026-11-09",
-        "submission_deadline": "2026-08-15",
-        "website": "https://wanlp2026.github.io/",
-        "contact_email": "wanlp2026@googlegroups.com",
-        "org_key": "ANLP",
-    },
-    # ── Arabic / North African / MENA Events ──
-    {
-        "title": "ICNLSP 2026 — 8th International Conference on Natural Language and Speech Processing",
-        "description": "ICNLSP focuses on NLP and speech processing for Arabic and under-resourced languages. Covers morphological analysis, dialect identification, ASR, and TTS for Arabic variants.",
-        "event_type": "conference",
-        "domains": "nlp,arabic_lang,speech_processing",
-        "location": "Algiers, Algeria",
-        "start_date": "2026-12-13",
-        "end_date": "2026-12-14",
-        "submission_deadline": "2026-09-15",
-        "website": "https://www.icnlsp.org/",
-        "contact_email": "contact@icnlsp.org",
-        "org_key": "ICNLSP",
-    },
-    {
-        "title": "ArabicNLP 2026 — 6th Workshop on Arabic NLP (co-located with ACL)",
-        "description": "The flagship Arabic NLP workshop co-located with ACL. Covers Arabic morphological analysis, dialectal Arabic, machine translation, sentiment analysis, and Arabic LLMs.",
-        "event_type": "workshop",
-        "domains": "nlp,arabic_lang,machine_translation,sentiment_analysis",
-        "location": "Vienna, Austria",
-        "start_date": "2026-08-01",
-        "end_date": "2026-08-01",
-        "submission_deadline": "2026-05-20",
-        "website": "https://arabicnlp2026.sigarab.org/",
-        "contact_email": "arabicnlp@sigarab.org",
-        "org_key": "SIGARAB",
-    },
-    {
-        "title": "ICALP 2026 — International Conference on Arabic Language Processing",
-        "description": "Conference dedicated to Arabic language processing including NLP, text mining, information retrieval, and speech technology for Arabic and its dialects.",
-        "event_type": "conference",
-        "domains": "nlp,arabic_lang,speech_processing",
-        "location": "Rabat, Morocco",
-        "start_date": "2026-10-15",
-        "end_date": "2026-10-17",
-        "submission_deadline": "2026-07-01",
-        "website": "https://icalp.org/",
-        "contact_email": "info@icalp.org",
-        "org_key": "SIGARAB",
-    },
-    {
-        "title": "AI & NLP Summit MENA 2026",
-        "description": "Industry and academic summit focused on AI and NLP applications in the MENA region, including Arabic chatbots, Arabic LLMs, and Arabic speech technology.",
-        "event_type": "conference",
-        "domains": "nlp,arabic_lang,llm_research,ai",
-        "location": "Dubai, UAE",
-        "start_date": "2026-09-22",
-        "end_date": "2026-09-24",
-        "submission_deadline": "2026-06-15",
-        "website": "https://ainlpsummit.com/",
-        "contact_email": "info@ainlpsummit.com",
-        "org_key": "AICS",
-    },
-    {
-        "title": "North Africa AI Summit 2026",
-        "description": "Regional summit bringing together AI researchers and practitioners from Algeria, Morocco, Tunisia, Libya, and Egypt. Covers NLP, computer vision, and AI for development.",
-        "event_type": "conference",
-        "domains": "ai,nlp,arabic_lang",
-        "location": "Tunis, Tunisia",
-        "start_date": "2026-11-18",
-        "end_date": "2026-11-20",
-        "submission_deadline": "2026-08-01",
-        "website": "https://northafricaaisummit.org/",
-        "contact_email": "contact@northafricaaisummit.org",
-        "org_key": "AICS",
-    },
-    {
-        "title": "NADI 2026 — Nuanced Arabic Dialect Identification Shared Task",
-        "description": "Annual shared task on Arabic dialect identification covering 21 Arab countries. Includes subtasks on dialect-to-MSA translation and country-level dialect detection.",
-        "event_type": "workshop",
-        "domains": "nlp,arabic_lang,machine_translation",
-        "location": "Vienna, Austria",
-        "start_date": "2026-08-01",
-        "end_date": "2026-08-01",
-        "submission_deadline": "2026-05-15",
-        "website": "https://nadi.dlnlp.ai/",
-        "contact_email": "nadi@dlnlp.ai",
-        "org_key": "ANLP",
-    },
-    {
-        "title": "Deep Learning Indaba 2026",
-        "description": "Africa's premier machine learning conference. Features research on African and Arabic NLP, low-resource language processing, and AI for African development.",
-        "event_type": "conference",
-        "domains": "ai,nlp,machine_learning",
-        "location": "Dakar, Senegal",
-        "start_date": "2026-09-07",
-        "end_date": "2026-09-12",
-        "submission_deadline": "2026-04-30",
-        "website": "https://deeplearningindaba.com/",
-        "contact_email": "info@deeplearningindaba.com",
-        "org_key": "ACL",
-    },
-    {
-        "title": "IEEE AICCSA 2026 — ACS/IEEE International Conference on Computer Systems and Applications",
-        "description": "Long-running conference covering computer systems and applications in the Arab world, with dedicated tracks on Arabic NLP, text mining, and machine learning.",
-        "event_type": "conference",
-        "domains": "nlp,ai,arabic_lang",
-        "location": "Cairo, Egypt",
-        "start_date": "2026-12-01",
-        "end_date": "2026-12-04",
-        "submission_deadline": "2026-08-15",
-        "website": "https://www.aiccsa.net/",
-        "contact_email": "aiccsa@ieee.org",
-        "org_key": "IEEE",
-    },
-    {
-        "title": "SIGARAB Workshop on Computational Approaches to Arabic Script Languages",
-        "description": "Workshop on computational approaches to Arabic-script languages including Arabic, Farsi, Urdu, and Amazigh. Covers OCR, text normalization, and script-specific NLP.",
-        "event_type": "workshop",
-        "domains": "nlp,arabic_lang,linguistics",
-        "location": "Suzhou, China",
-        "start_date": "2026-11-09",
-        "end_date": "2026-11-09",
-        "submission_deadline": "2026-08-01",
-        "website": "https://sigarab.org/",
-        "contact_email": "sigarab@googlegroups.com",
-        "org_key": "SIGARAB",
-    },
+
+ALGERIAN_UNIVERSITIES = [
+    "https://www.univ-alger.dz",
+    "https://www.univ-oran.dz",
+    "https://www.umc.edu.dz",
+    "https://www.univ-constantine.dz",
+    "https://www.univ-annaba.dz",
+    "https://www.univ-bejaia.dz",
+    "https://www.univ-tizi-ouzou.dz",
 ]
 
 
-class EventScraper(BaseScraper):
-    """Scrape NLP events from WikiCFP and a curated conference list."""
+ALGERIAN_DISCOVERY_PATHS = ["/actualites", "/events", "/agenda", "/news"]
 
+
+MENA_DISCOVERY_SOURCES = [
+    ("https://sigarab.github.io", "SIGARAB"),
+    ("https://arabicnlp.org", "ArabicNLP"),
+    ("https://aclanthology.org/venues/wanlp/", "ArabicNLP ACL Anthology"),
+    ("https://www.kfupm.edu.sa", "KFUPM"),
+    ("https://www.aub.edu.lb", "AUB"),
+    ("https://www.kaust.edu.sa", "KAUST"),
+]
+
+
+AFRICAN_DISCOVERY_SOURCES = [
+    ("https://deeplearningindaba.com", "Deep Learning Indaba"),
+    ("https://aclanthology.org/venues/africanlp/", "AfricaNLP ACL Anthology"),
+    ("https://www.masakhane.io", "Masakhane"),
+]
+
+
+GLOBAL_WIKICFP_TOPICS = ["cs.AI", "cs.LG", "cs.CL"]
+
+
+class EventScraper(BaseScraper):
     name = "NLP Events Scraper"
     category = "events"
 
+    def run(self) -> dict:
+        logger.info(
+            "scraper_run_config",
+            extra={
+                "category": self.category,
+                "source_name": self.name,
+                "media_download_enabled": self._is_download_enabled(),
+            },
+        )
+        return super().run()
+
     def scrape(self):
-        """Run all event-scraping strategies in order."""
-        try:
-            from scraping.intelligence import generate_queries
+        tier_1 = self._scrape_tier_1_events()
+        tier_2 = self._scrape_tier_2_events()
+        tier_3 = self._scrape_tier_3_events()
+        tier_4 = self._scrape_tier_4_events()
 
-            dynamic_queries = generate_queries("events")
-            dynamic_terms = [
-                q.get("query", "") for q in dynamic_queries if q.get("query")
-            ]
-            if dynamic_terms:
-                search_terms = dynamic_terms[:5]
-            else:
-                search_terms = ["natural language processing", "NLP", "Arabic NLP"]
-        except Exception:
-            search_terms = ["natural language processing", "NLP", "Arabic NLP"]
+        combined = tier_1 + tier_2 + tier_3 + tier_4
+        deduped_candidates = self._deduplicate_combined_candidates(combined)
 
-        self._scrape_wikicfp(search_terms)
-        self._scrape_conferencealerts_algeria()
-        self._scrape_allconferencealert_algeria()
-        self._scrape_conferencealerts_country("morocco")
-        self._scrape_conferencealerts_country("tunisia")
-        self._scrape_conferencealerts_country("egypt")
-        self._import_curated_events()
+        for candidate in deduped_candidates:
+            self._save_event_candidate(candidate)
 
-    # ── WikiCFP ──────────────────────────────────────────────────────
-    def _scrape_wikicfp(self, search_terms):
-        """Attempt to scrape upcoming NLP events from WikiCFP search."""
-        url = "http://www.wikicfp.com/cfp/servlet/tool.search"
-        for query in search_terms:
-            resp = self.safe_request(url, params={"q": query, "year": "f"})
-            if resp is None:
+    def _scrape_tier_1_events(self):
+        results = []
+        results.extend(self._scrape_esi_events())
+        results.extend(self._scrape_usthb_events())
+        results.extend(self._scrape_ummto_events())
+        results.extend(self._scrape_dgrsdt_events())
+        results.extend(self._scrape_mesrs_events())
+        results.extend(self._scrape_algerian_university_network())
+        return results
+
+    def _scrape_tier_2_events(self):
+        results = []
+        for base_url, source_name in MENA_DISCOVERY_SOURCES:
+            results.extend(
+                self._collect_from_source(
+                    base_url=base_url,
+                    source_name=source_name,
+                    priority=PRIORITY_SCORE["mena"],
+                    tier=2,
+                    default_location="MENA",
+                    timeout=20,
+                )
+            )
+        return results
+
+    def _scrape_tier_3_events(self):
+        results = []
+        for base_url, source_name in AFRICAN_DISCOVERY_SOURCES:
+            results.extend(
+                self._collect_from_source(
+                    base_url=base_url,
+                    source_name=source_name,
+                    priority=PRIORITY_SCORE["african"],
+                    tier=3,
+                    default_location="Africa",
+                    timeout=20,
+                )
+            )
+        return results
+
+    def _scrape_tier_4_events(self):
+        results = []
+        results.extend(self._scrape_wikicfp_enhanced())
+        results.extend(self._scrape_acl_anthology_calendar())
+        results.extend(self._scrape_semantic_scholar_venues())
+        return results
+
+    def _scrape_esi_events(self):
+        base = "https://www.esi.dz"
+        paths = ["/category/events/", "/events/", "/actualites/"]
+        return self._collect_html_paths(
+            base_url=base,
+            paths=paths,
+            source_name="ESI",
+            priority=PRIORITY_SCORE["algerian"],
+            tier=1,
+            default_location="Algiers, Algeria",
+            timeout=10,
+        )
+
+    def _scrape_usthb_events(self):
+        return self._collect_from_source(
+            base_url="https://www.usthb.dz",
+            source_name="USTHB",
+            priority=PRIORITY_SCORE["algerian"],
+            tier=1,
+            default_location="Algiers, Algeria",
+            timeout=10,
+            paths=["/actualites", "/events", "/agenda", "/news"],
+        )
+
+    def _scrape_ummto_events(self):
+        return self._collect_from_source(
+            base_url="https://www.ummto.dz",
+            source_name="UMMTO",
+            priority=PRIORITY_SCORE["algerian"],
+            tier=1,
+            default_location="Tizi Ouzou, Algeria",
+            timeout=10,
+            paths=["/actualites", "/events", "/agenda", "/news"],
+        )
+
+    def _scrape_dgrsdt_events(self):
+        return self._collect_from_source(
+            base_url="https://www.dgrsdt.dz",
+            source_name="DGRSDT",
+            priority=PRIORITY_SCORE["algerian"],
+            tier=1,
+            default_location="Algeria",
+            timeout=10,
+            paths=["/actualites", "/appels-a-projets", "/events", "/agenda"],
+        )
+
+    def _scrape_mesrs_events(self):
+        return self._collect_from_source(
+            base_url="https://www.mesrs.dz",
+            source_name="MESRS",
+            priority=PRIORITY_SCORE["algerian"],
+            tier=1,
+            default_location="Algeria",
+            timeout=10,
+            paths=["/actualites", "/communiques", "/agenda", "/events"],
+        )
+
+    def _scrape_algerian_university_network(self):
+        candidates = []
+        for university_url in ALGERIAN_UNIVERSITIES:
+            source_name = self._source_name_from_url(university_url)
+            try:
+                candidates.extend(
+                    self._collect_from_source(
+                        base_url=university_url,
+                        source_name=source_name,
+                        priority=PRIORITY_SCORE["algerian"],
+                        tier=1,
+                        default_location="Algeria",
+                        timeout=10,
+                        paths=ALGERIAN_DISCOVERY_PATHS,
+                    )
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Skipping Algerian university source=%s error=%s",
+                    university_url,
+                    exc,
+                )
+                continue
+        return candidates
+
+    def _collect_from_source(
+        self,
+        *,
+        base_url,
+        source_name,
+        priority,
+        tier,
+        default_location,
+        timeout=20,
+        paths=None,
+    ):
+        collected = []
+
+        rss_scraper = self.get_rss_scraper()
+        for feed_url in rss_scraper.auto_discover_feeds(base_url):
+            rss_items = rss_scraper.parse_feed_items(feed_url, max_items=50)
+            collected.extend(
+                self._convert_rss_to_candidates(
+                    rss_items=rss_items,
+                    source_name=source_name,
+                    source_url=feed_url,
+                    priority=priority,
+                    tier=tier,
+                    default_location=default_location,
+                )
+            )
+
+        html_paths = paths or ALGERIAN_DISCOVERY_PATHS
+        collected.extend(
+            self._collect_html_paths(
+                base_url=base_url,
+                paths=html_paths,
+                source_name=source_name,
+                priority=priority,
+                tier=tier,
+                default_location=default_location,
+                timeout=timeout,
+            )
+        )
+        return collected
+
+    def _collect_html_paths(
+        self,
+        *,
+        base_url,
+        paths,
+        source_name,
+        priority,
+        tier,
+        default_location,
+        timeout,
+    ):
+        collected = []
+        for path in paths:
+            page_url = urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
+            response = self.safe_request(
+                page_url, timeout=timeout, source_name=source_name
+            )
+            if not response:
+                logger.info(
+                    "source_page_skipped",
+                    extra={
+                        "category": self.category,
+                        "source_name": source_name,
+                        "source_url": page_url,
+                        "skip_reason": "no_response",
+                    },
+                )
+                continue
+            if response.status_code >= 400:
+                logger.info(
+                    "source_page_skipped",
+                    extra={
+                        "category": self.category,
+                        "source_name": source_name,
+                        "source_url": page_url,
+                        "skip_reason": "http_error",
+                        "status_code": response.status_code,
+                    },
+                )
+                continue
+            try:
+                collected.extend(
+                    self._extract_event_candidates_from_html(
+                        html=response.text,
+                        page_url=page_url,
+                        source_name=source_name,
+                        default_location=default_location,
+                        priority=priority,
+                        tier=tier,
+                    )
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed parsing source=%s url=%s err=%s", source_name, page_url, exc
+                )
+        return collected
+
+    def _extract_event_candidates_from_html(
+        self,
+        *,
+        html,
+        page_url,
+        source_name,
+        default_location,
+        priority,
+        tier,
+    ):
+        soup = BeautifulSoup(html, "html.parser")
+        candidates = []
+
+        containers = soup.select(
+            "article, .post, .news-item, .event-item, .card, li, tr"
+        )
+        if not containers:
+            containers = [soup]
+
+        for node in containers[:180]:
+            try:
+                title_tag = node.find(["h1", "h2", "h3", "h4", "a"])
+                if not title_tag:
+                    continue
+                title = self.clean_text(title_tag.get_text(" ", strip=True))
+                if not title or len(title) < 8:
+                    continue
+
+                raw_text = self.clean_text(node.get_text(" ", strip=True))
+                if not self._is_event_like_text(f"{title} {raw_text}"):
+                    continue
+
+                link_tag = node.find("a", href=True)
+                event_url = page_url
+                if link_tag:
+                    event_url = urljoin(page_url, link_tag.get("href", ""))
+
+                registration_link = self._extract_registration_link(node, page_url)
+                extracted_date = self._extract_date(raw_text)
+                location = self._extract_location(raw_text) or default_location
+                description = self._build_description(node, raw_text)
+                event_type = self._extract_event_type(title, raw_text)
+
+                candidates.append(
+                    {
+                        "title": title,
+                        "description": description,
+                        "event_type": event_type,
+                        "location": location,
+                        "start_date": extracted_date,
+                        "end_date": extracted_date,
+                        "submission_deadline": None,
+                        "notification_date": None,
+                        "website": event_url,
+                        "registration_link": registration_link,
+                        "source_url": page_url,
+                        "source_name": source_name,
+                        "priority_score": priority,
+                        "tier": tier,
+                        "domains": "nlp,ai",
+                        "tags": self._build_tags(
+                            title, description, event_type, source_name
+                        ),
+                        "language": self._infer_language(f"{title} {description}"),
+                    }
+                )
+            except Exception:
                 continue
 
-            try:
-                from bs4 import BeautifulSoup  # type: ignore[import-unresolved]
+        return candidates
 
-                soup = BeautifulSoup(resp.text, "html.parser")
-                rows = soup.select("table.imark tr")
-                if not rows:
-                    rows = soup.find_all("tr", class_="imark")
+    def _convert_rss_to_candidates(
+        self,
+        *,
+        rss_items,
+        source_name,
+        source_url,
+        priority,
+        tier,
+        default_location,
+    ):
+        candidates = []
+        for item in rss_items:
+            title = self.clean_text(item.get("title") or item.get("title_en", ""))
+            if not title:
+                continue
 
-                i = 0
-                while i < len(rows):
-                    try:
-                        cells = rows[i].find_all("td")
+            description = self.clean_text(
+                item.get("description") or item.get("description_en", "")
+            )
+            text_blob = f"{title} {description}"
+            if not self._is_event_like_text(text_blob):
+                continue
+
+            event_type = self._extract_event_type(title, text_blob)
+            date_value = item.get("published_date")
+            start_date = (
+                date_value.date() if hasattr(date_value, "date") else date_value
+            )
+
+            candidates.append(
+                {
+                    "title": title,
+                    "description": description,
+                    "event_type": event_type,
+                    "location": default_location,
+                    "start_date": start_date,
+                    "end_date": start_date,
+                    "submission_deadline": None,
+                    "notification_date": None,
+                    "website": item.get("url", ""),
+                    "registration_link": "",
+                    "source_url": source_url,
+                    "source_name": source_name,
+                    "priority_score": priority,
+                    "tier": tier,
+                    "domains": "nlp,ai",
+                    "tags": self._build_tags(
+                        title, description, event_type, source_name
+                    ),
+                    "language": self._infer_language(text_blob),
+                }
+            )
+        return candidates
+
+    def _scrape_wikicfp_enhanced(self):
+        url = "http://www.wikicfp.com/cfp/servlet/tool.search"
+        search_terms = [
+            "natural language processing",
+            "arabic nlp",
+            "african nlp",
+            "computational linguistics",
+        ]
+        candidates = []
+
+        for query in search_terms:
+            for topic in GLOBAL_WIKICFP_TOPICS:
+                response = self.safe_request(
+                    url,
+                    params={"q": f"{query} {topic}", "year": "f"},
+                    source_name="WikiCFP",
+                )
+                if not response:
+                    continue
+                try:
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    rows = soup.select("table.imark tr")
+                    i = 0
+                    while i < len(rows):
+                        row = rows[i]
+                        cells = row.find_all("td")
                         if len(cells) < 2:
                             i += 1
                             continue
 
-                        # Row 1: abbreviation (link) + full title
-                        link_tag = cells[0].find("a")
-                        abbr = cells[0].get_text(strip=True)
-                        full_title = (
-                            cells[1].get_text(strip=True) if len(cells) > 1 else abbr
+                        link_tag = cells[0].find("a", href=True)
+                        title_head = self.clean_text(cells[1].get_text(" ", strip=True))
+                        if not title_head:
+                            i += 1
+                            continue
+
+                        event_url = url
+                        if link_tag:
+                            event_url = urljoin(
+                                "http://www.wikicfp.com", link_tag.get("href", "")
+                            )
+
+                        next_text = ""
+                        if i + 1 < len(rows):
+                            next_text = self.clean_text(
+                                rows[i + 1].get_text(" ", strip=True)
+                            )
+
+                        merged = f"{title_head} {next_text}"
+                        if not self._wikicfp_focus_filter(merged):
+                            i += 2
+                            continue
+
+                        date_guess = self._extract_date(merged)
+                        location = self._extract_location(merged) or "Global"
+                        event_type = self._extract_event_type(title_head, merged)
+
+                        candidates.append(
+                            {
+                                "title": title_head,
+                                "description": self.truncate(merged, 1000),
+                                "event_type": event_type,
+                                "location": location,
+                                "start_date": date_guess,
+                                "end_date": date_guess,
+                                "submission_deadline": None,
+                                "notification_date": None,
+                                "website": event_url,
+                                "registration_link": "",
+                                "source_url": url,
+                                "source_name": "WikiCFP",
+                                "priority_score": PRIORITY_SCORE["global"],
+                                "tier": 4,
+                                "domains": "nlp,ai",
+                                "tags": self._build_tags(
+                                    title_head, merged, event_type, "WikiCFP"
+                                ),
+                                "language": self._infer_language(merged),
+                            }
                         )
-                        event_url = ""
-                        if link_tag and link_tag.get("href"):
-                            href = link_tag["href"]
-                            event_url = (
-                                href
-                                if href.startswith("http")
-                                else f"http://www.wikicfp.com{href}"
-                            )
+                        i += 2
+                except Exception as exc:
+                    logger.warning(
+                        "WikiCFP parse failed query=%s topic=%s err=%s",
+                        query,
+                        topic,
+                        exc,
+                    )
 
-                        # Row 2: dates + location
-                        i += 1
-                        if i < len(rows):
-                            cells2 = rows[i].find_all("td")
-                            dates_str = (
-                                cells2[0].get_text(strip=True)
-                                if len(cells2) > 0
-                                else ""
-                            )
-                            location = (
-                                cells2[1].get_text(strip=True)
-                                if len(cells2) > 1
-                                else ""
-                            )
-                        else:
-                            dates_str, location = "", ""
+        return candidates
 
-                        title = (
-                            f"{abbr} — {full_title}"
-                            if full_title and full_title != abbr
-                            else abbr
-                        )
-                        start, end = self._parse_date_range(dates_str)
+    def _scrape_acl_anthology_calendar(self):
+        candidates = []
+        endpoints = [
+            "https://aclanthology.org/search/?q=workshop+arabic+nlp",
+            "https://aclanthology.org/search/?q=conference+africanlp",
+            "https://aclanthology.org/search/?q=sigarab+workshop",
+        ]
 
-                        if start:
-                            self._create_event(
-                                title=title,
-                                description=f"NLP conference/workshop: {full_title}",
-                                location=location,
-                                start_date=start,
-                                end_date=end or start,
-                                website=event_url,
-                                org_key=abbr.split()[0].upper(),
-                            )
-                    except Exception as exc:
-                        logger.debug("WikiCFP row parse error: %s", exc)
-                    i += 1
-
-            except ImportError:
-                self.errors.append(
-                    "beautifulsoup4 is not installed — WikiCFP scraping skipped"
+        for endpoint in endpoints:
+            response = self.safe_request(endpoint, source_name="ACL Anthology")
+            if not response:
+                continue
+            try:
+                candidates.extend(
+                    self._extract_event_candidates_from_html(
+                        html=response.text,
+                        page_url=endpoint,
+                        source_name="ACL Anthology",
+                        default_location="Global",
+                        priority=PRIORITY_SCORE["global"],
+                        tier=4,
+                    )
                 )
             except Exception as exc:
-                self.errors.append(f"WikiCFP parse error for '{query}': {exc}")
+                logger.warning(
+                    "ACL Anthology parse failed url=%s err=%s", endpoint, exc
+                )
 
-    # ── ConferenceAlerts.co.in — generic country scraper ────────────
-    def _scrape_conferencealerts_country(self, country: str):
-        """Scrape conferences for a given country from conferencealerts.co.in."""
-        url = f"https://conferencealerts.co.in/{country}"
-        resp = self.safe_request(url)
-        if resp is None:
-            return
+        return candidates
 
-        try:
-            from bs4 import BeautifulSoup
+    def _scrape_semantic_scholar_venues(self):
+        candidates = []
+        api = "https://api.semanticscholar.org/graph/v1/paper/search"
+        queries = [
+            "Arabic NLP workshop",
+            "conference computational linguistics Africa",
+            "SIGARAB workshop",
+        ]
 
-            soup = BeautifulSoup(resp.text, "html.parser")
-            cards = soup.select(
-                ".conf-list .conf-item, .event-list li, table tr"
-            ) or soup.find_all("div", class_=re.compile(r"conf|event"))
-
-            for card in cards:
-                try:
-                    link_tag = card.find("a")
-                    if not link_tag:
-                        continue
-                    title = link_tag.get_text(strip=True)
-                    if not title or len(title) < 5:
-                        continue
-                    href = link_tag.get("href", "")
-                    event_url = (
-                        href
-                        if href.startswith("http")
-                        else f"https://conferencealerts.co.in{href}"
-                    )
-
-                    text = card.get_text(" ", strip=True)
-                    date_match = re.search(
-                        r"(\d{1,2}\s+\w+\s+\d{4})"
-                        r"|(\w+\s+\d{1,2}[-–]\d{1,2},?\s+\d{4})"
-                        r"|(\d{4}-\d{2}-\d{2})",
-                        text,
-                    )
-                    start = self.parse_date(date_match.group(0)) if date_match else None
-
-                    city = ""
-                    city_match = re.search(
-                        r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I
-                    )
-                    if city_match:
-                        city = city_match.group(1).strip()
-                    country_name = country.title()
-                    location = f"{city}, {country_name}" if city else country_name
-
-                    self._create_event(
-                        title=title,
-                        description=f"Conference in {country_name}: {title}",
-                        event_type="conference",
-                        domains="nlp,ai",
-                        location=location,
-                        start_date=start,
-                        end_date=start,
-                        website=event_url,
-                        org_key="",
-                    )
-                except Exception as exc:
-                    logger.debug(
-                        "conferencealerts.co.in %s parse error: %s", country, exc
-                    )
-
-        except ImportError:
-            self.errors.append(
-                "beautifulsoup4 not installed — country scraping skipped"
+        for query in queries:
+            response = self.safe_request(
+                api,
+                params={
+                    "query": query,
+                    "fields": "title,venue,year,url,publicationDate",
+                    "limit": 20,
+                },
+                source_name="Semantic Scholar",
             )
-        except Exception as exc:
-            self.errors.append(f"conferencealerts.co.in/{country} error: {exc}")
-
-    # ── ConferenceAlerts.co.in — Algeria ──────────────────────────────
-    def _scrape_conferencealerts_algeria(self):
-        """Scrape conferences in Algeria from conferencealerts.co.in."""
-        url = "https://conferencealerts.co.in/algeria"
-        resp = self.safe_request(url)
-        if resp is None:
-            return
-
-        try:
-            from bs4 import BeautifulSoup
-
-            soup = BeautifulSoup(resp.text, "html.parser")
-            # Each conference is typically in a card / list-item block
-            cards = soup.select(
-                ".conf-list .conf-item, .event-list li, table tr"
-            ) or soup.find_all("div", class_=re.compile(r"conf|event"))
-
-            for card in cards:
-                try:
-                    # Title + link
-                    link_tag = card.find("a")
-                    if not link_tag:
-                        continue
-                    title = link_tag.get_text(strip=True)
-                    if not title or len(title) < 5:
-                        continue
-                    href = link_tag.get("href", "")
-                    event_url = (
-                        href
-                        if href.startswith("http")
-                        else f"https://conferencealerts.co.in{href}"
-                    )
-
-                    # Extract text for date / city parsing
-                    text = card.get_text(" ", strip=True)
-
-                    # Try to find date (common patterns: "12 Mar 2026", "March 12-14, 2026")
-                    date_match = re.search(
-                        r"(\d{1,2}\s+\w+\s+\d{4})"
-                        r"|(\w+\s+\d{1,2}[-–]\d{1,2},?\s+\d{4})"
-                        r"|(\d{4}-\d{2}-\d{2})",
-                        text,
-                    )
-                    start = self.parse_date(date_match.group(0)) if date_match else None
-
-                    # City — often after the date or labelled "City:"
-                    city = ""
-                    city_match = re.search(
-                        r"(?:City|Location|Venue)[:\s]+([^,\n]+)", text, re.I
-                    )
-                    if city_match:
-                        city = city_match.group(1).strip()
-                    location = f"{city}, Algeria" if city else "Algeria"
-
-                    self._create_event(
-                        title=title,
-                        description=f"Conference in Algeria: {title}",
-                        event_type="conference",
-                        domains="nlp,ai",
-                        location=location,
-                        start_date=start,
-                        end_date=start,
-                        website=event_url,
-                        org_key="",
-                    )
-                except Exception as exc:
-                    logger.debug("conferencealerts.co.in parse error: %s", exc)
-
-        except ImportError:
-            self.errors.append(
-                "beautifulsoup4 not installed — Algeria scraping skipped"
-            )
-        except Exception as exc:
-            self.errors.append(f"conferencealerts.co.in error: {exc}")
-
-    # ── AllConferenceAlert — Algeria ─────────────────────────────────
-    def _scrape_allconferencealert_algeria(self):
-        """Scrape conferences in Algeria from allconferencealert.com."""
-        url = "https://www.allconferencealert.com/algeria.html"
-        resp = self.safe_request(url)
-        if resp is None:
-            return
-
-        try:
-            from bs4 import BeautifulSoup
-
-            soup = BeautifulSoup(resp.text, "html.parser")
-            # Events are in table rows or card blocks
-            rows = soup.select(
-                "table.searchResult tr, .conf-box, .event-item"
-            ) or soup.find_all("tr")
-
-            for row in rows:
-                try:
-                    link_tag = row.find("a")
-                    if not link_tag:
-                        continue
-                    title = link_tag.get_text(strip=True)
-                    if not title or len(title) < 5:
-                        continue
-                    href = link_tag.get("href", "")
-                    event_url = (
-                        href
-                        if href.startswith("http")
-                        else f"https://www.allconferencealert.com/{href}"
-                    )
-
-                    cells = row.find_all("td")
-                    date_str = cells[1].get_text(strip=True) if len(cells) > 1 else ""
-                    city = cells[2].get_text(strip=True) if len(cells) > 2 else ""
-                    category = cells[3].get_text(strip=True) if len(cells) > 3 else ""
-
-                    start = self.parse_date(date_str) if date_str else None
-                    location = f"{city}, Algeria" if city else "Algeria"
-
-                    self._create_event(
-                        title=title,
-                        description=f"Conference in Algeria ({category}): {title}",
-                        event_type="conference",
-                        domains="nlp,ai",
-                        location=location,
-                        start_date=start,
-                        end_date=start,
-                        website=event_url,
-                        org_key="",
-                    )
-                except Exception as exc:
-                    logger.debug("allconferencealert.com parse error: %s", exc)
-
-        except ImportError:
-            self.errors.append(
-                "beautifulsoup4 not installed — Algeria scraping skipped"
-            )
-        except Exception as exc:
-            self.errors.append(f"allconferencealert.com error: {exc}")
-
-    # ── Curated fallback ─────────────────────────────────────────────
-    def _import_curated_events(self):
-        """Import well-known NLP conferences from the curated list."""
-        from django.utils import timezone
-        import datetime
-
-        for event in CURATED_EVENTS:
-            event_date = datetime.datetime.strptime(
-                event["start_date"], "%Y-%m-%d"
-            ).replace(tzinfo=datetime.timezone.utc)
-            cutoff = timezone.now() - datetime.timedelta(days=30)
-            if event_date < cutoff:
+            if not response:
                 continue
-            self._create_event(
-                title=event["title"],
-                description=event["description"],
-                event_type=event.get("event_type", "conference"),
-                domains=event.get("domains", "nlp"),
-                location=event.get("location", ""),
-                start_date=self.parse_date(event["start_date"]),
-                end_date=self.parse_date(event["end_date"]),
-                submission_deadline=self.parse_date(
-                    event.get("submission_deadline", "")
-                ),
-                website=event.get("website", ""),
-                contact_email=event.get("contact_email", ""),
-                org_key=event.get("org_key", ""),
-            )
+            try:
+                payload = response.json()
+                for paper in payload.get("data", []):
+                    title = self.clean_text(paper.get("title", ""))
+                    venue = self.clean_text(paper.get("venue", ""))
+                    if not title:
+                        continue
+                    merged = f"{title} {venue}"
+                    if not self._is_event_like_text(merged):
+                        continue
+                    if not self._wikicfp_focus_filter(merged):
+                        continue
 
-    # ── Helpers ──────────────────────────────────────────────────────
-    def _create_event(
-        self,
-        *,
-        title,
-        description="",
-        event_type="conference",
-        domains="nlp",
-        location="",
-        start_date=None,
-        end_date=None,
-        submission_deadline=None,
-        website="",
-        contact_email="",
-        org_key="",
-    ):
+                    pub_date = self.parse_date(paper.get("publicationDate", ""))
+                    event_type = self._extract_event_type(title, merged)
+                    candidates.append(
+                        {
+                            "title": title,
+                            "description": self.truncate(merged, 1000),
+                            "event_type": event_type,
+                            "location": "Global",
+                            "start_date": pub_date,
+                            "end_date": pub_date,
+                            "submission_deadline": None,
+                            "notification_date": None,
+                            "website": paper.get("url", "") or "",
+                            "registration_link": "",
+                            "source_url": api,
+                            "source_name": "Semantic Scholar",
+                            "priority_score": PRIORITY_SCORE["global"],
+                            "tier": 4,
+                            "domains": "nlp,ai",
+                            "tags": self._build_tags(
+                                title, merged, event_type, "Semantic Scholar"
+                            ),
+                            "language": self._infer_language(merged),
+                        }
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Semantic Scholar parse failed query=%s err=%s", query, exc
+                )
+
+        return candidates
+
+    def _deduplicate_combined_candidates(self, candidates):
+        deduped = []
+        seen_keys = set()
+
+        sorted_candidates = sorted(
+            candidates,
+            key=lambda c: (
+                -(c.get("priority_score") or 0),
+                c.get("source_name", ""),
+                c.get("title", ""),
+            ),
+        )
+
+        for item in sorted_candidates:
+            title_key = self._normalize_text(item.get("title", ""))
+            website_key = self._normalize_url(item.get("website", ""))
+            date_key = str(item.get("start_date") or "")
+            key = (title_key, website_key, date_key)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            deduped.append(item)
+
+        return deduped
+
+    def _save_event_candidate(self, candidate):
         from events.models import Event
 
+        title = (candidate.get("title") or "").strip()
+        if not title:
+            self.items_skipped += 1
+            return
+
+        start_date = candidate.get("start_date")
         if not start_date:
             self.items_skipped += 1
             return
 
-        title_en = title
-
-        # Duplicate check
-        if self.is_duplicate(title_en, "events", Event):
+        start_date = (
+            self.parse_date(str(start_date))
+            if isinstance(start_date, str)
+            else start_date
+        )
+        if not start_date:
             self.items_skipped += 1
             return
-        if website and Event.objects.filter(website=website).exists():
-            self.items_skipped += 1
-            return
 
-        organizer = self._resolve_organizer(org_key)
+        end_date = candidate.get("end_date")
+        end_date = (
+            self.parse_date(str(end_date)) if isinstance(end_date, str) else end_date
+        )
+        if not end_date:
+            end_date = start_date
+
+        organizer = self._resolve_organizer(candidate)
         if organizer is None:
             self.items_skipped += 1
-            self.errors.append(f"Could not resolve organizer for: {title}")
             return
 
-        # ── LLM validation & enrichment (non-blocking) ──────────────
-        poster_url = ""
-        try:
-            from scraping.llm_validation import validate_item, apply_llm_enrichment
+        description = candidate.get("description") or title
+        event_type = self._normalize_model_event_type(candidate.get("event_type"))
+        language = candidate.get("language") or self._infer_language(
+            f"{title} {description}"
+        )
+        tags = candidate.get("tags") or self._build_tags(
+            title,
+            description,
+            candidate.get("event_type") or "conference",
+            candidate.get("source_name") or "unknown",
+        )
 
-            raw_item = {
-                "title": title,
-                "description": description,
-                "event_type": event_type,
-                "domains": domains,
-                "location": location,
-                "start_date": str(start_date) if start_date else "",
-                "end_date": str(end_date) if end_date else "",
-                "submission_deadline": str(submission_deadline)
-                if submission_deadline
-                else "",
-                "website": website,
-                "contact_email": contact_email,
-            }
-            enriched = validate_item(raw_item, category="events")
-
-            if enriched is not None:
-                # Skip items the LLM flags as spam or irrelevant
-                if enriched.get("is_spam"):
-                    self.items_skipped += 1
-                    self.errors.append(
-                        f"LLM flagged as spam: '{title}' — {enriched.get('spam_reason', '')}"
-                    )
-                    return
-                if not enriched.get("is_relevant", True):
-                    self.items_skipped += 1
-                    self.errors.append(
-                        f"LLM flagged as irrelevant: '{title}' — {enriched.get('relevance_reason', '')}"
-                    )
-                    return
-
-                # Apply enriched translations & filled fields
-                merged = apply_llm_enrichment(raw_item, enriched)
-                title = merged.get("title_en") or title
-                title_ar = merged.get("title_ar") or title
-                description = merged.get("description_en") or description
-                description_ar = merged.get("description_ar") or description
-                contact_email = merged.get("contact_email") or contact_email
-                location = merged.get("location") or location
-                poster_url = merged.get("poster_url") or poster_url
-                logger.info(
-                    "LLM enriched event '%s' (score=%s)",
-                    title,
-                    enriched.get("quality_score"),
-                )
-            else:
-                title_ar = title
-                description_ar = description
-        except Exception as llm_exc:
-            # LLM failure must never prevent saving
-            logger.debug("LLM validation failed for '%s': %s", title, llm_exc)
-            title_ar = title
-            description_ar = description
-
-        title_en = title
-        description_en = description
-        location_en = location
-        location_ar = location
-        research_domains = domains
-
-        # Step 1: Enrich all missing fields
         item_dict = {
-            "title_en": title_en,
-            "title_ar": title_ar,
-            "description_en": description_en,
-            "description_ar": description_ar,
+            "title_en": title,
+            "title_ar": title,
+            "description_en": description,
+            "description_ar": description,
             "start_date": start_date,
             "end_date": end_date,
-            "submission_deadline": submission_deadline,
-            "location_en": location_en,
-            "location_ar": location_ar,
-            "website": website,
-            "contact_email": contact_email,
+            "submission_deadline": candidate.get("submission_deadline"),
+            "notification_date": candidate.get("notification_date"),
+            "location_en": candidate.get("location", ""),
+            "location_ar": candidate.get("location", ""),
+            "website": candidate.get("website", ""),
+            "registration_link": candidate.get("registration_link") or None,
+            "is_online": "online" in (candidate.get("location", "") or "").lower(),
+            "is_hybrid": "hybrid" in f"{title} {description}".lower(),
+            "source_url": candidate.get("source_url", ""),
+            "source_name": candidate.get("source_name", ""),
+            "language": language,
+            "tags": tags,
+            "contact_email": "scraper-bot@nlp-platform.local",
             "event_type": event_type,
-            "research_domains": research_domains,
-            "poster_url": poster_url,
+            "research_domains": candidate.get("domains", "nlp,ai"),
+            "banner_image_url": candidate.get("banner_image_url")
+            or candidate.get("image_url")
+            or "",
+            "pdf_attachments": candidate.get("pdf_attachments") or [],
         }
 
+        item_dict = self._download_media(item_dict, "events")
+
+        policy_duplicate, _ = self._check_duplicate_policy(
+            "events",
+            {
+                "title_en": item_dict.get("title_en", title),
+                "website_url": item_dict.get("website", candidate.get("website", "")),
+                "organizer": organizer,
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+        )
+        if policy_duplicate:
+            self.items_skipped += 1
+            return
+
         item_dict = enrich_scraped_item(item_dict, "events")
-
-        # Step 2: Calculate completeness score
         completeness = calculate_completeness_score(item_dict, "events")
-
-        # Step 3: Only save if completeness >= 40%
-        if completeness < 40:
+        if completeness < 35:
             self.items_skipped += 1
             return
 
-        is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "events")
-        if not is_valid:
+        valid, item_dict, _ = self.validate_and_prepare(item_dict, "events")
+        if not valid:
             self.items_skipped += 1
-            logger.debug("Skipping event '%s' due to validation: %s", title, reason)
             return
 
-        domains_value = _safe_list_to_str(item_dict.get("research_domains", ""))
-
-        # Step 4: Create the event with all enriched fields
         try:
             event = Event.objects.create(
-                title=item_dict.get("title_en", "")[:300],
-                title_en=item_dict.get("title_en", "")[:300],
-                title_ar=item_dict.get("title_ar", "")[:300],
+                title=item_dict.get("title_en", "")[:255],
+                title_en=item_dict.get("title_en", "")[:255],
+                title_ar=item_dict.get("title_ar", "")[:255],
                 description=item_dict.get("description_en", ""),
                 description_en=item_dict.get("description_en", ""),
                 description_ar=item_dict.get("description_ar", ""),
+                event_type=item_dict.get("event_type", "conference"),
+                domains=item_dict.get("research_domains", "nlp"),
+                location=item_dict.get("location_en", "")[:255],
+                location_en=item_dict.get("location_en", "")[:255],
+                location_ar=item_dict.get("location_ar", "")[:255],
                 start_date=item_dict.get("start_date"),
                 end_date=item_dict.get("end_date") or item_dict.get("start_date"),
                 submission_deadline=item_dict.get("submission_deadline"),
-                location=item_dict.get("location_en", "")[:200],
-                location_en=item_dict.get("location_en", "")[:200],
-                location_ar=item_dict.get("location_ar", "")[:200],
+                notification_date=item_dict.get("notification_date"),
                 website=item_dict.get("website", ""),
-                contact_email=item_dict.get("contact_email", "")
-                or "info@conference.org",
-                event_type=item_dict.get("event_type", "conference"),
-                domains=domains_value,
+                registration_link=item_dict.get("registration_link"),
+                is_online=bool(item_dict.get("is_online", False)),
+                is_hybrid=bool(item_dict.get("is_hybrid", False)),
+                source_url=item_dict.get("source_url") or None,
+                source_name=item_dict.get("source_name") or None,
+                language=item_dict.get("language") or "en",
+                tags=item_dict.get("tags") or None,
                 organizer=organizer,
+                contact_email=item_dict.get("contact_email")
+                or "scraper-bot@nlp-platform.local",
                 approval_status="pending",
                 created_by=self.get_system_user(),
-                is_approved=False,
+                source="scrape",
             )
 
-            # Step 5: Try to download and attach poster PDF
-            poster_url = item_dict.get("poster_url", "")
-            if poster_url:
-                doc_file, filename = try_download_document([poster_url], "events")
-                if doc_file:
-                    try:
-                        attach_file_to_model(event, "attachment", doc_file, filename)
-                    except Exception:
-                        pass
+            banner_path = item_dict.get("image_local_path") or ""
+            if banner_path:
+                try:
+                    attach_file_to_model(
+                        event,
+                        "banner_image",
+                        item_dict.get("image_content_file"),
+                        banner_path,
+                    )
+                except Exception:
+                    pass
 
-            self.items_created += 1
-            self.results.append(
-                {
-                    "title": self.truncate(item_dict.get("title_en", title), 100),
-                    "location": item_dict.get("location_en", location),
-                    "dates": (
-                        f"{item_dict.get('start_date')} → "
-                        f"{item_dict.get('end_date') or item_dict.get('start_date')}"
-                    ),
-                    "url": item_dict.get("website", website),
-                }
-            )
+            attachment_path = item_dict.get("pdf_local_path") or ""
+            if attachment_path:
+                try:
+                    attach_file_to_model(
+                        event,
+                        "attachment",
+                        item_dict.get("pdf_content_file"),
+                        attachment_path,
+                    )
+                except Exception:
+                    pass
         except Exception as exc:
-            self.errors.append(f"Failed to create event '{title_en}': {exc}")
-            logger.error("Failed to create event %s: %s", title_en, exc)
+            self.errors.append(f"Failed to create event '{title}': {exc}")
+            return
 
-    def _resolve_organizer(self, org_key):
-        """Get or create an Institution that acts as the event organiser."""
-        info = CONFERENCE_ORGS.get(org_key)
-        if info:
-            country = self.get_or_create_country(info["name"][:30], info["code"])
-            return self.get_or_create_institution(
-                info["name"],
-                inst_type="Other",
-                country=country,
-                acronym=org_key,
-            )
-        # Generic fallback
-        country = self.get_or_create_country("International", "XX")
-        return self.get_or_create_institution(
-            "NLP Research Community",
-            inst_type="Other",
-            country=country,
-            acronym="NLP",
+        self._store_priority_meta(event, item_dict, candidate)
+
+        self.items_created += 1
+        self.results.append(
+            {
+                "title": item_dict.get("title_en", title),
+                "description": self.truncate(
+                    item_dict.get("description_en", description), 400
+                ),
+                "type": item_dict.get("event_type", "conference"),
+                "url": item_dict.get("website", ""),
+                "location": item_dict.get("location_en", ""),
+                "priority_score": int(
+                    candidate.get("priority_score") or PRIORITY_SCORE["global"]
+                ),
+            }
         )
 
-    def _parse_date_range(self, text):
-        """Parse a date-range string like 'Aug 11, 2026 - Aug 16, 2026'."""
+    def _store_priority_meta(self, event, item_dict, candidate):
+        try:
+            ScrapedItemMeta.objects.update_or_create(
+                category="events",
+                item_title=(item_dict.get("title_en") or "")[:300],
+                defaults={
+                    "item_id": str(event.id),
+                    "primary_domain": "arabic_nlp",
+                    "domain_scores": {"arabic_nlp": 1.0},
+                    "relevance_score": float(
+                        int(candidate.get("priority_score") or PRIORITY_SCORE["global"])
+                    ),
+                    "completeness_score": float(
+                        calculate_completeness_score(item_dict, "events")
+                    ),
+                },
+            )
+        except Exception as exc:
+            logger.debug("priority meta upsert failed event=%s err=%s", event.id, exc)
+
+    def _resolve_organizer(self, candidate):
+        source_name = candidate.get("source_name") or "NLP Research Community"
+        location = candidate.get("location", "")
+
+        country_name = "International"
+        country_code = "XX"
+        if "alger" in location.lower() or "algeria" in location.lower():
+            country_name = "Algeria"
+            country_code = "DZ"
+
+        country = self.get_or_create_country(country_name, country_code)
+        return self.get_or_create_institution(
+            source_name,
+            inst_type="Other",
+            country=country,
+            acronym=self._source_acronym(source_name),
+            website=self._source_base_url(candidate.get("source_url", "")),
+        )
+
+    def _source_acronym(self, source_name):
+        tokens = [t for t in re.split(r"\W+", source_name.upper()) if t]
+        if not tokens:
+            return "NLP"
+        if len(tokens) == 1:
+            return tokens[0][:10]
+        return "".join(token[0] for token in tokens[:6])[:10]
+
+    def _source_name_from_url(self, url):
+        hostname = urlparse(url).netloc.lower().replace("www.", "")
+        root = hostname.split(".")[0]
+        return root.upper() if root else "UNIVERSITY"
+
+    def _source_base_url(self, url):
+        parsed = urlparse(url or "")
+        if not parsed.scheme or not parsed.netloc:
+            return ""
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    def _extract_registration_link(self, node, page_url):
+        for anchor in node.find_all("a", href=True):
+            label = self.clean_text(anchor.get_text(" ", strip=True)).lower()
+            if any(
+                k in label
+                for k in ["register", "registration", "apply", "inscription", "join"]
+            ):
+                return urljoin(page_url, anchor.get("href", ""))
+        return ""
+
+    def _build_description(self, node, fallback_text):
+        paragraphs = [
+            self.clean_text(p.get_text(" ", strip=True))
+            for p in node.find_all("p")
+            if self.clean_text(p.get_text(" ", strip=True))
+        ]
+        if paragraphs:
+            return self.truncate(" ".join(paragraphs), 1200)
+        return self.truncate(fallback_text, 1200)
+
+    def _extract_date(self, text):
         if not text:
-            return None, None
-        parts = re.split(r"\s*[-–—]\s*", text, maxsplit=1)
-        start = self.parse_date(parts[0])
-        end = self.parse_date(parts[1]) if len(parts) > 1 else start
-        return start, end
+            return None
+
+        patterns = [
+            r"\b\d{4}-\d{2}-\d{2}\b",
+            r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
+            r"\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b",
+            r"\b[A-Za-z]{3,9}\s+\d{1,2},\s*\d{4}\b",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                parsed = self.parse_date(match.group(0))
+                if parsed:
+                    return parsed
+        return None
+
+    def _extract_location(self, text):
+        if not text:
+            return ""
+
+        patterns = [
+            r"(?:location|venue|city|lieu)\s*[:\-]\s*([^\n|]+)",
+            r"\b(Algiers|Alger|Oran|Constantine|Annaba|Bejaia|Tizi Ouzou|Algeria)\b",
+            r"\b(Dubai|Riyadh|Jeddah|Abu Dhabi|Doha|Kuwait|Cairo|Rabat|Tunis)\b",
+            r"\b(Africa|Global|Online|Virtual)\b",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                value = match.group(1) if match.lastindex else match.group(0)
+                return self.clean_text(value)[:255]
+        return ""
+
+    def _extract_event_type(self, title, description):
+        blob = f"{title} {description}".lower()
+        if "hackathon" in blob:
+            return "hackathon"
+        if "call for papers" in blob or " cfp" in blob or "cfp " in blob:
+            return "cfp"
+        if "workshop" in blob:
+            return "workshop"
+        if "seminar" in blob or "webinar" in blob:
+            return "seminar"
+        if "conference" in blob:
+            return "conference"
+        return "conference"
+
+    def _normalize_model_event_type(self, event_type):
+        value = (event_type or "conference").strip().lower()
+        if value == "cfp":
+            return "call_for_papers"
+        if value in {"conference", "workshop", "seminar", "hackathon"}:
+            return value
+        return "conference"
+
+    def _is_event_like_text(self, text):
+        blob = (text or "").lower()
+        event_keywords = [
+            "conference",
+            "workshop",
+            "seminar",
+            "webinar",
+            "event",
+            "symposium",
+            "colloquium",
+            "hackathon",
+            "call for papers",
+            "cfp",
+            "agenda",
+            "actualite",
+            "actualites",
+        ]
+        return any(keyword in blob for keyword in event_keywords)
+
+    def _wikicfp_focus_filter(self, text):
+        blob = (text or "").lower()
+        focus_keywords = [
+            "algeria",
+            "alger",
+            "arabic",
+            "mena",
+            "africa",
+            "north africa",
+            "maghreb",
+            "darija",
+        ]
+        return any(keyword in blob for keyword in focus_keywords)
+
+    def _build_tags(self, title, description, event_type, source_name):
+        blob = f"{title} {description} {source_name}".lower()
+        tags = ["nlp", "events", event_type]
+        for token in [
+            "arabic",
+            "africa",
+            "algeria",
+            "workshop",
+            "conference",
+            "cfp",
+            "seminar",
+        ]:
+            if token in blob and token not in tags:
+                tags.append(token)
+        return tags
+
+    def _infer_language(self, text):
+        content = text or ""
+        if re.search(r"[\u0600-\u06FF]", content):
+            return "ar"
+        lowered = content.lower()
+        if any(
+            token in lowered
+            for token in ["francais", "français", "universite", "algérie"]
+        ):
+            return "fr"
+        return "en"
