@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sites",
     "django.contrib.staticfiles",
+    "django_celery_beat",
     # Elasticsearch
     "django_elasticsearch_dsl",
     # Apps projet
