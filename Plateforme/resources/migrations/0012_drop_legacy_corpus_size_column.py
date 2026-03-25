@@ -5,9 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("resources", "0011_alter_corpus_options_remove_document_file_format_and_more"),
-    ]
+    dependencies = [("resources", "0009_corpus_rejection_reason_course_rejection_reason_and_more")]
 
     operations = [
         migrations.RunSQL(

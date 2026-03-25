@@ -5,9 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("resources", "0012_drop_legacy_corpus_size_column"),
-    ]
+    dependencies = [("resources", "0012_drop_legacy_corpus_size_column")]
 
     operations = [
         migrations.RunSQL(
