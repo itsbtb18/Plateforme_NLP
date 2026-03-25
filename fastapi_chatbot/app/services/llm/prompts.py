@@ -310,16 +310,21 @@ CLASSIFICATION_PROMPT = (
     "- bug_query: reporting a bug, error, crash, or technical issue\n"
     "- platform_query: asking about platform resources (find tools, show courses, list articles, search events, institutions)\n"
     "- general_knowledge: greetings, chatbot identity questions, open-ended advice, brainstorming, learning plans, general how-to\n"
-    "- conceptual_question: asking to explain or define AI/NLP/ML concepts, how algorithms work, what is X\n\n"
+    "- conceptual_question: asking to explain or define AI/NLP/ML concepts, how algorithms work, what is X\n"
+    "- memory_translate_last_user_query: user asking to TRANSLATE their last/previous question to another language (e.g. 'translate my last question to english', 'traduis ma dernière question en anglais', 'ترجم آخر سؤال إلى الإنجليزية')\n"
+    "- memory_repeat_last_user_query: user asking to REPEAT/SHOW their last/previous question (e.g. 'what was my last question', 'répète ma dernière question', 'أعد آخر سؤال')\n"
+    "- memory_summarize_last_answer: user asking to SUMMARIZE the last/previous assistant answer (e.g. 'summarize your last answer', 'résume ta dernière réponse', 'لخص آخر إجابة')\n"
+    "- memory_compare_last_two_queries: user asking to COMPARE their last two questions (e.g. 'compare my last two questions', 'compare mes deux dernières questions', 'قارن آخر سؤالين')\n\n"
     "Rules:\n"
     "1. Respond with ONLY the intent name, nothing else.\n"
-    "2. If the query mentions specific laws, articles, decrees, regulations, administrative procedures, or university rules → legal_query. This takes priority over platform keywords like 'researcher' or 'article'.\n"
-    "3. If the query asks for a LIST of people, tools, courses, or articles on the platform → platform_query.\n"
-    "4. If the query is a greeting (hello, hi, salam, bonjour) or asks who/what the chatbot is → general_knowledge.\n"
-    "5. If the query asks about the user's own data (my name, my tools, who am I) → user_query.\n"
-    "6. If the query explicitly references uploaded documents or files → document_query.\n"
-    "7. If the query asks to explain a concept, define a term, or how something works in AI/NLP → conceptual_question.\n"
-    "8. If unsure, choose the most specific matching intent.\n\n"
+    "2. MEMORY INTENTS PRIORITY: If the query asks about previous/last questions or answers (translate, repeat, summarize, compare), classify as the matching memory_* intent. This takes priority over other intents.\n"
+    "3. If the query mentions specific laws, articles, decrees, regulations, administrative procedures, or university rules → legal_query. This takes priority over platform keywords like 'researcher' or 'article'.\n"
+    "4. If the query asks for a LIST of people, tools, courses, or articles on the platform → platform_query.\n"
+    "5. If the query is a greeting (hello, hi, salam, bonjour) or asks who/what the chatbot is → general_knowledge.\n"
+    "6. If the query asks about the user's own data (my name, my tools, who am I) → user_query.\n"
+    "7. If the query explicitly references uploaded documents or files → document_query.\n"
+    "8. If the query asks to explain a concept, define a term, or how something works in AI/NLP → conceptual_question.\n"
+    "9. If unsure, choose the most specific matching intent.\n\n"
     "User query: \"{query}\"\n"
 )
 
@@ -333,6 +338,11 @@ VALID_INTENTS = {
     "platform_query",
     "general_knowledge",
     "conceptual_question",
+    # Memory intents (Phase — Memory Intelligence)
+    "memory_translate_last_user_query",
+    "memory_repeat_last_user_query",
+    "memory_summarize_last_answer",
+    "memory_compare_last_two_queries",
 }
 
 
