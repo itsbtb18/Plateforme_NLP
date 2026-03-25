@@ -739,7 +739,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
             </div>
             
             <div class="pd-post-actions">
-                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}">
+                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}" data-like-url="{% url 'QA:like_post' post.id %}">
                     <i class="bi {% if request.user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                     <span>{% trans "Like" %}</span>
                 </button>
@@ -1029,25 +1029,81 @@ document.addEventListener('DOMContentLoaded', function() {
     // Like Post
     const likePostBtn = document.getElementById('likePostBtn');
     if (likePostBtn) {
-        likePostBtn.addEventListener('click', async function() {
+        likePostBtn.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
             const postId = this.dataset.postId;
+            const likeUrl = this.dataset.likeUrl;
+            const btn = this;
+            
+            console.log('[LIKE] Starting like request for post:', postId);
+            console.log('[LIKE] URL:', likeUrl);
+            
             try {
-                const response = await fetch(`/QA/post/${postId}/like/`, {
+                const csrfToken = getCsrfToken();
+                console.log('[LIKE] CSRF token obtained:', csrfToken ? '✓' : '✗');
+                
+                const response = await fetch(likeUrl, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': getCsrfToken(),
+                        'X-CSRFToken': csrfToken,
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
-                if (response.ok) {
-                    const data = await response.json();
-                    const icon = this.querySelector('i');
-                    this.classList.toggle('liked', data.liked);
-                    icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
-                    document.querySelector('.pd-stats .pd-stat span').textContent = `${data.total_likes} {% trans "likes" %}`;
+                
+                console.log('[LIKE] Response status:', response.status);
+                
+                // Handle specific error status codes
+                if (response.status === 403) {
+                    console.error('[LIKE] Forbidden - CSRF token issue or permission denied');
+                    alert('Permission denied. Please refresh the page.');
+                    return;
+                } else if (response.status === 404) {
+                    console.error('[LIKE] Post not found');
+                    alert('Post not found.');
+                    return;
+                } else if (response.status === 405) {
+                    console.error('[LIKE] Invalid request method');
+                    alert('Invalid request.');
+                    return;
+                } else if (!response.ok) {
+                    console.error('[LIKE] Server error:', response.status);
+                    alert('An error occurred. Please try again.');
+                    return;
                 }
+                
+                const data = await response.json();
+                console.log('[LIKE] Response data:', data);
+                
+                // Verify response data
+                if (data.hasOwnProperty('liked') && data.hasOwnProperty('total_likes')) {
+                    // Update button UI
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        btn.classList.toggle('liked', data.liked);
+                        icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
+                        console.log('[LIKE] Button updated - liked:', data.liked);
+                    } else {
+                        console.warn('[LIKE] Icon element not found');
+                    }
+                    
+                    // Update likes count - more robust selector
+                    const likesSpans = document.querySelectorAll('.pd-stats .pd-stat span');
+                    if (likesSpans.length > 0) {
+                        likesSpans[0].textContent = `${data.total_likes} {% trans "likes" %}`;
+                        console.log('[LIKE] Likes count updated:', data.total_likes);
+                    } else {
+                        console.warn('[LIKE] Likes count element not found');
+                    }
+                } else {
+                    console.error('[LIKE] Invalid response format:', data);
+                    alert('Invalid server response.');
+                }
+                
             } catch (error) {
-                console.error('Error:', error);
+                console.error('[LIKE] Network or parsing error:', error);
+                alert('An error occurred. Please check the console.');
             }
         });
     }
