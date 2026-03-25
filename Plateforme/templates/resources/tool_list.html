@@ -406,9 +406,6 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                        placeholder="{% translate 'Search by title, author, or keyword...' %}"
                        value="{{ request.GET.q|default:'' }}"
                        autocomplete="off">
-                <button type="button" class="search-clear" id="searchClear" title="{% translate 'Clear' %}">
-                    <i class="bi bi-x-lg" style="font-size:0.8rem;"></i>
-                </button>
             </div>
         </div>
         
@@ -457,7 +454,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterTabs = document.querySelectorAll('.filter-tab');
     const resultsArea = document.getElementById('resultsArea');
     const totalCount = document.getElementById('totalCount');
-    const searchClear = document.getElementById('searchClear');
     
     let debounceTimer;
     let currentType = '{{ current_type|escapejs }}';
@@ -474,13 +470,6 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', debounce(function() {
         fetchTools();
     }, 300));
-    
-    // Clear button
-    searchClear.addEventListener('click', function() {
-        searchInput.value = '';
-        searchInput.focus();
-        fetchTools();
-    });
     
     // Filter tab clicks - immediate
     filterTabs.forEach(tab => {

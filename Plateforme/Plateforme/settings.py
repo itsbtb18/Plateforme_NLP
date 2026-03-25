@@ -66,7 +66,6 @@ INSTALLED_APPS = [
     "translate",
     "scraping",
     "settings",
-    "django_celery_beat",
     # Allauth
     "allauth",
     "allauth.account",
