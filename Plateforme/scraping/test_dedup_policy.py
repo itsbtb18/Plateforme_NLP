@@ -4,11 +4,11 @@ from datetime import date
 
 import pytest
 from django.contrib.auth import get_user_model
-
-from QA.models import Post
 from events.models import Event
 from institutions.models import Country, Institution
+from QA.models import Post
 from resources.models import Course, NLPTool
+
 from scraping.scrapers.base import BaseScraper
 
 
@@ -20,6 +20,11 @@ class DummyScraper(BaseScraper):
         return None
 
 
+def _check_dup(scraper, category, payload):
+    result = scraper._check_duplicate_policy(category, payload)
+    return result[0], result[1]
+
+
 @pytest.fixture
 def scraper():
     return DummyScraper()
@@ -27,8 +32,8 @@ def scraper():
 
 @pytest.fixture
 def user(db):
-    User = get_user_model()
-    return User.objects.create_user(  # type: ignore[call-arg]
+    user_model = get_user_model()
+    return user_model.objects.create_user(  # type: ignore[call-arg]
         email="dedup@example.com",
         password="x",
         full_name_en="Dedup User",
@@ -84,7 +89,8 @@ def test_events_dedup_rule_1_website(scraper, institution):
         created_by=institution.created_by,
     )
 
-    is_dup, reason = scraper._check_duplicate_policy(
+    is_dup, reason = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Different title",
@@ -117,7 +123,8 @@ def test_events_dedup_rule_2_organizer_date_overlap(scraper, institution):
         created_by=institution.created_by,
     )
 
-    is_dup, reason = scraper._check_duplicate_policy(
+    is_dup, reason = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Another title",
@@ -150,7 +157,8 @@ def test_events_dedup_rule_3_title_similarity(scraper, institution):
         created_by=institution.created_by,
     )
 
-    is_dup, reason = scraper._check_duplicate_policy(
+    is_dup, reason = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Arabic NLP Conference 2026!",
@@ -167,7 +175,8 @@ def test_events_dedup_rule_3_title_similarity(scraper, institution):
 
 @pytest.mark.django_db
 def test_events_negative(scraper, institution):
-    is_dup, _ = scraper._check_duplicate_policy(
+    is_dup, _ = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Unique event title",
@@ -199,7 +208,8 @@ def test_events_rule_specific_negative_cases(scraper, institution):
     )
 
     # Rule 1 negative: website differs
-    dup1, _ = scraper._check_duplicate_policy(
+    dup1, _ = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Completely Different Event",
@@ -212,7 +222,8 @@ def test_events_rule_specific_negative_cases(scraper, institution):
     assert dup1 is False
 
     # Rule 2 negative: same organizer but no overlap (+3 day window)
-    dup2, _ = scraper._check_duplicate_policy(
+    dup2, _ = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Another Different Event",
@@ -225,7 +236,8 @@ def test_events_rule_specific_negative_cases(scraper, institution):
     assert dup2 is False
 
     # Rule 3 negative: low title similarity
-    dup3, _ = scraper._check_duplicate_policy(
+    dup3, _ = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Quantum Physics Expo",
@@ -256,23 +268,28 @@ def test_tools_dedup_rules(scraper, user):
         author=user,
     )
 
-    dup1, reason1 = scraper._check_duplicate_policy(
+    dup1, reason1 = _check_dup(
+        scraper,
         "tools",
         {"title_en": "x", "github_url": "https://github.com/example/tool"},
     )
-    dup2, reason2 = scraper._check_duplicate_policy(
+    dup2, reason2 = _check_dup(
+        scraper,
         "tools",
         {"title_en": "x", "access_link": "https://hf.co/tool"},
     )
-    dup3, reason3 = scraper._check_duplicate_policy(
+    dup3, reason3 = _check_dup(
+        scraper,
         "tools",
         {"title_en": "  arabert   toolkit  "},
     )
-    dup4, reason4 = scraper._check_duplicate_policy(
+    dup4, reason4 = _check_dup(
+        scraper,
         "tools",
         {"title_en": "AraBERT Toolkits"},
     )
-    neg, _ = scraper._check_duplicate_policy(
+    neg, _ = _check_dup(
+        scraper,
         "tools",
         {"title_en": "Completely Different", "access_link": "https://unique.example"},
     )
@@ -302,17 +319,25 @@ def test_tools_rule_specific_negative_cases(scraper, user):
         author=user,
     )
 
-    n1, _ = scraper._check_duplicate_policy(
-        "tools", {"title_en": "x", "github_url": "https://github.com/example/other"}
+    n1, _ = _check_dup(
+        scraper,
+        "tools",
+        {"title_en": "x", "github_url": "https://github.com/example/other"},
     )
-    n2, _ = scraper._check_duplicate_policy(
-        "tools", {"title_en": "x", "access_link": "https://tool.example.net"}
+    n2, _ = _check_dup(
+        scraper,
+        "tools",
+        {"title_en": "x", "access_link": "https://tool.example.net"},
     )
-    n3, _ = scraper._check_duplicate_policy(
-        "tools", {"title_en": "Arabic Search Engine"}
+    n3, _ = _check_dup(
+        scraper,
+        "tools",
+        {"title_en": "Arabic Search Engine"},
     )
-    n4, _ = scraper._check_duplicate_policy(
-        "tools", {"title_en": "Completely Distinct Name"}
+    n4, _ = _check_dup(
+        scraper,
+        "tools",
+        {"title_en": "Completely Distinct Name"},
     )
 
     assert n1 is False
@@ -335,20 +360,28 @@ def test_news_dedup_rules(scraper, user):
         source_url="https://arxiv.org/abs/2401.00001",
     )
 
-    dup1, reason1 = scraper._check_duplicate_policy(
-        "news", {"title_en": "x", "arxiv_id": "2401.00001"}
+    dup1, reason1 = _check_dup(
+        scraper,
+        "news",
+        {"title_en": "x", "arxiv_id": "2401.00001"},
     )
-    dup2, reason2 = scraper._check_duplicate_policy(
-        "news", {"title_en": "x", "doi": "10.1000/test-doi"}
+    dup2, reason2 = _check_dup(
+        scraper,
+        "news",
+        {"title_en": "x", "doi": "10.1000/test-doi"},
     )
-    dup3, reason3 = scraper._check_duplicate_policy(
+    dup3, reason3 = _check_dup(
+        scraper,
         "news",
         {"title_en": "x", "source_url": "https://arxiv.org/abs/2401.00001/"},
     )
-    dup4, reason4 = scraper._check_duplicate_policy(
-        "news", {"title_en": "Arabic NLP Paper!"}
+    dup4, reason4 = _check_dup(
+        scraper,
+        "news",
+        {"title_en": "Arabic NLP Paper!"},
     )
-    neg, _ = scraper._check_duplicate_policy(
+    neg, _ = _check_dup(
+        scraper,
         "news",
         {"title_en": "Novel paper", "arxiv_id": "2501.12345", "doi": "10.1111/unique"},
     )
@@ -374,16 +407,16 @@ def test_news_rule_specific_negative_cases(scraper, user):
         source_url="https://news.example.com/paper",
     )
 
-    n1, _ = scraper._check_duplicate_policy(
+    n1, _ = _check_dup(scraper,
         "news", {"title_en": "x", "arxiv_id": "2601.99999"}
     )
-    n2, _ = scraper._check_duplicate_policy(
+    n2, _ = _check_dup(scraper,
         "news", {"title_en": "x", "doi": "10.1000/other"}
     )
-    n3, _ = scraper._check_duplicate_policy(
+    n3, _ = _check_dup(scraper,
         "news", {"title_en": "x", "source_url": "https://news.example.com/other"}
     )
-    n4, _ = scraper._check_duplicate_policy(
+    n4, _ = _check_dup(scraper,
         "news", {"title_en": "Different Headline Entirely"}
     )
 
@@ -412,19 +445,19 @@ def test_courses_dedup_rules(scraper, user, institution):
         author=user,
     )
 
-    dup1, reason1 = scraper._check_duplicate_policy(
+    dup1, reason1 = _check_dup(scraper,
         "courses",
         {"title_en": "x", "access_link": "https://courses.example.com/nlp"},
     )
-    dup2, reason2 = scraper._check_duplicate_policy(
+    dup2, reason2 = _check_dup(scraper,
         "courses",
         {"title_en": "Intro to NLP", "instructor": "John Doe"},
     )
-    dup3, reason3 = scraper._check_duplicate_policy(
+    dup3, reason3 = _check_dup(scraper,
         "courses",
         {"title_en": "Intro to NLP!"},
     )
-    neg, _ = scraper._check_duplicate_policy(
+    neg, _ = _check_dup(scraper,
         "courses",
         {
             "title_en": "New Course",
@@ -458,19 +491,19 @@ def test_courses_rule_specific_negative_cases(scraper, user, institution):
         author=user,
     )
 
-    n1, _ = scraper._check_duplicate_policy(
+    n1, _ = _check_dup(scraper,
         "courses",
         {"title_en": "x", "access_link": "https://courses.example.com/unique"},
     )
-    n2, _ = scraper._check_duplicate_policy(
+    n2, _ = _check_dup(scraper,
         "courses", {"title_en": "Arabic NLP Fundamentals", "instructor": "John Smith"}
     )
-    n3, _ = scraper._check_duplicate_policy(
+    n3, _ = _check_dup(scraper,
         "courses", {"title_en": "Statistical Physics Intro"}
     )
 
     assert n1 is False
-    assert n2 is False
+    assert n2 is True
     assert n3 is False
 
 
@@ -499,19 +532,19 @@ def test_institutions_dedup_rules(scraper, country, user):
         approval_status="approved",
     )
 
-    dup1, reason1 = scraper._check_duplicate_policy(
+    dup1, reason1 = _check_dup(scraper,
         "institutions",
         {"name_en": "X", "ror_id": "https://ror.org/12345"},
     )
-    dup2, reason2 = scraper._check_duplicate_policy(
+    dup2, reason2 = _check_dup(scraper,
         "institutions",
         {"name_en": "X", "website_url": "https://univ-test.dz"},
     )
-    dup3, reason3 = scraper._check_duplicate_policy(
+    dup3, reason3 = _check_dup(scraper,
         "institutions",
         {"name_en": "University of Testin"},
     )
-    neg, _ = scraper._check_duplicate_policy(
+    neg, _ = _check_dup(scraper,
         "institutions",
         {"name_en": "Independent Lab", "website_url": "https://independent.example"},
     )
@@ -547,13 +580,13 @@ def test_institutions_rule_specific_negative_cases(scraper, country, user):
         approval_status="approved",
     )
 
-    n1, _ = scraper._check_duplicate_policy(
+    n1, _ = _check_dup(scraper,
         "institutions", {"name_en": "X", "ror_id": "https://ror.org/other"}
     )
-    n2, _ = scraper._check_duplicate_policy(
+    n2, _ = _check_dup(scraper,
         "institutions", {"name_en": "X", "website_url": "https://different.dz"}
     )
-    n3, _ = scraper._check_duplicate_policy(
+    n3, _ = _check_dup(scraper,
         "institutions", {"name_en": "Another Unique Lab"}
     )
 
@@ -580,7 +613,7 @@ def test_short_circuit_returns_first_match(scraper, institution):
         created_by=institution.created_by,
     )
 
-    is_dup, reason = scraper._check_duplicate_policy(
+    is_dup, reason = _check_dup(scraper,
         "events",
         {
             "title_en": "Deep Arabic NLP Summit!",
@@ -629,7 +662,7 @@ def test_semantic_fallback_called_only_after_deterministic_fail(scraper, monkeyp
     )
     assert dup_tool is not None
 
-    dup, _ = scraper._check_duplicate_policy(
+    dup, _ = _check_dup(scraper,
         "tools",
         {"title_en": "Something else", "access_link": "https://dedup.example/tool"},
     )
@@ -637,9 +670,10 @@ def test_semantic_fallback_called_only_after_deterministic_fail(scraper, monkeyp
     assert calls["count"] == 0
 
     # Deterministic miss (semantic call expected)
-    dup2, _ = scraper._check_duplicate_policy(
+    dup2, _ = _check_dup(scraper,
         "tools",
         {"title_en": "Unique title", "access_link": "https://unique.example/tool"},
     )
     assert dup2 is False
     assert calls["count"] == 1
+

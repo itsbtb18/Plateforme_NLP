@@ -5,16 +5,16 @@ import re
 from collections import Counter
 from datetime import date
 from typing import Any
-from urllib.parse import quote
-from urllib.parse import urljoin
-from urllib.parse import urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import requests
 from django.utils import timezone
 
+from scraping.enrichment.category_enrichers import CategoryEnrichmentMixin
+from scraping.enrichment.external_apis import ExternalAPIsMixin
+from scraping.enrichment.field_fillers import FieldFillerMixin
 from scraping.field_mapping import FIELD_MAPPINGS
-from scraping.intelligence import DOMAIN_ONTOLOGY
-from scraping.intelligence import classify_domain
+from scraping.intelligence import DOMAIN_ONTOLOGY, classify_domain
 from scraping.llm_validation import GroqLLMClient
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ _LEVEL_KEYWORDS = {
 }
 
 
-class EnrichmentEngine:
+class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMixin):
     """Automatic, category-aware enrichment for scraped items."""
 
     def __init__(self):
@@ -1166,9 +1166,7 @@ class EnrichmentEngine:
                 item.get("relevance_score") or item.get("nlp_relevance_score") or 0.0
             )
 
-            if expected_steps <= 0:
-                enrichment_status = "not_enriched"
-            elif successful_steps <= 0:
+            if expected_steps <= 0 or successful_steps <= 0:
                 enrichment_status = "not_enriched"
             elif successful_steps < expected_steps:
                 enrichment_status = "partial"
@@ -1288,9 +1286,7 @@ class EnrichmentEngine:
             if not text:
                 return False
             min_length = (config or {}).get("min_length")
-            if min_length is not None and len(text) < int(min_length):
-                return False
-            return True
+            return not (min_length is not None and len(text) < int(min_length))
 
         if isinstance(value, (list, tuple, set)):
             return len(value) > 0

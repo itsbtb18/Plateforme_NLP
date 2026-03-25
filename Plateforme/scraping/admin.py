@@ -1,12 +1,15 @@
 import csv
+import logging
 
-from django.contrib import admin
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from .models import ScrapingSource, ScrapingRun, ScrapingSourceHealth, ScrapedItemMeta
+
+from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(ScrapingSource)
@@ -358,14 +361,17 @@ class ScrapingSourceHealthAdmin(admin.ModelAdmin):
 class ScrapedItemMetaAdmin(admin.ModelAdmin):
     list_display = (
         "item_title_short",
+        "source_name",
         "category_badge",
         "primary_domain",
         "score_badge",
+        "match_score",
+        "enrichment_status",
         "completeness_badge",
         "created_at",
     )
-    list_filter = ("category", "primary_domain")
-    search_fields = ("item_title",)
+    list_filter = ("category", "primary_domain", "source_name", "enrichment_status", "was_skipped")
+    search_fields = ("item_title", "source_name", "source_url")
     readonly_fields = (
         "id",
         "category",
@@ -490,7 +496,15 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
                         ]
                     )
                     updated += 1
-            except Exception:
+            except (AttributeError, KeyError, ValueError, TypeError) as exc:
+                logger.warning(
+                    "admin_reenrich_item_skipped_due_to_error",
+                    extra={
+                        "error": str(exc),
+                        "context": str(meta.pk),
+                    },
+                    exc_info=False,
+                )
                 continue
 
         self.message_user(
@@ -502,9 +516,9 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
     @admin.action(description="Re-download media")
     def redownload_media_selected(self, request, queryset):
         from scraping.file_downloader import (
+            attach_file_to_model,
             try_download_document,
             try_download_image,
-            attach_file_to_model,
         )
 
         redownloaded = 0

@@ -4,27 +4,81 @@ Views for the Web Scraping module.
 Supports both synchronous (fallback) and asynchronous (Celery) execution.
 """
 
-import logging
+import functools
 import json
+import logging
 import os
-import uuid
 import threading
+import uuid
 from collections import defaultdict
-from django.http import JsonResponse
-from django.http import HttpResponse
-from django.views.decorators.http import require_POST, require_GET
+
+from celery.result import AsyncResult
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.cache import cache
+from django.db.models import Count, Max, Sum
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
-from django.core.cache import cache
-from django.db.models import Max, Sum
-from django.urls import reverse
+from django.views.decorators.http import require_GET, require_POST
+from events.models import Event
+from institutions.models import Institution
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from QA.models import Post
+from resources.models import Course, NLPTool
 
-from .models import ScrapingRun, ScrapedItemMeta, ScrapingSourceHealth, ScrapingSource
-from .scrapers import get_scraper, get_all_categories, CATEGORY_META
-from .metrics import update_source_health_metrics, update_scrape_queue_lag_metrics
+from scraping.intelligence import detect_trends
+from scraping.scrapers.custom_scraper import CustomDomainScraper
+
+from .metrics import update_scrape_queue_lag_metrics, update_source_health_metrics
+from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
+from .scrapers import CATEGORY_META, get_all_categories, get_scraper
+from .tasks import run_scraper_task
+
+
+def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
+    """Create a per-user/per-path rate-limit decorator for JSON views.
+
+    Args:
+        max_calls: Maximum number of requests allowed in the period.
+        period_seconds: Rolling window size in seconds.
+        scope: Prefix namespace used when building the rate-limit cache key.
+
+    Returns:
+        callable: Decorator that enforces limits and returns HTTP 429 on excess.
+    """
+
+    def decorator(view_func):
+        """Wrap a view with token-bucket style request limiting."""
+
+        @functools.wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            """Execute view when within quota, otherwise return a 429 response."""
+            if request.user.is_authenticated and request.user.id is not None:
+                rate_key = f"{scope}:{request.user.id}:{request.path}"
+            else:
+                rate_key = f"{scope}:anon:{_client_ip(request)}"
+
+            if not _enforce_rate_limit(rate_key, max_calls, period_seconds):
+                return JsonResponse(
+                    {
+                        "error": "rate_limit_exceeded",
+                        "message": (
+                            f"Max {max_calls} requests per {period_seconds}s exceeded."
+                        ),
+                        "retry_after": period_seconds,
+                    },
+                    status=429,
+                    headers={"Retry-After": str(period_seconds)},
+                )
+
+            return view_func(request, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,25 +107,57 @@ def _log_scraping_action(request):
 
 
 def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
-    current = cache.get(key)
-    if current is None:
-        cache.set(key, 1, timeout=window_seconds)
-        return False
+    """
+    Thread-safe and multi-process-safe rate limiter.
+    Uses atomic Redis INCR with TTL to count requests
+    across all workers within a sliding window.
+    Returns True if request is allowed, False if limit exceeded.
+    """
+    import logging
+
+    from django.core.cache import cache
+
+    logger = logging.getLogger(__name__)
+
+    cache_key = f"rate_limit:{key}"
 
     try:
-        current_int = int(current)
-    except (TypeError, ValueError):
-        cache.set(key, 1, timeout=window_seconds)
-        return False
+        # Try to increment - atomic operation
+        current = cache.get(cache_key)
 
-    if current_int >= limit:
+        if current is None:
+            # First request in this window
+            cache.set(cache_key, 1, timeout=window_seconds)
+            return True
+
+        if int(current) >= limit:
+            logger.info(
+                "rate_limit_exceeded",
+                extra={
+                    "key": key,
+                    "current": current,
+                    "limit": limit,
+                    "window_seconds": window_seconds,
+                },
+            )
+            return False
+
+        # Increment without resetting TTL
+        try:
+            cache.incr(cache_key)
+        except ValueError:
+            # Key expired between get and incr - reset
+            cache.set(cache_key, 1, timeout=window_seconds)
+
         return True
 
-    try:
-        cache.incr(key)
-    except Exception:
-        cache.set(key, current_int + 1, timeout=window_seconds)
-    return False
+    except Exception as exc:
+        # Fail open - if cache is unavailable, allow request
+        logger.warning(
+            "rate_limit_cache_error",
+            extra={"error": str(exc), "key": key},
+        )
+        return True
 
 
 def _require_staff(request):
@@ -143,52 +229,37 @@ def _infer_source_tier(
 
 def _model_for_category(category: str):
     if category == "events":
-        from events.models import Event
-
         return Event
     if category == "news":
-        from QA.models import Post
-
         return Post
     if category == "courses":
-        from resources.models import Course
-
         return Course
     if category == "tools":
-        from resources.models import NLPTool
-
         return NLPTool
     if category == "institutions":
-        from institutions.models import Institution
-
         return Institution
     return None
 
 
 def _resolve_source_name_from_meta(meta: ScrapedItemMeta) -> str:
-    if not meta.item_id:
-        return "unknown"
-
-    model_cls = _model_for_category(meta.category)
-    if model_cls is None:
-        return "unknown"
-
-    try:
-        matched = model_cls.objects.filter(pk=meta.item_id).only("source_name").first()
-        if matched is None:
-            return "unknown"
-        return (getattr(matched, "source_name", "") or "unknown").strip() or "unknown"
-    except Exception:
-        return "unknown"
+    if meta.source_name:
+        return meta.source_name
+    return meta.item_title[:50] if meta.item_title else "Unknown"
 
 
-def _match_confidence_for_reason(reason: str) -> float:
-    reason = (reason or "").strip().lower()
-    if reason in {"dedup_similarity", "dedup_embedding"}:
-        return 0.88
-    if reason in {"dedup_name", "dedup_url", "dedup_doi", "dedup_arxiv", "dedup_ror"}:
-        return 1.0
-    return 0.75
+def _match_confidence_for_reason(meta: ScrapedItemMeta) -> float:
+    if meta.match_score is not None:
+        return round(meta.match_score * 100, 1)
+    fallback_map = {
+        "dedup_url": 100.0,
+        "dedup_doi": 100.0,
+        "dedup_arxiv": 100.0,
+        "dedup_ror": 100.0,
+        "dedup_name": 100.0,
+        "dedup_similarity": 85.0,
+        "dedup_embedding": 70.0,
+    }
+    return fallback_map.get(meta.skip_reason, 75.0)
 
 
 def _build_skip_reason_payload(category: str | None = None):
@@ -347,9 +418,9 @@ def _build_duplicate_preview(category: str, run_id: str | None = None):
                 "matched_item_id": meta.item_id,
                 "matched_item_label": matched_label,
                 "matched_admin_url": matched_admin_url,
-                "match_confidence": _match_confidence_for_reason(
-                    meta.skip_reason or ""
-                ),
+                "match_confidence": _match_confidence_for_reason(meta),
+                "source_name": meta.source_name or "Unknown",
+                "source_url": meta.source_url or "",
                 "created_at": meta.created_at.isoformat(),
             }
         )
@@ -360,7 +431,14 @@ def _build_duplicate_preview(category: str, run_id: str | None = None):
 @login_required
 @user_passes_test(is_admin)
 def dashboard(request):
-    """Main scraping dashboard — staff only."""
+    """Render the staff scraping dashboard.
+
+    Args:
+        request: Django HttpRequest object.
+
+    Returns:
+        HttpResponse: Rendered dashboard template response.
+    """
     _log_scraping_action(request)
     categories = []
     for key, meta in get_all_categories():
@@ -381,18 +459,12 @@ def dashboard(request):
 
     # Aggregate stats
     total_runs = ScrapingRun.objects.count()
-    from django.db.models import Sum
 
     total_created = (
         ScrapingRun.objects.aggregate(total=Sum("items_created"))["total"] or 0
     )
 
     # Per-category item counts from actual models
-    from events.models import Event
-    from resources.models import NLPTool, Course
-    from institutions.models import Institution
-    from QA.models import Post
-
     model_counts = {
         "events": Event.objects.count(),
         "tools": NLPTool.objects.count(),
@@ -436,7 +508,15 @@ def dashboard(request):
                     full_path = file_obj.path
                     if os.path.exists(full_path):
                         storage_bytes += os.path.getsize(full_path)
-                except Exception:
+                except (AttributeError, OSError, ValueError) as exc:
+                    logger.warning(
+                        "dashboard_media_stat_skipped_due_to_error",
+                        extra={
+                            "error": str(exc),
+                            "context": f"item_id={getattr(obj, 'pk', None)}",
+                        },
+                        exc_info=False,
+                    )
                     continue
 
         return {
@@ -469,7 +549,7 @@ def dashboard(request):
     source_health_rows = _build_source_health_rows()
     recent_runs_rows = {
         category_key: _build_recent_runs_rows(category_key, limit=10)
-        for category_key in CATEGORY_META.keys()
+        for category_key in CATEGORY_META
     }
 
     return render(
@@ -498,9 +578,17 @@ def dashboard(request):
 @require_POST
 @csrf_protect
 def run_scraper(request, category):
-    """AJAX endpoint: dispatch a scraper as a Celery background task.
+    """Dispatch a scraper run asynchronously, with sync fallback.
 
-    Falls back to synchronous execution if Celery is unavailable.
+    Args:
+        request: Django HttpRequest object.
+        category: Scraper category key.
+
+    Returns:
+        JsonResponse: Task start payload, fallback execution payload, or error.
+
+    Raises:
+        Exception: Internal task dispatch errors are handled and returned as JSON.
     """
     _log_scraping_action(request)
     staff_error = _require_staff(request)
@@ -508,7 +596,7 @@ def run_scraper(request, category):
         return staff_error
 
     rate_key = f"scraping:run-trigger:user:{request.user.pk}"
-    if _enforce_rate_limit(rate_key, limit=5, window_seconds=3600):
+    if not _enforce_rate_limit(rate_key, limit=5, window_seconds=3600):
         return JsonResponse(
             {
                 "status": "error",
@@ -531,8 +619,6 @@ def run_scraper(request, category):
 
     # --- Try async (Celery) execution first ---
     try:
-        from .tasks import run_scraper_task
-
         async_result = run_scraper_task.delay(
             category,
             run_id=str(run.pk),
@@ -603,8 +689,17 @@ def run_scraper(request, category):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=60, period_seconds=60, scope="polling")
 def run_scraper_status(request, run_id):
-    """AJAX endpoint: poll the status of an asynchronous scraping run."""
+    """Poll the current status and results of a scraping run.
+
+    Args:
+        request: Django HttpRequest object.
+        run_id: UUID string for the target ScrapingRun.
+
+    Returns:
+        JsonResponse: Current run state with counters and optional results.
+    """
     _log_scraping_action(request)
     staff_error = _require_staff(request)
     if staff_error:
@@ -630,14 +725,16 @@ def run_scraper_status(request, run_id):
         results = []
         if run.task_id:
             try:
-                from celery.result import AsyncResult
-
                 result = AsyncResult(run.task_id)
                 if result.successful():
                     task_data = result.result or {}
                     results = task_data.get("results", [])
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "run_status_result_fetch_failed",
+                    extra={"error": str(exc), "context": str(run_id)},
+                    exc_info=False,
+                )
         data.update({"errors": errors, "results": results})
     elif run.status == "failed":
         data["errors"] = run.errors.split("\n") if run.errors else []
@@ -653,14 +750,12 @@ task_status = run_scraper_status
 @login_required
 @require_POST
 @csrf_protect
+@rate_limit(max_calls=5, period_seconds=60, scope="action")
 def run_custom_source(request, source_id):
     """AJAX endpoint: run the custom domain scraper for a single source."""
     _log_scraping_action(request)
     if not request.user.is_staff:
         return JsonResponse({"error": "Forbidden"}, status=403)
-
-    from scraping.models import ScrapingSource
-    from scraping.scrapers.custom_scraper import CustomDomainScraper
 
     try:
         source = ScrapingSource.objects.get(id=source_id, is_active=True)
@@ -718,15 +813,21 @@ def run_custom_source(request, source_id):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def trends(request):
-    """AJAX endpoint: return trend analysis for the last N months."""
+    """Return trend analytics over a requested month window.
+
+    Args:
+        request: Django HttpRequest object.
+
+    Returns:
+        JsonResponse: Trend metrics payload or error details.
+    """
     _log_scraping_action(request)
     months = int(request.GET.get("months", 6))
     months = max(1, min(months, 24))  # clamp to 1-24
 
     try:
-        from scraping.intelligence import detect_trends
-
         data = detect_trends(months=months)
         return JsonResponse({"status": "ok", **data})
     except Exception as exc:
@@ -740,19 +841,22 @@ def trends(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def analytics(request):
-    """Structured scraping analytics by category + media + enrichment."""
-    _log_scraping_action(request)
+    """Return aggregated scraping analytics for dashboard charts.
 
-    from events.models import Event
-    from resources.models import NLPTool, Course
-    from institutions.models import Institution
-    from QA.models import Post
+    Args:
+        request: Django HttpRequest object.
+
+    Returns:
+        JsonResponse: Structured analytics grouped by category and media stats.
+    """
+    _log_scraping_action(request)
 
     by_category = {}
     skip_values = [choice[0] for choice in ScrapedItemMeta.SKIP_REASON_CHOICES]
 
-    for category in CATEGORY_META.keys():
+    for category in CATEGORY_META:
         runs = ScrapingRun.objects.filter(category=category)
         completed = runs.filter(status="completed")
         total_runs = runs.count()
@@ -795,11 +899,23 @@ def analytics(request):
             "last_run_at"
         ]
 
+        by_source = (
+            ScrapedItemMeta.objects.filter(category=category, was_skipped=True)
+            .values("source_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        skip_by_source = [
+            {"source": item["source_name"] or "Unknown", "count": item["count"]}
+            for item in by_source
+        ]
+
         by_category[category] = {
             "total_runs": total_runs,
             "total_saved": total_saved,
             "total_skipped": total_skipped,
             "skip_breakdown": skip_breakdown,
+            "skip_by_source": skip_by_source,
             "avg_run_duration_seconds": avg_duration,
             "last_run_at": last_completed.isoformat() if last_completed else None,
             "source_health": source_health,
@@ -825,7 +941,15 @@ def analytics(request):
                     path = getattr(file_obj, "path", "")
                     if path and os.path.exists(path):
                         bytes_total += os.path.getsize(path)
-                except Exception:
+                except (AttributeError, OSError, ValueError) as exc:
+                    logger.warning(
+                        "analytics_media_count_skipped_due_to_error",
+                        extra={
+                            "error": str(exc),
+                            "context": getattr(obj, "source_name", "unknown"),
+                        },
+                        exc_info=False,
+                    )
                     continue
         return images, pdfs, bytes_total
 
@@ -872,6 +996,7 @@ def analytics(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def skip_reason_analytics(request):
     """Chart-friendly skip reason breakdown by category and by source."""
     _log_scraping_action(request)
@@ -883,6 +1008,7 @@ def skip_reason_analytics(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def source_health_summary(request):
     """Configured source health cards with tier, breaker state, and run throughput."""
     _log_scraping_action(request)
@@ -897,6 +1023,7 @@ def source_health_summary(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def recent_runs(request):
     """Last 10 runs per category with status/duration and rerun URL."""
     _log_scraping_action(request)
@@ -913,18 +1040,14 @@ def recent_runs(request):
         )
 
     return JsonResponse(
-        {
-            "runs": {
-                key: _build_recent_runs_rows(key, limit=10)
-                for key in CATEGORY_META.keys()
-            }
-        }
+        {"runs": {key: _build_recent_runs_rows(key, limit=10) for key in CATEGORY_META}}
     )
 
 
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def duplicates_preview(request):
     """List duplicate skips with matched admin item links and confidence."""
     _log_scraping_action(request)
@@ -959,8 +1082,6 @@ def rerun_scraping_run(request, run_id):
         triggered_by=request.user,
     )
     try:
-        from .tasks import run_scraper_task
-
         task = run_scraper_task.delay(
             original.category,
             run_id=str(run.pk),
@@ -1025,8 +1146,6 @@ def _map_item_for_duplicate_check(category: str, item: dict) -> dict:
 
 def _run_source_test_job(job_id: str, source_id: str):
     try:
-        from scraping.scrapers.custom_scraper import CustomDomainScraper
-
         source = ScrapingSource.objects.get(pk=source_id, is_active=True)
         scraper = CustomDomainScraper(source)
 
@@ -1140,6 +1259,7 @@ def test_source(request, source_id):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=60, period_seconds=60, scope="polling")
 def test_source_status(request, job_id):
     """Poll one-source dry-run test status and preview counters."""
     _log_scraping_action(request)
@@ -1176,9 +1296,6 @@ def add_custom_source(request):
         if not url.startswith(("http://", "https://")):
             return JsonResponse({"error": "Invalid URL format"}, status=400)
 
-        from scraping.models import ScrapingSource
-        from scraping.scrapers.custom_scraper import CustomDomainScraper
-
         scrape_config = {}
         if not category:
             category = CustomDomainScraper.detect_category_from_signals(url, "")
@@ -1213,7 +1330,6 @@ def delete_custom_source(request, source_id):
     _log_scraping_action(request)
     if not request.user.is_staff:
         return JsonResponse({"error": "Forbidden"}, status=403)
-    from scraping.models import ScrapingSource
 
     try:
         source = ScrapingSource.objects.get(id=source_id)
@@ -1225,12 +1341,12 @@ def delete_custom_source(request, source_id):
 
 
 @login_required
+@rate_limit(max_calls=5, period_seconds=60, scope="action")
 def list_custom_sources(request):
     """AJAX endpoint: list all active custom scraping sources (staff only)."""
     _log_scraping_action(request)
     if not request.user.is_staff:
         return JsonResponse({"error": "Forbidden"}, status=403)
-    from scraping.models import ScrapingSource
 
     sources = ScrapingSource.objects.filter(is_active=True).order_by("-created_at")
     data = [
@@ -1250,7 +1366,14 @@ def list_custom_sources(request):
 
 @require_GET
 def metrics_view(request):
-    """Prometheus metrics endpoint for scraping observability."""
+    """Expose Prometheus metrics with token/staff protection and rate limits.
+
+    Args:
+        request: Django HttpRequest object.
+
+    Returns:
+        HttpResponse | JsonResponse: Prometheus text response or error payload.
+    """
     _log_scraping_action(request)
 
     metrics_token = os.environ.get("METRICS_TOKEN", "").strip()
@@ -1269,7 +1392,7 @@ def metrics_view(request):
 
     ip = _client_ip(request)
     metrics_key = f"scraping:metrics:ip:{ip}"
-    if _enforce_rate_limit(metrics_key, limit=10, window_seconds=60):
+    if not _enforce_rate_limit(metrics_key, limit=10, window_seconds=60):
         return JsonResponse(
             {"error": "Rate limit exceeded: max 10 requests/minute."},
             status=429,

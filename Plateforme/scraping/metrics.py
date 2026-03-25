@@ -4,10 +4,7 @@ import time
 
 from django.db.models import Max
 from django.utils import timezone
-from prometheus_client import Counter
-from prometheus_client import Gauge
-from prometheus_client import Histogram
-
+from prometheus_client import Counter, Gauge, Histogram
 
 scrape_runs_total = Counter(
     "scrape_runs_total",
@@ -187,7 +184,7 @@ def update_scrape_queue_lag_metrics(
     )
     by_category = {row["category"]: row["last_started"] for row in rows}
 
-    for category in CATEGORY_META.keys():
+    for category in CATEGORY_META:
         started = by_category.get(category)
         lag = (now - started).total_seconds() if started else 0.0
         scrape_queue_lag_seconds.labels(category=category).set(max(0.0, float(lag)))

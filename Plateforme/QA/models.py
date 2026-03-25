@@ -82,7 +82,7 @@ class Post(models.Model):
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     arxiv_id = models.CharField(max_length=50, blank=True, default="", db_index=True)
     doi = models.CharField(max_length=255, blank=True, default="", db_index=True)
-    source_url = models.URLField(blank=True, default="")
+    source_url = models.URLField(blank=True, default="", db_index=True)
     source_name = models.CharField(max_length=120, blank=True, default="")
     relevance_score = models.FloatField(null=True, blank=True)
     thumbnail = models.ImageField(

@@ -9,12 +9,14 @@ platform's ``NLPTool`` model.
 import logging
 import re
 from datetime import datetime
-from .base import BaseScraper
+
 from scraping.enrichment_engine import enrich_scraped_item
+from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import (
     attach_file_to_model,
 )
-from scraping.field_mapping import calculate_completeness_score
+
+from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,27 @@ class ToolScraper(BaseScraper):
     DATASET_API_BASE = "https://huggingface.co/api/datasets"
 
     def run(self) -> dict:
+        """Run the tools scraper with checkpoint-aware source resume support.
+
+        Returns:
+            dict: Standard scraper summary payload.
+
+        Raises:
+            Exception: Re-raises failures after checkpoint state has been logged.
+        """
+        from scraping.checkpoint import ScraperCheckpoint
+
+        run_id = getattr(self, "_current_run_id", "unknown")
+        cp = ScraperCheckpoint("tools", run_id)
+
+        if cp.is_resuming():
+            logger.info(
+                "scraper_resuming_from_checkpoint",
+                extra=cp.get_summary(),
+            )
+
+        self._checkpoint = cp
+
         logger.info(
             "scraper_run_config",
             extra={
@@ -117,7 +140,20 @@ class ToolScraper(BaseScraper):
                 "media_download_enabled": self._is_download_enabled(),
             },
         )
-        return super().run()
+        try:
+            result = super().run()
+            cp.clear()
+            return result
+        except Exception as exc:
+            logger.error(
+                "scraper_interrupted_checkpoint_saved",
+                extra={
+                    "run_id": run_id,
+                    "error": str(exc),
+                    "summary": cp.get_summary(),
+                },
+            )
+            raise
 
     TIER_1_GITHUB_ORGS = [
         "ESI-Algiers",
@@ -484,6 +520,7 @@ class ToolScraper(BaseScraper):
     ]
 
     def scrape(self):
+        """Execute all tool ingestion tiers from local sources to global sources."""
         self._seen_hf_model_ids = set()
         self._seen_hf_dataset_ids = set()
 
@@ -497,53 +534,129 @@ class ToolScraper(BaseScraper):
         self._scrape_tier_3_tools()
 
     def _scrape_tier_1_tools(self):
-        self._import_tools_from_rss_sources(self.TIER_1_RSS_SOURCES)
-        self._import_algerian_github_orgs()
-        self._import_tier_1_github_searches()
-        self._import_tier_1_hf_datasets()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier1_rss",
+                lambda: self._import_tools_from_rss_sources(self.TIER_1_RSS_SOURCES),
+            ),
+            (
+                "hf_models",
+                lambda: self._import_hf_models_for_queries(
+                    self.HF_ALGERIAN_FIRST_QUERIES,
+                    source_name="HuggingFace Algerian-first Models",
+                ),
+            ),
+            ("github_orgs", self._import_algerian_github_orgs),
+            ("github_searches", self._import_tier_1_github_searches),
+            ("hf_datasets", self._import_tier_1_hf_datasets),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_tier_2_tools(self):
-        self._import_tools_from_rss_sources(self.TIER_2_RSS_SOURCES)
-        self._import_hf_models_for_queries(
-            self.TIER_2_HF_ARABIC_QUERIES,
-            source_name="HuggingFace Arabic Ecosystem",
-        )
-        self._import_known_github_tools()
-        self._import_madamira_tool()
-        self._import_curated_llm_tools()
-        self._import_curated_datasets()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier2_rss",
+                lambda: self._import_tools_from_rss_sources(self.TIER_2_RSS_SOURCES),
+            ),
+            (
+                "hf_arabic_ecosystem",
+                lambda: self._import_hf_models_for_queries(
+                    self.TIER_2_HF_ARABIC_QUERIES,
+                    source_name="HuggingFace Arabic Ecosystem",
+                ),
+            ),
+            ("known_github", self._import_known_github_tools),
+            ("madamira", self._import_madamira_tool),
+            ("paperswithcode", self._import_paperswithcode_methods),
+            ("masakhane", self._import_masakhane_tools),
+            ("curated_llm_tools", self._import_curated_llm_tools),
+            ("curated_datasets", self._import_curated_datasets),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_tier_3_tools(self):
-        self._import_tools_from_rss_sources(self.TIER_3_RSS_SOURCES)
-        try:
-            from scraping.intelligence import generate_queries
+        cp = getattr(self, "_checkpoint", None)
 
-            dynamic_queries = generate_queries("tools")
-            dynamic_hf_queries = [
-                q.get("query", "") for q in dynamic_queries if q.get("query")
-            ][:10]
-            if not dynamic_hf_queries:
+        def _import_global_hf_models():
+            try:
+                from scraping.intelligence import generate_queries
+
+                dynamic_queries = generate_queries("tools")
+                dynamic_hf_queries = [
+                    q.get("query", "") for q in dynamic_queries if q.get("query")
+                ][:10]
+                if not dynamic_hf_queries:
+                    dynamic_hf_queries = ["arabic nlp", "camelbert", "arabert"]
+            except Exception:
                 dynamic_hf_queries = ["arabic nlp", "camelbert", "arabert"]
-        except Exception:
-            dynamic_hf_queries = ["arabic nlp", "camelbert", "arabert"]
 
-        ordered_query_terms = []
-        for bucket in [self.HF_GLOBAL_NLP_QUERIES, dynamic_hf_queries]:
-            for term in bucket:
-                if term and term not in ordered_query_terms:
-                    ordered_query_terms.append(term)
+            ordered_query_terms = []
+            for bucket in [self.HF_GLOBAL_NLP_QUERIES, dynamic_hf_queries]:
+                for term in bucket:
+                    if term and term not in ordered_query_terms:
+                        ordered_query_terms.append(term)
 
-        self._import_hf_models_for_queries(
-            ordered_query_terms,
-            source_name="HuggingFace Global Models",
-        )
+            self._import_hf_models_for_queries(
+                ordered_query_terms,
+                source_name="HuggingFace Global Models",
+            )
 
-        # Add GitHub repositories for broader Arabic NLP tools.
-        self._import_github_tools()
-
-        # Global sources requested.
-        self._import_paperswithcode_methods()
-        self._import_masakhane_tools()
+        methods = [
+            (
+                "tier3_rss",
+                lambda: self._import_tools_from_rss_sources(self.TIER_3_RSS_SOURCES),
+            ),
+            ("global_hf_models", _import_global_hf_models),
+            ("global_github", self._import_github_tools),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _import_tools_from_rss_sources(self, sources):
         rss = self.get_rss_scraper()
@@ -947,9 +1060,9 @@ class ToolScraper(BaseScraper):
         try:
             soup = None
             try:
-                from bs4 import BeautifulSoup as _BS
+                from bs4 import BeautifulSoup
 
-                soup = _BS(resp.text, "html.parser")
+                soup = BeautifulSoup(resp.text, "html.parser")
             except Exception:
                 soup = None
 

@@ -118,7 +118,7 @@ class Institution(models.Model):
         _("Logo"), upload_to="institutions/logos/", blank=True, null=True
     )
 
-    website = models.URLField(_("Website"), blank=True)
+    website = models.URLField(_("Website"), blank=True, db_index=True)
     email = models.EmailField(_("Email"), blank=True)
     phone = models.CharField(_("Phone"), max_length=50, blank=True)
     address = models.TextField(_("Address"), blank=True)

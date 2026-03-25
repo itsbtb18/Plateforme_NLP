@@ -13,8 +13,8 @@ from django.urls import reverse
 
 @pytest.fixture
 def staff_user(db):
-    User = get_user_model()
-    return User.objects.create_user(  # type: ignore[call-arg]
+    user_model = get_user_model()
+    return user_model.objects.create_user(  # type: ignore[call-arg]
         email="staff-security@example.com",
         password="password123",
         full_name_en="Staff Security",
@@ -25,8 +25,8 @@ def staff_user(db):
 
 @pytest.fixture
 def regular_user(db):
-    User = get_user_model()
-    return User.objects.create_user(  # type: ignore[call-arg]
+    user_model = get_user_model()
+    return user_model.objects.create_user(  # type: ignore[call-arg]
         email="user-security@example.com",
         password="password123",
         full_name_en="Regular User",
@@ -105,3 +105,113 @@ def test_production_wildcard_allowed_hosts_raises(monkeypatch):
 
     with pytest.raises(ImproperlyConfigured):
         _load_settings_module(settings_path)
+
+
+@pytest.fixture
+def staff_user2(db):
+    user_model = get_user_model()
+    return user_model.objects.create_user(  # type: ignore[call-arg]
+        email="staff2-security@example.com",
+        password="password123",
+        full_name_en="Staff Security 2",
+        full_name_ar="Staff Security 2",
+        is_staff=True,
+    )
+
+
+@pytest.mark.django_db
+def test_analytics_rate_limit(client, staff_user):
+    """Test 1: Call analytics endpoint 31 times as staff user -> 31st call returns 429 with correct JSON body"""
+    cache.clear()
+    client.force_login(staff_user)
+    url = reverse("scraping:analytics")
+
+    # 30 allowed calls
+    for _ in range(30):
+        response = client.get(url)
+        assert response.status_code == 200
+
+    # 31st call should be rate limited
+    response = client.get(url)
+    assert response.status_code == 429
+    data = response.json()
+    assert data["error"] == "rate_limit_exceeded"
+
+
+@pytest.mark.django_db
+def test_polling_rate_limit(client, staff_user):
+    """Test 2: Call polling endpoint 61 times -> 61st returns 429"""
+    cache.clear()
+    client.force_login(staff_user)
+    dummy_run_id = str(uuid.uuid4())
+    url = reverse("scraping:run_scraper_status", args=[dummy_run_id])
+
+    # 60 allowed calls
+    for _ in range(60):
+        response = client.get(url)
+        assert response.status_code in [200, 404]  # 404 is fine as long as not 429
+
+    # 61st call should be rate limited
+    response = client.get(url)
+    assert response.status_code == 429
+    data = response.json()
+    assert data["error"] == "rate_limit_exceeded"
+
+
+@pytest.mark.django_db
+def test_separate_user_buckets(client, staff_user, staff_user2):
+    """Test 3: Two different staff users each make 30 analytics calls -> Neither gets 429"""
+    cache.clear()
+    url = reverse("scraping:analytics")
+
+    # User 1 makes 30 calls
+    client.force_login(staff_user)
+    for _ in range(30):
+        response = client.get(url)
+        assert response.status_code == 200
+
+    client.logout()
+
+    # User 2 makes 30 calls
+    client.force_login(staff_user2)
+    for _ in range(30):
+        response = client.get(url)
+        assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_retry_after_header(client, staff_user):
+    """Test 4: 429 response has Retry-After header"""
+    cache.clear()
+    client.force_login(staff_user)
+    url = reverse("scraping:analytics")
+
+    for _ in range(30):
+        client.get(url)
+
+    response = client.get(url)
+    assert response.status_code == 429
+    assert "Retry-After" in response.headers
+    assert response.headers["Retry-After"] == "60"
+
+
+@pytest.mark.django_db
+def test_json_structure(client, staff_user):
+    """Test 5: 429 response JSON has error, message, retry_after keys"""
+    cache.clear()
+    client.force_login(staff_user)
+    url = reverse("scraping:analytics")
+
+    for _ in range(30):
+        client.get(url)
+
+    response = client.get(url)
+    assert response.status_code == 429
+
+    data = response.json()
+    assert "error" in data
+    assert "message" in data
+    assert "retry_after" in data
+    assert data["error"] == "rate_limit_exceeded"
+    assert data["retry_after"] == 60
+    assert data["message"] == "Max 30 requests per 60s exceeded."

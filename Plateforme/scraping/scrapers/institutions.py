@@ -16,10 +16,11 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper
 from scraping.enrichment_engine import enrich_scraped_item
 from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import attach_file_to_model
+
+from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _load_curated_institutions():
         "curated_institutions.json",
     )
     try:
-        with open(fixture_path, "r", encoding="utf-8") as handle:
+        with open(fixture_path, encoding="utf-8") as handle:
             return json.load(handle)
     except Exception:
         return {}
@@ -232,6 +233,27 @@ class InstitutionScraper(BaseScraper):
     OPENALEX_WORKS = "https://api.openalex.org/works"
 
     def run(self) -> dict:
+        """Run the institutions scraper with source-level checkpoint resume.
+
+        Returns:
+            dict: Standard scraper run summary.
+
+        Raises:
+            Exception: Re-raises failures after logging checkpoint diagnostics.
+        """
+        from scraping.checkpoint import ScraperCheckpoint
+
+        run_id = getattr(self, "_current_run_id", "unknown")
+        cp = ScraperCheckpoint("institutions", run_id)
+
+        if cp.is_resuming():
+            logger.info(
+                "scraper_resuming_from_checkpoint",
+                extra=cp.get_summary(),
+            )
+
+        self._checkpoint = cp
+
         logger.info(
             "scraper_run_config",
             extra={
@@ -240,9 +262,23 @@ class InstitutionScraper(BaseScraper):
                 "media_download_enabled": self._is_download_enabled(),
             },
         )
-        return super().run()
+        try:
+            result = super().run()
+            cp.clear()
+            return result
+        except Exception as exc:
+            logger.error(
+                "scraper_interrupted_checkpoint_saved",
+                extra={
+                    "run_id": run_id,
+                    "error": str(exc),
+                    "summary": cp.get_summary(),
+                },
+            )
+            raise
 
     def scrape(self):
+        """Execute institution source tiers from local to global scope."""
         self._scrape_tier_1_algeria()
         self._scrape_tier_2_north_africa_arabic()
         self._scrape_tier_3_africa()
@@ -253,11 +289,36 @@ class InstitutionScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_1_algeria(self):
-        self._scrape_rss_institution_sources(TIER_1_RSS_SOURCES)
-        self._sync_ror_country("DZ", "Tier1 ROR Algeria")
-        self._add_cerist_hardcoded()
-        self._scrape_cdta()
-        self._scan_algerian_ai_labs()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier1_rss",
+                lambda: self._scrape_rss_institution_sources(TIER_1_RSS_SOURCES),
+            ),
+            (
+                "ror_algeria",
+                lambda: self._sync_ror_country("DZ", "Tier1 ROR Algeria"),
+            ),
+            ("cerist", self._add_cerist_hardcoded),
+            ("cdta", self._scrape_cdta),
+            ("algerian_ai_labs", self._scan_algerian_ai_labs),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _add_cerist_hardcoded(self):
         dz = self.get_or_create_country("Algeria", "DZ", name_ar="الجزائر")
@@ -419,18 +480,70 @@ class InstitutionScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_2_north_africa_arabic(self):
-        self._scrape_rss_institution_sources(TIER_2_RSS_SOURCES)
-        for code in ["MA", "TN", "EG", "LY", "SA", "AE", "QA", "KW", "BH", "OM"]:
-            self._sync_ror_country(code, f"Tier2 ROR {code}")
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier2_rss",
+                lambda: self._scrape_rss_institution_sources(TIER_2_RSS_SOURCES),
+            ),
+            ("ror_ma", lambda: self._sync_ror_country("MA", "Tier2 ROR MA")),
+            ("ror_tn", lambda: self._sync_ror_country("TN", "Tier2 ROR TN")),
+            ("ror_eg", lambda: self._sync_ror_country("EG", "Tier2 ROR EG")),
+            ("ror_ly", lambda: self._sync_ror_country("LY", "Tier2 ROR LY")),
+            ("ror_sa", lambda: self._sync_ror_country("SA", "Tier2 ROR SA")),
+            ("ror_ae", lambda: self._sync_ror_country("AE", "Tier2 ROR AE")),
+            ("ror_qa", lambda: self._sync_ror_country("QA", "Tier2 ROR QA")),
+            ("ror_kw", lambda: self._sync_ror_country("KW", "Tier2 ROR KW")),
+            ("ror_bh", lambda: self._sync_ror_country("BH", "Tier2 ROR BH")),
+            ("ror_om", lambda: self._sync_ror_country("OM", "Tier2 ROR OM")),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     # ------------------------------------------------------------------
     # Tier 3 — Africa (OpenAlex + Masakhane)
     # ------------------------------------------------------------------
 
     def _scrape_tier_3_africa(self):
-        self._scrape_rss_institution_sources(TIER_3_RSS_SOURCES)
-        self._scrape_openalex_africa()
-        self._import_masakhane_affiliations()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier3_rss",
+                lambda: self._scrape_rss_institution_sources(TIER_3_RSS_SOURCES),
+            ),
+            ("openalex_africa", self._scrape_openalex_africa),
+            ("masakhane_affiliations", self._import_masakhane_affiliations),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_openalex_africa(self):
         page = 1
@@ -515,9 +628,34 @@ class InstitutionScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_4_global(self):
-        self._scrape_rss_institution_sources(TIER_4_RSS_SOURCES)
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier4_rss",
+                lambda: self._scrape_rss_institution_sources(TIER_4_RSS_SOURCES),
+            )
+        ]
         for lab in TOP_GLOBAL_LABS:
-            self._scrape_top_lab(lab)
+            lab_name = str(lab.get("name", "global_lab")).strip().lower()
+            source_key = "top_lab_" + re.sub(r"[^a-z0-9]+", "_", lab_name).strip("_")
+            methods.append((source_key, lambda item=lab: self._scrape_top_lab(item)))
+
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_rss_institution_sources(self, sources: list[dict]):
         rss = self.get_rss_scraper()
@@ -930,8 +1068,12 @@ class InstitutionScraper(BaseScraper):
                     works_count = int(data.get("works_count") or 0)
                     if works_count:
                         return works_count
-                except Exception:
-                    pass
+                except (ValueError, TypeError, AttributeError, KeyError) as exc:
+                    logger.warning(
+                        "openalex_works_count_parse_failed",
+                        extra={"error": str(exc), "context": preferred},
+                        exc_info=False,
+                    )
 
         if not ror_code:
             return None
@@ -1319,7 +1461,15 @@ class InstitutionScraper(BaseScraper):
                         item_dict.get("image_content_file"),
                         image_local_path,
                     )
-                except Exception:
+                except (AttributeError, KeyError, ValueError, OSError) as exc:
+                    logger.warning(
+                        "institution_logo_attach_failed",
+                        extra={
+                            "error": str(exc),
+                            "context": item_dict.get("name_en") or name_en,
+                        },
+                        exc_info=False,
+                    )
                     try:
                         attach_file_to_model(
                             institution,
@@ -1327,8 +1477,20 @@ class InstitutionScraper(BaseScraper):
                             item_dict.get("image_content_file"),
                             image_local_path,
                         )
-                    except Exception:
-                        pass
+                    except (
+                        AttributeError,
+                        KeyError,
+                        ValueError,
+                        OSError,
+                    ) as fallback_exc:
+                        logger.warning(
+                            "institution_image_attach_failed",
+                            extra={
+                                "error": str(fallback_exc),
+                                "context": item_dict.get("website") or name_en,
+                            },
+                            exc_info=False,
+                        )
 
             self.items_created += 1
             self.results.append(

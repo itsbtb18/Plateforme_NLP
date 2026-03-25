@@ -2,10 +2,11 @@
 Django settings for Plateforme project.
 """
 
-from pathlib import Path
 import os
-from decouple import config
+from pathlib import Path
+
 import dj_database_url
+from decouple import config
 from django.core.exceptions import ImproperlyConfigured
 
 # Load environment variables
@@ -17,13 +18,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-your-default-key")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if host.strip()
-]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
@@ -144,26 +141,29 @@ else:
     }
 
 # Redis Cache Configuration
-redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": redis_url,
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/2"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PARSER_KWARGS": {"decode_responses": True},
-            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
         },
+        "KEY_PREFIX": "nlp_cache",
     }
 }
 
 # Parse REDIS_URL for 2FA utilities
 from urllib.parse import urlparse
 
+redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/2")
 parsed_redis = urlparse(redis_url)
 REDIS_HOST = parsed_redis.hostname or "127.0.0.1"
 REDIS_PORT = parsed_redis.port or 6379
-REDIS_DB = int(parsed_redis.path.split("/")[-1] or 0)
+REDIS_DB = (
+    int(parsed_redis.path.split("/")[-1] or 0)
+    if parsed_redis.path.split("/")[-1]
+    else 0
+)
 REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
@@ -352,11 +352,33 @@ CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
 CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
 
 # Logging
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "scraping_json": {
+            "()": "scraping.scraping_logger.ScrapingJSONFormatter",
+        },
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "scraping_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "scraping.log"),
+            "maxBytes": 50 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "scraping_json",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
     },
     "root": {
         "handlers": ["console"],
@@ -384,9 +406,9 @@ LOGGING = {
             "propagate": True,
         },
         "scraping": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": True,
+            "handlers": ["scraping_file", "console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

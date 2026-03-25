@@ -2,7 +2,7 @@ import socket
 
 import pytest
 
-from scraping.file_downloader import SSRFViolation, validate_url_safety
+from scraping.file_downloader import SSRFViolationError, validate_url_safety
 
 
 def _fake_getaddrinfo_factory(mapping):
@@ -30,7 +30,7 @@ def test_validate_url_safety_blocks_localhost(monkeypatch):
         _fake_getaddrinfo_factory({"localhost": "127.0.0.1"}),
     )
 
-    with pytest.raises(SSRFViolation) as exc:
+    with pytest.raises(SSRFViolationError) as exc:
         validate_url_safety("http://localhost/test")
 
     assert exc.value.offending_ip == "127.0.0.1"
@@ -43,7 +43,7 @@ def test_validate_url_safety_blocks_rfc1918_10_range(monkeypatch):
         _fake_getaddrinfo_factory({"internal.example": "10.0.0.1"}),
     )
 
-    with pytest.raises(SSRFViolation) as exc:
+    with pytest.raises(SSRFViolationError) as exc:
         validate_url_safety("http://internal.example/file.pdf")
 
     assert exc.value.offending_ip == "10.0.0.1"
@@ -56,7 +56,7 @@ def test_validate_url_safety_blocks_metadata_ip(monkeypatch):
         _fake_getaddrinfo_factory({"metadata.aws": "169.254.169.254"}),
     )
 
-    with pytest.raises(SSRFViolation) as exc:
+    with pytest.raises(SSRFViolationError) as exc:
         validate_url_safety("http://metadata.aws/latest/meta-data")
 
     assert exc.value.offending_ip == "169.254.169.254"
@@ -94,7 +94,7 @@ def test_validate_url_safety_allowed_domains_allowlist(monkeypatch):
     )
 
     # Disallowed host fails even with external IP
-    with pytest.raises(SSRFViolation):
+    with pytest.raises(SSRFViolationError):
         validate_url_safety(
             "https://evil.com/doc.pdf",
             allowed_domains=["example.com"],

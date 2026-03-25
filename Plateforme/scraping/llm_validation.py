@@ -21,7 +21,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -175,10 +175,10 @@ class GroqLLMClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        timeout: Optional[int] = None,
-        max_retries: Optional[int] = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout: int | None = None,
+        max_retries: int | None = None,
     ):
         self.api_key = api_key or getattr(settings, "GROQ_SCRAPING_API_KEY", "")
         self.model = model or getattr(
@@ -196,7 +196,7 @@ class GroqLLMClient:
         return bool(self.api_key)
 
     # ── Core chat call ──────────────────────────────────────────────
-    def _chat(self, system: str, user: str) -> Optional[str]:
+    def _chat(self, system: str, user: str) -> str | None:
         """Send a chat completion request and return the assistant text."""
         if not self.is_configured:
             return None
@@ -236,7 +236,7 @@ class GroqLLMClient:
 # ─── JSON parsing helpers ──────────────────────────────────────────
 
 
-def _extract_json(text: str) -> Optional[dict]:
+def _extract_json(text: str) -> dict | None:
     """Try to extract a JSON object from LLM output (may contain fences)."""
     if not text:
         return None
@@ -247,16 +247,22 @@ def _extract_json(text: str) -> Optional[dict]:
         obj = json.loads(cleaned)
         if isinstance(obj, dict):
             return obj
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as exc:
+        logger.debug(
+            "llm_json_primary_parse_fallback",
+            extra={"error": str(exc), "context": cleaned[:120]},
+        )
 
     # Fallback: find the first { … } block
     match = re.search(r"\{[\s\S]+\}", cleaned)
     if match:
         try:
             return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            logger.debug(
+                "llm_json_regex_parse_fallback",
+                extra={"error": str(exc), "context": match.group()[:120]},
+            )
     return None
 
 
@@ -283,7 +289,7 @@ class LLMValidator:
     ``None`` so the caller can proceed with the original item unchanged.
     """
 
-    def __init__(self, client: Optional[GroqLLMClient] = None):
+    def __init__(self, client: GroqLLMClient | None = None):
         self.client = client or GroqLLMClient()
 
     @property
@@ -292,7 +298,7 @@ class LLMValidator:
 
     def validate(
         self, item: dict[str, Any], category: str = "general"
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Send *item* to the LLM for validation and enrichment.
 
@@ -338,7 +344,7 @@ class LLMValidator:
 # ─── Convenience helpers for scrapers ──────────────────────────────
 
 # Module-level singleton — lazily created on first use.
-_default_validator: Optional[LLMValidator] = None
+_default_validator: LLMValidator | None = None
 
 
 def get_validator() -> LLMValidator:
@@ -349,7 +355,7 @@ def get_validator() -> LLMValidator:
     return _default_validator
 
 
-def validate_item(item: dict, category: str = "general") -> Optional[dict]:
+def validate_item(item: dict, category: str = "general") -> dict | None:
     """
     Shortcut: validate a single item using the default validator.
 

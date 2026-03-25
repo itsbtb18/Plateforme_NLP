@@ -812,9 +812,7 @@ def _is_value_filled(value, field_config):
         if not text:
             return False
         min_len = field_config.get("min_length")
-        if min_len is not None and len(text) < int(min_len):
-            return False
-        return True
+        return not (min_len is not None and len(text) < int(min_len))
 
     if isinstance(value, (list, tuple, set)):
         return len(value) > 0
