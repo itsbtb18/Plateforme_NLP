@@ -2,10 +2,12 @@
 Django settings for Plateforme project.
 """
 
-from pathlib import Path
 import os
-from decouple import config
+from pathlib import Path
+
 import dj_database_url
+from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -16,13 +18,19 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-your-default-key")
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1,*",
-    cast=lambda v: [s.strip() for s in v.split(",")],
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+
+if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
+    raise ImproperlyConfigured(
+        "Refusing to start with default SECRET_KEY while DEBUG is False."
+    )
+
+if not DEBUG and "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "Refusing to start with wildcard ALLOWED_HOSTS while DEBUG is False."
+    )
 
 # Applications
 INSTALLED_APPS = [
@@ -57,6 +65,7 @@ INSTALLED_APPS = [
     "translate",
     "scraping",
     "settings",
+    "django_celery_beat",
     # Allauth
     "allauth",
     "allauth.account",
@@ -111,33 +120,49 @@ TEMPLATES = [
 # ASGI / Channels
 ASGI_APPLICATION = "Plateforme.asgi.application"
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+CHANNEL_LAYER_BACKEND = os.getenv("CHANNEL_LAYER_BACKEND", "redis").strip().lower()
+
+if CHANNEL_LAYER_BACKEND == "redis":
+    CHANNEL_REDIS_URL = os.getenv("CHANNEL_REDIS_URL", "redis://127.0.0.1:6379/5")
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNEL_REDIS_URL],
+            },
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
 
 # Redis Cache Configuration
-redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": redis_url,
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/2"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PARSER_KWARGS": {"decode_responses": True},
-            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
         },
+        "KEY_PREFIX": "nlp_cache",
     }
 }
 
 # Parse REDIS_URL for 2FA utilities
 from urllib.parse import urlparse
 
+redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/2")
 parsed_redis = urlparse(redis_url)
 REDIS_HOST = parsed_redis.hostname or "127.0.0.1"
 REDIS_PORT = parsed_redis.port or 6379
-REDIS_DB = int(parsed_redis.path.split("/")[-1] or 0)
+REDIS_DB = (
+    int(parsed_redis.path.split("/")[-1] or 0)
+    if parsed_redis.path.split("/")[-1]
+    else 0
+)
 REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
@@ -224,7 +249,8 @@ CSRF_COOKIE_SAMESITE = "Lax"
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = "DENY"
+
+X_FRAME_OPTIONS = "DENY"
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -311,7 +337,9 @@ ELASTICSEARCH_DSL = {
 }
 # Disable autosync to prevent creation failures when Elasticsearch is unavailable
 # Resources can be manually indexed later using: python manage.py search_index --rebuild
-ELASTICSEARCH_DSL_AUTOSYNC = os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
+ELASTICSEARCH_DSL_AUTOSYNC = (
+    os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
+)
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
@@ -323,11 +351,33 @@ CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
 CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
 
 # Logging
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "scraping_json": {
+            "()": "scraping.scraping_logger.ScrapingJSONFormatter",
+        },
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "scraping_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "scraping.log"),
+            "maxBytes": 50 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "scraping_json",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
     },
     "root": {
         "handlers": ["console"],
@@ -355,9 +405,9 @@ LOGGING = {
             "propagate": True,
         },
         "scraping": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": True,
+            "handlers": ["scraping_file", "console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
@@ -367,14 +417,16 @@ LOGGING = {
 # ============================================
 GROQ_SCRAPING_API_KEY = os.getenv("GROQ_SCRAPING_API_KEY", "")
 GROQ_SCRAPING_MODEL = os.getenv("GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
-GROQ_SCRAPING_TIMEOUT = 30      # seconds per LLM call
-GROQ_SCRAPING_MAX_RETRIES = 2   # JSON-parse retries
+GROQ_SCRAPING_TIMEOUT = 30  # seconds per LLM call
+GROQ_SCRAPING_MAX_RETRIES = 2  # JSON-parse retries
 
 # ============================================
 # CELERY CONFIGURATION
 # ============================================
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://:redis123@redis:6379/3")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4")
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4"
+)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -384,37 +436,6 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_SOFT_TIME_LIMIT = 600   # 10 min soft limit
-CELERY_TASK_TIME_LIMIT = 900        # 15 min hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 min soft limit
+CELERY_TASK_TIME_LIMIT = 900  # 15 min hard limit
 CELERY_TASK_DEFAULT_QUEUE = "scraping"
-
-# Celery Beat schedule — auto-run all scrapers every 3 months
-# from celery.schedules import crontab
-
-CELERY_BEAT_SCHEDULE = {
-    # "scrape-events-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=0),
-    #     "args": ("events",),
-    # },
-    # "scrape-tools-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=15),
-    #     "args": ("tools",),
-    # },
-    # "scrape-news-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=30),
-    #     "args": ("news",),
-    # },
-    # "scrape-courses-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=3, minute=45),
-    #     "args": ("courses",),
-    # },
-    # "scrape-institutions-quarterly": {
-    #     "task": "scraping.tasks.run_scraper_task",
-    #     "schedule": crontab(day_of_month="1", month_of_year="1,4,7,10", hour=4, minute=0),
-    #     "args": ("institutions",),
-    # },
-}

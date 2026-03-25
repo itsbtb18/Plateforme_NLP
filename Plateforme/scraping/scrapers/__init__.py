@@ -2,11 +2,11 @@
 Scraper registry — maps category names to scraper classes.
 """
 
-from .events import EventScraper
-from .tools import ToolScraper
-from .news import NewsScraper
 from .courses import CourseScraper
+from .events import EventScraper
 from .institutions import InstitutionScraper
+from .news import NewsScraper
+from .tools import ToolScraper
 
 SCRAPERS = {
     "events": EventScraper,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Sequence
+from collections.abc import Sequence
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Q, QuerySet

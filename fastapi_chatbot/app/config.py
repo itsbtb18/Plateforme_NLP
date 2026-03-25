@@ -23,15 +23,20 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/2"
 
-    # Groq API – NEVER log or hardcode this value
+    # Groq API — Chatbot (User-facing)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_MAX_TOKENS: int = 4096
+    
+    # Groq API — Internal (Classification, Rewriting, Faithfulness)
+    GROQ_INTERNAL_API_KEY: str = ""
+    GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
+    
+    GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
     # Embeddings
-    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-    EMBEDDING_DIMENSION: int = 768
+    EMBEDDING_MODEL: str = "BAAI/bge-m3"
+    EMBEDDING_DIMENSION: int = 1024
 
     # App Settings
     ENVIRONMENT: str = "development"
@@ -57,6 +62,17 @@ class Settings(BaseSettings):
     HISTORY_SUMMARY_THRESHOLD: int = 12
     TOKEN_BUDGET_HISTORY: int = 1500
     TOKEN_BUDGET_SUMMARY: int = 500
+
+    # Web Search — Exa (RAG fallback retrieval)
+    EXA_API_KEY: str = ""
+    EXA_ENABLED: bool = False
+    EXA_MAX_CALLS_PER_SESSION: int = 10
+    EXA_MAX_CALLS_PER_HOUR: int = 30
+    EXA_CACHE_TTL_HOURS: int = 24
+
+    # Web Search — Tavily (User-triggered web mode)
+    TAVILY_API_KEY: str = ""
+    TAVILY_ENABLED: bool = False
 
     class Config:
         env_file = ".env"

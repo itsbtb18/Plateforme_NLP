@@ -175,18 +175,24 @@ PLATFORM_KEYWORDS = {
     "نقاش",
 }
 
+# --- Specific contributor search patterns (prevents 'researcher' from hijacking RAG) ---
+CONTRIBUTOR_SEARCH_PATTERNS = [
+    re.compile(r"\b(?:list|show|find|search|get|who is)\b.*\b(?:researcher|chercheur|باحث|author|auteur|مؤلف)\b", re.I),
+    re.compile(r"\b(?:profiles?|biographies?|bio)\b.*\b(?:researcher|chercheur|باحث|author|auteur|مؤلف)\b", re.I),
+]
+
 # --- Legal queries ---
 LEGAL_PATTERNS = [
     re.compile(
-        r"\b(?:legal|law|regulation|copyright|license|privacy|gdpr|compliance)\b",
+        r"\b(?:legal|laws?|regulations?|decrees?|provisions?|articles?|copyright|licens?e|privacy|gdpr|compliance)\b",
         re.I,
     ),
     re.compile(
-        r"\b(?:juridique|loi|règlement|droit d'auteur|licence|"
+        r"\b(?:juridiques?|lois?|règlements?|décrets?|dispositions?|articles?|droit d'auteur|licence|"
         r"confidentialité|conformité)\b",
         re.I,
     ),
-    re.compile(r"\b(?:قانون|تشريع|حقوق|ترخيص|خصوصية|لائحة)\b"),
+    re.compile(r"\b(?:قانون|قوانين|تشريع|تشريعات|مرسوم|مراسيم|مادة|مواد|بند|بنود|تنظيم|حقوق|ترخيص|خصوصية|لائحة|لوائح|بيانات|حماية|شروط|إجراءات|نظام|أحكام)\w*\b"),
     re.compile(r"\bis (?:it|this) legal\b", re.I),
     re.compile(r"\best[- ]ce (?:légal|autorisé)\b", re.I),
     re.compile(r"\bهل.*(?:قانوني|مشروع)\b"),

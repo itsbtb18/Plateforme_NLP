@@ -76,6 +76,7 @@
     --src-legal:#d97706;
     --src-user-doc:#059669;
     --src-groq:#7c3aed;
+    --src-web:#0891b2;
 }
 
 /* ==========================================================================
@@ -283,6 +284,8 @@ html[dir="rtl"] .lang-panel{right:auto;left:0}
 }
 .lang-option .fa-check{font-size:.7rem;color:var(--hub-accent)}
 
+/* Typing speed control removed */
+
 /* ==========================================================================
    CHAT BODY
    ========================================================================== */
@@ -413,6 +416,9 @@ html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
 .source-dot.legal{background:var(--src-legal)}
 .source-dot.user_document{background:var(--src-user-doc)}
 .source-dot.groq{background:var(--src-groq)}
+.source-dot.web_tavily{background:var(--src-web)}
+.source-dot.web_exa{background:var(--src-web)}
+.source-dot.web{background:var(--src-web)}
 .source-dot.default{background:var(--hub-text-muted)}
 .source-name{font-weight:600;color:var(--hub-text-primary);font-size:.73rem}
 .source-score{color:var(--hub-text-muted);font-weight:500;font-size:.68rem}
@@ -485,11 +491,13 @@ html[dir="rtl"] .answer-citations{padding-left:0;padding-right:36px}
 
 /* Typing cursor */
 .typing-cursor{
-    display:inline-block;width:2px;height:1em;
+    display:inline-block;width:1px;height:1em;
     background:var(--hub-accent);margin-left:2px;
-    animation:blink .7s ease-in-out infinite;
+    opacity:.6;
+    animation:blink .885s ease-in-out infinite;
     vertical-align:text-bottom;border-radius:1px;
 }
+.typing-cursor-fast{animation:blink .24s ease-in-out infinite;opacity:.5;width:1px}
 html[dir="rtl"] .typing-cursor{margin-left:0;margin-right:2px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
@@ -507,12 +515,12 @@ html[dir="rtl"] .platform-cards{padding-left:0;padding-right:36px}
     transition:all var(--transition-base);cursor:pointer;
     text-decoration:none;color:inherit;display:block;
     box-shadow:var(--shadow-card);
-    animation:cardFadeIn .35s ease both;
+    animation:cardFadeIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .p-card:nth-child(1){animation-delay:.04s}
 .p-card:nth-child(2){animation-delay:.08s}
 .p-card:nth-child(3){animation-delay:.12s}
-@keyframes cardFadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cardFadeIn{from{opacity:0;transform:translateY(30px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .p-card:hover{
     border-color:var(--hub-border-hover);
     transform:translateY(-6px);
@@ -541,6 +549,42 @@ html[dir="ltr"] .p-card:hover .p-card-link i{transform:translateX(4px)}
 html[dir="rtl"] .p-card:hover .p-card-link i{transform:translateX(-4px) scaleX(-1)}
 .p-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .meta-tag{font-size:.65rem;padding:3px 10px;border-radius:var(--radius-full);background:var(--hub-muted);color:var(--hub-text-secondary);font-weight:500}
+
+/* Selected context preview before auto explanation */
+.context-preview-wrap{padding-left:36px;margin-bottom:8px;animation:msgIn .3s ease both}
+html[dir="rtl"] .context-preview-wrap{padding-left:0;padding-right:36px}
+.context-preview-label{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--hub-text-muted);margin-bottom:8px;
+}
+.context-preview-label i{font-size:.72rem;color:var(--hub-accent)}
+.context-preview-card{
+    background:linear-gradient(145deg,#ffffff 0%,#f8fafc 100%);
+    border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    padding:14px 16px;
+    box-shadow:var(--shadow-card);
+    max-width:680px;
+}
+.context-preview-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.context-preview-title{font-size:.9rem;font-weight:700;color:var(--hub-text-primary)}
+.context-preview-desc{font-size:.82rem;color:var(--hub-text-secondary);line-height:1.55}
+.context-preview-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.context-preview-actions{margin-top:10px;display:flex;justify-content:flex-end}
+html[dir="rtl"] .context-preview-actions{justify-content:flex-start}
+.context-preview-link{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.78rem;font-weight:700;color:var(--hub-accent);
+    text-decoration:none;padding:6px 10px;border-radius:var(--radius-md);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    transition:all var(--transition-fast);
+}
+.context-preview-link:hover{
+    border-color:var(--hub-border-hover);
+    background:var(--hub-muted);
+    color:var(--hub-accent-hover);
+}
 
 /* ==========================================================================
    SYSTEM / ERROR
@@ -688,6 +732,72 @@ html[dir="rtl"] .chat-textarea{text-align:right}
 input[type="file"]{display:none}
 
 /* ==========================================================================
+   SEARCH MODE DROPDOWN
+   ========================================================================== */
+.search-mode-wrap{position:relative;display:flex;align-items:center}
+.search-mode-btn{
+    width:36px;height:36px;border-radius:var(--radius-sm);
+    border:none;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+    color:var(--hub-text-muted);font-size:.92rem;
+    transition:all var(--transition-fast);position:relative;
+    padding:0;
+}
+.search-mode-btn:hover{color:var(--hub-accent);background:var(--hub-accent-glow)}
+.search-mode-btn.active-action{
+    color:var(--hub-text-inverse);
+    background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent-light));
+    box-shadow:0 2px 10px rgba(37,99,235,.3);border-radius:var(--radius-sm);
+}
+.search-mode-btn .caret{font-size:.45rem;opacity:.6;transition:transform var(--transition-fast);margin-left:-2px}
+.search-mode-wrap.open .search-mode-btn .caret{transform:rotate(180deg)}
+
+.search-mode-panel{
+    position:absolute;bottom:calc(100% + 8px);left:0;
+    min-width:240px;padding:6px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 16px 48px rgba(0,0,0,.12);
+    opacity:0;visibility:hidden;transform:translateY(8px);
+    transition:all var(--transition-fast);z-index:100;
+}
+html[dir="rtl"] .search-mode-panel{left:auto;right:0}
+.search-mode-wrap.open .search-mode-panel{opacity:1;visibility:visible;transform:translateY(0)}
+
+.search-mode-option{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;border-radius:var(--radius-md);
+    font-size:.85rem;font-weight:500;color:var(--hub-text-secondary);
+    transition:all var(--transition-fast);cursor:pointer;border:none;
+    background:transparent;width:100%;text-align:left;
+}
+html[dir="rtl"] .search-mode-option{text-align:right}
+.search-mode-option:hover{
+    background:linear-gradient(90deg,var(--hub-muted),var(--hub-surface));
+    color:var(--hub-accent);
+}
+.search-mode-option.active{
+    background:var(--hub-accent-glow);color:var(--hub-accent);font-weight:600;
+}
+.search-mode-option i{width:18px;text-align:center;font-size:.85rem}
+.search-mode-option .smo-text{display:flex;flex-direction:column;gap:1px}
+.search-mode-option .smo-label{font-weight:600}
+.search-mode-option .smo-desc{font-size:.72rem;color:var(--hub-text-muted);font-weight:400}
+.search-mode-option.active .smo-desc{color:var(--hub-accent);opacity:.7}
+
+/* Web search mode indicator */
+.mode-indicator{
+    display:none;align-items:center;gap:6px;
+    padding:4px 12px;font-size:.72rem;font-weight:600;
+    color:var(--src-web);border-radius:var(--radius-full);
+    background:rgba(8,145,178,.08);margin-bottom:6px;
+    max-width:780px;width:100%;
+    animation:msgIn .2s ease both;
+}
+.mode-indicator.active{display:flex}
+.mode-indicator i{font-size:.7rem}
+
+/* ==========================================================================
    RENAME MODAL
    ========================================================================== */
 .modal-overlay{
@@ -740,6 +850,92 @@ input[type="file"]{display:none}
     html[dir="rtl"] .answer-body{padding-right:0}
     .platform-cards{padding-left:0}
     html[dir="rtl"] .platform-cards{padding-right:0}
+}
+
+/* ==========================================================================
+   WEB RESULT CARDS (Tavily)
+   ========================================================================== */
+.web-results-grid{
+    display:grid;gap:10px;margin-top:16px;
+    grid-template-columns:1fr;
+}
+.web-result-card{
+    display:flex;flex-direction:column;gap:8px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-md);padding:14px 16px;
+    transition:all var(--transition-base);cursor:pointer;
+    text-decoration:none;color:inherit;
+    animation:cardSlideIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.web-result-card:nth-child(1){animation-delay:.05s}
+.web-result-card:nth-child(2){animation-delay:.12s}
+.web-result-card:nth-child(3){animation-delay:.19s}
+.web-result-card:nth-child(4){animation-delay:.26s}
+.web-result-card:nth-child(5){animation-delay:.33s}
+@keyframes cardSlideIn{
+    from{opacity:0;transform:translateY(40px)}
+    to{opacity:1;transform:translateY(0)}
+}
+.web-result-card:hover{
+    border-color:var(--hub-accent-light);box-shadow:var(--shadow-card-hover);
+    transform:translateY(-1px);
+}
+.web-result-card .wrc-header{
+    display:flex;align-items:center;gap:10px;
+}
+.web-result-card .wrc-favicon{
+    width:20px;height:20px;border-radius:4px;flex-shrink:0;
+    object-fit:contain;
+}
+.web-result-card .wrc-domain{
+    font-size:.72rem;color:var(--hub-text-muted);font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.web-result-card .wrc-title{
+    font-size:.88rem;font-weight:600;color:var(--hub-text-primary);
+    line-height:1.4;
+}
+.web-result-card .wrc-snippet{
+    font-size:.8rem;color:var(--hub-text-secondary);line-height:1.5;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;
+}
+.web-result-card .wrc-footer{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:2px;
+}
+.web-result-card .wrc-score{
+    font-size:.68rem;color:var(--hub-text-muted);font-weight:500;
+}
+.web-result-card .wrc-link-icon{
+    color:var(--hub-accent);font-size:.75rem;opacity:.6;
+    transition:opacity var(--transition-fast);
+}
+.web-result-card:hover .wrc-link-icon{opacity:1}
+
+/* EXA web-searching indicator */
+.exa-searching-indicator{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px;margin:8px 0;
+    background:linear-gradient(135deg,rgba(8,145,178,.08),rgba(37,99,235,.06));
+    border:1px solid rgba(8,145,178,.15);
+    border-radius:var(--radius-md);
+    font-size:.8rem;font-weight:500;color:var(--src-web);
+    animation:exaPulse 2s ease-in-out infinite;
+}
+.exa-searching-indicator i{
+    font-size:.85rem;
+    animation:exaSpin 2s linear infinite;
+}
+@keyframes exaPulse{
+    0%,100%{opacity:.7}50%{opacity:1}
+}
+@keyframes exaSpin{
+    0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}
+}
+
+@media(max-width:700px){
+    .web-results-grid{grid-template-columns:1fr}
 }
     </style>
 </head>
@@ -800,6 +996,7 @@ input[type="file"]{display:none}
                         </div>
                     </div>
 
+                    <!-- Typing speed control removed by request -->
                     <a href="{% url 'pages:home' %}" class="h-btn" title="{% trans 'Home' %}">
                         <i class="fas fa-arrow-left"></i>
                     </a>
@@ -835,9 +1032,28 @@ input[type="file"]{display:none}
                         <button class="inp-btn" id="attach-btn" title="{% trans 'Upload file' %}">
                             <i class="fas fa-paperclip"></i>
                         </button>
-                        <button class="inp-btn" id="platform-btn" title="{% trans 'Search platform' %}">
-                            <i class="fas fa-search"></i>
-                        </button>
+                        <div class="search-mode-wrap" id="search-mode-wrap">
+                            <button class="search-mode-btn" id="search-mode-btn" title="{% trans 'Search mode' %}">
+                                <i class="fas fa-search" id="search-mode-icon"></i>
+                                <i class="fas fa-caret-up caret"></i>
+                            </button>
+                            <div class="search-mode-panel" id="search-mode-panel">
+                                <button class="search-mode-option" data-mode="web">
+                                    <i class="fas fa-globe"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% trans 'Web Search' %}</span>
+                                        <span class="smo-desc">{% trans 'Search the internet for live results' %}</span>
+                                    </span>
+                                </button>
+                                <button class="search-mode-option" data-mode="platform">
+                                    <i class="fas fa-search"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% trans 'Platform Search' %}</span>
+                                        <span class="smo-desc">{% trans 'Search within your knowledge base' %}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <textarea class="chat-textarea" id="chat-input" placeholder="{% trans 'Ask anything...' %}" rows="1"></textarea>
                     <button class="send-btn" id="send-btn" title="{% trans 'Send' %}">
@@ -878,7 +1094,10 @@ input[type="file"]{display:none}
         const filePills   = document.getElementById('file-pills');
         const fileClearAll= document.getElementById('file-clear-all');
         const attachBtn   = document.getElementById('attach-btn');
-        const platformBtn = document.getElementById('platform-btn');
+        const searchModeWrap = document.getElementById('search-mode-wrap');
+        const searchModeBtn  = document.getElementById('search-mode-btn');
+        const searchModePanel= document.getElementById('search-mode-panel');
+        const searchModeIcon = document.getElementById('search-mode-icon');
         const newChatBtn  = document.getElementById('new-chat-btn');
         const convList    = document.getElementById('conv-list');
         const sidebar     = document.getElementById('sidebar');
@@ -889,6 +1108,10 @@ input[type="file"]{display:none}
         const renameCanc  = document.getElementById('rename-cancel');
         const langWrap    = document.getElementById('lang-wrap');
         const langBtn     = document.getElementById('lang-btn');
+        const typingSpeedWrap = document.getElementById('typing-speed-wrap');
+        const typingSpeedBtn  = document.getElementById('typing-speed-btn');
+        const typingSpeedPanel= document.getElementById('typing-speed-panel');
+        const typingSpeedLabel= document.getElementById('typing-speed-label');
 
         /* ── State ── */
         let currentSessionId = null;
@@ -898,6 +1121,8 @@ input[type="file"]{display:none}
         let activeDocumentId = null;
         let renameTargetSid  = null;
         let platformActive   = false;
+        let webSearchActive  = false;
+        let typingSpeedMult  = 1;
 
         /* ── Helpers ── */
         function csrf(){
@@ -905,7 +1130,20 @@ input[type="file"]{display:none}
             return el ? el.value : '';
         }
         function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
-        function scrollBottom(){requestAnimationFrame(()=>{chatBody.scrollTop=chatBody.scrollHeight})}
+        function scrollBottom(force, smooth){
+            if(!force){
+                var isNearBottom=(chatBody.scrollHeight-chatBody.scrollTop-chatBody.clientHeight)<150;
+                if(!isNearBottom) return;
+            }
+            requestAnimationFrame(()=>{
+                if (smooth) {
+                    var lastMsg=msgsArea.lastElementChild;
+                    if(lastMsg) lastMsg.scrollIntoView({behavior:'smooth',block:'end'});
+                } else {
+                    chatBody.scrollTop=chatBody.scrollHeight;
+                }
+            })
+        }
 
         /* ── Markdown renderer ── */
         function renderMd(text){
@@ -958,6 +1196,25 @@ input[type="file"]{display:none}
         document.addEventListener('click',function(e){
             if(!langWrap.contains(e.target)) langWrap.classList.remove('open');
         });
+
+        if(typingSpeedBtn){
+            typingSpeedBtn.addEventListener('click',function(e){
+                e.preventDefault();e.stopPropagation();
+                typingSpeedPanel.classList.toggle('open');
+            });
+        }
+        document.addEventListener('click',function(e){
+            if(typingSpeedWrap&&!typingSpeedWrap.contains(e.target)) typingSpeedPanel&&typingSpeedPanel.classList.remove('open');
+        });
+        if(typingSpeedPanel){
+            typingSpeedPanel.querySelectorAll('.typing-speed-opt').forEach(function(btn){
+                btn.addEventListener('click',function(){
+                    typingSpeedMult=parseFloat(btn.dataset.speed);
+                    typingSpeedLabel.textContent=typingSpeedMult+'x';
+                    typingSpeedPanel.classList.remove('open');
+                });
+            });
+        }
 
         /* ============================================================
            SIDEBAR
@@ -1039,10 +1296,45 @@ input[type="file"]{display:none}
         /* ============================================================
            PLATFORM SEARCH TOGGLE
            ============================================================ */
-        platformBtn.addEventListener('click',function(){
-            platformActive=!platformActive;
-            platformBtn.classList.toggle('active-action',platformActive);
-            chatInput.placeholder=platformActive?"{% trans 'Search courses, tools, resources, events...' %}":"{% trans 'Ask anything...' %}";
+        /* ============================================================
+           SEARCH MODE DROPDOWN
+           ============================================================ */
+        searchModeBtn.addEventListener('click',function(e){
+            e.stopPropagation();
+            searchModeWrap.classList.toggle('open');
+        });
+        document.addEventListener('click',function(e){
+            if(!searchModeWrap.contains(e.target)) searchModeWrap.classList.remove('open');
+        });
+        searchModePanel.addEventListener('click',function(e){
+            var opt=e.target.closest('.search-mode-option');
+            if(!opt)return;
+            var mode=opt.dataset.mode;
+            /* Deactivate all */
+            searchModePanel.querySelectorAll('.search-mode-option').forEach(function(o){o.classList.remove('active')});
+
+            if(mode==='web'){
+                if(webSearchActive){webSearchActive=false;platformActive=false}
+                else{webSearchActive=true;platformActive=false;opt.classList.add('active')}
+            } else if(mode==='platform'){
+                if(platformActive){platformActive=false;webSearchActive=false}
+                else{platformActive=true;webSearchActive=false;opt.classList.add('active')}
+            }
+
+            /* Update button appearance */
+            var anyActive=webSearchActive||platformActive;
+            searchModeBtn.classList.toggle('active-action',anyActive);
+            if(webSearchActive){
+                searchModeIcon.className='fas fa-globe';
+                chatInput.placeholder="{% trans 'Search the web...' %}";
+            } else if(platformActive){
+                searchModeIcon.className='fas fa-search';
+                chatInput.placeholder="{% trans 'Search courses, tools, resources, events...' %}";
+            } else {
+                searchModeIcon.className='fas fa-search';
+                chatInput.placeholder="{% trans 'Ask anything...' %}";
+            }
+            searchModeWrap.classList.remove('open');
         });
 
         /* ============================================================
@@ -1121,7 +1413,7 @@ input[type="file"]{display:none}
         async function handleSend(){
             if(isLoading)return;
             var question=chatInput.value.trim();
-            var mode=platformActive?'platform':'conversation';
+            var mode=webSearchActive?'web':platformActive?'platform':'conversation';
             if(selectedFiles.length>0) mode='upload';
             /* Note: we no longer auto-route to ask_document just because
                documents were uploaded.  The backend intent classifier
@@ -1200,20 +1492,90 @@ input[type="file"]{display:none}
                 headers['Content-Type']='application/json';
                 var payload={mode:mode,question:question,session_id:currentSessionId||''};
                 body=JSON.stringify(payload);
-                var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
-                thinkEl.remove();
-                var ct=resp.headers.get('content-type');
-                if(ct&&ct.includes('text/html')) throw new Error("{% trans 'Server error. Please try again.' %}");
-                var data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||data.detail||'Error '+resp.status);
 
-                if(data.session_id) currentSessionId=data.session_id;
-
-                if(false){
-                    /* upload handled above in multi-file block */
+                {
+                    /* Streaming response — ChatGPT-style progressive display
+                       Works for conversation, web, AND platform modes */
+                    var resp=await fetch('{% url "chatbot:ask_stream" %}',{method:'POST',headers:headers,body:body});
+                    if(!resp.ok){
+                        thinkEl.remove();
+                        var errData=await resp.json().catch(function(){return {error:resp.statusText}});
+                        throw new Error(errData.error||errData.detail||'Error '+resp.status);
+                    }
+                    var streamState=null;
+                    var reader=resp.body.getReader();
+                    var decoder=new TextDecoder();
+                    var buf='';
+                    var done=false;
+                    while(!done){
+                        var r=await reader.read();
+                        if(r.done) break;
+                        buf+=decoder.decode(r.value,{stream:true});
+                        var parts=buf.split('\n\n');
+                        buf=parts.pop();
+                        for(var p=0;p<parts.length;p++){
+                            var chunk=parts[p];
+                            var dataMatch=chunk.match(/^data: (.+)$/m);
+                            if(dataMatch){
+                                try{
+                                    var obj=JSON.parse(dataMatch[1]);
+                                    if(obj.error){thinkEl.remove();addSystem(obj.error,'error');done=true;break}
+                                    /* EXA web-searching indicator — update the thinking bubble */
+                                    if(obj.exa_searching){
+                                        var thinkTextEl=thinkEl.querySelector('.thinking-text');
+                                        if(thinkTextEl) thinkTextEl.textContent='{% trans "Searching the web for more information" %}...';
+                                        var dotsEl=thinkEl.querySelector('.thinking-dots-bar');
+                                        if(dotsEl) dotsEl.innerHTML='<i class="fas fa-globe" style="animation:exaSpin 2s linear infinite;color:var(--src-web);font-size:1rem"></i>';
+                                        scrollBottom();
+                                        continue;
+                                    }
+                                    /* First delta: remove thinking, create answer block */
+                                    if(obj.delta && !streamState){
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                    }
+                                    if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
+                                    if(obj.done){
+                                        if(!streamState){
+                                            if(thinkEl.parentNode) thinkEl.remove();
+                                            streamState=addAnswerStreamingStart();
+                                        }
+                                        if(obj.session_id) currentSessionId=obj.session_id;
+                                        /* Render web result cards for Tavily mode */
+                                        if(obj.web_results && obj.web_results.length>0){
+                                            streamState.skipPlatformResults=true;
+                                        }
+                                        finalizeStreamingAnswer(streamState,obj);
+                                        done=true;break;
+                                    }
+                                }catch(parseErr){}
+                            }
+                        }
+                    }
+                    if(!done&&buf){
+                        var dataMatch=buf.match(/^data: (.+)$/m);
+                        if(dataMatch){
+                            try{
+                                var obj=JSON.parse(dataMatch[1]);
+                                if(obj.delta && !streamState){
+                                    if(thinkEl.parentNode) thinkEl.remove();
+                                    streamState=addAnswerStreamingStart();
+                                }
+                                if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.done){
+                                    if(!streamState){
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                    }
+                                    if(obj.session_id) currentSessionId=obj.session_id;
+                                    finalizeStreamingAnswer(streamState,obj);
+                                }
+                            }catch(parseErr){}
+                        }
+                    }
+                    /* Safety: if thinking indicator still present, remove it */
+                    if(thinkEl.parentNode) thinkEl.remove();
                 }
-                if(mode==='platform'&&data.results) renderPlatformResults(data);
-                else if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,data.platform_results||null,true);
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('Send:',e);addSystem(e.message,'error')}
             finally{setLoading(false)}
@@ -1258,11 +1620,146 @@ input[type="file"]{display:none}
 
         function addThinking(){
             var d=document.createElement('div');d.className='thinking-block';
+            var thinkText=webSearchActive?"{% trans 'Searching the live web' %}...":platformActive?"{% trans 'Searching the platform' %}...":"{% trans 'Thinking' %}...";
             d.innerHTML='<div class="thinking-inner">'
                 +'<div class="thinking-dots-bar"><span></span><span></span><span></span></div>'
-                +'<span class="thinking-text">{% trans "Thinking" %}...</span>'
+                +'<span class="thinking-text">'+thinkText+'</span>'
                 +'</div>';
             msgsArea.appendChild(d);scrollBottom();return d;
+        }
+
+        function buildWebResultCards(results){
+            if(!results||results.length===0) return '';
+            var html='<div class="web-results-grid">';
+            results.forEach(function(r){
+                var url=r.url||'';
+                var domain='';
+                try{domain=new URL(url).hostname.replace('www.','');}catch(e){domain=url;}
+                var favicon='https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32';
+                var title=r.title||domain;
+                var snippet=r.content||'';
+                var score=r.score?Math.round(r.score*100)+'%':'';
+                html+='<a href="'+esc(url)+'" target="_blank" rel="noopener" class="web-result-card">'
+                    +'<div class="wrc-header">'
+                    +'<img class="wrc-favicon" src="'+esc(favicon)+'" alt="" onerror="this.style.display=\'none\'">'
+                    +'<span class="wrc-domain">'+esc(domain)+'</span>'
+                    +'</div>'
+                    +'<div class="wrc-title">'+esc(title)+'</div>';
+                if(snippet) html+='<div class="wrc-snippet">'+esc(snippet)+'</div>';
+                html+='<div class="wrc-footer">';
+                if(score) html+='<span class="wrc-score"><i class="fas fa-chart-bar"></i> '+score+'</span>';
+                html+='<span class="wrc-link-icon"><i class="fas fa-external-link-alt"></i></span>';
+                html+='</div></a>';
+            });
+            html+='</div>';
+            return html;
+        }
+
+        function addAnswerStreamingStart(){
+            var block=document.createElement('div');block.className='answer-block';
+            block.innerHTML='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>'
+                +'<div class="answer-body"><span class="typing-cursor"></span></div>';
+            var bodyEl=block.querySelector('.answer-body');
+            msgsArea.appendChild(block);
+            scrollBottom();
+            var state={block:block,bodyEl:bodyEl,accumulated:'',displayedLen:0,typingId:null,done:false,pendingFinalize:null,skipPlatformResults:false};
+            function doFinalize(){
+                var data=state.pendingFinalize;
+                if(!data)return;
+                state.pendingFinalize=null;
+                state.done=true;
+                if(state.typingId){clearTimeout(state.typingId);state.typingId=null}
+                if(data.lang==='ar') state.block.setAttribute('dir','rtl');
+                var extracted=extractCitations(data.answer||state.accumulated||'');
+                var srcs=buildSources(data.source,data.retrieved_docs,data.platform_results);
+                state.bodyEl.innerHTML=renderMd(extracted.body);
+                if(extracted.citations.length>0){
+                    var citeDiv=document.createElement('div');citeDiv.className='answer-citations';
+                    citeDiv.innerHTML=extracted.citations.map(function(c){return '<span class="answer-cite"><i class="fas fa-bookmark"></i> '+esc(c)+'</span>';}).join('');
+                    state.block.insertBefore(citeDiv,state.bodyEl);
+                }
+                if(srcs.length>0){
+                    var srcDiv=document.createElement('div');srcDiv.className='sources-row';
+                    srcDiv.innerHTML=srcs.map(function(s){return '<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';}).join('');
+                    state.block.insertBefore(srcDiv,state.bodyEl);
+                }
+                if(data.web_results && data.web_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildWebResultCards(data.web_results));
+                }
+                if(!state.skipPlatformResults && data.platform_results&&data.platform_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildCards(data.platform_results));
+                }
+                scrollBottom(true);
+            }
+            function getSegments(txt){
+                return (txt.match(/(?:\s+|\S+)/g)||[]);
+            }
+            function tick(){
+                if(state.done){return}
+                var segs=getSegments(state.accumulated);
+                if(segs.length===0){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var len=0,startLen=state.displayedLen,chunkWords=0;
+                var isFast=typingSpeedMult>=1.5;
+                /* Dynamic chunks: 2–6 words / 20–80 chars; lean larger when speed is high */
+                var targetWords=isFast?4+Math.floor(Math.random()*3):2+Math.floor(Math.random()*3);
+                var targetChars=isFast?60+Math.floor(Math.random()*21):30+Math.floor(Math.random()*31);
+                var maxChars=isFast?90:80;var maxWords=isFast?7:6;
+                var endIdx=-1;
+                for(var i=0;i<segs.length;i++){
+                    len+=segs[i].length;
+                    if(len>startLen){
+                        if(/\S/.test(segs[i]))chunkWords++;
+                        var chunkChars=len-startLen;
+                        if(chunkChars>=maxChars||chunkWords>=maxWords){endIdx=i;break}
+                        if((chunkWords>=targetWords&&chunkChars>=20)||(chunkChars>=targetChars&&chunkWords>=2)){endIdx=i;break}
+                    }
+                }
+                if(endIdx<0){endIdx=segs.length-1;len=state.accumulated.length}
+                else{len=0;for(var k=0;k<=endIdx;k++)len+=segs[k].length}
+                if(len<=state.displayedLen){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var chunkChars=len-state.displayedLen;
+                state.displayedLen=len;
+                var shown=state.accumulated.substring(0,state.displayedLen);
+                state.bodyEl.innerHTML=renderMd(shown)+'<span class="typing-cursor'+(isFast?' typing-cursor-fast':'')+'"></span>';
+                scrollBottom();
+                var lastSeg=segs[endIdx]||'';
+                var lastChar=lastSeg.charAt(lastSeg.length-1);
+
+                /* Base delay: chunkChars × 1.6 / speedMult (target 10–80ms) */
+                var base=(chunkChars*1.6)/(typingSpeedMult||1);
+                base=Math.min(Math.max(base,10),80);
+                /* Small chunks slightly faster; large chunks 15–20% slower */
+                if(chunkChars<40){base*=0.95;}
+                else if(chunkChars>80){base*=(1.15 + Math.random()*0.05);}
+                /* Micro-jitter ±8–10ms for softer rhythm */
+                var jitter=(8+Math.random()*2)*(Math.random()<0.5?-1:1);
+                base+=jitter;
+                base=Math.min(Math.max(base,10),80);
+                /* Punctuation pauses */
+                if(/[.!?]/.test(lastChar)){base+=100+Math.floor(Math.random()*61);}
+                else if(/[,;:]/.test(lastChar)){base+=60+Math.floor(Math.random()*31);}
+                if(/[\n\r]/.test(lastSeg)){base+=40+Math.floor(Math.random()*31);}
+
+                var delay=Math.max(10,Math.round(base));
+                state.typingId=setTimeout(tick,delay);
+            }
+            state.scheduleTick=function(){state.typingId=setTimeout(tick,0)};
+            tick();
+            return state;
+        }
+        function updateStreamingAnswer(state,chunk){
+            state.accumulated+=chunk;
+        }
+        function finalizeStreamingAnswer(state,data){
+            state.pendingFinalize=data;
+            state.accumulated=data.answer||state.accumulated;
+            if(state.displayedLen>=state.accumulated.length&&state.scheduleTick){state.scheduleTick();return}
         }
 
         function addAnswer(text,source,lang,docs,platResults,animate){
@@ -1401,6 +1898,111 @@ input[type="file"]{display:none}
 
         function setLoading(v){isLoading=v;sendBtn.disabled=v;chatInput.disabled=v}
 
+        function entityIcon(type){
+            var icons={
+                course:{icon:'<i class="fas fa-graduation-cap"></i>',cls:'pci-course'},
+                tool:{icon:'<i class="fas fa-wrench"></i>',cls:'pci-tool'},
+                corpus:{icon:'<i class="fas fa-database"></i>',cls:'pci-corpus'},
+                resource:{icon:'<i class="fas fa-book-open"></i>',cls:'pci-resource'},
+                event:{icon:'<i class="fas fa-calendar-alt"></i>',cls:'pci-event'},
+                project:{icon:'<i class="fas fa-project-diagram"></i>',cls:'pci-project'},
+                institution:{icon:'<i class="fas fa-university"></i>',cls:'pci-institution'},
+                user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
+                post:{icon:'<i class="fas fa-newspaper"></i>',cls:'pci-resource'}
+            };
+            return icons[type]||{icon:'<i class="fas fa-link"></i>',cls:'pci-resource'};
+        }
+
+        function normalizeEntityContext(ctx){
+            return {
+                type:(ctx.type||ctx.contentType||'resource').toString().trim().toLowerCase(),
+                title:(ctx.title||'').toString().trim(),
+                description:(ctx.description||'').toString().trim(),
+                category:(ctx.category||'').toString().trim(),
+                author:(ctx.author||'').toString().trim(),
+                url:(ctx.url||ctx.link||'').toString().trim()
+            };
+        }
+
+        function safeEntityUrl(url){
+            if(!url) return '';
+            var u=url.toString().trim();
+            if(!u) return '';
+            if(u.startsWith('/')) return u;
+            if(/^https?:\/\//i.test(u)) return u;
+            return '';
+        }
+
+        function cleanContextText(value){
+            if(!value) return '';
+            return value
+                .toString()
+                .replace(/[*_`#]/g,' ')
+                .replace(/<[^>]+>/g,' ')
+                .replace(/\[(.*?)\]\((.*?)\)/g,'$1')
+                .replace(/\s+/g,' ')
+                .trim();
+        }
+
+        function trimSentence(text,maxLen){
+            var t=(text||'').trim();
+            if(!t||t.length<=maxLen) return t;
+            var cut=t.slice(0,maxLen);
+            var lastSpace=cut.lastIndexOf(' ');
+            if(lastSpace>80) cut=cut.slice(0,lastSpace);
+            return cut.replace(/[\s,;:.]+$/,'')+'...';
+        }
+
+        function buildContextSummary(ctx){
+            var rawDesc=cleanContextText(ctx.description||'');
+            if(!rawDesc) return '';
+
+            var authorsMatch=rawDesc.match(/Authors?\s*:\s*(.+?)(?=\s+Year\s*:|\s+Abstract\s*:|$)/i);
+            var yearMatch=rawDesc.match(/Year\s*:\s*(\d{4})/i);
+            var abstractMatch=rawDesc.match(/Abstract\s*:\s*(.+)$/i);
+
+            if(authorsMatch||yearMatch||abstractMatch){
+                var authors=authorsMatch?trimSentence(authorsMatch[1],120):'';
+                var year=yearMatch?yearMatch[1]:'';
+                var abstractText=abstractMatch?trimSentence(abstractMatch[1],220):trimSentence(rawDesc,220);
+                var head='';
+                if(authors&&year) head='Research item by '+authors+' ('+year+'). ';
+                else if(authors) head='Research item by '+authors+'. ';
+                else if(year) head='Research item published in '+year+'. ';
+                return (head+abstractText).trim();
+            }
+
+            if(ctx.type==='tool' || /\bdataset\b/i.test(ctx.category||'') || /^\s*\[dataset\]/i.test(rawDesc)){
+                var normalized=rawDesc.replace(/^\s*\[dataset\]\s*/i,'Dataset: ');
+                return trimSentence(normalized,220);
+            }
+
+            return trimSentence(rawDesc,220);
+        }
+
+        function addEntityContextCard(rawCtx){
+            var ctx=normalizeEntityContext(rawCtx||{});
+            if(!ctx.title) return;
+            var ico=entityIcon(ctx.type);
+            var href=safeEntityUrl(ctx.url);
+            var summary=buildContextSummary(ctx);
+            var block=document.createElement('div');
+            block.className='context-preview-wrap';
+            var tags=[ctx.type,ctx.category,ctx.author].filter(Boolean).slice(0,3)
+                .map(function(v){return '<span class="meta-tag">'+esc(v)+'</span>'}).join('');
+
+            block.innerHTML=''
+                +'<div class="context-preview-label"><i class="fas fa-compass"></i><span>{% trans "Selected Context" %}</span></div>'
+                +'<div class="context-preview-card">'
+                +'<div class="context-preview-head"><div class="p-card-icon '+ico.cls+'">'+ico.icon+'</div><div class="context-preview-title">'+esc(ctx.title)+'</div></div>'
+                +(summary?'<div class="context-preview-desc">'+esc(summary)+'</div>':'')
+                +(tags?'<div class="context-preview-meta">'+tags+'</div>':'')
+                +(href?'<div class="context-preview-actions"><a class="context-preview-link" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">{% trans "Open Resource" %} <i class="fas fa-arrow-up-right-from-square"></i></a></div>':'')
+                +'</div>';
+            msgsArea.appendChild(block);
+            scrollBottom();
+        }
+
         /* ============================================================
            AUTO-EXPLAIN: when chatbot opens from an entity detail page
            ============================================================ */
@@ -1409,6 +2011,7 @@ input[type="file"]{display:none}
             if(!raw||raw==='{}') return;
             var ctx;
             try{ctx=JSON.parse(raw)}catch(e){return}
+            ctx=normalizeEntityContext(ctx);
             if(!ctx.title) return;
 
             /* Ensure we have a session */
@@ -1423,33 +2026,96 @@ input[type="file"]{display:none}
             }
 
             showMsgs();
-            addUserMsg("{% trans 'Tell me about' %}: "+ctx.title);
+            addEntityContextCard(ctx);
             setLoading(true);
             var thinkEl=addThinking();
 
             try{
                 var payload={
-                    mode:'platform_entity',
+                    mode:'conversation',
+                    question:'{% trans "Explain this selected content naturally and comprehensively, covering key ideas and important context. Write conversationally without formal section headings." %}',
                     session_id:currentSessionId,
-                    entity_context:{
-                        type:ctx.contentType||'resource',
+                    context:{
+                        type:ctx.type||'resource',
                         title:ctx.title||'',
                         description:ctx.description||'',
                         category:ctx.category||'',
                         author:ctx.author||'',
-                        url:ctx.link||''
+                        url:ctx.url||''
                     }
                 };
-                var resp=await fetch('{% url "chatbot:ask" %}',{
+
+                var resp=await fetch('{% url "chatbot:ask_stream" %}',{
                     method:'POST',
                     headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
                     body:JSON.stringify(payload)
                 });
                 thinkEl.remove();
-                var data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
-                if(data.session_id) currentSessionId=data.session_id;
-                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,true);
+
+                if(!resp.ok){
+                    // Fallback to non-stream path if stream endpoint is unavailable.
+                    var fallbackResp=await fetch('{% url "chatbot:ask" %}',{
+                        method:'POST',
+                        headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                        body:JSON.stringify({
+                            mode:'platform_entity',
+                            session_id:currentSessionId,
+                            entity_context:payload.context
+                        })
+                    });
+                    var fallbackData=await fallbackResp.json();
+                    if(!fallbackResp.ok) throw new Error(fallbackData.error||'Error '+fallbackResp.status);
+                    if(fallbackData.session_id) currentSessionId=fallbackData.session_id;
+                    if(fallbackData.answer) addAnswer(fallbackData.answer,fallbackData.source,fallbackData.lang,null,null,false);
+                    loadSessions();
+                    return;
+                }
+
+                var streamState=addAnswerStreamingStart();
+                streamState.skipPlatformResults=true;
+                var reader=resp.body.getReader();
+                var decoder=new TextDecoder();
+                var buf='';
+                var done=false;
+
+                while(!done){
+                    var r=await reader.read();
+                    if(r.done) break;
+                    buf+=decoder.decode(r.value,{stream:true});
+                    var parts=buf.split('\n\n');
+                    buf=parts.pop();
+                    for(var p=0;p<parts.length;p++){
+                        var chunk=parts[p];
+                        var dataMatch=chunk.match(/^data: (.+)$/m);
+                        if(dataMatch){
+                            try{
+                                var obj=JSON.parse(dataMatch[1]);
+                                if(obj.error){addSystem(obj.error,'error');done=true;break}
+                                if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.done){
+                                    if(obj.session_id) currentSessionId=obj.session_id;
+                                    finalizeStreamingAnswer(streamState,obj);
+                                    done=true;break;
+                                }
+                            }catch(parseErr){}
+                        }
+                    }
+                }
+
+                if(!done&&buf){
+                    var dataMatch=buf.match(/^data: (.+)$/m);
+                    if(dataMatch){
+                        try{
+                            var obj=JSON.parse(dataMatch[1]);
+                            if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                            if(obj.done){
+                                if(obj.session_id) currentSessionId=obj.session_id;
+                                finalizeStreamingAnswer(streamState,obj);
+                            }
+                        }catch(parseErr){}
+                    }
+                }
+
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
             finally{setLoading(false)}

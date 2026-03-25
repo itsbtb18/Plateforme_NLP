@@ -1580,65 +1580,30 @@ html[dir="rtl"] .share-dropdown-menu {
                         <span>{% translate "Comment" %}</span>
                     </a>
                     <div class="post-tools">
-                        <a href="{% url 'chatbot:chatbot_interface' %}?context=post&id={{ post.id }}" 
-                           class="feed-action-btn feed-tool-btn feed-chatbot-btn feed-chatbot-link"
-                           title="{% if language_code == 'ar' %}إسأل{% else %}{% translate 'Ask chatbot about this' %}{% endif %}"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           data-title="{{ post.get_localized_content|striptags|truncatechars:80|escape }}"
-                           data-author="{{ post.author.get_full_name_display|default:post.author.username|escape }}"
-                           data-description="{{ post.get_localized_content|striptags|truncatechars:320|escape }}"
-                           data-ct="post"
-                           data-oid="{{ post.id }}"
-                           data-context='{"title":"{{ post.get_localized_content|striptags|truncatechars:80|escapejs }}","author":"{{ post.author.get_full_name_display|default:post.author.username|escapejs }}","description":"{{ post.get_localized_content|striptags|truncatechars:320|escapejs }}","category":"News","type":"post","id":"{{ post.id }}"}'
-                           aria-label="{% if language_code == 'ar' %}إسأل{% else %}{% translate 'Ask AI Robot' %}{% endif %}">
+                        <button type="button"
+                                class="feed-action-btn feed-tool-btn feed-chatbot-btn ask-chatbot-btn"
+                                title="{% if language_code == 'ar' %}إسأل{% else %}{% translate 'Ask chatbot about this' %}{% endif %}"
+                            data-title="{{ post.get_localized_title|default:post.title_en|default:post.title_ar|default:post.title|default:post.news_meta.title|default:post.get_localized_content|striptags|truncatechars:80|escape }}"
+                                data-author="{{ post.author.get_full_name_display|default:post.author.username|escape }}"
+                                data-description="{{ post.get_localized_content|striptags|truncatechars:320|escape }}"
+                                data-category="News"
+                                data-url="{{ request.build_absolute_uri }}"
+                                data-ct="post"
+                                data-oid="{{ post.id }}"
+                            data-context='{"title":"{{ post.get_localized_title|default:post.title_en|default:post.title_ar|default:post.title|default:post.news_meta.title|default:post.get_localized_content|striptags|truncatechars:80|escapejs }}","author":"{{ post.author.get_full_name_display|default:post.author.username|escapejs }}","description":"{{ post.get_localized_content|striptags|truncatechars:320|escapejs }}","category":"News","type":"post","id":"{{ post.id }}"}'
+                                aria-label="{% if language_code == 'ar' %}إسأل{% else %}{% translate 'Ask AI Robot' %}{% endif %}">
                             <i class="bi bi-robot"></i>
                             <span>{% if language_code == 'ar' %}إسأل{% else %}{% translate "Ask AI" %}{% endif %}</span>
-                        </a>
-                        <div class="feed-share-dropdown post-dropdown"
-                             data-post-id="{{ post.id }}"
-                             data-post-slug="{{ post.slug }}"
-                             data-post-title="{{ post.get_localized_content|striptags|truncatechars:80|escape }}">
-                            <button type="button"
-                                    class="feed-action-btn feed-tool-btn feed-share-btn"
-                                    onclick="toggleShareMenu(this)"
-                                    aria-expanded="false"
-                                    title="{% translate 'Share' %}">
-                                <i class="bi bi-send" data-outline-icon="bi-send" data-solid-icon="bi-send-fill"></i>
-                                <span>{% if language_code == 'ar' %}Ø¥Ø±Ø³Ø§Ù„{% else %}{% translate "Send" %}{% endif %}</span>
-                            </button>
-                            <div class="feed-dropdown-menu share-dropdown-menu" role="menu">
-                                <button type="button" class="feed-dropdown-item" onclick="sendPostToFriends(this)">
-                                    <i class="bi bi-people-fill"></i>
-                                    <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ø¥Ø±Ø³Ø§Ù„ Ø¥Ù„Ù‰ Ø§Ù„Ø£ØµØ¯Ù‚Ø§Ø¡{% else %}{% translate "Send to Friends" %}{% endif %}</span>
-                                </button>
-                                <button type="button" class="feed-dropdown-item" onclick="copyPostLink(this)">
-                                    <i class="bi bi-link-45deg"></i>
-                                    <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ù†Ø³Ø® Ø§Ù„Ø±Ø§Ø¨Ø·{% else %}{% translate "Copy Link" %}{% endif %}</span>
-                                </button>
-                                <button type="button" class="feed-dropdown-item" onclick="shareViaSystem(this)">
-                                    <i class="bi bi-share"></i>
-                                    <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø±...{% else %}{% translate "Share via..." %}{% endif %}</span>
-                                </button>
-                                <div class="share-social-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ÙˆØ³Ø§Ø¦Ù„ Ø§Ù„ØªÙˆØ§ØµÙ„ Ø§Ù„Ø§Ø¬ØªÙ…Ø§Ø¹ÙŠ{% else %}{% translate "Social Media" %}{% endif %}</div>
-                                <div class="share-social-row">
-                                    <a href="#"
-                                       class="share-social-btn"
-                                       onclick="shareOnSocial('whatsapp', this); return false;"
-                                       aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± ÙˆØ§ØªØ³Ø§Ø¨{% else %}{% translate 'Share on WhatsApp' %}{% endif %}">
-                                        <i class="bi bi-whatsapp"></i>
-                                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ÙˆØ§ØªØ³Ø§Ø¨{% else %}WhatsApp{% endif %}</span>
-                                    </a>
-                                    <a href="#"
-                                       class="share-social-btn"
-                                       onclick="shareOnSocial('linkedin', this); return false;"
-                                       aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ù„ÙŠÙ†ÙƒØ¯Ø¥Ù†{% else %}{% translate 'Share on LinkedIn' %}{% endif %}">
-                                        <i class="bi bi-linkedin"></i>
-                                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ù„ÙŠÙ†ÙƒØ¯Ø¥Ù†{% else %}LinkedIn{% endif %}</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+                        </button>
+                        <button type="button"
+                                class="feed-action-btn feed-tool-btn feed-share-btn share-trigger-btn"
+                                title="{% translate 'Share' %}"
+                                data-share-type="post"
+                                data-share-id="{{ post.id }}"
+                                data-share-title="{{ post.get_localized_content|striptags|truncatechars:80|escape }}">
+                            <i class="bi bi-send" data-outline-icon="bi-send" data-solid-icon="bi-send-fill"></i>
+                            <span>{% if language_code == 'ar' %}إرسال{% else %}{% translate "Send" %}{% endif %}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1937,15 +1902,6 @@ html[dir="rtl"] .share-dropdown-menu {
     };
 
     document.addEventListener('click', function(e) {
-        const chatbotBtn = e.target.closest('.feed-chatbot-btn');
-        if (chatbotBtn && chatbotBtn.tagName !== 'A') {
-            e.preventDefault();
-            e.stopPropagation();
-            const context = getFeedCardContext(chatbotBtn);
-            sendContextToOriginalChatbot(context);
-            return;
-        }
-
         if (!e.target.closest('.feed-share-dropdown')) {
             document.querySelectorAll('.feed-share-dropdown.open').forEach(d => {
                 d.classList.remove('open');

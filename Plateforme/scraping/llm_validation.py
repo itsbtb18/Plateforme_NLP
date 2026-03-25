@@ -21,7 +21,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -107,22 +107,88 @@ Validate, enrich, translate, and return the strict JSON schema.\
 """
 
 
+CUSTOM_EXTRACTION_INSTRUCTIONS = {
+    "events": (
+        "Extract event entries from this page. Include title, description, url, date, "
+        "location, event_type (conference/workshop/seminar/cfp), and organizer if visible."
+    ),
+    "tools": (
+        "Extract from this page: tool name, what it does, programming language, "
+        "github link if present, license, installation command if shown, "
+        "supported languages (arabic/english/etc)."
+    ),
+    "news": (
+        "Extract research/news entries from this page. Include title, summary, url, "
+        "publication date, and source name if visible."
+    ),
+    "courses": (
+        "Extract: course title, instructor name, institution, course level "
+        "(beginner/intermediate/advanced), language of instruction, duration, "
+        "whether it is free, platform name."
+    ),
+    "institutions": (
+        "Extract: institution full name, acronym, type (university/research lab/center), "
+        "country, city, website, main research areas, director name if shown."
+    ),
+}
+
+
+def build_custom_extraction_prompt(category: str, page_text: str) -> tuple[str, str]:
+    """Build category-specific prompts for flexible custom-source extraction."""
+    normalized_category = (category or "").strip().lower()
+    instruction = CUSTOM_EXTRACTION_INSTRUCTIONS.get(
+        normalized_category,
+        CUSTOM_EXTRACTION_INSTRUCTIONS["news"],
+    )
+
+    system_prompt = (
+        "You are a strict extraction assistant for Arabic NLP curation. "
+        "Return only a valid JSON array. No markdown. No explanation."
+    )
+    user_prompt = f"""
+Category: {normalized_category or "auto"}
+
+Task:
+{instruction}
+
+Output format:
+- Return ONLY a JSON array.
+- Each object may include any relevant fields, but always include:
+  - title or name
+  - description (or summary)
+  - url (if available)
+  - date (if available, ISO YYYY-MM-DD preferred)
+- If no items are present, return [].
+- Do not invent facts.
+
+Webpage text:
+{page_text}
+"""
+    return system_prompt, user_prompt
+
+
 # ─── GroqLLMClient ─────────────────────────────────────────────────
+
 
 class GroqLLMClient:
     """Thin wrapper around the Groq Chat Completions API."""
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        timeout: Optional[int] = None,
-        max_retries: Optional[int] = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout: int | None = None,
+        max_retries: int | None = None,
     ):
         self.api_key = api_key or getattr(settings, "GROQ_SCRAPING_API_KEY", "")
-        self.model = model or getattr(settings, "GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
-        self.timeout = timeout or getattr(settings, "GROQ_SCRAPING_TIMEOUT", 30)
-        self.max_retries = max_retries or getattr(settings, "GROQ_SCRAPING_MAX_RETRIES", 2)
+        self.model = model or getattr(
+            settings, "GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile"
+        )
+        configured_timeout = timeout or getattr(settings, "GROQ_SCRAPING_TIMEOUT", 30)
+        self.timeout = max(1, min(int(configured_timeout), 30))
+        self.max_retries = max_retries or getattr(
+            settings, "GROQ_SCRAPING_MAX_RETRIES", 2
+        )
         self._session = requests.Session()
 
     @property
@@ -130,7 +196,7 @@ class GroqLLMClient:
         return bool(self.api_key)
 
     # ── Core chat call ──────────────────────────────────────────────
-    def _chat(self, system: str, user: str) -> Optional[str]:
+    def _chat(self, system: str, user: str) -> str | None:
         """Send a chat completion request and return the assistant text."""
         if not self.is_configured:
             return None
@@ -169,7 +235,8 @@ class GroqLLMClient:
 
 # ─── JSON parsing helpers ──────────────────────────────────────────
 
-def _extract_json(text: str) -> Optional[dict]:
+
+def _extract_json(text: str) -> dict | None:
     """Try to extract a JSON object from LLM output (may contain fences)."""
     if not text:
         return None
@@ -180,16 +247,22 @@ def _extract_json(text: str) -> Optional[dict]:
         obj = json.loads(cleaned)
         if isinstance(obj, dict):
             return obj
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as exc:
+        logger.debug(
+            "llm_json_primary_parse_fallback",
+            extra={"error": str(exc), "context": cleaned[:120]},
+        )
 
     # Fallback: find the first { … } block
     match = re.search(r"\{[\s\S]+\}", cleaned)
     if match:
         try:
             return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            logger.debug(
+                "llm_json_regex_parse_fallback",
+                extra={"error": str(exc), "context": match.group()[:120]},
+            )
     return None
 
 
@@ -199,6 +272,7 @@ def _validate_schema(obj: dict) -> bool:
 
 
 # ─── Public API ────────────────────────────────────────────────────
+
 
 class LLMValidator:
     """
@@ -215,7 +289,7 @@ class LLMValidator:
     ``None`` so the caller can proceed with the original item unchanged.
     """
 
-    def __init__(self, client: Optional[GroqLLMClient] = None):
+    def __init__(self, client: GroqLLMClient | None = None):
         self.client = client or GroqLLMClient()
 
     @property
@@ -224,7 +298,7 @@ class LLMValidator:
 
     def validate(
         self, item: dict[str, Any], category: str = "general"
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Send *item* to the LLM for validation and enrichment.
 
@@ -252,14 +326,17 @@ class LLMValidator:
 
             logger.debug(
                 "LLM JSON parse attempt %d/%d failed (category=%s)",
-                attempt, self.client.max_retries, category,
+                attempt,
+                self.client.max_retries,
+                category,
             )
             # Brief pause before retry
             time.sleep(0.3)
 
         logger.warning(
             "LLM validation gave up after %d retries for category=%s",
-            self.client.max_retries, category,
+            self.client.max_retries,
+            category,
         )
         return None
 
@@ -267,7 +344,7 @@ class LLMValidator:
 # ─── Convenience helpers for scrapers ──────────────────────────────
 
 # Module-level singleton — lazily created on first use.
-_default_validator: Optional[LLMValidator] = None
+_default_validator: LLMValidator | None = None
 
 
 def get_validator() -> LLMValidator:
@@ -278,7 +355,7 @@ def get_validator() -> LLMValidator:
     return _default_validator
 
 
-def validate_item(item: dict, category: str = "general") -> Optional[dict]:
+def validate_item(item: dict, category: str = "general") -> dict | None:
     """
     Shortcut: validate a single item using the default validator.
 
@@ -435,7 +512,8 @@ def enrich_paper(
 
         logger.debug(
             "Paper enrichment JSON attempt %d/%d failed",
-            attempt, client.max_retries,
+            attempt,
+            client.max_retries,
         )
         time.sleep(0.3)
 

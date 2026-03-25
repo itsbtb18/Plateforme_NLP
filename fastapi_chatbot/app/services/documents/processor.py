@@ -128,6 +128,125 @@ class DocumentProcessor:
         return self._chunk_pages(pages)
 
     # ------------------------------------------------------------------
+    # Phase 7: Legal-aware chunking
+    # ------------------------------------------------------------------
+
+    # Regex for legal article headings (multilingual)
+    _LEGAL_HEADING_RE = re.compile(
+        r"(?:^|\n)\s*(?:"
+        r"(?:Art(?:icle)?\.?\s*\d[\d\w.\-/]*)"  # Article / Art. 43, Art.3-1
+        r"|(?:المادة\s*\d[\d\w.\-/]*)"            # Arabic: المادة 43
+        r"|(?:Section\s+\d[\d.]*)"                 # Section 3.2
+        r"|(?:Chapitre\s+\w+)"                     # Chapitre III
+        r"|(?:الفصل\s+\w+)"                        # Arabic: chapter
+        r"|(?:Titre\s+\w+)"                        # Titre II
+        r"|(?:الباب\s+\w+)"                         # Arabic: title/part
+        r")",
+        re.IGNORECASE | re.UNICODE,
+    )
+
+    def chunk_legal(
+        self,
+        text: str,
+        page_map: Optional[List[Dict]] = None,
+    ) -> List[Dict]:
+        """Structure-aware chunking for legal documents.
+
+        Priority order:
+          1. Split at legal article headings (Article X, المادة, etc.)
+          2. If articles are too large, split at paragraph boundaries
+          3. If paragraphs are too large, fall back to sentence-aware split
+
+        Each chunk includes metadata: article heading if detected.
+        """
+        # Combine all pages into a single text if page_map is provided
+        if page_map:
+            full_text = "\n\n".join(p["content"] for p in page_map)
+        else:
+            full_text = text
+
+        # Try to split on article boundaries
+        articles = self._split_on_articles(full_text)
+
+        if len(articles) < 2:
+            # No article structure detected → fall back to standard chunking
+            logger.debug("No article structure found, using standard chunking")
+            if page_map:
+                return self._chunk_pages(page_map)
+            return self._chunk_flat(full_text)
+
+        # Process each article
+        chunks: List[Dict] = []
+        for article in articles:
+            heading = article.get("heading")
+            content = article["content"].strip()
+
+            if not content or len(content.split()) < 10:
+                continue
+
+            # If article fits within chunk_size, keep it as one chunk
+            word_count = len(content.split())
+            if word_count <= self.chunk_size:
+                chunks.append({
+                    "content": content,
+                    "page": None,
+                    "article_heading": heading,
+                })
+            else:
+                # Article too large — split within it
+                sub_chunks = self._split(content)
+                for i, sub in enumerate(sub_chunks):
+                    chunk_heading = heading
+                    if i > 0 and heading:
+                        chunk_heading = f"{heading} (cont.)"
+                    chunks.append({
+                        "content": sub,
+                        "page": None,
+                        "article_heading": chunk_heading,
+                    })
+
+            if len(chunks) >= self.max_chunks:
+                break
+
+        logger.info(
+            "Legal chunking: %d articles → %d chunks",
+            len(articles), len(chunks),
+        )
+        return chunks
+
+    def _split_on_articles(self, text: str) -> List[Dict]:
+        """Split text at legal article boundaries.
+
+        Returns a list of {"heading": str|None, "content": str}.
+        """
+        matches = list(self._LEGAL_HEADING_RE.finditer(text))
+
+        if not matches:
+            return [{"heading": None, "content": text}]
+
+        articles: List[Dict] = []
+
+        # Content before first article heading (preamble/intro)
+        if matches[0].start() > 0:
+            preamble = text[:matches[0].start()].strip()
+            if preamble and len(preamble.split()) > 10:
+                articles.append({"heading": "Preamble", "content": preamble})
+
+        # Each article section
+        for i, match in enumerate(matches):
+            heading = match.group().strip()
+            start = match.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+            content = text[start:end].strip()
+
+            # Include the heading in the content for context
+            full_content = f"{heading}\n{content}"
+            articles.append({"heading": heading, "content": full_content})
+
+        return articles
+
+
+    # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 

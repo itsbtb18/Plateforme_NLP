@@ -44,9 +44,27 @@ class QdrantService:
     # Collection management
     # ------------------------------------------------------------------
 
+    def recreate_collections(self) -> None:
+        """Delete and recreate all collections. Used for model upgrades."""
+        for name in ALL_COLLECTIONS:
+            try:
+                self.client.delete_collection(collection_name=name)
+                logger.info("Deleted Qdrant collection: %s", name)
+            except Exception:
+                logger.debug("Collection %s did not exist for deletion", name)
+
+            self.client.create_collection(
+                collection_name=name,
+                vectors_config=VectorParams(
+                    size=self.dimension,
+                    distance=Distance.COSINE,
+                ),
+            )
+            logger.info("Recreated Qdrant collection: %s (dim=%d)", name, self.dimension)
+
     def ensure_collections(self) -> None:
         """Create collections if they do not exist."""
-        existing = {c.name for c in self.client.get_collections().collections}
+        existing = [c.name for c in self.client.get_collections().collections]
         for name in ALL_COLLECTIONS:
             if name not in existing:
                 self.client.create_collection(
@@ -56,9 +74,9 @@ class QdrantService:
                         distance=Distance.COSINE,
                     ),
                 )
-                logger.info("Created Qdrant collection: %s", name)
+                logger.info("Created missing Qdrant collection: %s", name)
             else:
-                logger.info("Qdrant collection already exists: %s", name)
+                logger.debug("Qdrant collection exists: %s", name)
 
     # ------------------------------------------------------------------
     # Upsert

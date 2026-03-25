@@ -7,8 +7,9 @@ Usage:
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+
 from scraping.models import ScrapingRun
-from scraping.scrapers import get_scraper, SCRAPERS
+from scraping.scrapers import SCRAPERS, get_scraper
 
 
 class Command(BaseCommand):
