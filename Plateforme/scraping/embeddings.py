@@ -6,8 +6,6 @@ title embeddings stored in pgvector for cosine-similarity lookups.
 """
 
 from sentence_transformers import SentenceTransformer
-import numpy as np
-from django.conf import settings
 
 _model = None
 
@@ -34,8 +32,6 @@ def is_semantic_duplicate(new_title, category, threshold=0.88):
     Uses pgvector's ``CosineDistance`` to find items within the given
     *threshold* (default 0.88 cosine similarity → distance < 0.12).
     """
-    from scraping.models import ScrapedItemMeta
-    from pgvector.django import CosineDistance
 
     return find_semantic_duplicate(new_title, category, threshold=threshold) is not None
 
@@ -45,8 +41,9 @@ def find_semantic_duplicate(new_title, category, threshold=0.88):
 
     Returns ``None`` when no semantic duplicate exists above threshold.
     """
-    from scraping.models import ScrapedItemMeta
     from pgvector.django import CosineDistance
+
+    from scraping.models import ScrapedItemMeta
 
     new_embedding = get_embedding(new_title)
     if new_embedding is None:

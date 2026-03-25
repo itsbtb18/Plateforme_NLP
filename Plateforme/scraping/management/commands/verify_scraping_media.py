@@ -1,11 +1,11 @@
 import os
 
 from django.core.management.base import BaseCommand
-
 from events.models import Event
 from institutions.models import Institution
 from QA.models import Post
 from resources.models import Course, NLPTool
+
 from scraping.file_downloader import attach_file_to_model
 
 
@@ -110,7 +110,12 @@ class Command(BaseCommand):
                 )
                 if attached:
                     redownloaded += 1
-            except Exception:
+            except (AttributeError, ValueError, TypeError, OSError) as exc:
+                self.stderr.write(
+                    self.style.WARNING(
+                        f"Skipped attaching media for obj={obj.pk} field={field_name}: {exc}"
+                    )
+                )
                 continue
 
         return redownloaded

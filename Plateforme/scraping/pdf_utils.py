@@ -12,7 +12,6 @@ Limits:
 """
 
 import logging
-from typing import Optional
 
 import requests
 
@@ -28,10 +27,10 @@ DOWNLOAD_TIMEOUT = 30  # seconds
 def download_pdf(
     url: str,
     *,
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     timeout: int = DOWNLOAD_TIMEOUT,
     max_bytes: int = MAX_PDF_BYTES,
-) -> Optional[bytes]:
+) -> bytes | None:
     """
     Download a PDF from *url* and return its raw bytes.
 
@@ -141,8 +140,9 @@ def extract_text(pdf_bytes, max_chars=12000):
     - page_count: number of pages
     - error: error message if any
     """
-    import fitz
     import re
+
+    import fitz
 
     sections = {
         "abstract": "",
@@ -153,7 +153,7 @@ def extract_text(pdf_bytes, max_chars=12000):
         "references": "",
     }
 
-    SECTION_PATTERNS = {
+    section_patterns = {
         "abstract": [
             r"\babstract\b",
             r"\bملخص\b",
@@ -202,7 +202,7 @@ def extract_text(pdf_bytes, max_chars=12000):
     }
 
     compiled = {}
-    for section_name, patterns in SECTION_PATTERNS.items():
+    for section_name, patterns in section_patterns.items():
         combined = "|".join(f"({p})" for p in patterns)
         compiled[section_name] = re.compile(combined, re.IGNORECASE | re.UNICODE)
 
@@ -257,9 +257,9 @@ def extract_text(pdf_bytes, max_chars=12000):
 def download_and_extract(
     url: str,
     *,
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     max_chars: int = MAX_CHARS,
-) -> Optional[ExtractionResult]:
+) -> ExtractionResult | None:
     """
     One-shot: download a PDF and extract text with section detection.
 

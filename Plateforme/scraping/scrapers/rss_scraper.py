@@ -1,10 +1,13 @@
-import feedparser
+import logging
 from datetime import datetime
 from urllib.parse import urljoin
 
+import feedparser
 from bs4 import BeautifulSoup
 
 from scraping.scrapers.base import BaseScraper
+
+logger = logging.getLogger(__name__)
 
 
 class RSSFeedScraper:
@@ -75,7 +78,12 @@ class RSSFeedScraper:
                 parsed = feedparser.parse(response.text)
                 if parsed.entries:
                     _add_feed(response.url or candidate)
-            except Exception:
+            except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "rss_feed_probe_skipped_due_to_error",
+                    extra={"error": str(exc), "item": candidate},
+                    exc_info=False,
+                )
                 continue
 
         # 2) Parse <link rel="alternate" ...> from the main page HTML.
@@ -190,7 +198,12 @@ class RSSFeedScraper:
                         "image_url": image_url,
                     }
                 )
-            except Exception:
+            except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "rss_item_skipped_due_to_error",
+                    extra={"error": str(exc), "item": feed_url},
+                    exc_info=False,
+                )
                 continue
 
         return items
@@ -232,7 +245,12 @@ class RSSFeedScraper:
 
                 if item_dict["title_en"] and item_dict["url"]:
                     items.append(item_dict)
-            except Exception:
+            except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "rss_feed_entry_skipped_due_to_error",
+                    extra={"error": str(exc), "item": feed_url},
+                    exc_info=False,
+                )
                 continue
 
         return items

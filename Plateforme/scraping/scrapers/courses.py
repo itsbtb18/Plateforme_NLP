@@ -9,6 +9,7 @@ Priority policy:
 Each scraped item is stored as resources.Course with approval_status='pending'.
 """
 
+import contextlib
 import json
 import logging
 import os
@@ -18,12 +19,13 @@ from urllib.parse import quote_plus, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper
 from scraping.enrichment_engine import enrich_scraped_item
 from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import (
     attach_file_to_model,
 )
+
+from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ def _load_curated_courses():
         os.path.dirname(os.path.dirname(__file__)), "fixtures", "curated_courses.json"
     )
     try:
-        with open(fixture_path, "r", encoding="utf-8") as handle:
+        with open(fixture_path, encoding="utf-8") as handle:
             return json.load(handle)
     except Exception:
         return {}
@@ -94,6 +96,27 @@ class CourseScraper(BaseScraper):
     category = "courses"
 
     def run(self) -> dict:
+        """Run the courses scraper with checkpoint-aware resume support.
+
+        Returns:
+            dict: Standard scraper summary returned by BaseScraper.
+
+        Raises:
+            Exception: Re-raises interrupted scrape errors after logging checkpoint state.
+        """
+        from scraping.checkpoint import ScraperCheckpoint
+
+        run_id = getattr(self, "_current_run_id", "unknown")
+        cp = ScraperCheckpoint("courses", run_id)
+
+        if cp.is_resuming():
+            logger.info(
+                "scraper_resuming_from_checkpoint",
+                extra=cp.get_summary(),
+            )
+
+        self._checkpoint = cp
+
         logger.info(
             "scraper_run_config",
             extra={
@@ -102,7 +125,20 @@ class CourseScraper(BaseScraper):
                 "media_download_enabled": self._is_download_enabled(),
             },
         )
-        return super().run()
+        try:
+            result = super().run()
+            cp.clear()
+            return result
+        except Exception as exc:
+            logger.error(
+                "scraper_interrupted_checkpoint_saved",
+                extra={
+                    "run_id": run_id,
+                    "error": str(exc),
+                    "summary": cp.get_summary(),
+                },
+            )
+            raise
 
     ALGERIAN_UNIVERSITY_OCW = [
         "https://elearning.univ-alger.dz",
@@ -231,6 +267,7 @@ class CourseScraper(BaseScraper):
     ]
 
     def scrape(self):
+        """Execute all courses tier pipelines in priority order."""
         self._scrape_tier_1_algerian_courses()
         self._scrape_tier_2_arabic_courses()
         self._scrape_tier_3_global_courses()
@@ -240,13 +277,39 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_1_algerian_courses(self):
-        self._scrape_rss_course_sources(self.TIER_1_RSS_SOURCES)
-        self._scrape_algerian_university_ocw()
-        self._scrape_cerist_training_programs()
-        self._scrape_youtube_playlists(
-            self.YOUTUBE_SEARCH_TERMS_TIER_1, source_name="YouTube Algeria/Arabic"
-        )
-        self._scrape_fun_mooc_fr()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier1_rss",
+                lambda: self._scrape_rss_course_sources(self.TIER_1_RSS_SOURCES),
+            ),
+            ("algerian_university_ocw", self._scrape_algerian_university_ocw),
+            ("cerist_training", self._scrape_cerist_training_programs),
+            (
+                "youtube_algeria_arabic",
+                lambda: self._scrape_youtube_playlists(
+                    self.YOUTUBE_SEARCH_TERMS_TIER_1,
+                    source_name="YouTube Algeria/Arabic",
+                ),
+            ),
+            ("fun_mooc_fr", self._scrape_fun_mooc_fr),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_algerian_university_ocw(self):
         for base_url in self.ALGERIAN_UNIVERSITY_OCW:
@@ -474,10 +537,32 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_2_arabic_courses(self):
-        self._scrape_rss_course_sources(self.TIER_2_RSS_SOURCES)
-        self._scrape_coursera_arabic_queries()
-        self._scrape_rwaq_courses()
-        self._scrape_edraak_courses()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier2_rss",
+                lambda: self._scrape_rss_course_sources(self.TIER_2_RSS_SOURCES),
+            ),
+            ("coursera_arabic", self._scrape_coursera_arabic_queries),
+            ("rwaq", self._scrape_rwaq_courses),
+            ("edraak", self._scrape_edraak_courses),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_coursera_arabic_queries(self):
         institution = self._ensure_institution(
@@ -666,13 +751,35 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_3_global_courses(self):
-        self._scrape_rss_course_sources(self.TIER_3_RSS_SOURCES)
-        self._scrape_mit_ocw()
-        self._scrape_fast_ai()
-        self._scrape_huggingface_course()
-        self._scrape_deeplearning_ai()
-        self._import_youtube_fixture_playlists()
-        self._import_curated_courses()
+        cp = getattr(self, "_checkpoint", None)
+        methods = [
+            (
+                "tier3_rss",
+                lambda: self._scrape_rss_course_sources(self.TIER_3_RSS_SOURCES),
+            ),
+            ("mit_ocw", self._scrape_mit_ocw),
+            ("fast_ai", self._scrape_fast_ai),
+            ("huggingface_course", self._scrape_huggingface_course),
+            ("deeplearning_ai", self._scrape_deeplearning_ai),
+            ("youtube_fixture_playlists", self._import_youtube_fixture_playlists),
+            ("curated_courses", self._import_curated_courses),
+        ]
+        for source_name, method in methods:
+            if cp and cp.is_source_done(source_name):
+                logger.info(
+                    "source_skipped_already_done",
+                    extra={"source": source_name},
+                )
+                continue
+            try:
+                method()
+                if cp:
+                    cp.mark_source_done(source_name)
+            except Exception as exc:
+                logger.error(
+                    "source_scrape_failed",
+                    extra={"source": source_name, "error": str(exc)},
+                )
 
     def _scrape_rss_course_sources(self, sources: list[dict]):
         rss = self.get_rss_scraper()
@@ -762,7 +869,12 @@ class CourseScraper(BaseScraper):
 
             try:
                 results = resp.json().get("results", [])
-            except Exception:
+            except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "course_items_parse_failed",
+                    extra={"error": str(exc), "context": str(query)},
+                    exc_info=False,
+                )
                 continue
 
             for item in results:
@@ -1141,7 +1253,12 @@ class CourseScraper(BaseScraper):
 
             try:
                 items = resp.json().get("items", [])
-            except Exception:
+            except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "youtube_playlist_search_parse_failed",
+                    extra={"error": str(exc), "context": term},
+                    exc_info=False,
+                )
                 continue
 
             for item in items:
@@ -1187,8 +1304,15 @@ class CourseScraper(BaseScraper):
                                 or (thumbs.get("default") or {}).get("url")
                                 or ""
                             )
-                    except Exception:
-                        pass
+                    except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                        logger.warning(
+                            "youtube_playlist_details_parse_failed",
+                            extra={
+                                "error": str(exc),
+                                "context": playlist_id,
+                            },
+                            exc_info=False,
+                        )
 
                 title = str(snippet.get("title") or "").strip()
                 channel = str(snippet.get("channelTitle") or "").strip()
@@ -1747,27 +1871,23 @@ class CourseScraper(BaseScraper):
 
             pdf_local_path = item_dict.get("pdf_local_path") or ""
             if pdf_local_path:
-                try:
+                with contextlib.suppress(AttributeError, KeyError):
                     attach_file_to_model(
                         course,
                         "uploaded_file",
                         item_dict.get("pdf_content_file"),
                         pdf_local_path,
                     )
-                except Exception:
-                    pass
 
             image_local_path = item_dict.get("image_local_path") or ""
             if image_local_path:
-                try:
+                with contextlib.suppress(AttributeError, KeyError):
                     attach_file_to_model(
                         course,
                         "thumbnail",
                         item_dict.get("image_content_file"),
                         image_local_path,
                     )
-                except Exception:
-                    pass
 
             self.items_created += 1
             self.results.append(

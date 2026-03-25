@@ -1,4 +1,8 @@
+import logging
+
 from django.db import migrations
+
+logger = logging.getLogger(__name__)
 
 
 def create_periodic_tasks(apps, schema_editor):
@@ -123,8 +127,12 @@ def remove_periodic_tasks(apps, schema_editor):
         from django_celery_beat.models import PeriodicTask
 
         PeriodicTask.objects.filter(task="scraping.tasks.run_scraper_task").delete()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "periodic_task_cleanup_failed",
+            extra={"error": str(exc), "context": "scraping.tasks.run_scraper_task"},
+            exc_info=False,
+        )
 
 
 class Migration(migrations.Migration):

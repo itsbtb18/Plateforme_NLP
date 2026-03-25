@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-from django.db import close_old_connections
+from django.db import close_old_connections, connection
 from django.test import TransactionTestCase
 from django.utils import timezone
 
@@ -12,6 +12,9 @@ class ScrapingSourceHealthConcurrencyTests(TransactionTestCase):
     reset_sequences = True
 
     def setUp(self):
+        if connection.vendor == "sqlite":
+            self.skipTest("SQLite does not provide reliable multi-thread write concurrency")
+
         self.health = ScrapingSourceHealth.objects.create(
             category="news",
             source_name="Concurrency Test Source",

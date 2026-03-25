@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -100,11 +100,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       
       # Django
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
@@ -323,11 +321,9 @@ services:
     container_name: nlp_django_celery_worker
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
       CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
       CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
@@ -375,11 +371,9 @@ services:
     command: celery -A Plateforme worker -Q scraping -c 2 --loglevel=info --max-tasks-per-child=50
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
       CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
       CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
@@ -428,11 +422,9 @@ services:
     container_name: nlp_django_celery_beat
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      SECRET_KEY: ${DJANGO_SECRET_KEY:?must be set}
-      DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
       CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
       CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
@@ -513,7 +505,7 @@ services:
     container_name: nlp_redis_exporter
     environment:
       REDIS_ADDR: redis://redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?must be set}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     ports:
       - "9121:9121"
     depends_on:

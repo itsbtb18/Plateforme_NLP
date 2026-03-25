@@ -109,7 +109,7 @@ class Event(models.Model):
         _("Submission Deadline"), null=True, blank=True
     )
     notification_date = models.DateField(_("Notification Date"), null=True, blank=True)
-    website = models.URLField(_("Website"), blank=True)
+    website = models.URLField(_("Website"), blank=True, db_index=True)
     registration_link = models.URLField(_("Registration Link"), null=True, blank=True)
     is_online = models.BooleanField(_("Is Online"), default=False)
     is_hybrid = models.BooleanField(_("Is Hybrid"), default=False)

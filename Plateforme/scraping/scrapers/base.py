@@ -3,22 +3,36 @@ Base scraper module providing the abstract foundation for all web scrapers.
 """
 
 import logging
-import os
-import random
 import re
 import time
-import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from difflib import SequenceMatcher
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
+from secrets import choice as secure_choice
 from urllib.parse import urlparse
+
+import requests
 from dateutil import parser as date_parser
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from scraping.models import ScrapingSourceHealth
+from scraping.robots_policy import can_fetch
+from scraping.scrapers.base_dedup import DedupMixin
+from scraping.scrapers.base_http import HttpMixin
+from scraping.scrapers.base_media import MediaMixin
+from scraping.scrapers.base_text import TextMixin
+from scraping.scraping_settings import get_scraping_settings
+
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+_SCRAPING_SETTINGS = get_scraping_settings()
+DEFAULT_TIMEOUT = _SCRAPING_SETTINGS.request_timeout
+MAX_RETRIES = _SCRAPING_SETTINGS.max_retries
+BACKOFF_BASE = _SCRAPING_SETTINGS.backoff_base
+BACKOFF_MAX = _SCRAPING_SETTINGS.backoff_max
 
 # ── User-Agent rotation pool ────────────────────────────────────────
 _USER_AGENTS = [
@@ -42,7 +56,7 @@ _USER_AGENTS = [
 ]
 
 
-class BaseScraper(ABC):
+class BaseScraper(TextMixin, MediaMixin, DedupMixin, HttpMixin, ABC):
     """Abstract base class for all platform web scrapers.
 
     Phase 5 enhancements
@@ -63,10 +77,10 @@ class BaseScraper(ABC):
     category: str = "unknown"
 
     # Configurable defaults (sub-classes may override)
-    DEFAULT_TIMEOUT: int = 30  # seconds
-    MAX_RETRIES: int = 3  # retries on transient HTTP errors
-    BACKOFF_BASE: float = 2.0  # base seconds for exponential backoff
-    BACKOFF_MAX: float = 60.0  # cap for backoff sleep
+    DEFAULT_TIMEOUT: int = DEFAULT_TIMEOUT  # seconds
+    MAX_RETRIES: int = MAX_RETRIES  # retries on transient HTTP errors
+    BACKOFF_BASE: float = BACKOFF_BASE  # base seconds for exponential backoff
+    BACKOFF_MAX: float = BACKOFF_MAX  # cap for backoff sleep
 
     def __init__(self):
         self.results: list = []
@@ -83,6 +97,7 @@ class BaseScraper(ABC):
         }
         self._system_user = None
         self._health_cache: dict = {}  # source_name → ScrapingSourceHealth
+        self._scraping_settings = _SCRAPING_SETTINGS
 
         self.session = requests.Session()
         self._rotate_user_agent()
@@ -106,7 +121,16 @@ class BaseScraper(ABC):
     # ------------------------------------------------------------------
 
     def run(self) -> dict:
-        """Execute the full scraping pipeline and return a summary dict."""
+        """Execute the full scraping pipeline for the current scraper.
+
+        Returns:
+            dict: Summary payload containing created/skipped counters, collected
+                results, error logs, and intelligence metadata.
+
+        Raises:
+            Exception: Scrape-time exceptions are captured and logged internally
+                to keep pipeline execution resilient.
+        """
         logger.info(
             "scraper_started",
             extra={
@@ -154,8 +178,11 @@ class BaseScraper(ABC):
             registry.update = lambda *a, **kw: None
             registry.delete = lambda *a, **kw: None
             logger.debug("Elasticsearch indexing disabled for scraping")
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug(
+                "es_indexing_disable_skipped",
+                extra={"error": str(exc), "context": "django_elasticsearch_dsl"},
+            )
 
     def _enable_es_indexing(self):
         """Restore the ES registry's original update/delete methods."""
@@ -167,8 +194,11 @@ class BaseScraper(ABC):
             if hasattr(self, "_original_es_delete"):
                 registry.delete = self._original_es_delete
             logger.debug("Elasticsearch indexing re-enabled")
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug(
+                "es_indexing_enable_skipped",
+                extra={"error": str(exc), "context": "django_elasticsearch_dsl"},
+            )
 
     # ------------------------------------------------------------------
     # Helpers – system user
@@ -181,25 +211,25 @@ class BaseScraper(ABC):
         """
         from django.contrib.auth import get_user_model
 
-        User = get_user_model()
+        user_model = get_user_model()
 
-        SYSTEM_EMAIL = "scraper-bot@nlp-platform.local"
-        SYSTEM_NAME = "System Scraper Bot"
+        system_email = "scraper-bot@nlp-platform.local"
+        system_name = "System Scraper Bot"
 
         if hasattr(self, "_system_user") and self._system_user:
             return self._system_user
 
         try:
-            user = User.objects.filter(email=SYSTEM_EMAIL).first()
+            user = user_model.objects.filter(email=system_email).first()
 
             if not user:
                 # Create the system user safely
                 try:
-                    user = User.objects.create_user(
-                        email=SYSTEM_EMAIL,
+                    user = user_model.objects.create_user(
+                        email=system_email,
                         password=None,
-                        full_name=SYSTEM_NAME,
-                        full_name_en=SYSTEM_NAME,
+                        full_name=system_name,
+                        full_name_en=system_name,
                         full_name_ar="روبوت نظام الاستخراج",
                     )
                     user.is_active = True
@@ -210,11 +240,11 @@ class BaseScraper(ABC):
                     if hasattr(user, "is_email_verified"):
                         user.is_email_verified = True
                     user.save()
-                except Exception:
+                except Exception as exc:
                     # If create_user fails due to custom
                     # manager requirements, try get_or_create
                     # with minimal fields
-                    user = User.objects.filter(is_superuser=True).first()
+                    user = user_model.objects.filter(is_superuser=True).first()
 
                     if not user:
                         # Absolute last resort: raise clearly
@@ -222,22 +252,22 @@ class BaseScraper(ABC):
                             "Cannot find or create system user "
                             "for scraping. Please run: "
                             "python manage.py createsuperuser"
-                        )
+                        ) from exc
 
             self._system_user = user
             return self._system_user
 
-        except Exception as e:
-            self._log_error("get_system_user", str(e), "system_user_init")
+        except Exception as exc:
+            self._log_error("get_system_user", str(exc), "system_user_init")
             # Try superuser fallback
-            User = get_user_model()
-            fallback = User.objects.filter(is_superuser=True).first()
+            user_model = get_user_model()
+            fallback = user_model.objects.filter(is_superuser=True).first()
             if fallback:
                 self._system_user = fallback
                 return fallback
             raise RuntimeError(
-                f"Cannot get system user: {e}. Create a superuser first."
-            )
+                f"Cannot get system user: {exc}. Create a superuser first."
+            ) from exc
 
     # ------------------------------------------------------------------
     # Helpers – RSS / Atom feeds
@@ -249,16 +279,10 @@ class BaseScraper(ABC):
         return RSSFeedScraper(self)
 
     def _is_download_enabled(self) -> bool:
-        raw = os.getenv("SCRAPING_DOWNLOAD_ENABLED", "true").strip().lower()
-        return raw not in {"0", "false", "no", "off"}
+        return self._scraping_settings.download_enabled
 
     def _max_concurrent_downloads(self) -> int:
-        raw = os.getenv("SCRAPING_MAX_CONCURRENT_DOWNLOADS", "3").strip()
-        try:
-            value = int(raw)
-        except ValueError:
-            value = 3
-        return max(1, value)
+        return max(1, int(self._scraping_settings.max_concurrent_downloads))
 
     @staticmethod
     def _coerce_url_list(value) -> list[str]:
@@ -286,8 +310,9 @@ class BaseScraper(ABC):
         return ".pdf" in lower or "arxiv.org/pdf/" in lower
 
     def _collect_page_media_urls(self, page_url: str, category: str) -> dict:
-        from bs4 import BeautifulSoup
         from urllib.parse import urljoin
+
+        from bs4 import BeautifulSoup
 
         result = {"images": [], "pdfs": []}
         if not page_url:
@@ -352,29 +377,28 @@ class BaseScraper(ABC):
                 add_pdf(href)
                 continue
 
-            if category == "events":
-                if any(
-                    token in text
-                    for token in [
-                        "programme",
-                        "brochure",
-                        "call for papers",
-                        "appel a communications",
-                        "appel à communications",
-                        "cfa",
-                    ]
-                ):
-                    add_pdf(href)
+            if category == "events" and any(
+                token in text
+                for token in [
+                    "programme",
+                    "brochure",
+                    "call for papers",
+                    "appel a communications",
+                    "appel à communications",
+                    "cfa",
+                ]
+            ):
+                add_pdf(href)
 
-            if category == "tools":
-                if any(token in text for token in ["documentation", "paper", "arxiv"]):
-                    add_pdf(href)
+            if category == "tools" and any(
+                token in text for token in ["documentation", "paper", "arxiv"]
+            ):
+                add_pdf(href)
 
-            if category == "courses":
-                if any(
-                    token in text for token in ["syllabus", "curriculum", "programme"]
-                ):
-                    add_pdf(href)
+            if category == "courses" and any(
+                token in text for token in ["syllabus", "curriculum", "programme"]
+            ):
+                add_pdf(href)
 
         link_icon = soup.select_one("link[rel='icon'], link[rel='shortcut icon']")
         if link_icon and link_icon.get("href"):
@@ -426,8 +450,17 @@ class BaseScraper(ABC):
                 try:
                     found = self._collect_page_media_urls(arxiv_abs_url, category)
                     image_urls.extend(found.get("images", []))
-                except Exception:
-                    pass
+                except (
+                    requests.RequestException,
+                    AttributeError,
+                    KeyError,
+                    ValueError,
+                ) as exc:
+                    logger.warning(
+                        "arxiv_media_discovery_failed",
+                        extra={"error": str(exc), "context": arxiv_abs_url},
+                        exc_info=False,
+                    )
                 pdf_urls.append(f"https://arxiv.org/pdf/{arxiv_id}.pdf")
 
         if category == "tools":
@@ -453,8 +486,12 @@ class BaseScraper(ABC):
                         avatar_url = payload.get("avatar_url")
                         if avatar_url:
                             image_urls.append(str(avatar_url))
-                    except Exception:
-                        pass
+                    except (ValueError, AttributeError, KeyError, TypeError) as exc:
+                        logger.warning(
+                            "github_owner_avatar_parse_failed",
+                            extra={"error": str(exc), "context": github_url},
+                            exc_info=False,
+                        )
 
         if category in {"tools", "institutions"}:
             for key in ("website", "access_link", "source_url"):
@@ -502,7 +539,8 @@ class BaseScraper(ABC):
             return item_data
 
         try:
-            from scraping.file_downloader import download_file
+            from scraping.file_downloader import DownloadResult, download_file
+            from scraping.metrics import file_download_total
 
             media = self._resolve_media_candidates(item_data, category)
             image_candidates = media.get("images", [])
@@ -553,7 +591,7 @@ class BaseScraper(ABC):
                 for future in as_completed(future_to_meta):
                     kind, src_url = future_to_meta[future]
                     try:
-                        content_file, filename, _mime = future.result()
+                        content_file, filename, result_code = future.result()
                     except Exception as exc:
                         self._log_error(
                             "media_download",
@@ -562,6 +600,13 @@ class BaseScraper(ABC):
                             url=src_url,
                         )
                         continue
+
+                    # Log every download outcome to Prometheus
+                    file_download_total.labels(
+                        category=category,
+                        file_type=kind,
+                        outcome=result_code or DownloadResult.FAIL_NETWORK,
+                    ).inc()
 
                     if not filename:
                         continue
@@ -702,7 +747,9 @@ class BaseScraper(ABC):
     def _set_duplicate_match(self, existing_obj):
         self._last_duplicate_match_id = str(getattr(existing_obj, "id", ""))
 
-    def _record_duplicate_skip(self, category: str, item_data: dict, reason: str):
+    def _record_duplicate_skip(
+        self, category: str, item_data: dict, reason: str, match_score: float = 0.0
+    ):
         item_label = self._item_display_name(item_data)
         matched_id = getattr(self, "_last_duplicate_match_id", "")
         reason_code = self._normalize_skip_reason(reason)
@@ -725,6 +772,10 @@ class BaseScraper(ABC):
                 defaults={
                     "item_id": matched_id,
                     "skip_reason": reason_code,
+                    "source_name": item_data.get("source_name") or self.name,
+                    "source_url": item_data.get("source_url") or "",
+                    "match_score": match_score,
+                    "matched_item_id": matched_id or None,
                     "was_skipped": True,
                 },
             )
@@ -748,7 +799,7 @@ class BaseScraper(ABC):
             return "dedup_name"
         return "dedup_similarity"
 
-    def _dedup_event(self, item_data: dict) -> tuple[bool, str]:
+    def _dedup_event(self, item_data: dict) -> tuple[bool, str, float]:
         from events.models import Event
 
         website_url = (
@@ -758,7 +809,7 @@ class BaseScraper(ABC):
             existing = Event.objects.filter(website__iexact=website_url).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "event website_url exact match"
+                return True, "event website_url exact match", 1.0
 
         organizer = item_data.get("organizer")
         start_date = item_data.get("start_date")
@@ -778,19 +829,20 @@ class BaseScraper(ABC):
             ).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "event same organizer + overlapping date range"
+                return True, "event same organizer + overlapping date range", 1.0
 
         candidate_title = item_data.get("title_en") or item_data.get("title") or ""
         if candidate_title:
             for event in Event.objects.only("id", "title", "title_en"):
                 existing_title = event.title_en or event.title
-                if self._title_similarity(candidate_title, existing_title) >= 0.85:
+                sim = self._title_similarity(candidate_title, existing_title)
+                if sim >= 0.85:
                     self._set_duplicate_match(event)
-                    return True, "event title similarity >= 85%"
+                    return True, "event title similarity >= 85%", sim
 
-        return False, ""
+        return False, "", 0.0
 
-    def _dedup_tool(self, item_data: dict) -> tuple[bool, str]:
+    def _dedup_tool(self, item_data: dict) -> tuple[bool, str, float]:
         from resources.models import NLPTool
 
         github_url = (item_data.get("github_url") or "").strip()
@@ -798,14 +850,14 @@ class BaseScraper(ABC):
             existing = NLPTool.objects.filter(github_url__iexact=github_url).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "tool github_url exact match"
+                return True, "tool github_url exact match", 1.0
 
         access_link = (item_data.get("access_link") or "").strip()
         if access_link:
             existing = NLPTool.objects.filter(access_link__iexact=access_link).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "tool access_link exact match"
+                return True, "tool access_link exact match", 1.0
 
         item_name = self._normalize_text(
             item_data.get("title_en") or item_data.get("title")
@@ -815,18 +867,19 @@ class BaseScraper(ABC):
                 existing_name = self._normalize_text(tool.title_en or tool.title)
                 if existing_name == item_name:
                     self._set_duplicate_match(tool)
-                    return True, "tool name exact match"
+                    return True, "tool name exact match", 1.0
 
         if item_name:
             for tool in NLPTool.objects.only("id", "title", "title_en"):
                 existing_name = tool.title_en or tool.title
-                if self._title_similarity(item_name, existing_name) >= 0.90:
+                sim = self._title_similarity(item_name, existing_name)
+                if sim >= 0.90:
                     self._set_duplicate_match(tool)
-                    return True, "tool name similarity >= 90%"
+                    return True, "tool name similarity >= 90%", sim
 
-        return False, ""
+        return False, "", 0.0
 
-    def _dedup_news(self, item_data: dict) -> tuple[bool, str]:
+    def _dedup_news(self, item_data: dict) -> tuple[bool, str, float]:
         from QA.models import Post
 
         arxiv_id = (item_data.get("arxiv_id") or "").strip()
@@ -834,14 +887,14 @@ class BaseScraper(ABC):
             existing = Post.objects.filter(arxiv_id__iexact=arxiv_id).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "news arxiv_id exact match"
+                return True, "news arxiv_id exact match", 1.0
 
         doi = (item_data.get("doi") or "").strip()
         if doi:
             existing = Post.objects.filter(doi__iexact=doi).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "news doi exact match"
+                return True, "news doi exact match", 1.0
 
         source_url = self._normalize_url(item_data.get("source_url"))
         if source_url:
@@ -852,19 +905,20 @@ class BaseScraper(ABC):
                     == source_url_noslash
                 ):
                     self._set_duplicate_match(post)
-                    return True, "news source_url exact match"
+                    return True, "news source_url exact match", 1.0
 
         candidate_title = item_data.get("title_en") or item_data.get("title") or ""
         if candidate_title:
             for post in Post.objects.only("id", "title", "title_en"):
                 existing_title = post.title_en or post.title
-                if self._title_similarity(candidate_title, existing_title) >= 0.85:
+                sim = self._title_similarity(candidate_title, existing_title)
+                if sim >= 0.85:
                     self._set_duplicate_match(post)
-                    return True, "news title similarity >= 85%"
+                    return True, "news title similarity >= 85%", sim
 
-        return False, ""
+        return False, "", 0.0
 
-    def _dedup_course(self, item_data: dict) -> tuple[bool, str]:
+    def _dedup_course(self, item_data: dict) -> tuple[bool, str, float]:
         from resources.models import Course
 
         course_url = (
@@ -874,7 +928,7 @@ class BaseScraper(ABC):
             existing = Course.objects.filter(access_link__iexact=course_url).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "course access_link exact match"
+                return True, "course access_link exact match", 1.0
 
         incoming_title = item_data.get("title_en") or item_data.get("title") or ""
         incoming_instructor = self._normalize_text(item_data.get("instructor") or "")
@@ -899,20 +953,22 @@ class BaseScraper(ABC):
                 existing_pair = (
                     f"{self._normalize_text(existing_title)} {existing_instructor}"
                 )
-                if SequenceMatcher(None, incoming_pair, existing_pair).ratio() >= 0.85:
+                sim = SequenceMatcher(None, incoming_pair, existing_pair).ratio()
+                if sim >= 0.85:
                     self._set_duplicate_match(course)
-                    return True, "course (title + instructor) similarity >= 85%"
+                    return True, "course (title + instructor) similarity >= 85%", sim
 
         if incoming_title:
             for course in Course.objects.only("id", "title", "title_en"):
                 existing_title = course.title_en or course.title
-                if self._title_similarity(incoming_title, existing_title) >= 0.90:
+                sim = self._title_similarity(incoming_title, existing_title)
+                if sim >= 0.90:
                     self._set_duplicate_match(course)
-                    return True, "course title similarity >= 90%"
+                    return True, "course title similarity >= 90%", sim
 
-        return False, ""
+        return False, "", 0.0
 
-    def _dedup_institution(self, item_data: dict) -> tuple[bool, str]:
+    def _dedup_institution(self, item_data: dict) -> tuple[bool, str, float]:
         from institutions.models import Institution
 
         ror_id = (item_data.get("ror_id") or "").strip()
@@ -920,7 +976,7 @@ class BaseScraper(ABC):
             existing = Institution.objects.filter(ror_id__iexact=ror_id).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "institution ror_id exact match"
+                return True, "institution ror_id exact match", 1.0
 
         website_url = self._normalize_url(
             item_data.get("website_url") or item_data.get("website"), strip_www=True
@@ -932,19 +988,20 @@ class BaseScraper(ABC):
                     == website_url
                 ):
                     self._set_duplicate_match(institution)
-                    return True, "institution normalized website_url exact match"
+                    return True, "institution normalized website_url exact match", 1.0
 
         incoming_name = item_data.get("name_en") or item_data.get("name") or ""
         if incoming_name:
             for institution in Institution.objects.only("id", "name", "name_en"):
                 existing_name = institution.name_en or institution.name
-                if self._title_similarity(incoming_name, existing_name) >= 0.90:
+                sim = self._title_similarity(incoming_name, existing_name)
+                if sim >= 0.90:
                     self._set_duplicate_match(institution)
-                    return True, "institution name similarity >= 90%"
+                    return True, "institution name similarity >= 90%", sim
 
-        return False, ""
+        return False, "", 0.0
 
-    def _check_duplicate_policy(self, category, item_data) -> tuple[bool, str]:
+    def _check_duplicate_policy(self, category, item_data) -> tuple[bool, str, float]:
         self._last_duplicate_match_id = ""
 
         deterministic_checks = {
@@ -957,10 +1014,12 @@ class BaseScraper(ABC):
 
         check_fn = deterministic_checks.get(category)
         if check_fn:
-            is_dup, reason = check_fn(item_data)
+            is_dup, reason, score = check_fn(item_data)
             if is_dup:
-                self._record_duplicate_skip(category, item_data, reason)
-                return True, reason
+                self._record_duplicate_skip(
+                    category, item_data, reason, match_score=score
+                )
+                return True, reason, score
 
         semantic_title = (
             item_data.get("title_en")
@@ -981,22 +1040,34 @@ class BaseScraper(ABC):
                         getattr(duplicate_meta, "item_id", "") or duplicate_meta.id
                     )
                     reason = "semantic fallback similarity >= 88%"
-                    self._record_duplicate_skip(category, item_data, reason)
-                    return True, reason
+                    # We don't get the exact similarity score from find_semantic_duplicate easily here
+                    # so we just provide the threshold or an estimated high score.
+                    self._record_duplicate_skip(
+                        category, item_data, reason, match_score=0.88
+                    )
+                    return True, reason, 0.88
             except Exception as exc:
                 self._log_error("semantic_dedup", str(exc), source=semantic_title)
 
-        return False, ""
+        return False, "", 0.0
 
-    def is_duplicate(self, title, category, model_class):
-        """
-        Two-step duplicate detection:
-        Step 1: Exact match check (fast, O(1))
-        Step 2: Semantic similarity check (slower, embedding-based)
-        Returns True if duplicate found, False if new item.
+    def is_duplicate(self, title: str, category: str, model_class) -> bool:
+        """Determine whether a candidate item is already represented.
+
+        Args:
+            title: Candidate item title.
+            category: Scraping category used for dedup policy selection.
+            model_class: Legacy compatibility argument; not used directly.
+
+        Returns:
+            bool: ``True`` if item is considered duplicate; otherwise ``False``.
+
+        Raises:
+            Exception: Dedup internals soft-handle exceptions and this method
+                returns ``False`` when checks cannot be completed.
         """
         item_data = {"title_en": title, "title": title}
-        is_dup, _ = self._check_duplicate_policy(category, item_data)
+        is_dup, _, _ = self._check_duplicate_policy(category, item_data)
         return is_dup
 
     # ------------------------------------------------------------------
@@ -1005,7 +1076,7 @@ class BaseScraper(ABC):
 
     def _rotate_user_agent(self):
         """Pick a random User-Agent for the session."""
-        self.session.headers["User-Agent"] = random.choice(_USER_AGENTS)
+        self.session.headers["User-Agent"] = secure_choice(_USER_AGENTS)
 
     def safe_request(
         self,
@@ -1013,24 +1084,44 @@ class BaseScraper(ABC):
         method: str = "GET",
         source_name: str | None = None,
         **kwargs,
-    ):
+    ) -> requests.Response | None:
         """HTTP request with retry, exponential back-off, and health tracking.
 
-        Parameters
-        ----------
-        url : str
-        method : str
-        source_name : str | None
-            Logical source name for health tracking.  Falls back to
-            the URL's domain if not provided.
-        **kwargs
-            Passed through to ``requests.Session.request``.  The key
-            ``timeout`` defaults to ``self.DEFAULT_TIMEOUT``.
+        Args:
+            url: Target URL to request.
+            method: HTTP method name, defaults to ``GET``.
+            source_name: Optional source label for health tracking and logs.
+            **kwargs: Extra request options forwarded to the session request.
+
+        Returns:
+            requests.Response | None: Successful response object, otherwise
+                ``None`` when robots, circuit breaker, or retries block/abort.
+
+        Raises:
+            Exception: Request exceptions are handled internally and converted
+                to ``None`` after retry exhaustion.
         """
         from urllib.parse import urlparse
 
         if source_name is None:
             source_name = urlparse(url).netloc or self.name
+
+        if method.upper() == "GET":
+            if self._scraping_settings.respect_robots:
+                user_agent = self.session.headers.get("User-Agent", "*")
+                if not can_fetch(url, user_agent=user_agent):
+                    self._log_error(
+                        "robots_disallowed",
+                        f"robots.txt disallows {url}",
+                        source=source_name,
+                        url=url,
+                    )
+                    return None
+            else:
+                logger.warning(
+                    "robots_check_disabled",
+                    extra={"url": url, "source": source_name},
+                )
 
         # Circuit breaker check
         if not self.check_source(source_name, url):
@@ -1150,8 +1241,6 @@ class BaseScraper(ABC):
         if source_name in self._health_cache:
             return self._health_cache[source_name]
 
-        from scraping.models import ScrapingSourceHealth
-
         health, _ = ScrapingSourceHealth.objects.get_or_create(
             category=self.category,
             source_name=source_name,
@@ -1161,7 +1250,15 @@ class BaseScraper(ABC):
         return health
 
     def check_source(self, source_name: str, base_url: str = "") -> bool:
-        """Return True if the source's circuit breaker allows a request."""
+        """Check whether a source can currently receive requests.
+
+        Args:
+            source_name: Source identifier used by source health records.
+            base_url: Optional base URL persisted on first health record creation.
+
+        Returns:
+            bool: ``True`` if the circuit is closed or half-open, else ``False``.
+        """
         health = self._get_health(source_name, base_url)
         return health.is_available()
 
@@ -1220,13 +1317,26 @@ class BaseScraper(ABC):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def parse_date(date_str, default=None):
-        """Best-effort date parsing from an arbitrary string."""
+    def parse_date(
+        date_str: str | None,
+        default: datetime | None = None,
+    ) -> datetime | None:
+        """Parse a date-like string into a normalized ``datetime``.
+
+        Args:
+            date_str: Raw date string extracted from scraped content.
+            default: Fallback value returned when parsing fails.
+
+        Returns:
+            datetime | None: Parsed datetime object or fallback default.
+        """
         if not date_str:
             return default
         try:
             dt = date_parser.parse(date_str, fuzzy=True)
-            return dt.date() if isinstance(dt, datetime) else dt
+            if isinstance(dt, datetime):
+                return dt
+            return datetime.combine(dt, datetime.min.time())
         except (ValueError, OverflowError):
             return default
 
@@ -1307,7 +1417,7 @@ class BaseScraper(ABC):
     # Language detection
     # ------------------------------------------------------------------
 
-    def detect_language(self, text):
+    def detect_language(self, text: str) -> str:
         """
         Detect the language of a text string.
         Returns ISO language code: 'ar', 'fr', 'en', 'unknown'
@@ -1321,8 +1431,7 @@ class BaseScraper(ABC):
             return "ar"
 
         try:
-            from langdetect import detect, DetectorFactory
-            from langdetect.lang_detect_exception import LangDetectException
+            from langdetect import DetectorFactory, detect
 
             DetectorFactory.seed = 0  # deterministic
             lang = detect(text)
@@ -1346,8 +1455,9 @@ class BaseScraper(ABC):
     def is_event_date_valid(self, date_value, max_days_past=30, max_days_future=730):
         if date_value is None:
             return True
-        from django.utils import timezone
         import datetime
+
+        from django.utils import timezone
 
         now = timezone.now()
         try:
@@ -1370,7 +1480,7 @@ class BaseScraper(ABC):
             return True
 
     def validate_required_fields(self, item, category):
-        REQUIRED = {
+        required_fields_by_category = {
             "events": [
                 ("title_en", 5),
                 ("description_en", 20),
@@ -1392,7 +1502,7 @@ class BaseScraper(ABC):
                 ("name_en", 3),
             ],
         }
-        required = REQUIRED.get(category, [])
+        required = required_fields_by_category.get(category, [])
         missing = []
         for field_key, min_len in required:
             value = item.get(field_key, "")
@@ -1468,10 +1578,9 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
                 self.validation_stats["failed_date"] += 1
                 return False, item, "past_or_invalid_date"
 
-        if category == "news":
-            if not self.is_content_fresh(item, "news"):
-                self.validation_stats["failed_freshness"] += 1
-                return False, item, "content_too_old"
+        if category == "news" and not self.is_content_fresh(item, "news"):
+            self.validation_stats["failed_freshness"] += 1
+            return False, item, "content_too_old"
 
         is_valid, missing = self.validate_required_fields(item, category)
         if not is_valid:
@@ -1493,8 +1602,9 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         """
         if event_date is None:
             return True
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         now = timezone.now().date()
         if hasattr(event_date, "date"):
@@ -1510,8 +1620,9 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         """
         if published_date is None:
             return True
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         now = timezone.now().date()
         if hasattr(published_date, "date"):
@@ -1520,7 +1631,7 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         return published_date >= cutoff
 
     def is_content_fresh(self, item, category, max_age_days=None):
-        DEFAULT_MAX_AGE = {
+        default_max_age = {
             "news": 365,
             "events": 30,
             "tools": None,
@@ -1528,11 +1639,11 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
             "institutions": None,
         }
         if max_age_days is None:
-            max_age_days = DEFAULT_MAX_AGE.get(category)
+            max_age_days = default_max_age.get(category)
         if max_age_days is None:
             return True
+
         from django.utils import timezone
-        import datetime
 
         date_fields = [
             "published_date",
@@ -1551,11 +1662,10 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         if not item_date:
             return True
         now = timezone.now()
-        if hasattr(item_date, "tzinfo"):
-            if item_date.tzinfo is None:
-                import pytz
+        if hasattr(item_date, "tzinfo") and item_date.tzinfo is None:
+            import pytz
 
-                item_date = pytz.utc.localize(item_date)
+            item_date = pytz.utc.localize(item_date)
         age_days = (now - item_date).days
         return age_days <= max_age_days
 
@@ -1566,8 +1676,9 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         Returns True if course has no end date (self-paced) or end date is
         in future. Also checks if content is not too old (2 years).
         """
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         now = timezone.now().date()
 
@@ -1600,12 +1711,12 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
         Returns a summary dict for the run report.
         """
         try:
+            from scraping.field_mapping import calculate_completeness_score
             from scraping.intelligence import (
                 classify_domain,
                 classify_domain_primary,
                 compute_relevance_score,
             )
-            from scraping.field_mapping import calculate_completeness_score
             from scraping.models import ScrapedItemMeta
         except Exception as exc:
             logger.debug("Intelligence module not available: %s", exc)
@@ -1655,6 +1766,10 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
                 "primary_domain": primary_domain,
                 "relevance_score": score,
                 "completeness_score": completeness,
+                "source_name": item.get("source_name") or self.name,
+                "source_url": item.get("source_url") or "",
+                "was_skipped": False,
+                "enrichment_status": "not_enriched",
             }
             # Persist language if the model supports it
             if hasattr(ScrapedItemMeta, "language"):
@@ -1681,7 +1796,7 @@ Translate these fields to Arabic. Return ONLY JSON, no other text.
                     if embedding:
                         meta_record.title_embedding = embedding
                         meta_record.save(update_fields=["title_embedding"])
-                except MemoryError as e:
+                except MemoryError:
                     self._log_error(
                         "embedding_oom",
                         "Not enough RAM for embedding generation. "

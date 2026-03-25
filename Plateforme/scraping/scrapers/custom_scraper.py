@@ -149,7 +149,6 @@ class CustomDomainScraper(BaseScraper):
         )
 
         # Extract clean text for LLM
-        clean_html = str(soup)[:12000]  # noqa: F841
         page_text = main_content.get_text(separator="\n", strip=True)[:12000]
 
         resolved_category = self._resolve_effective_category(
@@ -270,8 +269,11 @@ class CustomDomainScraper(BaseScraper):
                 return parsed
             if isinstance(parsed, dict) and isinstance(parsed.get("items"), list):
                 return parsed["items"]
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as exc:
+            logger.debug(
+                "custom_scraper_llm_json_parse_fallback",
+                extra={"error": str(exc), "context": raw_text[:120]},
+            )
 
         json_match = re.search(r"\[.*\]", raw_text, re.DOTALL)
         if json_match:
@@ -370,7 +372,7 @@ class CustomDomainScraper(BaseScraper):
         items = []
         title_sel = config.get("title_selector", "h2, h3")
         desc_sel = config.get("desc_selector", "p")
-        link_sel = config.get("link_selector", "a")  # noqa: F841
+        link_sel = config.get("link_selector", "a")
 
         titles = soup.select(title_sel)
         for t in titles[:20]:
@@ -383,7 +385,7 @@ class CustomDomainScraper(BaseScraper):
             next_p = t.find_next(desc_sel.split(",")[0].strip())
             if next_p:
                 item["description"] = next_p.get_text(strip=True)[:300]
-            link = t.find("a") or t.find_next("a")
+            link = t.select_one(link_sel) or t.find_next(link_sel.split(",")[0].strip())
             if link and link.get("href"):
                 item["url"] = link["href"]
             if item["title"]:
@@ -782,20 +784,30 @@ class CustomDomainScraper(BaseScraper):
         if hasattr(value, "date"):
             try:
                 return value.date()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "date_parse_fallback",
+                    extra={"raw": str(value), "error": str(exc)},
+                )
         if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day"):
             try:
                 return value
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "date_parse_fallback",
+                    extra={"raw": str(value), "error": str(exc)},
+                )
         text = str(value).strip()
         if not text:
             return None
         for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
             try:
                 return datetime.strptime(text, fmt).date()
-            except Exception:
+            except Exception as exc:
+                logger.debug(
+                    "date_parse_fallback",
+                    extra={"raw": value, "error": str(exc)},
+                )
                 continue
         return None
 

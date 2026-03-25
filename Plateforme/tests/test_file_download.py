@@ -74,9 +74,9 @@ def test_download_rejects_private_ssrf(media_root, mocked_http, monkeypatch):
         content_type="application/pdf",
     )
 
-    from scraping.file_downloader import SSRFViolation
+    from scraping.file_downloader import SSRFViolationError
 
-    with pytest.raises(SSRFViolation):
+    with pytest.raises(SSRFViolationError):
         download_file(url, category="news", file_type="document")
 
 

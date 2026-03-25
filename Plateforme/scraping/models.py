@@ -1,12 +1,35 @@
+import logging
+import os
 import uuid
-from django.db import models
-from django.db import transaction
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import DatabaseError, models, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Greatest, Least
-from django.contrib.auth import get_user_model
-from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from pgvector.django import VectorField
+from django.utils.translation import gettext_lazy as _
+
+try:
+    from pgvector.django import VectorField
+except Exception:  # pragma: no cover - optional dependency at runtime
+    VectorField = None
+
+CIRCUIT_THRESHOLD = float(os.environ.get("SCRAPING_CIRCUIT_THRESHOLD", 25.0))
+CONSECUTIVE_TRIP = int(os.environ.get("SCRAPING_CIRCUIT_TRIP_COUNT", 3))
+
+logger = logging.getLogger(__name__)
+
+
+def _vector_field_enabled() -> bool:
+    if VectorField is None:
+        return False
+
+    if getattr(settings, "SCRAPING_DISABLE_VECTOR_FIELD", False):
+        return False
+
+    engine = str(settings.DATABASES.get("default", {}).get("ENGINE", ""))
+    return "postgresql" in engine
 
 
 class ScrapingSource(models.Model):
@@ -102,6 +125,12 @@ class ScrapingRun(models.Model):
         ordering = ["-started_at"]
         verbose_name = _("Scraping Run")
         verbose_name_plural = _("Scraping Runs")
+        indexes = [
+            models.Index(
+                fields=["category", "-started_at"],
+                name="idx_scrapingrun_cat_started",
+            )
+        ]
 
     def __str__(self):
         return f"{self.category} — {self.started_at:%Y-%m-%d %H:%M}"
@@ -189,6 +218,12 @@ class ScrapingSourceHealth(models.Model):
         unique_together = [("category", "source_name")]
         verbose_name = _("Source Health")
         verbose_name_plural = _("Source Health Records")
+        indexes = [
+            models.Index(
+                fields=["category", "source_name"],
+                name="idx_sourcehealth_cat_source",
+            )
+        ]
 
     def __str__(self):
         return f"{self.source_name} ({self.category}) — {self.health_score:.0f}%"
@@ -197,8 +232,8 @@ class ScrapingSourceHealth(models.Model):
 
     FAILURE_PENALTY = 15.0  # score points lost per failure
     SUCCESS_RECOVERY = 10.0  # score points gained per success
-    CIRCUIT_THRESHOLD = 25.0  # score below which circuit opens
-    CONSECUTIVE_TRIP = 3  # consecutive failures to trip circuit
+    CIRCUIT_THRESHOLD = CIRCUIT_THRESHOLD  # score below which circuit opens
+    CONSECUTIVE_TRIP = CONSECUTIVE_TRIP  # consecutive failures to trip circuit
 
     def _locked(self):
         return type(self).objects.select_for_update().get(pk=self.pk)
@@ -342,6 +377,37 @@ class ScrapedItemMeta(models.Model):
         ("circuit_open", "Circuit Open"),
     ]
 
+    source_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Human label of source e.g. WikiCFP, arXiv cs.CL",
+    )
+    source_url = models.URLField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        help_text="Canonical URL of the source page or feed",
+    )
+    match_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Similarity score when item was dedup-skipped (0.0-1.0)",
+    )
+    matched_item_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="ID of the existing DB item this was matched against",
+    )
+    download_result = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="DownloadResult code for the media download attempt",
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category = models.CharField(_("Category"), max_length=50)
     item_title = models.CharField(_("Item Title"), max_length=300)
@@ -404,13 +470,24 @@ class ScrapedItemMeta(models.Model):
         help_text="Percentage of fields filled (0-100)",
     )
 
-    # Semantic embedding for duplicate detection (384-d MiniLM)
-    title_embedding = VectorField(
-        dimensions=384,
-        null=True,
-        blank=True,
-        help_text=_("384-dim embedding from paraphrase-multilingual-MiniLM-L12-v2."),
-    )
+    # Semantic embedding for duplicate detection (384-d MiniLM).
+    # In SQLite test mode we store this as JSON to avoid Postgres/pgvector coupling.
+    if _vector_field_enabled():
+        title_embedding = VectorField(
+            dimensions=384,
+            null=True,
+            blank=True,
+            help_text=_(
+                "384-dim embedding from paraphrase-multilingual-MiniLM-L12-v2."
+            ),
+        )
+    else:
+        title_embedding = models.JSONField(
+            null=True,
+            blank=True,
+            default=None,
+            help_text=_("Embedding payload for non-PostgreSQL test environments."),
+        )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -423,6 +500,13 @@ class ScrapedItemMeta(models.Model):
         indexes = [
             models.Index(fields=["category", "primary_domain"]),
             models.Index(fields=["-relevance_score"]),
+            models.Index(
+                fields=["category", "source_name"], name="idx_scraped_cat_source"
+            ),
+            models.Index(
+                fields=["category", "skip_reason", "created_at"],
+                name="idx_scraped_cat_skip_created",
+            ),
         ]
 
     def __str__(self):
@@ -454,6 +538,13 @@ class ScrapedItemMeta(models.Model):
                 from scraping.metrics import record_skip_reason
 
                 record_skip_reason(self.category, reason)
-            except Exception:
+            except (ImportError, DatabaseError, ValueError, TypeError) as exc:
                 # Metrics emission must not break persistence.
-                pass
+                logger.error(
+                    "scraped_item_meta_metrics_emit_failed",
+                    extra={
+                        "error": str(exc),
+                        "context": str(self.pk),
+                    },
+                    exc_info=False,
+                )

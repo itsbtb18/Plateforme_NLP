@@ -15,8 +15,8 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from scraping.enrichment_engine import enrich_scraped_item
-from scraping.file_downloader import attach_file_to_model
 from scraping.field_mapping import calculate_completeness_score
+from scraping.file_downloader import attach_file_to_model
 from scraping.models import ScrapedItemMeta
 from scraping.scrapers.base import BaseScraper
 
@@ -385,7 +385,15 @@ class EventScraper(BaseScraper):
                         "language": self._infer_language(f"{title} {description}"),
                     }
                 )
-            except Exception:
+            except (AttributeError, KeyError, TypeError, ValueError) as exc:
+                logger.warning(
+                    "event_candidate_skipped_due_to_error",
+                    extra={
+                        "error": str(exc),
+                        "item": event_url or page_url,
+                    },
+                    exc_info=False,
+                )
                 continue
 
         return candidates
@@ -799,8 +807,16 @@ class EventScraper(BaseScraper):
                         item_dict.get("image_content_file"),
                         banner_path,
                     )
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, ValueError, OSError) as exc:
+                    logger.warning(
+                        "event_media_attach_failed",
+                        extra={
+                            "error": str(exc),
+                            "context": item_dict.get("title_en") or title,
+                            "field": "banner_image",
+                        },
+                        exc_info=False,
+                    )
 
             attachment_path = item_dict.get("pdf_local_path") or ""
             if attachment_path:
@@ -811,8 +827,16 @@ class EventScraper(BaseScraper):
                         item_dict.get("pdf_content_file"),
                         attachment_path,
                     )
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, ValueError, OSError) as exc:
+                    logger.warning(
+                        "event_media_attach_failed",
+                        extra={
+                            "error": str(exc),
+                            "context": item_dict.get("title_en") or title,
+                            "field": "attachment",
+                        },
+                        exc_info=False,
+                    )
         except Exception as exc:
             self.errors.append(f"Failed to create event '{title}': {exc}")
             return

@@ -11,18 +11,21 @@ Phase 3 additions:
     domain classification, Arabic summary) via ``scraping.llm_validation``
 """
 
+import contextlib
 import logging
 import re
 import time
-import xml.etree.ElementTree as ET
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
+from defusedxml import ElementTree as SafeET
 from django.utils.text import slugify
-from .base import BaseScraper
+
 from scraping.enrichment_engine import enrich_scraped_item
-from scraping.file_downloader import attach_file_to_model
 from scraping.field_mapping import calculate_completeness_score
+from scraping.file_downloader import attach_file_to_model
+
+from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -378,8 +381,13 @@ class NewsScraper(BaseScraper):
         if resp is None:
             return
 
+        content = resp.content or b""
+        if len(content) > 2_000_000:
+            logger.warning("xml_payload_too_large", extra={"url": url})
+            return []
+
         try:
-            root = ET.fromstring(resp.content)
+            root = SafeET.fromstring(content)
             entries = root.findall("atom:entry", ARXIV_NS)
 
             for entry in entries:
@@ -435,7 +443,7 @@ class NewsScraper(BaseScraper):
                 except Exception as exc:
                     logger.debug("arXiv entry parse error: %s", exc)
 
-        except ET.ParseError as exc:
+        except SafeET.ParseError as exc:
             self.errors.append(f"arXiv XML parse error: {exc}")
 
     # ── Semantic Scholar API ─────────────────────────────────────────
@@ -646,9 +654,9 @@ class NewsScraper(BaseScraper):
         relevance_score = None
         try:
             from scraping.llm_validation import (
-                enrich_paper,
                 build_enriched_content,
                 build_enriched_content_ar,
+                enrich_paper,
             )
 
             enrichment = enrich_paper(
@@ -794,8 +802,15 @@ class NewsScraper(BaseScraper):
                         item_dict.get("pdf_content_file"),
                         pdf_local_path,
                     )
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, ValueError, OSError) as exc:
+                    logger.warning(
+                        "news_pdf_attach_failed",
+                        extra={
+                            "error": str(exc),
+                            "context": item_dict.get("source_url") or title,
+                        },
+                        exc_info=False,
+                    )
 
             image_local_path = item_dict.get("image_local_path") or ""
             if image_local_path:
@@ -806,16 +821,22 @@ class NewsScraper(BaseScraper):
                         item_dict.get("image_content_file"),
                         image_local_path,
                     )
-                except Exception:
-                    try:
+                except (AttributeError, KeyError, ValueError, OSError) as exc:
+                    logger.warning(
+                        "news_thumbnail_attach_failed",
+                        extra={
+                            "error": str(exc),
+                            "context": item_dict.get("source_url") or title,
+                        },
+                        exc_info=False,
+                    )
+                    with contextlib.suppress(AttributeError, KeyError, ValueError):
                         attach_file_to_model(
                             post,
                             "image",
                             item_dict.get("image_content_file"),
                             image_local_path,
                         )
-                    except Exception:
-                        pass
 
             self.items_created += 1
             self.results.append(

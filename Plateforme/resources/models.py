@@ -58,7 +58,7 @@ class ResourceBase(models.Model):
     creation_date = models.DateTimeField(
         auto_now_add=True, verbose_name=_("Creation Date")
     )
-    access_link = models.URLField(verbose_name=_("Access Link"), blank=True, null=True)
+    access_link = models.URLField(verbose_name=_("Access Link"), blank=True, null=True, db_index=True)
     author = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,

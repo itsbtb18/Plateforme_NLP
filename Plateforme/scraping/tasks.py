@@ -7,32 +7,49 @@ returns immediately while scraping runs asynchronously.
 
 import logging
 import time
+from typing import Any
+
 from celery import shared_task
 from django.utils import timezone
 
-from .scrapers import get_scraper, CATEGORY_META
+from .dead_letter import record_dead_letter
 from .metrics import (
-    scrape_runs_total,
     scrape_duration_seconds,
     scrape_items_total,
+    scrape_runs_total,
     scrape_source_duration_seconds,
     scrape_source_items_total,
-    update_source_health_metrics,
     update_scrape_queue_lag_metrics,
+    update_source_health_metrics,
 )
+from .scrapers import CATEGORY_META, get_scraper
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, name="scraping.tasks.run_scraper_task", queue="scraping")
-def run_scraper_task(self, category, run_id=None, user_id=None):
+def run_scraper_task(
+    self,
+    category: str,
+    run_id: str | None = None,
+    allow_run_recreate: bool = False,
+    user_id: int | None = None,
+) -> dict[str, Any]:
     """
     Execute a scraper in the background and update the ScrapingRun record.
 
     Args:
         category: One of the CATEGORY_META keys (events, tools, news, courses, institutions).
-        run_id: UUID (as string) of the ScrapingRun record to update. If None, one is created.
-        user_id: ID of the user who triggered the run (optional, for scheduled tasks).
+        run_id: UUID string of the ScrapingRun record to update. If ``None``, one is created.
+        allow_run_recreate: Recreate a missing run when ``run_id`` does not exist.
+        user_id: Optional user id that triggered the run.
+
+    Returns:
+        dict[str, Any]: Status payload containing run id, counters, and errors.
+
+    Raises:
+        ValueError: If ``run_id`` is missing and recreation is disabled.
+        Exception: Re-raises scraper failures so Celery marks the task as failed.
     """
     from .models import ScrapingRun
 
@@ -40,31 +57,54 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
     category_tier = str(CATEGORY_META.get(category, {}).get("tier", 4))
 
     # Resolve or create the ScrapingRun record
-    run = None
+    triggered_by = None
+    if user_id:
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        triggered_by = user_model.objects.filter(pk=user_id).first()
+
     if run_id:
         try:
-            run = ScrapingRun.objects.get(pk=run_id)
-        except ScrapingRun.DoesNotExist:
-            logger.warning("ScrapingRun %s not found, creating new one", run_id)
-
-    if run is None:
-        triggered_by = None
-        if user_id:
-            from django.contrib.auth import get_user_model
-
-            User = get_user_model()
-            triggered_by = User.objects.filter(pk=user_id).first()
-
+            run = ScrapingRun.objects.get(id=run_id)
+        except ScrapingRun.DoesNotExist as exc:
+            if not allow_run_recreate:
+                logger.error(
+                    "run_id_not_found",
+                    extra={
+                        "run_id": run_id,
+                        "category": category,
+                        "task_id": self.request.id,
+                    },
+                )
+                raise ValueError(
+                    f"ScrapingRun {run_id} not found. "
+                    f"Pass allow_run_recreate=True to create a new run."
+                ) from exc
+            logger.warning(
+                "run_recreated", extra={"run_id": run_id, "category": category}
+            )
+            run = ScrapingRun.objects.create(
+                category=category, status="running", triggered_by=triggered_by
+            )
+    else:
         run = ScrapingRun.objects.create(
-            category=category,
-            status="running",
-            triggered_by=triggered_by,
+            category=category, status="running", triggered_by=triggered_by
         )
 
     # Store celery task ID on the run
     run.task_id = self.request.id
     run.status = "running"
     run.save(update_fields=["task_id", "status"])
+
+    logger.info(
+        "scrape_task_started",
+        extra={
+            "category": category,
+            "run_id": str(run.id),
+            "task_id": self.request.id,
+        },
+    )
 
     if category not in CATEGORY_META:
         run.status = "failed"
@@ -129,15 +169,13 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         update_scrape_queue_lag_metrics(force=True)
 
         logger.info(
-            "scrape_run_completed",
+            "scrape_task_completed",
             extra={
                 "category": category,
-                "source_name": "all_sources",
-                "items_created": run.items_created,
+                "run_id": str(run.id),
+                "items_saved": run.items_created,
                 "items_skipped": run.items_skipped,
-                "items_found": run.items_found,
-                "task_id": self.request.id,
-                "run_id": str(run.pk),
+                "duration_seconds": (timezone.now() - run.started_at).total_seconds(),
             },
         )
 
@@ -158,6 +196,14 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         run.completed_at = timezone.now()
         run.save(update_fields=["status", "errors", "completed_at"])
 
+        record_dead_letter(
+            category=category,
+            source_name="all_sources",
+            item={"url": "unknown", "title": f"run_id={run.id}"},
+            error=str(exc),
+            retry_count=0,
+        )
+
         scrape_runs_total.labels(category=category, status="failed").inc()
         scrape_duration_seconds.labels(category=category).observe(
             time.monotonic() - started_at
@@ -175,13 +221,13 @@ def run_scraper_task(self, category, run_id=None, user_id=None):
         update_source_health_metrics(category=category)
         update_scrape_queue_lag_metrics(force=True)
 
-        logger.exception(
-            "scrape_run_failed",
+        logger.error(
+            "scrape_task_failed",
             extra={
                 "category": category,
-                "source_name": "all_sources",
-                "task_id": self.request.id,
-                "run_id": str(run.pk),
+                "run_id": str(run.id),
+                "error": str(exc),
+                "error_type": type(exc).__name__,
             },
         )
         raise  # Re-raise so Celery marks the task as FAILURE

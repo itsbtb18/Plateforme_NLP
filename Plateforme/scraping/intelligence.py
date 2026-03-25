@@ -15,6 +15,7 @@ import logging
 import re
 from collections import Counter
 from datetime import timedelta
+
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -366,7 +367,6 @@ def classify_domain(text: str) -> dict[str, float]:
         return {}
 
     results: dict[str, float] = {}
-    text_lower = text.lower()
 
     for domain_key, pattern in _DOMAIN_PATTERNS.items():
         matches = pattern.findall(text)
@@ -401,8 +401,9 @@ def classify_with_llm_fallback(text: str) -> dict[str, float]:
 
     # Lightweight LLM fallback for ambiguous or unknown items
     try:
-        from scraping.llm_validation import GroqLLMClient
         import json
+
+        from scraping.llm_validation import GroqLLMClient
 
         client = GroqLLMClient()
         system = (
@@ -452,29 +453,30 @@ def _safe_days_ago(date_value):
     if date_value is None:
         return None
     try:
-        from django.utils import timezone
         import datetime
-        
+
+        from django.utils import timezone
+
         now = timezone.now()
-        
+
         # Handle datetime.date (not datetime)
         if isinstance(date_value, datetime.date) and \
            not isinstance(date_value, datetime.datetime):
             date_value = datetime.datetime.combine(
                 date_value,
                 datetime.time.min,
-                tzinfo=datetime.timezone.utc
+                tzinfo=datetime.UTC
             )
-        
+
         # Handle naive datetime
-        if isinstance(date_value, datetime.datetime):
-            if date_value.tzinfo is None:
-                import pytz
-                date_value = pytz.utc.localize(date_value)
-        
+        if isinstance(date_value, datetime.datetime) and date_value.tzinfo is None:
+            import pytz
+
+            date_value = pytz.utc.localize(date_value)
+
         delta = now - date_value
         return delta.days
-        
+
     except Exception:
         return None
 
@@ -577,7 +579,7 @@ def detect_trends(months: int = 6) -> dict:
     cutoff = timezone.now() - timedelta(days=months * 30)
 
     # ── Category counts from recent runs ──
-    runs = ScrapingRun.objects.filter(
+    ScrapingRun.objects.filter(
         started_at__gte=cutoff, status="completed",
     ).values("category")
 
@@ -608,7 +610,11 @@ def detect_trends(months: int = 6) -> dict:
     try:
         _analyse_recent_items(cutoff, domain_counter)
     except Exception as exc:
-        logger.debug("Trend domain analysis error: %s", exc)
+        logger.warning(
+            "trend_domain_analysis_failed",
+            extra={"error": str(exc), "context": f"start={cutoff}"},
+            exc_info=False,
+        )
 
     top_domains = domain_counter.most_common(8)
 
@@ -619,8 +625,15 @@ def detect_trends(months: int = 6) -> dict:
     try:
         _analyse_recent_items(cutoff, first_half, end_date=midpoint)
         _analyse_recent_items(midpoint, second_half)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "trend_growth_analysis_failed",
+            extra={
+                "error": str(exc),
+                "context": f"start={cutoff}, midpoint={midpoint}",
+            },
+            exc_info=False,
+        )
 
     growing = []
     for topic, count_2 in second_half.items():
@@ -643,12 +656,8 @@ def detect_trends(months: int = 6) -> dict:
 
 def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
     """Count domain occurrences across recent scraped items."""
-    filters = {"approval_status": "pending"}
     date_filter_start = {"created_at__gte": cutoff} if hasattr(cutoff, "date") else {}
-    if end_date:
-        date_filter_end = {"created_at__lt": end_date}
-    else:
-        date_filter_end = {}
+    date_filter_end = {"created_at__lt": end_date} if end_date else {}
 
     # Check events
     try:
@@ -658,8 +667,15 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
             text = f"{ev[0]} {ev[1]}"
             for domain in classify_domain(text):
                 counter[domain] += 1
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "trend_events_analysis_failed",
+            extra={
+                "error": str(exc),
+                "context": f"start={cutoff}, end={end_date}",
+            },
+            exc_info=False,
+        )
 
     # Check news posts
     try:
@@ -669,8 +685,15 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
             text = f"{post[0]} {(post[1] or '')[:300]}"
             for domain in classify_domain(text):
                 counter[domain] += 1
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "trend_news_analysis_failed",
+            extra={
+                "error": str(exc),
+                "context": f"start={cutoff}, end={end_date}",
+            },
+            exc_info=False,
+        )
 
     # Check tools
     try:
@@ -680,5 +703,12 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
             text = f"{tool[0]} {tool[1]}"
             for domain in classify_domain(text):
                 counter[domain] += 1
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "trend_tools_analysis_failed",
+            extra={
+                "error": str(exc),
+                "context": f"start={cutoff}, end={end_date}",
+            },
+            exc_info=False,
+        )
