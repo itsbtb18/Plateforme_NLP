@@ -38,7 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     fileInputs.forEach(function(input) {
         // Skip inputs that are intentionally hidden (e.g. avatar input on profile page)
-        if (input.style.display === 'none' || input.hidden || input.closest('.custom-file-input-wrapper')) {
+        // Also skip the attachment input in events form (uses ef-file-zone instead)
+        if (input.style.display === 'none' || input.hidden || input.closest('.custom-file-input-wrapper') || 
+            input.id === 'attachmentInput' || input.closest('.ef-file-zone')) {
             return;
         }
 
