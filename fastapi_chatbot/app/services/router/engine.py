@@ -8,11 +8,13 @@ Routing rules:
   - document_query      → Qdrant with owner_id / session filter
   - bug_query           → Qdrant with type=bug filter
   - metadata_query      → PostgreSQL (stats / navigation)
+  - web (Exa fallback)  → triggered when confidence < 0.50 for legal/NLP intents
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable, Awaitable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +29,10 @@ from app.services.retrieval import (
 )
 from app.services.platform_queries import get_platform_query_service
 from app.services.elasticsearch_service import get_elasticsearch_service
+from app.services.web.confidence import compute_retrieval_confidence, should_trigger_exa
+from app.services.web.exa_client import search_exa
+from app.services.web.cache import cache_get, cache_set
+from app.services.web.policy import get_exa_policy
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -46,6 +52,7 @@ ROUTING_TABLE = {
     "legal_query":         {"source": "qdrant",      "retrieval": "legal_search",   "note": "Dense + BM25 → legal documents"},
     "document_query":      {"source": "qdrant",      "retrieval": "user_doc_search","note": "User uploaded docs"},
     "bug_query":           {"source": "qdrant",      "retrieval": "hybrid_search",  "note": "Bug-related knowledge"},
+    "web_fallback":        {"source": "web_exa",     "retrieval": "exa_search",     "note": "Exa web fallback (low conf legal/NLP)"},
 }
 
 
@@ -94,6 +101,7 @@ class QueryRouter:
         user_city: Optional[str] = None,
         document_id: Optional[int] = None,
         user_email: Optional[str] = None,
+        on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
     ) -> RoutingResult:
         """Execute the retrieval strategy dictated by *classification*."""
 
@@ -171,7 +179,17 @@ class QueryRouter:
             result.retrieved_docs = docs
             result.primary_source = src
 
-            if not docs:
+            # ── Exa fallback: augment when retrieval confidence is low ──
+            exa_docs = await self._maybe_exa_fallback(
+                question, docs, intent, lang,
+                session_id=session_id, user_id=user_id,
+                on_exa_fallback=on_exa_fallback,
+            )
+            if exa_docs:
+                result.retrieved_docs = docs + exa_docs
+                result.primary_source = src if docs else "web_exa"
+
+            if not result.retrieved_docs:
                 result.skip_retrieval = True
                 result.primary_source = "groq"
             return result
@@ -288,6 +306,18 @@ class QueryRouter:
             )
             result.retrieved_docs = docs
             result.primary_source = "legal" if docs else "none"
+
+            # ── Exa fallback: augment when retrieval confidence is low ──
+            exa_docs = await self._maybe_exa_fallback(
+                question, docs, intent, lang,
+                session_id=session_id, user_id=user_id,
+                on_exa_fallback=on_exa_fallback,
+            )
+            if exa_docs:
+                result.retrieved_docs = (docs or []) + exa_docs
+                if not docs:
+                    result.primary_source = "web_exa"
+
             return result
 
         # ----- document_query → Qdrant (user doc chunks, owner_id filter) -----
@@ -518,6 +548,82 @@ class QueryRouter:
         top = all_docs[:top_k]
         primary = top[0]["source"] if top else "none"
         return top, primary
+
+    # ------------------------------------------------------------------
+    # Exa web fallback (Phase: Web Search Upgrade)
+    # ------------------------------------------------------------------
+
+    async def _maybe_exa_fallback(
+        self,
+        question: str,
+        retrieved_docs: List[Dict],
+        intent: str,
+        language: str,
+        *,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
+    ) -> List[Dict]:
+        """Check retrieval confidence and call Exa if below threshold.
+
+        Returns extra docs from Exa (empty list if not triggered).
+        """
+        if not settings.EXA_ENABLED:
+            return []
+
+        confidence = compute_retrieval_confidence(retrieved_docs)
+        if not should_trigger_exa(confidence, intent):
+            logger.info(
+                "Exa fallback NOT triggered: confidence=%.3f intent=%s",
+                confidence, intent,
+            )
+            return []
+
+        # Check cache first
+        cached = cache_get(question, intent, language)
+        if cached is not None:
+            logger.info(
+                "Exa fallback: using %d cached results (intent=%s)",
+                len(cached), intent,
+            )
+            return cached
+
+        # Check budget
+        policy = get_exa_policy()
+        allowed, reason = policy.can_call(session_id=session_id, user_id=user_id)
+        if not allowed:
+            logger.info(
+                "Exa fallback SKIPPED (budget): %s confidence=%.3f",
+                reason, confidence,
+            )
+            return []
+
+        # Call Exa
+        logger.info(
+            "Exa fallback TRIGGERED: confidence=%.3f intent=%s query='%s'",
+            confidence, intent, question[:60],
+        )
+        if on_exa_fallback:
+            try:
+                await on_exa_fallback()
+            except Exception as e:
+                logger.error("Error in on_exa_fallback: %s", e)
+                
+        start = time.monotonic()
+        exa_docs = await search_exa(question, intent=intent, language=language)
+        latency = time.monotonic() - start
+
+        # Record call and cache results
+        policy.record_call(session_id=session_id, user_id=user_id)
+        if exa_docs:
+            cache_set(question, intent, language, exa_docs)
+
+        logger.info(
+            "Exa fallback complete: docs=%d latency=%.2fs cache_hit=false "
+            "intent=%s confidence=%.3f",
+            len(exa_docs), latency, intent, confidence,
+        )
+        return exa_docs
 
 
 # ---------------------------------------------------------------------------
