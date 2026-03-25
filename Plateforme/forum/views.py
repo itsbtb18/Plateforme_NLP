@@ -71,65 +71,65 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         # Also return the count for updating stats
         return HttpResponse(html)
 
-        def get_queryset(self) -> QuerySet[Topic]:
-            qs = cast(QuerySet[Topic], super().get_queryset())
-            
-            # Public users see approved topics + their own pending topics
-            # so they can track moderation state directly in the forum list.
-            if self.request.user.is_staff or self.request.user.is_superuser:
-                qs = qs.all()
-            else:
-                qs = qs.filter(
-                    Q(approval_status='approved') |
-                    Q(approval_status='pending', creator=self.request.user)
-                )
-            qs = exclude_hidden_users(qs, self.request.user, ('creator',))
-            
-            # Filter: My Topics only - but still only approved ones
-            if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
-                qs = qs.filter(creator=self.request.user)
-            
-            # Backend search filtering
-            search_query = self.request.GET.get('q', '').strip()
-            if search_query:
-                qs = qs.filter(
-                    Q(title__icontains=search_query) |
-                    Q(title_ar__icontains=search_query) |
-                    Q(title_en__icontains=search_query) |
-                    Q(description__icontains=search_query) |
-                    Q(description_ar__icontains=search_query) |
-                    Q(description_en__icontains=search_query) |
-                    Q(creator__username__icontains=search_query) |
-                    Q(creator__full_name__icontains=search_query)
-                )
-            
-            # Sort options
-            sort = self.request.GET.get('sort', '')
-            if sort == 'newest':
-                qs = qs.order_by('-created_at')
-            elif sort == 'active':
-                # Sort by most chatrooms/activity
-                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
-            elif sort == 'popular':
-                # Sort by views (fallback to chatroom count if views not available)
-                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
-            else:
-                # Default: order by creation date
-                qs = qs.order_by('-created_at')
-            
-            return qs
+    def get_queryset(self) -> QuerySet[Topic]:
+        qs = cast(QuerySet[Topic], super().get_queryset())
+        
+        # Public users see approved topics + their own pending topics
+        # so they can track moderation state directly in the forum list.
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            qs = qs.all()
+        else:
+            qs = qs.filter(
+                Q(approval_status='approved') |
+                Q(approval_status='pending', creator=self.request.user)
+            )
+        qs = exclude_hidden_users(qs, self.request.user, ('creator',))
+        
+        # Filter: My Topics only - but still only approved ones
+        if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
+            qs = qs.filter(creator=self.request.user)
+        
+        # Backend search filtering
+        search_query = self.request.GET.get('q', '').strip()
+        if search_query:
+            qs = qs.filter(
+                Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(description_ar__icontains=search_query) |
+                Q(description_en__icontains=search_query) |
+                Q(creator__username__icontains=search_query) |
+                Q(creator__full_name__icontains=search_query)
+            )
+        
+        # Sort options
+        sort = self.request.GET.get('sort', '')
+        if sort == 'newest':
+            qs = qs.order_by('-created_at')
+        elif sort == 'active':
+            # Sort by most chatrooms/activity
+            qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
+        elif sort == 'popular':
+            # Sort by views (fallback to chatroom count if views not available)
+            qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
+        else:
+            # Default: order by creation date
+            qs = qs.order_by('-created_at')
+        
+        return qs
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            visible_topics_qs = self.get_queryset()
-            context['page'] = 'community'
-            context['search_query'] = self.request.GET.get('q', '')
-            context['total_topics'] = visible_topics_qs.count()
-            context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
-            # Category filter context
-            context['current_sort'] = self.request.GET.get('sort', '')
-            context['my_topics'] = self.request.GET.get('my_topics', '')
-            return context
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        visible_topics_qs = self.get_queryset()
+        context['page'] = 'community'
+        context['search_query'] = self.request.GET.get('q', '')
+        context['total_topics'] = visible_topics_qs.count()
+        context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
+        # Category filter context
+        context['current_sort'] = self.request.GET.get('sort', '')
+        context['my_topics'] = self.request.GET.get('my_topics', '')
+        return context
 
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
