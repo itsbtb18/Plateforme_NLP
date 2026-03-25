@@ -196,11 +196,19 @@ services:
       TOKENIZERS_PARALLELISM: "false"
       TORCH_NUM_THREADS: "1"
       NUMEXPR_MAX_THREADS: "1"
+      # Web search (Exa + Tavily)
+      EXA_API_KEY: ${EXA_API_KEY:-}
+      EXA_ENABLED: ${EXA_ENABLED:-true}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      EXA_MAX_CALLS_PER_SESSION: ${EXA_MAX_CALLS_PER_SESSION:-10}
+      EXA_MAX_CALLS_PER_HOUR: ${EXA_MAX_CALLS_PER_HOUR:-30}
+      EXA_CACHE_TTL_HOURS: ${EXA_CACHE_TTL_HOURS:-24}
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy

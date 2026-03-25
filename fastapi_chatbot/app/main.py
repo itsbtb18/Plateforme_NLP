@@ -28,6 +28,8 @@ from app.schemas import (
     DocumentListResponse,
     PlatformSearchResponse,
     PlatformDocumentIngestResponse,
+    WebSearchRequest,
+    WebSearchResponse,
 )
 from app.services.chat_logic import get_chat_logic
 from app.services.memory import get_session_service
@@ -398,7 +400,125 @@ async def ask_document(
 
 
 # ==================================================================
-# D) Conversation System  (session_service)
+# D-bis) Web Search (Tavily — user-triggered)
+# ==================================================================
+
+
+@app.post("/web/search", response_model=WebSearchResponse)
+async def web_search(request: WebSearchRequest):
+    """User-triggered web search via Tavily.
+
+    Separate from the RAG pipeline — returns web results with citations.
+    """
+    from app.services.web.tavily_client import search_tavily
+
+    try:
+        result = await search_tavily(
+            query=request.question,
+            search_depth="advanced",
+            max_results=5,
+            include_answer=True,
+        )
+        return WebSearchResponse(
+            answer=result.get("answer", ""),
+            results=result.get("results", []),
+            source_urls=result.get("source_urls", []),
+            response_time=result.get("response_time", 0),
+            query=request.question,
+            source="web_tavily",
+            session_id=request.session_id or "",
+        )
+    except Exception as e:
+        logger.error("Web search error: %s", e)
+        raise HTTPException(
+            status_code=500, detail="Web search failed"
+        )
+
+
+async def _stream_web_search(request: WebSearchRequest):
+    """SSE generator: Tavily search → Groq LLM streaming answer."""
+    from app.services.web.tavily_client import search_tavily
+    from app.services.llm.client import get_groq_client
+
+    try:
+        # 1. Tavily search
+        result = await search_tavily(
+            query=request.question,
+            search_depth="advanced",
+            max_results=5,
+            include_answer=True,
+        )
+
+        web_results = result.get("results", [])
+        source_urls = result.get("source_urls", [])
+        tavily_answer = result.get("answer", "")
+        response_time = result.get("response_time", 0)
+
+        # 2. Build web context from all search results
+        context_parts = []
+        for i, r in enumerate(web_results, 1):
+            title = r.get("title", "")
+            content = r.get("content", "")
+            url = r.get("url", "")
+            if content:
+                context_parts.append(
+                    f"[Source {i}: {title}]\nURL: {url}\n{content}"
+                )
+
+        web_context = "\n\n".join(context_parts)
+        if tavily_answer:
+            web_context = f"[Quick Summary]\n{tavily_answer}\n\n{web_context}"
+
+        # 3. Stream LLM-generated detailed answer
+        answer = ""
+        if web_context:
+            groq = get_groq_client()
+            async for chunk in groq.generate_answer_with_context_stream(
+                question=request.question,
+                context=web_context,
+                language="en",
+                source_type="web_tavily",
+            ):
+                answer += chunk
+                yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
+        else:
+            # No web results — fallback
+            answer = tavily_answer or "No web results found."
+            yield f"data: {json.dumps({'delta': answer}, ensure_ascii=False)}\n\n"
+
+        # 4. Final event with metadata + web results for card rendering
+        final = {
+            "done": True,
+            "answer": answer,
+            "source": "web_tavily",
+            "session_id": request.session_id or "",
+            "web_results": web_results,
+            "source_urls": source_urls,
+            "response_time": response_time,
+        }
+        yield f"data: {json.dumps(final, ensure_ascii=False)}\n\n"
+
+    except Exception as e:
+        logger.error("Web search stream error: %s", e)
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+
+@app.post("/web/search/stream")
+async def web_search_stream(request: WebSearchRequest):
+    """Streaming web search: Tavily results + LLM-generated detailed answer."""
+    return StreamingResponse(
+        _stream_web_search(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ==================================================================
+# E) Conversation System  (session_service)
 # ==================================================================
 
 
