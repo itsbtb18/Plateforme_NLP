@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('QA', '0004_add_post_bilingual_approval'),
+        ('QA', '0005_domain_model_indexes'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

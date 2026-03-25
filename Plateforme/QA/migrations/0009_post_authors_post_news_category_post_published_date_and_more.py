@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('QA', '0007_post_dedup_fields'),
+        ('QA', '0008_post_dedup_fields'),
     ]
 
     operations = [

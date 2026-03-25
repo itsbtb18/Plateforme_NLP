@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("QA", "0006_fix_post_fields"),
+        ("QA", "0007_fix_post_fields"),
     ]
 
     operations = [
@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
                 blank=True, db_index=True, default="", max_length=255
             ),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name="post",
             name="source_url",
             field=models.URLField(blank=True, default=""),

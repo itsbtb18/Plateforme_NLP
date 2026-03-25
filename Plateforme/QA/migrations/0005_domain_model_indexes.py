@@ -5,11 +5,11 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('QA', '0003_post_news_data'),
+        ('QA', '0004_add_post_bilingual_approval'),
     ]
 
     operations = [
-        migrations.AlterField(
+        migrations.AddField(
             model_name='post',
             name='source_url',
             field=models.URLField(blank=True, default='', db_index=True),

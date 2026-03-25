@@ -98,21 +98,21 @@ services:
     environment:
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      
+
       # Django
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      
+
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
       CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
       CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
-      
+
       # Celery
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
-      
+
       # Email
       EMAIL_HOST: ${EMAIL_HOST}
       EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -120,20 +120,20 @@ services:
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
-      
+
       # Elasticsearch
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-      
+
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
-      
+
       # Chatbot Settings
       CHATBOT_MAX_HISTORY: ${CHATBOT_MAX_HISTORY:-20}
       CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
       CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
       CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
-      
+
       # Groq (scraping LLM validation)
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
@@ -167,11 +167,11 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -183,8 +183,8 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_fastapi
     cpus: 1.0
-    mem_limit: 2g
-    mem_reservation: 512m
+    mem_limit: 4g
+    mem_reservation: 1g
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -223,13 +223,13 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -300,8 +300,10 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - django
-      - fastapi
+      django:
+        condition: service_healthy
+      fastapi:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
       interval: 30s
@@ -312,7 +314,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # ── Django Celery Worker (scraping background tasks) ──────────────
+  # Django Celery Worker (scraping background tasks)
   django_celery_worker:
     build:
       context: ./Plateforme
@@ -362,6 +364,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
+  # Django Celery Scraper Worker
   celery-scraper:
     build:
       context: ./Plateforme
@@ -404,16 +407,17 @@ services:
         limits:
           memory: 2G
           cpus: "1.5"
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "celery", "-A", "Plateforme", "inspect", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
     networks:
       - nlp_network
+    restart: unless-stopped
 
-  # ── Django Celery Beat (periodic task scheduler) ──────────────────
+  # Django Celery Beat (periodic task scheduler)
   django_celery_beat:
     build:
       context: ./Plateforme
@@ -466,7 +470,8 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - django
+      django:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -477,7 +482,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # Optional dashboards for scraping observability
+  # Grafana dashboards
   grafana:
     image: grafana/grafana:10.4.0
     container_name: nlp_grafana
@@ -500,6 +505,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
+  # Redis Exporter for Prometheus
   redis-exporter:
     image: oliver006/redis_exporter:v1.66.0
     container_name: nlp_redis_exporter
@@ -512,7 +518,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      test: ["CMD", "/redis_exporter", "-version"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -8,9 +8,6 @@ jobs:
     services:
       postgres:
         image: pgvector/pgvector:pg16
-        credentials:
-          username: ${{ secrets.dockerhub_username }}
-          password: ${{ secrets.dockerhub_token }}
         env:
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: test_db
@@ -22,9 +19,6 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
-        credentials:
-          username: ${{ secrets.dockerhub_username }}
-          password: ${{ secrets.dockerhub_token }}
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -33,18 +27,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.dockerhub_username }}
-          password: ${{ secrets.dockerhub_token }}
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: pip install -r Plateforme/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Plateforme/requirements.txt
 
       - name: Run tests
         env:
@@ -67,5 +57,6 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          file: Plateforme/coverage.xml
+          files: Plateforme/coverage.xml
+          fail_ci_if_error: false
            
