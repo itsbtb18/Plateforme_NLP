@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database with pgvector extension
   db:
-    image: ankane/pgvector:v0.7.0
+    image: "pgvector/pgvector:pg16"
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -32,7 +32,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD:?must be set}\" ping | grep -q PONG"]
       interval: 10s
       timeout: 3s
       retries: 5
