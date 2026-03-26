@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     TOKEN_BUDGET_HISTORY: int = 1500
     TOKEN_BUDGET_SUMMARY: int = 500
 
+    # Web Search — Exa (RAG fallback retrieval)
+    EXA_API_KEY: str = ""
+    EXA_ENABLED: bool = False
+    EXA_MAX_CALLS_PER_SESSION: int = 10
+    EXA_MAX_CALLS_PER_HOUR: int = 30
+    EXA_CACHE_TTL_HOURS: int = 24
+
+    # Web Search — Tavily (User-triggered web mode)
+    TAVILY_API_KEY: str = ""
+    TAVILY_ENABLED: bool = False
+
     class Config:
         env_file = ".env"
         case_sensitive = True

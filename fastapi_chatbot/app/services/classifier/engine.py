@@ -66,6 +66,11 @@ _INTENT_PARAMS: Dict[str, dict] = {
     "platform_query": {"use_postgresql": True},
     "general_knowledge": {"use_llm_direct": True},
     "conceptual_question": {"qdrant_collections": ["nlp_knowledge"]},
+    # Memory intents — handled before retrieval, no RAG needed
+    "memory_translate_last_user_query": {"use_llm_direct": True},
+    "memory_repeat_last_user_query": {"use_llm_direct": True},
+    "memory_summarize_last_answer": {"use_llm_direct": True},
+    "memory_compare_last_two_queries": {"use_llm_direct": True},
 }
 
 # Greetings / short social messages — no LLM needed
@@ -99,6 +104,64 @@ _ANALYZE_ANSWER_RE = re.compile(
     r"(?:\banswer\b|\br[eé]ponse\b|(?:الإجابة|الجواب))",
     re.IGNORECASE,
 )
+
+# Memory command patterns — AR/FR/EN (fast-path before LLM)
+_MEMORY_TRANSLATE_RE = re.compile(
+    r"(?:"
+    r"\btranslat[e]\b.*\b(?:last|previous|my)\b.*\b(?:question|query|message)\b|"
+    r"\b(?:last|previous|my)\b.*\b(?:question|query|message)\b.*\btranslat|"
+    r"\btradui[st]\b.*\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te|message)\b|"
+    r"\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te)\b.*\btradui|"
+    r"ترجم.*(?:آخر|الأخير|سؤال)|"
+    r"(?:آخر|الأخير).*سؤال.*ترجم"
+    r")",
+    re.IGNORECASE,
+)
+
+_MEMORY_REPEAT_RE = re.compile(
+    r"(?:"
+    r"\b(?:repeat|show|what was)\b.*\b(?:last|previous|my)\b.*\b(?:question|query|message)\b|"
+    r"\b(?:last|previous|my)\b.*\b(?:question|query)\b.*\b(?:was|repeat|show)\b|"
+    r"\br[eé]p[eè]t[e]\b.*\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te)\b|"
+    r"\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te)\b.*\br[eé]p[eè]t|"
+    r"(?:أعد|كرر|ما هو).*(?:آخر|الأخير).*سؤال|"
+    r"(?:آخر|الأخير).*سؤال.*(?:أعد|كرر)"
+    r")",
+    re.IGNORECASE,
+)
+
+_MEMORY_SUMMARIZE_RE = re.compile(
+    r"(?:"
+    r"\bsummari[sz]e\b.*\b(?:last|previous|your)\b.*\b(?:answer|response|reply)\b|"
+    r"\b(?:last|previous|your)\b.*\b(?:answer|response|reply)\b.*\bsummari|"
+    r"\br[eé]sum[eé]\b.*\b(?:derni[eè]re?)\b.*\b(?:r[eé]ponse|answer)\b|"
+    r"\b(?:derni[eè]re?)\b.*\b(?:r[eé]ponse)\b.*\br[eé]sum|"
+    r"(?:لخص|اختصر).*(?:آخر|الأخيرة?).*(?:إجابة|رد)|"
+    r"(?:آخر|الأخيرة?).*(?:إجابة|رد).*(?:لخص|اختصر)"
+    r")",
+    re.IGNORECASE,
+)
+
+_MEMORY_COMPARE_RE = re.compile(
+    r"(?:"
+    r"\bcompar[e]\b.*\b(?:last|previous|my)\b.*\b(?:two|2)\b.*\b(?:question|quer)|"
+    r"\b(?:last|previous)\b.*\b(?:two|2)\b.*\b(?:question|quer).*\bcompar|"
+    r"\bcompar[e]\b.*\b(?:derni[eè]re?s?)\b.*\b(?:deux|2)\b.*\b(?:question|requ[eê]te)|"
+    r"\bcompar[e]\b.*\b(?:deux|2)\b.*\b(?:derni[eè]re?s?)\b.*\b(?:question|requ[eê]te)|"
+    r"\b(?:deux|2)\b.*\b(?:derni[eè]re?s?)\b.*\b(?:question|requ[eê]te).*\bcompar|"
+    r"(?:قارن|قارني).*(?:آخر|الأخيرين).*سؤال|"
+    r"(?:آخر|الأخيرين).*سؤال.*(?:قارن|قارني)"
+    r")",
+    re.IGNORECASE,
+)
+
+# Mapping from regex to memory intent name
+_MEMORY_REGEX_MAP = [
+    (_MEMORY_TRANSLATE_RE, "memory_translate_last_user_query"),
+    (_MEMORY_REPEAT_RE, "memory_repeat_last_user_query"),
+    (_MEMORY_SUMMARIZE_RE, "memory_summarize_last_answer"),
+    (_MEMORY_COMPARE_RE, "memory_compare_last_two_queries"),
+]
 
 
 class QueryClassifier:
@@ -142,6 +205,15 @@ class QueryClassifier:
         # Identity questions → general_knowledge
         if _IDENTITY_RE.search(q):
             return self._build_classification("general_knowledge", language, 0.99)
+
+        # Memory commands → no retrieval needed (fast-path)
+        for regex, intent_name in _MEMORY_REGEX_MAP:
+            if regex.search(q):
+                logger.info(
+                    "Memory intent fast-path: %s for query '%s'",
+                    intent_name, q[:60],
+                )
+                return self._build_classification(intent_name, language, 0.97)
 
         return None
 
