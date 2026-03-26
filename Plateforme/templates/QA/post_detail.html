@@ -225,18 +225,10 @@
 
 .pd-share-dropdown {
     position: relative;
-    flex: 1;
-    order: 3;
-}
-
-.pd-share-trigger {
-    width: 100%;
 }
 
 .pd-share-menu {
-    position: absolute;
-    inset-block-start: calc(100% + 8px);
-    inset-inline-end: 0;
+    position: fixed;
     min-width: 220px;
     background: var(--pd-white);
     border: 1px solid var(--pd-border);
@@ -247,7 +239,7 @@
     visibility: hidden;
     transform: translateY(-6px);
     transition: all 0.18s;
-    z-index: 30;
+    z-index: 9999;
 }
 
 .pd-share-dropdown.open .pd-share-menu {
@@ -303,8 +295,8 @@
 }
 
 html[dir="rtl"] .pd-share-menu {
-    inset-inline-end: auto;
-    inset-inline-start: 0;
+    inset-inline-start: auto;
+    inset-inline-end: calc(100% + 8px);
 }
 
 /* Comments Section */
@@ -747,7 +739,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
             </div>
             
             <div class="pd-post-actions">
-                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}">
+                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}" data-like-url="{% url 'QA:like_post' post.id %}">
                     <i class="bi {% if request.user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                     <span>{% trans "Like" %}</span>
                 </button>
@@ -755,32 +747,32 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                     <i class="bi bi-chat-dots"></i>
                     <span>{% trans "Comment" %}</span>
                 </a>
-                <div class="pd-share-dropdown"
-                     data-post-id="{{ post.id }}"
-                     data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
-                    <button type="button" class="pd-post-action pd-share-trigger" onclick="togglePostShareMenu(this)">
-                        <i class="bi bi-share"></i>
-                        <span>{% trans "Share" %}</span>
+                <button type="button" class="pd-post-action pd-share-trigger" id="shareBtn" onclick="togglePostShareMenu(this)" data-post-id="{{ post.id }}" data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
+                    <i class="bi bi-share"></i>
+                    <span>{% trans "Share" %}</span>
+                </button>
+            </div>
+            
+            <!-- Share dropdown menu positioned outside the flex container -->
+            <div class="pd-share-dropdown" id="shareDropdown">
+                <div class="pd-share-menu">
+                    <button type="button" class="pd-share-item" onclick="sendPostDetailToFriends(this)">
+                        <i class="bi bi-people-fill"></i>
+                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}{% trans "Send to Friends" %}{% endif %}</span>
                     </button>
-                    <div class="pd-share-menu">
-                        <button type="button" class="pd-share-item" onclick="sendPostDetailToFriends(this)">
-                            <i class="bi bi-people-fill"></i>
-                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}{% trans "Send to Friends" %}{% endif %}</span>
-                        </button>
-                        <button type="button" class="pd-share-item" onclick="copyPostDetailLink(this)">
-                            <i class="bi bi-link-45deg"></i>
-                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}{% trans "Copy Link" %}{% endif %}</span>
-                        </button>
-                        <div class="pd-share-social">
-                            <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('whatsapp', this); return false;">
-                                <i class="bi bi-whatsapp"></i>
-                                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واتساب{% else %}WhatsApp{% endif %}</span>
-                            </a>
-                            <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('linkedin', this); return false;">
-                                <i class="bi bi-linkedin"></i>
+                    <button type="button" class="pd-share-item" onclick="copyPostDetailLink(this)">
+                        <i class="bi bi-link-45deg"></i>
+                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}{% trans "Copy Link" %}{% endif %}</span>
+                    </button>
+                    <div class="pd-share-social">
+                        <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('whatsapp', this); return false;">
+                            <i class="bi bi-whatsapp"></i>
+                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واتساب{% else %}WhatsApp{% endif %}</span>
+                        </a>
+                        <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('linkedin', this); return false;">
+                            <i class="bi bi-linkedin"></i>
                                 <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لينكدإن{% else %}LinkedIn{% endif %}</span>
-                            </a>
-                        </div>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -938,38 +930,180 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
 
 {% block extra_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// CSRF Token helper
+function getCsrfToken() {
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) return csrfInput.value;
+    const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+    return cookie ? cookie.split('=')[1] : '';
+}
+
+function getPostDetailUrl() {
+    return window.location.href;
+}
+
+// Global functions for share menu and actions - MUST be outside DOMContentLoaded
+window.togglePostShareMenu = function(btn) {
+    const menu = document.querySelector('#shareDropdown .pd-share-menu');
+    const shareDropdown = document.getElementById('shareDropdown');
     
-    // CSRF Token helper
-    function getCsrfToken() {
-        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-        if (csrfInput) return csrfInput.value;
-        const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
-        return cookie ? cookie.split('=')[1] : '';
+    if (!menu || !shareDropdown) return;
+    
+    const wasOpen = shareDropdown.classList.contains('open');
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.pd-share-dropdown.open').forEach(d => {
+        if (d !== shareDropdown) d.classList.remove('open');
+    });
+    
+    if (!wasOpen) {
+        // Position menu to the right of the button
+        const btnRect = btn.getBoundingClientRect();
+        const isRTL = document.documentElement.dir === 'rtl';
+        
+        if (isRTL) {
+            // For RTL, position to the left of button
+            menu.style.right = (window.innerWidth - btnRect.left) + 'px';
+            menu.style.left = 'auto';
+        } else {
+            // For LTR, position to the right of button
+            menu.style.left = (btnRect.right + 8) + 'px';
+            menu.style.right = 'auto';
+        }
+        menu.style.top = btnRect.top + 'px';
+        
+        shareDropdown.classList.add('open');
+    } else {
+        shareDropdown.classList.remove('open');
     }
+};
+
+window.sendPostDetailToFriends = function(node) {
+    const shareDropdown = document.getElementById('shareDropdown');
+    const shareBtn = document.getElementById('shareBtn');
+    
+    if (!shareDropdown || !shareBtn) return;
+
+    document.dispatchEvent(new CustomEvent('openShareModal', {
+        detail: {
+            type: 'post',
+            id: shareBtn.dataset.postId || '',
+            title: shareBtn.dataset.postTitle || ''
+        }
+    }));
+
+    shareDropdown.classList.remove('open');
+};
+
+window.copyPostDetailLink = function() {
+    const url = getPostDetailUrl();
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('{% trans "Link copied to clipboard!" %}');
+        });
+        return;
+    }
+    const tmp = document.createElement('input');
+    tmp.value = url;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+    alert('{% trans "Link copied to clipboard!" %}');
+};
+
+window.sharePostDetailSocial = function(platform) {
+    const url = encodeURIComponent(getPostDetailUrl());
+    let targetUrl = '';
+    if (platform === 'whatsapp') {
+        targetUrl = `https://wa.me/?text=${url}`;
+    } else if (platform === 'linkedin') {
+        targetUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+    }
+    if (targetUrl) window.open(targetUrl, '_blank', 'noopener,noreferrer');
+};
+
+// Initialize event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
     
     // Like Post
     const likePostBtn = document.getElementById('likePostBtn');
     if (likePostBtn) {
-        likePostBtn.addEventListener('click', async function() {
+        likePostBtn.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
             const postId = this.dataset.postId;
+            const likeUrl = this.dataset.likeUrl;
+            const btn = this;
+            
+            console.log('[LIKE] Starting like request for post:', postId);
+            console.log('[LIKE] URL:', likeUrl);
+            
             try {
-                const response = await fetch(`/QA/post/${postId}/like/`, {
+                const csrfToken = getCsrfToken();
+                console.log('[LIKE] CSRF token obtained:', csrfToken ? '✓' : '✗');
+                
+                const response = await fetch(likeUrl, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': getCsrfToken(),
+                        'X-CSRFToken': csrfToken,
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
-                if (response.ok) {
-                    const data = await response.json();
-                    const icon = this.querySelector('i');
-                    this.classList.toggle('liked', data.liked);
-                    icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
-                    document.querySelector('.pd-stats .pd-stat span').textContent = `${data.total_likes} {% trans "likes" %}`;
+                
+                console.log('[LIKE] Response status:', response.status);
+                
+                // Handle specific error status codes
+                if (response.status === 403) {
+                    console.error('[LIKE] Forbidden - CSRF token issue or permission denied');
+                    alert('Permission denied. Please refresh the page.');
+                    return;
+                } else if (response.status === 404) {
+                    console.error('[LIKE] Post not found');
+                    alert('Post not found.');
+                    return;
+                } else if (response.status === 405) {
+                    console.error('[LIKE] Invalid request method');
+                    alert('Invalid request.');
+                    return;
+                } else if (!response.ok) {
+                    console.error('[LIKE] Server error:', response.status);
+                    alert('An error occurred. Please try again.');
+                    return;
                 }
+                
+                const data = await response.json();
+                console.log('[LIKE] Response data:', data);
+                
+                // Verify response data
+                if (data.hasOwnProperty('liked') && data.hasOwnProperty('total_likes')) {
+                    // Update button UI
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        btn.classList.toggle('liked', data.liked);
+                        icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
+                        console.log('[LIKE] Button updated - liked:', data.liked);
+                    } else {
+                        console.warn('[LIKE] Icon element not found');
+                    }
+                    
+                    // Update likes count - more robust selector
+                    const likesSpans = document.querySelectorAll('.pd-stats .pd-stat span');
+                    if (likesSpans.length > 0) {
+                        likesSpans[0].textContent = `${data.total_likes} {% trans "likes" %}`;
+                        console.log('[LIKE] Likes count updated:', data.total_likes);
+                    } else {
+                        console.warn('[LIKE] Likes count element not found');
+                    }
+                } else {
+                    console.error('[LIKE] Invalid response format:', data);
+                    alert('Invalid server response.');
+                }
+                
             } catch (error) {
-                console.error('Error:', error);
+                console.error('[LIKE] Network or parsing error:', error);
+                alert('An error occurred. Please check the console.');
             }
         });
     }
@@ -1035,66 +1169,14 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(`edit-form-${commentId}`).classList.remove('show');
         });
     });
-    
-    function getPostDetailUrl() {
-        return window.location.href;
-    }
 
-    window.togglePostShareMenu = function(btn) {
-        const dropdown = btn.closest('.pd-share-dropdown');
-        if (!dropdown) return;
-        const wasOpen = dropdown.classList.contains('open');
-
-        document.querySelectorAll('.pd-share-dropdown.open').forEach(d => d.classList.remove('open'));
-        if (!wasOpen) dropdown.classList.add('open');
-    };
-
-    window.sendPostDetailToFriends = function(node) {
-        const dropdown = node.closest('.pd-share-dropdown');
-        if (!dropdown) return;
-
-        document.dispatchEvent(new CustomEvent('openShareModal', {
-            detail: {
-                type: 'post',
-                id: dropdown.dataset.postId || '',
-                title: dropdown.dataset.postTitle || ''
-            }
-        }));
-
-        dropdown.classList.remove('open');
-    };
-
-    window.copyPostDetailLink = function() {
-        const url = getPostDetailUrl();
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(url).then(() => {
-                alert('{% trans "Link copied to clipboard!" %}');
-            });
-            return;
-        }
-        const tmp = document.createElement('input');
-        tmp.value = url;
-        document.body.appendChild(tmp);
-        tmp.select();
-        document.execCommand('copy');
-        document.body.removeChild(tmp);
-        alert('{% trans "Link copied to clipboard!" %}');
-    };
-
-    window.sharePostDetailSocial = function(platform) {
-        const url = encodeURIComponent(getPostDetailUrl());
-        let targetUrl = '';
-        if (platform === 'whatsapp') {
-            targetUrl = `https://wa.me/?text=${url}`;
-        } else if (platform === 'linkedin') {
-            targetUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
-        }
-        if (targetUrl) window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    };
-
+    // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.pd-share-dropdown')) {
-            document.querySelectorAll('.pd-share-dropdown.open').forEach(d => d.classList.remove('open'));
+        const shareBtn = document.getElementById('shareBtn');
+        const shareDropdown = document.getElementById('shareDropdown');
+        
+        if (shareBtn && shareDropdown && !e.target.closest('#shareBtn') && !e.target.closest('#shareDropdown')) {
+            shareDropdown.classList.remove('open');
         }
     });
 });

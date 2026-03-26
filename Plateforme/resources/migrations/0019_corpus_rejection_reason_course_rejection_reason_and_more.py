@@ -10,4 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AddField(
+            model_name='nlptool',
+            name='thumbnail',
+            field=models.ImageField(blank=True, help_text='Tool icon or thumbnail image', null=True, upload_to='tools/thumbnails/'),
+        ),
     ]
