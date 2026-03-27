@@ -312,6 +312,7 @@ CLASSIFICATION_PROMPT = (
     "- general_knowledge: greetings, chatbot identity questions, open-ended advice, brainstorming, learning plans, general how-to\n"
     "- conceptual_question: asking to explain or define AI/NLP/ML concepts, how algorithms work, what is X\n"
     "- memory_translate_last_user_query: user asking to TRANSLATE their last/previous question to another language (e.g. 'translate my last question to english', 'traduis ma dernière question en anglais', 'ترجم آخر سؤال إلى الإنجليزية')\n"
+    "- memory_translate_last_answer: user asking to TRANSLATE the last/previous assistant answer to another language (e.g. 'translate your last answer to arabic', 'traduis ta dernière réponse en arabe', 'ترجم آخر إجابة إلى العربية')\n"
     "- memory_repeat_last_user_query: user asking to REPEAT/SHOW their last/previous question (e.g. 'what was my last question', 'répète ma dernière question', 'أعد آخر سؤال')\n"
     "- memory_summarize_last_answer: user asking to SUMMARIZE the last/previous assistant answer (e.g. 'summarize your last answer', 'résume ta dernière réponse', 'لخص آخر إجابة')\n"
     "- memory_compare_last_two_queries: user asking to COMPARE their last two questions (e.g. 'compare my last two questions', 'compare mes deux dernières questions', 'قارن آخر سؤالين')\n\n"
@@ -340,6 +341,7 @@ VALID_INTENTS = {
     "conceptual_question",
     # Memory intents (Phase — Memory Intelligence)
     "memory_translate_last_user_query",
+    "memory_translate_last_answer",
     "memory_repeat_last_user_query",
     "memory_summarize_last_answer",
     "memory_compare_last_two_queries",

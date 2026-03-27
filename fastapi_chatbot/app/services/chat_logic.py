@@ -41,6 +41,67 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 
+def build_entity_explain_fallback_answer(
+    request: EntityExplainRequest,
+    language: str,
+) -> str:
+    """Build a deterministic answer from card metadata when LLM is unavailable."""
+    meta = request.entity_metadata or {}
+    category = str(meta.get("category", "")).strip()
+    author = str(meta.get("author", "")).strip()
+    url = str(meta.get("url", "")).strip()
+    entity_type = str(request.entity_type or "resource").strip() or "resource"
+    title = str(request.entity_title or "").strip() or "this item"
+    description = str(request.entity_description or "").strip()
+
+    if language == "ar":
+        lines = [f"معلومة مؤكدة حول {title}:"]
+        lines.append(f"- النوع: {entity_type}")
+        if category:
+            lines.append(f"- الفئة: {category}")
+        if author:
+            lines.append(f"- الجهة/المؤلف: {author}")
+        if description:
+            lines.append(f"- الوصف: {description[:500]}")
+        if url:
+            lines.append(f"- الرابط: {url}")
+        lines.append(
+            "يمكنني توضيح المزيد (الاستخدامات، المتطلبات، أو المقارنة مع موارد مشابهة) إذا حددت ما تريد بالضبط."
+        )
+        return "\n".join(lines)
+
+    if language == "fr":
+        lines = [f"Informations verifiees sur {title}:"]
+        lines.append(f"- Type: {entity_type}")
+        if category:
+            lines.append(f"- Categorie: {category}")
+        if author:
+            lines.append(f"- Auteur/Proprietaire: {author}")
+        if description:
+            lines.append(f"- Description: {description[:500]}")
+        if url:
+            lines.append(f"- Lien: {url}")
+        lines.append(
+            "Je peux detailler davantage (usages, pre-requis, ou comparaison avec des ressources similaires) si vous precisez votre besoin."
+        )
+        return "\n".join(lines)
+
+    lines = [f"Verified information about {title}:"]
+    lines.append(f"- Type: {entity_type}")
+    if category:
+        lines.append(f"- Category: {category}")
+    if author:
+        lines.append(f"- Author/Owner: {author}")
+    if description:
+        lines.append(f"- Description: {description[:500]}")
+    if url:
+        lines.append(f"- Link: {url}")
+    lines.append(
+        "I can provide more detail (use cases, prerequisites, or a comparison with similar resources) if you tell me what you need most."
+    )
+    return "\n".join(lines)
+
+
 class ChatLogic:
     """RAG orchestration — classify → route → generate → persist.
 
@@ -258,6 +319,7 @@ class ChatLogic:
         # ── Memory intents: early exit (no retrieval needed) ─────────
         _MEMORY_INTENTS = {
             "memory_translate_last_user_query",
+            "memory_translate_last_answer",
             "memory_repeat_last_user_query",
             "memory_summarize_last_answer",
             "memory_compare_last_two_queries",
@@ -658,6 +720,7 @@ class ChatLogic:
         # ── Memory intents: early exit in stream (no retrieval needed) ──
         _MEMORY_INTENTS = {
             "memory_translate_last_user_query",
+            "memory_translate_last_answer",
             "memory_repeat_last_user_query",
             "memory_summarize_last_answer",
             "memory_compare_last_two_queries",
@@ -1076,18 +1139,32 @@ class ChatLogic:
             request.session_id, db
         )
 
-        answer = await self.groq.generate_answer_with_context(
-            question=question,
-            context=full_context,
-            language=lang,
-            chat_history=chat_history,
-            source_type="platform",
-        )
-
         source = "platform"
-        if GroqClient.is_fallback(answer):
-            answer = await self.groq.quick_answer(question, lang)
-            source = "groq"
+        answer = ""
+        try:
+            answer = await self.groq.generate_answer_with_context(
+                question=question,
+                context=full_context,
+                language=lang,
+                chat_history=chat_history,
+                source_type="platform",
+            )
+        except Exception:
+            logger.error("Entity explain generation failed", exc_info=True)
+
+        if not answer or GroqClient.is_fallback(answer):
+            quick = ""
+            try:
+                quick = await self.groq.quick_answer(question, lang)
+            except Exception:
+                logger.error("Entity explain quick fallback failed", exc_info=True)
+
+            if quick and not GroqClient.is_fallback(quick):
+                answer = quick
+                source = "groq"
+            else:
+                answer = build_entity_explain_fallback_answer(request, lang)
+                source = "platform"
 
         # Persist messages
         await self.sessions.save_message(
