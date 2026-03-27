@@ -14,6 +14,7 @@
     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260313-footer-rtl">
+    <link rel="stylesheet" href="{% static 'css/dark-navbar.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
@@ -152,13 +153,13 @@
       }
 
       .header-discussions-btn i {
-        color: #111111 !important;
+        color: #ffffffb3 !important;
       }
 
       .header-discussions-btn:hover i,
       .header-discussions-btn:focus i,
       .header-discussions-btn.active i {
-        color: #111111 !important;
+        color: #a78bfa !important;
       }
 
       .header-discussions-btn .sidebar-chat-badge {
@@ -1579,6 +1580,79 @@
             }
             </style>
             <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <!-- NAVIGATION MENU - Right to Left Layout -->
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <ul class="nav-menu">
+                <!-- Home -->
+                <li class="nav-item">
+                    <a href="{% url 'pages:home' %}" class="nav-link {% if page == 'home' or request.resolver_match.namespace == 'pages' %}active{% endif %}">
+                        <i class="fas fa-home"></i>
+                        <span>{% trans "Home" %}</span>
+                    </a>
+                </li>
+
+                <!-- Resources Dropdown -->
+                <li class="nav-item">
+                    <button class="nav-dropdown-trigger" id="resourcesDropdownTrigger" data-dropdown="resourcesDropdown">
+                        <span>{% trans "Resources" %}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <ul class="nav-dropdown-menu" id="resourcesDropdown">
+                        <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-tools"></i>
+                            <span>{% trans "Tools" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-database"></i>
+                            <span>{% trans "Corpus" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'projects:project_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-flask"></i>
+                            <span>{% trans "Research projects" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'resources:course_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-book"></i>
+                            <span>{% trans "Courses" %}</span>
+                        </a></li>
+                    </ul>
+                </li>
+
+                <!-- Discover Dropdown -->
+                <li class="nav-item">
+                    <button class="nav-dropdown-trigger" id="discoverDropdownTrigger" data-dropdown="discoverDropdown">
+                        <span>{% trans "Discover" %}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <ul class="nav-dropdown-menu" id="discoverDropdown">
+                        <li><a href="{% url 'institutions:institution_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-university"></i>
+                            <span>{% trans "Institutions" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'events:event_list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-calendar"></i>
+                            <span>{% trans "Events" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-comments"></i>
+                            <span>{% trans "Community" %}</span>
+                        </a></li>
+                        <li><a href="{% url 'QA:feed' %}" class="nav-dropdown-item" role="menuitem">
+                            <i class="fas fa-newspaper"></i>
+                            <span>{% trans "News" %}</span>
+                        </a></li>
+                    </ul>
+                </li>
+
+                <!-- Admin Button (Staff only) -->
+                {% if user.is_authenticated and user.is_staff %}
+                <li class="nav-item">
+                    <a href="{% url 'admin:index' %}" class="nav-link" title="{% trans 'Administration' %}">
+                        <i class="fas fa-cog"></i>
+                        <span>{% trans "Admin" %}</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
 
             <div class="header-actions">
                 <div class="language-dropdown-container action-dropdown-container">
@@ -1619,13 +1693,13 @@
                     <!-- ══════════════════════════════════════════════════════════════════════ -->
                     <div class="ntf-dropdown-container tw-relative">
                         <!-- Notification Bell Button -->
-                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent hover:tw-bg-gray-100 tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
+                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
                                 id="ntfDropdownToggle"
                                 aria-haspopup="menu"
                                 aria-expanded="false"
                                 aria-label="{% trans 'View notifications' %}"
                                 title="{% trans 'Notifications' %}">
-                            <svg class="tw-w-5 tw-h-5 tw-text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="tw-w-5 tw-h-5 ntf-bell-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
                             <!-- Unread Badge -->
@@ -3773,6 +3847,68 @@
             handleAskChatbot(btn);
         });
     })();
+    </script>
+
+    <!-- Navigation Dropdown Handler -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle nav dropdown triggers
+            const dropdownTriggers = document.querySelectorAll('.nav-dropdown-trigger');
+            
+            dropdownTriggers.forEach(trigger => {
+                trigger.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const dropdownId = this.getAttribute('data-dropdown');
+                    const dropdown = document.getElementById(dropdownId);
+                    
+                    if (dropdown) {
+                        // Toggle current dropdown
+                        dropdown.classList.toggle('show');
+                        this.classList.toggle('active');
+                        
+                        // Close other dropdowns
+                        dropdownTriggers.forEach(otherTrigger => {
+                            if (otherTrigger !== trigger) {
+                                const otherId = otherTrigger.getAttribute('data-dropdown');
+                                const otherDropdown = document.getElementById(otherId);
+                                if (otherDropdown) {
+                                    otherDropdown.classList.remove('show');
+                                    otherTrigger.classList.remove('active');
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.nav-item')) {
+                    dropdownTriggers.forEach(trigger => {
+                        const dropdownId = trigger.getAttribute('data-dropdown');
+                        const dropdown = document.getElementById(dropdownId);
+                        if (dropdown) {
+                            dropdown.classList.remove('show');
+                            trigger.classList.remove('active');
+                        }
+                    });
+                }
+            });
+            
+            // Handle keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    dropdownTriggers.forEach(trigger => {
+                        const dropdownId = trigger.getAttribute('data-dropdown');
+                        const dropdown = document.getElementById(dropdownId);
+                        if (dropdown) {
+                            dropdown.classList.remove('show');
+                            trigger.classList.remove('active');
+                        }
+                    });
+                }
+            });
+        });
     </script>
 
     {% block extra_scripts %}{% endblock %}
