@@ -5,6 +5,12 @@ class HttpMixin:
     def _rotate_user_agent(self):
         return super()._rotate_user_agent()
 
+    def _notify_skip(self, name: str, url: str, reason: str):
+        return super()._notify_skip(name, url, reason)
+
+    def fetch(self, url: str, source_name: str = ""):
+        return super().fetch(url, source_name=source_name)
+
     def safe_request(
         self, url: str, method: str = "GET", source_name: str | None = None, **kwargs
     ):

@@ -24,8 +24,10 @@ from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import (
     attach_file_to_model,
 )
+from scraping.fixture_loader import sources_for_section
+from scraping.scraping_settings import scraping_settings as SS
 
-from .base import BaseScraper
+from .playwright_scraper import PlaywrightFallbackScraper
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +93,71 @@ START_DATE_PATTERN = re.compile(
 )
 
 
-class CourseScraper(BaseScraper):
+def _course_fixture_rows() -> list[dict]:
+    return list(sources_for_section("courses"))
+
+
+def _course_source_rows(
+    *,
+    tier: int | None = None,
+    scraper_type: str | None = None,
+    country: str | None = None,
+) -> list[dict]:
+    rows = _course_fixture_rows()
+    if tier is not None:
+        rows = [r for r in rows if int(r.get("tier") or 0) == int(tier)]
+    if scraper_type is not None:
+        rows = [
+            r
+            for r in rows
+            if str(r.get("scraper_type", "")).strip().lower() == scraper_type.lower()
+        ]
+    if country is not None:
+        rows = [
+            r
+            for r in rows
+            if str(r.get("country", "")).strip().upper() == country.upper()
+        ]
+    return rows
+
+
+def _rows_to_rss_sources(
+    rows: list[dict], default_country: str = "global"
+) -> list[dict]:
+    result = []
+    for row in rows:
+        url = str(row.get("url", "")).strip()
+        if not url:
+            continue
+        country_code = (
+            str(row.get("country") or default_country).strip().upper() or "XX"
+        )
+        result.append(
+            {
+                "base_url": url,
+                "source_name": row.get("name") or "Course Source",
+                "institution_name": row.get("name") or "Course Source",
+                "country_name": country_code,
+                "country_code": country_code,
+                "inst_type": "Other",
+            }
+        )
+    return result
+
+
+class CourseScraper(PlaywrightFallbackScraper):
     name = "NLP Courses"
     category = "courses"
+    SECTION = "courses"
+
+    @classmethod
+    def get_default_sources(cls):
+        from scraping.models import ScrapingSource
+
+        return ScrapingSource.objects.filter(
+            category=cls.SECTION,
+            is_default=True,
+        ).order_by("name")
 
     def run(self) -> dict:
         """Run the courses scraper with checkpoint-aware resume support.
@@ -140,23 +204,11 @@ class CourseScraper(BaseScraper):
             )
             raise
 
-    ALGERIAN_UNIVERSITY_OCW = [
-        "https://elearning.univ-alger.dz",
-        "https://elearning.usthb.dz",
-        "https://elearning.esi.dz",
-        "https://elearning.umc.edu.dz",
-    ]
-    ALGERIAN_OCW_PATHS = ["/courses", "/matieres", "/modules"]
-
-    CERIST_FORMATION_URL = "https://www.cerist.dz/formation"
-
     YOUTUBE_SEARCH_TERMS_TIER_1 = [
         "دروس البرمجة الجزائر",
         "machine learning arabic Algeria",
         "NLP arabic course",
     ]
-
-    FUN_MOOC_API = "https://www.fun-mooc.fr/api/v1.0/courses/?format=json"
 
     COURSERA_ARABIC_TERMS = [
         "Arabic NLP",
@@ -165,14 +217,22 @@ class CourseScraper(BaseScraper):
         "ذكاء اصطناعي",
     ]
 
-    RWAQ_URL = "https://www.rwaq.org"
-    EDRAAK_URL = "https://www.edraak.org"
-
-    MIT_API_BASE = "https://api.learn.mit.edu/api/v1/courses/"
-
-    FASTAI_URLS = ["https://course.fast.ai", "https://www.fast.ai/posts/"]
-    HF_LEARN_URL = "https://huggingface.co/learn"
-    DEEPLEARNING_AI_COURSES = "https://www.deeplearning.ai/courses/"
+    RWAQ_URL = next(
+        (
+            str(row.get("url", "")).strip()
+            for row in _course_fixture_rows()
+            if "rwaq" in str(row.get("name", "")).lower()
+        ),
+        "",
+    )
+    EDRAAK_URL = next(
+        (
+            str(row.get("url", "")).strip()
+            for row in _course_fixture_rows()
+            if "edraak" in str(row.get("name", "")).lower()
+        ),
+        "",
+    )
 
     AI_NLP_KEYWORDS = (
         "nlp",
@@ -193,84 +253,117 @@ class CourseScraper(BaseScraper):
         "برمجة",
     )
 
-    TIER_1_RSS_SOURCES = [
-        {
-            "base_url": "https://elearning.univ-alger.dz",
-            "source_name": "Univ Alger eLearning",
-            "institution_name": "University of Algiers eLearning",
-            "country_name": "Algeria",
-            "country_code": "DZ",
-            "inst_type": "University",
-        },
-        {
-            "base_url": "https://elearning.usthb.dz",
-            "source_name": "USTHB eLearning",
-            "institution_name": "USTHB eLearning",
-            "country_name": "Algeria",
-            "country_code": "DZ",
-            "inst_type": "University",
-        },
-        {
-            "base_url": "https://www.cerist.dz",
-            "source_name": "CERIST",
-            "institution_name": "CERIST",
-            "country_name": "Algeria",
-            "country_code": "DZ",
-            "inst_type": "Research Center",
-        },
-    ]
-
-    TIER_2_RSS_SOURCES = [
-        {
-            "base_url": "https://www.edraak.org",
-            "source_name": "Edraak",
-            "institution_name": "Edraak",
-            "country_name": "Jordan",
-            "country_code": "JO",
-            "inst_type": "Other",
-        },
-        {
-            "base_url": "https://www.rwaq.org",
-            "source_name": "Rwaq",
-            "institution_name": "Rwaq",
-            "country_name": "Saudi Arabia",
-            "country_code": "SA",
-            "inst_type": "Other",
-        },
-    ]
-
-    TIER_3_RSS_SOURCES = [
-        {
-            "base_url": "https://ocw.mit.edu",
-            "source_name": "MIT OCW",
-            "institution_name": "Massachusetts Institute of Technology",
-            "country_name": "United States",
-            "country_code": "US",
-            "inst_type": "University",
-        },
-        {
-            "base_url": "https://course.fast.ai",
-            "source_name": "fast.ai",
-            "institution_name": "fast.ai",
-            "country_name": "United States",
-            "country_code": "US",
-            "inst_type": "Other",
-        },
-        {
-            "base_url": "https://huggingface.co/learn",
-            "source_name": "Hugging Face Learn",
-            "institution_name": "Hugging Face",
-            "country_name": "United States",
-            "country_code": "US",
-            "inst_type": "Other",
-        },
-    ]
+    TIER_1_RSS_SOURCES = _rows_to_rss_sources(
+        _course_source_rows(tier=1, scraper_type="rss")
+    )
+    TIER_2_RSS_SOURCES = _rows_to_rss_sources(
+        _course_source_rows(tier=2, scraper_type="rss")
+    )
+    TIER_3_RSS_SOURCES = _rows_to_rss_sources(
+        _course_source_rows(tier=3, scraper_type="rss")
+    )
 
     def scrape(self):
-        """Execute all courses tier pipelines in priority order."""
-        self._scrape_tier_1_algerian_courses()
-        self._scrape_tier_2_arabic_courses()
-        self._scrape_tier_3_global_courses()
+        """Execute courses ingestion with checkpoint-aware tier orchestration."""
+        sources = list(self.get_active_sources())
+        if not sources:
+            sources = list(self.get_default_sources())
+
+        if not sources:
+            logger.warning(
+                "Aucune source active/default pour courses. Verifier la config admin."
+            )
+            return
+
+        sources_with_urls = [
+            source
+            for source in sources
+            if (getattr(source, "url", "") or source.base_url or "").strip()
+        ]
+        if not sources_with_urls:
+            logger.warning("Aucune source courses active/default avec URL valide.")
+            return
+
+        tiers = self._resolve_enabled_tiers(sources_with_urls)
+        tier_methods = {
+            1: self._scrape_tier_1_algerian_courses,
+            2: self._scrape_tier_2_arabic_courses,
+            3: self._scrape_tier_3_global_courses,
+        }
+
+        logger.info(
+            "courses_tier_orchestration",
+            extra={
+                "enabled_tiers": tiers,
+                "sources_count": len(sources_with_urls),
+            },
+        )
+
+        for tier in tiers:
+            method = tier_methods.get(tier)
+            if method:
+                method()
+
+    @staticmethod
+    def _resolve_enabled_tiers(sources):
+        tiers = set()
+        for source in sources:
+            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
+            tier_value = scrape_config.get("tier")
+            try:
+                tier = int(tier_value)
+            except (TypeError, ValueError):
+                continue
+            if tier in {1, 2, 3}:
+                tiers.add(tier)
+
+        if not tiers:
+            return [1, 2, 3]
+        return sorted(tiers)
+
+    @staticmethod
+    def _source_url(source) -> str:
+        return (
+            getattr(source, "url", "") or getattr(source, "base_url", "") or ""
+        ).strip()
+
+    def _get_tier_sources(self, tier: int):
+        from scraping.models import ScrapingSource
+
+        field_names = {field.name for field in ScrapingSource._meta.fields}
+        filters = {"is_active": True}
+        if "section" in field_names:
+            filters["section"] = self.SECTION
+        elif "category" in field_names:
+            filters["category"] = self.SECTION
+
+        if "tier" in field_names:
+            filters["tier"] = tier
+        else:
+            filters["scrape_config__tier"] = tier
+
+        return list(ScrapingSource.objects.filter(**filters))
+
+    def _select_tier_source_url(self, tier: int, *tokens: str) -> str:
+        candidates = self._select_tier_source_urls(tier, *tokens)
+        return candidates[0] if candidates else ""
+
+    def _select_tier_source_urls(self, tier: int, *tokens: str) -> list[str]:
+        normalized_tokens = [token.lower() for token in tokens if token]
+        urls: list[str] = []
+        for source in self._get_tier_sources(tier):
+            source_url = self._source_url(source)
+            if not source_url:
+                continue
+
+            source_name = (getattr(source, "name", "") or "").lower()
+            blob = f"{source_name} {source_url.lower()}"
+            if normalized_tokens and not any(
+                token in blob for token in normalized_tokens
+            ):
+                continue
+            urls.append(source_url)
+        return urls
 
     # ------------------------------------------------------------------
     # Tier 1 — Algerian
@@ -312,7 +405,29 @@ class CourseScraper(BaseScraper):
                 )
 
     def _scrape_algerian_university_ocw(self):
-        for base_url in self.ALGERIAN_UNIVERSITY_OCW:
+        for source in self._get_tier_sources(1):
+            base_url = self._source_url(source)
+            if not base_url:
+                continue
+
+            source_name = (getattr(source, "name", "") or "").strip()
+            source_name_lc = source_name.lower()
+            if "cerist" in source_name_lc:
+                continue
+
+            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
+            configured_paths = scrape_config.get("paths") or scrape_config.get(
+                "discovery_paths"
+            )
+            if isinstance(configured_paths, str):
+                configured_paths = [
+                    segment.strip()
+                    for segment in configured_paths.split(",")
+                    if segment.strip()
+                ]
+            if not isinstance(configured_paths, list):
+                configured_paths = []
+
             domain = urlparse(base_url).netloc
             institution_name = domain.replace("elearning.", "").replace("www.", "")
             institution = self._ensure_institution(
@@ -328,16 +443,16 @@ class CourseScraper(BaseScraper):
             listing_urls = [base_url.rstrip("/")]
             listing_urls.extend(
                 urljoin(base_url.rstrip("/") + "/", p.lstrip("/"))
-                for p in self.ALGERIAN_OCW_PATHS
+                for p in configured_paths
             )
 
             seen_urls: set[str] = set()
             for listing_url in listing_urls:
-                resp = self.safe_request(listing_url, timeout=10, source_name=domain)
-                if resp is None:
+                soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
+                if soup is None:
                     continue
 
-                cards = self._extract_catalog_cards(resp.text, listing_url)
+                cards = self._extract_catalog_cards(str(soup), listing_url)
                 for card in cards:
                     url = (card.get("url") or "").strip()
                     if not url:
@@ -375,13 +490,28 @@ class CourseScraper(BaseScraper):
                         certificate_available=metadata["certificate_available"],
                         start_date=metadata["start_date"],
                         source_url=url,
-                        source_name=domain,
+                        source_name=source_name or domain,
                     )
 
     def _scrape_cerist_training_programs(self):
+        cerist_source = None
+        for source in self._get_tier_sources(1):
+            source_url = self._source_url(source)
+            source_name = (getattr(source, "name", "") or "").lower()
+            if "cerist" in source_name or "cerist" in source_url.lower():
+                cerist_source = source
+                break
+
+        if cerist_source is None:
+            return
+
+        cerist_url = self._source_url(cerist_source)
+        if not cerist_url:
+            return
+
         institution = self._ensure_institution(
             name="CERIST",
-            website="https://www.cerist.dz",
+            website=cerist_url,
             country_name="Algeria",
             country_code="DZ",
             city="Algiers",
@@ -390,17 +520,14 @@ class CourseScraper(BaseScraper):
         if institution is None:
             return
 
-        resp = self.safe_request(
-            self.CERIST_FORMATION_URL, timeout=10, source_name="CERIST"
-        )
-        if resp is None:
+        soup = self.fetch_listing_page(cerist_url, timeout=SS.TOTAL_TIMEOUT)
+        if soup is None:
             return
 
-        cards = self._extract_catalog_cards(resp.text, self.CERIST_FORMATION_URL)
+        html_text = str(soup)
+        cards = self._extract_catalog_cards(html_text, cerist_url)
         if not cards:
-            cards = self._extract_list_items_as_courses(
-                resp.text, self.CERIST_FORMATION_URL
-            )
+            cards = self._extract_list_items_as_courses(html_text, cerist_url)
 
         for card in cards:
             content = f"{card.get('title', '')} {card.get('description', '')}"
@@ -410,14 +537,14 @@ class CourseScraper(BaseScraper):
             metadata = self._build_course_metadata(
                 title=card.get("title", ""),
                 description=card.get("description", ""),
-                source_url=card.get("url") or self.CERIST_FORMATION_URL,
+                source_url=card.get("url") or cerist_url,
                 page_html=card.get("raw_html", ""),
             )
             self._create_course(
                 title=card.get("title", ""),
                 description=card.get("description", ""),
                 institution=institution,
-                website=card.get("url") or self.CERIST_FORMATION_URL,
+                website=card.get("url") or cerist_url,
                 field=metadata["field"],
                 level=metadata["level"],
                 instructor=metadata["instructor"],
@@ -425,20 +552,24 @@ class CourseScraper(BaseScraper):
                 platform="university",
                 enrollment_url=metadata["enrollment_url"]
                 or card.get("url")
-                or self.CERIST_FORMATION_URL,
+                or cerist_url,
                 thumbnail_url=metadata["thumbnail_url"],
                 is_free=metadata["is_free"],
                 price=metadata["price"],
                 certificate_available=metadata["certificate_available"],
                 start_date=metadata["start_date"],
-                source_url=card.get("url") or self.CERIST_FORMATION_URL,
-                source_name="CERIST",
+                source_url=card.get("url") or cerist_url,
+                source_name=(getattr(cerist_source, "name", "") or "CERIST"),
             )
 
     def _scrape_fun_mooc_fr(self):
+        fun_api_url = self._select_tier_source_url(2, "fun-mooc", "fun mooc", "fun")
+        if not fun_api_url:
+            return
+
         resp = self.safe_request(
-            self.FUN_MOOC_API,
-            timeout=15,
+            fun_api_url,
+            timeout=SS.TOTAL_TIMEOUT,
             source_name="FUN MOOC",
             headers={"Accept": "application/json"},
         )
@@ -537,6 +668,9 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_2_arabic_courses(self):
+        if not self._get_tier_sources(2):
+            return
+
         cp = getattr(self, "_checkpoint", None)
         methods = [
             (
@@ -620,11 +754,11 @@ class CourseScraper(BaseScraper):
         # Targeted Arabic search pages
         for term in self.COURSERA_ARABIC_TERMS:
             search_url = f"https://www.coursera.org/search?query={quote_plus(term)}"
-            resp = self.safe_request(search_url, timeout=10, source_name="Coursera")
-            if resp is None:
+            soup = self.fetch_listing_page(search_url, timeout=SS.TOTAL_TIMEOUT)
+            if soup is None:
                 continue
 
-            cards = self._extract_catalog_cards(resp.text, search_url)
+            cards = self._extract_catalog_cards(str(soup), search_url)
             for card in cards:
                 url = (card.get("url") or "").strip()
                 if not url:
@@ -674,6 +808,7 @@ class CourseScraper(BaseScraper):
             source_name="Rwaq",
             country_name="Saudi Arabia",
             country_code="SA",
+            source=self._resolve_source_for_site(self.RWAQ_URL, "Rwaq"),
         )
 
     def _scrape_edraak_courses(self):
@@ -682,10 +817,59 @@ class CourseScraper(BaseScraper):
             source_name="Edraak",
             country_name="Jordan",
             country_code="JO",
+            source=self._resolve_source_for_site(self.EDRAAK_URL, "Edraak"),
         )
 
+    def _resolve_source_for_site(self, base_url: str, source_name: str):
+        try:
+            from scraping.models import ScrapingSource
+        except Exception:
+            return None
+
+        normalized_url = (base_url or "").strip().rstrip("/")
+        source_name_lc = (source_name or "").strip().lower()
+        try:
+            source_qs = ScrapingSource.objects.filter(
+                category=self.SECTION,
+                is_active=True,
+            )
+        except Exception:
+            return None
+
+        for source in source_qs:
+            candidate_url = (
+                (getattr(source, "url", "") or getattr(source, "base_url", "") or "")
+                .strip()
+                .rstrip("/")
+            )
+            if candidate_url and candidate_url == normalized_url:
+                return source
+
+        parsed_target = urlparse(normalized_url)
+        for source in source_qs:
+            candidate_url = (
+                (getattr(source, "url", "") or getattr(source, "base_url", "") or "")
+                .strip()
+                .rstrip("/")
+            )
+            candidate_name = (getattr(source, "name", "") or "").strip().lower()
+            if not candidate_url:
+                continue
+            parsed_candidate = urlparse(candidate_url)
+            if parsed_candidate.netloc.lower() == parsed_target.netloc.lower():
+                return source
+            if source_name_lc and source_name_lc in candidate_name:
+                return source
+        return None
+
     def _scrape_generic_mooc_site(
-        self, *, base_url: str, source_name: str, country_name: str, country_code: str
+        self,
+        *,
+        base_url: str,
+        source_name: str,
+        country_name: str,
+        country_code: str,
+        source=None,
     ):
         institution = self._ensure_institution(
             name=source_name,
@@ -699,20 +883,57 @@ class CourseScraper(BaseScraper):
 
         candidate_urls = [base_url, urljoin(base_url.rstrip("/") + "/", "courses")]
         seen: set[str] = set()
+        selectors = dict(getattr(source, "css_selectors", {}) or {}) if source else {}
+        warned_selector_fallback = False
         for listing_url in candidate_urls:
-            resp = self.safe_request(listing_url, timeout=10, source_name=source_name)
-            if resp is None:
+            soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
+            if soup is None:
                 continue
 
-            cards = self._extract_catalog_cards(resp.text, listing_url)
+            cards = self._extract_catalog_cards(str(soup), listing_url)
             for card in cards:
-                combined = (
-                    f"{card.get('title', '')} {card.get('description', '')}".lower()
-                )
+                admin_result = None
+                if source is not None:
+                    card_soup = BeautifulSoup(card.get("raw_html") or "", "html.parser")
+                    card_container = card_soup.find(True) or card_soup
+                    admin_result = self._extract_with_admin_selectors(
+                        soup,
+                        source,
+                        container=card_container,
+                    )
+
+                if admin_result:
+                    selected_url = (admin_result.get("url") or "").strip()
+                    item_dict = {
+                        "title": self.clean_text(admin_result.get("title") or "")[:300],
+                        "description": self.clean_text(admin_result.get("body") or "")[
+                            :1500
+                        ],
+                        "url": (
+                            urljoin(listing_url, selected_url)
+                            if selected_url
+                            else (card.get("url") or "").strip()
+                        ),
+                        "raw_html": card.get("raw_html") or "",
+                    }
+                    if not item_dict.get("description"):
+                        item_dict["description"] = self.clean_text(
+                            card.get("description") or ""
+                        )[:1500]
+                else:
+                    if selectors.get("title_selector") and not warned_selector_fallback:
+                        logger.warning(
+                            "Admin selectors configured for %s but extraction returned nothing — check selectors in admin panel.",
+                            getattr(source, "url", "") or listing_url,
+                        )
+                        warned_selector_fallback = True
+                    item_dict = self._extract_course_fields(card)
+
+                combined = f"{item_dict.get('title', '')} {item_dict.get('description', '')}".lower()
                 if not self._is_ai_nlp_related(combined):
                     continue
 
-                course_url = (card.get("url") or "").strip()
+                course_url = (item_dict.get("url") or "").strip()
                 if not course_url:
                     continue
                 key = course_url.rstrip("/")
@@ -721,14 +942,14 @@ class CourseScraper(BaseScraper):
                 seen.add(key)
 
                 metadata = self._build_course_metadata(
-                    title=card.get("title", ""),
-                    description=card.get("description", ""),
+                    title=item_dict.get("title", ""),
+                    description=item_dict.get("description", ""),
                     source_url=course_url,
-                    page_html=card.get("raw_html", ""),
+                    page_html=item_dict.get("raw_html", ""),
                 )
                 self._create_course(
-                    title=card.get("title", ""),
-                    description=card.get("description", ""),
+                    title=item_dict.get("title", ""),
+                    description=item_dict.get("description", ""),
                     institution=institution,
                     website=course_url,
                     field=metadata["field"],
@@ -751,6 +972,9 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
 
     def _scrape_tier_3_global_courses(self):
+        if not self._get_tier_sources(3):
+            return
+
         cp = getattr(self, "_checkpoint", None)
         methods = [
             (
@@ -796,51 +1020,58 @@ class CourseScraper(BaseScraper):
 
             base_url = source.get("base_url") or ""
             source_name = source.get("source_name") or "RSS Courses"
-            for feed_url in rss.auto_discover_feeds(base_url):
-                items = rss.parse_feed_items(feed_url, max_items=40)
-                for item in items:
-                    title = self.clean_text(item.get("title") or "")
-                    description = self.clean_text(item.get("description") or "")
-                    course_url = (item.get("url") or "").strip()
-                    if not title or not course_url:
-                        continue
-                    if not self._is_ai_nlp_related(f"{title} {description}"):
-                        continue
+            feed_url_list = rss.auto_discover_feeds(base_url)
+            items = self.scrape_rss_sources(feed_url_list)
+            for item in items:
+                title = self.clean_text(item.get("title") or "")
+                description = self.clean_text(item.get("description") or "")
+                course_url = (item.get("url") or "").strip()
+                if not title or not course_url:
+                    continue
+                if not self._is_ai_nlp_related(f"{title} {description}"):
+                    continue
 
-                    metadata = self._build_course_metadata(
-                        title=title,
-                        description=description,
-                        source_url=course_url,
-                        page_html="",
-                        instructor_hint=item.get("author") or "",
-                    )
-                    self._create_course(
-                        title=title,
-                        description=description,
-                        institution=institution,
-                        website=course_url,
-                        field=metadata["field"],
-                        level=metadata["level"],
-                        instructor=metadata["instructor"] or (item.get("author") or ""),
-                        duration=metadata["duration"],
-                        platform=self._infer_platform(course_url),
-                        enrollment_url=metadata["enrollment_url"] or course_url,
-                        thumbnail_url=item.get("image_url")
-                        or metadata["thumbnail_url"],
-                        is_free=metadata["is_free"],
-                        price=metadata["price"],
-                        certificate_available=metadata["certificate_available"],
-                        start_date=metadata["start_date"]
-                        or self.parse_date(str(item.get("published_date") or "")[:10]),
-                        source_url=feed_url,
-                        source_name=f"RSS {source_name}",
-                    )
+                metadata = self._build_course_metadata(
+                    title=title,
+                    description=description,
+                    source_url=course_url,
+                    page_html="",
+                    instructor_hint=item.get("author") or "",
+                )
+                self._create_course(
+                    title=title,
+                    description=description,
+                    institution=institution,
+                    website=course_url,
+                    field=metadata["field"],
+                    level=metadata["level"],
+                    instructor=metadata["instructor"] or (item.get("author") or ""),
+                    duration=metadata["duration"],
+                    platform=self._infer_platform(course_url),
+                    enrollment_url=metadata["enrollment_url"] or course_url,
+                    thumbnail_url=item.get("image_url") or metadata["thumbnail_url"],
+                    is_free=metadata["is_free"],
+                    price=metadata["price"],
+                    certificate_available=metadata["certificate_available"],
+                    start_date=metadata["start_date"]
+                    or self.parse_date(str(item.get("published_date") or "")[:10]),
+                    source_url=base_url,
+                    source_name=f"RSS {source_name}",
+                )
 
     def _scrape_mit_ocw(self):
+        mit_api_base = self._select_tier_source_url(3, "mit")
+        if not mit_api_base:
+            return
+
         queries = [
-            {"q": "natural language processing", "topic": "AI", "limit": 10},
-            {"q": "machine learning", "topic": "AI", "limit": 10},
-            {"q": "deep learning", "topic": "AI", "limit": 10},
+            {
+                "q": "natural language processing",
+                "topic": "AI",
+                "limit": SS.MIT_QUERY_LIMIT,
+            },
+            {"q": "machine learning", "topic": "AI", "limit": SS.MIT_QUERY_LIMIT},
+            {"q": "deep learning", "topic": "AI", "limit": SS.MIT_QUERY_LIMIT},
         ]
 
         institution = self._ensure_institution(
@@ -858,9 +1089,9 @@ class CourseScraper(BaseScraper):
         for query in queries:
             params = {"offered_by": "ocw", **query}
             resp = self.safe_request(
-                self.MIT_API_BASE,
+                mit_api_base,
                 params=params,
-                timeout=15,
+                timeout=SS.TOTAL_TIMEOUT,
                 source_name="MIT OCW",
                 headers={"Accept": "application/json"},
             )
@@ -935,6 +1166,10 @@ class CourseScraper(BaseScraper):
                 )
 
     def _scrape_fast_ai(self):
+        listing_urls = self._select_tier_source_urls(3, "fast.ai", "fastai")
+        if not listing_urls:
+            return
+
         institution = self._ensure_institution(
             name="fast.ai",
             website="https://course.fast.ai",
@@ -945,12 +1180,12 @@ class CourseScraper(BaseScraper):
         if institution is None:
             return
 
-        for listing_url in self.FASTAI_URLS:
-            resp = self.safe_request(listing_url, timeout=10, source_name="fast.ai")
-            if resp is None:
+        for listing_url in listing_urls:
+            soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
+            if soup is None:
                 continue
 
-            cards = self._extract_catalog_cards(resp.text, listing_url)
+            cards = self._extract_catalog_cards(str(soup), listing_url)
             for card in cards:
                 title = card.get("title", "")
                 if not title:
@@ -990,6 +1225,10 @@ class CourseScraper(BaseScraper):
                 )
 
     def _scrape_huggingface_course(self):
+        hf_learn_url = self._select_tier_source_url(3, "huggingface")
+        if not hf_learn_url:
+            return
+
         institution = self._ensure_institution(
             name="Hugging Face",
             website="https://huggingface.co/learn",
@@ -1000,15 +1239,14 @@ class CourseScraper(BaseScraper):
         if institution is None:
             return
 
-        resp = self.safe_request(
-            self.HF_LEARN_URL, timeout=10, source_name="Hugging Face"
-        )
-        if resp is None:
+        soup = self.fetch_listing_page(hf_learn_url, timeout=SS.TOTAL_TIMEOUT)
+        if soup is None:
             return
 
-        cards = self._extract_catalog_cards(resp.text, self.HF_LEARN_URL)
+        html_text = str(soup)
+        cards = self._extract_catalog_cards(html_text, hf_learn_url)
         if not cards:
-            cards = self._extract_list_items_as_courses(resp.text, self.HF_LEARN_URL)
+            cards = self._extract_list_items_as_courses(html_text, hf_learn_url)
 
         for card in cards:
             title = card.get("title", "")
@@ -1017,7 +1255,7 @@ class CourseScraper(BaseScraper):
             if not self._is_ai_nlp_related(f"{title} {card.get('description', '')}"):
                 continue
 
-            url = card.get("url") or self.HF_LEARN_URL
+            url = card.get("url") or hf_learn_url
             metadata = self._build_course_metadata(
                 title=title,
                 description=card.get("description", ""),
@@ -1045,6 +1283,10 @@ class CourseScraper(BaseScraper):
             )
 
     def _scrape_deeplearning_ai(self):
+        deeplearning_courses_url = self._select_tier_source_url(3, "deeplearning.ai")
+        if not deeplearning_courses_url:
+            return
+
         institution = self._ensure_institution(
             name="DeepLearning.AI",
             website="https://www.deeplearning.ai",
@@ -1055,15 +1297,14 @@ class CourseScraper(BaseScraper):
         if institution is None:
             return
 
-        resp = self.safe_request(
-            self.DEEPLEARNING_AI_COURSES,
-            timeout=10,
-            source_name="DeepLearning.AI",
+        soup = self.fetch_listing_page(
+            deeplearning_courses_url,
+            timeout=SS.TOTAL_TIMEOUT,
         )
-        if resp is None:
+        if soup is None:
             return
 
-        cards = self._extract_catalog_cards(resp.text, self.DEEPLEARNING_AI_COURSES)
+        cards = self._extract_catalog_cards(str(soup), deeplearning_courses_url)
         for card in cards:
             title = card.get("title", "")
             if not title:
@@ -1071,7 +1312,7 @@ class CourseScraper(BaseScraper):
             if not self._is_ai_nlp_related(f"{title} {card.get('description', '')}"):
                 continue
 
-            url = card.get("url") or self.DEEPLEARNING_AI_COURSES
+            url = card.get("url") or deeplearning_courses_url
             metadata = self._build_course_metadata(
                 title=title,
                 description=card.get("description", ""),
@@ -1242,11 +1483,14 @@ class CourseScraper(BaseScraper):
                 "part": "snippet",
                 "q": term,
                 "type": "playlist",
-                "maxResults": 10,
+                "maxResults": SS.YOUTUBE_MAX_RESULTS,
                 "key": api_key,
             }
             resp = self.safe_request(
-                search_endpoint, params=params, timeout=15, source_name="YouTube API"
+                search_endpoint,
+                params=params,
+                timeout=SS.TOTAL_TIMEOUT,
+                source_name="YouTube API",
             )
             if resp is None:
                 continue
@@ -1282,7 +1526,7 @@ class CourseScraper(BaseScraper):
                         "id": playlist_id,
                         "key": api_key,
                     },
-                    timeout=15,
+                    timeout=SS.TOTAL_TIMEOUT,
                     source_name="YouTube API",
                 )
                 item_count = None
@@ -1355,7 +1599,11 @@ class CourseScraper(BaseScraper):
         for term in terms:
             # "sp=EgIQAw%253D%253D" is playlist filter in YouTube search.
             search_url = f"https://www.youtube.com/results?search_query={quote_plus(term)}&sp=EgIQAw%253D%253D"
-            resp = self.safe_request(search_url, timeout=10, source_name="YouTube")
+            resp = self.safe_request(
+                search_url,
+                timeout=SS.TOTAL_TIMEOUT,
+                source_name="YouTube",
+            )
             if resp is None:
                 continue
 
@@ -1366,7 +1614,7 @@ class CourseScraper(BaseScraper):
                     re.findall(r"/playlist\?list=([A-Za-z0-9_-]{10,})", html)
                 )
 
-            for playlist_id in list(playlist_ids)[:10]:
+            for playlist_id in list(playlist_ids)[: SS.YOUTUBE_PLAYLIST_CAP]:
                 playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
                 key = playlist_url.rstrip("/")
                 if key in seen_playlists:
@@ -1426,6 +1674,14 @@ class CourseScraper(BaseScraper):
     # ------------------------------------------------------------------
     # Shared parsing helpers
     # ------------------------------------------------------------------
+
+    def _extract_course_fields(self, card: dict) -> dict:
+        return {
+            "title": self.clean_text(card.get("title") or "")[:300],
+            "description": self.clean_text(card.get("description") or "")[:1500],
+            "url": (card.get("url") or "").strip(),
+            "raw_html": str(card.get("raw_html") or "")[:6000],
+        }
 
     def _extract_catalog_cards(self, html: str, page_url: str) -> list[dict]:
         soup = BeautifulSoup(html or "", "html.parser")
@@ -1748,7 +2004,7 @@ class CourseScraper(BaseScraper):
         if not self.is_course_still_available(
             end_date=end_date,
             last_updated=last_updated,
-            max_age_days=730,
+            max_age_days=SS.FRESHNESS_COURSES,
         ):
             self.items_skipped += 1
             return
@@ -1819,7 +2075,7 @@ class CourseScraper(BaseScraper):
 
         item_dict = enrich_scraped_item(item_dict, "courses")
         completeness = calculate_completeness_score(item_dict, "courses")
-        if completeness < 40:
+        if completeness < SS.COURSES_COMPLETENESS_MIN:
             self.items_skipped += 1
             return
 
@@ -1827,6 +2083,10 @@ class CourseScraper(BaseScraper):
         if not is_valid:
             self.items_skipped += 1
             logger.debug("Skipping course '%s' due to validation: %s", title, reason)
+            return
+
+        if not self.passes_llm_confidence_gate(item_dict, "courses"):
+            self.items_skipped += 1
             return
 
         language = (
@@ -1851,6 +2111,7 @@ class CourseScraper(BaseScraper):
                 access_link=item_dict.get("course_url", ""),
                 language=language,
                 keywords=", ".join(item_dict.get("keywords", [])),
+                entities=item_dict.get("entities", {}),
                 prerequisites=item_dict.get("prerequisites", ""),
                 syllabus=item_dict.get("syllabus", ""),
                 instructor=item_dict.get("instructor") or None,

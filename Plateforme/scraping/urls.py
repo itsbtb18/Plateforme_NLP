@@ -7,7 +7,33 @@ app_name = "scraping"
 urlpatterns = [
     path("metrics/", views.metrics_view, name="metrics"),
     path("", views.dashboard, name="dashboard"),
+    path("results/", views.scraping_results, name="scraping_results"),
+    path(
+        "results/<uuid:item_id>/",
+        views.scraping_result_detail,
+        name="scraping_result_detail",
+    ),
+    path(
+        "results/validate/<uuid:item_id>/",
+        views.scraping_result_validate,
+        name="scraping_result_validate",
+    ),
+    path(
+        "results/delete/<uuid:item_id>/",
+        views.scraping_result_delete,
+        name="scraping_result_delete",
+    ),
+    path(
+        "results/bulk-action/",
+        views.scraping_results_bulk_action,
+        name="scraping_results_bulk_action",
+    ),
     path("run/<str:category>/", views.run_scraper, name="run_scraper"),
+    path(
+        "api/validate-source/",
+        views.validate_source,
+        name="validate_source",
+    ),
     path("runs/recent/", views.recent_runs, name="recent_runs"),
     path(
         "runs/<uuid:run_id>/rerun/", views.rerun_scraping_run, name="rerun_scraping_run"

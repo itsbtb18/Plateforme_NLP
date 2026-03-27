@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+
+from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     # Qdrant
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: str | None = None
     QDRANT_GRPC_PORT: int = 6334
     QDRANT_PREFER_GRPC: bool = True
 
@@ -26,11 +27,11 @@ class Settings(BaseSettings):
     # Groq API — Chatbot (User-facing)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    
+
     # Groq API — Internal (Classification, Rewriting, Faithfulness)
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
-    
+
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
@@ -66,8 +67,10 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
-@lru_cache()
+
+@lru_cache
 def get_settings() -> Settings:
     """Cached settings instance"""
     return Settings()

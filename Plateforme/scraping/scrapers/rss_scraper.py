@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import feedparser
 from bs4 import BeautifulSoup
 
-from scraping.scrapers.base import BaseScraper
+from scraping.scrapers.base_http_scraper import BaseHTTPScraper
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class RSSFeedScraper:
         "/blog/feed",
     ]
 
-    def __init__(self, base_scraper: BaseScraper):
+    def __init__(self, base_scraper: BaseHTTPScraper):
         self.base = base_scraper
 
     def auto_discover_feeds(self, url) -> list[str]:

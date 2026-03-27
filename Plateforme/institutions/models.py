@@ -1,9 +1,9 @@
 import uuid
+
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.models import User
-from django.conf import settings
 
 
 class Country(models.Model):
@@ -93,6 +93,7 @@ class Institution(models.Model):
         null=True,
         blank=True,
     )
+    entities = models.JSONField(_("Entities"), blank=True, default=dict)
     social_links = models.JSONField(_("Social Links"), null=True, blank=True)
     source_url = models.URLField(_("Source URL"), null=True, blank=True)
     source_name = models.CharField(

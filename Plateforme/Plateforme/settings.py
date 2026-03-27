@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
 
@@ -21,6 +22,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+INTERNAL_IPS = [
+    "127.0.0.1",
+    "172.25.0.5",
+    "172.25.0.0/16",
+]
+PROMETHEUS_ALLOWED_IPS = [
+    "172.25.0.0/16",
+]
+PROMETHEUS_ALLOWED_NETWORKS = os.environ.get(
+    "PROMETHEUS_ALLOWED_NETWORKS",
+    "172.25.0.0/16,172.16.0.0/12,127.0.0.1/32",
+).split(",")
 
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
@@ -419,6 +432,7 @@ GROQ_SCRAPING_API_KEY = os.getenv("GROQ_SCRAPING_API_KEY", "")
 GROQ_SCRAPING_MODEL = os.getenv("GROQ_SCRAPING_MODEL", "llama-3.3-70b-versatile")
 GROQ_SCRAPING_TIMEOUT = 30  # seconds per LLM call
 GROQ_SCRAPING_MAX_RETRIES = 2  # JSON-parse retries
+PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
 
 # ============================================
 # CELERY CONFIGURATION
@@ -439,3 +453,10 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 min soft limit
 CELERY_TASK_TIME_LIMIT = 900  # 15 min hard limit
 CELERY_TASK_DEFAULT_QUEUE = "scraping"
+
+CELERY_BEAT_SCHEDULE = {
+    "update-adaptive-schedules": {
+        "task": "scraping.tasks.update_adaptive_schedules",
+        "schedule": crontab(hour=3, minute=0),
+    }
+}

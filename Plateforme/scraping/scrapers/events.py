@@ -1,73 +1,42 @@
-"""
-Tiered NLP events scraper with Algerian-first source priority.
-
-Execution order:
-  Tier 1: Algerian sources (always first)
-  Tier 2: Arabic/MENA sources
-  Tier 3: African sources
-  Tier 4: Global sources
-"""
-
 import logging
 import re
 from urllib.parse import urljoin, urlparse
 
-from bs4 import BeautifulSoup
+from django.utils import timezone
 
+from scraping.constants import (
+    EVENT_DEFAULT_DISCOVERY_PATHS,
+    EVENT_PRIORITY_SCORES,
+    SCRAPER_BOT_EMAIL,
+)
 from scraping.enrichment_engine import enrich_scraped_item
 from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import attach_file_to_model
+from scraping.fixture_loader import load_event_type_keywords
 from scraping.models import ScrapedItemMeta
-from scraping.scrapers.base import BaseScraper
+from scraping.scrapers.playwright_scraper import PlaywrightFallbackScraper
+from scraping.scraping_settings import scraping_settings as SS  # noqa: N812
 
 logger = logging.getLogger(__name__)
 
 
-PRIORITY_SCORE = {
-    "algerian": 100,
-    "mena": 75,
-    "african": 50,
-    "global": 25,
-}
-
-
-ALGERIAN_UNIVERSITIES = [
-    "https://www.univ-alger.dz",
-    "https://www.univ-oran.dz",
-    "https://www.umc.edu.dz",
-    "https://www.univ-constantine.dz",
-    "https://www.univ-annaba.dz",
-    "https://www.univ-bejaia.dz",
-    "https://www.univ-tizi-ouzou.dz",
-]
-
-
-ALGERIAN_DISCOVERY_PATHS = ["/actualites", "/events", "/agenda", "/news"]
-
-
-MENA_DISCOVERY_SOURCES = [
-    ("https://sigarab.github.io", "SIGARAB"),
-    ("https://arabicnlp.org", "ArabicNLP"),
-    ("https://aclanthology.org/venues/wanlp/", "ArabicNLP ACL Anthology"),
-    ("https://www.kfupm.edu.sa", "KFUPM"),
-    ("https://www.aub.edu.lb", "AUB"),
-    ("https://www.kaust.edu.sa", "KAUST"),
-]
-
-
-AFRICAN_DISCOVERY_SOURCES = [
-    ("https://deeplearningindaba.com", "Deep Learning Indaba"),
-    ("https://aclanthology.org/venues/africanlp/", "AfricaNLP ACL Anthology"),
-    ("https://www.masakhane.io", "Masakhane"),
-]
-
-
-GLOBAL_WIKICFP_TOPICS = ["cs.AI", "cs.LG", "cs.CL"]
-
-
-class EventScraper(BaseScraper):
+class EventScraper(PlaywrightFallbackScraper):
     name = "NLP Events Scraper"
     category = "events"
+    SECTION = "events"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._event_type_keywords = load_event_type_keywords()
+
+    @classmethod
+    def get_default_sources(cls):
+        from scraping.models import ScrapingSource
+
+        return ScrapingSource.objects.filter(
+            category=cls.SECTION,
+            is_default=True,
+        ).order_by("name")
 
     def run(self) -> dict:
         logger.info(
@@ -81,183 +50,137 @@ class EventScraper(BaseScraper):
         return super().run()
 
     def scrape(self):
-        tier_1 = self._scrape_tier_1_events()
-        tier_2 = self._scrape_tier_2_events()
-        tier_3 = self._scrape_tier_3_events()
-        tier_4 = self._scrape_tier_4_events()
+        sources = list(self.get_active_sources())
+        if not sources:
+            sources = list(self.get_default_sources())
 
-        combined = tier_1 + tier_2 + tier_3 + tier_4
+        if not sources:
+            logger.warning("No active/default event sources configured.")
+            return
+
+        def _has_source_url(source):
+            return (getattr(source, "url", "") or source.base_url or "").strip()
+
+        sources = [source for source in sources if _has_source_url(source)]
+        if not sources:
+            sources = [
+                source
+                for source in self.get_default_sources()
+                if _has_source_url(source)
+            ]
+            if sources:
+                logger.info(
+                    "Falling back to default event sources after filtering empty active URLs."
+                )
+
+        if not sources:
+            logger.warning("No configured/default event sources had a valid URL.")
+            return
+
+        combined = []
+        for source in sources:
+            source_url = (getattr(source, "url", "") or source.base_url or "").strip()
+
+            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
+            source_name = (
+                getattr(source, "name", "Configured Source") or "Configured Source"
+            )
+
+            combined.extend(
+                self._collect_from_source(
+                    source=source,
+                    base_url=source_url,
+                    source_name=source_name,
+                    priority=self._to_int(
+                        scrape_config.get("priority_score"),
+                        EVENT_PRIORITY_SCORES["global"],
+                    ),
+                    tier=self._to_int(scrape_config.get("tier"), 1),
+                    default_location=scrape_config.get("default_location") or "Unknown",
+                    timeout=self._to_int(
+                        scrape_config.get("timeout"), SS.TOTAL_TIMEOUT
+                    ),
+                    paths=self._extract_paths_from_scrape_config(scrape_config),
+                    scrape_config=scrape_config,
+                )
+            )
+
+        if not combined:
+            logger.warning(
+                "No event candidates extracted from configured active sources."
+            )
+            return
+
         deduped_candidates = self._deduplicate_combined_candidates(combined)
+        created_before = self.items_created
 
         for candidate in deduped_candidates:
             self._save_event_candidate(candidate)
 
-    def _scrape_tier_1_events(self):
-        results = []
-        results.extend(self._scrape_esi_events())
-        results.extend(self._scrape_usthb_events())
-        results.extend(self._scrape_ummto_events())
-        results.extend(self._scrape_dgrsdt_events())
-        results.extend(self._scrape_mesrs_events())
-        results.extend(self._scrape_algerian_university_network())
-        return results
-
-    def _scrape_tier_2_events(self):
-        results = []
-        for base_url, source_name in MENA_DISCOVERY_SOURCES:
-            results.extend(
-                self._collect_from_source(
-                    base_url=base_url,
-                    source_name=source_name,
-                    priority=PRIORITY_SCORE["mena"],
-                    tier=2,
-                    default_location="MENA",
-                    timeout=20,
-                )
+        if self.items_created == created_before:
+            logger.info(
+                "Candidates were extracted from configured sources but none passed validation or duplicate checks."
             )
-        return results
 
-    def _scrape_tier_3_events(self):
-        results = []
-        for base_url, source_name in AFRICAN_DISCOVERY_SOURCES:
-            results.extend(
-                self._collect_from_source(
-                    base_url=base_url,
-                    source_name=source_name,
-                    priority=PRIORITY_SCORE["african"],
-                    tier=3,
-                    default_location="Africa",
-                    timeout=20,
-                )
-            )
-        return results
+    def _extract_paths_from_scrape_config(self, scrape_config):
+        raw_paths = scrape_config.get("paths") or scrape_config.get("discovery_paths")
+        if isinstance(raw_paths, str):
+            parsed = [
+                segment.strip() for segment in raw_paths.split(",") if segment.strip()
+            ]
+            return parsed or None
+        if isinstance(raw_paths, list):
+            parsed = [str(path).strip() for path in raw_paths if str(path).strip()]
+            return parsed or None
+        return None
 
-    def _scrape_tier_4_events(self):
-        results = []
-        results.extend(self._scrape_wikicfp_enhanced())
-        results.extend(self._scrape_acl_anthology_calendar())
-        results.extend(self._scrape_semantic_scholar_venues())
-        return results
-
-    def _scrape_esi_events(self):
-        base = "https://www.esi.dz"
-        paths = ["/category/events/", "/events/", "/actualites/"]
-        return self._collect_html_paths(
-            base_url=base,
-            paths=paths,
-            source_name="ESI",
-            priority=PRIORITY_SCORE["algerian"],
-            tier=1,
-            default_location="Algiers, Algeria",
-            timeout=10,
-        )
-
-    def _scrape_usthb_events(self):
-        return self._collect_from_source(
-            base_url="https://www.usthb.dz",
-            source_name="USTHB",
-            priority=PRIORITY_SCORE["algerian"],
-            tier=1,
-            default_location="Algiers, Algeria",
-            timeout=10,
-            paths=["/actualites", "/events", "/agenda", "/news"],
-        )
-
-    def _scrape_ummto_events(self):
-        return self._collect_from_source(
-            base_url="https://www.ummto.dz",
-            source_name="UMMTO",
-            priority=PRIORITY_SCORE["algerian"],
-            tier=1,
-            default_location="Tizi Ouzou, Algeria",
-            timeout=10,
-            paths=["/actualites", "/events", "/agenda", "/news"],
-        )
-
-    def _scrape_dgrsdt_events(self):
-        return self._collect_from_source(
-            base_url="https://www.dgrsdt.dz",
-            source_name="DGRSDT",
-            priority=PRIORITY_SCORE["algerian"],
-            tier=1,
-            default_location="Algeria",
-            timeout=10,
-            paths=["/actualites", "/appels-a-projets", "/events", "/agenda"],
-        )
-
-    def _scrape_mesrs_events(self):
-        return self._collect_from_source(
-            base_url="https://www.mesrs.dz",
-            source_name="MESRS",
-            priority=PRIORITY_SCORE["algerian"],
-            tier=1,
-            default_location="Algeria",
-            timeout=10,
-            paths=["/actualites", "/communiques", "/agenda", "/events"],
-        )
-
-    def _scrape_algerian_university_network(self):
-        candidates = []
-        for university_url in ALGERIAN_UNIVERSITIES:
-            source_name = self._source_name_from_url(university_url)
-            try:
-                candidates.extend(
-                    self._collect_from_source(
-                        base_url=university_url,
-                        source_name=source_name,
-                        priority=PRIORITY_SCORE["algerian"],
-                        tier=1,
-                        default_location="Algeria",
-                        timeout=10,
-                        paths=ALGERIAN_DISCOVERY_PATHS,
-                    )
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Skipping Algerian university source=%s error=%s",
-                    university_url,
-                    exc,
-                )
-                continue
-        return candidates
+    def _to_int(self, value, default_value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return int(default_value)
 
     def _collect_from_source(
         self,
         *,
+        source,
         base_url,
         source_name,
         priority,
         tier,
         default_location,
-        timeout=20,
+        timeout=SS.TOTAL_TIMEOUT,
         paths=None,
+        scrape_config=None,
     ):
         collected = []
 
         rss_scraper = self.get_rss_scraper()
-        for feed_url in rss_scraper.auto_discover_feeds(base_url):
-            rss_items = rss_scraper.parse_feed_items(feed_url, max_items=50)
-            collected.extend(
-                self._convert_rss_to_candidates(
-                    rss_items=rss_items,
-                    source_name=source_name,
-                    source_url=feed_url,
-                    priority=priority,
-                    tier=tier,
-                    default_location=default_location,
-                )
+        feed_url_list = rss_scraper.auto_discover_feeds(base_url)
+        items = self.scrape_rss_sources(feed_url_list)
+        collected.extend(
+            self._convert_rss_to_candidates(
+                rss_items=items,
+                source_name=source_name,
+                source_url=base_url,
+                priority=priority,
+                tier=tier,
+                default_location=default_location,
             )
+        )
 
-        html_paths = paths or ALGERIAN_DISCOVERY_PATHS
+        html_paths = paths or EVENT_DEFAULT_DISCOVERY_PATHS
         collected.extend(
             self._collect_html_paths(
                 base_url=base_url,
                 paths=html_paths,
                 source_name=source_name,
+                source=source,
                 priority=priority,
                 tier=tier,
                 default_location=default_location,
                 timeout=timeout,
+                scrape_config=scrape_config,
             )
         )
         return collected
@@ -268,49 +191,31 @@ class EventScraper(BaseScraper):
         base_url,
         paths,
         source_name,
+        source=None,
         priority,
         tier,
         default_location,
         timeout,
+        scrape_config=None,
     ):
         collected = []
         for path in paths:
             page_url = urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
-            response = self.safe_request(
-                page_url, timeout=timeout, source_name=source_name
-            )
-            if not response:
-                logger.info(
-                    "source_page_skipped",
-                    extra={
-                        "category": self.category,
-                        "source_name": source_name,
-                        "source_url": page_url,
-                        "skip_reason": "no_response",
-                    },
-                )
-                continue
-            if response.status_code >= 400:
-                logger.info(
-                    "source_page_skipped",
-                    extra={
-                        "category": self.category,
-                        "source_name": source_name,
-                        "source_url": page_url,
-                        "skip_reason": "http_error",
-                        "status_code": response.status_code,
-                    },
-                )
-                continue
             try:
                 collected.extend(
-                    self._extract_event_candidates_from_html(
-                        html=response.text,
-                        page_url=page_url,
+                    self.paginate_listing(
+                        listing_url=page_url,
+                        extract_fn=self._extract_event_candidates,
+                        extract_kwargs={
+                            "source_name": source_name,
+                            "source": source,
+                            "default_location": default_location,
+                            "priority": priority,
+                            "tier": tier,
+                        },
+                        timeout=timeout,
+                        scrape_config=scrape_config,
                         source_name=source_name,
-                        default_location=default_location,
-                        priority=priority,
-                        tier=tier,
                     )
                 )
             except Exception as exc:
@@ -319,18 +224,41 @@ class EventScraper(BaseScraper):
                 )
         return collected
 
-    def _extract_event_candidates_from_html(
+    def _extract_event_candidates(
         self,
         *,
-        html,
+        soup,
         page_url,
         source_name,
+        source,
         default_location,
         priority,
         tier,
     ):
-        soup = BeautifulSoup(html, "html.parser")
+        return self._extract_event_candidates_from_html(
+            soup=soup,
+            page_url=page_url,
+            source_name=source_name,
+            source=source,
+            default_location=default_location,
+            priority=priority,
+            tier=tier,
+        )
+
+    def _extract_event_candidates_from_html(
+        self,
+        *,
+        soup,
+        page_url,
+        source_name,
+        source,
+        default_location,
+        priority,
+        tier,
+    ):
         candidates = []
+        selectors = dict(getattr(source, "css_selectors", {}) or {}) if source else {}
+        warned_selector_fallback = False
 
         containers = soup.select(
             "article, .post, .news-item, .event-item, .card, li, tr"
@@ -338,29 +266,77 @@ class EventScraper(BaseScraper):
         if not containers:
             containers = [soup]
 
-        for node in containers[:180]:
+        for node in containers[: SS.LISTING_MAX_CONTAINERS]:
+            event_url = page_url
             try:
-                title_tag = node.find(["h1", "h2", "h3", "h4", "a"])
-                if not title_tag:
-                    continue
-                title = self.clean_text(title_tag.get_text(" ", strip=True))
+                admin_result = (
+                    self._extract_with_admin_selectors(
+                        soup,
+                        source,
+                        container=node,
+                    )
+                    if source is not None
+                    else None
+                )
+
+                if admin_result:
+                    title = self.clean_text(admin_result.get("title") or "")
+                    raw_text = self.clean_text(
+                        " ".join(
+                            part
+                            for part in (
+                                admin_result.get("body") or "",
+                                admin_result.get("date_raw") or "",
+                                admin_result.get("author") or "",
+                            )
+                            if part
+                        )
+                    )
+                    if not raw_text:
+                        raw_text = self.clean_text(node.get_text(" ", strip=True))
+
+                    selected_url = (admin_result.get("url") or "").strip()
+                    if selected_url:
+                        event_url = urljoin(page_url, selected_url)
+
+                    registration_link = self._extract_registration_link(node, page_url)
+                    extracted_date = self.parse_date(admin_result.get("date_raw") or "")
+                    if not extracted_date:
+                        extracted_date = self._extract_date(raw_text)
+                    location = self._extract_location(raw_text) or default_location
+                    description = self.clean_text(admin_result.get("body") or "")
+                    if not description:
+                        description = self._build_description(node, raw_text)
+                    event_type = self._extract_event_type(title, raw_text)
+                else:
+                    if selectors.get("title_selector") and not warned_selector_fallback:
+                        logger.warning(
+                            "Admin selectors configured for %s but extraction returned nothing — check selectors in admin panel.",
+                            getattr(source, "url", "") or page_url,
+                        )
+                        warned_selector_fallback = True
+
+                    title_tag = node.find(["h1", "h2", "h3", "h4", "a"])
+                    if not title_tag:
+                        continue
+                    title = self.clean_text(title_tag.get_text(" ", strip=True))
+
+                    raw_text = self.clean_text(node.get_text(" ", strip=True))
+
+                    link_tag = node.find("a", href=True)
+                    if link_tag:
+                        event_url = urljoin(page_url, link_tag.get("href", ""))
+
+                    registration_link = self._extract_registration_link(node, page_url)
+                    extracted_date = self._extract_date(raw_text)
+                    location = self._extract_location(raw_text) or default_location
+                    description = self._build_description(node, raw_text)
+                    event_type = self._extract_event_type(title, raw_text)
+
                 if not title or len(title) < 8:
                     continue
-
-                raw_text = self.clean_text(node.get_text(" ", strip=True))
                 if not self._is_event_like_text(f"{title} {raw_text}"):
                     continue
-
-                link_tag = node.find("a", href=True)
-                event_url = page_url
-                if link_tag:
-                    event_url = urljoin(page_url, link_tag.get("href", ""))
-
-                registration_link = self._extract_registration_link(node, page_url)
-                extracted_date = self._extract_date(raw_text)
-                location = self._extract_location(raw_text) or default_location
-                description = self._build_description(node, raw_text)
-                event_type = self._extract_event_type(title, raw_text)
 
                 candidates.append(
                     {
@@ -452,193 +428,6 @@ class EventScraper(BaseScraper):
             )
         return candidates
 
-    def _scrape_wikicfp_enhanced(self):
-        url = "http://www.wikicfp.com/cfp/servlet/tool.search"
-        search_terms = [
-            "natural language processing",
-            "arabic nlp",
-            "african nlp",
-            "computational linguistics",
-        ]
-        candidates = []
-
-        for query in search_terms:
-            for topic in GLOBAL_WIKICFP_TOPICS:
-                response = self.safe_request(
-                    url,
-                    params={"q": f"{query} {topic}", "year": "f"},
-                    source_name="WikiCFP",
-                )
-                if not response:
-                    continue
-                try:
-                    soup = BeautifulSoup(response.text, "html.parser")
-                    rows = soup.select("table.imark tr")
-                    i = 0
-                    while i < len(rows):
-                        row = rows[i]
-                        cells = row.find_all("td")
-                        if len(cells) < 2:
-                            i += 1
-                            continue
-
-                        link_tag = cells[0].find("a", href=True)
-                        title_head = self.clean_text(cells[1].get_text(" ", strip=True))
-                        if not title_head:
-                            i += 1
-                            continue
-
-                        event_url = url
-                        if link_tag:
-                            event_url = urljoin(
-                                "http://www.wikicfp.com", link_tag.get("href", "")
-                            )
-
-                        next_text = ""
-                        if i + 1 < len(rows):
-                            next_text = self.clean_text(
-                                rows[i + 1].get_text(" ", strip=True)
-                            )
-
-                        merged = f"{title_head} {next_text}"
-                        if not self._wikicfp_focus_filter(merged):
-                            i += 2
-                            continue
-
-                        date_guess = self._extract_date(merged)
-                        location = self._extract_location(merged) or "Global"
-                        event_type = self._extract_event_type(title_head, merged)
-
-                        candidates.append(
-                            {
-                                "title": title_head,
-                                "description": self.truncate(merged, 1000),
-                                "event_type": event_type,
-                                "location": location,
-                                "start_date": date_guess,
-                                "end_date": date_guess,
-                                "submission_deadline": None,
-                                "notification_date": None,
-                                "website": event_url,
-                                "registration_link": "",
-                                "source_url": url,
-                                "source_name": "WikiCFP",
-                                "priority_score": PRIORITY_SCORE["global"],
-                                "tier": 4,
-                                "domains": "nlp,ai",
-                                "tags": self._build_tags(
-                                    title_head, merged, event_type, "WikiCFP"
-                                ),
-                                "language": self._infer_language(merged),
-                            }
-                        )
-                        i += 2
-                except Exception as exc:
-                    logger.warning(
-                        "WikiCFP parse failed query=%s topic=%s err=%s",
-                        query,
-                        topic,
-                        exc,
-                    )
-
-        return candidates
-
-    def _scrape_acl_anthology_calendar(self):
-        candidates = []
-        endpoints = [
-            "https://aclanthology.org/search/?q=workshop+arabic+nlp",
-            "https://aclanthology.org/search/?q=conference+africanlp",
-            "https://aclanthology.org/search/?q=sigarab+workshop",
-        ]
-
-        for endpoint in endpoints:
-            response = self.safe_request(endpoint, source_name="ACL Anthology")
-            if not response:
-                continue
-            try:
-                candidates.extend(
-                    self._extract_event_candidates_from_html(
-                        html=response.text,
-                        page_url=endpoint,
-                        source_name="ACL Anthology",
-                        default_location="Global",
-                        priority=PRIORITY_SCORE["global"],
-                        tier=4,
-                    )
-                )
-            except Exception as exc:
-                logger.warning(
-                    "ACL Anthology parse failed url=%s err=%s", endpoint, exc
-                )
-
-        return candidates
-
-    def _scrape_semantic_scholar_venues(self):
-        candidates = []
-        api = "https://api.semanticscholar.org/graph/v1/paper/search"
-        queries = [
-            "Arabic NLP workshop",
-            "conference computational linguistics Africa",
-            "SIGARAB workshop",
-        ]
-
-        for query in queries:
-            response = self.safe_request(
-                api,
-                params={
-                    "query": query,
-                    "fields": "title,venue,year,url,publicationDate",
-                    "limit": 20,
-                },
-                source_name="Semantic Scholar",
-            )
-            if not response:
-                continue
-            try:
-                payload = response.json()
-                for paper in payload.get("data", []):
-                    title = self.clean_text(paper.get("title", ""))
-                    venue = self.clean_text(paper.get("venue", ""))
-                    if not title:
-                        continue
-                    merged = f"{title} {venue}"
-                    if not self._is_event_like_text(merged):
-                        continue
-                    if not self._wikicfp_focus_filter(merged):
-                        continue
-
-                    pub_date = self.parse_date(paper.get("publicationDate", ""))
-                    event_type = self._extract_event_type(title, merged)
-                    candidates.append(
-                        {
-                            "title": title,
-                            "description": self.truncate(merged, 1000),
-                            "event_type": event_type,
-                            "location": "Global",
-                            "start_date": pub_date,
-                            "end_date": pub_date,
-                            "submission_deadline": None,
-                            "notification_date": None,
-                            "website": paper.get("url", "") or "",
-                            "registration_link": "",
-                            "source_url": api,
-                            "source_name": "Semantic Scholar",
-                            "priority_score": PRIORITY_SCORE["global"],
-                            "tier": 4,
-                            "domains": "nlp,ai",
-                            "tags": self._build_tags(
-                                title, merged, event_type, "Semantic Scholar"
-                            ),
-                            "language": self._infer_language(merged),
-                        }
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "Semantic Scholar parse failed query=%s err=%s", query, exc
-                )
-
-        return candidates
-
     def _deduplicate_combined_candidates(self, candidates):
         deduped = []
         seen_keys = set()
@@ -673,9 +462,24 @@ class EventScraper(BaseScraper):
             return
 
         start_date = candidate.get("start_date")
+        date_is_inferred = False
         if not start_date:
-            self.items_skipped += 1
-            return
+            inferred = self._extract_date(
+                " ".join(
+                    [
+                        candidate.get("title", "") or "",
+                        candidate.get("description", "") or "",
+                        candidate.get("source_url", "") or "",
+                    ]
+                )
+            )
+            if inferred:
+                start_date = inferred
+                date_is_inferred = True
+            else:
+                # Keep pipeline resilient when sources omit explicit dates.
+                start_date = timezone.now().date()
+                date_is_inferred = True
 
         start_date = (
             self.parse_date(str(start_date))
@@ -709,6 +513,8 @@ class EventScraper(BaseScraper):
             candidate.get("event_type") or "conference",
             candidate.get("source_name") or "unknown",
         )
+        if date_is_inferred and "date_unverified" not in tags:
+            tags = list(tags) + ["date_unverified"]
 
         item_dict = {
             "title_en": title,
@@ -729,7 +535,7 @@ class EventScraper(BaseScraper):
             "source_name": candidate.get("source_name", ""),
             "language": language,
             "tags": tags,
-            "contact_email": "scraper-bot@nlp-platform.local",
+            "contact_email": SCRAPER_BOT_EMAIL,
             "event_type": event_type,
             "research_domains": candidate.get("domains", "nlp,ai"),
             "banner_image_url": candidate.get("banner_image_url")
@@ -756,12 +562,16 @@ class EventScraper(BaseScraper):
 
         item_dict = enrich_scraped_item(item_dict, "events")
         completeness = calculate_completeness_score(item_dict, "events")
-        if completeness < 35:
+        if completeness < SS.EVENTS_COMPLETENESS_MIN:
             self.items_skipped += 1
             return
 
         valid, item_dict, _ = self.validate_and_prepare(item_dict, "events")
         if not valid:
+            self.items_skipped += 1
+            return
+
+        if not self.passes_llm_confidence_gate(item_dict, "events"):
             self.items_skipped += 1
             return
 
@@ -790,9 +600,9 @@ class EventScraper(BaseScraper):
                 source_name=item_dict.get("source_name") or None,
                 language=item_dict.get("language") or "en",
                 tags=item_dict.get("tags") or None,
+                entities=item_dict.get("entities", {}),
                 organizer=organizer,
-                contact_email=item_dict.get("contact_email")
-                or "scraper-bot@nlp-platform.local",
+                contact_email=item_dict.get("contact_email") or SCRAPER_BOT_EMAIL,
                 approval_status="pending",
                 created_by=self.get_system_user(),
                 source="scrape",
@@ -854,7 +664,7 @@ class EventScraper(BaseScraper):
                 "url": item_dict.get("website", ""),
                 "location": item_dict.get("location_en", ""),
                 "priority_score": int(
-                    candidate.get("priority_score") or PRIORITY_SCORE["global"]
+                    candidate.get("priority_score") or EVENT_PRIORITY_SCORES["global"]
                 ),
             }
         )
@@ -869,7 +679,10 @@ class EventScraper(BaseScraper):
                     "primary_domain": "arabic_nlp",
                     "domain_scores": {"arabic_nlp": 1.0},
                     "relevance_score": float(
-                        int(candidate.get("priority_score") or PRIORITY_SCORE["global"])
+                        int(
+                            candidate.get("priority_score")
+                            or EVENT_PRIORITY_SCORES["global"]
+                        )
                     ),
                     "completeness_score": float(
                         calculate_completeness_score(item_dict, "events")
@@ -905,11 +718,6 @@ class EventScraper(BaseScraper):
         if len(tokens) == 1:
             return tokens[0][:10]
         return "".join(token[0] for token in tokens[:6])[:10]
-
-    def _source_name_from_url(self, url):
-        hostname = urlparse(url).netloc.lower().replace("www.", "")
-        root = hostname.split(".")[0]
-        return root.upper() if root else "UNIVERSITY"
 
     def _source_base_url(self, url):
         parsed = urlparse(url or "")
@@ -974,16 +782,15 @@ class EventScraper(BaseScraper):
 
     def _extract_event_type(self, title, description):
         blob = f"{title} {description}".lower()
-        if "hackathon" in blob:
-            return "hackathon"
-        if "call for papers" in blob or " cfp" in blob or "cfp " in blob:
-            return "cfp"
-        if "workshop" in blob:
-            return "workshop"
-        if "seminar" in blob or "webinar" in blob:
-            return "seminar"
-        if "conference" in blob:
-            return "conference"
+        keyword_map = getattr(self, "_event_type_keywords", None)
+        if keyword_map is None:
+            keyword_map = load_event_type_keywords()
+            self._event_type_keywords = keyword_map
+
+        for event_type, keywords in (keyword_map or {}).items():
+            if any(keyword and keyword in blob for keyword in keywords):
+                return event_type
+
         return "conference"
 
     def _normalize_model_event_type(self, event_type):
@@ -1012,20 +819,6 @@ class EventScraper(BaseScraper):
             "actualites",
         ]
         return any(keyword in blob for keyword in event_keywords)
-
-    def _wikicfp_focus_filter(self, text):
-        blob = (text or "").lower()
-        focus_keywords = [
-            "algeria",
-            "alger",
-            "arabic",
-            "mena",
-            "africa",
-            "north africa",
-            "maghreb",
-            "darija",
-        ]
-        return any(keyword in blob for keyword in focus_keywords)
 
     def _build_tags(self, title, description, event_type, source_name):
         blob = f"{title} {description} {source_name}".lower()

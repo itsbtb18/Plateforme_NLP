@@ -1,12 +1,14 @@
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from django.utils.text import slugify
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as _, get_language
 import uuid
 from typing import TYPE_CHECKING
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import models
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.text import slugify
+from django.utils.translation import get_language
+from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
@@ -92,6 +94,7 @@ class Post(models.Model):
     )
     published_date = models.DateField(null=True, blank=True)
     authors = models.JSONField(null=True, blank=True)
+    entities = models.JSONField(blank=True, default=dict)
     news_category = models.CharField(
         max_length=20,
         choices=NEWS_CATEGORY_CHOICES,

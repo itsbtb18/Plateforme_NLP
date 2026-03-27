@@ -1,5 +1,4 @@
 import logging
-import os
 import uuid
 
 from django.conf import settings
@@ -15,8 +14,22 @@ try:
 except Exception:  # pragma: no cover - optional dependency at runtime
     VectorField = None
 
-CIRCUIT_THRESHOLD = float(os.environ.get("SCRAPING_CIRCUIT_THRESHOLD", 25.0))
-CONSECUTIVE_TRIP = int(os.environ.get("SCRAPING_CIRCUIT_TRIP_COUNT", 3))
+from scraping.constants import (
+    DEDUP_EMBEDDING_DIM,
+    DEDUP_EMBEDDING_MODEL,
+    SKIP_CIRCUIT_OPEN,
+    SKIP_DEDUP_ARXIV,
+    SKIP_DEDUP_DOI,
+    SKIP_DEDUP_EMBEDDING,
+    SKIP_DEDUP_NAME,
+    SKIP_DEDUP_ROR,
+    SKIP_DEDUP_SIMILARITY,
+    SKIP_DEDUP_URL,
+    SKIP_DOWNLOAD_FAIL,
+    SKIP_ENRICHMENT_FAIL,
+    SKIP_VALIDATION_FAIL,
+)
+from scraping.scraping_settings import scraping_settings as SS
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +48,12 @@ def _vector_field_enabled() -> bool:
 class ScrapingSource(models.Model):
     """Configurable scraping source definition."""
 
+    SCRAPE_CONFIG_PAGINATION_KEYS = {
+        "max_pages": "int - max listing pages per path/source (bounded by SCRAPING_MAX_PAGES_HARD_LIMIT)",
+        "page_param": "str - query parameter used for page number (default: 'page')",
+        "start_page": "int - first page index when pagination starts (default: 1)",
+    }
+
     CATEGORY_CHOICES = [
         ("events", _("Events")),
         ("tools", _("Tools")),
@@ -46,15 +65,42 @@ class ScrapingSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(_("Source Name"), max_length=200)
     category = models.CharField(_("Category"), max_length=50, choices=CATEGORY_CHOICES)
+    url = models.URLField(_("URL"), blank=True, default="")
     base_url = models.URLField(_("Base URL"), blank=True)
     description = models.TextField(_("Description"), blank=True)
     is_active = models.BooleanField(_("Active"), default=True)
+    is_default = models.BooleanField(
+        _("Default Source"),
+        default=False,
+        help_text="True if this is an essential fallback source",
+    )
+    source_type = models.CharField(
+        _("Source Type"),
+        max_length=20,
+        choices=[("web", "Web scraping"), ("api", "API")],
+        default="web",
+    )
+    last_error = models.CharField(max_length=255, null=True, blank=True)
+    last_error_at = models.DateTimeField(
+        _("Last Error At"),
+        null=True,
+        blank=True,
+    )
+    last_failed_at = models.DateTimeField(
+        _("Last Failed At"),
+        null=True,
+        blank=True,
+    )
+    fail_count = models.IntegerField(_("Fail Count"), default=0)
+    consecutive_failures = models.IntegerField(default=0)
+    fallback_url = models.URLField(_("Fallback URL"), blank=True, default="")
     last_scraped = models.DateTimeField(_("Last Scraped"), null=True, blank=True)
     scrape_config = models.JSONField(
         default=dict,
         blank=True,
         help_text="Custom CSS selectors or config",
     )
+    css_selectors = models.JSONField(default=dict, blank=True)
     last_run_status = models.CharField(
         max_length=20,
         choices=[
@@ -75,6 +121,57 @@ class ScrapingSource(models.Model):
         default=True,
         help_text="Use LLM to extract structured data",
     )
+    verify_ssl = models.BooleanField(
+        default=True,
+        help_text=(
+            "Uncheck to disable SSL verification for this source "
+            "(use for self-signed .dz university certificates)"
+        ),
+    )
+    proxy_url = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text=(
+            "Optional proxy URL for this source. "
+            "Format: http://user:pass@host:port or socks5://host:port"
+        ),
+    )
+    force_playwright = models.BooleanField(
+        default=False,
+        help_text=(
+            "Force Playwright (headless browser) for this source. "
+            "Use for JavaScript-rendered pages or strict anti-bot sites."
+        ),
+    )
+    selector_recommendations = models.JSONField(null=True, blank=True)
+    selector_confidence = models.FloatField(null=True, blank=True)
+    schedule_tier = models.CharField(
+        max_length=20,
+        choices=[
+            ("very_high", "Very High"),
+            ("high", "High"),
+            ("medium", "Medium"),
+            ("low", "Low"),
+            ("dormant", "Dormant"),
+        ],
+        default="medium",
+    )
+    schedule_interval_hours = models.IntegerField(default=24)
+    schedule_updated_at = models.DateTimeField(null=True, blank=True)
+    validation_status = models.CharField(
+        max_length=10,
+        choices=[
+            ("GREEN", "OK"),
+            ("YELLOW", "Avertissement"),
+            ("RED", "Probleme"),
+            ("PENDING", "En cours"),
+            ("UNKNOWN", "Non teste"),
+        ],
+        default="UNKNOWN",
+    )
+    validation_detail = models.JSONField(null=True, blank=True)
+    last_validated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -84,6 +181,14 @@ class ScrapingSource(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"  # type: ignore[attr-defined]
+
+    def save(self, *args, **kwargs):
+        # Keep legacy and new URL fields synchronized.
+        if self.url and not self.base_url:
+            self.base_url = self.url
+        elif self.base_url and not self.url:
+            self.url = self.base_url
+        super().save(*args, **kwargs)
 
 
 class ScrapingRun(models.Model):
@@ -119,6 +224,14 @@ class ScrapingRun(models.Model):
         null=True,
         blank=True,
         verbose_name=_("Triggered By"),
+    )
+    source = models.ForeignKey(
+        "scraping.ScrapingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="scraping_runs",
+        verbose_name=_("Source"),
     )
 
     class Meta:
@@ -196,7 +309,7 @@ class ScrapingSourceHealth(models.Model):
     )
     circuit_cooldown_seconds = models.PositiveIntegerField(
         _("Cooldown (s)"),
-        default=300,
+        default=SS.CIRCUIT_COOLDOWN_SECONDS,
         help_text=_("Seconds before an open circuit moves to half-open."),
     )
 
@@ -230,10 +343,10 @@ class ScrapingSourceHealth(models.Model):
 
     # ── Business logic ───────────────────────────────────────────────
 
-    FAILURE_PENALTY = 15.0  # score points lost per failure
-    SUCCESS_RECOVERY = 10.0  # score points gained per success
-    CIRCUIT_THRESHOLD = CIRCUIT_THRESHOLD  # score below which circuit opens
-    CONSECUTIVE_TRIP = CONSECUTIVE_TRIP  # consecutive failures to trip circuit
+    FAILURE_PENALTY = SS.FAILURE_PENALTY  # score points lost per failure
+    SUCCESS_RECOVERY = SS.SUCCESS_RECOVERY  # score points gained per success
+    CIRCUIT_THRESHOLD = SS.CIRCUIT_THRESHOLD  # score below which circuit opens
+    CONSECUTIVE_TRIP = SS.CIRCUIT_TRIP_COUNT  # failures to trip circuit
 
     def _locked(self):
         return type(self).objects.select_for_update().get(pk=self.pk)
@@ -364,17 +477,17 @@ class ScrapedItemMeta(models.Model):
     """
 
     SKIP_REASON_CHOICES = [
-        ("dedup_url", "Dedup URL"),
-        ("dedup_name", "Dedup Name"),
-        ("dedup_similarity", "Dedup Similarity"),
-        ("dedup_embedding", "Dedup Embedding"),
-        ("dedup_doi", "Dedup DOI"),
-        ("dedup_arxiv", "Dedup arXiv"),
-        ("dedup_ror", "Dedup ROR"),
-        ("download_fail", "Download Failed"),
-        ("validation_fail", "Validation Failed"),
-        ("enrichment_fail", "Enrichment Failed"),
-        ("circuit_open", "Circuit Open"),
+        (SKIP_DEDUP_URL, "Dedup URL"),
+        (SKIP_DEDUP_NAME, "Dedup Name"),
+        (SKIP_DEDUP_SIMILARITY, "Dedup Similarity"),
+        (SKIP_DEDUP_EMBEDDING, "Dedup Embedding"),
+        (SKIP_DEDUP_DOI, "Dedup DOI"),
+        (SKIP_DEDUP_ARXIV, "Dedup arXiv"),
+        (SKIP_DEDUP_ROR, "Dedup ROR"),
+        (SKIP_DOWNLOAD_FAIL, "Download Failed"),
+        (SKIP_VALIDATION_FAIL, "Validation Failed"),
+        (SKIP_ENRICHMENT_FAIL, "Enrichment Failed"),
+        (SKIP_CIRCUIT_OPEN, "Circuit Open"),
     ]
 
     source_name = models.CharField(
@@ -390,6 +503,16 @@ class ScrapedItemMeta(models.Model):
         blank=True,
         help_text="Canonical URL of the source page or feed",
     )
+    content_source = models.CharField(
+        max_length=20,
+        choices=[
+            ("live", "Live"),
+            ("wayback", "Wayback Machine"),
+            ("cache", "Cache"),
+        ],
+        default="live",
+    )
+    archived_snapshot_url = models.URLField(null=True, blank=True)
     match_score = models.FloatField(
         null=True,
         blank=True,
@@ -474,11 +597,11 @@ class ScrapedItemMeta(models.Model):
     # In SQLite test mode we store this as JSON to avoid Postgres/pgvector coupling.
     if _vector_field_enabled():
         title_embedding = VectorField(
-            dimensions=384,
+            dimensions=DEDUP_EMBEDDING_DIM,
             null=True,
             blank=True,
             help_text=_(
-                "384-dim embedding from paraphrase-multilingual-MiniLM-L12-v2."
+                f"{DEDUP_EMBEDDING_DIM}-dim embedding from {DEDUP_EMBEDDING_MODEL}."
             ),
         )
     else:

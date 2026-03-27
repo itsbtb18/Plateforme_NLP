@@ -19,8 +19,9 @@ from bs4 import BeautifulSoup
 from scraping.enrichment_engine import enrich_scraped_item
 from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import attach_file_to_model
+from scraping.fixture_loader import sources_for_section
 
-from .base import BaseScraper
+from .playwright_scraper import PlaywrightFallbackScraper
 
 logger = logging.getLogger(__name__)
 
@@ -77,156 +78,108 @@ SOCIAL_DOMAINS = {
     "youtube.com": "youtube",
 }
 
-ALGERIAN_LAB_SCAN_UNIVERSITIES = [
-    "https://www.univ-alger.dz",
-    "https://www.esi.dz",
-    "https://www.usthb.dz",
-    "https://www.umc.edu.dz",
-    "https://www.univ-oran1.dz",
-]
-
 LAB_PATHS = ["/laboratoires", "/labo", "/labs"]
+
+
+def _institution_fixture_rows() -> list[dict]:
+    return list(sources_for_section("institutions"))
+
+
+def _institution_source_rows(
+    *,
+    tier: int | None = None,
+    scraper_type: str | None = None,
+    country: str | None = None,
+) -> list[dict]:
+    rows = _institution_fixture_rows()
+    if tier is not None:
+        rows = [r for r in rows if int(r.get("tier") or 0) == int(tier)]
+    if scraper_type is not None:
+        rows = [
+            r
+            for r in rows
+            if str(r.get("scraper_type", "")).strip().lower() == scraper_type.lower()
+        ]
+    if country is not None:
+        rows = [
+            r
+            for r in rows
+            if str(r.get("country", "")).strip().upper() == country.upper()
+        ]
+    return rows
+
+
+def _rows_to_rss_sources(
+    rows: list[dict], default_semantic_type: str = "research_centre"
+) -> list[dict]:
+    mapped: list[dict] = []
+    for row in rows:
+        url = str(row.get("url", "")).strip()
+        if not url:
+            continue
+        country_code = str(row.get("country") or "XX").strip().upper() or "XX"
+        mapped.append(
+            {
+                "base_url": url,
+                "source_name": str(row.get("name") or "Institution Source").strip(),
+                "country_name": country_code,
+                "country_code": country_code,
+                "semantic_type": str(row.get("semantic_type") or default_semantic_type)
+                .strip()
+                .lower(),
+            }
+        )
+    return mapped
+
+
+ALGERIAN_LAB_SCAN_UNIVERSITIES = [
+    str(row.get("url", "")).strip()
+    for row in _institution_source_rows(country="DZ")
+    if str(row.get("scraper_type", "")).strip().lower() in {"web", "html", "rss"}
+]
 
 TOP_GLOBAL_LABS = [
     {
-        "name": "Stanford NLP Group",
-        "website": "https://nlp.stanford.edu",
-        "country_name": "United States",
-        "country_code": "US",
-        "city": "Stanford",
-    },
-    {
-        "name": "MIT CSAIL",
-        "website": "https://www.csail.mit.edu",
-        "country_name": "United States",
-        "country_code": "US",
-        "city": "Cambridge",
-    },
-    {
-        "name": "CMU Language Technologies Institute",
-        "website": "https://www.lti.cs.cmu.edu",
-        "country_name": "United States",
-        "country_code": "US",
-        "city": "Pittsburgh",
-    },
-    {
-        "name": "Edinburgh NLP",
-        "website": "https://nlp.inf.ed.ac.uk",
-        "country_name": "United Kingdom",
-        "country_code": "GB",
-        "city": "Edinburgh",
-    },
-    {
-        "name": "Johns Hopkins CLSP",
-        "website": "https://www.clsp.jhu.edu",
-        "country_name": "United States",
-        "country_code": "US",
-        "city": "Baltimore",
-    },
-    {
-        "name": "NYU Abu Dhabi CAMeL Lab",
-        "website": "https://nyuad.nyu.edu/en/research/faculty-labs-and-projects/camel-lab.html",
-        "country_name": "United Arab Emirates",
-        "country_code": "AE",
-        "city": "Abu Dhabi",
-    },
-    {
-        "name": "Qatar Computing Research Institute",
-        "website": "https://www.hbku.edu.qa/en/qcri",
-        "country_name": "Qatar",
-        "country_code": "QA",
-        "city": "Doha",
-    },
-    {
-        "name": "Mohamed bin Zayed University of Artificial Intelligence",
-        "website": "https://mbzuai.ac.ae",
-        "country_name": "United Arab Emirates",
-        "country_code": "AE",
-        "city": "Abu Dhabi",
-    },
-]
-
-TIER_1_RSS_SOURCES = [
-    {
-        "base_url": "https://www.cerist.dz",
-        "source_name": "CERIST",
-        "country_name": "Algeria",
-        "country_code": "DZ",
-        "semantic_type": "research_centre",
-    },
-    {
-        "base_url": "https://www.cdta.dz",
-        "source_name": "CDTA",
-        "country_name": "Algeria",
-        "country_code": "DZ",
-        "semantic_type": "research_centre",
-    },
-    {
-        "base_url": "https://www.esi.dz",
-        "source_name": "ESI",
-        "country_name": "Algeria",
-        "country_code": "DZ",
-        "semantic_type": "university",
-    },
-]
-
-TIER_2_RSS_SOURCES = [
-    {
-        "base_url": "https://www.hbku.edu.qa/en/qcri",
-        "source_name": "QCRI",
-        "country_name": "Qatar",
-        "country_code": "QA",
-        "semantic_type": "research_centre",
-    },
-    {
-        "base_url": "https://nyuad.nyu.edu",
-        "source_name": "NYU Abu Dhabi",
-        "country_name": "United Arab Emirates",
-        "country_code": "AE",
-        "semantic_type": "research_centre",
-    },
-    {
-        "base_url": "https://mbzuai.ac.ae",
-        "source_name": "MBZUAI",
-        "country_name": "United Arab Emirates",
-        "country_code": "AE",
-        "semantic_type": "university",
-    },
-]
-
-TIER_3_RSS_SOURCES = [
-    {
-        "base_url": "https://www.masakhane.io",
-        "source_name": "Masakhane",
-        "country_name": "International",
-        "country_code": "XX",
-        "semantic_type": "research_centre",
+        "name": str(row.get("name") or "Global NLP Lab").strip(),
+        "website": str(row.get("url") or "").strip(),
+        "country_name": str(row.get("country") or "Global").strip(),
+        "country_code": str(row.get("country") or "XX").strip().upper() or "XX",
+        "city": str(row.get("city") or "").strip(),
     }
+    for row in _institution_source_rows(tier=4)
+    if str(row.get("url") or "").strip()
 ]
 
-TIER_4_RSS_SOURCES = [
-    {
-        "base_url": "https://nlp.stanford.edu",
-        "source_name": "Stanford NLP",
-        "country_name": "United States",
-        "country_code": "US",
-        "semantic_type": "lab",
-    },
-    {
-        "base_url": "https://www.lti.cs.cmu.edu",
-        "source_name": "CMU LTI",
-        "country_name": "United States",
-        "country_code": "US",
-        "semantic_type": "lab",
-    },
-]
+TIER_1_RSS_SOURCES = _rows_to_rss_sources(
+    _institution_source_rows(tier=1, scraper_type="rss")
+)
+TIER_2_RSS_SOURCES = _rows_to_rss_sources(
+    _institution_source_rows(tier=2, scraper_type="rss")
+)
+TIER_3_RSS_SOURCES = _rows_to_rss_sources(
+    _institution_source_rows(tier=3, scraper_type="rss")
+)
+TIER_4_RSS_SOURCES = _rows_to_rss_sources(
+    _institution_source_rows(tier=4, scraper_type="rss"),
+    default_semantic_type="lab",
+)
 
 
-class InstitutionScraper(BaseScraper):
+class InstitutionScraper(PlaywrightFallbackScraper):
     """Scrape institutions with deterministic ROR-based dedup inputs."""
 
     name = "NLP Research Institutions"
     category = "institutions"
+    SECTION = "institutions"
+
+    @classmethod
+    def get_default_sources(cls):
+        from scraping.models import ScrapingSource
+
+        return ScrapingSource.objects.filter(
+            category=cls.SECTION,
+            is_default=True,
+        ).order_by("name")
 
     ROR_BASE = "https://api.ror.org/organizations"
     OPENALEX_INSTITUTIONS = "https://api.openalex.org/institutions"
@@ -278,11 +231,40 @@ class InstitutionScraper(BaseScraper):
             raise
 
     def scrape(self):
-        """Execute institution source tiers from local to global scope."""
-        self._scrape_tier_1_algeria()
-        self._scrape_tier_2_north_africa_arabic()
-        self._scrape_tier_3_africa()
-        self._scrape_tier_4_global()
+        """Execute institution scraping from admin-configured active sources."""
+        sources = self.get_active_sources()
+        if not sources:
+            logger.warning(
+                "Aucune source active pour institutions. Verifier la config admin."
+            )
+            return
+
+        rss_sources = []
+        for source in sources:
+            source_url = (getattr(source, "url", "") or source.base_url or "").strip()
+            if not source_url:
+                continue
+
+            if getattr(source, "source_type", "web") == "api":
+                name_key = (source.name or "").lower()
+                if "openalex" in name_key:
+                    self._scrape_openalex_africa()
+                elif "ror" in name_key:
+                    self._sync_ror_country("DZ", f"DB Source {source.name}")
+                continue
+
+            rss_sources.append(
+                {
+                    "base_url": source_url,
+                    "source_name": source.name,
+                    "country_name": "International",
+                    "country_code": "XX",
+                    "semantic_type": "research_centre",
+                }
+            )
+
+        if rss_sources:
+            self._scrape_rss_institution_sources(rss_sources)
 
     # ------------------------------------------------------------------
     # Tier 1 — Algerian institutions
@@ -410,11 +392,12 @@ class InstitutionScraper(BaseScraper):
             domain = urlparse(university).netloc
             for path in LAB_PATHS:
                 url = urljoin(university.rstrip("/") + "/", path.lstrip("/"))
-                resp = self.safe_request(url, timeout=10, source_name=domain)
-                if resp is None:
+                soup = self.fetch_listing_page(url, timeout=10.0)
+                if soup is None:
                     continue
 
-                labs = self._extract_lab_cards(resp.text, url)
+                labs = self._extract_lab_cards(str(soup), url)
+                page_html = str(soup)
                 for lab in labs:
                     title = lab.get("name", "")
                     if not title:
@@ -432,7 +415,7 @@ class InstitutionScraper(BaseScraper):
                         [
                             {
                                 "url": url,
-                                "html": resp.text,
+                                "html": page_html,
                                 "text": lab.get("description", ""),
                             }
                         ]
@@ -441,7 +424,7 @@ class InstitutionScraper(BaseScraper):
                         [
                             {
                                 "url": url,
-                                "html": resp.text,
+                                "html": page_html,
                                 "text": lab.get("description", ""),
                             }
                         ],
@@ -668,57 +651,57 @@ class InstitutionScraper(BaseScraper):
             )
             semantic_type = source.get("semantic_type") or "research_centre"
 
-            for feed_url in rss.auto_discover_feeds(base_url):
-                items = rss.parse_feed_items(feed_url, max_items=30)
-                for item in items:
-                    title = self.clean_text(item.get("title") or "")
-                    description = self.clean_text(item.get("description") or "")
-                    url = (item.get("url") or "").strip()
-                    if not title:
-                        continue
+            feed_url_list = rss.auto_discover_feeds(base_url)
+            items = self.scrape_rss_sources(feed_url_list)
+            for item in items:
+                title = self.clean_text(item.get("title") or "")
+                description = self.clean_text(item.get("description") or "")
+                url = (item.get("url") or "").strip()
+                if not title:
+                    continue
 
-                    text_blob = f"{title} {description}".lower()
-                    if not any(
-                        token in text_blob
-                        for token in (
-                            "lab",
-                            "laboratory",
-                            "research",
-                            "institute",
-                            "center",
-                            "centre",
-                            "university",
-                            "ai",
-                            "nlp",
-                            "machine learning",
-                        )
-                    ):
-                        continue
-
-                    self._create_institution_item(
-                        name_en=title,
-                        name_ar=title,
-                        acronym="",
-                        ror_id="",
-                        semantic_type=semantic_type,
-                        country=country,
-                        city_en="",
-                        city_ar="",
-                        description_en=description
-                        or f"Institution update from {source_name}.",
-                        description_ar=description
-                        or f"Institution update from {source_name}.",
-                        website=url or base_url,
-                        source_url=feed_url,
-                        source_name=f"RSS {source_name}",
-                        research_specialties=self._extract_research_areas(description),
-                        founding_year=self._extract_founding_year(description),
-                        director=self._extract_director(description),
-                        affiliated_researchers_count=None,
-                        notable_publications=None,
-                        social_links=None,
-                        logo_url=item.get("image_url") or "",
+                text_blob = f"{title} {description}".lower()
+                if not any(
+                    token in text_blob
+                    for token in (
+                        "lab",
+                        "laboratory",
+                        "research",
+                        "institute",
+                        "center",
+                        "centre",
+                        "university",
+                        "ai",
+                        "nlp",
+                        "machine learning",
                     )
+                ):
+                    continue
+
+                self._create_institution_item(
+                    name_en=title,
+                    name_ar=title,
+                    acronym="",
+                    ror_id="",
+                    semantic_type=semantic_type,
+                    country=country,
+                    city_en="",
+                    city_ar="",
+                    description_en=description
+                    or f"Institution update from {source_name}.",
+                    description_ar=description
+                    or f"Institution update from {source_name}.",
+                    website=url or base_url,
+                    source_url=base_url,
+                    source_name=f"RSS {source_name}",
+                    research_specialties=self._extract_research_areas(description),
+                    founding_year=self._extract_founding_year(description),
+                    director=self._extract_director(description),
+                    affiliated_researchers_count=None,
+                    notable_publications=None,
+                    social_links=None,
+                    logo_url=item.get("image_url") or "",
+                )
 
     def _scrape_top_lab(self, lab_meta: dict):
         website = lab_meta.get("website", "")
@@ -1444,6 +1427,7 @@ class InstitutionScraper(BaseScraper):
                 affiliated_researchers_count=item_dict.get(
                     "affiliated_researchers_count"
                 ),
+                entities=item_dict.get("entities", {}),
                 notable_publications=item_dict.get("notable_publications"),
                 social_links=item_dict.get("social_links"),
                 source_url=item_dict.get("source_url") or None,

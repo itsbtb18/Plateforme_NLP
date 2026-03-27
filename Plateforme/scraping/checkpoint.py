@@ -6,11 +6,13 @@ from pathlib import Path
 
 from django.core.cache import cache
 
+from scraping.scraping_settings import scraping_settings as SS
+from scraping.constants import CHECKPOINT_PREFIX
+
 logger = logging.getLogger(__name__)
 
-CHECKPOINT_DIR = Path("logs/scraping_checkpoints")
-CHECKPOINT_TTL = 86400 * 3  # 3 days in seconds
-
+CHECKPOINT_DIR = SS.CHECKPOINT_DIR
+CHECKPOINT_TTL = SS.CHECKPOINT_TTL
 
 class ScraperCheckpoint:
     """

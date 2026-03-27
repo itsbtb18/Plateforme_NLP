@@ -21,11 +21,13 @@ from bs4 import BeautifulSoup
 from defusedxml import ElementTree as SafeET
 from django.utils.text import slugify
 
+from scraping.constants import NEWS_DEFAULT_LISTING_PATHS
 from scraping.enrichment_engine import enrich_scraped_item
 from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import attach_file_to_model
+from scraping.scraping_settings import scraping_settings as SS
 
-from .base import BaseScraper
+from .playwright_scraper import PlaywrightFallbackScraper
 
 logger = logging.getLogger(__name__)
 
@@ -36,29 +38,21 @@ ARXIV_NS = {
 }
 
 
-class NewsScraper(BaseScraper):
+class NewsScraper(PlaywrightFallbackScraper):
     """Scrape recent NLP papers/news from arXiv and Semantic Scholar."""
 
     name = "NLP News & Papers"
     category = "news"
+    SECTION = "news"
 
-    # Tier 1 — Algerian research institutions / ministries
-    DGRSDT_BASE = "https://www.dgrsdt.dz"
-    DGRSDT_PATHS = ["/actualites", "/news", "/publications"]
+    @classmethod
+    def get_default_sources(cls):
+        from scraping.models import ScrapingSource
 
-    MESRS_BASE = "https://www.mesrs.dz"
-    MESRS_PATHS = ["/actualites", "/news", "/publications"]
-
-    CERIST_BASE = "https://www.cerist.dz"
-    CERIST_PATHS = ["/publications", "/actualites", "/news", "/recherche"]
-
-    ALGERIAN_UNIVERSITY_RESEARCH_URLS = [
-        "https://www.univ-alger.dz/recherche",
-        "https://www.esi.dz/recherche",
-        "https://www.usthb.dz/recherche",
-        "https://www.umc.edu.dz/recherche",
-    ]
-    UNIVERSITY_EXTRA_PATHS = ["/publications", "/news", "/recherche"]
+        return ScrapingSource.objects.filter(
+            category=cls.SECTION,
+            is_default=True,
+        ).order_by("name")
 
     NEWS_KEYWORD_HINTS = (
         "news",
@@ -81,66 +75,35 @@ class NewsScraper(BaseScraper):
         return super().run()
 
     def scrape(self):
-        try:
-            from scraping.intelligence import generate_queries
+        sources = self.get_active_sources()
+        if not sources:
+            logger.warning("Aucune source active pour news. Verifier la config admin.")
+            return
 
-            dynamic_queries = generate_queries("news")
-            dynamic_terms = [
-                q.get("query", "") for q in dynamic_queries if q.get("query")
-            ][:5]
-            if not dynamic_terms:
-                dynamic_terms = ["Arabic natural language processing"]
-        except Exception:
-            dynamic_terms = ["Arabic natural language processing"]
+        for source in sources:
+            source_url = (getattr(source, "url", "") or source.base_url or "").strip()
+            if not source_url:
+                continue
 
-        self._search_terms = dynamic_terms
+            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
 
-        self._scrape_tier_1_algerian_research_news()
-        self._scrape_tier_4_global_research_papers()
-
-    # ── Tiered orchestration ────────────────────────────────────────
-    def _scrape_tier_1_algerian_research_news(self):
-        """Scrape Algerian institutional research news first (policy Tier 1)."""
-        self._scrape_site_research_news(
-            base_url=self.DGRSDT_BASE,
-            source_name="DGRSDT",
-            listing_paths=self.DGRSDT_PATHS,
-            max_articles=18,
-        )
-        self._scrape_site_research_news(
-            base_url=self.MESRS_BASE,
-            source_name="MESRS",
-            listing_paths=self.MESRS_PATHS,
-            max_articles=18,
-        )
-        self._scrape_site_research_news(
-            base_url=self.CERIST_BASE,
-            source_name="CERIST",
-            listing_paths=self.CERIST_PATHS,
-            max_articles=18,
-        )
-
-        for research_url in self.ALGERIAN_UNIVERSITY_RESEARCH_URLS:
-            parsed = urlparse(research_url)
-            base_url = f"{parsed.scheme}://{parsed.netloc}"
-            source_name = parsed.netloc
-            root_path = parsed.path or ""
-
-            listing_paths = [root_path] if root_path else []
-            listing_paths.extend(self.UNIVERSITY_EXTRA_PATHS)
-            listing_paths = [p for p in dict.fromkeys(listing_paths) if p]
+            if getattr(source, "source_type", "web") == "api":
+                name_key = (source.name or "").lower()
+                if "arxiv" in name_key:
+                    self._scrape_arxiv()
+                    continue
+                if "semantic" in name_key:
+                    self._scrape_semantic_scholar()
+                    continue
 
             self._scrape_site_research_news(
-                base_url=base_url,
-                source_name=source_name,
-                listing_paths=listing_paths,
-                max_articles=15,
+                base_url=source_url,
+                source_name=source.name,
+                listing_paths=NEWS_DEFAULT_LISTING_PATHS,
+                max_articles=SS.NEWS_MAX_ARTICLES_PER_SOURCE,
+                scrape_config=scrape_config,
+                source=source,
             )
-
-    def _scrape_tier_4_global_research_papers(self):
-        """Global coverage fallback (kept after Algerian-first sources)."""
-        self._scrape_arxiv()
-        self._scrape_semantic_scholar()
 
     # ── Tier 1 helpers ──────────────────────────────────────────────
     def _scrape_site_research_news(
@@ -149,7 +112,9 @@ class NewsScraper(BaseScraper):
         base_url: str,
         source_name: str,
         listing_paths: list[str],
-        max_articles: int = 15,
+        max_articles: int = SS.NEWS_MAX_ARTICLES_PER_SOURCE,
+        scrape_config: dict | None = None,
+        source=None,
     ):
         """RSS-first scraping with HTML listing fallback for institutional sites."""
         seen_article_urls: set[str] = set()
@@ -157,33 +122,34 @@ class NewsScraper(BaseScraper):
         # 1) RSS detection first (required policy)
         try:
             rss = self.get_rss_scraper()
-            for feed_url in rss.auto_discover_feeds(base_url):
-                for item in rss.parse_feed_items(feed_url, max_items=50):
-                    article_url = (item.get("url") or "").strip()
-                    if not article_url:
-                        continue
-                    normalized_url = article_url.rstrip("/")
-                    if normalized_url in seen_article_urls:
-                        continue
-                    seen_article_urls.add(normalized_url)
+            feed_url_list = rss.auto_discover_feeds(base_url)
+            items = self.scrape_rss_sources(feed_url_list)
+            for item in items:
+                article_url = (item.get("link") or "").strip()
+                if not article_url:
+                    continue
+                normalized_url = article_url.rstrip("/")
+                if normalized_url in seen_article_urls:
+                    continue
+                seen_article_urls.add(normalized_url)
 
-                    published = ""
-                    published_dt = item.get("published_date")
-                    if published_dt:
-                        try:
-                            published = published_dt.isoformat()
-                        except Exception:
-                            published = str(published_dt)
+                published = ""
+                published_dt = item.get("pub_date")
+                if published_dt:
+                    try:
+                        published = published_dt.isoformat()
+                    except Exception:
+                        published = str(published_dt)
 
-                    self._create_news_post(
-                        title=item.get("title", ""),
-                        abstract=item.get("description", ""),
-                        source_url=article_url,
-                        source_name=source_name,
-                        published=published,
-                        thumbnail_url=item.get("image_url", ""),
-                        news_category="research_news",
-                    )
+                self._create_news_post(
+                    title=item.get("title", ""),
+                    abstract=item.get("summary", ""),
+                    source_url=article_url,
+                    source_name=source_name,
+                    published=published,
+                    thumbnail_url=item.get("image_url", ""),
+                    news_category="research_news",
+                )
         except Exception as exc:
             logger.debug("RSS scraping failed for %s: %s", source_name, exc)
 
@@ -191,12 +157,12 @@ class NewsScraper(BaseScraper):
         article_candidates: list[str] = []
         for path in listing_paths:
             listing_url = urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
-            resp = self.safe_request(listing_url, timeout=10, source_name=source_name)
-            if resp is None:
-                continue
-            candidates = self._extract_candidate_article_links(
-                html=resp.text,
-                page_url=listing_url,
+            candidates = self.paginate_listing(
+                listing_url=listing_url,
+                extract_fn=self._extract_article_candidates,
+                timeout=SS.TOTAL_TIMEOUT,
+                scrape_config=scrape_config,
+                source_name=source_name,
             )
             for candidate in candidates:
                 key = candidate.rstrip("/")
@@ -209,13 +175,18 @@ class NewsScraper(BaseScraper):
             self._scrape_single_research_article(
                 article_url=article_url,
                 source_name=source_name,
+                source=source,
             )
 
+    def _extract_article_candidates(
+        self, *, soup: BeautifulSoup, page_url: str
+    ) -> list[str]:
+        return self._extract_candidate_article_links(soup=soup, page_url=page_url)
+
     def _extract_candidate_article_links(
-        self, *, html: str, page_url: str
+        self, *, soup: BeautifulSoup, page_url: str
     ) -> list[str]:
         """Extract likely article links from a listing page."""
-        soup = BeautifulSoup(html or "", "html.parser")
         parsed_page = urlparse(page_url)
         page_domain = parsed_page.netloc.lower()
         candidates: list[str] = []
@@ -252,29 +223,66 @@ class NewsScraper(BaseScraper):
 
         return candidates
 
-    def _scrape_single_research_article(self, *, article_url: str, source_name: str):
+    def _scrape_single_research_article(
+        self,
+        *,
+        article_url: str,
+        source_name: str,
+        source=None,
+    ):
         """Fetch and parse a single institutional news article page."""
-        resp = self.safe_request(article_url, timeout=10, source_name=source_name)
-        if resp is None:
+        soup = self.fetch_listing_page(article_url, timeout=SS.TOTAL_TIMEOUT)
+        if soup is None:
             return
 
-        soup = BeautifulSoup(resp.text or "", "html.parser")
+        selectors = dict(getattr(source, "css_selectors", {}) or {}) if source else {}
+        admin_result = (
+            self._extract_with_admin_selectors(soup, source) if source else None
+        )
+        if admin_result:
+            title = (admin_result.get("title") or "").strip()
+            abstract = (admin_result.get("body") or "").strip()
+            published = (admin_result.get("date_raw") or "").strip()
 
-        title = self._extract_article_title(soup)
+            selected_url = (admin_result.get("url") or "").strip()
+            resolved_source_url = (
+                urljoin(article_url, selected_url) if selected_url else article_url
+            )
+
+            selected_image = (admin_result.get("image_url") or "").strip()
+            thumbnail_url = (
+                urljoin(article_url, selected_image) if selected_image else ""
+            )
+        else:
+            if selectors.get("title_selector"):
+                logger.warning(
+                    "Admin selectors configured for %s but extraction returned nothing — check selectors in admin panel.",
+                    getattr(source, "url", "") or article_url,
+                )
+            title = self._extract_article_title(soup)
+            abstract = self._extract_article_text(soup)
+            published = self._extract_article_date(soup)
+            thumbnail_url = self._extract_article_image(soup, article_url)
+            resolved_source_url = article_url
+
         if not title:
             return
 
-        abstract = self._extract_article_text(soup)
-        if len(abstract) < 120:
+        if not abstract:
+            abstract = self._extract_article_text(soup)
+        min_abstract_len = max(0, int(self._scraping_settings.NEWS_ABSTRACT_MIN_LEN))
+        if len(abstract) < min_abstract_len:
             return
 
-        published = self._extract_article_date(soup)
-        thumbnail_url = self._extract_article_image(soup, article_url)
+        if not published:
+            published = self._extract_article_date(soup)
+        if not thumbnail_url:
+            thumbnail_url = self._extract_article_image(soup, article_url)
 
         self._create_news_post(
             title=title,
             abstract=abstract,
-            source_url=article_url,
+            source_url=resolved_source_url,
             source_name=source_name,
             published=published,
             thumbnail_url=thumbnail_url,
@@ -370,81 +378,101 @@ class NewsScraper(BaseScraper):
         else:
             search_query = "cat:cs.CL AND (abs:arabic OR abs:NLP OR abs:language+model)"
 
-        params = {
-            "search_query": search_query,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending",
-            "max_results": 20,
-            "start": 0,
-        }
-        resp = self.safe_request(url, params=params)
-        if resp is None:
-            return
+        page_size = max(1, int(self._scraping_settings.ARXIV_RESULTS_PER_PAGE))
+        max_total = max(page_size, int(self._scraping_settings.ARXIV_MAX_TOTAL))
+        total_processed = 0
 
-        content = resp.content or b""
-        if len(content) > 2_000_000:
-            logger.warning("xml_payload_too_large", extra={"url": url})
-            return []
+        for start in range(0, max_total, page_size):
+            remaining = max_total - total_processed
+            if remaining <= 0:
+                break
 
-        try:
-            root = SafeET.fromstring(content)
-            entries = root.findall("atom:entry", ARXIV_NS)
+            params = {
+                "search_query": search_query,
+                "sortBy": "submittedDate",
+                "sortOrder": "descending",
+                "max_results": min(page_size, remaining),
+                "start": start,
+            }
+            resp = self.safe_request(url, params=params)
+            if resp is None:
+                break
 
-            for entry in entries:
-                try:
-                    title = (entry.findtext("atom:title", "", ARXIV_NS) or "").strip()
-                    title = re.sub(r"\s+", " ", title)
+            content = resp.content or b""
+            if len(content) > 2_000_000:
+                logger.warning("xml_payload_too_large", extra={"url": url})
+                return []
 
-                    summary = (
-                        entry.findtext("atom:summary", "", ARXIV_NS) or ""
-                    ).strip()
-                    summary = re.sub(r"\s+", " ", summary)
+            try:
+                root = SafeET.fromstring(content)
+                entries = root.findall("atom:entry", ARXIV_NS)
+                if not entries:
+                    break
 
-                    published = entry.findtext("atom:published", "", ARXIV_NS)
+                for entry in entries:
+                    try:
+                        title = (
+                            entry.findtext("atom:title", "", ARXIV_NS) or ""
+                        ).strip()
+                        title = re.sub(r"\s+", " ", title)
 
-                    # Collect author names
-                    authors_el = entry.findall("atom:author", ARXIV_NS)
-                    authors = [
-                        a.findtext("atom:name", "", ARXIV_NS) for a in authors_el
-                    ]
-                    authors_str = ", ".join(authors[:5])
-                    if len(authors) > 5:
-                        authors_str += f" (+{len(authors) - 5} more)"
+                        summary = (
+                            entry.findtext("atom:summary", "", ARXIV_NS) or ""
+                        ).strip()
+                        summary = re.sub(r"\s+", " ", summary)
 
-                    # Links
-                    paper_url = ""
-                    pdf_url = ""
-                    for link in entry.findall("atom:link", ARXIV_NS):
-                        rel = link.get("rel", "")
-                        href = link.get("href", "")
-                        link_type = link.get("type", "")
-                        if rel == "alternate":
-                            paper_url = href
-                        elif link_type == "application/pdf":
-                            pdf_url = href
+                        published = entry.findtext("atom:published", "", ARXIV_NS)
 
-                    # Categories
-                    categories = [
-                        c.get("term", "")
-                        for c in entry.findall("atom:category", ARXIV_NS)
-                    ]
+                        # Collect author names
+                        authors_el = entry.findall("atom:author", ARXIV_NS)
+                        authors = [
+                            a.findtext("atom:name", "", ARXIV_NS) for a in authors_el
+                        ]
+                        authors_str = ", ".join(authors[:5])
+                        if len(authors) > 5:
+                            authors_str += f" (+{len(authors) - 5} more)"
 
-                    self._create_news_post(
-                        title=title,
-                        abstract=summary,
-                        authors=authors_str,
-                        source_url=paper_url,
-                        source_name="arXiv",
-                        pdf_url=pdf_url,
-                        published=published,
-                        categories=", ".join(categories),
-                        news_category="paper",
-                    )
-                except Exception as exc:
-                    logger.debug("arXiv entry parse error: %s", exc)
+                        # Links
+                        paper_url = ""
+                        pdf_url = ""
+                        for link in entry.findall("atom:link", ARXIV_NS):
+                            rel = link.get("rel", "")
+                            href = link.get("href", "")
+                            link_type = link.get("type", "")
+                            if rel == "alternate":
+                                paper_url = href
+                            elif link_type == "application/pdf":
+                                pdf_url = href
 
-        except SafeET.ParseError as exc:
-            self.errors.append(f"arXiv XML parse error: {exc}")
+                        # Categories
+                        categories = [
+                            c.get("term", "")
+                            for c in entry.findall("atom:category", ARXIV_NS)
+                        ]
+
+                        self._create_news_post(
+                            title=title,
+                            abstract=summary,
+                            authors=authors_str,
+                            source_url=paper_url,
+                            source_name="arXiv",
+                            pdf_url=pdf_url,
+                            published=published,
+                            categories=", ".join(categories),
+                            news_category="paper",
+                        )
+                        total_processed += 1
+                        if total_processed >= max_total:
+                            break
+                    except Exception as exc:
+                        logger.debug("arXiv entry parse error: %s", exc)
+
+                if len(entries) < params["max_results"]:
+                    break
+
+            except SafeET.ParseError as exc:
+                self.errors.append(f"arXiv XML parse error: {exc}")
+                break
 
     # ── Semantic Scholar API ─────────────────────────────────────────
     S2_API = "https://api.semanticscholar.org/graph/v1/paper/search"
@@ -454,52 +482,87 @@ class NewsScraper(BaseScraper):
         {
             "query": "Arabic natural language processing NLP",
             "year": "2024-2026",
-            "limit": 20,
+            "limit": SS.S2_QUERY_LIMIT,
         },
     ]
 
     def _scrape_semantic_scholar(self):
         """Search Semantic Scholar for recent Arabic NLP papers with rate-limit handling."""
         seen_ids: set[str] = set()
+        max_total = max(1, int(self._scraping_settings.S2_MAX_TOTAL))
 
         for query_params in self.S2_QUERIES:
-            params = {"fields": self.S2_FIELDS, **query_params}
-            data = self._s2_request(params)
-            if data is None:
-                # S2 unavailable — not a hard failure, arXiv covers papers
-                break
+            base_params = {"fields": self.S2_FIELDS, **query_params}
+            seen_cursors: set[str] = set()
+            next_cursor = None
+            query_processed = 0
 
-            papers = data.get("data", [])
-            for paper in papers:
-                paper_id = paper.get("paperId", "")
-                if paper_id in seen_ids:
-                    continue
-                seen_ids.add(paper_id)
-
-                title = paper.get("title", "")
-                abstract = paper.get("abstract", "") or ""
-                paper_url = paper.get("url", "")
-                pub_date = paper.get("publicationDate", "")
-                year = paper.get("year", "")
-
-                authors_list = paper.get("authors", [])
-                authors_str = ", ".join(a.get("name", "") for a in authors_list[:5])
-                if len(authors_list) > 5:
-                    authors_str += f" (+{len(authors_list) - 5} more)"
-
-                self._create_news_post(
-                    title=title,
-                    abstract=abstract,
-                    authors=authors_str,
-                    source_url=paper_url,
-                    source_name="Semantic Scholar",
-                    published=pub_date,
-                    year=str(year) if year else "",
-                    news_category="paper",
+            while query_processed < max_total:
+                remaining = max_total - query_processed
+                params = dict(base_params)
+                limit = max(
+                    1, min(int(params.get("limit", SS.S2_QUERY_LIMIT)), remaining)
                 )
+                params["limit"] = limit
+                if next_cursor:
+                    params["next"] = next_cursor
 
-            # Respect rate limits — pause between queries
-            time.sleep(3.5)
+                data = self._s2_request(params)
+                if data is None:
+                    # S2 unavailable — not a hard failure, arXiv covers papers
+                    break
+
+                papers = data.get("data", [])
+                if not papers:
+                    break
+
+                for paper in papers:
+                    paper_id = paper.get("paperId", "")
+                    if paper_id in seen_ids:
+                        continue
+                    seen_ids.add(paper_id)
+
+                    title = paper.get("title", "")
+                    abstract = paper.get("abstract", "") or ""
+                    paper_url = paper.get("url", "")
+                    pub_date = paper.get("publicationDate", "")
+                    year = paper.get("year", "")
+
+                    authors_list = paper.get("authors", [])
+                    authors_str = ", ".join(a.get("name", "") for a in authors_list[:5])
+                    if len(authors_list) > 5:
+                        authors_str += f" (+{len(authors_list) - 5} more)"
+
+                    self._create_news_post(
+                        title=title,
+                        abstract=abstract,
+                        authors=authors_str,
+                        source_url=paper_url,
+                        source_name="Semantic Scholar",
+                        published=pub_date,
+                        year=str(year) if year else "",
+                        news_category="paper",
+                    )
+                    query_processed += 1
+                    if query_processed >= max_total:
+                        break
+
+                if query_processed >= max_total:
+                    break
+
+                next_cursor = data.get("next")
+                if not next_cursor:
+                    break
+                if next_cursor in seen_cursors:
+                    logger.warning(
+                        "semantic_scholar_pagination_stopped_repeated_cursor",
+                        extra={"cursor": next_cursor},
+                    )
+                    break
+                seen_cursors.add(next_cursor)
+
+                # Respect rate limits — pause between paginated API requests
+                time.sleep(3.5)
 
     def _s2_request(self, params: dict, max_retries: int = 5) -> dict | None:
         """Make a Semantic Scholar API request with 429 retry + backoff."""
@@ -510,7 +573,7 @@ class NewsScraper(BaseScraper):
                 resp = self.session.get(
                     self.S2_API,
                     params=params,
-                    timeout=30,
+                    timeout=SS.LLM_TIMEOUT,
                     headers={"Accept": "application/json"},
                 )
                 if resp.status_code == 429:
@@ -707,7 +770,10 @@ class NewsScraper(BaseScraper):
             # Use the first line of the Arabic summary as a subtitle hint,
             # but keep the original English title for title_ar since the
             # LLM returns a summary, not a translated title.
-            pass
+            logger.debug(
+                "summary_ar_available_title_kept",
+                extra={"title": title[:120]},
+            )
 
         # ── Slug generation ──────────────────────────────────────
         slug = slugify(title[:190])
@@ -768,6 +834,10 @@ class NewsScraper(BaseScraper):
             logger.debug("Skipping news '%s' due to validation: %s", title, reason)
             return
 
+        if not self.passes_llm_confidence_gate(item_dict, "news"):
+            self.items_skipped += 1
+            return
+
         try:
             post = Post.objects.create(
                 title=item_dict.get("title_en", "")[:300],
@@ -787,6 +857,7 @@ class NewsScraper(BaseScraper):
                 if item_dict.get("published_date")
                 else None,
                 authors=item_dict.get("authors") or None,
+                entities=item_dict.get("entities", {}),
                 news_category=item_dict.get("news_category") or "paper",
                 slug=slug,
                 approval_status="pending",

@@ -122,30 +122,18 @@ class Command(BaseCommand):
 
     @staticmethod
     def _build_scraper(category: str):
+        from scraping.constants import SCRAPER_REGISTRY
+        from django.utils.module_loading import import_string
+
+        scraper_path = SCRAPER_REGISTRY.get(category)
+        if not scraper_path:
+            return None
+
         try:
-            if category == "events":
-                from scraping.scrapers.events import EventScraper
-
-                return EventScraper()
-            if category == "tools":
-                from scraping.scrapers.tools import ToolScraper
-
-                return ToolScraper()
-            if category == "news":
-                from scraping.scrapers.news import NewsScraper
-
-                return NewsScraper()
-            if category == "courses":
-                from scraping.scrapers.courses import CourseScraper
-
-                return CourseScraper()
-            if category == "institutions":
-                from scraping.scrapers.institutions import InstitutionScraper
-
-                return InstitutionScraper()
+            scraper_class = import_string(scraper_path)
+            return scraper_class()
         except Exception:
             return None
-        return None
 
     @staticmethod
     def _build_item_data(category: str, obj) -> dict:

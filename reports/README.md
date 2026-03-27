@@ -120,6 +120,47 @@ The scraping module is a standalone Django app (`scraping/`) that provides:
 └─────────────────────────────────────────────────┘
 ```
 
+---
+
+## Running the Evaluation Suite
+
+The evaluation harness validates extraction quality with offline fixtures and computes key quality metrics.
+
+### What It Covers
+
+- Precision and recall per category (`news`, `events`, `courses`, `institutions`, `tools`)
+- Date parsing accuracy checks for date-bearing categories
+- Duplicate detection effectiveness
+- LLM relevance false-positive-rate checks with deterministic test doubles
+- Automatic markdown report generation under `reports/`
+
+### Fixture Locations
+
+- Ground truth JSON: `Plateforme/tests/scraping/fixtures/ground_truth/`
+- Raw HTML snapshots: `Plateforme/tests/scraping/fixtures/raw_html/`
+
+### Run Commands
+
+From workspace root:
+
+```bash
+make eval
+```
+
+Equivalent direct pytest command:
+
+```bash
+pytest Plateforme/tests/scraping -v
+```
+
+### Report Output
+
+The suite writes a timestamped markdown report file:
+
+- `reports/scraping_eval_<YYYYMMDD_HHMMSS>.md`
+
+Each report includes global micro metrics and per-category precision/recall/date-accuracy tables.
+
 ### Key Design Decisions
 
 1. **Abstract Base Class (`BaseScraper`)** — All scrapers inherit from a common base that provides HTTP session management, date parsing, system user creation, country/institution helpers, and ES signal safety.

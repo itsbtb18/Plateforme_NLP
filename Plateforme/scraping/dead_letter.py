@@ -3,10 +3,12 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from scraping.scraping_settings import scraping_settings as SS
+from scraping.constants import DEAD_LETTER_PREFIX
+
 logger = logging.getLogger(__name__)
 
-DEAD_LETTER_DIR = Path("logs/scraping_dead_letters")
-
+DEAD_LETTER_DIR = SS.DEAD_LETTER_DIR
 
 def record_dead_letter(
     category: str,
@@ -46,3 +48,21 @@ def record_dead_letter(
         )
     except Exception as exc:
         logger.error("dead_letter_write_failed", extra={"error": str(exc)})
+
+
+def record(url: str, reason: str, timestamp: str) -> None:
+    """Store unreachable site event in dead-letter log format."""
+    try:
+        DEAD_LETTER_DIR.mkdir(parents=True, exist_ok=True)
+        date_token = datetime.now(UTC).strftime("%Y%m%d")
+        filename = DEAD_LETTER_DIR / f"sites_{date_token}.jsonl"
+        payload = {
+            "timestamp": timestamp,
+            "url": url,
+            "reason": reason,
+            "kind": "site_unreachable",
+        }
+        with open(filename, "a", encoding="utf-8") as file_handle:
+            file_handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        logger.error("dead_letter_record_failed", extra={"error": str(exc)})

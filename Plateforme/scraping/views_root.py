@@ -11,16 +11,21 @@ import os
 import threading
 import uuid
 from collections import defaultdict
+from datetime import timedelta
+from ipaddress import ip_address, ip_network
+from urllib.parse import urlencode
 
 from celery.result import AsyncResult
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
-from django.db.models import Count, Max, Sum
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.db.models import Count, Max, Q, Sum
+from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
 from institutions.models import Institution
@@ -67,6 +72,135 @@ def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
 
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_SCRAPING_SOURCES = {
+    "events": [
+        {"name": "WikiCFP", "url": "https://www.wikicfp.com"},
+        {
+            "name": "ConferenceAlerts (Algeria, Morocco, Tunisia, Egypt)",
+            "url": "https://www.conferencealerts.com",
+        },
+        {
+            "name": "AllConferenceAlert Algeria",
+            "url": "https://www.allconferencealert.com/algeria.html",
+        },
+        {
+            "name": "Curated NLP Conference List",
+            "url": "https://aclanthology.org/events",
+        },
+        {
+            "name": "Curated Arabic/MENA NLP Events",
+            "url": "https://sigarab.github.io",
+        },
+    ],
+    "tools": [
+        {
+            "name": "HuggingFace Model Hub API",
+            "url": "https://huggingface.co/models",
+        },
+        {
+            "name": "Curated Arabic LLMs & Speech Models",
+            "url": "https://huggingface.co/models?language=ar",
+        },
+        {
+            "name": "Curated HuggingFace Arabic Datasets",
+            "url": "https://huggingface.co/datasets?language=ar",
+        },
+    ],
+    "news": [
+        {
+            "name": "arXiv API (cs.CL)",
+            "url": "http://export.arxiv.org/api/query?search_query=cat:cs.CL",
+        },
+        {
+            "name": "Semantic Scholar API",
+            "url": "https://api.semanticscholar.org/graph/v1/paper/search",
+        },
+    ],
+    "courses": [
+        {"name": "MIT OpenCourseWare", "url": "https://ocw.mit.edu"},
+        {
+            "name": "Coursera NLP Courses",
+            "url": "https://www.coursera.org/search?query=nlp",
+        },
+        {
+            "name": "YouTube NLP Playlists",
+            "url": "https://www.youtube.com/results?search_query=nlp+playlist",
+        },
+        {
+            "name": "Curated University Courses",
+            "url": "https://www.edx.org/learn/natural-language-processing",
+        },
+    ],
+    "institutions": [
+        {"name": "ROR API", "url": "https://api.ror.org/organizations"},
+        {"name": "OpenAlex API", "url": "https://api.openalex.org/institutions"},
+        {
+            "name": "Algerian Universities",
+            "url": "https://www.mesrs.dz/en/universities",
+        },
+        {
+            "name": "African & Arabic NLP Labs",
+            "url": "https://deeplearningindaba.com",
+        },
+        {
+            "name": "North African Institutions",
+            "url": "https://www.auf.org/afrique-du-nord",
+        },
+        {
+            "name": "Arabic/Gulf Institutions",
+            "url": "https://www.gcc-sg.org/en-us/Pages/default.aspx",
+        },
+    ],
+}
+
+
+def _ensure_default_scraping_sources() -> None:
+    """Ensure predefined default sources exist and stay active for each category."""
+    for category, default_sources in DEFAULT_SCRAPING_SOURCES.items():
+        for default_source in default_sources:
+            name = (default_source.get("name") or "").strip()
+            base_url = (default_source.get("url") or "").strip()
+            if not name:
+                continue
+
+            source, created = ScrapingSource.objects.get_or_create(
+                category=category,
+                name=name,
+                defaults={
+                    "url": base_url,
+                    "base_url": base_url,
+                    "description": "Default source",
+                    "is_active": True,
+                    "scrape_config": {"is_default": True},
+                    "use_rss": False,
+                    "use_llm_extraction": True,
+                },
+            )
+
+            update_fields = []
+            if not getattr(source, "url", "") and base_url:
+                source.url = base_url
+                update_fields.append("url")
+            if not source.base_url and base_url:
+                source.base_url = base_url
+                update_fields.append("base_url")
+            if not source.is_active:
+                source.is_active = True
+                update_fields.append("is_active")
+
+            scrape_config = dict(source.scrape_config or {})
+            if scrape_config.get("is_default") is not True:
+                scrape_config["is_default"] = True
+                source.scrape_config = scrape_config
+                update_fields.append("scrape_config")
+
+            if created:
+                continue
+
+            if update_fields:
+                source.save(update_fields=update_fields)
 
 
 def _client_ip(request):
@@ -211,6 +345,21 @@ def _infer_source_tier(
     if any(token in blob for token in ("africa", "african", "indaba", "masakhane")):
         return 3
     return 4
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def validate_source(request):
+    """Temporary validation endpoint used by admin/source forms."""
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Endpoint is working",
+            "valid": True,
+        }
+    )
 
 
 def _model_for_category(category: str):
@@ -419,6 +568,7 @@ def _build_duplicate_preview(category: str, run_id: str | None = None):
 def dashboard(request):
     """Main scraping dashboard — staff only."""
     _log_scraping_action(request)
+    _ensure_default_scraping_sources()
     categories = []
     for key, meta in get_all_categories():
         last_run = (
@@ -552,6 +702,651 @@ def dashboard(request):
     )
 
 
+def _result_status_label(raw_status: str) -> str:
+    if raw_status == "approved":
+        return "VALIDATED"
+    if raw_status == "rejected":
+        return "REJECTED"
+    return "PENDING"
+
+
+def _result_status_badge(raw_status: str) -> str:
+    if raw_status == "approved":
+        return "success"
+    if raw_status == "rejected":
+        return "danger"
+    return "warning"
+
+
+def _scraping_result_category_map():
+    return {
+        "events": {
+            "label": "Events",
+            "model": Event,
+            "title_field": "title",
+            "description_field": "description",
+            "source_field": "source_url",
+            "date_field": "created_at",
+            "status_field": "approval_status",
+            "location_field": "location",
+        },
+        "news": {
+            "label": "News",
+            "model": Post,
+            "title_field": "title",
+            "description_field": "content",
+            "source_field": "source_url",
+            "date_field": "created_at",
+            "status_field": "approval_status",
+            "confidence_field": "relevance_score",
+        },
+        "tools": {
+            "label": "Tools",
+            "model": NLPTool,
+            "title_field": "title",
+            "description_field": "description",
+            "source_field": "source_url",
+            "date_field": "creation_date",
+            "status_field": "approval_status",
+            "entity_field": "use_cases",
+        },
+        "courses": {
+            "label": "Courses",
+            "model": Course,
+            "title_field": "title",
+            "description_field": "description",
+            "source_field": "source_url",
+            "date_field": "creation_date",
+            "status_field": "approval_status",
+            "entity_field": "keywords",
+        },
+        "institutions": {
+            "label": "Institutions",
+            "model": Institution,
+            "title_field": "name",
+            "description_field": "description",
+            "source_field": "source_url",
+            "date_field": "created_at",
+            "status_field": "approval_status",
+            "entity_field": "specialties",
+            "location_field": "city",
+        },
+    }
+
+
+def _is_scraped_item(obj, source_field: str) -> bool:
+    value = getattr(obj, source_field, None)
+    return bool(value)
+
+
+def _resolve_scraping_item(item_id, requested_category: str | None = None):
+    category_map = _scraping_result_category_map()
+    category_candidates = []
+    if requested_category and requested_category in category_map:
+        category_candidates.append(requested_category)
+    category_candidates.extend(
+        [k for k in category_map.keys() if k != requested_category]
+    )
+
+    for cat_key in category_candidates:
+        cfg = category_map[cat_key]
+        model = cfg["model"]
+        source_field = cfg["source_field"]
+        obj = model.objects.filter(pk=item_id).first()
+        if obj is None:
+            continue
+        if not _is_scraped_item(obj, source_field):
+            continue
+        return cat_key, cfg, obj
+    return None, None, None
+
+
+def _extract_ner_entities(obj, cfg, meta: ScrapedItemMeta | None):
+    entity_values = []
+
+    entity_field = cfg.get("entity_field")
+    if entity_field:
+        raw = getattr(obj, entity_field, None)
+        if hasattr(raw, "all"):
+            entity_values.extend([str(x) for x in raw.all()])
+        elif isinstance(raw, str):
+            entity_values.extend(
+                [
+                    part.strip()
+                    for part in raw.replace(";", ",").split(",")
+                    if part.strip()
+                ]
+            )
+        elif isinstance(raw, list):
+            entity_values.extend([str(x) for x in raw if x])
+
+    if cfg.get("location_field"):
+        loc = getattr(obj, cfg["location_field"], "")
+        if loc:
+            entity_values.append(str(loc))
+
+    if meta and meta.domain_scores:
+        entity_values.extend([str(k) for k in meta.domain_scores.keys() if k])
+
+    # Keep insertion order while removing duplicates.
+    return list(dict.fromkeys(entity_values))
+
+
+def _apply_scraping_item_action(obj, cfg, action: str, user=None) -> int:
+    if action == "delete":
+        deleted_count, _ = obj.delete()
+        return int(deleted_count)
+
+    if action == "validate":
+        model_field_names = {f.name for f in obj._meta.get_fields()}
+        status_field = cfg["status_field"]
+        setattr(obj, status_field, "approved")
+
+        update_fields = [status_field]
+        if "is_approved" in model_field_names:
+            obj.is_approved = True
+            update_fields.append("is_approved")
+        if "approval_date" in model_field_names:
+            obj.approval_date = timezone.now()
+            update_fields.append("approval_date")
+        if "approved_by" in model_field_names and user is not None:
+            obj.approved_by = user
+            update_fields.append("approved_by")
+
+        obj.save(update_fields=update_fields)
+        return 1
+
+    return 0
+
+
+def _results_redirect_url(
+    category: str = "", query: str = "", run_id: str | None = None
+) -> str:
+    params = {}
+    if category and category != "all":
+        params["category"] = category
+    if query:
+        params["q"] = query
+    if run_id:
+        params["run_id"] = run_id
+    url = reverse("scraping:scraping_results")
+    if params:
+        return f"{url}?{urlencode(params)}"
+    return url
+
+
+def _split_item_tokens(raw_values) -> list[str]:
+    tokens = []
+    for raw in raw_values:
+        if raw is None:
+            continue
+        for token in str(raw).split(","):
+            token = token.strip()
+            if token:
+                tokens.append(token)
+    return tokens
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_result_validate(request, item_id):
+    """POST /scraping/results/validate/<item_id>/."""
+    _log_scraping_action(request)
+    category_hint = (
+        request.POST.get("category") or request.GET.get("category") or ""
+    ).strip().lower() or None
+    query = (request.POST.get("q") or request.GET.get("q") or "").strip()
+    run_id = (request.POST.get("run_id") or request.GET.get("run_id") or "").strip()
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_hint)
+
+    if not obj or not cfg or not cat_key:
+        messages.error(request, "Scraped item not found.")
+        return redirect(
+            _results_redirect_url(category_hint or "", query, run_id=run_id)
+        )
+
+    affected = _apply_scraping_item_action(
+        obj, cfg, action="validate", user=request.user
+    )
+    if affected:
+        messages.success(request, "Item published successfully.")
+    else:
+        messages.warning(request, "No item was published.")
+
+    return redirect(_results_redirect_url(cat_key, query, run_id=run_id))
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_result_delete(request, item_id):
+    """POST /scraping/results/delete/<item_id>/."""
+    _log_scraping_action(request)
+    category_hint = (
+        request.POST.get("category") or request.GET.get("category") or ""
+    ).strip().lower() or None
+    query = (request.POST.get("q") or request.GET.get("q") or "").strip()
+    run_id = (request.POST.get("run_id") or request.GET.get("run_id") or "").strip()
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_hint)
+
+    if not obj or not cfg or not cat_key:
+        messages.error(request, "Scraped item not found.")
+        return redirect(
+            _results_redirect_url(category_hint or "", query, run_id=run_id)
+        )
+
+    affected = _apply_scraping_item_action(obj, cfg, action="delete", user=request.user)
+    if affected:
+        messages.success(request, "Item deleted successfully.")
+    else:
+        messages.warning(request, "No item was deleted.")
+
+    return redirect(_results_redirect_url(cat_key, query, run_id=run_id))
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_results_bulk_action(request):
+    """POST /scraping/results/bulk-action/ for validate/delete on multiple items."""
+    _log_scraping_action(request)
+
+    action = (request.POST.get("action") or "").strip().lower()
+    category_hint = (request.POST.get("category") or "").strip().lower()
+    query = (request.POST.get("q") or "").strip()
+    run_id = (request.POST.get("run_id") or "").strip()
+
+    item_tokens = _split_item_tokens(request.POST.getlist("item_ids"))
+    if not item_tokens:
+        item_tokens = _split_item_tokens(request.POST.getlist("selected_items"))
+
+    if action not in {"validate", "delete"}:
+        messages.warning(request, "Invalid bulk action.")
+        return redirect(_results_redirect_url(category_hint, query, run_id=run_id))
+
+    affected_total = 0
+    for token in item_tokens:
+        token_category = category_hint
+        token_item_id = token
+        if ":" in token:
+            token_category, token_item_id = token.split(":", 1)
+            token_category = token_category.strip().lower()
+            token_item_id = token_item_id.strip()
+
+        cat_key, cfg, obj = _resolve_scraping_item(
+            token_item_id, token_category or None
+        )
+        if not obj or not cfg:
+            continue
+        affected_total += _apply_scraping_item_action(
+            obj, cfg, action=action, user=request.user
+        )
+
+    if action == "validate":
+        messages.success(request, f"Published {affected_total} selected item(s).")
+    else:
+        messages.success(request, f"Deleted {affected_total} selected item(s).")
+
+    return redirect(_results_redirect_url(category_hint, query, run_id=run_id))
+
+
+@login_required
+@user_passes_test(is_admin)
+def scraping_results(request):
+    """Staff review queue for scraped items across categories."""
+    _log_scraping_action(request)
+    category_map = _scraping_result_category_map()
+
+    selected_category = (request.GET.get("category") or "all").strip().lower()
+    if selected_category != "all" and selected_category not in category_map:
+        selected_category = "all"
+
+    query = (request.GET.get("q") or "").strip()
+    selected_run_id = (request.GET.get("run_id") or "").strip()
+    selected_run = None
+
+    if selected_run_id:
+        selected_run = ScrapingRun.objects.filter(pk=selected_run_id).first()
+        if selected_run is None:
+            messages.warning(
+                request,
+                "Requested run was not found; showing unfiltered results.",
+            )
+            selected_run_id = ""
+        else:
+            selected_category = selected_run.category
+
+    run_window_start = selected_run.started_at if selected_run else None
+    run_window_end = None
+    if selected_run:
+        run_window_end = (selected_run.completed_at or timezone.now()) + timedelta(
+            minutes=5
+        )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        selected_items = request.POST.getlist("selected_items")
+        posted_run_id = (request.POST.get("run_id") or "").strip()
+
+        grouped_ids = defaultdict(list)
+        for token in selected_items:
+            if ":" not in token:
+                continue
+            cat_key, item_id = token.split(":", 1)
+            cat_key = cat_key.strip().lower()
+            item_id = item_id.strip()
+            if cat_key in category_map and item_id:
+                grouped_ids[cat_key].append(item_id)
+
+        affected_total = 0
+        for cat_key, ids in grouped_ids.items():
+            cfg = category_map[cat_key]
+            model = cfg["model"]
+            source_field = cfg["source_field"]
+
+            qs = model.objects.filter(pk__in=ids).exclude(
+                **{f"{source_field}__isnull": True}
+            )
+            qs = qs.exclude(**{source_field: ""})
+
+            for obj in qs:
+                affected_total += _apply_scraping_item_action(
+                    obj,
+                    cfg,
+                    action=action,
+                    user=request.user,
+                )
+
+        if action == "validate":
+            messages.success(request, f"Validated {affected_total} selected item(s).")
+        elif action == "delete":
+            messages.success(request, f"Deleted {affected_total} selected item(s).")
+        else:
+            messages.warning(request, "No valid bulk action was requested.")
+
+        params = {}
+        if selected_category and selected_category != "all":
+            params["category"] = selected_category
+        if query:
+            params["q"] = query
+        if posted_run_id:
+            params["run_id"] = posted_run_id
+        redirect_url = reverse("scraping:scraping_results")
+        if params:
+            redirect_url = f"{redirect_url}?{urlencode(params)}"
+        return redirect(redirect_url)
+
+    if selected_run:
+        active_categories = [selected_run.category]
+    elif selected_category == "all":
+        active_categories = list(category_map.keys())
+    else:
+        active_categories = [selected_category]
+
+    pending_counts = {}
+    for cat_key, cfg in category_map.items():
+        model = cfg["model"]
+        source_field = cfg["source_field"]
+        pending_qs = model.objects.filter(**{cfg["status_field"]: "pending"})
+        pending_qs = pending_qs.exclude(**{f"{source_field}__isnull": True}).exclude(
+            **{source_field: ""}
+        )
+        if (
+            selected_run
+            and cat_key == selected_run.category
+            and run_window_start
+            and run_window_end
+        ):
+            pending_qs = pending_qs.filter(
+                **{
+                    f"{cfg['date_field']}__gte": run_window_start,
+                    f"{cfg['date_field']}__lte": run_window_end,
+                }
+            )
+        elif selected_run and cat_key != selected_run.category:
+            pending_qs = pending_qs.none()
+        pending_counts[cat_key] = pending_qs.count()
+
+    rows = []
+    by_category_item_ids = defaultdict(list)
+    by_category_titles = defaultdict(list)
+
+    for cat_key in active_categories:
+        cfg = category_map[cat_key]
+        model = cfg["model"]
+        title_field = cfg["title_field"]
+        source_field = cfg["source_field"]
+        date_field = cfg["date_field"]
+        status_field = cfg["status_field"]
+
+        queryset = model.objects.filter(**{status_field: "pending"})
+        queryset = queryset.exclude(**{f"{source_field}__isnull": True}).exclude(
+            **{source_field: ""}
+        )
+
+        if selected_run and run_window_start and run_window_end:
+            queryset = queryset.filter(
+                **{
+                    f"{date_field}__gte": run_window_start,
+                    f"{date_field}__lte": run_window_end,
+                }
+            )
+
+        if query:
+            queryset = queryset.filter(**{f"{title_field}__icontains": query})
+
+        queryset = queryset.order_by(f"-{date_field}")
+
+        for obj in queryset:
+            title_value = getattr(obj, title_field, "") or ""
+            source_value = getattr(obj, source_field, "") or ""
+            date_value = getattr(obj, date_field, None)
+            status_value = getattr(obj, status_field, "pending") or "pending"
+
+            raw_confidence = None
+            confidence_field = cfg.get("confidence_field")
+            if confidence_field:
+                raw_confidence = getattr(obj, confidence_field, None)
+
+            item_id_str = str(obj.pk)
+            by_category_item_ids[cat_key].append(item_id_str)
+            if title_value:
+                by_category_titles[cat_key].append(title_value)
+
+            rows.append(
+                {
+                    "selection_key": f"{cat_key}:{item_id_str}",
+                    "item_id": item_id_str,
+                    "title": title_value,
+                    "category": cat_key,
+                    "category_label": cfg["label"],
+                    "source_url": source_value,
+                    "scraped_date": date_value,
+                    "confidence_score": raw_confidence,
+                    "status": _result_status_label(status_value),
+                    "status_badge": _result_status_badge(status_value),
+                    "detail_url": reverse(
+                        "scraping:scraping_result_detail", args=[obj.pk]
+                    )
+                    + f"?category={cat_key}"
+                    + (f"&run_id={selected_run_id}" if selected_run_id else ""),
+                }
+            )
+
+    confidence_by_item = {}
+    confidence_by_title = {}
+    for cat_key in active_categories:
+        ids = by_category_item_ids[cat_key]
+        titles = by_category_titles[cat_key]
+        if not ids and not titles:
+            continue
+
+        meta_q = ScrapedItemMeta.objects.filter(category=cat_key)
+        filters = Q()
+        if ids:
+            filters |= Q(item_id__in=ids)
+        if titles:
+            filters |= Q(item_title__in=titles)
+
+        for meta in meta_q.filter(filters).order_by("-updated_at", "-created_at"):
+            if meta.relevance_score is None:
+                continue
+            score = round(float(meta.relevance_score), 2)
+            if meta.item_id and meta.item_id not in confidence_by_item:
+                confidence_by_item[meta.item_id] = score
+            if meta.item_title and meta.item_title not in confidence_by_title:
+                confidence_by_title[meta.item_title] = score
+
+    for row in rows:
+        if row["confidence_score"] is not None:
+            row["confidence_score"] = round(float(row["confidence_score"]), 2)
+            continue
+        score = confidence_by_item.get(row["item_id"])
+        if score is None:
+            score = confidence_by_title.get(row["title"])
+        row["confidence_score"] = score
+
+    rows.sort(
+        key=lambda r: (
+            1 if r["scraped_date"] is not None else 0,
+            str(r["scraped_date"] or ""),
+        ),
+        reverse=True,
+    )
+
+    latest_runs = {
+        key: ScrapingRun.objects.filter(category=key).order_by("-started_at").first()
+        for key in category_map
+    }
+
+    return render(
+        request,
+        "scraping/results.html",
+        {
+            "rows": rows,
+            "selected_category": selected_category,
+            "selected_run_id": selected_run_id,
+            "selected_run": selected_run,
+            "search_query": query,
+            "category_tabs": [
+                {
+                    "key": key,
+                    "label": cfg["label"],
+                    "count": pending_counts[key],
+                }
+                for key, cfg in category_map.items()
+            ],
+            "pending_total": sum(pending_counts.values()),
+            "latest_runs": latest_runs,
+            "page": "scraping",
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def scraping_result_detail(request, item_id):
+    """Detail page for one scraped item review with publish/delete actions."""
+    _log_scraping_action(request)
+
+    requested_category = (request.GET.get("category") or "").strip().lower() or None
+    search_query = (request.GET.get("q") or "").strip()
+    selected_run_id = (request.GET.get("run_id") or "").strip()
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, requested_category)
+    if not obj or not cfg or not cat_key:
+        raise Http404("Scraped review item not found")
+
+    title_field = cfg["title_field"]
+    description_field = cfg["description_field"]
+    source_field = cfg["source_field"]
+    date_field = cfg["date_field"]
+    status_field = cfg["status_field"]
+
+    title_value = getattr(obj, title_field, "") or ""
+    description_value = getattr(obj, description_field, "") or ""
+    source_url = getattr(obj, source_field, "") or ""
+    scraped_date = getattr(obj, date_field, None)
+    raw_status = getattr(obj, status_field, "pending") or "pending"
+    location_value = ""
+    if cfg.get("location_field"):
+        location_value = getattr(obj, cfg["location_field"], "") or ""
+
+    confidence_score = None
+    confidence_field = cfg.get("confidence_field")
+    if confidence_field:
+        confidence_score = getattr(obj, confidence_field, None)
+
+    meta = (
+        ScrapedItemMeta.objects.filter(category=cat_key)
+        .filter(Q(item_id=str(obj.pk)) | Q(item_title=title_value))
+        .order_by("-updated_at", "-created_at")
+        .first()
+    )
+
+    if confidence_score is None and meta and meta.relevance_score is not None:
+        confidence_score = meta.relevance_score
+    if confidence_score is not None:
+        confidence_score = round(float(confidence_score), 2)
+
+    ner_entities = _extract_ner_entities(obj, cfg, meta)
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        affected = _apply_scraping_item_action(
+            obj, cfg, action=action, user=request.user
+        )
+
+        if action == "validate" and affected:
+            messages.success(request, "Item validated and published.")
+            try:
+                target_url = obj.get_absolute_url()
+            except Exception:
+                target_url = (
+                    reverse("scraping:scraping_results") + f"?category={cat_key}"
+                )
+            return redirect(target_url)
+
+        if action == "delete" and affected:
+            messages.success(request, "Item deleted permanently.")
+            back_url = reverse("scraping:scraping_results") + f"?category={cat_key}"
+            return redirect(back_url)
+
+        messages.warning(request, "No valid action was applied.")
+
+    back_url = _results_redirect_url(cat_key, search_query, run_id=selected_run_id)
+    validation_label = _result_status_label(raw_status)
+
+    return render(
+        request,
+        "scraping/result_detail.html",
+        {
+            "item": obj,
+            "item_id": str(obj.pk),
+            "category": cat_key,
+            "category_label": cfg["label"],
+            "title": title_value,
+            "description": description_value,
+            "source_url": source_url,
+            "scraped_date": scraped_date,
+            "location": location_value,
+            "ner_entities": ner_entities,
+            "validation_label": validation_label,
+            "validation_badge": _result_status_badge(raw_status),
+            "confidence_score": confidence_score,
+            "raw_url": source_url,
+            "meta": meta,
+            "back_url": back_url,
+            "search_query": search_query,
+            "selected_run_id": selected_run_id,
+            "page": "scraping",
+        },
+    )
+
+
 @login_required
 @user_passes_test(is_admin)
 @require_POST
@@ -565,16 +1360,6 @@ def run_scraper(request, category):
     staff_error = _require_staff(request)
     if staff_error:
         return staff_error
-
-    rate_key = f"scraping:run-trigger:user:{request.user.pk}"
-    if not _enforce_rate_limit(rate_key, limit=5, window_seconds=3600):
-        return JsonResponse(
-            {
-                "status": "error",
-                "message": "Rate limit exceeded: max 5 scraper triggers per hour.",
-            },
-            status=429,
-        )
 
     if category not in CATEGORY_META:
         return JsonResponse(
@@ -1253,12 +2038,14 @@ def add_custom_source(request):
 
         source = ScrapingSource.objects.create(
             name=name,
+            url=url,
             base_url=url,
             category=category,
             use_rss=use_rss,
             use_llm_extraction=use_llm,
             scrape_config=scrape_config,
             is_active=True,
+            source_type=data.get("source_type", "web"),
         )
         return JsonResponse(
             {
@@ -1297,12 +2084,14 @@ def list_custom_sources(request):
     if not request.user.is_staff:
         return JsonResponse({"error": "Forbidden"}, status=403)
 
+    _ensure_default_scraping_sources()
+
     sources = ScrapingSource.objects.filter(is_active=True).order_by("-created_at")
     data = [
         {
             "id": str(s.id),
             "name": s.name,
-            "url": s.base_url,
+            "url": s.url or s.base_url,
             "category": s.category,
             "last_scraped": s.last_scraped.isoformat() if s.last_scraped else None,
             "last_run_status": s.last_run_status,
@@ -1313,24 +2102,65 @@ def list_custom_sources(request):
     return JsonResponse({"sources": data})
 
 
+def _get_prometheus_allowed_networks() -> list:
+    raw = getattr(settings, "PROMETHEUS_ALLOWED_NETWORKS", [])
+    if isinstance(raw, str):
+        entries = [part.strip() for part in raw.split(",") if part.strip()]
+    else:
+        entries = [str(part).strip() for part in raw if str(part).strip()]
+
+    networks = []
+    for cidr in entries:
+        try:
+            networks.append(ip_network(cidr, strict=False))
+        except ValueError:
+            logger.warning("Invalid PROMETHEUS_ALLOWED_NETWORKS CIDR: %s", cidr)
+    return networks
+
+
+def is_prometheus_request(request) -> bool:
+    try:
+        client_ip = ip_address(
+            request.META.get(
+                "HTTP_X_FORWARDED_FOR",
+                request.META.get("REMOTE_ADDR", "0.0.0.0"),
+            )
+            .split(",")[0]
+            .strip()
+        )
+        return any(
+            client_ip in network for network in _get_prometheus_allowed_networks()
+        )
+    except ValueError:
+        return False
+
+
+def generate_latest_metrics_response():
+    try:
+        # Keep source health gauges fresh when scraped.
+        update_source_health_metrics()
+        update_scrape_queue_lag_metrics()
+    except Exception:
+        logger.exception("Failed to refresh source health metrics")
+
+    return HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
+
+
+@csrf_exempt
 @require_GET
-def metrics_view(request):
-    """Prometheus metrics endpoint for scraping observability."""
+def scraping_metrics_view(request):
+    """Prometheus metrics endpoint with internal-network allowlist auth model.
+
+    - Allows unauthenticated access from configured internal Docker networks.
+    - Requires authenticated staff access for all other source IPs.
+    """
     _log_scraping_action(request)
 
-    metrics_token = os.environ.get("METRICS_TOKEN", "").strip()
-    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-    token_ok = (
-        bool(metrics_token)
-        and auth_header.startswith("Bearer ")
-        and auth_header[7:].strip() == metrics_token
-    )
+    if is_prometheus_request(request):
+        return generate_latest_metrics_response()
 
-    if not token_ok:
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Forbidden"}, status=403)
-        if not request.user.is_staff:
-            return JsonResponse({"error": "Forbidden"}, status=403)
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponseForbidden("Authentication required for metrics access")
 
     ip = _client_ip(request)
     metrics_key = f"scraping:metrics:ip:{ip}"
@@ -1340,11 +2170,8 @@ def metrics_view(request):
             status=429,
         )
 
-    try:
-        # Keep source health gauges fresh when scraped.
-        update_source_health_metrics()
-        update_scrape_queue_lag_metrics()
-    except Exception:
-        logger.exception("Failed to refresh source health metrics")
+    return generate_latest_metrics_response()
 
-    return HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
+
+# Backward-compatible name used by urls.py exports.
+metrics_view = scraping_metrics_view

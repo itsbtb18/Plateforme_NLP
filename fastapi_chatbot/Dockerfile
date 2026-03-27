@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir --timeout 180 --retries 10 --upgrade pip && \
 
 COPY . .
 
+# Ensure the HuggingFace / sentence-transformers cache directory exists
+ENV HF_HOME=/app/.cache \
+    TRANSFORMERS_CACHE=/app/.cache/transformers \
+    SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
+RUN mkdir -p /app/.cache/transformers /app/.cache/sentence_transformers \
+    && chmod -R 777 /app/.cache
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
@@ -23,7 +30,8 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 FROM development AS production
 
 RUN addgroup --system appgroup && \
-    adduser --system --ingroup appgroup appuser
+    adduser --system --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app/.cache
 
 USER appuser
 
