@@ -76,6 +76,7 @@
     --src-legal:#d97706;
     --src-user-doc:#059669;
     --src-groq:#7c3aed;
+    --src-web:#0891b2;
 }
 
 /* ==========================================================================
@@ -415,6 +416,9 @@ html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
 .source-dot.legal{background:var(--src-legal)}
 .source-dot.user_document{background:var(--src-user-doc)}
 .source-dot.groq{background:var(--src-groq)}
+.source-dot.web_tavily{background:var(--src-web)}
+.source-dot.web_exa{background:var(--src-web)}
+.source-dot.web{background:var(--src-web)}
 .source-dot.default{background:var(--hub-text-muted)}
 .source-name{font-weight:600;color:var(--hub-text-primary);font-size:.73rem}
 .source-score{color:var(--hub-text-muted);font-weight:500;font-size:.68rem}
@@ -511,12 +515,12 @@ html[dir="rtl"] .platform-cards{padding-left:0;padding-right:36px}
     transition:all var(--transition-base);cursor:pointer;
     text-decoration:none;color:inherit;display:block;
     box-shadow:var(--shadow-card);
-    animation:cardFadeIn .35s ease both;
+    animation:cardFadeIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .p-card:nth-child(1){animation-delay:.04s}
 .p-card:nth-child(2){animation-delay:.08s}
 .p-card:nth-child(3){animation-delay:.12s}
-@keyframes cardFadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cardFadeIn{from{opacity:0;transform:translateY(30px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .p-card:hover{
     border-color:var(--hub-border-hover);
     transform:translateY(-6px);
@@ -728,6 +732,72 @@ html[dir="rtl"] .chat-textarea{text-align:right}
 input[type="file"]{display:none}
 
 /* ==========================================================================
+   SEARCH MODE DROPDOWN
+   ========================================================================== */
+.search-mode-wrap{position:relative;display:flex;align-items:center}
+.search-mode-btn{
+    width:36px;height:36px;border-radius:var(--radius-sm);
+    border:none;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+    color:var(--hub-text-muted);font-size:.92rem;
+    transition:all var(--transition-fast);position:relative;
+    padding:0;
+}
+.search-mode-btn:hover{color:var(--hub-accent);background:var(--hub-accent-glow)}
+.search-mode-btn.active-action{
+    color:var(--hub-text-inverse);
+    background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent-light));
+    box-shadow:0 2px 10px rgba(37,99,235,.3);border-radius:var(--radius-sm);
+}
+.search-mode-btn .caret{font-size:.45rem;opacity:.6;transition:transform var(--transition-fast);margin-left:-2px}
+.search-mode-wrap.open .search-mode-btn .caret{transform:rotate(180deg)}
+
+.search-mode-panel{
+    position:absolute;bottom:calc(100% + 8px);left:0;
+    min-width:240px;padding:6px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 16px 48px rgba(0,0,0,.12);
+    opacity:0;visibility:hidden;transform:translateY(8px);
+    transition:all var(--transition-fast);z-index:100;
+}
+html[dir="rtl"] .search-mode-panel{left:auto;right:0}
+.search-mode-wrap.open .search-mode-panel{opacity:1;visibility:visible;transform:translateY(0)}
+
+.search-mode-option{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;border-radius:var(--radius-md);
+    font-size:.85rem;font-weight:500;color:var(--hub-text-secondary);
+    transition:all var(--transition-fast);cursor:pointer;border:none;
+    background:transparent;width:100%;text-align:left;
+}
+html[dir="rtl"] .search-mode-option{text-align:right}
+.search-mode-option:hover{
+    background:linear-gradient(90deg,var(--hub-muted),var(--hub-surface));
+    color:var(--hub-accent);
+}
+.search-mode-option.active{
+    background:var(--hub-accent-glow);color:var(--hub-accent);font-weight:600;
+}
+.search-mode-option i{width:18px;text-align:center;font-size:.85rem}
+.search-mode-option .smo-text{display:flex;flex-direction:column;gap:1px}
+.search-mode-option .smo-label{font-weight:600}
+.search-mode-option .smo-desc{font-size:.72rem;color:var(--hub-text-muted);font-weight:400}
+.search-mode-option.active .smo-desc{color:var(--hub-accent);opacity:.7}
+
+/* Web search mode indicator */
+.mode-indicator{
+    display:none;align-items:center;gap:6px;
+    padding:4px 12px;font-size:.72rem;font-weight:600;
+    color:var(--src-web);border-radius:var(--radius-full);
+    background:rgba(8,145,178,.08);margin-bottom:6px;
+    max-width:780px;width:100%;
+    animation:msgIn .2s ease both;
+}
+.mode-indicator.active{display:flex}
+.mode-indicator i{font-size:.7rem}
+
+/* ==========================================================================
    RENAME MODAL
    ========================================================================== */
 .modal-overlay{
@@ -780,6 +850,92 @@ input[type="file"]{display:none}
     html[dir="rtl"] .answer-body{padding-right:0}
     .platform-cards{padding-left:0}
     html[dir="rtl"] .platform-cards{padding-right:0}
+}
+
+/* ==========================================================================
+   WEB RESULT CARDS (Tavily)
+   ========================================================================== */
+.web-results-grid{
+    display:grid;gap:10px;margin-top:16px;
+    grid-template-columns:1fr;
+}
+.web-result-card{
+    display:flex;flex-direction:column;gap:8px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-md);padding:14px 16px;
+    transition:all var(--transition-base);cursor:pointer;
+    text-decoration:none;color:inherit;
+    animation:cardSlideIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.web-result-card:nth-child(1){animation-delay:.05s}
+.web-result-card:nth-child(2){animation-delay:.12s}
+.web-result-card:nth-child(3){animation-delay:.19s}
+.web-result-card:nth-child(4){animation-delay:.26s}
+.web-result-card:nth-child(5){animation-delay:.33s}
+@keyframes cardSlideIn{
+    from{opacity:0;transform:translateY(40px)}
+    to{opacity:1;transform:translateY(0)}
+}
+.web-result-card:hover{
+    border-color:var(--hub-accent-light);box-shadow:var(--shadow-card-hover);
+    transform:translateY(-1px);
+}
+.web-result-card .wrc-header{
+    display:flex;align-items:center;gap:10px;
+}
+.web-result-card .wrc-favicon{
+    width:20px;height:20px;border-radius:4px;flex-shrink:0;
+    object-fit:contain;
+}
+.web-result-card .wrc-domain{
+    font-size:.72rem;color:var(--hub-text-muted);font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.web-result-card .wrc-title{
+    font-size:.88rem;font-weight:600;color:var(--hub-text-primary);
+    line-height:1.4;
+}
+.web-result-card .wrc-snippet{
+    font-size:.8rem;color:var(--hub-text-secondary);line-height:1.5;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;
+}
+.web-result-card .wrc-footer{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:2px;
+}
+.web-result-card .wrc-score{
+    font-size:.68rem;color:var(--hub-text-muted);font-weight:500;
+}
+.web-result-card .wrc-link-icon{
+    color:var(--hub-accent);font-size:.75rem;opacity:.6;
+    transition:opacity var(--transition-fast);
+}
+.web-result-card:hover .wrc-link-icon{opacity:1}
+
+/* EXA web-searching indicator */
+.exa-searching-indicator{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px;margin:8px 0;
+    background:linear-gradient(135deg,rgba(8,145,178,.08),rgba(37,99,235,.06));
+    border:1px solid rgba(8,145,178,.15);
+    border-radius:var(--radius-md);
+    font-size:.8rem;font-weight:500;color:var(--src-web);
+    animation:exaPulse 2s ease-in-out infinite;
+}
+.exa-searching-indicator i{
+    font-size:.85rem;
+    animation:exaSpin 2s linear infinite;
+}
+@keyframes exaPulse{
+    0%,100%{opacity:.7}50%{opacity:1}
+}
+@keyframes exaSpin{
+    0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}
+}
+
+@media(max-width:700px){
+    .web-results-grid{grid-template-columns:1fr}
 }
     </style>
 </head>
@@ -876,9 +1032,28 @@ input[type="file"]{display:none}
                         <button class="inp-btn" id="attach-btn" title="{% trans 'Upload file' %}">
                             <i class="fas fa-paperclip"></i>
                         </button>
-                        <button class="inp-btn" id="platform-btn" title="{% trans 'Search platform' %}">
-                            <i class="fas fa-search"></i>
-                        </button>
+                        <div class="search-mode-wrap" id="search-mode-wrap">
+                            <button class="search-mode-btn" id="search-mode-btn" title="{% trans 'Search mode' %}">
+                                <i class="fas fa-search" id="search-mode-icon"></i>
+                                <i class="fas fa-caret-up caret"></i>
+                            </button>
+                            <div class="search-mode-panel" id="search-mode-panel">
+                                <button class="search-mode-option" data-mode="web">
+                                    <i class="fas fa-globe"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% trans 'Web Search' %}</span>
+                                        <span class="smo-desc">{% trans 'Search the internet for live results' %}</span>
+                                    </span>
+                                </button>
+                                <button class="search-mode-option" data-mode="platform">
+                                    <i class="fas fa-search"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% trans 'Platform Search' %}</span>
+                                        <span class="smo-desc">{% trans 'Search within your knowledge base' %}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <textarea class="chat-textarea" id="chat-input" placeholder="{% trans 'Ask anything...' %}" rows="1"></textarea>
                     <button class="send-btn" id="send-btn" title="{% trans 'Send' %}">
@@ -919,7 +1094,10 @@ input[type="file"]{display:none}
         const filePills   = document.getElementById('file-pills');
         const fileClearAll= document.getElementById('file-clear-all');
         const attachBtn   = document.getElementById('attach-btn');
-        const platformBtn = document.getElementById('platform-btn');
+        const searchModeWrap = document.getElementById('search-mode-wrap');
+        const searchModeBtn  = document.getElementById('search-mode-btn');
+        const searchModePanel= document.getElementById('search-mode-panel');
+        const searchModeIcon = document.getElementById('search-mode-icon');
         const newChatBtn  = document.getElementById('new-chat-btn');
         const convList    = document.getElementById('conv-list');
         const sidebar     = document.getElementById('sidebar');
@@ -943,6 +1121,7 @@ input[type="file"]{display:none}
         let activeDocumentId = null;
         let renameTargetSid  = null;
         let platformActive   = false;
+        let webSearchActive  = false;
         let typingSpeedMult  = 1;
 
         /* ── Helpers ── */
@@ -951,7 +1130,20 @@ input[type="file"]{display:none}
             return el ? el.value : '';
         }
         function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
-        function scrollBottom(){requestAnimationFrame(()=>{chatBody.scrollTop=chatBody.scrollHeight})}
+        function scrollBottom(force, smooth){
+            if(!force){
+                var isNearBottom=(chatBody.scrollHeight-chatBody.scrollTop-chatBody.clientHeight)<150;
+                if(!isNearBottom) return;
+            }
+            requestAnimationFrame(()=>{
+                if (smooth) {
+                    var lastMsg=msgsArea.lastElementChild;
+                    if(lastMsg) lastMsg.scrollIntoView({behavior:'smooth',block:'end'});
+                } else {
+                    chatBody.scrollTop=chatBody.scrollHeight;
+                }
+            })
+        }
 
         /* ── Markdown renderer ── */
         function renderMd(text){
@@ -1104,10 +1296,45 @@ input[type="file"]{display:none}
         /* ============================================================
            PLATFORM SEARCH TOGGLE
            ============================================================ */
-        platformBtn.addEventListener('click',function(){
-            platformActive=!platformActive;
-            platformBtn.classList.toggle('active-action',platformActive);
-            chatInput.placeholder=platformActive?"{% trans 'Search courses, tools, resources, events...' %}":"{% trans 'Ask anything...' %}";
+        /* ============================================================
+           SEARCH MODE DROPDOWN
+           ============================================================ */
+        searchModeBtn.addEventListener('click',function(e){
+            e.stopPropagation();
+            searchModeWrap.classList.toggle('open');
+        });
+        document.addEventListener('click',function(e){
+            if(!searchModeWrap.contains(e.target)) searchModeWrap.classList.remove('open');
+        });
+        searchModePanel.addEventListener('click',function(e){
+            var opt=e.target.closest('.search-mode-option');
+            if(!opt)return;
+            var mode=opt.dataset.mode;
+            /* Deactivate all */
+            searchModePanel.querySelectorAll('.search-mode-option').forEach(function(o){o.classList.remove('active')});
+
+            if(mode==='web'){
+                if(webSearchActive){webSearchActive=false;platformActive=false}
+                else{webSearchActive=true;platformActive=false;opt.classList.add('active')}
+            } else if(mode==='platform'){
+                if(platformActive){platformActive=false;webSearchActive=false}
+                else{platformActive=true;webSearchActive=false;opt.classList.add('active')}
+            }
+
+            /* Update button appearance */
+            var anyActive=webSearchActive||platformActive;
+            searchModeBtn.classList.toggle('active-action',anyActive);
+            if(webSearchActive){
+                searchModeIcon.className='fas fa-globe';
+                chatInput.placeholder="{% trans 'Search the web...' %}";
+            } else if(platformActive){
+                searchModeIcon.className='fas fa-search';
+                chatInput.placeholder="{% trans 'Search courses, tools, resources, events...' %}";
+            } else {
+                searchModeIcon.className='fas fa-search';
+                chatInput.placeholder="{% trans 'Ask anything...' %}";
+            }
+            searchModeWrap.classList.remove('open');
         });
 
         /* ============================================================
@@ -1186,7 +1413,7 @@ input[type="file"]{display:none}
         async function handleSend(){
             if(isLoading)return;
             var question=chatInput.value.trim();
-            var mode=platformActive?'platform':'conversation';
+            var mode=webSearchActive?'web':platformActive?'platform':'conversation';
             if(selectedFiles.length>0) mode='upload';
             /* Note: we no longer auto-route to ask_document just because
                documents were uploaded.  The backend intent classifier
@@ -1266,15 +1493,16 @@ input[type="file"]{display:none}
                 var payload={mode:mode,question:question,session_id:currentSessionId||''};
                 body=JSON.stringify(payload);
 
-                if(mode==='conversation'){
-                    /* Streaming response — ChatGPT-style progressive display */
+                {
+                    /* Streaming response — ChatGPT-style progressive display
+                       Works for conversation, web, AND platform modes */
                     var resp=await fetch('{% url "chatbot:ask_stream" %}',{method:'POST',headers:headers,body:body});
-                    thinkEl.remove();
                     if(!resp.ok){
+                        thinkEl.remove();
                         var errData=await resp.json().catch(function(){return {error:resp.statusText}});
                         throw new Error(errData.error||errData.detail||'Error '+resp.status);
                     }
-                    var streamState=addAnswerStreamingStart();
+                    var streamState=null;
                     var reader=resp.body.getReader();
                     var decoder=new TextDecoder();
                     var buf='';
@@ -1291,10 +1519,32 @@ input[type="file"]{display:none}
                             if(dataMatch){
                                 try{
                                     var obj=JSON.parse(dataMatch[1]);
-                                    if(obj.error){addSystem(obj.error,'error');done=true;break}
-                                    if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                    if(obj.error){thinkEl.remove();addSystem(obj.error,'error');done=true;break}
+                                    /* EXA web-searching indicator — update the thinking bubble */
+                                    if(obj.exa_searching){
+                                        var thinkTextEl=thinkEl.querySelector('.thinking-text');
+                                        if(thinkTextEl) thinkTextEl.textContent='{% trans "Searching the web for more information" %}...';
+                                        var dotsEl=thinkEl.querySelector('.thinking-dots-bar');
+                                        if(dotsEl) dotsEl.innerHTML='<i class="fas fa-globe" style="animation:exaSpin 2s linear infinite;color:var(--src-web);font-size:1rem"></i>';
+                                        scrollBottom();
+                                        continue;
+                                    }
+                                    /* First delta: remove thinking, create answer block */
+                                    if(obj.delta && !streamState){
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                    }
+                                    if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
                                     if(obj.done){
+                                        if(!streamState){
+                                            if(thinkEl.parentNode) thinkEl.remove();
+                                            streamState=addAnswerStreamingStart();
+                                        }
                                         if(obj.session_id) currentSessionId=obj.session_id;
+                                        /* Render web result cards for Tavily mode */
+                                        if(obj.web_results && obj.web_results.length>0){
+                                            streamState.skipPlatformResults=true;
+                                        }
                                         finalizeStreamingAnswer(streamState,obj);
                                         done=true;break;
                                     }
@@ -1307,26 +1557,24 @@ input[type="file"]{display:none}
                         if(dataMatch){
                             try{
                                 var obj=JSON.parse(dataMatch[1]);
-                                if(obj.delta) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.delta && !streamState){
+                                    if(thinkEl.parentNode) thinkEl.remove();
+                                    streamState=addAnswerStreamingStart();
+                                }
+                                if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
                                 if(obj.done){
+                                    if(!streamState){
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                    }
                                     if(obj.session_id) currentSessionId=obj.session_id;
                                     finalizeStreamingAnswer(streamState,obj);
                                 }
                             }catch(parseErr){}
                         }
                     }
-                }else{
-                    var resp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:headers,body:body});
-                    thinkEl.remove();
-                    var ct=resp.headers.get('content-type');
-                    if(ct&&ct.includes('text/html')) throw new Error("{% trans 'Server error. Please try again.' %}");
-                    var data=await resp.json();
-                    if(!resp.ok) throw new Error(data.error||data.detail||'Error '+resp.status);
-
-                    if(data.session_id) currentSessionId=data.session_id;
-
-                    if(mode==='platform'&&data.results) renderPlatformResults(data);
-                    else if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,data.platform_results||null,true);
+                    /* Safety: if thinking indicator still present, remove it */
+                    if(thinkEl.parentNode) thinkEl.remove();
                 }
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('Send:',e);addSystem(e.message,'error')}
@@ -1372,11 +1620,39 @@ input[type="file"]{display:none}
 
         function addThinking(){
             var d=document.createElement('div');d.className='thinking-block';
+            var thinkText=webSearchActive?"{% trans 'Searching the live web' %}...":platformActive?"{% trans 'Searching the platform' %}...":"{% trans 'Thinking' %}...";
             d.innerHTML='<div class="thinking-inner">'
                 +'<div class="thinking-dots-bar"><span></span><span></span><span></span></div>'
-                +'<span class="thinking-text">{% trans "Thinking" %}...</span>'
+                +'<span class="thinking-text">'+thinkText+'</span>'
                 +'</div>';
             msgsArea.appendChild(d);scrollBottom();return d;
+        }
+
+        function buildWebResultCards(results){
+            if(!results||results.length===0) return '';
+            var html='<div class="web-results-grid">';
+            results.forEach(function(r){
+                var url=r.url||'';
+                var domain='';
+                try{domain=new URL(url).hostname.replace('www.','');}catch(e){domain=url;}
+                var favicon='https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32';
+                var title=r.title||domain;
+                var snippet=r.content||'';
+                var score=r.score?Math.round(r.score*100)+'%':'';
+                html+='<a href="'+esc(url)+'" target="_blank" rel="noopener" class="web-result-card">'
+                    +'<div class="wrc-header">'
+                    +'<img class="wrc-favicon" src="'+esc(favicon)+'" alt="" onerror="this.style.display=\'none\'">'
+                    +'<span class="wrc-domain">'+esc(domain)+'</span>'
+                    +'</div>'
+                    +'<div class="wrc-title">'+esc(title)+'</div>';
+                if(snippet) html+='<div class="wrc-snippet">'+esc(snippet)+'</div>';
+                html+='<div class="wrc-footer">';
+                if(score) html+='<span class="wrc-score"><i class="fas fa-chart-bar"></i> '+score+'</span>';
+                html+='<span class="wrc-link-icon"><i class="fas fa-external-link-alt"></i></span>';
+                html+='</div></a>';
+            });
+            html+='</div>';
+            return html;
         }
 
         function addAnswerStreamingStart(){
@@ -1407,10 +1683,13 @@ input[type="file"]{display:none}
                     srcDiv.innerHTML=srcs.map(function(s){return '<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';}).join('');
                     state.block.insertBefore(srcDiv,state.bodyEl);
                 }
+                if(data.web_results && data.web_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildWebResultCards(data.web_results));
+                }
                 if(!state.skipPlatformResults && data.platform_results&&data.platform_results.length>0){
                     state.block.insertAdjacentHTML('beforeend',buildCards(data.platform_results));
                 }
-                scrollBottom();
+                scrollBottom(true);
             }
             function getSegments(txt){
                 return (txt.match(/(?:\s+|\S+)/g)||[]);

@@ -968,6 +968,65 @@ def ask_bot(request):
             response_data["context_metadata"] = context_metadata
             return JsonResponse(response_data)
 
+        # ----- Mode: web (user-triggered web search via Tavily) -----
+        elif mode == "web":
+            if not question:
+                return JsonResponse(
+                    {
+                        "error": _("Please type a question to search the web."),
+                        "source": "error",
+                    },
+                    status=400,
+                )
+
+            save_message(session_id, "user", question)
+
+            resp = requests.post(
+                f"{FASTAPI_URL}/web/search",
+                json={
+                    "question": question,
+                    "session_id": session_id,
+                },
+                headers=get_api_headers(),
+                timeout=CHATBOT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            web_data = resp.json()
+
+            # Build response with web source info
+            answer = web_data.get("answer", "")
+            source_urls = web_data.get("source_urls", [])
+            results = web_data.get("results", [])
+
+            # Format answer with source citations if available
+            if answer and source_urls:
+                citation_lines = "\n\n**Sources:**\n"
+                for i, r in enumerate(results[:5], 1):
+                    title = r.get("title", r.get("url", ""))
+                    url = r.get("url", "")
+                    if url:
+                        citation_lines += f"{i}. [{title}]({url})\n"
+                answer += citation_lines
+
+            if answer:
+                save_message(
+                    session_id,
+                    "bot",
+                    answer,
+                    source="web",
+                    language="en",
+                )
+
+            result = {
+                "answer": answer,
+                "source": "web_tavily",
+                "session_id": session_id,
+                "web_results": results,
+                "source_urls": source_urls,
+                "response_time": web_data.get("response_time", 0),
+            }
+            return JsonResponse(result)
+
         else:
             return JsonResponse(
                 {"error": _("Unknown mode."), "source": "error"}, status=400
@@ -1033,7 +1092,7 @@ def ask_bot(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def ask_bot_stream(request):
-    """Stream conversation response (SSE) — conversation mode only."""
+    """Stream response (SSE) — supports conversation, web, and platform modes."""
     if not request.user.is_authenticated:
         return JsonResponse(
             {"error": _("Authentication required"), "source": "error"}, status=401
@@ -1091,9 +1150,139 @@ def ask_bot_stream(request):
 
     user_profile = _build_user_profile(request.user)
 
-    if mode != "conversation" or not question:
+    if not question:
         return JsonResponse(
-            {"error": _("Streaming is only available for conversation mode."), "source": "error"},
+            {"error": _("Please type a message."), "source": "error"},
+            status=400,
+        )
+
+    # ----- Mode: web (Tavily streaming) -----
+    if mode == "web":
+        save_message(session_id, "user", question)
+
+        def web_stream_generator():
+            try:
+                resp = requests.post(
+                    f"{FASTAPI_URL}/web/search/stream",
+                    json={
+                        "question": question,
+                        "session_id": session_id,
+                    },
+                    headers=get_api_headers(),
+                    stream=True,
+                    timeout=CHATBOT_TIMEOUT,
+                )
+                resp.raise_for_status()
+
+                full_answer = ""
+                for line in resp.iter_lines(chunk_size=1):
+                    if line:
+                        decoded = line.decode("utf-8", errors="replace")
+                        if decoded.startswith("data: "):
+                            try:
+                                obj = json.loads(decoded[6:])
+                                if obj.get("done") and obj.get("answer"):
+                                    full_answer = obj["answer"]
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        yield line + b"\n\n"
+
+                if full_answer:
+                    save_message(
+                        session_id, "bot", full_answer,
+                        source="web", language="en",
+                    )
+
+            except requests.exceptions.RequestException as e:
+                logger.error("Web stream error: %s", e)
+                err_msg = _(
+                    "Web search is temporarily unavailable. Please try again."
+                )
+                yield f"data: {json.dumps({'error': err_msg})}\n\n".encode("utf-8")
+
+        response = StreamingHttpResponse(
+            web_stream_generator(),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
+
+    # ----- Mode: platform (streaming) -----
+    if mode == "platform":
+        save_message(session_id, "user", question)
+
+        def platform_stream_generator():
+            try:
+                resp = requests.post(
+                    f"{FASTAPI_URL}/platform/search",
+                    json={
+                        "query": question,
+                        "resource_type": data.get("resource_type"),
+                        "language": data.get("language"),
+                        "limit": 10,
+                    },
+                    headers=get_api_headers(),
+                    timeout=CHATBOT_TIMEOUT,
+                )
+                resp.raise_for_status()
+                platform_data = resp.json()
+
+                results = platform_data.get("results", [])
+                total = platform_data.get("total", len(results))
+
+                # Build a summary message to stream
+                if results:
+                    result_types = {}
+                    for r in results:
+                        t = r.get("type", "item")
+                        result_types[t] = result_types.get(t, 0) + 1
+
+                    summary_parts = []
+                    for t, count in result_types.items():
+                        summary_parts.append(f"{count} {t}{'s' if count > 1 else ''}")
+                    summary = f"Found {total} results: " + ", ".join(summary_parts) + "."
+                else:
+                    summary = "No results found for your search."
+
+                # Stream the summary
+                words = summary.split(" ")
+                chunk_size = 3
+                for i in range(0, len(words), chunk_size):
+                    chunk = " ".join(words[i:i + chunk_size])
+                    if i > 0:
+                        chunk = " " + chunk
+                    yield f"data: {json.dumps({'delta': chunk})}\n\n".encode("utf-8")
+
+                if summary:
+                    save_message(
+                        session_id, "bot", summary,
+                        source="platform", language="en",
+                    )
+
+                # Send final event with full platform data
+                platform_data["session_id"] = session_id
+                yield f"data: {json.dumps({'done': True, 'answer': summary, 'source': 'platform', 'session_id': session_id, 'platform_results': results, 'total': total})}\n\n".encode("utf-8")
+
+            except requests.exceptions.RequestException as e:
+                logger.error("Platform stream error: %s", e)
+                err_msg = _(
+                    "Platform search is temporarily unavailable. Please try again."
+                )
+                yield f"data: {json.dumps({'error': err_msg})}\n\n".encode("utf-8")
+
+        response = StreamingHttpResponse(
+            platform_stream_generator(),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
+
+    # ----- Mode: conversation (original streaming) -----
+    if mode != "conversation":
+        return JsonResponse(
+            {"error": _("Streaming is only available for conversation, web, and platform modes."), "source": "error"},
             status=400,
         )
 
@@ -1119,7 +1308,7 @@ def ask_bot_stream(request):
                 timeout=CHATBOT_TIMEOUT,
             )
             resp.raise_for_status()
-            for chunk in resp.iter_content(chunk_size=1024):
+            for chunk in resp.iter_content(chunk_size=None):
                 if chunk:
                     yield chunk
         except requests.exceptions.RequestException as e:

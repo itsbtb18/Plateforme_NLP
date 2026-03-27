@@ -243,3 +243,42 @@ class ChatHistoryResponse(BaseModel):
     session_id: str
     messages: List[Dict[str, str]]
     total: int
+
+
+# ---------------------------------------------------------------------------
+# Web Search schemas
+# ---------------------------------------------------------------------------
+
+
+class WebSearchRequest(BaseModel):
+    """Request for user-triggered web search mode (Tavily)"""
+
+    question: str = Field(
+        ..., min_length=1, max_length=2000, description="Web search query"
+    )
+    session_id: str = Field(default="", description="Session identifier")
+    language: Optional[str] = Field(
+        None, description="Preferred response language (ar/en/fr)"
+    )
+
+
+class WebSearchResult(BaseModel):
+    """A single web search result"""
+
+    title: str = ""
+    url: str = ""
+    content: str = ""
+    score: float = 0.0
+
+
+class WebSearchResponse(BaseModel):
+    """Response from web search mode (Tavily)"""
+
+    answer: str = Field(default="", description="AI-generated answer from web results")
+    results: List[WebSearchResult] = Field(default=[], description="Web search results")
+    source_urls: List[str] = Field(default=[], description="Source URLs found")
+    response_time: float = Field(default=0, description="Search latency in seconds")
+    query: str = Field(default="", description="Original search query")
+    source: str = Field(default="web_tavily", description="Source identifier")
+    session_id: str = Field(default="", description="Session identifier")
+

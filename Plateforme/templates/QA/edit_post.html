@@ -293,6 +293,130 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<!-- AUTO-TRANSLATE SCRIPT: Translate English content to Arabic in real-time -->
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('[Auto-Translate] Initializing...');
+  
+  // Get form inputs
+  const titleEnInput = document.querySelector('input[name="title_en"]');
+  const contentEnInput = document.querySelector('textarea[name="content_en"]');
+  const titleArInput = document.querySelector('input[name="title_ar"]');
+  const contentArInput = document.querySelector('textarea[name="content_ar"]');
+  
+  if (!titleEnInput || !contentEnInput || !titleArInput || !contentArInput) {
+    console.error('[Auto-Translate] Form inputs not found');
+    return;
+  }
+  
+  console.log('[Auto-Translate] ✓ Form inputs ready');
+
+  // Translate using MyMemory API
+  async function translateToArabic(text) {
+    if (!text || !text.trim()) return null;
+    try {
+      const response = await fetch(
+        'https://api.mymemory.translated.net/get?q=' + 
+        encodeURIComponent(text.trim()) + 
+        '&langpair=en|ar'
+      );
+      const data = await response.json();
+      if (data?.responseStatus === 200) {
+        return data.responseData.translatedText;
+      }
+    } catch (error) {
+      console.error('[Auto-Translate] Error:', error);
+    }
+    return null;
+  }
+
+  // Update Arabic field and preview
+  async function updateArabic(englishText, arabicFieldInput, isTitle = false) {
+    const text = englishText?.trim();
+    if (!text || text.length < 2) return;
+    
+    // Don't overwrite if already filled
+    if (arabicFieldInput.value?.trim()) {
+      console.log('[Auto-Translate] Arabic field already filled');
+      return;
+    }
+
+    console.log('[Auto-Translate] Translating ' + (isTitle ? 'title' : 'content') + '...');
+    const translated = await translateToArabic(text);
+    
+    if (translated) {
+      arabicFieldInput.value = translated;
+      
+      // Update preview card
+      if (isTitle) {
+        const arTitles = document.querySelectorAll('.scraped-section-ar .scraped-preview-title');
+        arTitles.forEach(el => {
+          el.textContent = translated;
+        });
+      } else {
+        const arAbstracts = document.querySelectorAll('.scraped-section-ar .scraped-preview-abstract p');
+        arAbstracts.forEach(el => {
+          el.textContent = translated.substring(0, 300);
+        });
+      }
+      console.log('[Auto-Translate] ✓ Updated ' + (isTitle ? 'title' : 'content'));
+    }
+  }
+
+  // Debounce helper
+  function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+
+  // Real-time translation on typing
+  if (!titleEnInput.disabled) {
+    titleEnInput.addEventListener('input', debounce(async function() {
+      await updateArabic(this.value, titleArInput, true);
+    }, 700));
+  }
+
+  if (!contentEnInput.disabled) {
+    contentEnInput.addEventListener('input', debounce(async function() {
+      await updateArabic(this.value, contentArInput, false);
+    }, 1000));
+  }
+
+  // On page load: Fill English fields from preview if empty
+  console.log('[Auto-Translate] Checking preview content...');
+  
+  const enTitle = document.querySelector('.scraped-section-en .scraped-preview-title')?.textContent;
+  const enAbstract = document.querySelector('.scraped-section-en .scraped-preview-abstract p')?.textContent;
+  
+  // Fill English form fields from preview (if they're empty)
+  if (enTitle && !titleEnInput.value) {
+    titleEnInput.value = enTitle.trim();
+    console.log('[Auto-Translate] ✓ Filled English title from preview');
+  }
+  
+  if (enAbstract && !contentEnInput.value) {
+    contentEnInput.value = enAbstract.trim();
+    console.log('[Auto-Translate] ✓ Filled English content from preview');
+  }
+
+  // Auto-translate on page load
+  if (titleEnInput.value && !titleArInput.value) {
+    console.log('[Auto-Translate] Translating title...');
+    await updateArabic(titleEnInput.value, titleArInput, true);
+  }
+  
+  if (contentEnInput.value && !contentArInput.value) {
+    console.log('[Auto-Translate] Translating content...');
+    await updateArabic(contentEnInput.value, contentArInput, false);
+  }
+
+  console.log('[Auto-Translate] ✓ Ready');
+});
+</script>
 <style>
   .news-preview-card {
     border: 1px solid #e2e8f0 !important;

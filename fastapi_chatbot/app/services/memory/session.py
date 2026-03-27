@@ -226,6 +226,74 @@ class SessionService:
         db.add(msg)
         await db.commit()
 
+    # ------------------------------------------------------------------
+    # Memory intent helpers (Phase — Memory Intelligence)
+    # ------------------------------------------------------------------
+
+    async def get_last_user_query(
+        self, session_id: str, db: AsyncSession,
+    ) -> Optional[str]:
+        """Return the most recent user message content, or None."""
+        stmt = (
+            select(ChatMessage.content)
+            .where(
+                ChatMessage.session_id == session_id,
+                ChatMessage.role == "user",
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        result = await db.execute(stmt)
+        content = result.scalar_one_or_none()
+        if content:
+            logger.debug("Memory: last user query found for session %s", session_id)
+        else:
+            logger.debug("Memory: no prior user query in session %s", session_id)
+        return content
+
+    async def get_last_assistant_answer(
+        self, session_id: str, db: AsyncSession,
+    ) -> Optional[str]:
+        """Return the most recent assistant message content, or None."""
+        stmt = (
+            select(ChatMessage.content)
+            .where(
+                ChatMessage.session_id == session_id,
+                ChatMessage.role == "assistant",
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        result = await db.execute(stmt)
+        content = result.scalar_one_or_none()
+        if content:
+            logger.debug("Memory: last assistant answer found for session %s", session_id)
+        else:
+            logger.debug("Memory: no prior assistant answer in session %s", session_id)
+        return content
+
+    async def get_last_two_user_queries(
+        self, session_id: str, db: AsyncSession,
+    ) -> List[str]:
+        """Return the two most recent user messages (chronological order)."""
+        stmt = (
+            select(ChatMessage.content)
+            .where(
+                ChatMessage.session_id == session_id,
+                ChatMessage.role == "user",
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(2)
+        )
+        result = await db.execute(stmt)
+        rows = [r for r in result.scalars().all()]
+        rows.reverse()  # chronological order (oldest first)
+        logger.debug(
+            "Memory: found %d prior user queries in session %s",
+            len(rows), session_id,
+        )
+        return rows
+
     async def maybe_trigger_summarisation(self, session_id: str, db: AsyncSession):
         """Fire a Celery task to summarise history if threshold exceeded."""
         count_result = await db.execute(

@@ -24,6 +24,7 @@ from app.services.retrieval import (
 from app.services.classifier import get_query_classifier, QueryClassification
 from app.services.router import get_query_router, RoutingResult
 from app.services.memory import get_session_service
+from app.services.memory.memory_handler import handle_memory_intent
 from app.services.documents.embeddings import get_embedding_service
 from app.services.qdrant import get_qdrant_service, COLLECTION_DOCUMENT_CHUNKS
 from app.services.retrieval.filters import build_user_doc_filter
@@ -35,6 +36,7 @@ from app.services.query_rewriter import rewrite_query
 from app.services.faithfulness import verify_faithfulness, get_faithfulness_fallback
 from app.services.classifier.patterns import extract_resource_type
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +254,39 @@ class ChatLogic:
             language,
             classification.confidence,
         )
+
+        # ── Memory intents: early exit (no retrieval needed) ─────────
+        _MEMORY_INTENTS = {
+            "memory_translate_last_user_query",
+            "memory_repeat_last_user_query",
+            "memory_summarize_last_answer",
+            "memory_compare_last_two_queries",
+        }
+        if classification.intent in _MEMORY_INTENTS:
+            logger.info(
+                "Memory intent detected: %s — skipping retrieval",
+                classification.intent,
+            )
+            answer = await handle_memory_intent(
+                intent=classification.intent,
+                session_id=request.session_id,
+                question=request.question,
+                language=language,
+                db=db,
+            )
+            await self.sessions.save_message(
+                request.session_id, "user", request.question, None, language, db,
+            )
+            await self.sessions.save_message(
+                request.session_id, "assistant", answer, "memory", language, db,
+            )
+            await self.sessions.auto_title(request.session_id, request.question, db)
+            return ChatResponse(
+                answer=answer,
+                source="memory",
+                session_id=request.session_id,
+                lang=language,
+            )
 
         # Phase 10: LLM fallback for ambiguous classifications
         if classification.confidence <= 0.60 and not _doc_session_handled:
@@ -620,16 +655,83 @@ class ChatLogic:
                             request.question
                         )
 
-        routing: RoutingResult = await self.router.route(
-            question=request.question,
-            classification=classification,
-            db=db,
-            session_id=request.session_id,
-            user_id=request.user_id,
-            user_country=request.user_country,
-            user_city=request.user_city,
-            user_email=getattr(request, "user_email", None),
-        )
+        # ── Memory intents: early exit in stream (no retrieval needed) ──
+        _MEMORY_INTENTS = {
+            "memory_translate_last_user_query",
+            "memory_repeat_last_user_query",
+            "memory_summarize_last_answer",
+            "memory_compare_last_two_queries",
+        }
+        if classification.intent in _MEMORY_INTENTS:
+            logger.info(
+                "Memory intent detected (stream): %s — skipping retrieval",
+                classification.intent,
+            )
+            answer = await handle_memory_intent(
+                intent=classification.intent,
+                session_id=request.session_id,
+                question=request.question,
+                language=language,
+                db=db,
+            )
+            yield {"delta": answer}
+            try:
+                await self.sessions.save_message(
+                    request.session_id, "user", request.question, None, language, db,
+                )
+                await self.sessions.save_message(
+                    request.session_id, "assistant", answer, "memory", language, db,
+                )
+                await self.sessions.auto_title(request.session_id, request.question, db)
+            except Exception as save_err:
+                logger.warning("Failed to save memory messages: %s", save_err)
+            yield {
+                "done": True,
+                "answer": answer,
+                "source": "memory",
+                "session_id": request.session_id,
+                "lang": language,
+                "retrieved_docs": [],
+                "platform_results": None,
+            }
+            return
+
+        # Instead of blocking the generator on route(), we run it as a task and stream from a queue.
+        # This allows us to yield {"exa_searching": True} the exact millisecond Exa fallback triggers!
+        q = asyncio.Queue()
+
+        async def _on_exa():
+            await q.put({"exa_searching": True})
+
+        async def _run_route():
+            try:
+                r = await self.router.route(
+                    question=request.question,
+                    classification=classification,
+                    db=db,
+                    session_id=request.session_id,
+                    user_id=request.user_id,
+                    user_country=request.user_country,
+                    user_city=request.user_city,
+                    user_email=getattr(request, "user_email", None),
+                    on_exa_fallback=_on_exa,
+                )
+                await q.put({"routing": r})
+            except Exception as e:
+                await q.put({"error": e})
+
+        task = asyncio.create_task(_run_route())
+        
+        routing = None
+        while True:
+            item = await q.get()
+            if "exa_searching" in item:
+                yield item
+            elif "routing" in item:
+                routing = item["routing"]
+                break
+            elif "error" in item:
+                raise item["error"]
 
         context = self._build_context(routing.retrieved_docs)
         _profile_intents = {"user_query", "metadata_query"}
@@ -698,21 +800,24 @@ class ChatLogic:
                 answer += chunk
                 yield {"delta": chunk}
 
-        await self.sessions.save_message(
-            request.session_id, "user", request.question, None, language, db
-        )
-        await self.sessions.save_message(
-            request.session_id,
-            "assistant",
-            answer,
-            source,
-            language,
-            db,
-            retrieved_count=len(routing.retrieved_docs),
-        )
-        await self.sessions.auto_title(request.session_id, request.question, db)
-        await self.sessions.maybe_trigger_summarisation(request.session_id, db)
-        await self.sessions.update_language(request.session_id, language, db)
+        try:
+            await self.sessions.save_message(
+                request.session_id, "user", request.question, None, language, db
+            )
+            await self.sessions.save_message(
+                request.session_id,
+                "assistant",
+                answer,
+                source,
+                language,
+                db,
+                retrieved_count=len(routing.retrieved_docs),
+            )
+            await self.sessions.auto_title(request.session_id, request.question, db)
+            await self.sessions.maybe_trigger_summarisation(request.session_id, db)
+            await self.sessions.update_language(request.session_id, language, db)
+        except Exception as save_err:
+            logger.warning("Failed to save messages for session %s: %s", request.session_id, save_err)
 
         show_cards = (
             [c for c in routing.platform_results if c.get("type") != "no_data"]
