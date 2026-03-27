@@ -20,4 +20,6 @@ urlpatterns = [
     path("sessions/rename/", views.rename_session, name="rename_session"),
     path("sessions/delete/", views.delete_session, name="delete_session"),
     path("sessions/<str:session_id>/history/", views.session_history, name="session_history"),
+    path("messages/<uuid:message_id>/pin/", views.toggle_pin_message, name="toggle_pin"),
+    path("sessions/<str:session_id>/pin/", views.toggle_pin_session, name="toggle_pin_session"),
 ]
