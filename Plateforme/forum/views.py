@@ -170,6 +170,17 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         full_qs = self.get_queryset()
+        stats_qs = Topic.objects.all()
+
+        # Stable hero stats: visibility rules only (independent from search/sort filters).
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            stats_qs = stats_qs.all()
+        else:
+            stats_qs = stats_qs.filter(
+                Q(approval_status="approved")
+                | Q(approval_status="pending", creator=self.request.user)
+            )
+        stats_qs = exclude_hidden_users(stats_qs, self.request.user, ("creator",))
 
         context["page"] = "community"
         context["search_query"] = self.request.GET.get("q", "").strip()
@@ -187,8 +198,8 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
             "my_topics": context["my_topics"],
         }
 
-        context["total_topics"] = full_qs.count()
-        context["total_chatrooms"] = ChatRoom.objects.filter(topic__in=full_qs).count()
+        context["total_topics"] = stats_qs.count()
+        context["total_chatrooms"] = ChatRoom.objects.filter(topic__in=stats_qs).count()
 
         # Explicit pagination context for templates/AJAX controls.
         page_obj = context.get("page_obj")
