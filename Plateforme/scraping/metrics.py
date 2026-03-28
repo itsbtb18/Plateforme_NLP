@@ -6,6 +6,9 @@ from django.db.models import Max
 from django.utils import timezone
 from prometheus_client import Counter, Gauge, Histogram
 
+from .constants import DEDUP_RULE_UNKNOWN
+from .scraping_settings import scraping_settings as SS
+
 scrape_runs_total = Counter(
     "scrape_runs_total",
     "Total number of scraping runs by category and status.",
@@ -16,7 +19,7 @@ scrape_duration_seconds = Histogram(
     "scrape_duration_seconds",
     "Scraping run duration in seconds by category.",
     ["category"],
-    buckets=(0.25, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200),
+    buckets=SS.METRICS_SCRAPE_DURATION_BUCKETS,
 )
 
 scrape_items_total = Counter(
@@ -25,11 +28,47 @@ scrape_items_total = Counter(
     ["category", "outcome"],
 )
 
+scraping_render_method_total = Counter(
+    "scraping_render_method_total",
+    "Total page fetches by render method.",
+    ["method"],
+)
+
+scraping_playwright_fallback_total = Counter(
+    "scraping_playwright_fallback_total",
+    "Number of times Playwright was used as fallback",
+    ["domain", "reason"],
+)
+
+scraping_network_failures_total = Counter(
+    "scraping_network_failures_total",
+    "Network failures by type and domain",
+    ["error_type", "domain"],
+)
+
+scraping_circuit_breaker_trips_total = Counter(
+    "scraping_circuit_breaker_trips_total",
+    "Circuit breaker activations by domain",
+    ["domain"],
+)
+
+scraping_sites_skipped_total = Counter(
+    "scraping_sites_skipped_total",
+    "Total sites skipped due to unreachable/network errors.",
+    ["reason"],
+)
+
+scraping_wayback_fallback_total = Counter(
+    "scraping_wayback_fallback_total",
+    "Items recovered via Wayback Machine",
+    ["domain", "result"],
+)
+
 scrape_source_duration_seconds = Histogram(
     "scrape_source_duration_seconds",
     "Source-level scraping duration in seconds.",
     ["category", "source_name", "source_tier"],
-    buckets=(0.25, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 1200),
+    buckets=SS.METRICS_SOURCE_DURATION_BUCKETS,
 )
 
 scrape_source_items_total = Counter(
@@ -60,7 +99,7 @@ enrichment_duration_seconds = Histogram(
     "enrichment_duration_seconds",
     "Enrichment step duration in seconds.",
     ["category", "enrichment_step"],
-    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30),
+    buckets=SS.METRICS_ENRICHMENT_DURATION_BUCKETS,
 )
 
 enrichment_failures_total = Counter(
@@ -106,7 +145,7 @@ def _normalize_dedup_rule(skip_reason: str) -> str:
         "dedup_arxiv": "url_exact",
         "dedup_ror": "url_exact",
     }
-    return mapping.get((skip_reason or "").strip(), "similarity")
+    return mapping.get((skip_reason or "").strip(), DEDUP_RULE_UNKNOWN)
 
 
 def record_skip_reason(category: str, skip_reason: str, source_name: str = "unknown"):
@@ -159,7 +198,7 @@ def update_source_health_metrics(category=None):
 
 
 def update_scrape_queue_lag_metrics(
-    min_interval_seconds: int = 60, force: bool = False
+    min_interval_seconds: int = SS.METRICS_LAG_INTERVAL, force: bool = False
 ):
     """Update queue lag gauge, throttled to once per minute by default."""
     global _last_queue_lag_update_monotonic

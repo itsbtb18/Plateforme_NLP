@@ -11,16 +11,18 @@ import os
 import threading
 import uuid
 from collections import defaultdict
+from ipaddress import ip_address, ip_network
 
 from celery.result import AsyncResult
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db.models import Count, Max, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
 from institutions.models import Institution
@@ -30,10 +32,13 @@ from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
+from scraping.validators import ContentValidator, NetworkValidator
 
+from .constants import SKIP_DEDUP_SIMILARITY, SOURCE_TIER_TOKEN_MAP
 from .metrics import update_scrape_queue_lag_metrics, update_source_health_metrics
 from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
+from .scraping_settings import scraping_settings as SS
 from .tasks import run_scraper_task
 
 
@@ -81,6 +86,34 @@ def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
 
 
 logger = logging.getLogger(__name__)
+
+RATE_LIMIT_MAP = {
+    "polling": SS.VIEW_RATE_DEFAULT,
+    "action": SS.VIEW_RATE_TRIGGER,
+    "analytics": SS.VIEW_RATE_STANDARD,
+    "metrics": SS.VIEW_RATE_METRICS,
+}
+RATE_LIMIT_WINDOW_SECONDS = SS.VIEW_RATE_WINDOW_SECONDS
+
+
+def _ensure_default_scraping_sources() -> None:
+    """Seed per-category default sources when a category has no active sources."""
+    for category, meta in CATEGORY_META.items():
+        if ScrapingSource.objects.filter(category=category, is_active=True).exists():
+            continue
+
+        defaults = list(meta.get("sources") or [])
+        for source_name in defaults:
+            ScrapingSource.objects.create(
+                name=source_name,
+                category=category,
+                base_url="",
+                description="Default source",
+                is_active=True,
+                scrape_config={"is_default": True},
+                use_rss=False,
+                use_llm_extraction=True,
+            )
 
 
 def _client_ip(request):
@@ -203,27 +236,10 @@ def _infer_source_tier(
         return config_tier
 
     blob = f"{source_name or ''} {source_url or ''}".lower()
-    if any(token in blob for token in (".dz", "alger", "algeria", "dgrsdt", "mesrs")):
-        return 1
-    if any(
-        token in blob
-        for token in (
-            "arab",
-            "mena",
-            "morocco",
-            "tunisia",
-            "egypt",
-            "saudi",
-            "uae",
-            "qatar",
-            "jordan",
-            "oman",
-            "lebanon",
-        )
-    ):
-        return 2
-    if any(token in blob for token in ("africa", "african", "indaba", "masakhane")):
-        return 3
+    for inferred_tier in (1, 2, 3):
+        tokens = SOURCE_TIER_TOKEN_MAP.get(inferred_tier, ())
+        if any(token in blob for token in tokens):
+            return inferred_tier
     return 4
 
 
@@ -256,10 +272,10 @@ def _match_confidence_for_reason(meta: ScrapedItemMeta) -> float:
         "dedup_arxiv": 100.0,
         "dedup_ror": 100.0,
         "dedup_name": 100.0,
-        "dedup_similarity": 85.0,
+        "dedup_similarity": float(SS.FALLBACK_DEDUP_CONFIDENCE),
         "dedup_embedding": 70.0,
     }
-    return fallback_map.get(meta.skip_reason, 75.0)
+    return fallback_map.get(meta.skip_reason, float(SS.FALLBACK_DEDUP_CONFIDENCE))
 
 
 def _build_skip_reason_payload(category: str | None = None):
@@ -274,7 +290,7 @@ def _build_skip_reason_payload(category: str | None = None):
     for meta in base_qs.only("category", "skip_reason", "item_id"):
         reason = (meta.skip_reason or "").strip()
         if reason not in skip_choices:
-            reason = "dedup_similarity"
+            reason = SKIP_DEDUP_SIMILARITY
         cat = meta.category
         source_name = _resolve_source_name_from_meta(meta)
         per_category[cat][reason] += 1
@@ -359,7 +375,7 @@ def _build_source_health_rows(category: str | None = None):
     return rows
 
 
-def _build_recent_runs_rows(category: str, limit: int = 10):
+def _build_recent_runs_rows(category: str, limit: int = SS.VIEW_RECENT_RUNS_LIMIT):
     runs = ScrapingRun.objects.filter(category=category).order_by("-started_at")[:limit]
     output = []
     for run in runs:
@@ -440,6 +456,11 @@ def dashboard(request):
         HttpResponse: Rendered dashboard template response.
     """
     _log_scraping_action(request)
+    try:
+        _ensure_default_scraping_sources()
+    except Exception:
+        logger.exception("Failed to seed default scraping sources")
+
     categories = []
     for key, meta in get_all_categories():
         last_run = (
@@ -548,7 +569,10 @@ def dashboard(request):
     skip_analytics = _build_skip_reason_payload()
     source_health_rows = _build_source_health_rows()
     recent_runs_rows = {
-        category_key: _build_recent_runs_rows(category_key, limit=10)
+        category_key: _build_recent_runs_rows(
+            category_key,
+            limit=SS.VIEW_RECENT_RUNS_LIMIT,
+        )
         for category_key in CATEGORY_META
     }
 
@@ -594,16 +618,6 @@ def run_scraper(request, category):
     staff_error = _require_staff(request)
     if staff_error:
         return staff_error
-
-    rate_key = f"scraping:run-trigger:user:{request.user.pk}"
-    if not _enforce_rate_limit(rate_key, limit=5, window_seconds=3600):
-        return JsonResponse(
-            {
-                "status": "error",
-                "message": "Rate limit exceeded: max 5 scraper triggers per hour.",
-            },
-            status=429,
-        )
 
     if category not in CATEGORY_META:
         return JsonResponse(
@@ -689,7 +703,11 @@ def run_scraper(request, category):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=60, period_seconds=60, scope="polling")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["polling"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="polling",
+)
 def run_scraper_status(request, run_id):
     """Poll the current status and results of a scraping run.
 
@@ -750,7 +768,11 @@ task_status = run_scraper_status
 @login_required
 @require_POST
 @csrf_protect
-@rate_limit(max_calls=5, period_seconds=60, scope="action")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["action"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="action",
+)
 def run_custom_source(request, source_id):
     """AJAX endpoint: run the custom domain scraper for a single source."""
     _log_scraping_action(request)
@@ -813,7 +835,11 @@ def run_custom_source(request, source_id):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def trends(request):
     """Return trend analytics over a requested month window.
 
@@ -841,7 +867,11 @@ def trends(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def analytics(request):
     """Return aggregated scraping analytics for dashboard charts.
 
@@ -996,7 +1026,11 @@ def analytics(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def skip_reason_analytics(request):
     """Chart-friendly skip reason breakdown by category and by source."""
     _log_scraping_action(request)
@@ -1008,7 +1042,11 @@ def skip_reason_analytics(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def source_health_summary(request):
     """Configured source health cards with tier, breaker state, and run throughput."""
     _log_scraping_action(request)
@@ -1023,7 +1061,11 @@ def source_health_summary(request):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def recent_runs(request):
     """Last 10 runs per category with status/duration and rerun URL."""
     _log_scraping_action(request)
@@ -1035,19 +1077,31 @@ def recent_runs(request):
         return JsonResponse(
             {
                 "category": category,
-                "runs": _build_recent_runs_rows(category, limit=10),
+                "runs": _build_recent_runs_rows(
+                    category,
+                    limit=SS.VIEW_RECENT_RUNS_LIMIT,
+                ),
             }
         )
 
     return JsonResponse(
-        {"runs": {key: _build_recent_runs_rows(key, limit=10) for key in CATEGORY_META}}
+        {
+            "runs": {
+                key: _build_recent_runs_rows(key, limit=SS.VIEW_RECENT_RUNS_LIMIT)
+                for key in CATEGORY_META
+            }
+        }
     )
 
 
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["analytics"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="analytics",
+)
 def duplicates_preview(request):
     """List duplicate skips with matched admin item links and confidence."""
     _log_scraping_action(request)
@@ -1157,7 +1211,11 @@ def _run_source_test_job(job_id: str, source_id: str):
             "status": "running",
             "error": "",
         }
-        cache.set(f"scraping:source-test:{job_id}", stats, timeout=1800)
+        cache.set(
+            f"scraping:source-test:{job_id}",
+            stats,
+            timeout=SS.SOURCE_TEST_CACHE_TTL,
+        )
 
         original_save_item = scraper._save_item
 
@@ -1190,7 +1248,11 @@ def _run_source_test_job(job_id: str, source_id: str):
                         "reason": reason,
                     }
                 )
-            cache.set(f"scraping:source-test:{job_id}", stats, timeout=1800)
+            cache.set(
+                f"scraping:source-test:{job_id}",
+                stats,
+                timeout=SS.SOURCE_TEST_CACHE_TTL,
+            )
             return item
 
         scraper._save_item = _dry_run_save  # type: ignore[assignment]
@@ -1198,7 +1260,11 @@ def _run_source_test_job(job_id: str, source_id: str):
         scraper._save_item = original_save_item  # type: ignore[assignment]
 
         stats["status"] = "completed"
-        cache.set(f"scraping:source-test:{job_id}", stats, timeout=1800)
+        cache.set(
+            f"scraping:source-test:{job_id}",
+            stats,
+            timeout=SS.SOURCE_TEST_CACHE_TTL,
+        )
     except Exception as exc:
         cache.set(
             f"scraping:source-test:{job_id}",
@@ -1210,7 +1276,7 @@ def _run_source_test_job(job_id: str, source_id: str):
                 "would_be_duplicate": 0,
                 "preview": [],
             },
-            timeout=1800,
+            timeout=SS.SOURCE_TEST_CACHE_TTL,
         )
 
 
@@ -1237,7 +1303,7 @@ def test_source(request, source_id):
             "would_be_duplicate": 0,
             "preview": [],
         },
-        timeout=1800,
+        timeout=SS.SOURCE_TEST_CACHE_TTL,
     )
 
     thread = threading.Thread(
@@ -1259,7 +1325,11 @@ def test_source(request, source_id):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
-@rate_limit(max_calls=60, period_seconds=60, scope="polling")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["polling"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="polling",
+)
 def test_source_status(request, job_id):
     """Poll one-source dry-run test status and preview counters."""
     _log_scraping_action(request)
@@ -1267,6 +1337,107 @@ def test_source_status(request, job_id):
     if payload is None:
         return JsonResponse({"error": "Job not found"}, status=404)
     return JsonResponse(payload)
+
+
+def _build_human_message(network: dict, content: dict | None, category: str) -> str:
+    http_response = network.get("http") or {}
+    response_ms = http_response.get("response_ms")
+    latency_text = f" ({response_ms}ms)" if isinstance(response_ms, int) else ""
+
+    if network.get("overall") == "RED":
+        reason = network.get("blocking_reason") or "UNKNOWN"
+        return f"✗ Site inaccessible : {reason}"
+
+    if not content:
+        return f"⚠ Site accessible{latency_text} — Analyse de contenu indisponible"
+
+    score = int(content.get("keyword_score") or 0)
+    verdict = content.get("verdict")
+
+    if verdict == "RELEVANT":
+        return (
+            f"✓ Site accessible{latency_text} — Contenu {category} detecte "
+            f"(score: {score}%) — Pret a scraper"
+        )
+
+    if verdict == "UNCERTAIN":
+        return (
+            f"⚠ Site accessible{latency_text} mais contenu {category} incertain "
+            f"(score: {score}%). Verification manuelle recommandee."
+        )
+
+    return (
+        f"✗ Site accessible mais aucun contenu '{category}' trouve. "
+        "Verifiez l'URL ou choisissez une autre categorie."
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def validate_source(request):
+    """Validate source URL in two stages: network, then content relevance."""
+    _log_scraping_action(request)
+    url = (request.POST.get("url") or "").strip()
+    category = (request.POST.get("category") or "").strip().lower()
+
+    if not url:
+        return JsonResponse({"error": "URL is required"}, status=400)
+    if category not in {"events", "news", "courses", "tools", "institutions"}:
+        return JsonResponse({"error": "Invalid category"}, status=400)
+
+    try:
+        network = NetworkValidator(url).run()
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "valid": False,
+                "stage_failed": "network",
+                "network": None,
+                "content": None,
+                "message": f"Network validation error: {exc}",
+            },
+            status=400,
+        )
+
+    if network.get("overall") == "RED":
+        return JsonResponse(
+            {
+                "valid": False,
+                "stage_failed": "network",
+                "network": network,
+                "content": None,
+                "message": (
+                    f"Site inaccessible : {network.get('blocking_reason') or 'UNKNOWN'}"
+                ),
+            }
+        )
+
+    try:
+        content = ContentValidator(url, category).run()
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "valid": False,
+                "stage_failed": "content",
+                "network": network,
+                "content": None,
+                "message": f"Content validation error: {exc}",
+            },
+            status=400,
+        )
+
+    valid = content.get("verdict") == "RELEVANT"
+    return JsonResponse(
+        {
+            "valid": valid,
+            "stage_failed": None if valid else "content",
+            "network": network,
+            "content": content,
+            "message": _build_human_message(network, content, category),
+        }
+    )
 
 
 @login_required
@@ -1285,7 +1456,7 @@ def add_custom_source(request):
     try:
         data = json.loads(request.body)
         name = data.get("name", "").strip()
-        url = data.get("url", "").strip()
+        url = (data.get("url") or data.get("base_url") or "").strip()
         category = (data.get("category") or "").strip().lower()
         use_rss = data.get("use_rss", True)
         use_llm = data.get("use_llm_extraction", True)
@@ -1341,7 +1512,11 @@ def delete_custom_source(request, source_id):
 
 
 @login_required
-@rate_limit(max_calls=5, period_seconds=60, scope="action")
+@rate_limit(
+    max_calls=RATE_LIMIT_MAP["action"],
+    period_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    scope="action",
+)
 def list_custom_sources(request):
     """AJAX endpoint: list all active custom scraping sources (staff only)."""
     _log_scraping_action(request)
@@ -1355,6 +1530,8 @@ def list_custom_sources(request):
             "name": s.name,
             "url": s.base_url,
             "category": s.category,
+            "category_display": s.get_category_display(),
+            "is_default": bool((s.scrape_config or {}).get("is_default")),
             "last_scraped": s.last_scraped.isoformat() if s.last_scraped else None,
             "last_run_status": s.last_run_status,
             "last_run_items_created": s.last_run_items_created,
@@ -1364,40 +1541,40 @@ def list_custom_sources(request):
     return JsonResponse({"sources": data})
 
 
-@require_GET
-def metrics_view(request):
-    """Expose Prometheus metrics with token/staff protection and rate limits.
+def _get_prometheus_allowed_networks() -> list:
+    raw = getattr(settings, "PROMETHEUS_ALLOWED_NETWORKS", [])
+    if isinstance(raw, str):
+        entries = [part.strip() for part in raw.split(",") if part.strip()]
+    else:
+        entries = [str(part).strip() for part in raw if str(part).strip()]
 
-    Args:
-        request: Django HttpRequest object.
+    networks = []
+    for cidr in entries:
+        try:
+            networks.append(ip_network(cidr, strict=False))
+        except ValueError:
+            logger.warning("Invalid PROMETHEUS_ALLOWED_NETWORKS CIDR: %s", cidr)
+    return networks
 
-    Returns:
-        HttpResponse | JsonResponse: Prometheus text response or error payload.
-    """
-    _log_scraping_action(request)
 
-    metrics_token = os.environ.get("METRICS_TOKEN", "").strip()
-    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-    token_ok = (
-        bool(metrics_token)
-        and auth_header.startswith("Bearer ")
-        and auth_header[7:].strip() == metrics_token
-    )
-
-    if not token_ok:
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Forbidden"}, status=403)
-        if not request.user.is_staff:
-            return JsonResponse({"error": "Forbidden"}, status=403)
-
-    ip = _client_ip(request)
-    metrics_key = f"scraping:metrics:ip:{ip}"
-    if not _enforce_rate_limit(metrics_key, limit=10, window_seconds=60):
-        return JsonResponse(
-            {"error": "Rate limit exceeded: max 10 requests/minute."},
-            status=429,
+def is_prometheus_request(request) -> bool:
+    try:
+        client_ip = ip_address(
+            request.META.get(
+                "HTTP_X_FORWARDED_FOR",
+                request.META.get("REMOTE_ADDR", "0.0.0.0"),
+            )
+            .split(",")[0]
+            .strip()
         )
+        return any(
+            client_ip in network for network in _get_prometheus_allowed_networks()
+        )
+    except ValueError:
+        return False
 
+
+def generate_latest_metrics_response():
     try:
         # Keep source health gauges fresh when scraped.
         update_source_health_metrics()
@@ -1406,3 +1583,44 @@ def metrics_view(request):
         logger.exception("Failed to refresh source health metrics")
 
     return HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
+
+
+@csrf_exempt
+@require_GET
+def scraping_metrics_view(request):
+    """Prometheus metrics endpoint.
+
+    - Allows unauthenticated access from Docker/internal allowlisted networks.
+    - Requires authenticated staff access for all other source IPs.
+    """
+    _log_scraping_action(request)
+
+    if is_prometheus_request(request):
+        return generate_latest_metrics_response()
+
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponseForbidden("Authentication required for metrics access")
+
+    ip = _client_ip(request)
+    metrics_key = f"scraping:metrics:ip:{ip}"
+    if not _enforce_rate_limit(
+        metrics_key,
+        limit=RATE_LIMIT_MAP["metrics"],
+        window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Rate limit exceeded: "
+                    f"max {RATE_LIMIT_MAP['metrics']} requests/"
+                    f"{RATE_LIMIT_WINDOW_SECONDS}s."
+                )
+            },
+            status=429,
+        )
+
+    return generate_latest_metrics_response()
+
+
+# Backward-compatible name.
+metrics_view = scraping_metrics_view

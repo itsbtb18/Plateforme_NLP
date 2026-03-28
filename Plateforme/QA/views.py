@@ -380,33 +380,58 @@ def add_comment(request, post_id):
 @require_POST
 @login_and_verified_required
 def like_post(request, post_id):
-    print(f"Like post appelé pour post_id: {post_id}")
-    post = get_object_or_404(Post, id=post_id)
-    print(f"Post trouvé: {post}")
-
-    if request.user in post.likes.all():
-        print(f"User {request.user} remove your like")
-        post.likes.remove(request.user)
-        liked = False
-    else:
-        print(f"User {request.user} add a like")
-        post.likes.add(request.user)
-        liked = True
-
-        # Notification à l'auteur du post si ce n'est pas le même utilisateur
-        if post.author != request.user:
-            NotificationService.create_notification(
-                recipient=post.author,
-                notification_type="like",
-                title=_("New like"),
-                message=_("%(name)s liked your post."),
-                related_object=post,
-                message_kwargs={"name": LocalizedValue.from_user(request.user)},
-            )
-
-    response_data = {"liked": liked, "total_likes": post.total_likes}
-    print(f"Response sent: {response_data}")
-    return JsonResponse(response_data)
+    """
+    Like or unlike a post.
+    POST request only.
+    Returns JSON with liked status and total likes count.
+    """
+    print(f"[LIKE] Called with post_id: {post_id}, User: {request.user}")
+    
+    # Verify it's a POST request
+    if request.method != "POST":
+        print(f"[LIKE] Invalid method: {request.method}")
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+    
+    try:
+        # Fetch the post by UUID
+        post = get_object_or_404(Post, id=post_id)
+        print(f"[LIKE] Post found: {post.title}")
+        
+        # Check if user already likes the post
+        if request.user in post.likes.all():
+            print(f"[LIKE] User {request.user} is removing their like")
+            post.likes.remove(request.user)
+            liked = False
+        else:
+            print(f"[LIKE] User {request.user} is adding a like")
+            post.likes.add(request.user)
+            liked = True
+            
+            # Send notification to post author
+            if post.author != request.user:
+                NotificationService.create_notification(
+                    recipient=post.author,
+                    notification_type="like",
+                    title=_("New like"),
+                    message=_("%(name)s liked your post."),
+                    related_object=post,
+                    message_kwargs={"name": LocalizedValue.from_user(request.user)},
+                )
+        
+        # Build response
+        response_data = {
+            "liked": liked,
+            "total_likes": post.likes.count()
+        }
+        print(f"[LIKE] Sending response: {response_data}")
+        return JsonResponse(response_data)
+        
+    except Post.DoesNotExist:
+        print(f"[LIKE] Post NOT found with id: {post_id}")
+        return JsonResponse({"error": "Post not found"}, status=404)
+    except Exception as e:
+        print(f"[LIKE] ERROR: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required

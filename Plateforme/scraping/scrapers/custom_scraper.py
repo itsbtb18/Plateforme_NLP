@@ -6,10 +6,84 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from django.utils import timezone
 
+from scraping.constants import (
+    CUSTOM_SCRAPER_CLEANUP_SELECTORS,
+    CUSTOM_SCRAPER_CLEANUP_TAGS,
+    CUSTOM_SELECTOR_DESC_FALLBACK,
+    CUSTOM_SELECTOR_LINK_FALLBACK,
+    CUSTOM_SELECTOR_TITLE_FALLBACK,
+)
 from scraping.file_downloader import attach_file_to_model, try_download_image
+from scraping.fixture_loader import load_custom_scraper_taxonomy
 from scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
+
+
+_DEFAULT_CATEGORY_KEYWORDS = {
+    "events": ["conference", "workshop", "seminar", "cfp"],
+    "tools": ["model", "dataset", "huggingface", "github", "tool", "library"],
+    "news": ["arxiv", "paper", "publication", "research", "news"],
+    "courses": [
+        "course",
+        "mooc",
+        "coursera",
+        "udemy",
+        "youtube",
+        "lecture",
+        "syllabus",
+    ],
+    "institutions": [
+        "university",
+        "lab",
+        "centre",
+        "research group",
+        "institute",
+    ],
+}
+
+_DEFAULT_TOOL_TYPE_KEYWORDS = {
+    "machine_translation": ["translation", "translate"],
+    "sentiment_analysis": ["sentiment", "opinion mining"],
+    "ner": ["named entity", "ner"],
+    "pos_tagging": ["part-of-speech", "pos tagging", "pos"],
+    "stemming": ["stem", "stemming", "lemmat"],
+    "tokenization": ["token", "tokenization", "segment"],
+}
+
+_DEFAULT_COURSE_LEVEL_MAP = {
+    "beginner": "bachelor",
+    "introductory": "bachelor",
+    "intermediate": "master",
+    "advanced": "doctorate",
+}
+
+_DEFAULT_COURSE_PLATFORM_MAP = {
+    "coursera": "coursera",
+    "youtube": "youtube",
+    "mit": "mit",
+    "edx": "edx",
+    "university": "university",
+}
+
+_DEFAULT_INSTITUTION_TYPE_MAP = {
+    "university": "University",
+    "research lab": "Research Center",
+    "lab": "Research Center",
+    "center": "Research Center",
+    "centre": "Research Center",
+    "school": "School",
+    "other": "Other",
+}
+
+_CUSTOM_TAXONOMY = load_custom_scraper_taxonomy()
+
+
+def _taxonomy_map(key: str, fallback: dict):
+    candidate = _CUSTOM_TAXONOMY.get(key)
+    if isinstance(candidate, dict) and candidate:
+        return candidate
+    return fallback
 
 
 class CustomDomainScraper(BaseScraper):
@@ -19,61 +93,21 @@ class CustomDomainScraper(BaseScraper):
     Falls back to RSS if available.
     """
 
-    CATEGORY_KEYWORDS = {
-        "events": ["conference", "workshop", "seminar", "cfp"],
-        "tools": ["model", "dataset", "huggingface", "github", "tool", "library"],
-        "news": ["arxiv", "paper", "publication", "research", "news"],
-        "courses": [
-            "course",
-            "mooc",
-            "coursera",
-            "udemy",
-            "youtube",
-            "lecture",
-            "syllabus",
-        ],
-        "institutions": [
-            "university",
-            "lab",
-            "centre",
-            "research group",
-            "institute",
-        ],
-    }
+    CATEGORY_KEYWORDS = _taxonomy_map("category_keywords", _DEFAULT_CATEGORY_KEYWORDS)
 
-    TOOL_TYPE_KEYWORDS = {
-        "machine_translation": ["translation", "translate"],
-        "sentiment_analysis": ["sentiment", "opinion mining"],
-        "ner": ["named entity", "ner"],
-        "pos_tagging": ["part-of-speech", "pos tagging", "pos"],
-        "stemming": ["stem", "stemming", "lemmat"],
-        "tokenization": ["token", "tokenization", "segment"],
-    }
+    TOOL_TYPE_KEYWORDS = _taxonomy_map(
+        "tool_type_keywords", _DEFAULT_TOOL_TYPE_KEYWORDS
+    )
 
-    COURSE_LEVEL_MAP = {
-        "beginner": "bachelor",
-        "introductory": "bachelor",
-        "intermediate": "master",
-        "advanced": "doctorate",
-    }
+    COURSE_LEVEL_MAP = _taxonomy_map("course_level_map", _DEFAULT_COURSE_LEVEL_MAP)
 
-    COURSE_PLATFORM_MAP = {
-        "coursera": "coursera",
-        "youtube": "youtube",
-        "mit": "mit",
-        "edx": "edx",
-        "university": "university",
-    }
+    COURSE_PLATFORM_MAP = _taxonomy_map(
+        "course_platform_map", _DEFAULT_COURSE_PLATFORM_MAP
+    )
 
-    INSTITUTION_TYPE_MAP = {
-        "university": "University",
-        "research lab": "Research Center",
-        "lab": "Research Center",
-        "center": "Research Center",
-        "centre": "Research Center",
-        "school": "School",
-        "other": "Other",
-    }
+    INSTITUTION_TYPE_MAP = _taxonomy_map(
+        "institution_type_map", _DEFAULT_INSTITUTION_TYPE_MAP
+    )
 
     def __init__(self, source):
         super().__init__()
@@ -108,34 +142,11 @@ class CustomDomainScraper(BaseScraper):
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Remove nav, footer, scripts
-        for tag in soup(
-            [
-                "nav",
-                "footer",
-                "script",
-                "style",
-                "header",
-                "aside",
-                "advertisement",
-                "ads",
-                "cookie",
-                "popup",
-                "modal",
-                "sidebar",
-                "menu",
-                '[class*="nav"]',
-                '[class*="menu"]',
-                '[class*="footer"]',
-                '[class*="header"]',
-                '[class*="ad"]',
-                '[class*="cookie"]',
-                '[id*="nav"]',
-                '[id*="menu"]',
-                '[id*="footer"]',
-                '[id*="header"]',
-            ]
-        ):
+        for tag in soup(CUSTOM_SCRAPER_CLEANUP_TAGS):
             tag.decompose()
+        for selector in CUSTOM_SCRAPER_CLEANUP_SELECTORS:
+            for node in soup.select(selector):
+                node.decompose()
 
         # Try to find main content container
         main_content = (
@@ -370,9 +381,31 @@ class CustomDomainScraper(BaseScraper):
 
     def _extract_with_selectors(self, soup, config, category):
         items = []
-        title_sel = config.get("title_selector", "h2, h3")
-        desc_sel = config.get("desc_selector", "p")
-        link_sel = config.get("link_selector", "a")
+        config = config or {}
+        configured_title = (config.get("title_selector") or "").strip()
+        configured_desc = (config.get("desc_selector") or "").strip()
+        configured_link = (config.get("link_selector") or "").strip()
+
+        title_sel = configured_title or CUSTOM_SELECTOR_TITLE_FALLBACK
+        desc_sel = configured_desc or CUSTOM_SELECTOR_DESC_FALLBACK
+        link_sel = configured_link or CUSTOM_SELECTOR_LINK_FALLBACK
+
+        if not (configured_title and configured_desc and configured_link):
+            missing = [
+                key
+                for key, value in (
+                    ("title_selector", configured_title),
+                    ("desc_selector", configured_desc),
+                    ("link_selector", configured_link),
+                )
+                if not value
+            ]
+            logger.warning(
+                "custom_selector_fallback_used source=%s category=%s missing=%s",
+                self.source.base_url or self.source.name,
+                category,
+                ",".join(missing),
+            )
 
         titles = soup.select(title_sel)
         for t in titles[:20]:

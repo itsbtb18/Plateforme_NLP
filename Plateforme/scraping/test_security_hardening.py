@@ -71,18 +71,15 @@ def test_metrics_rate_limit_enforced(client, staff_user):
 
 
 @pytest.mark.django_db
-def test_run_scraper_trigger_rate_limit_enforced(client, staff_user):
+def test_run_scraper_trigger_has_no_hourly_limit(client, staff_user):
     cache.clear()
     client.force_login(staff_user)
     url = reverse("scraping:run_scraper", kwargs={"category": "invalid"})
 
-    # First 5 are allowed through throttle and fail with invalid category.
-    for _ in range(5):
+    # Invalid category should consistently return 400 without trigger throttling.
+    for _ in range(8):
         response = client.post(url)
         assert response.status_code == 400
-
-    blocked = client.post(url)
-    assert blocked.status_code == 429
 
 
 def _load_settings_module(settings_path: Path):

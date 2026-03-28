@@ -151,10 +151,12 @@ services:
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - scraping_media:/app/media/scraping
+    user: "0:0"
     ports:
       - "8888:8000"
     command: >
       sh -c "
+        chown -R 1000:1000 /app/staticfiles /app/media 2>/dev/null || true &&
         python manage.py collectstatic --noinput &&
         python manage.py migrate --noinput &&
         daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
@@ -202,6 +204,10 @@ services:
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      # HuggingFace cache — use the mounted volume
+      HF_HOME: /app/.cache
+      TRANSFORMERS_CACHE: /app/.cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
       EXA_API_KEY: ${EXA_API_KEY:-}
       EXA_ENABLED: ${EXA_ENABLED:-true}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
@@ -266,6 +272,10 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      # HuggingFace cache — use the mounted volume
+      HF_HOME: /app/.cache
+      TRANSFORMERS_CACHE: /app/.cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -328,6 +338,7 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: nlp_django_celery_worker
+    user: "1000:1000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
@@ -378,6 +389,8 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: nlp_celery_scraper
+    shm_size: '2gb'
+    user: "1000:1000"
     command: celery -A Plateforme worker -Q scraping -c 2 --loglevel=info --max-tasks-per-child=50
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
@@ -431,6 +444,7 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: nlp_django_celery_beat
+    user: "1000:1000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
@@ -495,6 +509,12 @@ services:
     container_name: nlp_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_UPDATES_CHECK_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_PLUGINS_ENABLE_ALPHA: "false"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro

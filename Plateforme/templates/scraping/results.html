@@ -1,0 +1,192 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Scraping Results" %} - {% trans "Admin Panel" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.sr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.sr-head h1{margin:0;font-size:1.35rem;display:flex;align-items:center;gap:.5rem}
+.sr-sub{margin:.3rem 0 0;color:var(--n-text-3);font-size:.86rem}
+.sr-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.sr-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .9rem;border:1px solid var(--n-border);border-radius:8px;background:#fff;color:var(--n-text-2);font-weight:600;font-size:.78rem;text-decoration:none;cursor:pointer}
+.sr-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
+.sr-btn.validate{background:var(--n-green);border-color:var(--n-green);color:#fff}
+.sr-btn.delete{background:var(--n-red);border-color:var(--n-red);color:#fff}
+.sr-toolbar{display:flex;gap:.7rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:.75rem 0}
+.sr-search{display:flex;align-items:center;gap:.5rem}
+.sr-search input{min-width:260px;padding:.52rem .72rem;border:1px solid var(--n-border);border-radius:8px;background:#fff}
+.sr-search input:focus{outline:none;border-color:var(--n-blue)}
+.sr-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.75rem}
+.sr-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;border-radius:999px;border:1px solid var(--n-border);text-decoration:none;color:var(--n-text-2);font-size:.75rem;font-weight:600;background:#fff}
+.sr-tab:hover{border-color:var(--n-blue);color:var(--n-blue)}
+.sr-tab.active{background:var(--n-blue);color:#fff;border-color:var(--n-blue)}
+.sr-badge{display:inline-flex;padding:3px 9px;border-radius:12px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
+.sr-badge.warning{background:#fff3cd;color:#7a5a00}
+.sr-badge.success{background:#d1fae5;color:#065f46}
+.sr-badge.danger{background:#fee2e2;color:#991b1b}
+.sr-table-wrap{overflow:auto}
+.sr-check{width:18px;height:18px;accent-color:var(--n-blue)}
+.sr-muted{color:var(--n-text-3);font-size:.75rem}
+.sr-meta{display:flex;gap:1rem;flex-wrap:wrap;color:var(--n-text-3);font-size:.76rem;margin-top:.45rem}
+@media(max-width:768px){
+  .sr-search input{min-width:180px;width:100%}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sr-head">
+  <div>
+    <h1><i class="fas fa-clipboard-check"></i> {% trans "Scraped Items Review" %}</h1>
+    <p class="sr-sub">
+      {% trans "Review pending scraped records across Events, News, Tools, Courses and Institutions." %}
+    </p>
+    <div class="sr-meta">
+      <span><strong>{{ pending_total }}</strong> {% trans "pending items" %}</span>
+      <span><strong>{{ rows|length }}</strong> {% trans "visible rows" %}</span>
+      {% if selected_run_id %}<span><strong>{% trans "Run" %}:</strong> {{ selected_run_id }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="sr-actions">
+    <a class="sr-btn" href="{% url 'scraping:dashboard' %}"><i class="fas fa-arrow-left"></i> {% trans "Back to Dashboard" %}</a>
+  </div>
+</div>
+
+<div class="n-card">
+  <div class="n-card-body" style="padding:1rem">
+    <div class="sr-tabs">
+      <a class="sr-tab {% if selected_category == 'all' %}active{% endif %}" href="{% url 'scraping:scraping_results' %}{% if search_query or selected_run_id %}?{% endif %}{% if search_query %}q={{ search_query|urlencode }}{% endif %}{% if search_query and selected_run_id %}&{% endif %}{% if selected_run_id %}run_id={{ selected_run_id }}{% endif %}">
+        {% trans "All" %}
+        <span class="n-tab-badge">{{ pending_total }}</span>
+      </a>
+      {% for tab in category_tabs %}
+      <a class="sr-tab {% if selected_category == tab.key %}active{% endif %}" href="{% url 'scraping:scraping_results' %}?category={{ tab.key }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_run_id %}&run_id={{ selected_run_id }}{% endif %}">
+        {{ tab.label }}
+        <span class="n-tab-badge">{{ tab.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+
+    <div class="sr-toolbar">
+      <form class="sr-search" method="get" action="{% url 'scraping:scraping_results' %}">
+        {% if selected_category != 'all' %}
+        <input type="hidden" name="category" value="{{ selected_category }}">
+        {% endif %}
+        {% if selected_run_id %}
+        <input type="hidden" name="run_id" value="{{ selected_run_id }}">
+        {% endif %}
+        <input type="text" name="q" value="{{ search_query }}" placeholder="{% trans 'Search by title...' %}">
+        <button class="sr-btn" type="submit"><i class="fas fa-search"></i> {% trans "Search" %}</button>
+      </form>
+    </div>
+
+    <form method="post" id="bulk-review-form" action="{% url 'scraping:scraping_results_bulk_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" id="bulk-action-input" value="">
+      <input type="hidden" name="category" value="{{ selected_category }}">
+      <input type="hidden" name="q" value="{{ search_query }}">
+      <input type="hidden" name="run_id" value="{{ selected_run_id }}">
+
+      <div class="sr-actions" style="margin-bottom:.75rem">
+        <button class="sr-btn validate" type="button" onclick="submitBulkAction('validate')">
+          <i class="fas fa-check"></i> {% trans "Validate Selected" %}
+        </button>
+        <button class="sr-btn delete" type="button" onclick="submitBulkAction('delete')">
+          <i class="fas fa-trash"></i> {% trans "Delete Selected" %}
+        </button>
+      </div>
+
+      <div class="sr-table-wrap">
+        <table class="n-tbl">
+          <thead>
+            <tr>
+              <th style="width:42px"><input type="checkbox" id="select-all-items" class="sr-check"></th>
+              <th>{% trans "Title" %}</th>
+              <th>{% trans "Category" %}</th>
+              <th>{% trans "Source URL" %}</th>
+              <th>{% trans "Scraped Date" %}</th>
+              <th>{% trans "LLM Confidence" %}</th>
+              <th>{% trans "Status" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td><input type="checkbox" class="sr-check row-check" name="selected_items" value="{{ row.selection_key }}"></td>
+              <td>
+                <a href="{{ row.detail_url }}"><strong>{{ row.title|default:"-" }}</strong></a>
+              </td>
+              <td>{{ row.category_label }}</td>
+              <td>
+                {% if row.source_url %}
+                <a href="{{ row.source_url }}" target="_blank" rel="noopener">{{ row.source_url|truncatechars:60 }}</a>
+                {% else %}
+                <span class="sr-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.scraped_date %}
+                  {{ row.scraped_date|date:"Y-m-d H:i" }}
+                {% else %}
+                  <span class="sr-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.confidence_score != None %}
+                  {{ row.confidence_score }}
+                {% else %}
+                  <span class="sr-muted">-</span>
+                {% endif %}
+              </td>
+              <td><span class="sr-badge {{ row.status_badge }}">{{ row.status }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" style="text-align:center;color:var(--n-text-3)">{% trans "No scraped items match this filter." %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var selectAll = document.getElementById('select-all-items');
+  var rowChecks = document.querySelectorAll('.row-check');
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      rowChecks.forEach(function(cb) { cb.checked = selectAll.checked; });
+    });
+  }
+
+  window.submitBulkAction = function(action) {
+    var selected = document.querySelectorAll('.row-check:checked');
+    if (!selected.length) {
+      alert('{% trans "Select at least one item first." %}');
+      return;
+    }
+
+    if (action === 'delete') {
+      var ok = confirm('{% trans "Delete selected items permanently?" %}');
+      if (!ok) return;
+    }
+
+    var input = document.getElementById('bulk-action-input');
+    var form = document.getElementById('bulk-review-form');
+    if (!input || !form) return;
+
+    input.value = action;
+    form.submit();
+  };
+})();
+</script>
+{% endblock %}

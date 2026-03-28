@@ -15,6 +15,7 @@ from scraping.field_mapping import calculate_completeness_score
 from scraping.file_downloader import (
     attach_file_to_model,
 )
+from scraping.fixture_loader import curated_tools_by_type, sources_for_section
 
 from .base import BaseScraper
 
@@ -101,14 +102,86 @@ LANG_MAP = {
 }
 
 
+def _tool_fixture_rows() -> list[dict]:
+    return list(sources_for_section("tools"))
+
+
+def _tool_source_rows(
+    *, tier: int | None = None, scraper_type: str | None = None
+) -> list[dict]:
+    rows = _tool_fixture_rows()
+    if tier is not None:
+        rows = [r for r in rows if int(r.get("tier") or 0) == int(tier)]
+    if scraper_type is not None:
+        rows = [
+            r
+            for r in rows
+            if str(r.get("scraper_type", "")).strip().lower() == scraper_type.lower()
+        ]
+    return rows
+
+
+def _rows_to_rss_pairs(rows: list[dict]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for row in rows:
+        url = str(row.get("url", "")).strip()
+        if not url:
+            continue
+        name = str(row.get("name", "") or "Tool RSS Source").strip()
+        pairs.append((url, name))
+    return pairs
+
+
+def _known_github_tools_from_curated() -> list[dict]:
+    entries: list[dict] = []
+    for item in curated_tools_by_type("model"):
+        github_url = str(item.get("github_url", "")).strip()
+        repo = _extract_repo_path(github_url)
+        if not repo:
+            continue
+        entries.append(
+            {
+                "repo": repo,
+                "source_name": item.get("name") or repo,
+                "paper_url": item.get("paper_url") or "",
+                "demo_url": item.get("demo_url") or "",
+            }
+        )
+    return entries
+
+
 class ToolScraper(BaseScraper):
     """Scrape NLP tools / models from the HuggingFace Hub API."""
 
     name = "HuggingFace NLP Tools"
     category = "tools"
+    SECTION = "tools"
 
-    API_BASE = "https://huggingface.co/api/models"
-    DATASET_API_BASE = "https://huggingface.co/api/datasets"
+    @classmethod
+    def get_default_sources(cls):
+        from scraping.models import ScrapingSource
+
+        return ScrapingSource.objects.filter(
+            category=cls.SECTION,
+            is_default=True,
+        ).order_by("name")
+
+    API_BASE = next(
+        (
+            str(row.get("url", "")).strip()
+            for row in _tool_source_rows(scraper_type="api")
+            if "huggingface.co/api/models" in str(row.get("url", "")).lower()
+        ),
+        "",
+    )
+    DATASET_API_BASE = next(
+        (
+            str(row.get("url", "")).strip()
+            for row in _tool_source_rows(scraper_type="api")
+            if "huggingface.co/api/datasets" in str(row.get("url", "")).lower()
+        ),
+        "",
+    )
 
     def run(self) -> dict:
         """Run the tools scraper with checkpoint-aware source resume support.
@@ -177,10 +250,9 @@ class ToolScraper(BaseScraper):
         "tamazight",
     ]
 
-    TIER_1_RSS_SOURCES = [
-        ("https://www.esi.dz", "ESI Algiers"),
-        ("https://www.usthb.dz", "USTHB"),
-    ]
+    TIER_1_RSS_SOURCES = _rows_to_rss_pairs(
+        _tool_source_rows(tier=1, scraper_type="rss")
+    )
 
     TIER_2_HF_ARABIC_QUERIES = [
         "arabic dialect",
@@ -196,41 +268,19 @@ class ToolScraper(BaseScraper):
         "arabic translation",
     ]
 
-    TIER_2_RSS_SOURCES = [
-        ("https://camel.abudhabi.nyu.edu", "CAMeL Lab"),
-        ("https://farasa.qcri.org", "Farasa"),
-        ("https://www.hbku.edu.qa/en/qcri", "QCRI"),
-    ]
+    TIER_2_RSS_SOURCES = _rows_to_rss_pairs(
+        _tool_source_rows(tier=2, scraper_type="rss")
+    )
 
-    TIER_2_KNOWN_GITHUB_TOOLS = [
-        {
-            "repo": "CAMeL-Lab/camel_tools",
-            "source_name": "CAMeL Tools",
-            "paper_url": "https://aclanthology.org/2020.lrec-1.868/",
-            "demo_url": "https://camel.abudhabi.nyu.edu/",
-        },
-        {
-            "repo": "qcri/Farasa",
-            "source_name": "Farasa Toolkit",
-            "paper_url": "https://aclanthology.org/L16-1170/",
-            "demo_url": "https://farasa.qcri.org",
-        },
-        {
-            "repo": "linuxscout/mishkal",
-            "source_name": "Mishkal",
-            "paper_url": "",
-            "demo_url": "",
-        },
-        {
-            "repo": "linuxscout/pyarabic",
-            "source_name": "PyArabic",
-            "paper_url": "",
-            "demo_url": "",
-        },
-    ]
+    TIER_2_KNOWN_GITHUB_TOOLS = _known_github_tools_from_curated()
 
-    PAPERSWITHCODE_METHODS_API = (
-        "https://paperswithcode.com/api/v1/methods/?format=json"
+    PAPERSWITHCODE_METHODS_API = next(
+        (
+            str(row.get("url", "")).strip()
+            for row in _tool_source_rows(scraper_type="api")
+            if "paperswithcode" in str(row.get("url", "")).lower()
+        ),
+        "",
     )
 
     HF_ALGERIAN_FIRST_QUERIES = [
@@ -260,11 +310,9 @@ class ToolScraper(BaseScraper):
         "nlp model",
     ]
 
-    TIER_3_RSS_SOURCES = [
-        ("https://huggingface.co/blog", "Hugging Face Blog"),
-        ("https://paperswithcode.com", "PapersWithCode"),
-        ("https://www.masakhane.io", "Masakhane"),
-    ]
+    TIER_3_RSS_SOURCES = _rows_to_rss_pairs(
+        _tool_source_rows(tier=3, scraper_type="rss")
+    )
 
     GITHUB_QUERIES = [
         "arabic nlp algeria stars:>5",
@@ -273,265 +321,89 @@ class ToolScraper(BaseScraper):
         "arabic speech recognition",
     ]
 
-    # Curated Arabic / multilingual LLM tools not easily found via search
-    CURATED_LLM_TOOLS = [
-        {
-            "title": "Jais 13B",
-            "author": "Inception / Core42",
-            "pipeline_tag": "text-generation",
-            "url": "https://huggingface.co/inception-mbzuai/jais-13b",
-            "description": (
-                "Arabic-centric bilingual (Arabic-English) large language model "
-                "with 13B parameters. Trained on a large Arabic-English corpus, "
-                "achieving SoTA on Arabic benchmarks."
-            ),
-            "tags": ["ar", "en", "text-generation", "llm"],
-        },
-        {
-            "title": "Jais 30B Chat",
-            "author": "Inception / Core42",
-            "pipeline_tag": "text-generation",
-            "url": "https://huggingface.co/inception-mbzuai/jais-13b-chat",
-            "description": (
-                "Chat-tuned version of the Jais Arabic-English bilingual LLM. "
-                "Supports multi-turn conversations in Arabic and English."
-            ),
-            "tags": ["ar", "en", "text-generation", "llm", "chat"],
-        },
-        {
-            "title": "AceGPT 13B Chat",
-            "author": "FreedomIntelligence",
-            "pipeline_tag": "text-generation",
-            "url": "https://huggingface.co/FreedomIntelligence/AceGPT-13B-chat",
-            "description": (
-                "Arabic-focused LLM based on LLaMA, fine-tuned with Arabic "
-                "instruction data and RLHF for Arabic cultural alignment."
-            ),
-            "tags": ["ar", "en", "text-generation", "llm"],
-        },
-        {
-            "title": "ALLaM (Arabic Large Language Model)",
-            "author": "SDAIA",
-            "pipeline_tag": "text-generation",
-            "url": "https://huggingface.co/sdaia",
-            "description": (
-                "Saudi Data and AI Authority's Arabic-first large language model "
-                "for Arabic language understanding and generation tasks."
-            ),
-            "tags": ["ar", "text-generation", "llm"],
-        },
-        {
-            "title": "Whisper Large V3 (Arabic fine-tuned)",
-            "author": "OpenAI / Community",
-            "pipeline_tag": "automatic-speech-recognition",
-            "url": "https://huggingface.co/openai/whisper-large-v3",
-            "description": (
-                "OpenAI's Whisper large v3 with strong Arabic ASR capabilities. "
-                "Community fine-tunes available for dialectal Arabic."
-            ),
-            "tags": ["ar", "en", "automatic-speech-recognition", "speech"],
-        },
-        {
-            "title": "MMS (Massively Multilingual Speech) — Arabic",
-            "author": "Meta / Facebook AI",
-            "pipeline_tag": "automatic-speech-recognition",
-            "url": "https://huggingface.co/facebook/mms-1b-all",
-            "description": (
-                "Meta's Massively Multilingual Speech model covering 1100+ languages "
-                "including Arabic dialects. Supports ASR and TTS."
-            ),
-            "tags": ["ar", "automatic-speech-recognition", "multilingual"],
-        },
-        {
-            "title": "CAMeL Tools",
-            "author": "NYU Abu Dhabi CAMeL Lab",
-            "pipeline_tag": "token-classification",
-            "url": "https://huggingface.co/CAMeL-Lab",
-            "description": (
-                "Suite of Arabic NLP tools including morphological analysis, "
-                "dialect identification, NER, and sentiment analysis. "
-                "Built on CAMeLBERT."
-            ),
-            "tags": ["ar", "token-classification", "ner", "morphology"],
-            "github_url": "https://github.com/CAMeL-Lab/camel_tools",
-            "demo_url": "https://camel.abudhabi.nyu.edu/",
-            "paper_url": "https://aclanthology.org/2020.lrec-1.868/",
-            "license": "MIT",
-            "author_organization": "CAMeL Lab",
-            "source_name": "Curated Arabic Tools",
-            "source_url": "https://huggingface.co/CAMeL-Lab",
-            "installation_instructions": "pip install camel-tools",
-            "use_cases": ["morphology", "ner", "dialect_identification"],
-            "language_support": ["ar"],
-        },
-        {
-            "title": "FARASA Arabic NLP Toolkit",
-            "author": "QCRI",
-            "pipeline_tag": "token-classification",
-            "url": "https://farasa.qcri.org",
-            "description": (
-                "Fast and accurate Arabic NLP toolkit by QCRI. "
-                "Includes segmentation, POS tagging, NER, and diacritization."
-            ),
-            "tags": ["ar", "token-classification", "pos_tagging", "segmentation"],
-            "github_url": "https://github.com/QCRI/Farasa",
-            "demo_url": "https://farasa.qcri.org/",
-            "paper_url": "https://aclanthology.org/L16-1170/",
-            "license": "Research",
-            "author_organization": "QCRI",
-            "source_name": "Curated Arabic Tools",
-            "source_url": "https://farasa.qcri.org",
-            "installation_instructions": "Use Farasa web API or downloadable toolkit from official site",
-            "use_cases": ["segmentation", "pos_tagging", "ner"],
-            "language_support": ["ar"],
-        },
-        {
-            "title": "Stanza Arabic Models",
-            "author": "Stanford NLP Group",
-            "pipeline_tag": "token-classification",
-            "url": "https://stanfordnlp.github.io/stanza/available_models.html",
-            "description": (
-                "Stanford Stanza's Arabic models for tokenization, POS tagging, "
-                "lemmatization, dependency parsing, and NER."
-            ),
-            "tags": ["ar", "token-classification", "pos_tagging", "ner"],
-        },
-        {
-            "title": "AraBERT v2",
-            "author": "aubmindlab",
-            "pipeline_tag": "fill-mask",
-            "url": "https://huggingface.co/aubmindlab/bert-base-arabertv02",
-            "description": (
-                "Pre-trained Arabic BERT model. Effective for downstream Arabic NLP "
-                "tasks: NER, sentiment analysis, and question answering."
-            ),
-            "tags": ["ar", "fill-mask", "bert", "arabic"],
-            "github_url": "https://github.com/aub-mind/arabert",
-            "paper_url": "https://aclanthology.org/2020.osact-1.2/",
-            "license": "Apache-2.0",
-            "author_organization": "AUB Mind Lab",
-            "source_name": "Curated Arabic Tools",
-            "source_url": "https://huggingface.co/aubmindlab/bert-base-arabertv02",
-            "installation_instructions": "pip install transformers; load with AutoModel from HuggingFace",
-            "use_cases": ["classification", "qa", "ner"],
-            "language_support": ["ar"],
-        },
-        {
-            "title": "AraGPT2",
-            "author": "aubmindlab",
-            "pipeline_tag": "text-generation",
-            "url": "https://huggingface.co/aubmindlab/aragpt2-base",
-            "description": (
-                "Arabic GPT-2 model for natural language generation in Modern Standard "
-                "Arabic and dialectal variants."
-            ),
-            "tags": ["ar", "text-generation", "gpt2", "arabic"],
-            "github_url": "https://github.com/aub-mind/arabert",
-            "paper_url": "https://arxiv.org/abs/2012.15520",
-            "license": "Apache-2.0",
-            "author_organization": "AUB Mind Lab",
-            "source_name": "Curated Arabic Tools",
-            "source_url": "https://huggingface.co/aubmindlab/aragpt2-base",
-            "installation_instructions": "pip install transformers; use AutoModelForCausalLM with aragpt2",
-            "use_cases": ["generation", "chat", "summarization"],
-            "language_support": ["ar"],
-        },
-    ]
-
-    # Curated HuggingFace Arabic datasets
-    CURATED_DATASETS = [
-        {
-            "title": "Arabic Speech Corpus",
-            "author": "QCRI / Dialectal Arabic",
-            "url": "https://huggingface.co/datasets/arabic_speech_corpus",
-            "description": (
-                "High-quality Arabic speech corpus for ASR research. "
-                "Contains recordings in Modern Standard Arabic."
-            ),
-            "tool_type": "tokenization",
-            "tags": ["ar", "speech", "dataset"],
-        },
-        {
-            "title": "HARD — Hotel Arabic Reviews Dataset",
-            "author": "Community",
-            "url": "https://huggingface.co/datasets/hard",
-            "description": (
-                "Arabic hotel review dataset for sentiment analysis. "
-                "Contains 93K reviews with positive/negative labels."
-            ),
-            "tool_type": "sentiment_analysis",
-            "tags": ["ar", "sentiment", "dataset"],
-        },
-        {
-            "title": "ARCD — Arabic Reading Comprehension Dataset",
-            "author": "Hussein Mozannar",
-            "url": "https://huggingface.co/datasets/arcd",
-            "description": (
-                "Arabic QA dataset modeled after SQuAD. "
-                "Contains 1,395 questions on Arabic Wikipedia articles."
-            ),
-            "tool_type": "tokenization",
-            "tags": ["ar", "question-answering", "dataset"],
-        },
-        {
-            "title": "LABR — Large-scale Arabic Book Reviews",
-            "author": "Community",
-            "url": "https://huggingface.co/datasets/labr",
-            "description": (
-                "Arabic book review dataset with 63K reviews. "
-                "5-star rating scale for sentiment analysis."
-            ),
-            "tool_type": "sentiment_analysis",
-            "tags": ["ar", "sentiment", "dataset"],
-        },
-        {
-            "title": "WikiANN — Arabic NER",
-            "author": "Pan et al.",
-            "url": "https://huggingface.co/datasets/wikiann",
-            "description": (
-                "Cross-lingual NER dataset with Arabic split. "
-                "Wikipedia-based NER tags for PER, LOC, ORG."
-            ),
-            "tool_type": "ner",
-            "tags": ["ar", "ner", "dataset"],
-        },
-        {
-            "title": "Calliar — Algerian Arabic Dialect Corpus",
-            "author": "Community",
-            "url": "https://huggingface.co/datasets/calliar",
-            "description": (
-                "Handwriting recognition dataset for Algerian Arabic dialect, "
-                "useful for OCR and dialectal Arabic processing."
-            ),
-            "tool_type": "tokenization",
-            "tags": ["ar", "algerian", "dialect", "dataset"],
-        },
-        {
-            "title": "NADI — Nuanced Arabic Dialect Identification",
-            "author": "NADI Shared Task",
-            "url": "https://huggingface.co/datasets/nadi_2023",
-            "description": (
-                "Arabic dialect identification dataset covering 21 Arab countries. "
-                "Includes Algerian, Egyptian, Gulf, Levantine, and Maghrebi dialects."
-            ),
-            "tool_type": "sentiment_analysis",
-            "tags": ["ar", "dialect", "classification", "dataset"],
-        },
-    ]
+    # Curated tools and datasets are loaded from fixture at runtime.
+    CURATED_LLM_TOOLS = curated_tools_by_type("model")
+    CURATED_DATASETS = curated_tools_by_type("dataset")
 
     def scrape(self):
-        """Execute all tool ingestion tiers from local sources to global sources."""
+        """Execute tools ingestion from configured active/default sources."""
         self._seen_hf_model_ids = set()
         self._seen_hf_dataset_ids = set()
 
-        # Tier 1: Algerian/North-African sources first.
-        self._scrape_tier_1_tools()
+        sources = self.get_active_sources()
+        if not sources:
+            logger.warning("Aucune source active/default pour tools.")
+            return
 
-        # Tier 2: Arabic NLP ecosystem sources.
-        self._scrape_tier_2_tools()
+        rss_sources: list[tuple[str, str]] = []
+        hf_model_queries: list[str] = []
+        hf_dataset_queries: list[str] = []
+        run_known_github = False
+        run_github_search = False
+        run_paperswithcode = False
+        run_masakhane = False
 
-        # Tier 3: Global sources after Tier 1 and Tier 2.
-        self._scrape_tier_3_tools()
+        for source in sources:
+            source_name = (getattr(source, "name", "") or "tools-source").strip()
+            source_url = (getattr(source, "url", "") or source.base_url or "").strip()
+            source_type = (getattr(source, "source_type", "web") or "web").lower()
+            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
+
+            if not source_url:
+                continue
+
+            lower_url = source_url.lower()
+            lower_name = source_name.lower()
+
+            if source_type == "api":
+                query_hint = str(scrape_config.get("query") or source_name).strip()
+
+                if "huggingface.co/api/models" in lower_url:
+                    hf_model_queries.append(query_hint)
+                elif "huggingface.co/api/datasets" in lower_url:
+                    hf_dataset_queries.append(query_hint)
+                elif "paperswithcode.com/api" in lower_url:
+                    run_paperswithcode = True
+                elif "api.github.com" in lower_url or "github" in lower_name:
+                    run_github_search = True
+                else:
+                    hf_model_queries.append(query_hint)
+                continue
+
+            # Web/RSS sources: parse as RSS-first tool feeds.
+            rss_sources.append((source_url, source_name))
+            if "masakhane" in lower_url or "masakhane" in lower_name:
+                run_masakhane = True
+            if "github" in lower_url or "github" in lower_name:
+                run_known_github = True
+
+        if rss_sources:
+            self._import_tools_from_rss_sources(rss_sources)
+
+        if hf_model_queries:
+            # Preserve order while removing duplicates.
+            model_queries = list(dict.fromkeys([q for q in hf_model_queries if q]))
+            self._import_hf_models_for_queries(
+                model_queries,
+                source_name="Configured HuggingFace Models",
+            )
+
+        if hf_dataset_queries:
+            dataset_queries = list(dict.fromkeys([q for q in hf_dataset_queries if q]))
+            self._import_hf_datasets_for_queries(dataset_queries)
+
+        if run_known_github:
+            self._import_known_github_tools()
+        if run_github_search:
+            self._import_github_tools()
+        if run_paperswithcode:
+            self._import_paperswithcode_methods()
+        if run_masakhane:
+            self._import_masakhane_tools()
+
+        # Curated entries are always loaded from fixture.
+        self._import_curated_llm_tools()
+        self._import_curated_datasets()
 
     def _scrape_tier_1_tools(self):
         cp = getattr(self, "_checkpoint", None)
@@ -731,6 +603,12 @@ class ToolScraper(BaseScraper):
         return match.group(1).strip().rstrip("/")
 
     def _import_hf_models_for_queries(self, query_terms, source_name="HuggingFace"):
+        if not self.API_BASE:
+            logger.warning(
+                "Skipping HuggingFace model import: API_BASE is not configured"
+            )
+            return
+
         for query in query_terms:
             params = {
                 "sort": "downloads",
@@ -846,7 +724,16 @@ class ToolScraper(BaseScraper):
                 self.errors.append(f"Tier1 GitHub search parse error '{query}': {exc}")
 
     def _import_tier_1_hf_datasets(self):
-        for query in self.TIER_1_HF_DATASET_QUERIES:
+        self._import_hf_datasets_for_queries(self.TIER_1_HF_DATASET_QUERIES)
+
+    def _import_hf_datasets_for_queries(self, queries: list[str]):
+        if not self.DATASET_API_BASE:
+            logger.warning(
+                "Skipping HuggingFace dataset import: DATASET_API_BASE is not configured"
+            )
+            return
+
+        for query in queries:
             resp = self.safe_request(
                 self.DATASET_API_BASE,
                 params={"search": query, "limit": 30},
@@ -999,6 +886,7 @@ class ToolScraper(BaseScraper):
                 keywords=", ".join(item_dict.get("keywords", []))
                 if isinstance(item_dict.get("keywords"), list)
                 else str(item_dict.get("keywords", "")),
+                entities=item_dict.get("entities", {}),
                 supported_languages=supported_lang,
                 language="ar" if supported_lang == "ar" else "en",
                 use_cases=item_dict.get("use_cases") or None,
@@ -1097,6 +985,12 @@ class ToolScraper(BaseScraper):
             self.errors.append(f"MADAMIRA metadata parse error: {exc}")
 
     def _import_paperswithcode_methods(self):
+        if not self.PAPERSWITHCODE_METHODS_API:
+            logger.warning(
+                "Skipping PapersWithCode import: API endpoint is not configured"
+            )
+            return
+
         resp = self.safe_request(
             self.PAPERSWITHCODE_METHODS_API,
             source_name="PapersWithCode",
@@ -1346,6 +1240,7 @@ class ToolScraper(BaseScraper):
                     if isinstance(item_dict.get("keywords"), list)
                     else [item_dict.get("keywords", "")]
                 ),
+                entities=item_dict.get("entities", {}),
                 supported_languages=supported_lang,
                 language=primary_lang,
                 approval_status="pending",
@@ -1606,6 +1501,7 @@ class ToolScraper(BaseScraper):
                     if isinstance(item_dict.get("keywords"), list)
                     else [item_dict.get("keywords", "")]
                 ),
+                entities=item_dict.get("entities", {}),
                 supported_languages=supported_lang,
                 language=primary_lang,
                 approval_status="pending",
@@ -1782,6 +1678,7 @@ class ToolScraper(BaseScraper):
                         if isinstance(item_dict.get("keywords"), list)
                         else [item_dict.get("keywords", "")]
                     ),
+                    entities=item_dict.get("entities", {}),
                     supported_languages=supported_lang,
                     language=primary_lang,
                     approval_status="pending",
@@ -1958,6 +1855,7 @@ class ToolScraper(BaseScraper):
                         if isinstance(item_dict.get("keywords"), list)
                         else [item_dict.get("keywords", "")]
                     ),
+                    entities=item_dict.get("entities", {}),
                     supported_languages=supported_lang,
                     language=primary_lang,
                     approval_status="pending",

@@ -8,19 +8,50 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
+from .selector_discovery import SelectorDiscoveryEngine
 
 logger = logging.getLogger(__name__)
 
 
+class ValidationStatusFilter(admin.SimpleListFilter):
+    title = _("Validation")
+    parameter_name = "validation_status_filter"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("red_only", _("Afficher les sources RED")),
+            ("green", _("Sources GREEN")),
+            ("yellow", _("Sources YELLOW")),
+            ("pending", _("Sources PENDING")),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "red_only":
+            return queryset.filter(validation_status="RED")
+        if value == "green":
+            return queryset.filter(validation_status="GREEN")
+        if value == "yellow":
+            return queryset.filter(validation_status="YELLOW")
+        if value == "pending":
+            return queryset.filter(validation_status="PENDING")
+        return queryset
+
+
 @admin.register(ScrapingSource)
 class ScrapingSourceAdmin(admin.ModelAdmin):
+    actions = ("auto_discover_selectors",)
     list_display = (
         "name",
         "category_badge",
         "base_url",
         "is_active",
+        "schedule_tier",
+        "schedule_interval_hours",
+        "items_per_day_display",
         "use_rss",
         "use_llm_extraction",
+        "validation_badge",
         "run_status_badge",
         "last_run_items_created",
         "last_scraped",
@@ -30,8 +61,10 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         "category",
         "is_active",
         "last_run_status",
+        "validation_status",
         "use_rss",
         "use_llm_extraction",
+        ValidationStatusFilter,
     )
     search_fields = ("name", "base_url")
     readonly_fields = (
@@ -41,6 +74,12 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         "last_run_status",
         "last_run_error",
         "last_run_items_created",
+        "last_validated_at",
+        "pretty_validation_detail",
+        "manual_validate_button",
+        "selector_confidence",
+        "selector_image_selector",
+        "pretty_selector_recommendations",
     )
 
     fieldsets = (
@@ -51,6 +90,7 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
                     "id",
                     "name",
                     "category",
+                    "url",
                     "base_url",
                     "description",
                     "is_active",
@@ -60,7 +100,14 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         (
             _("Scraping Options"),
             {
-                "fields": ("use_rss", "use_llm_extraction", "scrape_config"),
+                "fields": (
+                    "use_rss",
+                    "use_llm_extraction",
+                    "verify_ssl",
+                    "proxy_url",
+                    "force_playwright",
+                    "scrape_config",
+                ),
             },
         ),
         (
@@ -71,6 +118,29 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
                     "last_run_status",
                     "last_run_items_created",
                     "last_run_error",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("Validation"),
+            {
+                "fields": (
+                    "validation_status",
+                    "last_validated_at",
+                    "pretty_validation_detail",
+                    "manual_validate_button",
+                ),
+            },
+        ),
+        (
+            _("Selector Discovery"),
+            {
+                "fields": (
+                    "selector_confidence",
+                    "selector_image_selector",
+                    "css_selectors",
+                    "pretty_selector_recommendations",
                 ),
                 "classes": ("collapse",),
             },
@@ -116,6 +186,195 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         )
 
     run_status_badge.short_description = _("Status")
+
+    def validation_badge(self, obj):
+        colours = {
+            "GREEN": "#10b981",
+            "YELLOW": "#f59e0b",
+            "RED": "#ef4444",
+            "PENDING": "#3b82f6",
+            "UNKNOWN": "#64748b",
+        }
+        labels = {
+            "GREEN": "GREEN",
+            "YELLOW": "YELLOW",
+            "RED": "RED",
+            "PENDING": "PENDING",
+            "UNKNOWN": "UNKNOWN",
+        }
+        status = obj.validation_status or "UNKNOWN"
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;">{}</span>',
+            colours.get(status, "#64748b"),
+            labels.get(status, status),
+        )
+
+    validation_badge.short_description = _("Validation")
+
+    def pretty_validation_detail(self, obj):
+        detail = obj.validation_detail
+        if not detail:
+            return "—"
+        return format_html(
+            '<pre style="white-space:pre-wrap;max-width:850px;">{}</pre>',
+            str(detail),
+        )
+
+    pretty_validation_detail.short_description = _("Validation Detail")
+
+    def manual_validate_button(self, obj):
+        endpoint = reverse("scraping:validate_source")
+        return format_html(
+            '<button type="button" class="button" '
+            'style="background:#0ea5e9;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;" '
+            "onclick=\"return runSourceValidation(this, '{url}');\">Tester cette URL</button>"
+            '<div id="validation-result" style="margin-top:8px;font-size:12px;"></div>'
+            "<script>"
+            "function runSourceValidation(el, url) {{"
+            "  const urlField = document.getElementById('id_url') || document.getElementById('id_base_url');"
+            "  const categoryField = document.getElementById('id_category');"
+            "  const resultBox = document.getElementById('validation-result');"
+            "  if (!urlField || !categoryField) {{ alert('URL/category fields not found'); return false; }}"
+            "  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';"
+            "  const formData = new FormData();"
+            "  formData.append('url', urlField.value || '');"
+            "  formData.append('category', categoryField.value || '');"
+            "  el.disabled = true; el.textContent = 'Validation...';"
+            "  fetch(url, {{method:'POST', headers:{{'X-CSRFToken': csrf}}, body: formData}})"
+            "    .then(r => r.json())"
+            "    .then(data => {{"
+            "      const ok = !!data.valid;"
+            "      resultBox.style.color = ok ? '#065f46' : '#991b1b';"
+            "      resultBox.textContent = data.message || (ok ? 'Validation OK' : 'Validation failed');"
+            "    }})"
+            "    .catch(() => {{"
+            "      resultBox.style.color = '#991b1b';"
+            "      resultBox.textContent = 'Erreur de validation';"
+            "    }})"
+            "    .finally(() => {{"
+            "      el.disabled = false;"
+            "      el.textContent = 'Tester cette URL';"
+            "    }});"
+            "  return false;"
+            "}}"
+            "</script>",
+            url=endpoint,
+        )
+
+    manual_validate_button.short_description = _("Validation manuelle")
+
+    def pretty_selector_recommendations(self, obj):
+        if not obj.selector_recommendations:
+            return "-"
+        return format_html(
+            '<pre style="white-space:pre-wrap;max-width:850px;">{}</pre>',
+            str(obj.selector_recommendations),
+        )
+
+    pretty_selector_recommendations.short_description = _("Selector Recommendations")
+
+    def selector_image_selector(self, obj):
+        selectors = dict(getattr(obj, "css_selectors", {}) or {})
+        return selectors.get("image_selector") or "-"
+
+    selector_image_selector.short_description = _("image_selector")
+
+    def items_per_day_display(self, obj):
+        from .adaptive_scheduler import AdaptiveScheduler
+
+        scheduler = AdaptiveScheduler()
+        items_per_day = scheduler.estimate_items_per_day(obj.id)
+        tier_colors = {
+            "very_high": "#22c55e",
+            "high": "#84cc16",
+            "medium": "#eab308",
+            "low": "#f97316",
+            "dormant": "#ef4444",
+        }
+        color = tier_colors.get(obj.schedule_tier, "#888")
+        return format_html(
+            '<span style="color:{}">{} ({}/day)</span>',
+            color,
+            obj.schedule_tier,
+            items_per_day,
+        )
+
+    items_per_day_display.short_description = "Schedule tier"
+
+    @admin.action(description="Auto-discover CSS selectors for selected sources")
+    def auto_discover_selectors(self, request, queryset):
+        engine = SelectorDiscoveryEngine()
+        results = []
+
+        for source in queryset:
+            try:
+                source_url = (source.url or source.base_url or "").strip()
+                if not source_url:
+                    results.append(f"[ERROR] {source.name}: missing URL")
+                    continue
+
+                discovery = engine.discover(source_url)
+                source.selector_recommendations = discovery["recommendations"]
+                source.selector_confidence = discovery["confidence"]
+                source.save(
+                    update_fields=[
+                        "selector_recommendations",
+                        "selector_confidence",
+                    ]
+                )
+                results.append(
+                    f"[OK] {source.name}: {discovery['confidence']:.0%} confidence"
+                )
+            except Exception as exc:
+                logger.exception("Selector discovery failed for source=%s", source.pk)
+                results.append(f"[ERROR] {source.name}: {exc}")
+
+        level = (
+            messages.SUCCESS
+            if any(msg.startswith("[OK]") for msg in results)
+            else messages.WARNING
+        )
+        self.message_user(request, "\n".join(results), level=level)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.validation_status == "RED":
+            self.message_user(
+                request,
+                _(
+                    "Avertissement: cette source est marquee RED, mais la sauvegarde est autorisee."
+                ),
+                level=messages.WARNING,
+            )
+        elif obj.validation_status == "PENDING":
+            self.message_user(
+                request,
+                _("Validation en cours. Le statut sera mis a jour automatiquement."),
+                level=messages.INFO,
+            )
+
+    def response_add(self, request, obj, post_url_continue=None):
+        response = super().response_add(request, obj, post_url_continue)
+        if obj.validation_status in {"PENDING", "UNKNOWN"}:
+            self.message_user(
+                request,
+                _("Source enregistree. Validation automatique lancee en arriere-plan."),
+                level=messages.INFO,
+            )
+        return response
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context=extra_context)
+        red_count = ScrapingSource.objects.filter(validation_status="RED").count()
+        if red_count:
+            self.message_user(
+                request,
+                _("Attention: %(count)s source(s) sont en statut RED.")
+                % {"count": red_count},
+                level=messages.WARNING,
+            )
+        return response
 
     def run_now_button(self, obj):
         url = reverse("scraping:run_custom_source", args=[obj.pk])
@@ -370,7 +629,13 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
         "completeness_badge",
         "created_at",
     )
-    list_filter = ("category", "primary_domain", "source_name", "enrichment_status", "was_skipped")
+    list_filter = (
+        "category",
+        "primary_domain",
+        "source_name",
+        "enrichment_status",
+        "was_skipped",
+    )
     search_fields = ("item_title", "source_name", "source_url")
     readonly_fields = (
         "id",

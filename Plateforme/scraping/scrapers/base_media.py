@@ -49,5 +49,6 @@ class BaseMediaCompat:
 
     @staticmethod
     def _is_probable_pdf_url_fallback(url: str) -> bool:
+        from scraping.constants import PDF_URL_PATTERNS
         lower = (url or "").lower()
-        return ".pdf" in lower or "arxiv.org/pdf/" in lower
+        return any(p in lower for p in PDF_URL_PATTERNS)

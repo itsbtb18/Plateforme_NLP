@@ -5,13 +5,13 @@ Mirrors the dis_max ranking logic from Django's GlobalSearchView so the
 chatbot can find tools, courses, corpora, resources, events, projects,
 institutions, and users, and return direct platform links.
 """
+
 import logging
 import re
-from typing import Any, Dict, List, Optional
-
-from elasticsearch import AsyncElasticsearch
+from typing import Any
 
 from app.config import get_settings
+from elasticsearch import AsyncElasticsearch
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -19,88 +19,158 @@ settings = get_settings()
 # ── Index configuration ──────────────────────────────────────────────
 # Maps ES index name → metadata required to build queries & format results.
 
-INDEX_CONFIG: Dict[str, Dict[str, Any]] = {
-    "courses": {
+INDEX_COURSES = "courses"
+INDEX_NLP_TOOLS = "nlp_tools"
+INDEX_CORPORA = "corpora"
+INDEX_RESOURCES = "resources"
+INDEX_PROJECTS = "projects"
+INDEX_EVENTS = "events"
+INDEX_INSTITUTIONS = "institutions"
+INDEX_USERS = "users"
+
+INDEX_CONFIG: dict[str, dict[str, Any]] = {
+    INDEX_COURSES: {
         "type": "course",
         "url_pattern": "/resources/course/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
-            "keywords", "keywords.english", "keywords.arabic", "keywords.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
+            "keywords",
+            "keywords.english",
+            "keywords.arabic",
+            "keywords.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "nlp_tools": {
+    INDEX_NLP_TOOLS: {
         "type": "tool",
         "url_pattern": "/resources/tool/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
-            "keywords", "keywords.english", "keywords.arabic", "keywords.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
+            "keywords",
+            "keywords.english",
+            "keywords.arabic",
+            "keywords.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "corpora": {
+    INDEX_CORPORA: {
         "type": "corpus",
         "url_pattern": "/resources/corpus/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
-            "keywords", "keywords.english", "keywords.arabic", "keywords.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
+            "keywords",
+            "keywords.english",
+            "keywords.arabic",
+            "keywords.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "resources": {
+    INDEX_RESOURCES: {
         "type": "resource",
         "url_pattern": "/resources/{document_type}/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
-            "keywords", "keywords.english", "keywords.arabic", "keywords.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
+            "keywords",
+            "keywords.english",
+            "keywords.arabic",
+            "keywords.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "projects": {
+    INDEX_PROJECTS: {
         "type": "project",
         "url_pattern": "/projects/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "events": {
+    INDEX_EVENTS: {
         "type": "event",
         "url_pattern": "/events/{id}/",
         "search_fields": [
-            "title", "title.english", "title.arabic", "title.phonetic",
-            "description", "description.english", "description.arabic", "description.phonetic",
+            "title",
+            "title.english",
+            "title.arabic",
+            "title.phonetic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
         ],
         "title_field": "title",
         "description_field": "description",
     },
-    "institutions": {
+    INDEX_INSTITUTIONS: {
         "type": "institution",
         "url_pattern": "/institutions/{id}/",
         "search_fields": [
-            "name", "name.english", "name.arabic", "name.phonetic",
-            "acronym", "acronym.english", "acronym.arabic",
-            "description", "description.english", "description.arabic", "description.phonetic",
+            "name",
+            "name.english",
+            "name.arabic",
+            "name.phonetic",
+            "acronym",
+            "acronym.english",
+            "acronym.arabic",
+            "description",
+            "description.english",
+            "description.arabic",
+            "description.phonetic",
         ],
         "title_field": "name",
         "description_field": "description",
     },
-    "users": {
+    INDEX_USERS: {
         "type": "user",
         "url_pattern": "/accounts/profile/{id}/",
         "search_fields": [
-            "full_name", "full_name.english", "full_name.arabic", "full_name.phonetic",
-            "bio", "bio.english", "bio.arabic",
+            "full_name",
+            "full_name.english",
+            "full_name.arabic",
+            "full_name.phonetic",
+            "bio",
+            "bio.english",
+            "bio.arabic",
         ],
         "title_field": "full_name",
         "description_field": "bio",
@@ -122,9 +192,11 @@ def _detect_language(query: str) -> str:
     return "english"
 
 
-def _build_dis_max_query(query: str, fields: List[str], detected_lang: str) -> Dict:
+def _build_dis_max_query(query: str, fields: list[str], detected_lang: str) -> dict:
     """Build a dis_max query with language-aware boosting."""
-    primary_suffix = f".{detected_lang}" if detected_lang in ("arabic", "english") else ""
+    primary_suffix = (
+        f".{detected_lang}" if detected_lang in ("arabic", "english") else ""
+    )
     secondary_suffix = ".english" if detected_lang == "arabic" else ".arabic"
 
     match_clauses = []
@@ -155,7 +227,7 @@ class ElasticsearchService:
     """Async Elasticsearch search across the platform's indices."""
 
     def __init__(self):
-        self._client: Optional[AsyncElasticsearch] = None
+        self._client: AsyncElasticsearch | None = None
 
     async def _get_client(self) -> AsyncElasticsearch:
         if self._client is None:
@@ -174,10 +246,10 @@ class ElasticsearchService:
         self,
         query: str,
         *,
-        indices: Optional[List[str]] = None,
+        indices: list[str] | None = None,
         limit_per_index: int = 5,
         total_limit: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search across platform ES indices and return formatted results with links.
 
         Args:
@@ -189,14 +261,16 @@ class ElasticsearchService:
         client = await self._get_client()
         detected_lang = _detect_language(query)
         target_indices = indices or list(INDEX_CONFIG.keys())
-        all_results: List[Dict[str, Any]] = []
+        all_results: list[dict[str, Any]] = []
 
         for index_name in target_indices:
             config = INDEX_CONFIG.get(index_name)
             if not config:
                 continue
 
-            dis_max = _build_dis_max_query(query, config["search_fields"], detected_lang)
+            dis_max = _build_dis_max_query(
+                query, config["search_fields"], detected_lang
+            )
 
             try:
                 response = await client.search(
@@ -218,7 +292,7 @@ class ElasticsearchService:
         return all_results[:total_limit]
 
     @staticmethod
-    def _format_hit(hit: Dict, config: Dict) -> Optional[Dict[str, Any]]:
+    def _format_hit(hit: dict, config: dict) -> dict[str, Any] | None:
         """Convert an ES hit into a flat result dict with a platform link."""
         source = hit.get("_source", {})
         doc_id = hit.get("_id")
@@ -239,7 +313,7 @@ class ElasticsearchService:
             document_type=source.get("document_type", "article"),
         )
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "id": doc_id,
             "type": result_type,
             "title": title[:300],
@@ -274,7 +348,7 @@ class ElasticsearchService:
 
 # ── Singleton ────────────────────────────────────────────────────────
 
-_es_service: Optional[ElasticsearchService] = None
+_es_service: ElasticsearchService | None = None
 
 
 def get_elasticsearch_service() -> ElasticsearchService:

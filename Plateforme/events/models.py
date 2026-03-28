@@ -124,6 +124,7 @@ class Event(models.Model):
         default="en",
     )
     tags = models.JSONField(_("Tags"), null=True, blank=True)
+    entities = models.JSONField(_("Entities"), blank=True, default=dict)
     organizer = models.ForeignKey(
         Institution,
         on_delete=models.CASCADE,

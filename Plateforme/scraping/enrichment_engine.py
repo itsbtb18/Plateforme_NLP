@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import time
 from collections import Counter
 from datetime import date
 from typing import Any
@@ -10,12 +11,24 @@ from urllib.parse import quote, urljoin, urlparse
 import requests
 from django.utils import timezone
 
+from scraping.constants import (
+    ARXIV_ABS_BASE,
+    GITHUB_API_BASE,
+    GITHUB_API_VERSION,
+    GITHUB_WEB_HOST,
+    OPENALEX_API_BASE,
+    ROR_WEB_BASE,
+    SEMANTIC_SCHOLAR_API_BASE,
+    SPACY_DEFAULT_MODEL,
+    SPACY_NER_LABEL_MAP,
+)
 from scraping.enrichment.category_enrichers import CategoryEnrichmentMixin
 from scraping.enrichment.external_apis import ExternalAPIsMixin
 from scraping.enrichment.field_fillers import FieldFillerMixin
 from scraping.field_mapping import FIELD_MAPPINGS
 from scraping.intelligence import DOMAIN_ONTOLOGY, classify_domain
 from scraping.llm_validation import GroqLLMClient
+from scraping.scraping_settings import scraping_settings as SS
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +73,111 @@ _LEVEL_KEYWORDS = {
 }
 
 
+def _load_spacy_pipeline(model_name: str):
+    normalized = (model_name or "").strip()
+    if not normalized:
+        return None
+    try:
+        import spacy
+
+        nlp = spacy.load(normalized)
+        logger.info("Loaded spaCy model for scraping NER: %s", normalized)
+        return nlp
+    except Exception as exc:
+        logger.warning(
+            "spaCy model unavailable model=%s error=%s. Install with: "
+            "python -m spacy download %s",
+            normalized,
+            exc,
+            normalized,
+        )
+        return None
+
+
+_NLP = _load_spacy_pipeline(SS.SPACY_MODEL)
+if _NLP is None and (SS.SPACY_MODEL or "").strip() != SPACY_DEFAULT_MODEL:
+    _NLP = _load_spacy_pipeline(SPACY_DEFAULT_MODEL)
+
+_NLP_AR = _load_spacy_pipeline(SS.SPACY_MODEL_AR)
+if _NLP_AR is None:
+    _NLP_AR = _NLP
+
+
+def _select_spacy_pipeline(detected_language: str | None = None):
+    language = (detected_language or "").strip().lower()
+    if language.startswith("ar") and _NLP_AR is not None:
+        return _NLP_AR
+    return _NLP
+
+
+def extract_named_entities(
+    text: str,
+    detected_language: str = "en",
+) -> dict[str, list[str]]:
+    """Extract normalized named entities from text using spaCy when available."""
+    if not isinstance(text, str):
+        return {}
+
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        return {}
+
+    nlp = _select_spacy_pipeline(detected_language)
+    if nlp is None:
+        return {}
+
+    max_chars = max(256, int(getattr(SS, "SPACY_MAX_CHARS", 50_000)))
+    nlp_max = int(getattr(nlp, "max_length", 0) or 0)
+    if nlp_max > 1:
+        max_chars = min(max_chars, nlp_max - 1)
+
+    try:
+        doc = nlp(cleaned_text[:max_chars])
+    except Exception as exc:
+        logger.warning("spaCy NER extraction failed: %s", exc)
+        return {}
+
+    entities: dict[str, list[str]] = {
+        "PERSON": [],
+        "ORG": [],
+        "GPE": [],
+        "DATE": [],
+        "TECH": [],
+        "EVENT": [],
+    }
+
+    for ent in getattr(doc, "ents", []):
+        raw_label = str(getattr(ent, "label_", "")).strip().upper()
+        target_label = SPACY_NER_LABEL_MAP.get(raw_label)
+        if not target_label:
+            continue
+
+        value = str(getattr(ent, "text", "")).strip()
+        if not value:
+            continue
+
+        bucket = entities[target_label]
+        if value not in bucket:
+            bucket.append(value)
+
+    return {label: values for label, values in entities.items() if values}
+
+
 class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMixin):
     """Automatic, category-aware enrichment for scraped items."""
 
     def __init__(self):
-        self.client = GroqLLMClient(timeout=30)
+        self.client = None
+        try:
+            self.client = GroqLLMClient(
+                timeout=int(max(1, SS.LLM_TIMEOUT)),
+                max_retries=SS.MAX_RETRIES,
+            )
+        except Exception as exc:
+            logger.warning(
+                "LLM client init failed; continuing without LLM features: %s",
+                exc,
+            )
         self._http = requests.Session()
 
     def enrich_item(self, item: dict[str, Any], category: str) -> dict[str, Any]:
@@ -97,6 +210,18 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             item = category_result["item"]
             expected_steps += category_result["expected"]
             successful_steps += category_result["successful"]
+
+            ner_blob = self._build_entity_text(item)
+            if ner_blob:
+                detected_language = str(item.get("language") or "").strip().lower()
+                if not detected_language:
+                    detected_language = self._detect_language(ner_blob)
+                item["entities"] = extract_named_entities(
+                    ner_blob,
+                    detected_language=detected_language or "en",
+                )
+            else:
+                item["entities"] = {}
 
             for field_key, config in all_fields.items():
                 if (
@@ -363,7 +488,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             self._log_enrichment_failure(category, "is_free", exc)
 
         try:
-            topics = self._extract_topics_with_llm(blob, max_topics=5)
+            topics = self._extract_topics_with_llm(blob, max_topics=SS.MAX_TOPICS)
             if topics:
                 item["keywords"] = self._merge_tags(item.get("keywords"), topics)
                 changed = True
@@ -466,7 +591,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         )
 
         try:
-            response = self.client._chat(system_prompt, user_prompt)
+            response = self._llm_chat(system_prompt, user_prompt)
             if not response:
                 raise RuntimeError("Empty response from LLM")
 
@@ -531,7 +656,9 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
                 continue
 
             if field_key == "keywords":
-                item[field_key] = self._extract_keywords(text_blob, max_keywords=8)
+                item[field_key] = self._extract_keywords(
+                    text_blob, max_keywords=SS.MAX_KEYWORDS
+                )
                 continue
 
             if field_key == "research_domains":
@@ -590,6 +717,47 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             str(item.get("research_specialties") or ""),
         ]
         return " ".join(p for p in parts if p)
+
+    def _build_entity_text(self, item: dict[str, Any]) -> str:
+        keys = [
+            "title",
+            "title_en",
+            "title_ar",
+            "name",
+            "name_en",
+            "name_ar",
+            "description",
+            "description_en",
+            "description_ar",
+            "content",
+            "content_en",
+            "content_ar",
+            "body",
+            "body_en",
+            "body_ar",
+            "location",
+            "location_en",
+            "location_ar",
+            "keywords",
+            "tags",
+            "authors",
+            "research_specialties",
+        ]
+        parts: list[str] = []
+        for key in keys:
+            value = item.get(key)
+            if isinstance(value, list):
+                joined = " ".join(
+                    str(v) for v in value if self._has_meaningful_value(v)
+                )
+                if joined:
+                    parts.append(joined)
+                continue
+            if isinstance(value, dict):
+                continue
+            if self._has_meaningful_value(value):
+                parts.append(str(value))
+        return " ".join(parts)
 
     def _detect_language(self, text: str) -> str:
         normalized = f" {self._normalize_text(text)} "
@@ -703,7 +871,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         github_url = str(item.get("github_url") or "").strip()
         if not github_url:
             link = str(item.get("access_link") or "").strip()
-            if "github.com/" in link:
+            if f"{GITHUB_WEB_HOST}/" in link:
                 github_url = link
         if not github_url or not token:
             return False
@@ -715,11 +883,9 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
-            "X-GitHub-Api-Version": "2022-11-28",
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
         }
-        data = self._fetch_json(
-            f"https://api.github.com/repos/{repo_path}", headers=headers
-        )
+        data = self._fetch_json(f"{GITHUB_API_BASE}/repos/{repo_path}", headers=headers)
         if not isinstance(data, dict):
             return False
 
@@ -768,7 +934,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             return False
 
         data = self._fetch_json(
-            "https://api.semanticscholar.org/graph/v1/paper/search",
+            f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search",
             params={
                 "query": title,
                 "limit": 1,
@@ -792,7 +958,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         if not arxiv_id:
             return False
 
-        text = self._fetch_text(f"https://export.arxiv.org/abs/{quote(arxiv_id)}")
+        text = self._fetch_text(f"{ARXIV_ABS_BASE}/{quote(arxiv_id)}")
         if not text:
             return False
 
@@ -833,12 +999,12 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         if doi:
             encoded = quote(f"DOI:{doi}", safe=":/")
             data = self._fetch_json(
-                f"https://api.semanticscholar.org/graph/v1/paper/{encoded}",
+                f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{encoded}",
                 params={"fields": "citationCount,authors,title,abstract,url"},
             )
         if not data and title:
             search = self._fetch_json(
-                "https://api.semanticscholar.org/graph/v1/paper/search",
+                f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search",
                 params={
                     "query": title,
                     "limit": 1,
@@ -891,7 +1057,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         abstract = str(item.get("content_en") or item.get("abstract") or "").strip()
         if not abstract:
             return False
-        concepts = self._extract_topics_with_llm(abstract, max_topics=5)
+        concepts = self._extract_topics_with_llm(abstract, max_topics=SS.MAX_TOPICS)
         if concepts:
             item["tags"] = self._merge_tags(item.get("tags"), concepts)
             item["keywords"] = self._merge_tags(item.get("keywords"), concepts)
@@ -946,11 +1112,12 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         return ""
 
     def _enrich_institution_openalex(self, item: dict[str, Any]) -> bool:
-        ror_id = str(item.get("ror_id") or "").strip().replace("https://ror.org/", "")
+        ror_id = str(item.get("ror_id") or "").strip().replace(f"{ROR_WEB_BASE}/", "")
         if not ror_id:
             return False
 
-        url = f"https://api.openalex.org/institutions/https://ror.org/{quote(ror_id)}"
+        ror_uri = quote(f"{ROR_WEB_BASE}/{ror_id}", safe=":/")
+        url = f"{OPENALEX_API_BASE}/{ror_uri}"
         data = self._fetch_json(url)
         if not isinstance(data, dict):
             return False
@@ -1040,7 +1207,10 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
 
         return changed
 
-    def _extract_topics_with_llm(self, text: str, max_topics: int = 5) -> list[str]:
+    def _extract_topics_with_llm(
+        self, text: str, max_topics: int | None = None
+    ) -> list[str]:
+        topic_cap = max(1, int(max_topics or SS.MAX_TOPICS))
         parsed = self._chat_json(
             "Extract 3 to 5 key concepts from text. Return JSON with key topics as array of short phrases.",
             text[:4000],
@@ -1054,20 +1224,92 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             for topic in cleaned:
                 if topic not in unique:
                     unique.append(topic)
-                if len(unique) >= max_topics:
+                if len(unique) >= topic_cap:
                     break
             return unique
         return []
 
     def _chat_json(self, system: str, user: str) -> dict[str, Any]:
         try:
-            raw = self.client._chat(system, user)
+            raw = self._llm_chat(system, user)
             if not raw:
                 return {}
             parsed = self._extract_json_object(raw)
             return parsed if isinstance(parsed, dict) else {}
         except Exception:
             return {}
+
+    def _llm_chat(self, system: str, user: str) -> str | None:
+        if self.client is None:
+            return None
+        try:
+            return self.client._chat(system, user)
+        except Exception as exc:
+            logger.warning("LLM chat failed: %s", exc)
+            return None
+
+    def _retry_delay_seconds(
+        self, attempt_number: int, retry_after: int | None
+    ) -> float:
+        if retry_after is not None and retry_after >= 0:
+            delay = float(retry_after + SS.RETRY_AFTER_BUFFER)
+        else:
+            delay = float(SS.RETRY_BACKOFF_BASE) * (2 ** max(0, attempt_number - 1))
+        return max(
+            0.0,
+            min(delay, float(SS.RETRY_BACKOFF_CAP), float(SS.TOTAL_TIMEOUT)),
+        )
+
+    def _parse_retry_after(self, raw_retry_after: Any) -> int | None:
+        if raw_retry_after is None:
+            return None
+        try:
+            return int(str(raw_retry_after).strip())
+        except Exception:
+            return None
+
+    def _request_with_retry(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ):
+        effective_timeout = float(timeout or SS.TOTAL_TIMEOUT)
+        retries = max(0, int(SS.MAX_RETRIES))
+        retryable_statuses = {429, 500, 502, 503, 504}
+
+        for attempt in range(retries + 1):
+            try:
+                resp = self._http.request(
+                    method,
+                    url,
+                    headers=headers,
+                    params=params,
+                    timeout=effective_timeout,
+                )
+            except requests.RequestException:
+                resp = None
+
+            if resp is not None and (
+                resp.status_code < 400 or resp.status_code not in retryable_statuses
+            ):
+                return resp
+
+            if attempt >= retries:
+                return resp
+
+            retry_after = None
+            if resp is not None:
+                retry_after = self._parse_retry_after(resp.headers.get("Retry-After"))
+
+            delay = self._retry_delay_seconds(attempt + 1, retry_after)
+            if delay > 0:
+                time.sleep(delay)
+
+        return None
 
     def _fetch_json(
         self,
@@ -1076,7 +1318,15 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         try:
-            resp = self._http.get(url, headers=headers, params=params, timeout=15)
+            resp = self._request_with_retry(
+                "GET",
+                url,
+                headers=headers,
+                params=params,
+                timeout=SS.TOTAL_TIMEOUT,
+            )
+            if resp is None:
+                return None
             if resp.status_code >= 400:
                 return None
             return resp.json()
@@ -1085,7 +1335,9 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
 
     def _fetch_text(self, url: str) -> str:
         try:
-            resp = self._http.get(url, timeout=15)
+            resp = self._request_with_retry("GET", url, timeout=SS.TOTAL_TIMEOUT)
+            if resp is None:
+                return ""
             if resp.status_code >= 400:
                 return ""
             return resp.text or ""
@@ -1095,7 +1347,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
     def _parse_github_repo(self, github_url: str) -> str:
         try:
             parsed = urlparse(github_url)
-            if "github.com" not in parsed.netloc.lower():
+            if GITHUB_WEB_HOST not in parsed.netloc.lower():
                 return ""
             path = parsed.path.strip("/")
             parts = [p for p in path.split("/") if p]
@@ -1197,9 +1449,11 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             str(exc),
         )
 
-    def _extract_keywords(self, text, max_keywords=8):
+    def _extract_keywords(self, text, max_keywords: int | None = None):
         if not text:
             return []
+
+        keyword_cap = max(1, int(max_keywords or SS.MAX_KEYWORDS))
 
         stopwords = {
             "the",
@@ -1257,6 +1511,32 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
             "systems",
         }
 
+        nlp = _select_spacy_pipeline(self._detect_language(text))
+        if nlp is not None:
+            try:
+                safe_limit = max(
+                    1, min(8000, int(getattr(nlp, "max_length", 8001)) - 1)
+                )
+                doc = nlp(text[:safe_limit])
+                entity_tokens: list[str] = []
+                for ent in getattr(doc, "ents", []):
+                    candidate = str(getattr(ent, "text", "")).strip().lower()
+                    if not candidate:
+                        continue
+                    parts = [
+                        p for p in re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", candidate)
+                    ]
+                    for token in parts:
+                        if token not in stopwords and token not in entity_tokens:
+                            entity_tokens.append(token)
+                        if len(entity_tokens) >= keyword_cap:
+                            return entity_tokens
+            except Exception as exc:
+                logger.warning(
+                    "spaCy keyword extraction failed; falling back to regex: %s",
+                    exc,
+                )
+
         tokens = [t.lower() for t in re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", text)]
         filtered = [t for t in tokens if t not in stopwords]
         counts = Counter(filtered)
@@ -1265,7 +1545,7 @@ class EnrichmentEngine(CategoryEnrichmentMixin, FieldFillerMixin, ExternalAPIsMi
         for token, _count in counts.most_common():
             if token not in keywords:
                 keywords.append(token)
-            if len(keywords) >= max_keywords:
+            if len(keywords) >= keyword_cap:
                 break
 
         return keywords

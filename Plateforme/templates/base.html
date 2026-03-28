@@ -633,48 +633,280 @@
       }
 
       /* ══════════════════════════════════════════════════════════════════════ */
-      /* RTL SUPPORT FOR TOAST NOTIFICATIONS                                   */
+      /* MODERN TOAST NOTIFICATIONS STYLING                                    */
       /* ══════════════════════════════════════════════════════════════════════ */
       
-      html[dir="rtl"] .toast-container {
-        right: auto !important;
-        left: 1rem !important;
+      .modern-toast-container {
+        position: fixed;
+        top: 90px;
+        right: 20px;
+        z-index: 2001;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        pointer-events: none;
       }
       
-      html[dir="rtl"] .toast {
-        direction: rtl;
-        text-align: right;
+      .modern-toast {
+        pointer-events: auto;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 16px 20px;
+        border-radius: 12px;
+        background: white;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.06);
+        border-left: 4px solid;
+        animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-width: 420px;
+        min-width: 340px;
+        position: relative;
+        overflow: hidden;
       }
       
-      html[dir="rtl"] .toast-header {
-        direction: rtl;
-        text-align: right;
+      .modern-toast::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, currentColor, transparent);
+        opacity: 0.3;
+      }
+      
+      .modern-toast.success {
+        border-left-color: #22c55e;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+      }
+      
+      .modern-toast.error,
+      .modern-toast.danger {
+        border-left-color: #ef4444;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+      }
+      
+      .modern-toast.warning {
+        border-left-color: #f59e0b;
+        background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+      }
+      
+      .modern-toast.info {
+        border-left-color: #3b82f6;
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+      }
+      
+      .modern-toast-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      
+      .modern-toast.success .modern-toast-icon {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      
+      .modern-toast.error .modern-toast-icon,
+      .modern-toast.danger .modern-toast-icon {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      
+      .modern-toast.warning .modern-toast-icon {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+      }
+      
+      .modern-toast.info .modern-toast-icon {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+      }
+      
+      .modern-toast-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .modern-toast-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1f2937;
+        margin: 0 0 4px 0;
+        line-height: 1.3;
+      }
+      
+      .modern-toast-message {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.4;
+        word-break: break-word;
+      }
+      
+      .modern-toast-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+      
+      .modern-toast-close:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #4b5563;
+      }
+      
+      .modern-toast-close:active {
+        background: rgba(0, 0, 0, 0.08);
+      }
+      
+      .modern-toast-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        background: currentColor;
+        opacity: 0.3;
+        animation: progressBar 5s linear forwards;
+      }
+      
+      .modern-toast.success .modern-toast-progress {
+        background: #22c55e;
+      }
+      
+      .modern-toast.error .modern-toast-progress,
+      .modern-toast.danger .modern-toast-progress {
+        background: #ef4444;
+      }
+      
+      .modern-toast.warning .modern-toast-progress {
+        background: #f59e0b;
+      }
+      
+      .modern-toast.info .modern-toast-progress {
+        background: #3b82f6;
+      }
+      
+      @keyframes slideInRight {
+        from {
+          transform: translateX(380px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes slideOutRight {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(380px);
+          opacity: 0;
+        }
+      }
+      
+      @keyframes progressBar {
+        from {
+          width: 100%;
+        }
+        to {
+          width: 0%;
+        }
+      }
+      
+      .modern-toast.fade-out {
+        animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+      
+      /* RTL SUPPORT FOR MODERN TOAST NOTIFICATIONS */
+      html[dir="rtl"] .modern-toast-container {
+        right: auto;
+        left: 20px;
+      }
+      
+      html[dir="rtl"] .modern-toast {
         flex-direction: row-reverse;
-      }
-      
-      html[dir="rtl"] .toast-header i {
-        margin-right: 0;
-        margin-left: 0.5rem;
-      }
-      
-      html[dir="rtl"] .toast-header .me-2 {
-        margin-right: 0 !important;
-        margin-left: 0.5rem !important;
-      }
-      
-      html[dir="rtl"] .toast-header .me-auto {
-        margin-right: auto !important;
-        margin-left: 0 !important;
-      }
-      
-      html[dir="rtl"] .toast-body {
+        border-left: none;
+        border-right: 4px solid;
         direction: rtl;
         text-align: right;
       }
       
-      html[dir="rtl"] .btn-close {
-        margin-right: auto;
-        margin-left: 0;
+      html[dir="rtl"] .modern-toast.success {
+        border-right-color: #22c55e;
+      }
+      
+      html[dir="rtl"] .modern-toast.error,
+      html[dir="rtl"] .modern-toast.danger {
+        border-right-color: #ef4444;
+      }
+      
+      html[dir="rtl"] .modern-toast.warning {
+        border-right-color: #f59e0b;
+      }
+      
+      html[dir="rtl"] .modern-toast.info {
+        border-right-color: #3b82f6;
+      }
+      
+      html[dir="rtl"] @keyframes slideInRight {
+        from {
+          transform: translateX(-380px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      html[dir="rtl"] @keyframes slideOutRight {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(-380px);
+          opacity: 0;
+        }
+      }
+      
+      @media (max-width: 640px) {
+        .modern-toast-container {
+          top: 80px;
+          right: 10px;
+          left: auto;
+        }
+        
+        .modern-toast {
+          min-width: 300px;
+          max-width: calc(100vw - 20px);
+        }
+      }
+      
+      html[dir="rtl"] @media (max-width: 640px) {
+        .modern-toast-container {
+          left: 10px;
+          right: auto;
+        }
       }
 
       /* Respect online visibility preference from the profile switch */
@@ -1663,18 +1895,41 @@
         </aside>
 
         <main class="content">
-            <!-- Toast Container for Flash Messages (can be overridden per template) -->
+            <!-- Modern Toast Container for Flash Messages -->
             {% block messages_container %}
-            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+            <div class="modern-toast-container" id="toastContainer">
                 {% if messages %}
                     {% for message in messages %}
-                    <div class="toast align-items-center border-0 {% if message.tags %}bg-{{ message.tags }} text-white{% else %}bg-dark text-white{% endif %}" role="alert" aria-live="assertive" aria-atomic="true">
-                        <div class="d-flex">
-                            <div class="toast-body">
-                                {{ message }}
-                            </div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <div class="modern-toast {% if message.tags %}{{ message.tags }}{% else %}info{% endif %}" role="alert" aria-live="polite" aria-atomic="true">
+                        <div class="modern-toast-icon">
+                            {% if message.tags == 'success' %}
+                                <i class="bi bi-check-circle-fill"></i>
+                            {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                <i class="bi bi-exclamation-circle-fill"></i>
+                            {% elif message.tags == 'warning' %}
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                            {% else %}
+                                <i class="bi bi-info-circle-fill"></i>
+                            {% endif %}
                         </div>
+                        <div class="modern-toast-content">
+                            <p class="modern-toast-title">
+                                {% if message.tags == 'success' %}
+                                    {% trans "Success" %}
+                                {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                    {% trans "Error" %}
+                                {% elif message.tags == 'warning' %}
+                                    {% trans "Warning" %}
+                                {% else %}
+                                    {% trans "Information" %}
+                                {% endif %}
+                            </p>
+                            <p class="modern-toast-message">{{ message }}</p>
+                        </div>
+                        <button type="button" class="modern-toast-close" aria-label="Close notifiaction">
+                            <i class="bi bi-x"></i>
+                        </button>
+                        <div class="modern-toast-progress"></div>
                     </div>
                     {% endfor %}
                 {% endif %}
@@ -1682,16 +1937,31 @@
             {% endblock messages_container %}
             
             <script>
-            // Auto-show Django message toasts
+            // Modern toast notification handler
             document.addEventListener('DOMContentLoaded', function() {
-                var toastElList = [].slice.call(document.querySelectorAll('.toast'));
-                var toastList = toastElList.map(function(toastEl) {
-                    var toast = new bootstrap.Toast(toastEl, {
-                        autohide: true,
-                        delay: 5000
+                const toasts = document.querySelectorAll('.modern-toast');
+                
+                toasts.forEach(toast => {
+                    const closeBtn = toast.querySelector('.modern-toast-close');
+                    let timeout;
+                    
+                    function removeToast() {
+                        toast.classList.add('fade-out');
+                        setTimeout(() => {
+                            toast.remove();
+                        }, 300);
+                    }
+                    
+                    closeBtn.addEventListener('click', removeToast);
+                    
+                    // Auto-hide after 5 seconds
+                    timeout = setTimeout(removeToast, 5000);
+                    
+                    // Reset timeout on hover
+                    toast.addEventListener('mouseenter', () => clearTimeout(timeout));
+                    toast.addEventListener('mouseleave', () => {
+                        timeout = setTimeout(removeToast, 5000);
                     });
-                    toast.show();
-                    return toast;
                 });
             });
             </script>

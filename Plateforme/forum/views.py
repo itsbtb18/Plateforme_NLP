@@ -85,119 +85,62 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
     def get_queryset(self) -> QuerySet[Topic]:
         qs = cast(QuerySet[Topic], super().get_queryset())
-
-        # Visibility: approved for everyone, pending only for creator and staff.
+        
+        # Public users see approved topics + their own pending topics
+        # so they can track moderation state directly in the forum list.
         if self.request.user.is_staff or self.request.user.is_superuser:
             qs = qs.all()
         else:
             qs = qs.filter(
-                Q(approval_status="approved")
-                | Q(approval_status="pending", creator=self.request.user)
+                Q(approval_status='approved') |
+                Q(approval_status='pending', creator=self.request.user)
             )
-
-        qs = exclude_hidden_users(qs, self.request.user, ("creator",))
-
-        # Optional "my topics" filter.
-        if self.request.GET.get("my_topics") and self.request.user.is_authenticated:
+        qs = exclude_hidden_users(qs, self.request.user, ('creator',))
+        
+        # Filter: My Topics only - but still only approved ones
+        if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
             qs = qs.filter(creator=self.request.user)
-
-        # Search by title.
-        search_query = self.request.GET.get("q", "").strip()
+        
+        # Backend search filtering
+        search_query = self.request.GET.get('q', '').strip()
         if search_query:
             qs = qs.filter(
-                Q(title__icontains=search_query)
-                | Q(title_ar__icontains=search_query)
-                | Q(title_en__icontains=search_query)
+                Q(title__icontains=search_query) |
+                Q(title_ar__icontains=search_query) |
+                Q(title_en__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(description_ar__icontains=search_query) |
+                Q(description_en__icontains=search_query) |
+                Q(creator__username__icontains=search_query) |
+                Q(creator__full_name__icontains=search_query)
             )
-
-        # Optional domain filter (works if the model has one of these relations/fields).
-        domain = self.request.GET.get("domain", "").strip()
-        if domain:
-            field_names = {f.name for f in Topic._meta.get_fields()}
-            if "domain" in field_names:
-                qs = qs.filter(domain__slug=domain)
-            elif "research_domains" in field_names:
-                qs = qs.filter(research_domains__slug=domain)
-
-        # Annotate reusable counters for templates and sorting.
-        # Subqueries keep counts stable even with extra joins/filters.
-        chatroom_count_subquery = (
-            ChatRoom.objects.filter(topic_id=OuterRef("pk"))
-            .values("topic_id")
-            .annotate(c=Count("id"))
-            .values("c")[:1]
-        )
-        comment_count_subquery = (
-            Message.objects.filter(chatroom__topic_id=OuterRef("pk"))
-            .values("chatroom__topic_id")
-            .annotate(c=Count("id"))
-            .values("c")[:1]
-        )
-        qs = qs.annotate(
-            chatroom_count=Coalesce(
-                Subquery(chatroom_count_subquery, output_field=IntegerField()),
-                Value(0),
-            ),
-            comment_count=Coalesce(
-                Subquery(comment_count_subquery, output_field=IntegerField()),
-                Value(0),
-            ),
-        )
-
-        # Sort options: newest, oldest, popular (most viewed).
-        sort = (
-            self.request.GET.get("sort_by")
-            or self.request.GET.get("sort")
-            or "newest"
-        ).strip()
-        if sort == "oldest":
-            qs = qs.order_by("created_at")
-        elif sort == "popular":
-            qs = qs.order_by("-views", "-created_at")
-        elif sort == "active":
-            qs = qs.order_by("-comment_count", "-chatroom_count", "-created_at")
+        
+        # Sort options
+        sort = self.request.GET.get('sort', '')
+        if sort == 'newest':
+            qs = qs.order_by('-created_at')
+        elif sort == 'active':
+            # Sort by most chatrooms/activity
+            qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
+        elif sort == 'popular':
+            # Sort by views (fallback to chatroom count if views not available)
+            qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
         else:
-            qs = qs.order_by("-created_at")
-
-        return qs.distinct()
-
-    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        topic_id = kwargs.get("topic_id")
-        if topic_id:
-            Topic.objects.filter(pk=topic_id).update(views=F("views") + 1)
-        return super().get(request, *args, **kwargs)
+            # Default: order by creation date
+            qs = qs.order_by('-created_at')
+        
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        full_qs = self.get_queryset()
-
-        context["page"] = "community"
-        context["search_query"] = self.request.GET.get("q", "").strip()
-        context["current_sort"] = (
-            self.request.GET.get("sort_by")
-            or self.request.GET.get("sort")
-            or "newest"
-        ).strip()
-        context["current_domain"] = self.request.GET.get("domain", "").strip()
-        context["my_topics"] = self.request.GET.get("my_topics", "").strip()
-        context["active_filters"] = {
-            "q": context["search_query"],
-            "sort": context["current_sort"],
-            "domain": context["current_domain"],
-            "my_topics": context["my_topics"],
-        }
-
-        context["total_topics"] = full_qs.count()
-        context["total_chatrooms"] = ChatRoom.objects.filter(topic__in=full_qs).count()
-
-        # Explicit pagination context for templates/AJAX controls.
-        page_obj = context.get("page_obj")
-        paginator = context.get("paginator")
-        context["has_next"] = page_obj.has_next() if page_obj else False
-        context["has_previous"] = page_obj.has_previous() if page_obj else False
-        context["current_page"] = page_obj.number if page_obj else 1
-        context["num_pages"] = paginator.num_pages if paginator else 1
-
+        visible_topics_qs = self.get_queryset()
+        context['page'] = 'community'
+        context['search_query'] = self.request.GET.get('q', '')
+        context['total_topics'] = visible_topics_qs.count()
+        context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
+        # Category filter context
+        context['current_sort'] = self.request.GET.get('sort', '')
+        context['my_topics'] = self.request.GET.get('my_topics', '')
         return context
 
 

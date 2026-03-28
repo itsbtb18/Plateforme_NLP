@@ -41,6 +41,12 @@ from scraping.views_root import (
     _require_staff,
     is_admin,
     rate_limit,
+    scraping_result_delete,
+    scraping_result_detail,
+    scraping_result_validate,
+    scraping_results,
+    scraping_results_bulk_action,
+    validate_source,
 )
 
 __all__ = [
@@ -51,6 +57,12 @@ __all__ = [
     "_require_staff",
     "_require_json_content_type",
     "is_admin",
+    "validate_source",
+    "scraping_result_detail",
+    "scraping_result_validate",
+    "scraping_result_delete",
+    "scraping_results",
+    "scraping_results_bulk_action",
     "dashboard",
     "_media_stats",
     "_infer_source_tier",

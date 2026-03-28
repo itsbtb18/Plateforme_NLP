@@ -70,8 +70,8 @@ CATEGORY_META = {
             "OpenAlex API",
             "Algerian Universities",
             "African & Arabic NLP Labs",
-            "North African Institutions (Morocco, Tunisia, Egypt, Libya)",
-            "Arabic/Gulf Institutions (SA, UAE, QA, JO, LB, OM, SD)",
+            "North African Institutions",
+            "Arabic/Gulf Institutions",
         ],
     },
 }

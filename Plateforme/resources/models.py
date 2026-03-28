@@ -1,17 +1,18 @@
+import logging
 import uuid
-from django.db import models
+from collections.abc import Iterable
+from typing import cast
+
 from django.contrib.auth import get_user_model
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError, PermissionDenied
-from institutions.models import Institution
-from django.utils import timezone
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import models
+from django.db.models import F
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import F
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from django_elasticsearch_dsl.registries import registry
-import logging
-from typing import Iterable, Tuple, cast
+from institutions.models import Institution
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ class ResourceBase(models.Model):
     creation_date = models.DateTimeField(
         auto_now_add=True, verbose_name=_("Creation Date")
     )
-    access_link = models.URLField(verbose_name=_("Access Link"), blank=True, null=True, db_index=True)
+    access_link = models.URLField(
+        verbose_name=_("Access Link"), blank=True, null=True, db_index=True
+    )
     author = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
@@ -67,6 +70,11 @@ class ResourceBase(models.Model):
     )
     keywords = models.CharField(
         max_length=255, blank=True, null=True, verbose_name=_("Keywords")
+    )
+    entities = models.JSONField(
+        verbose_name=_("Entities"),
+        blank=True,
+        default=dict,
     )
     update_date = models.DateTimeField(
         null=True,
@@ -528,8 +536,8 @@ class Memoir(models.Model):
 
     def get_citation(self):
         field = self._meta.get_field("academic_level")
-        choices_iter: Iterable[Tuple[str, str]] = cast(
-            Iterable[Tuple[str, str]], field.choices or []
+        choices_iter: Iterable[tuple[str, str]] = cast(
+            Iterable[tuple[str, str]], field.choices or []
         )
         levels = {key: label for key, label in choices_iter}
         level_display = levels.get(self.academic_level, self.academic_level)

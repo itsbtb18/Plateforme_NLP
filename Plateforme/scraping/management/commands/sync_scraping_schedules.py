@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from scraping.constants import LEGACY_FIXED_SCHEDULE_NAMES
 from scraping.schedule_config import SCRAPING_SCHEDULES
 
 
@@ -60,6 +61,16 @@ class Command(BaseCommand):
                 task.save(update_fields=["task", "crontab", "args", "enabled"])
                 updated_count += 1
                 self.stdout.write(self.style.WARNING(f"updated: {task.name}"))
+
+        disabled_count = (
+            PeriodicTask.objects.filter(name__in=LEGACY_FIXED_SCHEDULE_NAMES)
+            .exclude(enabled=False)
+            .update(enabled=False)
+        )
+        if disabled_count:
+            self.stdout.write(
+                self.style.WARNING(f"disabled legacy fixed schedules={disabled_count}")
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
