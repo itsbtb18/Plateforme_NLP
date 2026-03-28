@@ -133,6 +133,7 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+<<<<<<< HEAD
         visible_topics_qs = self.get_queryset()
         context['page'] = 'community'
         context['search_query'] = self.request.GET.get('q', '')
@@ -141,6 +142,48 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         # Category filter context
         context['current_sort'] = self.request.GET.get('sort', '')
         context['my_topics'] = self.request.GET.get('my_topics', '')
+=======
+        full_qs = self.get_queryset()
+        stats_qs = Topic.objects.all()
+
+        # Stable hero stats: visibility rules only (independent from search/sort filters).
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            stats_qs = stats_qs.all()
+        else:
+            stats_qs = stats_qs.filter(
+                Q(approval_status="approved")
+                | Q(approval_status="pending", creator=self.request.user)
+            )
+        stats_qs = exclude_hidden_users(stats_qs, self.request.user, ("creator",))
+
+        context["page"] = "community"
+        context["search_query"] = self.request.GET.get("q", "").strip()
+        context["current_sort"] = (
+            self.request.GET.get("sort_by")
+            or self.request.GET.get("sort")
+            or "newest"
+        ).strip()
+        context["current_domain"] = self.request.GET.get("domain", "").strip()
+        context["my_topics"] = self.request.GET.get("my_topics", "").strip()
+        context["active_filters"] = {
+            "q": context["search_query"],
+            "sort": context["current_sort"],
+            "domain": context["current_domain"],
+            "my_topics": context["my_topics"],
+        }
+
+        context["total_topics"] = stats_qs.count()
+        context["total_chatrooms"] = ChatRoom.objects.filter(topic__in=stats_qs).count()
+
+        # Explicit pagination context for templates/AJAX controls.
+        page_obj = context.get("page_obj")
+        paginator = context.get("paginator")
+        context["has_next"] = page_obj.has_next() if page_obj else False
+        context["has_previous"] = page_obj.has_previous() if page_obj else False
+        context["current_page"] = page_obj.number if page_obj else 1
+        context["num_pages"] = paginator.num_pages if paginator else 1
+
+>>>>>>> 837180b3e4c0b6aa7c0b518c135929979317e47e
         return context
 
 
