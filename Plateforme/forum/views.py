@@ -543,6 +543,8 @@ class ChatRoomListView(LoginAndVerifiedRequiredMixin, ListView):
             from django.http import Http404
 
             raise Http404(_("Topic not found."))
+        # Count opening a topic's room list as a topic view.
+        Topic.objects.filter(pk=topic.pk).update(views=F("views") + 1)
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet[ChatRoom]:

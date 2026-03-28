@@ -196,6 +196,8 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 }
 
 .ft-filter-pill {
+    appearance: none;
+    -webkit-appearance: none;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -558,6 +560,28 @@ html[dir="rtl"] .ft-user-topic-row {
     max-width: 260px;
 }
 
+.ft-open-topic-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--ft-radius-full);
+    background: var(--ft-primary-glow);
+    color: var(--ft-primary);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.ft-open-topic-btn:hover {
+    background: var(--ft-primary);
+    color: var(--ft-white);
+    border-color: var(--ft-primary);
+}
+
 .ft-user-topic-row .ft-pending-badge {
     margin: 0;
     white-space: nowrap;
@@ -781,46 +805,51 @@ html[dir="rtl"] .ft-search-spinner {
             <!-- Filter Pills -->
             <div class="ft-filter-pills" id="filterPills">
                 <!-- All Topics -->
-                <a href="{% url 'forum:topic-list' %}{% if search_query %}?q={{ search_query }}{% endif %}" 
+                <button type="button"
                    class="ft-filter-pill {% if not my_topics and not current_sort %}active{% endif %}"
-                   data-filter="all">
+                   data-filter="all"
+                   data-url="{% url 'forum:topic-list' %}{% if search_query %}?q={{ search_query }}{% endif %}">
                     <i class="bi bi-grid-3x3-gap"></i>
                     {% translate "All" %}
-                </a>
+                </button>
                 
                 {% if user.is_authenticated %}
                 <!-- My Topics -->
-                <a href="?my_topics=1{% if search_query %}&q={{ search_query }}{% endif %}" 
+                <button type="button"
                    class="ft-filter-pill {% if my_topics %}active{% endif %}"
-                   data-filter="my_topics">
+                   data-filter="my_topics"
+                   data-url="?my_topics=1{% if search_query %}&q={{ search_query }}{% endif %}">
                     <i class="bi bi-person"></i>
                     {% translate "My Topics" %}
-                </a>
+                </button>
                 {% endif %}
                 
                 <!-- Newest -->
-                <a href="?sort=newest{% if search_query %}&q={{ search_query }}{% endif %}" 
+                <button type="button"
                    class="ft-filter-pill {% if current_sort == 'newest' %}active{% endif %}"
-                   data-filter="newest">
+                   data-filter="newest"
+                   data-url="?sort=newest{% if search_query %}&q={{ search_query }}{% endif %}">
                     <i class="bi bi-clock"></i>
                     {% translate "Newest" %}
-                </a>
+                </button>
                 
                 <!-- Oldest -->
-                <a href="?sort=oldest{% if search_query %}&q={{ search_query }}{% endif %}" 
+                <button type="button"
                    class="ft-filter-pill {% if current_sort == 'oldest' %}active{% endif %}"
-                   data-filter="oldest">
+                   data-filter="oldest"
+                   data-url="?sort=oldest{% if search_query %}&q={{ search_query }}{% endif %}">
                     <i class="bi bi-clock-history"></i>
                     {% translate "Oldest" %}
-                </a>
+                </button>
                 
                 <!-- Most viewed -->
-                <a href="?sort=popular{% if search_query %}&q={{ search_query }}{% endif %}" 
+                <button type="button"
                    class="ft-filter-pill {% if current_sort == 'popular' %}active{% endif %}"
-                   data-filter="popular">
+                   data-filter="popular"
+                   data-url="?sort=popular{% if search_query %}&q={{ search_query }}{% endif %}">
                     <i class="bi bi-star"></i>
                     {% translate "Most viewed" %}
-                </a>
+                </button>
             </div>
             
             <form method="get" action="" class="ft-search-box" id="topicSearchForm">
@@ -880,6 +909,10 @@ html[dir="rtl"] .ft-search-spinner {
                     </div>
                     
                     <div class="ft-card-actions">
+                        <a href="{% url 'forum:topic-detail' topic.id %}" class="ft-open-topic-btn" title="{% translate 'View topic' %}">
+                            <i class="bi bi-eye"></i>
+                            {% translate "View topic" %}
+                        </a>
                         <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
                             <i class="bi bi-chat-dots"></i>
                         </a>
@@ -1140,7 +1173,7 @@ html[dir="rtl"] .ft-search-spinner {
                     return;
                 }
                 e.preventDefault();
-                const targetUrl = this.getAttribute('href');
+                const targetUrl = this.getAttribute('data-url');
                 if (targetUrl) {
                     window.location.href = targetUrl;
                 }
