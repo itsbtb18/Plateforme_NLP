@@ -420,6 +420,41 @@ html[dir="rtl"] .idc-consequences { text-align: right; }
                     </li>
                 </ul>
             </div>
+
+            {% if deletion_error %}
+            <div class="idc-consequences" style="border: 1px solid var(--idc-danger-border); background: var(--idc-danger-bg);">
+                <div class="idc-consequences-title">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    {% translate "Deletion blocked" %}
+                </div>
+                <p class="idc-warning-text" style="margin: 0; text-align: left;">
+                    {{ deletion_error }}
+                </p>
+            </div>
+            {% endif %}
+
+            {% if has_blocking_resources %}
+            <div class="idc-consequences">
+                <div class="idc-consequences-title">
+                    <i class="bi bi-journal-x"></i>
+                    {% translate "Blocking resources" %}
+                </div>
+                <ul class="idc-consequences-list">
+                    {% for thesis in blocking_theses %}
+                    <li>
+                        <i class="bi bi-dot"></i>
+                        {% translate "Thesis" %}: {{ thesis.document.title|default:thesis.id }}
+                    </li>
+                    {% endfor %}
+                    {% for memoir in blocking_memoirs %}
+                    <li>
+                        <i class="bi bi-dot"></i>
+                        {% translate "Memoir" %}: {{ memoir.document.title|default:memoir.id }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
             
             <!-- Actions -->
             <form method="post" class="idc-actions">
@@ -428,7 +463,7 @@ html[dir="rtl"] .idc-consequences { text-align: right; }
                     <i class="bi bi-arrow-left"></i>
                     {% translate "Cancel" %}
                 </a>
-                <button type="submit" class="idc-btn idc-btn-danger">
+                <button type="submit" class="idc-btn idc-btn-danger" {% if has_blocking_resources %}disabled title="{% translate 'Deletion is blocked by referenced resources.' %}" style="opacity:.6;cursor:not-allowed;"{% endif %}>
                     <i class="bi bi-trash3"></i>
                     {% translate "Remove Permanently" %}
                 </button>

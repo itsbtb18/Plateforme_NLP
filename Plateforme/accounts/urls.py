@@ -4,9 +4,15 @@ from .views import (
     InviteToProjectView, RespondToProjectInviteView,
     awaiting_verification_view, delete_account, custom_logout,
     NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api,
-    set_online_visibility_api
+    set_online_visibility_api, follow_user, unfollow_user
 )
-from .two_factor_views import OTPVerificationView, ResendOTPView, CancelTwoFactorView, TwoFactorSettingsView
+from .two_factor_views import (
+    OTPVerificationView,
+    ResendOTPView,
+    CancelTwoFactorView,
+    TwoFactorSettingsView,
+    backup_codes_regenerate,
+)
 
 
 app_name = 'accounts'
@@ -20,6 +26,8 @@ urlpatterns = [
     path('network/online-visibility/', set_online_visibility_api, name='set_online_visibility_api'),
     path('network/blocked/', blocked_users_api, name='blocked_users_api'),
     path('network/<uuid:user_id>/<str:action>/', friendship_action, name='friendship_action'),
+    path('network/follow/<uuid:user_id>/', follow_user, name='follow_user'),
+    path('network/unfollow/<uuid:user_id>/', unfollow_user, name='unfollow_user'),
     path('profile/<uuid:pk>/invite/', InviteToProjectView.as_view(), name='invite_to_project'),
     path('project/<uuid:project_id>/respond-invite/', RespondToProjectInviteView.as_view(), name='respond_project_invite'),
     # path('my-content/', my_content_view, name='my_content'),  # TODO: Fix import issue
@@ -32,4 +40,5 @@ urlpatterns = [
     path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
     path('cancel-2fa/', CancelTwoFactorView.as_view(), name='cancel_2fa'),
     path('2fa-settings/', TwoFactorSettingsView.as_view(), name='two_factor_settings'),
+    path('2fa-settings/backup-codes/regenerate/', backup_codes_regenerate, name='backup_codes_regenerate'),
 ]

@@ -99,6 +99,11 @@
         {% endif %}
         {% endif %}
 
+        <div class="profile-social-stats" style="display:flex; gap:16px; margin:10px 0 14px; color:#475569; font-weight:600;">
+          <span><strong id="followersCount">{{ followers_count }}</strong> {% trans "Followers" %}</span>
+          <span><strong id="followingCount">{{ following_count }}</strong> {% trans "Following" %}</span>
+        </div>
+
         <!-- Action Buttons -->
         <div class="profile-actions-new">
           {% if request.user == user %}
@@ -144,6 +149,18 @@
             <i class="fas fa-user-plus"></i>
             <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}</span>
           </a>
+          {% endif %}
+          {% if request.user.is_authenticated and request.user != user %}
+          <button type="button"
+                  class="btn-action-secondary follow-toggle-btn"
+                  data-follow-url="{% url 'accounts:follow_user' user_id=user.id %}"
+                  data-unfollow-url="{% url 'accounts:unfollow_user' user_id=user.id %}"
+                  data-is-following="{% if is_following_profile %}1{% else %}0{% endif %}">
+            <i class="fas {% if is_following_profile %}fa-user-check{% else %}fa-rss{% endif %}"></i>
+            <span class="follow-action-label">
+              {% if is_following_profile %}{% trans "Unfollow" %}{% else %}{% trans "Follow" %}{% endif %}
+            </span>
+          </button>
           {% endif %}
         </div>
 
@@ -1657,6 +1674,8 @@
       blockedDone: langIsArabic ? "تم الحظر" : "User blocked",
       blockedFailed: langIsArabic ? "فشل تنفيذ الحظر" : "Block failed",
       moreSoon: langIsArabic ? "خيارات إضافية قريبًا" : "More options coming soon",
+      follow: langIsArabic ? "متابعة" : "Follow",
+      unfollow: langIsArabic ? "إلغاء المتابعة" : "Unfollow",
     };
 
     const kpiCard = document.getElementById("profileKpiCard");
@@ -1816,6 +1835,9 @@
 
     const friendBtn = document.querySelector('.friend-action-btn');
     const rejectBtn = document.querySelector('.friend-reject-btn');
+    const followBtn = document.querySelector('.follow-toggle-btn');
+    const followersCountEl = document.getElementById('followersCount');
+    const followingCountEl = document.getElementById('followingCount');
     const actionsContainer = document.querySelector('.profile-actions-new');
     const settingsOpenBtn = document.getElementById('profileTopSettingsBtn');
     const settingsModal = document.getElementById('profileSettingsModal');
@@ -1857,6 +1879,15 @@
       }
       const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
       return `/${lang}/accounts/network/${userId}/${action}/`;
+    }
+
+    function updateFollowButton(isFollowing) {
+      if (!followBtn) return;
+      const label = followBtn.querySelector('.follow-action-label');
+      const icon = followBtn.querySelector('i');
+      followBtn.dataset.isFollowing = isFollowing ? '1' : '0';
+      if (label) label.textContent = isFollowing ? uiText.unfollow : uiText.follow;
+      if (icon) icon.className = `fas ${isFollowing ? 'fa-user-check' : 'fa-rss'}`;
     }
 
     function setSwitchState(el, isOn, key) {
@@ -1992,6 +2023,47 @@
           }
         } catch (e) {
           updateFriendButton(this, previous);
+          console.error(e);
+        } finally {
+          this.disabled = false;
+          this.dataset.loading = '0';
+        }
+      });
+    }
+
+    if (followBtn) {
+      updateFollowButton(followBtn.dataset.isFollowing === '1');
+      followBtn.addEventListener('click', async function () {
+        if (this.dataset.loading === '1') return;
+        this.dataset.loading = '1';
+        this.disabled = true;
+
+        const isFollowing = this.dataset.isFollowing === '1';
+        const endpoint = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
+        const previous = isFollowing;
+        updateFollowButton(!isFollowing);
+
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+          updateFollowButton(Boolean(data.is_following));
+          if (followersCountEl && Number.isFinite(Number(data.followers_count))) {
+            followersCountEl.textContent = String(data.followers_count);
+          }
+          if (followingCountEl && Number.isFinite(Number(data.following_count))) {
+            followingCountEl.textContent = String(data.following_count);
+          }
+        } catch (e) {
+          updateFollowButton(previous);
           console.error(e);
         } finally {
           this.disabled = false;

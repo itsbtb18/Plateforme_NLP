@@ -16,6 +16,7 @@ from django.db.models.functions import TruncDate, TruncMonth
 from notifications.models import Notification
 from notifications.services import NotificationService
 from QA.models import Post, Question
+from pages.moderation import approve_object, reject_object
 from django.db.models import Count, Sum, Max
 import datetime
 import json
@@ -145,7 +146,7 @@ def admin_dashboard(request):
     # Recent users - Type hint the queryset
     recent_users_qs: "QuerySet[CustomUser]" = CustomUser.objects.filter(
         date_joined__gte=today - datetime.timedelta(days=30)
-    ).order_by("-date_joined")
+    ).exclude(is_active=False, is_email_verified=False).order_by("-date_joined")
 
     # Recent content
     recent_publications_qs = Document.objects.order_by(
@@ -207,7 +208,9 @@ def admin_dashboard(request):
     forum_messages_data.reverse()
 
     # Users by type
-    users_by_type = CustomUser.objects.order_by("-date_joined")[:10]
+    users_by_type = CustomUser.objects.exclude(
+        is_active=False, is_email_verified=False
+    ).order_by("-date_joined")[:10]
 
     # Get monthly growth rates
     last_month = today - datetime.timedelta(days=30)
@@ -715,22 +718,24 @@ def admin_users(request):
     search = request.GET.get("search", "").strip()
 
     # Type hint the queryset
-    qs: "QuerySet[CustomUser]" = CustomUser.objects.all().order_by("-date_joined")
+    qs: "QuerySet[CustomUser]" = CustomUser.objects.exclude(
+        is_active=False, is_email_verified=False
+    ).order_by("-date_joined")
 
     # Filtering
     if filter_status == "active":
-        qs = qs.filter(is_active=True, is_email_verified=True)
+        qs = qs.filter(status="active")
     elif filter_status == "pending":
-        qs = qs.filter(is_active=False, is_email_verified=True)
+        qs = qs.filter(status="pending")
     elif filter_status == "blocked":
-        qs = qs.filter(is_active=False, is_email_verified=True)
+        qs = qs.filter(status="blocked")
 
     # Search
     if search:
         qs = qs.filter(Q(full_name__icontains=search) | Q(email__icontains=search))
 
     pending_users_count = CustomUser.objects.filter(
-        is_active=False, is_email_verified=False
+        status="pending", is_email_verified=True
     ).count()
 
     paginator = Paginator(qs, 10)
@@ -1736,18 +1741,19 @@ def admin_news(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_news_approve(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    post.approval_status = "approved"
-    post.save(update_fields=["approval_status"])
-    return redirect("pages:admin_news")
+    # Backward-compatible proxy to QA ownership.
+    from QA.views import admin_news_approve as qa_admin_news_approve
+
+    return qa_admin_news_approve(request, post_id)
 
 
 @login_required
 @user_passes_test(is_admin)
 def admin_news_delete(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    post.delete()
-    return redirect("pages:admin_news")
+    # Backward-compatible proxy to QA ownership.
+    from QA.views import admin_news_delete as qa_admin_news_delete
+
+    return qa_admin_news_delete(request, post_id)
 
 
 @login_required
@@ -2869,8 +2875,7 @@ def admin_approve_item(request, model_type, pk):
                 % {"fields": missing_str},
             )
 
-        item.approval_status = "approved"
-        item.save(update_fields=["approval_status"])
+        approve_object(item, moderator=request.user, save=True)
 
         # Create notification to the author
         author = (
@@ -3022,19 +3027,13 @@ def admin_reject_item(request, model_type, pk):
             )
 
         # Moderation workflow state transition: pending -> rejected.
-        fields_to_update = []
-        if hasattr(item, "approval_status"):
-            item.approval_status = "rejected"
-            fields_to_update.append("approval_status")
-        if hasattr(item, "is_approved"):
-            item.is_approved = False
-            fields_to_update.append("is_approved")
-        if rejection_reason and hasattr(item, "rejection_reason"):
-            item.rejection_reason = rejection_reason
-            fields_to_update.append("rejection_reason")
-        if fields_to_update:
-            item.save(update_fields=list(dict.fromkeys(fields_to_update)))
-        else:
+        _, fields_to_update = reject_object(
+            item,
+            moderator=request.user,
+            rejection_reason=rejection_reason,
+            save=True,
+        )
+        if not fields_to_update:
             # Fallback for models without approval fields.
             item.delete()
 

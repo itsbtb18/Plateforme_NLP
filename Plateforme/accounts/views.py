@@ -6,17 +6,18 @@ from typing import Any
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
 from django.contrib import messages
-from django.contrib.auth import get_user_model, logout
+from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import BooleanField, Exists, OuterRef, Q, Value
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 from django.views import View
 from django.views.generic import CreateView, DetailView, UpdateView
 from notifications.models import Notification
@@ -25,14 +26,29 @@ from pages.security import log_admin_activity
 from projects.models import Project, ProjectMember
 
 from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import Friendship
+from .models import Follow, Friendship
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
-from .two_factor_utils import generate_otp, store_otp
+from .two_factor_utils import generate_otp, send_otp, store_otp
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+
+def annotate_is_followed_by_me(queryset, viewer):
+    """
+    Annotate a user queryset with boolean field `is_followed_by_me`.
+    """
+    if viewer and viewer.is_authenticated:
+        follow_subquery = Follow.objects.filter(
+            follower=viewer,
+            following=OuterRef("pk"),
+        )
+        return queryset.annotate(is_followed_by_me=Exists(follow_subquery))
+    return queryset.annotate(
+        is_followed_by_me=Value(False, output_field=BooleanField())
+    )
 
 
 # --------------------------
@@ -111,6 +127,7 @@ class SignUp(CreateView):
                 logger.info(f"Removing inactive account for re-registration: {email}")
                 existing.delete()
 
+        user = None
         try:
             # Create user with is_active=False (activated after 2FA verification)
             user = form.save(commit=False)
@@ -151,6 +168,15 @@ class SignUp(CreateView):
             return redirect("accounts:verify_2fa")
 
         except Exception as e:
+            if user is not None and getattr(user, "pk", None):
+                try:
+                    User.objects.filter(pk=user.pk).delete()
+                    logger.warning(
+                        "Rolled back partially created signup user after failure: %s",
+                        user.email,
+                    )
+                except Exception:
+                    logger.exception("Failed to rollback partially created signup user")
             logger.error(f"User creation error: {str(e)}")
             messages.error(
                 self.request,
@@ -221,13 +247,62 @@ class LoginView(AllauthLoginView):
     def form_valid(self, form: Any) -> Any:
         cache.delete(self._fail_key())
         cache.delete(self._lock_key())
+
+        remember = bool(self.request.POST.get("remember"))
+        login_value = (
+            form.cleaned_data.get("login")
+            or form.cleaned_data.get("email")
+            or self.request.POST.get("login")
+            or self.request.POST.get("email")
+            or ""
+        )
+        password = form.cleaned_data.get("password") or self.request.POST.get(
+            "password", ""
+        )
+
+        user = None
+        if login_value and password:
+            user = authenticate(
+                self.request,
+                username=login_value,
+                password=password,
+            )
+
+        if user is None:
+            # Fallback to allauth's authenticated user object from the validated form.
+            user = getattr(form, "user", None) or getattr(form, "user_cache", None)
+
+        if user is not None:
+            two_fa = TwoFactorAuth.objects.filter(user=user, is_enabled=True).first()
+            if two_fa is not None:
+                self.request.session["pending_2fa_user_id"] = str(user.pk)
+                self.request.session["pending_2fa_is_signup"] = False
+                self.request.session["pending_2fa_remember"] = remember
+                self.request.session.modified = True
+
+                if two_fa.method == TwoFactorAuth.METHOD_EMAIL_OTP:
+                    if not send_otp(user):
+                        messages.error(
+                            self.request,
+                            _("Failed to send OTP. Please try again."),
+                        )
+                        return self.render_to_response(
+                            self.get_context_data(form=self.get_form())
+                        )
+
+                return redirect("accounts:verify_2fa")
+
+        # 2FA disabled -> normal login flow
         response = super().form_valid(form)
 
-        remember = self.request.POST.get("remember")
         if remember:
             self.request.session.set_expiry(None)  # Use SESSION_COOKIE_AGE (2 weeks)
         else:
             self.request.session.set_expiry(0)  # Expire when browser closes
+
+        # Ensure an explicit login call in this branch as requested.
+        if user is not None and not self.request.user.is_authenticated:
+            auth_login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
 
         if self.request.user.is_authenticated and getattr(
             self.request.user, "is_staff", False
@@ -304,6 +379,15 @@ class ProfileView(DetailView):
         context["can_view_contributions"] = True
         context["page"] = "profile"
         context["selected_section"] = selected_section
+        context["followers_count"] = Follow.objects.filter(
+            following=profile_user
+        ).count()
+        context["following_count"] = Follow.objects.filter(follower=profile_user).count()
+        context["is_following_profile"] = bool(
+            viewer
+            and viewer != profile_user
+            and Follow.objects.filter(follower=viewer, following=profile_user).exists()
+        )
 
         # Public resources are always visible (profile public view)
         from resources.models import Document
@@ -671,6 +755,56 @@ def friendship_action(request: Any, user_id: str, action: str) -> Any:
     except Exception as exc:
         logger.error("Friendship action failed: %s", exc, exc_info=True)
         return JsonResponse({"ok": False, "error": _("Action failed.")}, status=500)
+
+
+@login_required
+@require_POST
+def follow_user(request: Any, user_id: str) -> Any:
+    target_user = get_object_or_404(User, pk=user_id)
+    if request.user == target_user:
+        return JsonResponse(
+            {"ok": False, "error": _("You cannot follow yourself.")},
+            status=400,
+        )
+
+    _, created = Follow.objects.get_or_create(
+        follower=request.user,
+        following=target_user,
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "is_following": True,
+            "created": created,
+            "followers_count": Follow.objects.filter(following=target_user).count(),
+            "following_count": Follow.objects.filter(follower=target_user).count(),
+        }
+    )
+
+
+@login_required
+@require_POST
+def unfollow_user(request: Any, user_id: str) -> Any:
+    target_user = get_object_or_404(User, pk=user_id)
+    if request.user == target_user:
+        return JsonResponse(
+            {"ok": False, "error": _("You cannot unfollow yourself.")},
+            status=400,
+        )
+
+    deleted, _ = Follow.objects.filter(
+        follower=request.user,
+        following=target_user,
+    ).delete()
+    return JsonResponse(
+        {
+            "ok": True,
+            "is_following": False,
+            "deleted": bool(deleted),
+            "followers_count": Follow.objects.filter(following=target_user).count(),
+            "following_count": Follow.objects.filter(follower=target_user).count(),
+        }
+    )
 
 
 class InviteToProjectView(LoginRequiredMixin, View):

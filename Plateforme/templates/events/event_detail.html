@@ -1090,6 +1090,16 @@ html[dir="rtl"] .ai-badge-inline {
                     <span>{% translate "Event Website" %}</span>
                 </a>
                 {% endif %}
+
+                <a href="{% url 'events:event_ics_export' event.pk %}" class="ed-btn-action btn-download">
+                    <i class="bi bi-calendar-plus"></i>
+                    <span>{% translate "Add to Calendar" %} (.ics)</span>
+                </a>
+
+                <a href="{{ google_calendar_url }}" class="ed-btn-action btn-website" target="_blank" rel="noopener">
+                    <i class="bi bi-google"></i>
+                    <span>{% translate "Add to Google Calendar" %}</span>
+                </a>
                 
                 {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
                 <a class="ed-review-btn back" href="{% url 'pages:admin_calls' %}?tab=pending">
@@ -1169,6 +1179,22 @@ html[dir="rtl"] .ai-badge-inline {
                     </div>
                 </div>
             </section>
+
+            {% if speakers %}
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-mic"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Speakers" %}</h2>
+                </div>
+                <div style="display:grid; gap:0.75rem;">
+                    {% for speaker in speakers %}
+                        {% include "events/partials/speaker_card.html" with speaker=speaker %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
             
         </div>
         

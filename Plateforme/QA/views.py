@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from notifications.models import Notification
 from notifications.services import NotificationService, LocalizedValue
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
@@ -15,8 +16,13 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from accounts.blocking import exclude_hidden_users
 from django.core.paginator import Paginator
+from pages.moderation import approve_object
 
 User = get_user_model()
+
+
+def is_admin(user):
+    return user.is_staff or user.is_superuser
 
 
 def is_verified(user):
@@ -591,3 +597,25 @@ def edit_comment(request, comment_id):
         messages.success(request, "Your comment has been edited.")
 
     return redirect("QA:post_detail", slug=comment.post.slug)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news_approve(request, post_id):
+    """
+    Moderation handler moved from pages.views for cleaner QA ownership.
+    """
+    post = get_object_or_404(Post, id=post_id)
+    approve_object(post, moderator=request.user, save=True)
+    return redirect("pages:admin_news")
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news_delete(request, post_id):
+    """
+    Hard-delete news item from admin panel.
+    """
+    post = get_object_or_404(Post, id=post_id)
+    post.delete()
+    return redirect("pages:admin_news")

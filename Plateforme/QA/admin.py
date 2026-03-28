@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
+from pages.moderation import ModerationMixin
 from .models import Question, Answer, Comment, Post
 
 
@@ -25,7 +26,7 @@ def mark_pending(modeladmin, request, queryset):
 
 
 @admin.register(Post)
-class PostAdmin(admin.ModelAdmin):
+class PostAdmin(ModerationMixin, admin.ModelAdmin):
     list_display = ('get_title', 'author', 'approval_status', 'created_at', 'total_likes', 'total_comments')
     list_filter = ('approval_status', 'created_at', 'author')
     list_editable = ('approval_status',)
@@ -33,7 +34,7 @@ class PostAdmin(admin.ModelAdmin):
     readonly_fields = ('id', 'slug', 'created_at', 'updated_at')
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
-    actions = [approve_posts, reject_posts, mark_pending]
+    actions = [*ModerationMixin.actions, mark_pending]
     
     fieldsets = (
         (None, {

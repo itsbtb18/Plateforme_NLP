@@ -1,0 +1,59 @@
+{% load i18n forum_message_extras %}
+{% with is_own_message=user == message.user %}
+{% with display_name=message.user.get_full_name_display|default:message.user.username %}
+<div class="cd-message {% if is_own_message %}own{% else %}other{% endif %}" data-message-id="{{ message.pk }}">
+    <div class="cd-message-avatar" aria-hidden="true">
+        {% if message.user.avatar %}
+            <img src="{{ message.user.avatar.url }}" alt="{{ display_name }}">
+        {% else %}
+            <span class="cd-message-avatar-initial">{{ display_name|slice:":1"|upper }}</span>
+        {% endif %}
+    </div>
+
+    <div class="cd-message-bubble">
+        <div class="cd-message-header">
+            <span class="cd-message-name">{{ display_name }}</span>
+            <time class="cd-message-time" datetime="{{ message.timestamp|date:'c' }}">
+                {{ message.timestamp|timesince }} {% trans "ago" %}
+            </time>
+        </div>
+
+        <div class="cd-message-text" dir="auto">
+            {% if message.rendered_content %}
+                {{ message.rendered_content|safe }}
+            {% else %}
+                {{ message.content|render_message }}
+            {% endif %}
+        </div>
+
+        <div class="cd-message-actions">
+            <button
+                type="button"
+                class="cd-msg-action js-reply-btn"
+                title="{% trans 'Reply' %}"
+                data-message-id="{{ message.pk }}"
+                data-message-author="{{ display_name }}"
+            >
+                <i class="bi bi-reply"></i>
+            </button>
+            {% if is_own_message %}
+            <a href="{% url 'forum:message-update' message.pk %}" class="cd-msg-action" title="{% trans 'Edit' %}">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'forum:message-delete' message.pk %}" class="cd-msg-action danger" title="{% trans 'Delete' %}">
+                <i class="bi bi-trash3"></i>
+            </a>
+            {% endif %}
+        </div>
+
+        {% if message.replies.all %}
+            <div class="cd-message-replies">
+                {% for reply in message.replies.all %}
+                    {% include "forum/partials/message_item.html" with message=reply user=user only %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}
+{% endwith %}

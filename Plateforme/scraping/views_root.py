@@ -24,7 +24,6 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
 from institutions.models import Institution
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from QA.models import Post
 from resources.models import Course, NLPTool
 
@@ -35,6 +34,12 @@ from .metrics import update_scrape_queue_lag_metrics, update_source_health_metri
 from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .tasks import run_scraper_task
+
+try:
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+except ImportError:
+    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+    generate_latest = None
 
 
 def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
@@ -1317,6 +1322,12 @@ def list_custom_sources(request):
 def metrics_view(request):
     """Prometheus metrics endpoint for scraping observability."""
     _log_scraping_action(request)
+
+    if generate_latest is None:
+        return JsonResponse(
+            {"error": "prometheus_client is not installed in this environment"},
+            status=503,
+        )
 
     metrics_token = os.environ.get("METRICS_TOKEN", "").strip()
     auth_header = request.META.get("HTTP_AUTHORIZATION", "")

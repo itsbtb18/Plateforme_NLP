@@ -135,7 +135,7 @@ class Event(models.Model):
     # File attachments for call for papers, etc.
     attachment = models.FileField(
         _("Attachment"),
-        upload_to="events/attachments/",
+        upload_to="event_attachments/",
         blank=True,
         null=True,
         help_text=_("Supported formats: PDF, DOC/DOCX, PPT/PPTX (Max 5MB)"),
@@ -293,3 +293,28 @@ class EventRegistration(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.event.title}"
+
+
+class Speaker(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        Event,
+        related_name="speakers",
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField(max_length=255)
+    affiliation = models.CharField(max_length=255, blank=True)
+    bio = models.TextField(blank=True)
+    talk_title = models.CharField(max_length=255, blank=True)
+    talk_abstract = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    avatar = models.ImageField(upload_to="events/speakers/", blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "name"]
+        verbose_name = _("Speaker")
+        verbose_name_plural = _("Speakers")
+
+    def __str__(self):
+        return f"{self.name} ({self.event.title})"

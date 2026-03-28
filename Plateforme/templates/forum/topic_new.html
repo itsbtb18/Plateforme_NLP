@@ -472,6 +472,60 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
                             {% for error in form.description.errors %}<p class="tf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
                         </div>
                     </div>
+
+                    <div class="tf-section">
+                        <div class="tf-section-header">
+                            <div class="tf-section-icon">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <h2 class="tf-section-title">{% translate "Bind Discussion (Optional)" %}</h2>
+                        </div>
+
+                        {% if prefill_project_id or prefill_event_id or prefill_news_id %}
+                        <div class="tf-notice" style="margin-top:0;">
+                            <div class="tf-notice-icon">
+                                <i class="bi bi-link-45deg"></i>
+                            </div>
+                            <div class="tf-notice-content">
+                                <h4>{% translate "Pre-filled link detected" %}</h4>
+                                <p>{% translate "This discussion was started from a project/event/news page. You can keep or change the linked entity below." %}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="tf-field {% if form.related_project.errors %}has-error{% endif %}">
+                            <label for="{{ form.related_project.id_for_label }}" class="tf-label">{{ form.related_project.label }}</label>
+                            <select name="{{ form.related_project.name }}" id="{{ form.related_project.id_for_label }}" class="tf-input">
+                                <option value="">{% translate "None" %}</option>
+                                {% for obj in form.fields.related_project.queryset %}
+                                <option value="{{ obj.pk }}" {% if form.related_project.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for error in form.related_project.errors %}<p class="tf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                        </div>
+
+                        <div class="tf-field {% if form.related_event.errors %}has-error{% endif %}">
+                            <label for="{{ form.related_event.id_for_label }}" class="tf-label">{{ form.related_event.label }}</label>
+                            <select name="{{ form.related_event.name }}" id="{{ form.related_event.id_for_label }}" class="tf-input">
+                                <option value="">{% translate "None" %}</option>
+                                {% for obj in form.fields.related_event.queryset %}
+                                <option value="{{ obj.pk }}" {% if form.related_event.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for error in form.related_event.errors %}<p class="tf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                        </div>
+
+                        <div class="tf-field {% if form.related_news.errors %}has-error{% endif %}">
+                            <label for="{{ form.related_news.id_for_label }}" class="tf-label">{{ form.related_news.label }}</label>
+                            <select name="{{ form.related_news.name }}" id="{{ form.related_news.id_for_label }}" class="tf-input">
+                                <option value="">{% translate "None" %}</option>
+                                {% for obj in form.fields.related_news.queryset %}
+                                <option value="{{ obj.pk }}" {% if form.related_news.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title|default:obj.slug }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for error in form.related_news.errors %}<p class="tf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                        </div>
+                    </div>
                     
                     <div class="tf-section">
                         <div class="tf-section-header">

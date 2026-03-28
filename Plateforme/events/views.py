@@ -9,13 +9,21 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
+from django.conf import settings
+from django.http import HttpResponse
+from urllib.parse import urlencode
+from datetime import UTC, datetime, time, timezone as dt_timezone
 import logging
+from django.db import transaction
+from zoneinfo import ZoneInfo
 
 # App specific imports
-from .models import Event, EventRegistration
-from .forms import EventForm, EventSearchForm
+from .models import Event, EventRegistration, Speaker
+from .forms import EventForm, EventSearchForm, SpeakerFormSet
 from accounts import models
 from notifications.services import NotificationService
+from pages.moderation import approve_object
+from accounts.blocking import blocked_user_ids_for
 
 # CRITICAL: Import your custom Mixin
 from accounts.views import LoginAndVerifiedRequiredMixin
@@ -23,6 +31,34 @@ from accounts.views import LoginAndVerifiedRequiredMixin
 logger = logging.getLogger(__name__)
 
 # 
+
+def _event_datetime_bounds(event: Event):
+    """
+    Build timezone-aware datetime bounds from date-only event fields.
+    """
+    tz_name = getattr(settings, "TIME_ZONE", "UTC")
+    tz = ZoneInfo(tz_name)
+    start_naive = datetime.combine(event.start_date, time.min)
+    end_naive = datetime.combine(event.end_date, time.max.replace(microsecond=0))
+    return start_naive.replace(tzinfo=tz), end_naive.replace(tzinfo=tz), tz
+
+
+def _google_calendar_link(event: Event) -> str:
+    start_dt, end_dt, _tz = _event_datetime_bounds(event)
+    start_utc = start_dt.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    end_utc = end_dt.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    details = (event.description or "").strip()
+    if event.source_url:
+        details = f"{details}\n\nSource: {event.source_url}".strip()
+    location = event.location or ("Online" if event.is_online else "")
+    params = {
+        "action": "TEMPLATE",
+        "text": event.title,
+        "dates": f"{start_utc}/{end_utc}",
+        "details": details,
+        "location": location,
+    }
+    return "https://calendar.google.com/calendar/render?" + urlencode(params)
 
 class EventListView(LoginAndVerifiedRequiredMixin, ListView):
     """View for listing events - Restricted to logged-in and verified users."""
@@ -101,6 +137,8 @@ class EventDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             user=self.request.user
         ).exists()
         context['registration_count'] = self.object.registrations.count()
+        context['speakers'] = self.object.speakers.all().order_by('order', 'name')
+        context['google_calendar_url'] = _google_calendar_link(self.object)
         context['page'] = 'events'
         
         if self.request.user == self.object.created_by or self.request.user.is_staff:
@@ -108,11 +146,67 @@ class EventDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         return context
 
 
+def event_ics_export(request, pk):
+    """
+    Export event as .ics for Google Calendar/Outlook/Apple Calendar.
+    """
+    try:
+        from icalendar import Calendar, Event as ICalEvent
+    except ImportError:
+        return HttpResponse(
+            "Calendar export is temporarily unavailable.",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    event = get_object_or_404(Event, pk=pk, approval_status='approved')
+    start_dt, end_dt, tz = _event_datetime_bounds(event)
+
+    cal = Calendar()
+    cal.add('prodid', '-//Arabic NLP Platform//Events Calendar//EN')
+    cal.add('version', '2.0')
+    cal.add('calscale', 'GREGORIAN')
+    cal.add('method', 'PUBLISH')
+
+    ics_event = ICalEvent()
+    ics_event.add('uid', f'event-{event.pk}@arabic-nlp-platform')
+    ics_event.add('summary', event.title)
+    ics_event.add('description', event.description or '')
+    ics_event.add('dtstart', start_dt)
+    ics_event.add('dtend', end_dt)
+    ics_event.add('dtstamp', timezone.now().astimezone(UTC))
+    if event.location:
+        ics_event.add('location', event.location)
+    elif event.is_online:
+        ics_event.add('location', 'Online')
+    if event.source_url:
+        ics_event.add('url', event.source_url)
+    ics_event.add('X-WR-TIMEZONE', str(tz))
+    cal.add_component(ics_event)
+
+    response = HttpResponse(cal.to_ical(), content_type='text/calendar; charset=utf-8')
+    safe_title = ''.join(ch if ch.isalnum() or ch in ('-', '_') else '_' for ch in event.title).strip('_') or 'event'
+    response['Content-Disposition'] = f'attachment; filename="{safe_title}.ics"'
+    return response
+
+
 class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     """View for creating new events - Restricted."""
     model = Event
     form_class = EventForm
     template_name = 'events/event_form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if "speaker_formset" not in context:
+            context["speaker_formset"] = SpeakerFormSet(
+                self.request.POST or None,
+                self.request.FILES or None,
+                instance=self.object if getattr(self, "object", None) else Event(),
+                prefix="speakers",
+            )
+        context['page'] = 'events'
+        return context
     
     def _save_bilingual_fields(self, instance):
         """Save bilingual fields from POST data to the model instance."""
@@ -143,10 +237,21 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             f"[EVENT_CREATE] Creating event by user: {self.request.user.email}, "
             f"title: {form.instance.title}, status: {form.instance.approval_status}"
         )
-        
+        speaker_formset = SpeakerFormSet(
+            self.request.POST,
+            self.request.FILES,
+            instance=Event(),
+            prefix="speakers",
+        )
+        if not speaker_formset.is_valid():
+            return self.form_invalid(form, speaker_formset=speaker_formset)
+
         try:
-            self.object = form.save()
-            self._save_bilingual_fields(self.object)
+            with transaction.atomic():
+                self.object = form.save()
+                self._save_bilingual_fields(self.object)
+                speaker_formset.instance = self.object
+                speaker_formset.save()
             
             logger.info(
                 f"[EVENT_CREATE] ✓ Event created successfully "
@@ -184,17 +289,19 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             messages.error(self.request, _('An error occurred while creating the event. Please try again.'))
             return self.form_invalid(form)
     
-    def form_invalid(self, form):
+    def form_invalid(self, form, speaker_formset=None):
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"[EVENT_CREATE] Form validation failed: {form.errors.as_json()}")
         messages.error(self.request, _('Please correct the errors in the form.'))
-        return super().form_invalid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page'] = 'events'
-        return context
+        context = self.get_context_data(form=form)
+        context["speaker_formset"] = speaker_formset or SpeakerFormSet(
+            self.request.POST or None,
+            self.request.FILES or None,
+            instance=self.object if getattr(self, "object", None) else Event(),
+            prefix="speakers",
+        )
+        return self.render_to_response(context)
 
 
 class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -202,6 +309,20 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
     model = Event
     form_class = EventForm
     template_name = 'events/event_form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if "speaker_formset" not in context:
+            context["speaker_formset"] = SpeakerFormSet(
+                self.request.POST or None,
+                self.request.FILES or None,
+                instance=self.object,
+                prefix="speakers",
+            )
+        context['page'] = 'events'
+        context['review_mode'] = self.request.GET.get('review') == '1' and self.request.user.is_staff
+        context['is_pending'] = self.object.approval_status == 'pending'
+        return context
     
     def test_func(self):
         event = self.get_object()
@@ -224,14 +345,26 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
         instance.save()
 
     def form_valid(self, form):
+        speaker_formset = SpeakerFormSet(
+            self.request.POST,
+            self.request.FILES,
+            instance=self.get_object(),
+            prefix="speakers",
+        )
+        if not speaker_formset.is_valid():
+            return self.form_invalid(form, speaker_formset=speaker_formset)
+
         if not self.request.user.is_staff and self.get_object().is_approved:
             form.instance.is_approved = False
             form.instance.approval_status = 'pending'
             messages.info(self.request, _('Your changes will be reviewed before becoming visible.'))
         else:
             messages.success(self.request, _('Event updated successfully!'))
-        response = super().form_valid(form)
-        self._save_bilingual_fields(self.object)
+        with transaction.atomic():
+            response = super().form_valid(form)
+            self._save_bilingual_fields(self.object)
+            speaker_formset.instance = self.object
+            speaker_formset.save()
 
         # In admin edit-only mode, return to review detail page for approve/reject actions.
         if (
@@ -243,12 +376,15 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
             return redirect(self.request.get_full_path())
         return response
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page'] = 'events'
-        context['review_mode'] = self.request.GET.get('review') == '1' and self.request.user.is_staff
-        context['is_pending'] = self.object.approval_status == 'pending'
-        return context
+    def form_invalid(self, form, speaker_formset=None):
+        context = self.get_context_data(form=form)
+        context["speaker_formset"] = speaker_formset or SpeakerFormSet(
+            self.request.POST or None,
+            self.request.FILES or None,
+            instance=self.object,
+            prefix="speakers",
+        )
+        return self.render_to_response(context)
 
 
 class EventDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -285,6 +421,13 @@ def register_for_event(request, pk):
         return redirect('events:event_detail', pk=pk)
     
     event = get_object_or_404(Event, pk=pk, approval_status='approved')
+    if request.user.id in blocked_user_ids_for(event.created_by):
+        messages.error(
+            request,
+            _('You cannot register for this event.')
+        )
+        return redirect('events:event_detail', pk=pk)
+
     if event.is_past:
         messages.error(request, _('Registration for past events is not allowed.'))
         return redirect('events:event_detail', pk=pk)
@@ -327,9 +470,7 @@ def unregister_from_event(request, pk):
 def event_validate(request, pk):
     """Admin view for event approval."""
     event = get_object_or_404(Event, pk=pk)
-    event.is_approved = True
-    event.approval_status = 'approved'
-    event.save()
+    approve_object(event, moderator=request.user, save=True)
     
     NotificationService.create_notification(
         recipient=event.created_by,

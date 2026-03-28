@@ -28,16 +28,17 @@ from django.http import HttpRequest, HttpResponse
 from django.http import JsonResponse, Http404, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string
-from accounts.models import Friendship
+from accounts.models import Friendship, Follow
 import logging
 import re
-from accounts.blocking import exclude_hidden_users
+from accounts.blocking import blocked_user_ids_for, exclude_hidden_users
 from django.views.decorators.http import require_http_methods
 from django.utils.html import escape
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .forms import ProjectChatMessageForm
 from .models import ProjectChatRoom, ProjectChatMessage
+from pages.moderation import approve_object
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,7 @@ def _serialize_user(user, pending_ids):
         "email": user.email,
         "avatar": avatar_url,
         "already_invited": str(user.pk) in pending_ids,
+        "is_followed_by_me": bool(getattr(user, "is_followed_by_me", False)),
     }
 
 
@@ -410,19 +412,27 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         project: Project = self.get_object()  # type: ignore[assignment]
 
         # Récupérer les membres de l'équipe (exclure les rejetés)
-        team_members = project.members.filter(status="accepted").select_related(
-            "member"
+        team_members = exclude_hidden_users(
+            project.members.filter(status="accepted").select_related("member"),
+            self.request.user,
+            ("member",),
         )
 
         # Récupérer les demandes en attente
-        pending_requests = project.members.filter(status="pending").select_related(
-            "member"
+        pending_requests = exclude_hidden_users(
+            project.members.filter(status="pending").select_related("member"),
+            self.request.user,
+            ("member",),
         )
 
         # Récupérer les demandes de départ en attente
-        leave_requests = project.members.filter(
-            status="accepted", leave_request_status="pending"
-        ).select_related("member")
+        leave_requests = exclude_hidden_users(
+            project.members.filter(
+                status="accepted", leave_request_status="pending"
+            ).select_related("member"),
+            self.request.user,
+            ("member",),
+        )
 
         # Vérifier le statut du membre actuel
         current_member = project.members.filter(
@@ -584,9 +594,8 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
                 )
                 return redirect(self.request.get_full_path())
 
-            project.approval_status = "approved"
             try:
-                project.save(update_fields=["approval_status"])
+                approve_object(project, moderator=self.request.user, save=True)
             except Exception as e:
                 logger.warning(
                     "ES indexing error during project approval (saved OK): %s", e
@@ -665,6 +674,14 @@ class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
     def post(self, request: HttpRequest, pk: str) -> HttpResponse:
         project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
 
+        hidden_ids = blocked_user_ids_for(request.user)
+        if project.coordinator_id in hidden_ids:
+            messages.error(
+                request,
+                _("You cannot request to join this project."),
+            )
+            return redirect("projects:project_detail", pk=pk)
+
         # Vérifier si le projet est terminé
         if project.status == "completed":
             messages.error(
@@ -700,6 +717,10 @@ class AcceptMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View)
     def post(self, request: HttpRequest, pk: str, member_id: str) -> HttpResponse:
         project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         member = get_object_or_404(ProjectMember, project=project, member_id=member_id)
+
+        if member.member_id in blocked_user_ids_for(request.user):
+            messages.error(request, _("You cannot accept this member."))
+            return redirect("projects:project_members", pk=pk)
 
         if member.status == "pending":
             member.status = "accepted"
@@ -771,11 +792,25 @@ class ProjectMembersView(
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         project: Project = self.object  # type: ignore[assignment]
-        context["pending_members"] = project.members.filter(status="pending")
-        context["accepted_members"] = project.members.filter(status="accepted")
-        context["rejected_members"] = project.members.filter(status="rejected")
-        context["leave_requests"] = project.members.filter(
-            status="accepted", leave_request_status="pending"
+        context["pending_members"] = exclude_hidden_users(
+            project.members.filter(status="pending"),
+            self.request.user,
+            ("member",),
+        )
+        context["accepted_members"] = exclude_hidden_users(
+            project.members.filter(status="accepted"),
+            self.request.user,
+            ("member",),
+        )
+        context["rejected_members"] = exclude_hidden_users(
+            project.members.filter(status="rejected"),
+            self.request.user,
+            ("member",),
+        )
+        context["leave_requests"] = exclude_hidden_users(
+            project.members.filter(status="accepted", leave_request_status="pending"),
+            self.request.user,
+            ("member",),
         )
         context["page"] = "research_projects"
         return context
@@ -800,6 +835,7 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
             project=project,
             status="accepted",
         ).values_list("member_id", flat=True)
+        hidden_ids = blocked_user_ids_for(request.user)
 
         # Friend list to show by default
         friend_ids = set()
@@ -813,7 +849,18 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
 
         UserModel = get_user_model()
         if len(query) < 2:
-            candidates = UserModel.objects.filter(id__in=friend_ids)[:20]
+            candidates = (
+                UserModel.objects.filter(id__in=friend_ids)
+                .exclude(pk__in=hidden_ids)
+                .annotate(
+                    is_followed_by_me=Exists(
+                        Follow.objects.filter(
+                            follower=request.user,
+                            following=OuterRef("pk"),
+                        )
+                    )
+                )[:20]
+            )
             return JsonResponse(
                 {"ok": True, "results": [_serialize_user(u, pending_ids) for u in candidates]}
             )
@@ -843,7 +890,16 @@ class ProjectUserLookupView(LoginAndVerifiedRequiredMixin, View):
         candidates = (
             UserModel.objects.filter(search_q)
             .exclude(pk=request.user.pk)
-            .exclude(pk__in=member_ids)[:20]
+            .exclude(pk__in=member_ids)
+            .exclude(pk__in=hidden_ids)
+            .annotate(
+                is_followed_by_me=Exists(
+                    Follow.objects.filter(
+                        follower=request.user,
+                        following=OuterRef("pk"),
+                    )
+                )
+            )[:20]
         )
 
         results = [_serialize_user(u, pending_ids) for u in candidates]
@@ -893,12 +949,17 @@ class InviteProjectMembersView(LoginAndVerifiedRequiredMixin, View):
 
         created = []
         skipped = []
+        blocked_ids = blocked_user_ids_for(request.user)
+        blocked_ids.update(blocked_user_ids_for(project.coordinator))
         with transaction.atomic():
             for uid in invited_ids:
                 if uid in existing_member_ids or uid in existing_pending_ids:
                     skipped.append(uid)
                     continue
                 invited_user = users_map[uid]
+                if invited_user.id in blocked_ids:
+                    skipped.append(uid)
+                    continue
                 inv = ProjectInvitation.objects.create(
                     project=project,
                     invited_user=invited_user,
@@ -947,10 +1008,16 @@ class ProjectInvitationsView(LoginAndVerifiedRequiredMixin, ListView):
     context_object_name = "invitations"
 
     def get_queryset(self) -> QuerySet[ProjectInvitation]:
-        return ProjectInvitation.objects.filter(
-            invited_user=self.request.user,
-            status=ProjectInvitation.Status.PENDING,
-        ).select_related("project", "invited_by", "project__institution")
+        hidden_ids = blocked_user_ids_for(self.request.user)
+        return (
+            ProjectInvitation.objects.filter(
+                invited_user=self.request.user,
+                status=ProjectInvitation.Status.PENDING,
+            )
+            .exclude(invited_by_id__in=hidden_ids)
+            .exclude(project__coordinator_id__in=hidden_ids)
+            .select_related("project", "invited_by", "project__institution")
+        )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -978,13 +1045,15 @@ class ProjectInvitationsView(LoginAndVerifiedRequiredMixin, ListView):
                 "project__coordinator",
             )
         )
-        incoming_join_requests = (
+        incoming_join_requests = exclude_hidden_users(
             ProjectMember.objects.filter(
                 project__coordinator=user,
                 status="pending",
             )
             .select_related("project", "member")
-            .order_by("-created_at")[:120]
+            .order_by("-created_at")[:120],
+            user,
+            ("member",),
         )
         context["sent_invitations"] = ProjectInvitation.objects.filter(
             invited_by=user,
@@ -1023,6 +1092,16 @@ class AcceptProjectInvitationView(LoginAndVerifiedRequiredMixin, View):
         )
         if invitation.status != ProjectInvitation.Status.PENDING:
             messages.warning(request, _("This invitation is no longer pending."))
+            return redirect("projects:project_invitations")
+
+        hidden_ids = blocked_user_ids_for(request.user)
+        if (
+            invitation.invited_by_id in hidden_ids
+            or invitation.project.coordinator_id in hidden_ids
+        ):
+            invitation.status = ProjectInvitation.Status.REJECTED
+            invitation.save(update_fields=["status", "updated_at"])
+            messages.error(request, _("You cannot join this project."))
             return redirect("projects:project_invitations")
 
         with transaction.atomic():
@@ -1289,6 +1368,10 @@ class RespondToRequestView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, V
     def post(self, request: HttpRequest, pk: str, request_id: str) -> HttpResponse:
         project: Project = get_object_or_404(Project, pk=pk)  # type: ignore[assignment]
         join_request = get_object_or_404(ProjectMember, pk=request_id, project=project)
+
+        if join_request.member_id in blocked_user_ids_for(request.user):
+            messages.error(request, _("You cannot process this request."))
+            return redirect("projects:project_detail", pk=pk)
 
         response = request.POST.get("response")
         if response == "accept":

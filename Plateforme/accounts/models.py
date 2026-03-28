@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import RegexValidator, URLValidator
 from django.db import models
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
@@ -291,6 +291,73 @@ class CustomUser(AbstractUser):
         return f"<CustomUser: {self.email} (id={self.id})>"
 
 
+class UserProfile(models.Model):
+    """
+    Extended profile information linked to the auth user model.
+    """
+
+    orcid_validator = RegexValidator(
+        regex=r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$",
+        message=_("ORCID must be in the format 0000-0000-0000-0000."),
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    bio = models.TextField(blank=True, default="")
+    orcid = models.CharField(
+        max_length=19,
+        blank=True,
+        null=True,
+        validators=[orcid_validator],
+    )
+    github_username = models.CharField(max_length=39, blank=True, null=True)
+    linkedin_url = models.URLField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    institution = models.ForeignKey(
+        Institution,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_profiles",
+    )
+    is_independent = models.BooleanField(default=False)
+    expertise_tags = models.ManyToManyField(
+        "taxonomy.ResearchDomain",
+        blank=True,
+        related_name="user_profiles",
+    )
+    country = models.CharField(max_length=100, blank=True, null=True)
+    avatar = models.ImageField(
+        upload_to="profiles/avatars/%Y/%m/%d/",
+        blank=True,
+        null=True,
+    )
+    show_online_status = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("user profile")
+        verbose_name_plural = _("user profiles")
+
+    def __str__(self):
+        return f"Profile for {self.get_display_name()}"
+
+    def get_display_name(self) -> str:
+        full_name = ""
+        if hasattr(self.user, "get_full_name"):
+            full_name = (self.user.get_full_name() or "").strip()
+        if full_name:
+            return full_name
+
+        username = getattr(self.user, "username", "")
+        if username:
+            return str(username)
+
+        return str(getattr(self.user, "email", "user"))
+
+
 class Friendship(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", _("Pending")
@@ -356,3 +423,33 @@ class Friendship(models.Model):
         if rel.requester_id == viewer.id:
             return "EN_ATTENTE_ENVOYE"
         return "EN_ATTENTE_RECU"
+
+
+class Follow(models.Model):
+    follower = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="following",
+    )
+    following = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="followers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("follower", "following")]
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(follower=models.F("following")),
+                name="follow_cannot_follow_self",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["follower", "created_at"]),
+            models.Index(fields=["following", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.follower_id} follows {self.following_id}"

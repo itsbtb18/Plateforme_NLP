@@ -10,6 +10,7 @@ from django.utils.html import mark_safe, escape as html_escape
 
 from elasticsearch_dsl import Q, Search
 from elasticsearch.exceptions import ConnectionError, NotFoundError
+from accounts.blocking import blocked_user_ids_for
 
 from .documents import (
     CourseDocument, ToolDocument, CorpusDocument,
@@ -196,10 +197,20 @@ class GlobalSearchView(TemplateView):
         
         return search
 
-    def _execute_multi_search(self, query: str, detected_lang: str, filters: Dict[str, Any], type_filter: Optional[str] = None, page: int = 1, per_page: int = 20) -> Tuple[List[Dict], Dict[str, int], int]:
+    def _execute_multi_search(
+        self,
+        query: str,
+        detected_lang: str,
+        filters: Dict[str, Any],
+        type_filter: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        hidden_user_ids: Optional[set[str]] = None,
+    ) -> Tuple[List[Dict], Dict[str, int], int]:
         results = []
         aggregations = {}
         total_count = 0
+        hidden_user_ids = hidden_user_ids or set()
         
         doc_types = [type_filter] if type_filter and type_filter in self.DOCUMENT_CONFIGS else self.DOCUMENT_CONFIGS.keys()
         
@@ -229,6 +240,8 @@ class GlobalSearchView(TemplateView):
                 
                 response = search.execute()
                 for hit in response:
+                    if doc_type == "user" and str(hit.meta.id) in hidden_user_ids:
+                        continue
                     res = self._format_result(hit, doc_type, self.DOCUMENT_CONFIGS[doc_type])
                     if res: results.append(res)
                 
@@ -352,11 +365,13 @@ class GlobalSearchView(TemplateView):
         
         detected_lang = detect_language(q)
         filters = {}
+        hidden_user_ids = {str(pk) for pk in blocked_user_ids_for(request.user)}
         
         try:
             results, aggs, total = self._execute_multi_search(
                 q, detected_lang, filters, 
-                type_filter=None, page=1, per_page=8
+                type_filter=None, page=1, per_page=8,
+                hidden_user_ids=hidden_user_ids,
             )
             
             # Clean results for JSON (remove mark_safe objects)
@@ -404,8 +419,17 @@ class GlobalSearchView(TemplateView):
         
         if q:
             lang = detect_language(q)
+            hidden_user_ids = {str(pk) for pk in blocked_user_ids_for(self.request.user)}
             try:
-                results, aggs, total = self._execute_multi_search(q, lang, filters, t, page, per_page)
+                results, aggs, total = self._execute_multi_search(
+                    q,
+                    lang,
+                    filters,
+                    t,
+                    page,
+                    per_page,
+                    hidden_user_ids=hidden_user_ids,
+                )
                 context.update({
                     'results': results, 'aggregations': aggs, 'total': total,
                     'query': q, 'detected_language': lang, 'current_page': page
@@ -467,6 +491,7 @@ class SearchAutocompleteView(View):
         
         detected_lang = detect_language(q)
         suggestions = []
+        hidden_user_ids = {str(pk) for pk in blocked_user_ids_for(request.user)}
         
         for doc_type, config in self.AUTOCOMPLETE_DOCS.items():
             try:
@@ -507,6 +532,8 @@ class SearchAutocompleteView(View):
                 response = search.execute()
                 
                 for hit in response:
+                    if doc_type == "user" and str(hit.meta.id) in hidden_user_ids:
+                        continue
                     title = getattr(hit, config['title_field'], '')
                     if title:
                         try:

@@ -8,8 +8,18 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from django.utils.translation import gettext as _
-from .two_factor_utils import generate_otp, store_otp, verify_otp, clear_otp, get_otp_expiry
+from .two_factor_utils import (
+    OTPLockedOut,
+    generate_backup_codes,
+    generate_otp,
+    get_otp_expiry,
+    setup_totp,
+    store_otp,
+    verify_totp,
+    verify_otp,
+)
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
 import json
@@ -40,13 +50,17 @@ class OTPVerificationView(View):
             messages.error(request, _("User not found. Please try again."))
             return redirect('account_signup' if is_signup else 'account_login')
 
-        expiry_info = get_otp_expiry(user_id)
+        two_fa = TwoFactorAuth.objects.filter(user=user).first()
+        method = two_fa.method if two_fa else TwoFactorAuth.METHOD_EMAIL_OTP
+        expiry_info = get_otp_expiry(user_id) if method == TwoFactorAuth.METHOD_EMAIL_OTP else {"remaining_seconds": 0}
 
         context = {
             'user_email': user.email,
             'user_name': user.full_name,
             'remaining_seconds': expiry_info.get('remaining_seconds', 0),
             'is_signup_verification': is_signup,
+            'two_factor_method': method,
+            'is_totp_method': method == TwoFactorAuth.METHOD_TOTP,
         }
         return render(request, self.template_name, context)
 
@@ -62,44 +76,56 @@ class OTPVerificationView(View):
         if not otp_code:
             return JsonResponse({'success': False, 'message': _('Please enter the verification code.')})
 
-        result = verify_otp(user_id, otp_code)
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': _('User not found.')})
+
+        two_fa = TwoFactorAuth.objects.filter(user=user).first()
+        method = two_fa.method if two_fa else TwoFactorAuth.METHOD_EMAIL_OTP
+
+        try:
+            if method == TwoFactorAuth.METHOD_TOTP:
+                is_valid = verify_totp(user, otp_code)
+                result = {
+                    "valid": is_valid,
+                    "message": _("Two-factor authentication successful!") if is_valid else _("Invalid authenticator code. Please try again."),
+                }
+            else:
+                result = verify_otp(user_id, otp_code)
+        except OTPLockedOut as exc:
+            return JsonResponse({'success': False, 'message': str(exc)})
 
         if result['valid']:
-            try:
-                user = User.objects.get(id=user_id)
+            # Activate account if this is signup verification
+            if is_signup:
+                user.is_active = True
+                if hasattr(user, 'is_verified'):
+                    user.is_verified = True
+                if hasattr(user, 'status'):
+                    user.status = 'active'
+                user.save()
 
-                # Activate account if this is signup verification
-                if is_signup:
-                    user.is_active = True
-                    if hasattr(user, 'is_verified'):
-                        user.is_verified = True
-                    if hasattr(user, 'status'):
-                        user.status = 'active'
-                    user.save()
+            remember = request.session.get('pending_2fa_remember', False)
 
-                remember = request.session.get('pending_2fa_remember', False)
+            # Log user in
+            auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
 
-                # Clear all 2FA session keys before login
-                for key in ['pending_2fa_user_id', 'pending_2fa_remember', 'pending_2fa_is_signup']:
-                    request.session.pop(key, None)
-                request.session.save()
+            # Clear 2FA session keys after successful login
+            for key in ['pending_2fa_user_id', 'pending_2fa_remember', 'pending_2fa_is_signup']:
+                request.session.pop(key, None)
+            request.session.save()
 
-                # Log user in
-                auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            if remember:
+                request.session.set_expiry(None)
+            else:
+                request.session.set_expiry(0)
 
-                if remember:
-                    request.session.set_expiry(None)
-                else:
-                    request.session.set_expiry(0)
-
-                if is_signup:
-                    messages.success(request, _("Account verified successfully! Welcome!"))
-                else:
-                    messages.success(request, _("Two-factor authentication successful!"))
-                return JsonResponse({'success': True, 'redirect_url': '/'})
-
-            except User.DoesNotExist:
-                return JsonResponse({'success': False, 'message': _('User not found.')})
+            if is_signup:
+                messages.success(request, _("Account verified successfully! Welcome!"))
+            else:
+                messages.success(request, _("Two-factor authentication successful!"))
+            return JsonResponse({'success': True, 'redirect_url': '/'})
         else:
             return JsonResponse({'success': False, 'message': result['message']})
 
@@ -133,6 +159,12 @@ class ResendOTPView(View):
         
         try:
             user = User.objects.get(id=user_id)
+            two_fa = TwoFactorAuth.objects.filter(user=user).first()
+            if two_fa and two_fa.method == TwoFactorAuth.METHOD_TOTP:
+                return JsonResponse({
+                    'success': False,
+                    'message': _('Authenticator app is enabled. Use the code from your app.')
+                })
             
             # Generate new OTP
             otp_code = generate_otp()
@@ -168,38 +200,94 @@ class TwoFactorSettingsView(View):
     def get(self, request):
         user = request.user
         
-        try:
-            two_fa = TwoFactorAuth.objects.get(user=user)
-        except TwoFactorAuth.DoesNotExist:
-            two_fa = TwoFactorAuth.objects.create(user=user)
+        two_fa, _ = TwoFactorAuth.objects.get_or_create(user=user)
         
         backup_codes = []
         if two_fa.backup_codes:
             try:
-                backup_codes = json.loads(two_fa.backup_codes) if isinstance(two_fa.backup_codes, str) else two_fa.backup_codes
+                backup_codes = (
+                    json.loads(two_fa.backup_codes)
+                    if isinstance(two_fa.backup_codes, str)
+                    else two_fa.backup_codes
+                )
             except (json.JSONDecodeError, TypeError):
                 backup_codes = []
-        
+
+        masked_backup_codes = ["****-****" for _ in backup_codes]
+        newly_generated_backup_codes = request.session.pop("new_backup_codes", None)
+        if request.session.modified:
+            request.session.save()
+
         context = {
             'is_2fa_enabled': two_fa.is_enabled,
+            'current_method': two_fa.method,
+            'email_otp_method': TwoFactorAuth.METHOD_EMAIL_OTP,
+            'totp_method': TwoFactorAuth.METHOD_TOTP,
+            'totp_qr_code': request.session.pop("totp_qr_code", None),
+            'totp_secret': request.session.pop("totp_secret", None),
             'backup_codes': backup_codes,
+            'masked_backup_codes': masked_backup_codes,
+            'new_backup_codes': newly_generated_backup_codes or [],
         }
+        if request.session.modified:
+            request.session.save()
         return render(request, self.template_name, context)
     
     def post(self, request):
         user = request.user
         
-        try:
-            two_fa = TwoFactorAuth.objects.get(user=user)
-        except TwoFactorAuth.DoesNotExist:
-            two_fa = TwoFactorAuth.objects.create(user=user)
+        two_fa, _ = TwoFactorAuth.objects.get_or_create(user=user)
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "switch_totp":
+            totp_payload = setup_totp(user)
+            two_fa.is_enabled = True
+            two_fa.save(update_fields=["is_enabled", "updated_at"])
+
+            request.session["totp_qr_code"] = totp_payload["qr_code_base64"]
+            request.session["totp_secret"] = totp_payload["secret"]
+            request.session.modified = True
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': _("TOTP method enabled. Scan the QR code with your authenticator app."),
+                    'is_enabled': True,
+                    'method': TwoFactorAuth.METHOD_TOTP,
+                    'totp_qr_code': totp_payload["qr_code_base64"],
+                    'totp_secret': totp_payload["secret"],
+                    'provisioning_uri': totp_payload["provisioning_uri"],
+                })
+            return redirect('accounts:two_factor_settings')
+
+        if action == "switch_email":
+            two_fa.method = TwoFactorAuth.METHOD_EMAIL_OTP
+            two_fa.totp_secret = ""
+            two_fa.is_enabled = True
+            two_fa.save(update_fields=["method", "totp_secret", "is_enabled", "updated_at"])
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': _("Email OTP method enabled."),
+                    'is_enabled': True,
+                    'method': TwoFactorAuth.METHOD_EMAIL_OTP,
+                })
+            messages.success(request, _("Email OTP method enabled."))
+            return redirect('accounts:two_factor_settings')
         
+        was_enabled = bool(two_fa.is_enabled)
+
         # Get the toggle value from form
         two_factor_enabled = request.POST.get('two_factor_enabled') == 'on'
         
         # Update the setting
         two_fa.is_enabled = two_factor_enabled
-        two_fa.save()
+        two_fa.save(update_fields=["is_enabled", "updated_at"])
+
+        generated_codes = []
+        if two_factor_enabled and not was_enabled:
+            generated_codes = generate_backup_codes(user)
         
         # Return JSON response for AJAX
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -211,13 +299,36 @@ class TwoFactorSettingsView(View):
             return JsonResponse({
                 'success': True,
                 'message': message,
-                'is_enabled': two_fa.is_enabled
+                'is_enabled': two_fa.is_enabled,
+                'backup_codes': generated_codes,
             })
         
         # Fallback redirect for non-AJAX requests
         if two_factor_enabled:
+            if generated_codes:
+                request.session["new_backup_codes"] = generated_codes
+                request.session.modified = True
             messages.success(request, "✅ Two-factor authentication enabled!")
         else:
             messages.success(request, "✅ Two-factor authentication disabled!")
         
         return redirect('accounts:two_factor_settings')
+
+
+@login_required
+@require_POST
+def backup_codes_regenerate(request):
+    """
+    Regenerate all backup codes and return plaintext codes once.
+    """
+    user = request.user
+    two_fa, _ = TwoFactorAuth.objects.get_or_create(user=user)
+
+    if not two_fa.is_enabled:
+        return JsonResponse(
+            {'success': False, 'message': _('Enable 2FA before regenerating backup codes.')},
+            status=400,
+        )
+
+    codes = generate_backup_codes(user)
+    return JsonResponse({'success': True, 'backup_codes': codes})

@@ -845,6 +845,7 @@ html[dir="rtl"] .ef-date-container input {
     <main class="ef-main">
         <form method="post" enctype="multipart/form-data" class="ef-form-card">
             {% csrf_token %}
+            {{ speaker_formset.management_form }}
             
             <!-- Progress Indicator -->
             <div class="ef-progress">
@@ -1179,6 +1180,74 @@ html[dir="rtl"] .ef-date-container input {
                         </div>
                         {% endfor %}
                     </div>
+                </div>
+            </div>
+
+            <div class="ef-section" data-section="4">
+                <div class="ef-section-header">
+                    <div class="ef-section-icon">
+                        <i class="bi bi-mic"></i>
+                    </div>
+                    <div class="ef-section-info">
+                        <h2 class="ef-section-title">{% translate "Speakers" %}</h2>
+                        <p class="ef-section-desc">{% translate "Add presenters and talk details (optional)" %}</p>
+                    </div>
+                </div>
+
+                <div class="ef-form-grid">
+                    {% for sform in speaker_formset %}
+                    <div class="ef-form-group" style="border:1px solid var(--ef-border); border-radius:12px; padding:1rem;">
+                        {{ sform.id }}
+                        <div class="ef-form-grid-2">
+                            <div>
+                                <label class="ef-label">{% translate "Speaker Name" %}</label>
+                                {{ sform.name }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% translate "Affiliation" %}</label>
+                                {{ sform.affiliation }}
+                            </div>
+                        </div>
+                        <div class="ef-form-grid-2" style="margin-top:0.9rem;">
+                            <div>
+                                <label class="ef-label">{% translate "Talk Title" %}</label>
+                                {{ sform.talk_title }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% translate "Display Order" %}</label>
+                                {{ sform.order }}
+                            </div>
+                        </div>
+                        <div style="margin-top:0.9rem;">
+                            <label class="ef-label">{% translate "Bio" %}</label>
+                            {{ sform.bio }}
+                        </div>
+                        <div style="margin-top:0.9rem;">
+                            <label class="ef-label">{% translate "Talk Abstract" %}</label>
+                            {{ sform.talk_abstract }}
+                        </div>
+                        <div class="ef-form-grid-2" style="margin-top:0.9rem;">
+                            <div>
+                                <label class="ef-label">{% translate "Website" %}</label>
+                                {{ sform.website }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% translate "Avatar" %}</label>
+                                {{ sform.avatar }}
+                            </div>
+                        </div>
+                        {% if sform.instance.pk %}
+                        <div style="margin-top:0.8rem;">
+                            <label class="ef-label">{{ sform.DELETE }} {% translate "Remove this speaker" %}</label>
+                        </div>
+                        {% endif %}
+                        {% if sform.non_field_errors %}
+                        <div class="ef-error">
+                            <i class="bi bi-exclamation-circle"></i> {{ sform.non_field_errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             

@@ -2,6 +2,7 @@
 Django settings for Plateforme project.
 """
 
+import importlib.util
 import os
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import dj_database_url
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
 
-# Load environment variables
+# Load environment variables for local, non-Docker runs.
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,9 +19,28 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+SECRET_KEY = (
+    os.environ.get("DJANGO_SECRET_KEY")
+    or os.environ.get("SECRET_KEY")
+    or config("DJANGO_SECRET_KEY", default="")
+    or config("SECRET_KEY", default="")
+)
+DEBUG = (
+    os.environ.get("DJANGO_DEBUG", os.environ.get("DEBUG", "False")) == "True"
+)
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1"),
+).split(",")
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-dev-fallback-key"
+    else:
+        raise ImproperlyConfigured(
+            "The SECRET_KEY setting must not be empty. "
+            "Set DJANGO_SECRET_KEY (preferred) or SECRET_KEY."
+        )
 
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
@@ -50,6 +70,7 @@ INSTALLED_APPS = [
     # Apps projet
     "resources",
     "institutions",
+    "taxonomy",
     "accounts",
     "pages",
     "projects",
@@ -65,7 +86,6 @@ INSTALLED_APPS = [
     "translate",
     "scraping",
     "settings",
-    "django_celery_beat",
     # Allauth
     "allauth",
     "allauth.account",
@@ -76,6 +96,9 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "widget_tweaks",
 ]
+
+if importlib.util.find_spec("django_celery_beat") is not None:
+    INSTALLED_APPS.append("django_celery_beat")
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
@@ -314,6 +337,10 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT") or "587")
 EMAIL_USE_TLS = (os.getenv("EMAIL_USE_TLS") or "True") == "True"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER") or ""
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD") or ""
+
+# 2FA OTP hashing pepper (required by accounts/two_factor_utils.py)
+# Set OTP_PEPPER explicitly in environment for production.
+OTP_PEPPER = os.getenv("OTP_PEPPER") or SECRET_KEY
 
 if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

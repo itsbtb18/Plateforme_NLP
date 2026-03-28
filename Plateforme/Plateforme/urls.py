@@ -2,6 +2,8 @@
 URL configuration for Plateforme project.
 """
 
+import logging
+
 from django.contrib import admin
 from django.urls import include, path
 from django.conf import settings
@@ -11,6 +13,7 @@ from django.http import JsonResponse
 from django.views.static import serve
 from django.urls import re_path
 
+logger = logging.getLogger(__name__)
 
 # ============================================
 # HEALTH CHECK (lightweight, no DB/template)
@@ -33,7 +36,7 @@ urlpatterns = [
 ]
 
 # URLs with language prefix
-urlpatterns += i18n_patterns(
+localized_patterns = [
     path("search/", include("search.urls", namespace="search")),
     path("accounts/", include("accounts.urls", namespace="accounts")),
     path("accounts/", include("allauth.urls")),
@@ -47,11 +50,19 @@ urlpatterns += i18n_patterns(
     path("chatbot/", include("chatbot.urls")),
     path("messages/", include("direct_messages.urls", namespace="direct_messages")),
     path("sharing/", include("sharing.urls", namespace="sharing")),
-    path("scraping/", include("scraping.urls", namespace="scraping")),
     path("", include("pages.urls")),
     path("", include("translate.urls")),
     path("admin/", admin.site.urls),
-)
+]
+
+try:
+    localized_patterns.insert(
+        -3, path("scraping/", include("scraping.urls", namespace="scraping"))
+    )
+except Exception as exc:
+    logger.warning("scraping URLs disabled at startup: %s", exc)
+
+urlpatterns += i18n_patterns(*localized_patterns)
 
 
 # Serve static and media files for direct Django access (e.g. :8888)

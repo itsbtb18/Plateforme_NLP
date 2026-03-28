@@ -265,6 +265,7 @@ def resource_ajax_search(request):
                     "date": obj.creation_date.strftime("%b %d, %Y")
                     if obj.creation_date
                     else "",
+                    "_creation_date": obj.creation_date,
                     "url": reverse(
                         "resources:resource-detail",
                         kwargs={"type": rtype, "pk": obj.id},
@@ -273,11 +274,19 @@ def resource_ajax_search(request):
             )
 
     if sort_by == "oldest":
-        combined.sort(key=lambda x: x["date"])
+        combined.sort(
+            key=lambda x: x["_creation_date"].timestamp() if x["_creation_date"] else 0
+        )
     elif sort_by == "popular":
         pass  # already sorted by queryset order
     else:
-        combined.sort(key=lambda x: x["date"], reverse=True)
+        combined.sort(
+            key=lambda x: x["_creation_date"].timestamp() if x["_creation_date"] else 0,
+            reverse=True,
+        )
+
+    for item in combined:
+        item.pop("_creation_date", None)
 
     return JsonResponse({"resources": combined, "count": len(combined)})
 

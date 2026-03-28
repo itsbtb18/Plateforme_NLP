@@ -25,7 +25,29 @@ class Topic(models.Model):
     description_en = models.TextField(blank=True, default='', verbose_name=_('Description (English)'))
     creator = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='topics')
     created_at = models.DateTimeField(auto_now_add=True)
+    views = models.PositiveIntegerField(default=0)
     is_closed = models.BooleanField(default=False)
+    related_project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
+    related_event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
+    related_news = models.ForeignKey(
+        "QA.Post",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
     approval_status = models.CharField(
         max_length=20,
         choices=APPROVAL_STATUS_CHOICES,
@@ -136,13 +158,27 @@ class Message(models.Model):
     )
     chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='forum_messages')
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
     content = models.TextField()
+    rendered_content = models.TextField(blank=True, default="")
     timestamp = models.DateTimeField(auto_now_add=True)
     is_edited = models.BooleanField(default=False)
     edited_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['timestamp']  # Tri par défaut des messages par ordre chronologique
+
+    def save(self, *args, **kwargs):
+        from .rendering import render_message_markdown
+
+        self.rendered_content = render_message_markdown(self.content or "")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Message de {self.user.email} à {self.timestamp.strftime('%H:%M:%S')}"

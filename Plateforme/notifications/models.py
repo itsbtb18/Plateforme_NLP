@@ -38,6 +38,7 @@ class Notification(models.Model):
         
         # Forum & Q&A (Community)
         ('FORUM_TOPIC', _('Forum Topic')),
+        ('BAN', _('Ban Notification')),
         ('QA_ANSWER', _('Q&A Answer')),
         ('QA_COMMENT', _('Q&A Comment')),
         ('POST_APPROVED', _('Post Approved')),

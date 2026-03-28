@@ -1,9 +1,20 @@
 from typing import Any, Dict, Optional, cast
 
-from django.db.models import Q, QuerySet, Count
+from django.db.models import (
+    Q,
+    QuerySet,
+    Count,
+    F,
+    Prefetch,
+    IntegerField,
+    OuterRef,
+    Subquery,
+    Value,
+)
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, HttpRequest, Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import (
     ListView,
     DetailView,
@@ -24,6 +35,9 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from accounts.blocking import exclude_hidden_users
+from QA.models import Post
+from events.models import Event
+from projects.models import Project
 
 
 class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
@@ -46,90 +60,145 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
     def _handle_ajax_request(self, request: HttpRequest) -> HttpResponse:
         """Return partial HTML for AJAX requests."""
-        # Get the queryset with all filters applied
-        topics = self.get_queryset()
+        queryset = self.get_queryset()
         page_obj, paginator, is_paginated = self.paginate_queryset(
-            topics, self.paginate_by
+            queryset, self.paginate_by
         )
-
-        # Build context for partial template
         context = {
             "topics": page_obj,
             "page_obj": page_obj,
             "paginator": paginator,
             "is_paginated": is_paginated,
-            "search_query": request.GET.get("q", ""),
-            "current_sort": request.GET.get("sort", ""),
-            "my_topics": request.GET.get("my_topics", ""),
-            "user": request.user,
+            "search_query": self.request.GET.get("q", "").strip(),
+            "current_sort": (
+                self.request.GET.get("sort_by")
+                or self.request.GET.get("sort")
+                or "newest"
+            ).strip(),
+            "my_topics": self.request.GET.get("my_topics", "").strip(),
+            "current_domain": self.request.GET.get("domain", "").strip(),
             "request": request,
+            "user": request.user,
         }
-
-        # Render partial template
         html = render_to_string("forum/_topic_cards.html", context, request=request)
-
-        # Also return the count for updating stats
         return HttpResponse(html)
 
-        def get_queryset(self) -> QuerySet[Topic]:
-            qs = cast(QuerySet[Topic], super().get_queryset())
-            
-            # Public users see approved topics + their own pending topics
-            # so they can track moderation state directly in the forum list.
-            if self.request.user.is_staff or self.request.user.is_superuser:
-                qs = qs.all()
-            else:
-                qs = qs.filter(
-                    Q(approval_status='approved') |
-                    Q(approval_status='pending', creator=self.request.user)
-                )
-            qs = exclude_hidden_users(qs, self.request.user, ('creator',))
-            
-            # Filter: My Topics only - but still only approved ones
-            if self.request.GET.get('my_topics') and self.request.user.is_authenticated:
-                qs = qs.filter(creator=self.request.user)
-            
-            # Backend search filtering
-            search_query = self.request.GET.get('q', '').strip()
-            if search_query:
-                qs = qs.filter(
-                    Q(title__icontains=search_query) |
-                    Q(title_ar__icontains=search_query) |
-                    Q(title_en__icontains=search_query) |
-                    Q(description__icontains=search_query) |
-                    Q(description_ar__icontains=search_query) |
-                    Q(description_en__icontains=search_query) |
-                    Q(creator__username__icontains=search_query) |
-                    Q(creator__full_name__icontains=search_query)
-                )
-            
-            # Sort options
-            sort = self.request.GET.get('sort', '')
-            if sort == 'newest':
-                qs = qs.order_by('-created_at')
-            elif sort == 'active':
-                # Sort by most chatrooms/activity
-                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-chatroom_count', '-created_at')
-            elif sort == 'popular':
-                # Sort by views (fallback to chatroom count if views not available)
-                qs = qs.annotate(chatroom_count=Count('chatrooms')).order_by('-views', '-chatroom_count', '-created_at')
-            else:
-                # Default: order by creation date
-                qs = qs.order_by('-created_at')
-            
-            return qs
+    def get_queryset(self) -> QuerySet[Topic]:
+        qs = cast(QuerySet[Topic], super().get_queryset())
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            visible_topics_qs = self.get_queryset()
-            context['page'] = 'community'
-            context['search_query'] = self.request.GET.get('q', '')
-            context['total_topics'] = visible_topics_qs.count()
-            context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
-            # Category filter context
-            context['current_sort'] = self.request.GET.get('sort', '')
-            context['my_topics'] = self.request.GET.get('my_topics', '')
-            return context
+        # Visibility: approved for everyone, pending only for creator and staff.
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            qs = qs.all()
+        else:
+            qs = qs.filter(
+                Q(approval_status="approved")
+                | Q(approval_status="pending", creator=self.request.user)
+            )
+
+        qs = exclude_hidden_users(qs, self.request.user, ("creator",))
+
+        # Optional "my topics" filter.
+        if self.request.GET.get("my_topics") and self.request.user.is_authenticated:
+            qs = qs.filter(creator=self.request.user)
+
+        # Search by title.
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            qs = qs.filter(
+                Q(title__icontains=search_query)
+                | Q(title_ar__icontains=search_query)
+                | Q(title_en__icontains=search_query)
+            )
+
+        # Optional domain filter (works if the model has one of these relations/fields).
+        domain = self.request.GET.get("domain", "").strip()
+        if domain:
+            field_names = {f.name for f in Topic._meta.get_fields()}
+            if "domain" in field_names:
+                qs = qs.filter(domain__slug=domain)
+            elif "research_domains" in field_names:
+                qs = qs.filter(research_domains__slug=domain)
+
+        # Annotate reusable counters for templates and sorting.
+        # Subqueries keep counts stable even with extra joins/filters.
+        chatroom_count_subquery = (
+            ChatRoom.objects.filter(topic_id=OuterRef("pk"))
+            .values("topic_id")
+            .annotate(c=Count("id"))
+            .values("c")[:1]
+        )
+        comment_count_subquery = (
+            Message.objects.filter(chatroom__topic_id=OuterRef("pk"))
+            .values("chatroom__topic_id")
+            .annotate(c=Count("id"))
+            .values("c")[:1]
+        )
+        qs = qs.annotate(
+            chatroom_count=Coalesce(
+                Subquery(chatroom_count_subquery, output_field=IntegerField()),
+                Value(0),
+            ),
+            comment_count=Coalesce(
+                Subquery(comment_count_subquery, output_field=IntegerField()),
+                Value(0),
+            ),
+        )
+
+        # Sort options: newest, oldest, popular (most viewed).
+        sort = (
+            self.request.GET.get("sort_by")
+            or self.request.GET.get("sort")
+            or "newest"
+        ).strip()
+        if sort == "oldest":
+            qs = qs.order_by("created_at")
+        elif sort == "popular":
+            qs = qs.order_by("-views", "-created_at")
+        elif sort == "active":
+            qs = qs.order_by("-comment_count", "-chatroom_count", "-created_at")
+        else:
+            qs = qs.order_by("-created_at")
+
+        return qs.distinct()
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        topic_id = kwargs.get("topic_id")
+        if topic_id:
+            Topic.objects.filter(pk=topic_id).update(views=F("views") + 1)
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        full_qs = self.get_queryset()
+
+        context["page"] = "community"
+        context["search_query"] = self.request.GET.get("q", "").strip()
+        context["current_sort"] = (
+            self.request.GET.get("sort_by")
+            or self.request.GET.get("sort")
+            or "newest"
+        ).strip()
+        context["current_domain"] = self.request.GET.get("domain", "").strip()
+        context["my_topics"] = self.request.GET.get("my_topics", "").strip()
+        context["active_filters"] = {
+            "q": context["search_query"],
+            "sort": context["current_sort"],
+            "domain": context["current_domain"],
+            "my_topics": context["my_topics"],
+        }
+
+        context["total_topics"] = full_qs.count()
+        context["total_chatrooms"] = ChatRoom.objects.filter(topic__in=full_qs).count()
+
+        # Explicit pagination context for templates/AJAX controls.
+        page_obj = context.get("page_obj")
+        paginator = context.get("paginator")
+        context["has_next"] = page_obj.has_next() if page_obj else False
+        context["has_previous"] = page_obj.has_previous() if page_obj else False
+        context["current_page"] = page_obj.number if page_obj else 1
+        context["num_pages"] = paginator.num_pages if paginator else 1
+
+        return context
 
 
 class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
@@ -138,6 +207,35 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     template_name = "forum/topic_new.html"  # Ajout du préfixe 'forum/'
     success_url = reverse_lazy("forum:topic-list")
     context_object_name = "topic"
+
+    def get_initial(self):
+        initial = super().get_initial()
+        project_id = (self.request.GET.get("project_id") or "").strip()
+        event_id = (self.request.GET.get("event_id") or "").strip()
+        news_id = (self.request.GET.get("news_id") or "").strip()
+
+        if project_id:
+            project = Project.objects.filter(
+                pk=project_id,
+                approval_status="approved",
+            ).first()
+            if project:
+                initial["related_project"] = project
+        elif event_id:
+            event = Event.objects.filter(
+                pk=event_id,
+                approval_status="approved",
+            ).first()
+            if event:
+                initial["related_event"] = event
+        elif news_id:
+            news = Post.objects.filter(
+                pk=news_id,
+                approval_status="approved",
+            ).first()
+            if news:
+                initial["related_news"] = news
+        return initial
 
     def form_valid(self, form):
         import logging
@@ -213,6 +311,9 @@ class TopicCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["page"] = "community"
+        context["prefill_project_id"] = (self.request.GET.get("project_id") or "").strip()
+        context["prefill_event_id"] = (self.request.GET.get("event_id") or "").strip()
+        context["prefill_news_id"] = (self.request.GET.get("news_id") or "").strip()
         return context
 
 
@@ -389,10 +490,40 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             raise Http404(_("Topic not found."))
         return topic
 
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """
+        Atomically increment view counter to avoid lost updates under concurrency.
+        """
+        self.object = self.get_object()
+        Topic.objects.filter(pk=self.object.pk).update(views=F("views") + 1)
+        self.object.refresh_from_db(fields=["views"])
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         topic: Topic = cast(Topic, self.object)
         context["chatrooms"] = topic.chatrooms.all()
+        context["related_discussion_label"] = ""
+        context["related_discussion_url"] = ""
+        if topic.related_project_id:
+            context["related_discussion_label"] = topic.related_project.title
+            context["related_discussion_url"] = reverse(
+                "projects:project_detail", kwargs={"pk": topic.related_project_id}
+            )
+        elif topic.related_event_id:
+            context["related_discussion_label"] = topic.related_event.title
+            context["related_discussion_url"] = reverse(
+                "events:event_detail", kwargs={"pk": topic.related_event_id}
+            )
+        elif topic.related_news_id:
+            context["related_discussion_label"] = topic.related_news.title
+            if topic.related_news.slug:
+                context["related_discussion_url"] = reverse(
+                    "QA:post_detail", kwargs={"slug": topic.related_news.slug}
+                )
+            else:
+                context["related_discussion_url"] = reverse("QA:feed")
         context["page"] = "community"
         return context
 
@@ -434,9 +565,16 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         chatroom: ChatRoom = cast(ChatRoom, self.object)
-        context["messages"] = Message.objects.filter(chatroom=chatroom).order_by(
-            "timestamp"
+        replies_qs = Message.objects.select_related("user").order_by("timestamp")
+        context["messages"] = (
+            Message.objects.filter(chatroom=chatroom)
+            .select_related("user", "parent", "parent__user")
+            .prefetch_related(Prefetch("replies", queryset=replies_qs))
+            .order_by("timestamp")
         )
+        context["top_level_messages"] = [
+            msg for msg in context["messages"] if msg.parent_id is None
+        ]
         context["banned_users"] = BannedUser.objects.filter(chatroom=chatroom)
         context["page"] = "community"
         return context
@@ -463,11 +601,21 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         chatroom: ChatRoom = cast(ChatRoom, self.get_object())
         self.object = chatroom
         content = request.POST.get("message", "").strip()
+        parent_id = (request.POST.get("parent_id") or "").strip()
         if not content:
             return HttpResponse(status=204)
 
+        parent_message = None
+        if parent_id:
+            parent_message = Message.objects.filter(
+                pk=parent_id, chatroom=chatroom
+            ).first()
+
         message = Message.objects.create(
-            chatroom=chatroom, user=request.user, content=content
+            chatroom=chatroom,
+            user=request.user,
+            content=content,
+            parent=parent_message,
         )
         if (
             chatroom.topic
@@ -493,7 +641,7 @@ class ChatRoomDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         if request.headers.get("HX-Request"):
             html = render_to_string(
                 "forum/partials/message_item.html",
-                {"message": message, "user": request.user},
+                {"message": message, "user": request.user, "chatroom": chatroom},
                 request=request,
             )
             return HttpResponse(html)
@@ -626,9 +774,10 @@ class BanUserView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, CreateView
         form.instance.banned_by = self.request.user
 
         # Créer une notification pour l'utilisateur banni
+        ban_notification_type = "BAN"
         NotificationService.create_notification(
             recipient=user_to_ban,
-            notification_type="BAN",
+            notification_type=ban_notification_type,
             title=_("You have been banned from the chatroom %(name)s"),
             message=_(
                 "You have been banned from the chatroom %(name)s by %(username)s."

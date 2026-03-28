@@ -11,6 +11,14 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from datetime import timedelta
 from collections import OrderedDict
+from accounts.blocking import blocked_user_ids_for
+
+
+def _exclude_blocked_senders(queryset, user):
+    hidden_ids = blocked_user_ids_for(user)
+    if not hidden_ids:
+        return queryset
+    return queryset.exclude(sender_id__in=hidden_ids)
 
 
 def group_notifications_by_date(notifications):
@@ -43,7 +51,10 @@ def group_notifications_by_date(notifications):
 def notification_list(request):
     
     """Vue pour afficher la liste des notifications"""
-    base_queryset = Notification.objects.filter(recipient=request.user)
+    base_queryset = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user),
+        request.user,
+    )
     notifications = base_queryset.order_by('-created_at')
 
     paginator = Paginator(notifications, 10)
@@ -102,8 +113,9 @@ def notification_list(request):
 @login_required
 def api_notification_list(request):
     """API to get recent notifications with full details for dropdown."""
-    notifications = Notification.objects.filter(
-        recipient=request.user
+    notifications = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user),
+        request.user,
     ).select_related('content_type').order_by('-created_at')[:15]
     
     data = []
@@ -165,7 +177,10 @@ def api_notification_list(request):
             'requires_action': n.type in {'PROJECT_INVITATION', 'MEMBERSHIP_REQUEST', 'LEAVE_REQUEST'} and not n.response_given,
         })
     
-    unread_count = Notification.objects.filter(recipient=request.user, read=False).count()
+    unread_count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
     
     return JsonResponse({
         'notifications': data,
@@ -193,19 +208,31 @@ def _time_since(dt):
 @login_required
 def api_mark_as_read(request, notification_id):
     """API to mark a single notification as read."""
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
     notification.read = True
     notification.read_at = timezone.now()
     notification.save(update_fields=['read', 'read_at'])
     
-    unread_count = Notification.objects.filter(recipient=request.user, read=False).count()
+    unread_count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
     return JsonResponse({'success': True, 'unread_count': unread_count})
 
 
 @login_required
 def api_mark_all_as_read(request):
     """API to mark all notifications as read."""
-    updated = Notification.objects.filter(recipient=request.user, read=False).update(
+    updated = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).update(
         read=True,
         read_at=timezone.now()
     )
@@ -215,7 +242,10 @@ def api_mark_all_as_read(request):
 @login_required
 def api_notification_count(request):
     """API pour obtenir le nombre de notifications non lues"""
-    count = Notification.objects.filter(recipient=request.user, read=False).count()
+    count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
     return JsonResponse({'count': count})
 
 @login_required
@@ -255,7 +285,10 @@ def api_notification_list_filtered(request):
 @login_required
 def mark_all_read(request):
     """Marks all unread notifications for the current user as read."""
-    updated = request.user.notifications.filter(read=False).update(
+    updated = _exclude_blocked_senders(
+        request.user.notifications.filter(read=False),
+        request.user,
+    ).update(
         read=True,
         read_at=timezone.now()
     )
@@ -282,7 +315,13 @@ def go_to_notification(request, notification_id):
     Marks a notification as read and redirects to the associated content.
     This is the main entry point for clicking on notifications.
     """
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
     
     # Mark as read
     if not notification.read:
@@ -341,6 +380,8 @@ def mark_read(request, notification_id):
     # Delegate to go_to_notification for consistent behavior
     return go_to_notification(request, notification_id)
 
+@login_required
+@require_POST
 def delete_all_notifications(request):
     Notification.objects.filter(recipient=request.user).delete()
     messages.success(request, _("All your notifications have been deleted."))
@@ -350,7 +391,13 @@ def delete_all_notifications(request):
 @login_required
 def delete_notification(request, notification_id):
     """Delete a single notification."""
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
     notification.delete()
     messages.success(request, _("Notification deleted successfully."))
     
@@ -364,7 +411,13 @@ def delete_notification(request, notification_id):
 @login_required
 def api_delete_notification(request, notification_id):
     """API endpoint to delete a single notification."""
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
     notification.delete()
     return JsonResponse({'success': True, 'message': str(_("Notification deleted successfully."))}) 
 

@@ -1,8 +1,13 @@
 """
 2FA Email Utilities - Send OTP via Gmail
 """
+import logging
+
 from django.core.mail import send_mail
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
 
 def send_otp_email(user_email, user_name, otp_code):
     """
@@ -97,5 +102,5 @@ def send_otp_email(user_email, user_name, otp_code):
         )
         return True
     except Exception as e:
-        print(f"Error sending OTP email: {e}")
+        logger.error("Error sending OTP email: %s", e, exc_info=True)
         return False

@@ -1,5 +1,10 @@
 from django.apps import AppConfig
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class ForumConfig(AppConfig):
@@ -11,4 +16,6 @@ class ForumConfig(AppConfig):
         try:
             from . import signals  # noqa: F401
         except ImportError:
-            pass
+            logger.exception("Failed to import forum.signals during app ready()")
+            if settings.DEBUG:
+                raise

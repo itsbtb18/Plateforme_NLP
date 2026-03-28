@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Event
+from django.forms import inlineformset_factory
+from .models import Event, Speaker
 from django.utils.translation import gettext_lazy as _, get_language
 from institutions.models import Institution
 
@@ -265,3 +266,21 @@ class EventSearchForm(forms.Form):
         keyword = cleaned_data.get('keyword', '')
         cleaned_data['keyword'] = q or keyword
         return cleaned_data
+
+
+SpeakerFormSet = inlineformset_factory(
+    Event,
+    Speaker,
+    fields=[
+        "name",
+        "affiliation",
+        "bio",
+        "talk_title",
+        "talk_abstract",
+        "website",
+        "avatar",
+        "order",
+    ],
+    extra=1,
+    can_delete=True,
+)

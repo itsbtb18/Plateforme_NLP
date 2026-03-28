@@ -1,6 +1,9 @@
 from django import forms
 from .models import Topic, ChatRoom
 from django.utils.translation import get_language, gettext_lazy as _
+from QA.models import Post
+from events.models import Event
+from projects.models import Project
 
 
 def get_active_language():
@@ -88,10 +91,19 @@ class TopicForm(forms.ModelForm):
     
     class Meta:
         model = Topic
-        fields = ['title', 'description']
+        fields = [
+            'title',
+            'description',
+            'related_project',
+            'related_event',
+            'related_news',
+        ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'related_project': forms.Select(attrs={'class': 'form-select'}),
+            'related_event': forms.Select(attrs={'class': 'form-select'}),
+            'related_news': forms.Select(attrs={'class': 'form-select'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -109,6 +121,7 @@ class TopicForm(forms.ModelForm):
                     kwargs['initial'][generic_field] = value
         
         super().__init__(*args, **kwargs)
+        self._init_related_querysets()
         self._setup_bilingual_labels()
     
     def _setup_bilingual_labels(self):
@@ -125,6 +138,24 @@ class TopicForm(forms.ModelForm):
             self.fields['title'].help_text = _("Enter the topic title in English")
             self.fields['description'].label = _("Description (English)")
             self.fields['description'].help_text = _("Enter the description in English")
+
+        self.fields['related_project'].label = _("Related Project (optional)")
+        self.fields['related_event'].label = _("Related Event (optional)")
+        self.fields['related_news'].label = _("Related News Post (optional)")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        related_links = [
+            cleaned_data.get("related_project"),
+            cleaned_data.get("related_event"),
+            cleaned_data.get("related_news"),
+        ]
+        selected_count = sum(1 for item in related_links if item is not None)
+        if selected_count > 1:
+            raise forms.ValidationError(
+                _("Please bind the discussion to only one entity (project, event, or news).")
+            )
+        return cleaned_data
     
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -141,3 +172,17 @@ class TopicForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+    def _init_related_querysets(self):
+        self.fields["related_project"].required = False
+        self.fields["related_event"].required = False
+        self.fields["related_news"].required = False
+        self.fields["related_project"].queryset = Project.objects.filter(
+            approval_status="approved"
+        ).order_by("-created_at")
+        self.fields["related_event"].queryset = Event.objects.filter(
+            approval_status="approved"
+        ).order_by("-created_at")
+        self.fields["related_news"].queryset = Post.objects.filter(
+            approval_status="approved"
+        ).order_by("-created_at")

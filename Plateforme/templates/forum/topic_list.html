@@ -806,20 +806,20 @@ html[dir="rtl"] .ft-search-spinner {
                     {% translate "Newest" %}
                 </a>
                 
-                <!-- Most Active -->
-                <a href="?sort=active{% if search_query %}&q={{ search_query }}{% endif %}" 
-                   class="ft-filter-pill {% if current_sort == 'active' %}active{% endif %}"
-                   data-filter="active">
-                    <i class="bi bi-fire"></i>
-                    {% translate "Most Active" %}
+                <!-- Oldest -->
+                <a href="?sort=oldest{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="ft-filter-pill {% if current_sort == 'oldest' %}active{% endif %}"
+                   data-filter="oldest">
+                    <i class="bi bi-clock-history"></i>
+                    {% translate "Oldest" %}
                 </a>
                 
-                <!-- Popular -->
+                <!-- Most viewed -->
                 <a href="?sort=popular{% if search_query %}&q={{ search_query }}{% endif %}" 
                    class="ft-filter-pill {% if current_sort == 'popular' %}active{% endif %}"
                    data-filter="popular">
                     <i class="bi bi-star"></i>
-                    {% translate "Popular" %}
+                    {% translate "Most viewed" %}
                 </a>
             </div>
             
@@ -872,7 +872,7 @@ html[dir="rtl"] .ft-search-spinner {
                             <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
                             <div class="ft-user-topic-row">
                                 <h3 class="ft-topic-title">
-                                    <a href="{% url 'forum:chatroom-list' topic.id %}">{{ topic.get_localized_title }}</a>
+                                    <a href="{% url 'forum:topic-detail' topic.id %}">{{ topic.get_localized_title }}</a>
                                 </h3>
                                 <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
                             </div>
@@ -903,11 +903,11 @@ html[dir="rtl"] .ft-search-spinner {
                 <!-- Stats - RIGHT SIDE -->
                 <div class="ft-stats-col">
                     <div class="ft-stat-item">
-                        <div class="ft-stat-num votes">{{ topic.votes|default:"0" }}</div>
-                        <div class="ft-stat-txt">{% translate "Votes" %}</div>
+                        <div class="ft-stat-num replies">{{ topic.comment_count|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Comments" %}</div>
                     </div>
                     <div class="ft-stat-item">
-                        <div class="ft-stat-num replies">{{ topic.chatrooms.count }}</div>
+                        <div class="ft-stat-num replies">{{ topic.chatroom_count|default:topic.chatrooms.count }}</div>
                         <div class="ft-stat-txt">{% translate "Rooms" %}</div>
                     </div>
                     <div class="ft-stat-item">
@@ -1129,33 +1129,21 @@ html[dir="rtl"] .ft-search-spinner {
         });
     }
     
-    // Filter pills click handlers
+    // Filter pills click handlers (robust fallback: normal navigation)
     if (filterPills) {
         const pills = filterPills.querySelectorAll('.ft-filter-pill');
         pills.forEach(pill => {
             pill.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                const filterType = this.getAttribute('data-filter');
-                
-                // Update state based on filter type
-                if (filterType === 'all') {
-                    currentSort = '';
-                    myTopics = '';
-                } else if (filterType === 'my_topics') {
-                    currentSort = '';
-                    myTopics = '1';
-                } else if (filterType === 'newest' || filterType === 'active' || filterType === 'popular') {
-                    currentSort = filterType;
-                    myTopics = '';
+                // Let browser navigation handle filters reliably.
+                // Keep Ctrl/Cmd-click and middle-click behavior untouched.
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+                    return;
                 }
-                
-                // Update active state visually
-                pills.forEach(p => p.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Trigger search with new filters
-                performSearch();
+                e.preventDefault();
+                const targetUrl = this.getAttribute('href');
+                if (targetUrl) {
+                    window.location.href = targetUrl;
+                }
             });
         });
     }

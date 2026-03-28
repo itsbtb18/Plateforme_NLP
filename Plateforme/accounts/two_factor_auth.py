@@ -135,18 +135,8 @@ class TwoFactorAuthenticationMiddleware:
                     if path_no_lang.startswith(exempt) or path.startswith(exempt):
                         is_exempt = True
                         break
-            
-            # If user navigates to login, signup, or home — they're abandoning 2FA
-            abandon_paths = ['/accounts/login/', '/accounts/signup/', '/accounts/cancel-2fa/']
-            is_abandoning = path == '/' or path_no_lang == '/'
-            if not is_abandoning:
-                for ap in abandon_paths:
-                    if path_no_lang.startswith(ap) or path.startswith(ap):
-                        is_abandoning = True
-                        break
-            if is_abandoning:
-                self._clear_2fa_session(request)
-            
+
+            # Any non-exempt route is blocked until 2FA verification succeeds.
             if not is_exempt:
                 return redirect('accounts:verify_2fa')
         

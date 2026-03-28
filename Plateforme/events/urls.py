@@ -6,6 +6,7 @@ app_name = 'events'
 urlpatterns = [
     path('', views.EventListView.as_view(), name='event_list'),
     path('<uuid:pk>/', views.EventDetailView.as_view(), name='event_detail'),
+    path('<uuid:pk>/export.ics/', views.event_ics_export, name='event_ics_export'),
     path('create/', views.EventCreateView.as_view(), name='event_create'),
     path('<uuid:pk>/update/', views.EventUpdateView.as_view(), name='event_update'),
     path('<uuid:pk>/delete/', views.EventDeleteView.as_view(), name='event_delete'),

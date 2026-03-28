@@ -55,6 +55,21 @@ class Project(models.Model):
         on_delete=models.CASCADE,
         related_name='projects'
     )
+    research_domains = models.ManyToManyField(
+        "taxonomy.ResearchDomain",
+        blank=True,
+        related_name="projects",
+    )
+    nlp_methods = models.ManyToManyField(
+        "taxonomy.NLPMethod",
+        blank=True,
+        related_name="projects",
+    )
+    datasets = models.ManyToManyField(
+        "taxonomy.Dataset",
+        blank=True,
+        related_name="projects",
+    )
     status = models.CharField(
         max_length=20, 
         choices=STATUS_CHOICES, 
