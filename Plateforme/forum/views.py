@@ -478,6 +478,16 @@ class TopicDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Delete
         context["page"] = "community"
         return context
 
+    def delete(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        topic: Topic = cast(Topic, self.get_object())
+        title = topic.title
+        topic.soft_delete(request.user)
+        messages.success(
+            request,
+            _("Topic '%(title)s' moved to trash.") % {"title": title},
+        )
+        return redirect(self.success_url)
+
 
 class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
     model = Topic

@@ -11,17 +11,20 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import BooleanField, Exists, OuterRef, Q, Value
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import CreateView, DetailView, UpdateView
 from notifications.models import Notification
-from notifications.services import NotificationService
+from notifications.services import LocalizedValue, NotificationService
 from pages.security import log_admin_activity
 from projects.models import Project, ProjectMember
 
@@ -344,6 +347,10 @@ class ProfileView(DetailView):
     template_name = "account/profile.html"
     context_object_name = "user"
 
+    @method_decorator(ensure_csrf_cookie)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         profile_user = self.get_object()
@@ -366,15 +373,21 @@ class ProfileView(DetailView):
             selected_section = "all"
 
         is_own_profile = bool(viewer and viewer == profile_user)
-        relation_state = (
-            Friendship.relation_state(viewer, profile_user) if viewer else "NEUTRE"
+        relation_state = Friendship.relation_state(viewer, profile_user)
+        is_blocked_profile = relation_state == "BLOQUE"
+        is_following_profile = bool(
+            viewer
+            and viewer != profile_user
+            and Follow.objects.filter(follower=viewer, following=profile_user).exists()
         )
-        is_friend = relation_state == "AMIS"
-        can_view_full = is_own_profile or is_friend
+        if is_blocked_profile:
+            is_following_profile = False
+        can_view_full = is_own_profile or is_following_profile
 
         context["is_own_profile"] = is_own_profile
         context["relation_state"] = relation_state
-        context["is_friend"] = is_friend
+        context["is_blocked_profile"] = is_blocked_profile
+        context["is_friend"] = False
         context["can_view_full_profile"] = can_view_full
         context["can_view_contributions"] = True
         context["page"] = "profile"
@@ -383,18 +396,14 @@ class ProfileView(DetailView):
             following=profile_user
         ).count()
         context["following_count"] = Follow.objects.filter(follower=profile_user).count()
-        context["is_following_profile"] = bool(
-            viewer
-            and viewer != profile_user
-            and Follow.objects.filter(follower=viewer, following=profile_user).exists()
-        )
+        context["is_following_profile"] = is_following_profile
 
         # Public resources are always visible (profile public view)
         from resources.models import Document
 
-        user_resources_qs = Document.objects.filter(
-            author=profile_user, approval_status="approved"
-        ).order_by("-creation_date")
+        user_resources_qs = Document.objects.filter(author=profile_user).order_by(
+            "-creation_date"
+        )
 
         # Show user contributions publicly on profile pages
         user_projects_qs = Project.objects.filter(
@@ -403,29 +412,27 @@ class ProfileView(DetailView):
 
         from QA.models import Post
 
-        user_posts_qs = Post.objects.filter(
-            author=profile_user, approval_status="approved"
-        ).order_by("-created_at")
+        user_posts_qs = Post.objects.filter(author=profile_user).order_by("-created_at")
 
         from resources.models import Corpus, Course, NLPTool
 
-        user_courses_qs = Course.objects.filter(
-            teacher=profile_user, approval_status="approved"
-        ).order_by("-creation_date")
+        user_courses_qs = Course.objects.filter(teacher=profile_user).order_by(
+            "-creation_date"
+        )
 
-        user_corpora_qs = Corpus.objects.filter(
-            author=profile_user, approval_status="approved"
-        ).order_by("-creation_date")
+        user_corpora_qs = Corpus.objects.filter(author=profile_user).order_by(
+            "-creation_date"
+        )
 
-        user_tools_qs = NLPTool.objects.filter(
-            author=profile_user, approval_status="approved"
-        ).order_by("-creation_date")
+        user_tools_qs = NLPTool.objects.filter(author=profile_user).order_by(
+            "-creation_date"
+        )
 
         from forum.models import Topic
 
-        user_topics_qs = Topic.objects.filter(
-            creator=profile_user, approval_status="approved"
-        ).order_by("-created_at")
+        user_topics_qs = Topic.objects.filter(creator=profile_user).order_by(
+            "-created_at"
+        )
 
         from events.models import Event, EventRegistration
 
@@ -439,9 +446,121 @@ class ProfileView(DetailView):
         past_events_qs = regs.filter(event__start_date__lt=today).order_by(
             "-event__start_date"
         )
-        user_events_qs = Event.objects.filter(
-            created_by=profile_user, approval_status="approved"
-        ).order_by("-start_date")
+        user_events_qs = Event.objects.filter(created_by=profile_user).order_by(
+            "-start_date"
+        )
+
+        # Experience timeline: project participation roles + events
+        privileged_view = bool(is_own_profile or (viewer and viewer.is_staff))
+
+        coordinated_projects_qs = Project.objects.filter(coordinator=profile_user)
+        project_memberships_qs = ProjectMember.objects.filter(
+            member=profile_user,
+            status="accepted",
+        ).exclude(project__coordinator=profile_user)
+        event_registrations_qs = EventRegistration.objects.filter(user=profile_user)
+        created_events_exp_qs = Event.objects.filter(created_by=profile_user)
+
+        if not privileged_view:
+            coordinated_projects_qs = coordinated_projects_qs.filter(
+                approval_status="approved"
+            )
+            project_memberships_qs = project_memberships_qs.filter(
+                project__approval_status="approved"
+            )
+            event_registrations_qs = event_registrations_qs.filter(
+                event__approval_status="approved"
+            )
+            created_events_exp_qs = created_events_exp_qs.filter(
+                approval_status="approved"
+            )
+
+        experiences = []
+
+        for project in coordinated_projects_qs.select_related("institution").order_by(
+            "-created_at"
+        ):
+            experiences.append(
+                {
+                    "kind": "project",
+                    "kind_label": _("Project"),
+                    "icon": "fa-diagram-project",
+                    "title": project.get_localized_title() or project.title,
+                    "subtitle": getattr(project.institution, "name", "") or "",
+                    "role": _("Coordinator"),
+                    "description": project.get_localized_description() or "",
+                    "url": reverse("projects:project_detail", kwargs={"pk": project.pk}),
+                    "started_at": project.created_at,
+                    "ended_at": None,
+                    "sort_date": project.created_at.date(),
+                }
+            )
+
+        for membership in project_memberships_qs.select_related(
+            "project", "project__institution"
+        ).order_by("-created_at"):
+            project = membership.project
+            experiences.append(
+                {
+                    "kind": "project",
+                    "kind_label": _("Project"),
+                    "icon": "fa-users",
+                    "title": project.get_localized_title() or project.title,
+                    "subtitle": getattr(project.institution, "name", "") or "",
+                    "role": membership.role or _("Team Member"),
+                    "description": project.get_localized_description() or "",
+                    "url": reverse("projects:project_detail", kwargs={"pk": project.pk}),
+                    "started_at": membership.created_at,
+                    "ended_at": None,
+                    "sort_date": membership.created_at.date(),
+                }
+            )
+
+        for event in created_events_exp_qs.select_related("organizer").order_by(
+            "-start_date"
+        ):
+            experiences.append(
+                {
+                    "kind": "event",
+                    "kind_label": _("Event"),
+                    "icon": "fa-calendar-plus",
+                    "title": event.get_localized_title() or event.title,
+                    "subtitle": event.get_localized_location() or "",
+                    "role": _("Organizer"),
+                    "description": event.get_localized_description() or "",
+                    "url": reverse("events:event_detail", kwargs={"pk": event.pk}),
+                    "started_at": event.start_date,
+                    "ended_at": event.end_date,
+                    "sort_date": event.start_date,
+                }
+            )
+
+        for registration in event_registrations_qs.select_related("event").order_by(
+            "-event__start_date"
+        ):
+            event = registration.event
+            experiences.append(
+                {
+                    "kind": "event",
+                    "kind_label": _("Event"),
+                    "icon": "fa-calendar-check",
+                    "title": event.get_localized_title() or event.title,
+                    "subtitle": event.get_localized_location() or "",
+                    "role": _("Participant"),
+                    "description": event.get_localized_description() or "",
+                    "url": reverse("events:event_detail", kwargs={"pk": event.pk}),
+                    "started_at": event.start_date,
+                    "ended_at": event.end_date,
+                    "sort_date": event.start_date,
+                }
+            )
+
+        experiences.sort(
+            key=lambda item: item.get("sort_date") or timezone.now().date(),
+            reverse=True,
+        )
+        context["user_experiences"] = experiences[:8]
+        context["user_experiences_count"] = len(experiences)
 
         def section_items(queryset, section_key: str):
             if selected_section in ("all", section_key):
@@ -558,20 +677,26 @@ class NetworkInvitationsView(LoginRequiredMixin, View):
     template_name = "account/network_requests.html"
 
     def get(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        Notification.objects.filter(
+            recipient=request.user,
+            type="FOLLOW_REQUEST",
+            read=False,
+        ).update(read=True, read_at=timezone.now())
+
         incoming = (
-            Friendship.objects.filter(
-                addressee=request.user, status=Friendship.Status.PENDING
-            )
-            .select_related("requester", "requester__institution")
+            Follow.objects.filter(following=request.user)
+            .select_related("follower")
             .order_by("-created_at")
         )
-
         outgoing = (
-            Friendship.objects.filter(
-                requester=request.user, status=Friendship.Status.PENDING
-            )
-            .select_related("addressee", "addressee__institution")
+            Follow.objects.filter(follower=request.user)
+            .select_related("following")
             .order_by("-created_at")
+        )
+        following_ids = set(
+            Follow.objects.filter(follower=request.user).values_list(
+                "following_id", flat=True
+            )
         )
 
         return render(
@@ -580,6 +705,7 @@ class NetworkInvitationsView(LoginRequiredMixin, View):
             {
                 "incoming_requests": incoming,
                 "outgoing_requests": outgoing,
+                "following_ids": following_ids,
                 "page": "network",
             },
         )
@@ -622,10 +748,126 @@ def invitations_count_api(request: Any) -> Any:
     if request.method != "GET":
         return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
 
-    count = Friendship.objects.filter(
-        addressee=request.user, status=Friendship.Status.PENDING
+    follow_notifications_count = Notification.objects.filter(
+        recipient=request.user,
+        type__in=["FOLLOW_REQUEST", "MESSAGE"],
+        read=False,
+    ).filter(
+        Q(type="FOLLOW_REQUEST") | Q(message_en__icontains="started following you")
     ).count()
-    return JsonResponse({"ok": True, "count": count})
+
+    following_ids = Follow.objects.filter(follower=request.user).values_list(
+        "following_id", flat=True
+    )
+    pending_followers_count = Follow.objects.filter(following=request.user).exclude(
+        follower_id__in=following_ids
+    ).count()
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "count": max(follow_notifications_count, pending_followers_count),
+            "follow_notifications_count": follow_notifications_count,
+            "pending_followers_count": pending_followers_count,
+        }
+    )
+
+
+@login_required
+def follow_list_api(request: Any, user_id: str) -> Any:
+    if request.method != "GET":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+
+    profile_user = get_object_or_404(User, pk=user_id)
+    kind = (request.GET.get("kind") or "").strip().lower()
+    if kind not in {"followers", "following"}:
+        return JsonResponse({"ok": False, "error": _("Invalid list type.")}, status=400)
+
+    if kind == "followers":
+        relations = (
+            Follow.objects.filter(following=profile_user)
+            .select_related("follower")
+            .order_by("-created_at")
+        )
+        users = [rel.follower for rel in relations]
+    else:
+        relations = (
+            Follow.objects.filter(follower=profile_user)
+            .select_related("following")
+            .order_by("-created_at")
+        )
+        users = [rel.following for rel in relations]
+
+    user_ids = [u.id for u in users]
+    viewer_following_ids = set(
+        Follow.objects.filter(
+            follower=request.user,
+            following_id__in=user_ids,
+        ).values_list("following_id", flat=True)
+    )
+    is_own_profile = request.user == profile_user
+
+    items = []
+    for u in users:
+        avatar_url = ""
+        if getattr(u, "avatar", None):
+            try:
+                avatar_url = u.avatar.url
+            except Exception:
+                avatar_url = ""
+
+        display_name = getattr(u, "get_full_name_display", None)
+        if callable(display_name):
+            display_name = display_name()
+        if not display_name:
+            display_name = getattr(u, "full_name", None) or u.email
+
+        institution = getattr(u, "institution", None) or ""
+        items.append(
+            {
+                "id": str(u.id),
+                "name": str(display_name),
+                "avatar": avatar_url,
+                "institution": str(institution),
+                "profile_url": reverse("accounts:profile", kwargs={"pk": u.id}),
+                "is_followed_by_me": bool(u.id in viewer_following_ids),
+                "is_own_profile": is_own_profile,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "kind": kind,
+            "items": items,
+            "count": len(items),
+        }
+    )
+
+
+@login_required
+@require_POST
+def remove_follower(request: Any, user_id: str) -> Any:
+    target_user = get_object_or_404(User, pk=user_id)
+    if target_user == request.user:
+        return JsonResponse(
+            {"ok": False, "error": _("You cannot remove yourself.")},
+            status=400,
+        )
+
+    deleted, _ = Follow.objects.filter(
+        follower=target_user,
+        following=request.user,
+    ).delete()
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "deleted": bool(deleted),
+            "followers_count": Follow.objects.filter(following=request.user).count(),
+            "following_count": Follow.objects.filter(follower=request.user).count(),
+        }
+    )
 
 
 @login_required
@@ -663,72 +905,16 @@ def friendship_action(request: Any, user_id: str, action: str) -> Any:
         pair_filter = Q(requester=current_user, addressee=target_user) | Q(
             requester=target_user, addressee=current_user
         )
-        outgoing_pending = Friendship.objects.filter(
-            requester=current_user,
-            addressee=target_user,
-            status=Friendship.Status.PENDING,
-        )
-        incoming_pending = Friendship.objects.filter(
-            requester=target_user,
-            addressee=current_user,
-            status=Friendship.Status.PENDING,
-        )
-        accepted_relations = Friendship.objects.filter(
-            pair_filter, status=Friendship.Status.ACCEPTED
-        )
         blocked_relations = Friendship.objects.filter(
             pair_filter, status=Friendship.Status.BLOCKED
         )
 
-        if action == "add":
-            if blocked_relations.exists():
-                return JsonResponse(
-                    {"ok": False, "error": _("User is blocked.")}, status=400
-                )
-            if accepted_relations.exists():
-                state = "AMIS"
-            elif incoming_pending.exists():
-                state = "EN_ATTENTE_RECU"
-            elif outgoing_pending.exists():
-                state = "EN_ATTENTE_ENVOYE"
-            else:
-                Friendship.objects.create(
-                    requester=current_user,
-                    addressee=target_user,
-                    status=Friendship.Status.PENDING,
-                )
-                state = "EN_ATTENTE_ENVOYE"
-
-        elif action == "cancel":
-            outgoing_pending.delete()
-            state = "NEUTRE"
-
-        elif action == "accept":
-            if incoming_pending.exists():
-                incoming_pending.update(
-                    status=Friendship.Status.ACCEPTED, updated_at=timezone.now()
-                )
-                # Safety cleanup in case duplicate inverse pending rows exist.
-                outgoing_pending.delete()
-            elif accepted_relations.exists():
-                pass
-            else:
-                return JsonResponse(
-                    {"ok": False, "error": _("No incoming request to accept.")},
-                    status=400,
-                )
-            state = "AMIS"
-
-        elif action == "reject":
-            incoming_pending.delete()
-            state = "NEUTRE"
-
-        elif action == "remove":
-            accepted_relations.delete()
-            state = "NEUTRE"
-
-        elif action == "block":
+        if action == "block":
             Friendship.objects.filter(pair_filter).delete()
+            Follow.objects.filter(
+                Q(follower=current_user, following=target_user)
+                | Q(follower=target_user, following=current_user)
+            ).delete()
             Friendship.objects.create(
                 requester=current_user,
                 addressee=target_user,
@@ -746,7 +932,13 @@ def friendship_action(request: Any, user_id: str, action: str) -> Any:
 
         else:
             return JsonResponse(
-                {"ok": False, "error": _("Unknown action.")}, status=400
+                {
+                    "ok": False,
+                    "error": _(
+                        "Follow management is enabled. Only block/unblock is allowed."
+                    ),
+                },
+                status=400,
             )
 
         return JsonResponse(
@@ -766,16 +958,42 @@ def follow_user(request: Any, user_id: str) -> Any:
             {"ok": False, "error": _("You cannot follow yourself.")},
             status=400,
         )
+    relation = Friendship.between(request.user, target_user)
+    if relation and relation.status == Friendship.Status.BLOCKED:
+        return JsonResponse(
+            {"ok": False, "error": _("You cannot follow this user.")},
+            status=403,
+        )
 
     _, created = Follow.objects.get_or_create(
         follower=request.user,
         following=target_user,
     )
+    notification_sent = False
+    if created:
+        try:
+            NotificationService.create_notification(
+                recipient=target_user,
+                notification_type="FOLLOW_REQUEST",
+                title=_("New follower"),
+                message=_("%(user)s started following you."),
+                sender_id=request.user.id,
+                message_kwargs={"user": LocalizedValue.from_user(request.user)},
+                action_url=reverse("accounts:network_invitations"),
+            )
+            notification_sent = True
+        except Exception:
+            logger.exception(
+                "Failed to send follow notification from user %s to user %s",
+                request.user.id,
+                target_user.id,
+            )
     return JsonResponse(
         {
             "ok": True,
             "is_following": True,
             "created": created,
+            "notification_sent": notification_sent,
             "followers_count": Follow.objects.filter(following=target_user).count(),
             "following_count": Follow.objects.filter(follower=target_user).count(),
         }
@@ -939,6 +1157,235 @@ class RespondToProjectInviteView(LoginRequiredMixin, View):
 # --------------------------
 # Autres vues
 # --------------------------
+def _trash_model_config(content_type: str):
+    from events.models import Event
+    from forum.models import Topic
+    from projects.models import Project
+    from resources.models import Corpus, Course, Document, NLPTool
+
+    mapping = {
+        "course": {
+            "model": Course,
+            "owner_field": "author",
+            "extra_check": lambda _obj: True,
+        },
+        "corpus": {
+            "model": Corpus,
+            "owner_field": "author",
+            "extra_check": lambda _obj: True,
+        },
+        "tool": {
+            "model": NLPTool,
+            "owner_field": "author",
+            "extra_check": lambda _obj: True,
+        },
+        "article": {
+            "model": Document,
+            "owner_field": "author",
+            "extra_check": lambda obj: getattr(obj, "document_type", "") == "article",
+        },
+        "thesis": {
+            "model": Document,
+            "owner_field": "author",
+            "extra_check": lambda obj: getattr(obj, "document_type", "") == "thesis",
+        },
+        "memoir": {
+            "model": Document,
+            "owner_field": "author",
+            "extra_check": lambda obj: getattr(obj, "document_type", "") == "memoir",
+        },
+        "project": {
+            "model": Project,
+            "owner_field": "coordinator",
+            "extra_check": lambda _obj: True,
+        },
+        "event": {
+            "model": Event,
+            "owner_field": "created_by",
+            "extra_check": lambda _obj: True,
+        },
+        "topic": {
+            "model": Topic,
+            "owner_field": "creator",
+            "extra_check": lambda _obj: True,
+        },
+    }
+    return mapping.get(content_type)
+
+
+def _collect_user_trash_items(user):
+    from events.models import Event
+    from forum.models import Topic
+    from projects.models import Project
+    from resources.models import Corpus, Course, Document, NLPTool
+
+    items = []
+
+    for course in Course.all_objects.filter(author=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(course.pk),
+                "content_type": "course",
+                "title": course.get_localized_title() or course.title,
+                "deleted_at": course.deleted_at,
+            }
+        )
+
+    for corpus in Corpus.all_objects.filter(author=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(corpus.pk),
+                "content_type": "corpus",
+                "title": corpus.get_localized_title() or corpus.title,
+                "deleted_at": corpus.deleted_at,
+            }
+        )
+
+    for tool in NLPTool.all_objects.filter(author=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(tool.pk),
+                "content_type": "tool",
+                "title": tool.get_localized_title() or tool.title,
+                "deleted_at": tool.deleted_at,
+            }
+        )
+
+    for document in Document.all_objects.filter(author=user, is_deleted=True):
+        doc_type = document.document_type or "article"
+        items.append(
+            {
+                "pk": str(document.pk),
+                "content_type": doc_type,
+                "title": document.get_localized_title() or document.title,
+                "deleted_at": document.deleted_at,
+            }
+        )
+
+    for project in Project.all_objects.filter(coordinator=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(project.pk),
+                "content_type": "project",
+                "title": project.get_localized_title() or project.title,
+                "deleted_at": project.deleted_at,
+            }
+        )
+
+    for event in Event.all_objects.filter(created_by=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(event.pk),
+                "content_type": "event",
+                "title": event.get_localized_title() or event.title,
+                "deleted_at": event.deleted_at,
+            }
+        )
+
+    for topic in Topic.all_objects.filter(creator=user, is_deleted=True):
+        items.append(
+            {
+                "pk": str(topic.pk),
+                "content_type": "topic",
+                "title": topic.get_localized_title() or topic.title,
+                "deleted_at": topic.deleted_at,
+            }
+        )
+
+    items.sort(
+        key=lambda item: item["deleted_at"].timestamp() if item["deleted_at"] else 0,
+        reverse=True,
+    )
+    return items
+
+
+class TrashBinView(LoginAndVerifiedRequiredMixin, View):
+    template_name = "account/trash_bin.html"
+    allowed_types = {
+        "all",
+        "course",
+        "corpus",
+        "tool",
+        "article",
+        "thesis",
+        "memoir",
+        "project",
+        "event",
+        "topic",
+    }
+
+    def get(self, request):
+        selected_type = (request.GET.get("type") or "all").strip().lower()
+        if selected_type not in self.allowed_types:
+            selected_type = "all"
+
+        items = _collect_user_trash_items(request.user)
+        if selected_type != "all":
+            items = [item for item in items if item["content_type"] == selected_type]
+
+        paginator = Paginator(items, 10)
+        page_number = request.GET.get("page")
+        page_obj = paginator.get_page(page_number)
+
+        context = {
+            "page": "profile",
+            "trash_items": page_obj.object_list,
+            "page_obj": page_obj,
+            "selected_type": selected_type,
+            "allowed_types": sorted(self.allowed_types),
+            "total_count": len(items),
+        }
+        return render(request, self.template_name, context)
+
+
+@login_required
+@require_POST
+def trash_restore_item(request: Any, content_type: str, pk: str) -> Any:
+    config = _trash_model_config(content_type)
+    if not config:
+        raise Http404(_("Invalid content type."))
+
+    model = config["model"]
+    obj = get_object_or_404(model.all_objects.filter(is_deleted=True), pk=pk)
+    owner_field = config["owner_field"]
+    extra_check = config["extra_check"]
+
+    if not extra_check(obj):
+        raise Http404(_("Item not found in trash."))
+
+    owner_id = getattr(obj, f"{owner_field}_id", None)
+    if not (request.user.is_staff or request.user.is_superuser or owner_id == request.user.id):
+        raise PermissionDenied
+
+    obj.restore()
+    messages.success(request, _("Item restored successfully."))
+    return redirect("accounts:trash")
+
+
+@login_required
+@require_POST
+def trash_delete_item(request: Any, content_type: str, pk: str) -> Any:
+    config = _trash_model_config(content_type)
+    if not config:
+        raise Http404(_("Invalid content type."))
+
+    model = config["model"]
+    obj = get_object_or_404(model.all_objects.filter(is_deleted=True), pk=pk)
+    owner_field = config["owner_field"]
+    extra_check = config["extra_check"]
+
+    if not extra_check(obj):
+        raise Http404(_("Item not found in trash."))
+
+    owner_id = getattr(obj, f"{owner_field}_id", None)
+    if not (request.user.is_staff or request.user.is_superuser or owner_id == request.user.id):
+        raise PermissionDenied
+
+    obj.hard_delete()
+    messages.success(request, _("Item permanently deleted."))
+    return redirect("accounts:trash")
+
+
 def awaiting_verification_view(request):
     return render(request, "awaiting_verification.html")
 

@@ -5,6 +5,31 @@ from django.utils.translation import gettext_lazy as _
 import uuid
 
 
+class TopicSoftDeleteQuerySet(models.QuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        return self.filter(is_deleted=True)
+
+    def delete(self):
+        from django.utils import timezone
+
+        return super().update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+
+class ActiveTopicManager(models.Manager.from_queryset(TopicSoftDeleteQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllTopicManager(models.Manager.from_queryset(TopicSoftDeleteQuerySet)):
+    pass
+
+
 class Topic(models.Model):
     APPROVAL_STATUS_CHOICES = (
         ('pending', _('Pending')),
@@ -63,6 +88,18 @@ class Topic(models.Model):
     )
     # Legacy field for backward compatibility
     is_approved = models.BooleanField(default=False, verbose_name=_('Is Approved'))
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_topics_set",
+    )
+
+    objects = ActiveTopicManager()
+    all_objects = AllTopicManager()
 
     def __str__(self):
         return self.title
@@ -107,6 +144,24 @@ class Topic(models.Model):
     
     def get_absolute_url(self):
         return reverse('forum:topic-list')
+
+    def soft_delete(self, user=None):
+        from django.utils import timezone
+
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and getattr(user, "is_authenticated", False):
+            self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def hard_delete(self):
+        super().delete()
 
 class ChatRoom(models.Model):
     id = models.UUIDField(

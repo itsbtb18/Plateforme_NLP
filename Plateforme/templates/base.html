@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 {% load i18n %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
@@ -40,6 +40,79 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
     <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
+    <style>
+      .profile-photo-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 16, 26, 0.8);
+        backdrop-filter: blur(2px);
+        padding: 1rem;
+      }
+
+      .profile-photo-modal.is-open {
+        display: flex;
+      }
+
+      .profile-photo-dialog {
+        width: min(980px, 96vw);
+        max-height: 92vh;
+        overflow: auto;
+        background: linear-gradient(180deg, #111826 0%, #171f2b 100%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+      }
+
+      .profile-photo-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.35rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .profile-photo-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #f8fafc;
+      }
+
+      .profile-photo-close {
+        border: 0;
+        background: transparent;
+        color: #d1d5db;
+        font-size: 1.6rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .profile-photo-close:hover {
+        color: #ffffff;
+      }
+
+      .profile-photo-body {
+        min-height: 420px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .profile-photo-image {
+        width: min(560px, 78vw);
+        height: min(560px, 78vw);
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+        background: #111827;
+      }
+    </style>
     <style>
       :root {
         --site-header-height: 80px;
@@ -108,6 +181,20 @@
         display: block;
       }
 
+      .profile-icon-btn {
+        position: relative;
+      }
+
+      #profileInvBadge {
+        top: -4px;
+        right: 14px;
+      }
+
+      html[dir="rtl"] #profileInvBadge {
+        right: auto;
+        left: 14px;
+      }
+
       .sidebar-label-group {
         display: inline-flex;
         align-items: center;
@@ -172,9 +259,9 @@
         left: -4px;
       }
 
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       /* MODERN NOTIFICATION DROPDOWN STYLES                                    */
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       
       /* Dropdown Container */
       .ntf-dropdown-container {
@@ -576,9 +663,9 @@
         to { transform: rotate(360deg); }
       }
       
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       /* RTL SUPPORT FOR ARABIC                                                 */
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       
       html[dir="rtl"] .ntf-dropdown {
         right: auto;
@@ -632,9 +719,9 @@
         }
       }
 
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       /* RTL SUPPORT FOR TOAST NOTIFICATIONS                                   */
-      /* ══════════════════════════════════════════════════════════════════════ */
+      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
       
       html[dir="rtl"] .toast-container {
         right: auto !important;
@@ -696,9 +783,9 @@
                     <span class="logo-text fw-bold fs-4 ">{% trans "Arabic NLP" %}  </span>
                 </a>
             </div>
-            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
             <!-- PREMIUM COMMAND PALETTE SEARCH - Inspired by Notion, GitHub, Linear               -->
-            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
             <div class="cmd-search" id="global-search-wrapper" style="flex: 1 1 auto; min-width: 200px; width: auto; margin: 0 12px;">
                 <form id="global-search-form" action="{% url 'search:global_search' %}" method="get" class="cmd-search-form">
                     <div class="cmd-search-bar" id="cmd-search-bar" style="width: 100%;">
@@ -732,10 +819,10 @@
             </div>
             
             <style>
-            /* ════════════════════════════════════════════════════════════════════════════════════ */
+            /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
             /* COMMAND PALETTE SEARCH - Premium SaaS Design System                                  */
             /* Inspired by: Notion, GitHub, Linear, Raycast                                         */
-            /* ════════════════════════════════════════════════════════════════════════════════════ */
+            /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
             
             :root {
                 --cmd-bg: #FFFFFF;
@@ -890,9 +977,9 @@
                 display: none;
             }
             
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             /* DROPDOWN                                                                            */
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             
             .cmd-dropdown {
                 position: absolute;
@@ -1080,9 +1167,9 @@
                 transform: translateX(2px);
             }
             
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             /* AUTOCOMPLETE ITEM STYLES                                                            */
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             
             .sr-autocomplete-item {
                 display: flex;
@@ -1268,9 +1355,9 @@
                 color: var(--cmd-accent);
             }
             
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             /* RTL SUPPORT                                                                         */
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             
             html[dir="rtl"] .cmd-search-bar {
                 padding: 0 20px 0 6px;
@@ -1300,9 +1387,9 @@
                 flex-direction: row-reverse;
             }
             
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             /* RESPONSIVE                                                                          */
-            /* ─────────────────────────────────────────────────────────────────────────────────── */
+            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
             
             @media (max-width: 768px) {
                 .cmd-search {
@@ -1346,7 +1433,7 @@
                 }
             }
             </style>
-            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+            <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 
             <div class="header-actions">
                 <div class="language-dropdown-container action-dropdown-container">
@@ -1372,7 +1459,7 @@
                         <a href="{% url 'translate:switch_language' %}?language=ar"
                            class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
                            role="menuitem">
-                            <span>العربية</span>
+                            <span>Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</span>
                             {% if LANGUAGE_CODE == 'ar' %}
                             <i class="fas fa-check"></i>
                             {% endif %}
@@ -1382,9 +1469,9 @@
 
                 {% if user.is_authenticated %}
                 <div class="authenticated-actions">
-                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
                     <!-- MODERN NOTIFICATION DROPDOWN - Premium Academic Portal Style           -->
-                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
                     <div class="ntf-dropdown-container tw-relative">
                         <!-- Notification Bell Button -->
                         <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent hover:tw-bg-gray-100 tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
@@ -1544,9 +1631,9 @@
                             </div>
                         </div>
                     </div>
-                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
                     <!-- END NOTIFICATION DROPDOWN                                              -->
-                    <!-- ══════════════════════════════════════════════════════════════════════ -->
+                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
                     <a href="{% url 'direct_messages:inbox' %}"
                        class="action-btn icon-btn header-discussions-btn {% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}"
                        title="{% trans 'Discussions' %}">
@@ -1574,12 +1661,22 @@
                                 <i class="fas fa-user-friends"></i>
                                 <span>
                                     {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                                        طلبات الصداقة
+                                        إدارة المتابعين
                                     {% else %}
-                                        Friend requests
+                                        Follow management
                                     {% endif %}
                                 </span>
                                 <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
+                            </a>
+                            <a href="{% url 'accounts:trash' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>
+                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        سلة المحذوفات
+                                    {% else %}
+                                        Recycle Bin
+                                    {% endif %}
+                                </span>
                             </a>
                             <a href="{% url 'projects:project_invitations' %}" class="profile-dropdown-item" role="menuitem">
                                 <i class="fas fa-envelope-open-text"></i>
@@ -1665,6 +1762,7 @@
         <main class="content">
             <!-- Toast Container for Flash Messages (can be overridden per template) -->
             {% block messages_container %}
+            {% if page != 'resources' and page != 'tools' and page != 'course' and page != 'corpus' %}
             <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
                 {% if messages %}
                     {% for message in messages %}
@@ -1679,6 +1777,7 @@
                     {% endfor %}
                 {% endif %}
             </div>
+            {% endif %}
             {% endblock messages_container %}
             
             <script>
@@ -1698,6 +1797,22 @@
             
             {% block content %}{% endblock %}
         </main>
+    </div>
+
+    <div class="profile-photo-modal" id="profilePhotoModal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="profile-photo-dialog">
+        <div class="profile-photo-head">
+          <h3 class="profile-photo-title">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صورة الملف الشخصي{% else %}Profile Photo{% endif %}
+          </h3>
+          <button type="button" class="profile-photo-close" id="profilePhotoCloseBtn" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إغلاق{% else %}{% trans 'Close' %}{% endif %}">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="profile-photo-body">
+          <img src="" alt="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}صورة الملف الشخصي{% else %}Profile photo{% endif %}" class="profile-photo-image" id="profilePhotoModalImage">
+        </div>
+      </div>
     </div>
 
     <footer class="site-footer">
@@ -1734,7 +1849,7 @@
                         <ul class="contact-info">
                             <li><i class="fas fa-envelope"></i> <span>contact@aala.dz</span></li>
                             <li><i class="fas fa-phone"></i> <span dir="ltr">+213 (23) 48 72 49</span></li>
-                            <li><i class="fas fa-map-marker-alt"></i> <span>{% if LANGUAGE_CODE == 'ar' %}نهج العقيد أمحمد بوقرة، رقم 6، الأبيار، الجزائر{% else %}No. 6, Colonel Ahmed Bougara Boulevard, El Biar, Algiers, Algeria{% endif %}</span></li>
+                            <li><i class="fas fa-map-marker-alt"></i> <span>{% if LANGUAGE_CODE == 'ar' %}Ù†Ù‡Ø¬ Ø§Ù„Ø¹Ù‚ÙŠØ¯ Ø£Ù…Ø­Ù…Ø¯ Ø¨ÙˆÙ‚Ø±Ø©ØŒ Ø±Ù‚Ù… 6ØŒ Ø§Ù„Ø£Ø¨ÙŠØ§Ø±ØŒ Ø§Ù„Ø¬Ø²Ø§Ø¦Ø±{% else %}No. 6, Colonel Ahmed Bougara Boulevard, El Biar, Algiers, Algeria{% endif %}</span></li>
                         </ul>
                     </div>
                 </div>
@@ -1742,7 +1857,7 @@
         </div>
         <div class="footer-bottom">
     <div class="footer-container">
-        <p class="copyright">© {% now "Y" %}{% trans "Arabic NLP Platform. All rights reserved." %} </p>
+        <p class="copyright">Â© {% now "Y" %}{% trans "Arabic NLP Platform. All rights reserved." %} </p>
     </div>
 </div>
     </footer>
@@ -2215,11 +2330,11 @@
 
             const isArabicUi = document.documentElement.lang && document.documentElement.lang.toLowerCase().startsWith('ar');
             const profileUiText = {
-                noBlockedUsers: isArabicUi ? 'لا يوجد مستخدمون محظورون حالياً' : 'No blocked users currently',
-                unblock: isArabicUi ? 'إلغاء الحظر' : 'Unblock',
-                blockedListLoadError: isArabicUi ? 'تعذر تحميل القائمة' : 'Unable to load list',
-                unblockDone: isArabicUi ? 'تم إلغاء الحظر' : 'Unblocked successfully',
-                unblockFailed: isArabicUi ? 'تعذر إلغاء الحظر' : 'Unblock failed'
+                noBlockedUsers: isArabicUi ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ† Ù…Ø­Ø¸ÙˆØ±ÙˆÙ† Ø­Ø§Ù„ÙŠØ§Ù‹' : 'No blocked users currently',
+                unblock: isArabicUi ? 'Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblock',
+                blockedListLoadError: isArabicUi ? 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©' : 'Unable to load list',
+                unblockDone: isArabicUi ? 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblocked successfully',
+                unblockFailed: isArabicUi ? 'ØªØ¹Ø°Ø± Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblock failed'
             };
 
             async function loadBlockedUsers() {
@@ -2274,6 +2389,7 @@
                     const opened = profileDropdown.classList.toggle('show');
                     profileIconBtn.setAttribute('aria-expanded', String(opened));
                     if (opened) {
+                        loadProfileInvitationsCount();
                         resetProfileSubMenu();
                         loadSwitches();
                     }
@@ -2292,7 +2408,7 @@
             setInterval(loadSidebarDmUnreadCount, 10000);
 
             loadProfileInvitationsCount();
-            setInterval(loadProfileInvitationsCount, 60000);
+            setInterval(loadProfileInvitationsCount, 15000);
 
             if (profileSettingsGear) {
                 profileSettingsGear.addEventListener('click', function(e) {
@@ -2457,10 +2573,10 @@
             });
         });
         
-        // ═══════════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // COMMAND PALETTE SEARCH - Premium Instant Search with Yellow Highlight
         // Uses /search/autocomplete/ endpoint with 300ms debounce
-        // ═══════════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         (function() {
             'use strict';
             
@@ -2505,9 +2621,9 @@
                 'topic': '{% trans "Topic" %}'
             };
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // DROPDOWN VISIBILITY CONTROL
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function showDropdown() {
                 searchResults.style.display = 'block';
                 searchResults.classList.add('active');
@@ -2523,9 +2639,9 @@
                 selectedIndex = -1;
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // LOADING STATE
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function showLoading() {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-loading">
@@ -2538,9 +2654,9 @@
                 showDropdown();
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // EMPTY STATE
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function showEmpty(query) {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-empty">
@@ -2563,19 +2679,19 @@
                 `;
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // HELPER: ESCAPE HTML
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function escapeHtml(text) {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // HIGHLIGHT MATCH - Yellow background highlight
             // Uses <mark style="background:#fef08a;"> for yellow highlighting
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function highlightMatch(text, query) {
                 if (!text || !query) return escapeHtml(text || '');
                 
@@ -2587,9 +2703,9 @@
                 return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:500;">$1</mark>');
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // RENDER AUTOCOMPLETE RESULTS
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function renderResults(data, query) {
                 // Handle both 'suggestions' (autocomplete) and 'results' (global search) formats
                 const suggestions = data.suggestions || data.results || [];
@@ -2629,6 +2745,7 @@
                                     <h5 class="cmd-item-title">${highlightMatch(item.title, query)}</h5>
                                     <div class="cmd-item-meta">
                                         <span class="cmd-item-badge cmd-item-type">${typeLabels[item.type] || item.type}</span>
+                                        ${item.subtitle ? `<span class="cmd-item-type" style="margin-left:6px;opacity:.8;">${escapeHtml(item.subtitle)}</span>` : ''}
                                     </div>
                                 </div>
                                 <div class="cmd-item-arrow">
@@ -2650,9 +2767,9 @@
                 
                 searchResultsContent.innerHTML = html;
                 
-                // ─────────────────────────────────────────────────────────────────
+                // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 // CLICK HANDLER: Fill input and navigate or submit
-                // ─────────────────────────────────────────────────────────────────
+                // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 const items = searchResultsContent.querySelectorAll('.sr-autocomplete-item');
                 items.forEach(item => {
                     item.addEventListener('click', function(e) {
@@ -2679,10 +2796,10 @@
                 });
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // PERFORM AUTOCOMPLETE SEARCH
             // Fetches from /search/autocomplete/?q= with 300ms debounce
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function performSearch(query) {
                 if (query === currentQuery) return;
                 currentQuery = query;
@@ -2736,9 +2853,9 @@
                 }, 300); // 300ms debounce
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // KEYBOARD NAVIGATION (Arrow keys + Enter + Escape)
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             function handleKeydown(e) {
                 const items = searchResults.querySelectorAll('.sr-autocomplete-item, .cmd-item');
                 if (!items.length && e.key !== 'Escape') return;
@@ -2772,9 +2889,9 @@
                 });
             }
             
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // EVENT LISTENERS
-            // ─────────────────────────────────────────────────────────────────────
+            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             searchInput.addEventListener('input', (e) => performSearch(e.target.value.trim()));
             
             searchInput.addEventListener('focus', () => {
@@ -2989,9 +3106,9 @@
         });
     </script>
 
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- MODERN NOTIFICATION DROPDOWN JAVASCRIPT                                -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <script>
     (function() {
         'use strict';
@@ -3241,9 +3358,9 @@
         }
     })();
     </script>
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 
     <script>
     (function () {
@@ -3342,8 +3459,8 @@
             const category = context.category || 'General';
             return {
                 title,
-                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. Catégorie : ${category}.`,
-                autoReply: `Je suis prêt à vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
+                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. CatÃ©gorie : ${category}.`,
+                autoReply: `Je suis prÃªt Ã  vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
             };
         }
 
@@ -3374,7 +3491,7 @@
                         bubbles: true
                     }));
                 }
-                console.log('Données transférées au chatbot');
+                console.log('DonnÃ©es transfÃ©rÃ©es au chatbot');
                 return true;
             } catch (e) {
                 return false;
@@ -3445,7 +3562,7 @@
                 bridged = forceInjectInChatUI(context, window);
             }
             if (bridged) {
-                console.log('Données transférées au chatbot');
+                console.log('DonnÃ©es transfÃ©rÃ©es au chatbot');
             }
             return bridged;
         }
@@ -3456,7 +3573,7 @@
 
             sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
                 ...context,
-                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
+                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le Ã  comprendre ce contenu.`
             }));
             sessionStorage.setItem('chatbot_last_context_title', context.title || '');
 
@@ -3504,7 +3621,85 @@
         });
     })();
     </script>
+    <script>
+    (function() {
+      'use strict';
+
+      function isAvatarCandidate(img) {
+        if (!img || !img.src) return false;
+        if (img.dataset.profilePreview === 'off') return false;
+        if (img.closest('[data-profile-preview="on"]')) return true;
+
+        const ownClasses = (img.className || '').toString().toLowerCase();
+        const parentClasses = (img.parentElement?.className || '').toString().toLowerCase();
+        const merged = `${ownClasses} ${parentClasses}`;
+        return (
+          merged.includes('avatar') ||
+          merged.includes('profile-picture') ||
+          merged.includes('user-avatar') ||
+          merged.includes('author-avatar')
+        );
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('profilePhotoModal');
+        const closeBtn = document.getElementById('profilePhotoCloseBtn');
+        const imgEl = document.getElementById('profilePhotoModalImage');
+        if (!modal || !closeBtn || !imgEl) return;
+
+        function openModal(src, altText) {
+          imgEl.src = src;
+          imgEl.alt = altText || "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}صورة الملف الشخصي{% else %}Profile photo{% endif %}";
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+          imgEl.src = '';
+          document.body.style.overflow = '';
+        }
+
+        document.addEventListener('click', function(e) {
+          const profilePicContainer = e.target.closest('.profile-picture-container');
+          if (profilePicContainer) {
+            const profileImg = profilePicContainer.querySelector('img');
+            const src = profileImg?.currentSrc || profileImg?.src || '';
+            if (src) {
+              e.preventDefault();
+              e.stopPropagation();
+              openModal(src, profileImg?.alt || '');
+              return;
+            }
+          }
+
+          const clickedImg = e.target.closest('img');
+          if (clickedImg && isAvatarCandidate(clickedImg)) {
+            const src = clickedImg.currentSrc || clickedImg.src;
+            if (!src) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openModal(src, clickedImg.alt || '');
+            return;
+          }
+
+          if (e.target === modal || e.target.closest('#profilePhotoCloseBtn')) {
+            closeModal();
+          }
+        }, true);
+
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && modal.classList.contains('is-open')) {
+            closeModal();
+          }
+        });
+      });
+    })();
+    </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
+

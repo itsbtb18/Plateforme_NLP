@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load static %} {% load i18n %}
+﻿{% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
 {{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
@@ -32,24 +32,24 @@
           <div class="profile-menu-dropdown" hidden>
             <button type="button" class="profile-menu-item profile-menu-block" data-user-id="{{ user.id }}">
               <i class="fas fa-ban"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حظر{% else %}Block{% endif %}</span>
+              <span>{% trans "Block" %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-report" data-user-id="{{ user.id }}">
               <i class="fas fa-flag"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إبلاغ{% else %}Report{% endif %}</span>
+              <span>{% trans "Report" %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-copy-link">
               <i class="fas fa-link"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}Copy link{% endif %}</span>
+              <span>{% trans "Copy link" %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-share-message">
               <i class="fas fa-paper-plane"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة في رسالة{% else %}Share in message{% endif %}</span>
+              <span>{% trans "Share in message" %}</span>
             </button>
             <div class="profile-menu-separator"></div>
             <button type="button" class="profile-menu-item profile-menu-more">
               <i class="fas fa-ellipsis-h"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}خيارات أخرى{% else %}More options{% endif %}</span>
+              <span>{% trans "More options" %}</span>
             </button>
           </div>
         </div>
@@ -68,14 +68,27 @@
 
           <!-- User Info Section -->
           <div class="profile-user-info">
-            <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
             <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
             
             {% if user.institution %}
+            {% if user.institution.website %}
+            <a href="{{ user.institution.website }}" target="_blank" rel="noopener noreferrer" class="profile-user-location" title="{{ user.institution.website }}">
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
+              {{ user.institution }}
+            </a>
+            {% else %}
             <p class="profile-user-location">
-              <i class="fas fa-map-marker-alt"></i>
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
               {{ user.institution }}
             </p>
+            {% endif %}
             {% endif %}
           </div>
         </div>
@@ -91,7 +104,7 @@
         {% if user.get_localized_bio %}
         {% if can_view_full_profile %}
         <span class="profile-bio-label">
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}السيرة الذاتية{% else %}Biography{% endif %}
+          {% trans "Biography" %}
         </span>
         <div class="profile-bio-inline">
           <p class="bio-text">{{ user.get_localized_bio }}</p>
@@ -99,9 +112,13 @@
         {% endif %}
         {% endif %}
 
-        <div class="profile-social-stats" style="display:flex; gap:16px; margin:10px 0 14px; color:#475569; font-weight:600;">
-          <span><strong id="followersCount">{{ followers_count }}</strong> {% trans "Followers" %}</span>
-          <span><strong id="followingCount">{{ following_count }}</strong> {% trans "Following" %}</span>
+        <div class="profile-social-stats">
+          <button type="button" class="profile-stat-btn" id="followersStatBtn" data-follow-kind="followers" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followersCount">{{ followers_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}
+          </button>
+          <button type="button" class="profile-stat-btn" id="followingStatBtn" data-follow-kind="following" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followingCount">{{ following_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
+          </button>
         </div>
 
         <!-- Action Buttons -->
@@ -111,46 +128,25 @@
             <i class="fas fa-edit"></i>
             <span>{% trans "Edit Profile" %}</span>
           </a>
-          {% elif request.user.is_authenticated %}
-          <button type="button"
-                  class="btn-action-primary friend-action-btn"
-                  data-user-id="{{ user.id }}"
-                  data-endpoint-base="{% url 'accounts:friendship_action' user_id=user.id action='add' %}"
-                  data-state="{{ relation_state }}">
-            <i class="fas fa-user-plus"></i>
-            <span class="friend-action-label">
-              {% if relation_state == 'AMIS' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صديق{% else %}Friend{% endif %}
-              {% elif relation_state == 'EN_ATTENTE_ENVOYE' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء الطلب{% else %}Cancel request{% endif %}
-              {% elif relation_state == 'EN_ATTENTE_RECU' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تأكيد{% else %}Confirm{% endif %}
-              {% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}{% endif %}
-            </span>
-          </button>
-          {% if relation_state == 'AMIS' %}
+          {% elif request.user.is_authenticated and not is_blocked_profile %}
+          {% if is_following_profile %}
           <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
             <i class="fas fa-comments"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}محادثة{% else %}Chat{% endif %}</span>
+            <span>{% trans "Chat" %}</span>
           </a>
-          {% elif relation_state != 'BLOQUE' %}
+          {% else %}
           <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
             <i class="fas fa-paper-plane"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طلب مراسلة{% else %}Send message request{% endif %}</span>
+            <span>{% trans "Send message request" %}</span>
           </a>
-          {% endif %}
-          {% if relation_state == 'EN_ATTENTE_RECU' %}
-          <button type="button"
-                  class="btn-action-secondary friend-reject-btn"
-                  data-user-id="{{ user.id }}">
-            <i class="fas fa-user-times"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حذف{% else %}Delete{% endif %}</span>
-          </button>
           {% endif %}
           {% else %}
           <a href="{% url 'account_login' %}" class="btn-action-primary">
-            <i class="fas fa-user-plus"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}</span>
+            <i class="fas fa-rss"></i>
+            <span>{% trans "Follow" %}</span>
           </a>
           {% endif %}
-          {% if request.user.is_authenticated and request.user != user %}
+          {% if request.user.is_authenticated and request.user != user and not is_blocked_profile %}
           <button type="button"
                   class="btn-action-secondary follow-toggle-btn"
                   data-follow-url="{% url 'accounts:follow_user' user_id=user.id %}"
@@ -160,6 +156,12 @@
             <span class="follow-action-label">
               {% if is_following_profile %}{% trans "Unfollow" %}{% else %}{% trans "Follow" %}{% endif %}
             </span>
+          </button>
+          {% endif %}
+          {% if request.user.is_authenticated and request.user != user and is_blocked_profile %}
+          <button type="button" class="btn-action-secondary" disabled>
+            <i class="fas fa-ban"></i>
+            <span>{% trans "Blocked" %}</span>
           </button>
           {% endif %}
         </div>
@@ -233,19 +235,19 @@
           </div>
 
           <div class="profile-settings-row">
-            <span><i class="fas fa-circle"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حالة الاتصال{% else %}Online status{% endif %}</span>
+            <span><i class="fas fa-circle"></i> {% trans "Online status" %}</span>
             <button type="button" class="profile-switch" id="profileOnlineSwitch" aria-pressed="true">
               <span class="profile-switch-knob"></span>
             </button>
           </div>
 
           <button type="button" class="profile-settings-row profile-settings-btn" id="profileBlockedListToggleBtn">
-            <span><i class="fas fa-user-lock"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قائمة المحظورين{% else %}Blocked users{% endif %}</span>
+            <span><i class="fas fa-user-lock"></i> {% trans "Blocked users" %}</span>
           </button>
 
           <div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
             <div class="blocked-users-list" id="profileBlockedUsersList"></div>
-            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مستخدمون محظورون حالياً{% else %}No blocked users currently{% endif %}</div>
+            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% trans "No blocked users currently" %}</div>
           </div>
 
         </div>
@@ -268,7 +270,7 @@
               {% if can_view_full_profile %}
                 {{ user.email }}
               {% else %}
-                {% trans "Visible to friends only" %}
+                {% trans "Visible to followers only" %}
               {% endif %}
             </span>
           </div>
@@ -303,6 +305,44 @@
         </div>
       </div>
 
+      {% if user_experiences %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-briefcase"></i>
+          {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for exp in user_experiences %}
+          <a href="{{ exp.url }}" class="contrib-item experience-item">
+            <div class="contrib-icon {% if exp.kind == 'event' %}topic-icon{% else %}project-icon{% endif %}">
+              <i class="fas {{ exp.icon }}"></i>
+            </div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              <span class="experience-role-line">
+                <span class="experience-role">{{ exp.role }}</span>
+                <span class="experience-kind-badge">{{ exp.kind_label }}</span>
+              </span>
+              {% if exp.subtitle %}
+              <span class="contrib-subline">{{ exp.subtitle|truncatechars:80 }}</span>
+              {% endif %}
+              {% if exp.description %}
+              <span class="contrib-subline">{{ exp.description|striptags|truncatechars:120 }}</span>
+              {% endif %}
+              <span class="contrib-date">
+                {% if exp.ended_at %}
+                  {{ exp.started_at|date:"M Y" }} - {{ exp.ended_at|date:"M Y" }}
+                {% else %}
+                  {% trans "Since" %} {{ exp.started_at|date:"M Y" }}
+                {% endif %}
+              </span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <div
         class="info-section-card kpi-glass-card animate__animated animate__fadeInRight"
         id="profileKpiCard"
@@ -317,15 +357,15 @@
       >
         <h3 class="section-title">
           <i class="fas fa-chart-line"></i>
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مؤشرات الأداء{% else %}Performance Metrics{% endif %}
+          {% trans "Performance Metrics" %}
         </h3>
         <div class="kpi-chart-grid">
           <div class="kpi-chart-box">
-            <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اتجاه النشاط{% else %}Activity Trend{% endif %}</h4>
+            <h4>{% trans "Activity Trend" %}</h4>
             <canvas id="profileTrendChart" height="96"></canvas>
           </div>
           <div class="kpi-chart-box">
-            <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المساهمات{% else %}Contributions{% endif %}</h4>
+            <h4>{% trans "Contributions" %}</h4>
             <canvas id="profileBarsChart" height="96"></canvas>
           </div>
         </div>
@@ -334,7 +374,7 @@
       <div class="info-section-card profile-section-filter-card animate__animated animate__fadeInRight" id="profile-sections">
         <h3 class="section-title">
           <i class="fas fa-layer-group"></i>
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تصفية الأقسام{% else %}Filter Sections{% endif %}
+          {% trans "Filter Sections" %}
         </h3>
         <div class="profile-section-filter-grid">
           <a href="?section=posts#profile-sections" class="profile-filter-btn{% if selected_section == 'posts' %} is-active{% endif %}">
@@ -366,11 +406,7 @@
       {% if selected_section != 'all' and selected_section_count == 0 %}
       <div class="info-section-card basic-card animate__animated animate__fadeInRight">
         <p class="bio-text">
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-            لا يوجد محتوى في هذا القسم حالياً.
-          {% else %}
-            No content available in this section yet.
-          {% endif %}
+          {% trans "No content available in this section yet." %}
         </p>
       </div>
       {% endif %}
@@ -397,6 +433,13 @@
                   {{ post.get_localized_content|striptags|truncatechars:60 }}
                 {% endif %}
               </span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if post.approval_status %}
+                <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
               <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
             </div>
@@ -421,6 +464,13 @@
             <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if course.approval_status %}
+                <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -443,6 +493,13 @@
             <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ resource.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if resource.approval_status %}
+                <span class="contrib-status-badge {% if resource.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if resource.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ resource.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -464,6 +521,13 @@
             <div class="contrib-icon resource-icon"><i class="fas fa-screwdriver-wrench"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ tool.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if tool.approval_status %}
+                <span class="contrib-status-badge {% if tool.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if tool.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ tool.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -485,6 +549,13 @@
             <div class="contrib-icon resource-icon"><i class="fas fa-database"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ corpus.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if corpus.approval_status %}
+                <span class="contrib-status-badge {% if corpus.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if corpus.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ corpus.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -507,6 +578,13 @@
             <div class="contrib-icon project-icon"><i class="fas fa-diagram-project"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ project.title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if project.approval_status %}
+                <span class="contrib-status-badge {% if project.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if project.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ project.created_at|date:"j F Y" }}</span>
             </div>
           </a>
@@ -521,7 +599,7 @@
           <i class="fas fa-user-lock"></i>
           {% trans "Private Content" %}
         </h3>
-        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et Ã©vÃ©nements.</p>
+        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et ÃƒÂ©vÃƒÂ©nements.</p>
       </div>
       {% endif %}
       {% endif %}
@@ -540,6 +618,13 @@
             <div class="contrib-icon topic-icon"><i class="fas fa-comment-dots"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ topic.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if topic.approval_status %}
+                <span class="contrib-status-badge {% if topic.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if topic.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ topic.created_at|date:"j F Y" }}</span>
             </div>
           </a>
@@ -561,6 +646,13 @@
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -581,6 +673,13 @@
             <div class="contrib-icon topic-icon"><i class="fas fa-check-circle"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -602,6 +701,13 @@
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-plus"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if event.approval_status %}
+                <span class="contrib-status-badge {% if event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
@@ -614,6 +720,64 @@
   </div>
 </div>
 <div class="profile-menu-toast" id="profileMenuToast" role="status" aria-live="polite"></div>
+<div class="profile-follow-modal" id="profileFollowModal" hidden>
+  <div class="profile-follow-backdrop" data-close-follow-modal></div>
+  <div class="profile-follow-panel" role="dialog" aria-modal="true" aria-labelledby="profileFollowTitle">
+    <div class="profile-follow-head">
+      <h3 id="profileFollowTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</h3>
+      <button type="button" class="profile-follow-close" data-close-follow-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-follow-tabs">
+      <button type="button" class="profile-follow-tab is-active" data-follow-tab="followers">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</button>
+      <button type="button" class="profile-follow-tab" data-follow-tab="following">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}</button>
+    </div>
+    <div class="profile-follow-list" id="profileFollowList"></div>
+    <div class="profile-follow-empty" id="profileFollowEmpty" hidden>{% trans "No users found." %}</div>
+  </div>
+</div>
+<div class="profile-share-modal" id="profileShareModal" hidden>
+  <div class="profile-share-backdrop" data-close-share-modal></div>
+  <div class="profile-share-panel" role="dialog" aria-modal="true" aria-labelledby="profileShareTitle">
+    <div class="profile-share-head">
+      <h3 id="profileShareTitle">{% trans "Share profile" %}</h3>
+      <button type="button" class="profile-share-close" data-close-share-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-share-grid">
+      <button type="button" class="profile-share-item" data-share-network="linkedin">
+        <i class="fab fa-linkedin"></i>
+        <span>LinkedIn</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="facebook">
+        <i class="fab fa-facebook"></i>
+        <span>Facebook</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="x">
+        <i class="fab fa-x-twitter"></i>
+        <span>X</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="whatsapp">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="telegram">
+        <i class="fab fa-telegram-plane"></i>
+        <span>Telegram</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="email">
+        <i class="fas fa-envelope"></i>
+        <span>Email</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="copy">
+        <i class="fas fa-link"></i>
+        <span>{% trans "Copy link" %}</span>
+      </button>
+    </div>
+  </div>
+</div>
 <style>
   /* ===== BLUE MINIMAL NOTION THEME - TWO-TONE DESIGN ===== */
   /* LEFT: Dark Blue Profile Card | RIGHT: Clean White Cards */
@@ -718,6 +882,14 @@
     text-align: center;
   }
 
+  .profile-user-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .profile-user-name {
     color: var(--profile-text-dark) !important;
     font-size: 2rem !important;
@@ -741,6 +913,28 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  a.profile-user-location {
+    text-decoration: none;
+  }
+
+  a.profile-user-location:hover {
+    color: var(--profile-text-accent) !important;
+  }
+
+  .profile-user-location-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 1px solid rgba(148, 163, 184, 0.35);
   }
 
   /* Bio */
@@ -1021,6 +1215,220 @@
     margin: 6px 6px;
   }
 
+
+  .profile-social-stats {
+    display: flex;
+    gap: 16px;
+    margin: 10px 0 14px;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .profile-stat-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .profile-stat-btn:hover {
+    color: #1d4ed8;
+  }
+
+  .profile-stat-btn:disabled {
+    cursor: default;
+    opacity: 0.75;
+  }
+
+  .profile-follow-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2090;
+  }
+
+  .profile-follow-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-follow-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 28px));
+    max-height: min(78vh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-follow-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-follow-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-follow-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .profile-follow-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
+  .profile-follow-tab {
+    flex: 1;
+    border: 0;
+    background: #ffffff;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .profile-follow-tab.is-active {
+    color: #1d4ed8;
+    box-shadow: inset 0 -2px 0 #1d4ed8;
+    background: #f8fbff;
+  }
+
+  .profile-follow-list {
+    padding: 8px 12px 12px;
+    overflow-y: auto;
+  }
+
+  .profile-follow-empty {
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
+    padding: 16px 12px 20px;
+  }
+
+  .profile-follow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  .profile-follow-user {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .profile-follow-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: #e2e8f0;
+  }
+
+  .profile-follow-avatar-fallback {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  .profile-follow-meta {
+    min-width: 0;
+  }
+
+  .profile-follow-name {
+    margin: 0;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-sub {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-action {
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .profile-follow-action.icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+  }
+
+  .profile-follow-action.icon-only:hover {
+    border-color: rgba(148, 163, 184, 0.75);
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .profile-follow-action.is-danger {
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #dc2626;
+  }
+
   .profile-menu-toast {
     position: fixed;
     bottom: 18px;
@@ -1041,6 +1449,110 @@
   .profile-menu-toast.show {
     opacity: 1;
     transform: translateY(0);
+  }
+
+  .profile-share-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+  }
+
+  .profile-share-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-share-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100vw - 28px));
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-share-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-share-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-share-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .profile-share-close:hover {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.45);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+  }
+
+  .profile-share-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .profile-share-item {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #ffffff;
+    border-radius: 12px;
+    min-height: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #1e3a8a;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .profile-share-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.42);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
+  }
+
+  .profile-share-item i {
+    font-size: 1.15rem;
+  }
+
+  @media (max-width: 480px) {
+    .profile-share-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   /* ===== SETTINGS DROPDOWN (Professional) ===== */
@@ -1496,6 +2008,46 @@
     gap: 10px;
   }
 
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
   .contrib-item {
     display: flex;
     align-items: center;
@@ -1556,6 +2108,63 @@
     color: #94a3b8 !important;
     font-size: 0.75rem !important;
     font-weight: 600 !important;
+  }
+
+  .experience-item {
+    align-items: flex-start;
+  }
+
+  .experience-role-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .experience-role {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+  }
+
+  .experience-kind-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.24);
+  }
+
+  .contrib-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
+  }
+
+  .contrib-status-badge.is-approved {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+  }
+
+  .contrib-status-badge.is-pending {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fcd34d;
   }
 
   /* Section Count */
@@ -1658,24 +2267,28 @@
 
     const langIsArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar";
     const uiText = {
-      friend: langIsArabic ? "صديق" : "Friend",
-      blocked: langIsArabic ? "محظور" : "Blocked",
-      cancelRequest: langIsArabic ? "إلغاء الطلب" : "Cancel request",
-      confirm: langIsArabic ? "تأكيد" : "Confirm",
-      addFriend: langIsArabic ? "إضافة صديق" : "Add friend",
-      noBlockedUsers: langIsArabic ? "لا يوجد مستخدمون محظورون حالياً" : "No blocked users currently",
-      unblock: langIsArabic ? "إلغاء الحظر" : "Unblock",
-      loadBlockedError: langIsArabic ? "تعذر تحميل القائمة" : "Unable to load list",
-      copiedLink: langIsArabic ? "تم نسخ الرابط" : "Link copied",
-      copyLinkFailed: langIsArabic ? "تعذر نسخ الرابط" : "Could not copy link",
-      copiedLinkForShare: langIsArabic ? "تم نسخ الرابط للمشاركة" : "Link copied for sharing",
-      prepareLinkFailed: langIsArabic ? "تعذر تجهيز الرابط" : "Could not prepare link",
-      reportSaved: langIsArabic ? "تم تسجيل البلاغ" : "Report submitted",
-      blockedDone: langIsArabic ? "تم الحظر" : "User blocked",
-      blockedFailed: langIsArabic ? "فشل تنفيذ الحظر" : "Block failed",
-      moreSoon: langIsArabic ? "خيارات إضافية قريبًا" : "More options coming soon",
-      follow: langIsArabic ? "متابعة" : "Follow",
-      unfollow: langIsArabic ? "إلغاء المتابعة" : "Unfollow",
+      blocked: "{% trans 'Blocked' %}",
+      noBlockedUsers: "{% trans 'No blocked users currently' %}",
+      unblock: "{% trans 'Unblock' %}",
+      loadBlockedError: "{% trans 'Unable to load list' %}",
+      copiedLink: "{% trans 'Link copied' %}",
+      copyLinkFailed: "{% trans 'Could not copy link' %}",
+      copiedLinkForShare: "{% trans 'Link copied for sharing' %}",
+      prepareLinkFailed: "{% trans 'Could not prepare link' %}",
+      reportSaved: "{% trans 'Report submitted' %}",
+      blockedDone: "{% trans 'User blocked' %}",
+      blockedFailed: "{% trans 'Block failed' %}",
+      moreSoon: "{% trans 'More options coming soon' %}",
+      sharedInNewTab: "{% trans 'Share opened in a new window' %}",
+      follow: "{% trans 'Follow' %}",
+      unfollow: "{% trans 'Unfollow' %}",
+      actionFailed: "{% trans 'Action failed.' %}",
+      followers: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}المتابعون{% else %}Followers{% endif %}",
+      following: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}أتابع{% else %}Following{% endif %}",
+      remove: "{% trans 'Remove' %}",
+      noUsersFound: "{% trans 'No users found.' %}",
+      loading: "{% trans 'Loading...' %}",
+      noInstitution: "{% trans 'No institution' %}",
     };
 
     const kpiCard = document.getElementById("profileKpiCard");
@@ -1804,37 +2417,6 @@
       return templateToken && templateToken !== "NOTPROVIDED" ? templateToken : '';
     }
 
-    function updateFriendButton(btn, state) {
-      const label = btn.querySelector('.friend-action-label');
-      const icon = btn.querySelector('i');
-      btn.dataset.state = state;
-      btn.classList.remove('is-pending', 'is-friend');
-      btn.disabled = false;
-      if (!label || !icon) return;
-      if (state === 'AMIS') {
-        label.textContent = uiText.friend;
-        icon.className = 'fas fa-user-check';
-        btn.classList.add('is-friend');
-      } else if (state === 'BLOQUE') {
-        label.textContent = uiText.blocked;
-        icon.className = 'fas fa-ban';
-        btn.classList.add('is-pending');
-        btn.disabled = true;
-      } else if (state === 'EN_ATTENTE_ENVOYE') {
-        label.textContent = uiText.cancelRequest;
-        icon.className = 'fas fa-clock';
-        btn.classList.add('is-pending');
-      } else if (state === 'EN_ATTENTE_RECU') {
-        label.textContent = uiText.confirm;
-        icon.className = 'fas fa-user-check';
-      } else {
-        label.textContent = uiText.addFriend;
-        icon.className = 'fas fa-user-plus';
-      }
-    }
-
-    const friendBtn = document.querySelector('.friend-action-btn');
-    const rejectBtn = document.querySelector('.friend-reject-btn');
     const followBtn = document.querySelector('.follow-toggle-btn');
     const followersCountEl = document.getElementById('followersCount');
     const followingCountEl = document.getElementById('followingCount');
@@ -1850,12 +2432,35 @@
     const profileMenuToggle = document.querySelector('.profile-menu-toggle');
     const profileMenuDropdown = document.querySelector('.profile-menu-dropdown');
     const profileMenuToast = document.getElementById('profileMenuToast');
+    const profileShareModal = document.getElementById('profileShareModal');
+    const followersStatBtn = document.getElementById('followersStatBtn');
+    const followingStatBtn = document.getElementById('followingStatBtn');
+    const profileFollowModal = document.getElementById('profileFollowModal');
+    const profileFollowTitle = document.getElementById('profileFollowTitle');
+    const profileFollowList = document.getElementById('profileFollowList');
+    const profileFollowEmpty = document.getElementById('profileFollowEmpty');
+    const profileFollowTabs = document.querySelectorAll('.profile-follow-tab');
+    const viewedProfileId = "{{ user.id }}";
+    const isOwnProfilePage = {% if request.user == user %}true{% else %}false{% endif %};
+    let currentFollowKind = 'followers';
 
     function showMenuToast(message) {
       if (!profileMenuToast) return;
       profileMenuToast.textContent = message;
       profileMenuToast.classList.add('show');
       setTimeout(() => profileMenuToast.classList.remove('show'), 1700);
+    }
+
+    function closeShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function openShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = false;
+      document.body.style.overflow = 'hidden';
     }
 
     async function copyProfileLink() {
@@ -1872,13 +2477,159 @@
       area.remove();
     }
 
-    function actionUrl(userId, action) {
-      const base = friendBtn?.dataset.endpointBase || '';
-      if (base) {
-        return base.replace(/\/add\/?$/, `/${action}/`).replace('{{ user.id }}', userId);
+    function buildShareUrl(network) {
+      const profileUrl = encodeURIComponent(window.location.href);
+      const profileName = encodeURIComponent(document.querySelector('.profile-user-name')?.textContent?.trim() || 'Profile');
+      const text = encodeURIComponent(langIsArabic ? 'شاهد هذا الملف الشخصي' : 'Check this profile');
+      switch (network) {
+        case 'linkedin':
+          return `https://www.linkedin.com/sharing/share-offsite/?url=${profileUrl}`;
+        case 'facebook':
+          return `https://www.facebook.com/sharer/sharer.php?u=${profileUrl}`;
+        case 'x':
+          return `https://twitter.com/intent/tweet?url=${profileUrl}&text=${text}`;
+        case 'whatsapp':
+          return `https://wa.me/?text=${text}%20${profileUrl}`;
+        case 'telegram':
+          return `https://t.me/share/url?url=${profileUrl}&text=${text}`;
+        case 'email':
+          return `mailto:?subject=${profileName}&body=${text}%20${profileUrl}`;
+        default:
+          return '';
       }
+    }
+
+    async function handleShareAction(network) {
+      if (network === 'copy') {
+        try {
+          await copyProfileLink();
+          showMenuToast(uiText.copiedLink);
+        } catch (_) {
+          showMenuToast(uiText.copyLinkFailed);
+        }
+        return;
+      }
+      const targetUrl = buildShareUrl(network);
+      if (!targetUrl) return;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer,width=760,height=620');
+      showMenuToast(uiText.sharedInNewTab);
+    }
+
+    function actionUrl(userId, action) {
       const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
       return `/${lang}/accounts/network/${userId}/${action}/`;
+    }
+
+    function currentLangCode() {
+      return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+    }
+
+    function followListApiUrl(kind) {
+      return `/${currentLangCode()}/accounts/network/follow-list/${viewedProfileId}/?kind=${encodeURIComponent(kind)}`;
+    }
+
+    function unfollowApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/unfollow/${userId}/`;
+    }
+
+    function removeFollowerApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/remove-follower/${userId}/`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function updateHeaderFollowCounts(payload) {
+      if (followersCountEl && Number.isFinite(Number(payload?.followers_count))) {
+        followersCountEl.textContent = String(payload.followers_count);
+      }
+      if (followingCountEl && Number.isFinite(Number(payload?.following_count))) {
+        followingCountEl.textContent = String(payload.following_count);
+      }
+    }
+
+    function closeFollowModal() {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function openFollowModal(kind) {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      loadFollowList(kind);
+    }
+
+    function renderFollowItems(items) {
+      if (!profileFollowList || !profileFollowEmpty) return;
+      if (!Array.isArray(items) || !items.length) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.noUsersFound;
+        return;
+      }
+
+      profileFollowEmpty.hidden = true;
+      profileFollowList.innerHTML = items.map((item) => {
+        const avatar = item.avatar
+          ? `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.name)}" class="profile-follow-avatar">`
+          : `<span class="profile-follow-avatar-fallback">${escapeHtml((item.name || 'U').slice(0, 1).toUpperCase())}</span>`;
+
+        let actionBtn = '';
+        if (isOwnProfilePage && currentFollowKind === 'following') {
+          const removeLabel = langIsArabic ? 'احذف' : uiText.remove;
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="unfollow" data-user-id="${escapeHtml(item.id)}" title="${escapeHtml(removeLabel)}" aria-label="${escapeHtml(removeLabel)}">${escapeHtml(removeLabel)}</button>`;
+        } else if (isOwnProfilePage && currentFollowKind === 'followers') {
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="remove-follower" data-user-id="${escapeHtml(item.id)}">${escapeHtml(uiText.remove)}</button>`;
+        }
+
+        return `
+          <div class="profile-follow-row" data-follow-user-row="${escapeHtml(item.id)}">
+            <a class="profile-follow-user" href="${escapeHtml(item.profile_url)}">
+              ${avatar}
+              <span class="profile-follow-meta">
+                <p class="profile-follow-name">${escapeHtml(item.name)}</p>
+                <p class="profile-follow-sub">${escapeHtml(item.institution || uiText.noInstitution)}</p>
+              </span>
+            </a>
+            ${actionBtn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadFollowList(kind) {
+      if (!profileFollowList || !profileFollowTitle || !profileFollowEmpty) return;
+      currentFollowKind = kind === 'following' ? 'following' : 'followers';
+
+      profileFollowTabs.forEach((tab) => {
+        tab.classList.toggle('is-active', tab.dataset.followTab === currentFollowKind);
+      });
+      profileFollowTitle.textContent = currentFollowKind === 'following' ? uiText.following : uiText.followers;
+      profileFollowList.innerHTML = `<div class="profile-follow-empty">${escapeHtml(uiText.loading)}</div>`;
+      profileFollowEmpty.hidden = true;
+
+      try {
+        const res = await fetch(followListApiUrl(currentFollowKind), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+        renderFollowItems(data.items || []);
+      } catch (e) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.actionFailed;
+        console.error(e);
+      }
     }
 
     function updateFollowButton(isFollowing) {
@@ -1957,80 +2708,6 @@
       }
     }
 
-    function ensureFriendMenu(userId) {
-      if (!actionsContainer || actionsContainer.querySelector('.friend-menu-wrap')) return;
-      const friendCancelLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إلغاء{% else %}Cancel{% endif %}";
-      const friendDeleteLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}حذف الصديق{% else %}Delete friends{% endif %}";
-      const wrap = document.createElement('div');
-      wrap.className = 'friend-menu-wrap';
-      wrap.innerHTML = `
-        <div class="friend-menu" hidden>
-          <button type="button" class="friend-menu-item friend-cancel-btn" data-user-id="${userId}">${friendCancelLabel}</button>
-          <button type="button" class="friend-menu-item friend-remove-btn" data-user-id="${userId}">${friendDeleteLabel}</button>
-        </div>
-      `;
-      actionsContainer.appendChild(wrap);
-    }
-
-    function removeFriendMenu() {
-      actionsContainer?.querySelector('.friend-menu-wrap')?.remove();
-    }
-
-    if (friendBtn) {
-      updateFriendButton(friendBtn, friendBtn.dataset.state || 'NEUTRE');
-      friendBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const state = this.dataset.state || 'NEUTRE';
-        let action = 'add';
-        if (state === 'EN_ATTENTE_ENVOYE') action = 'cancel';
-        if (state === 'EN_ATTENTE_RECU') action = 'accept';
-        if (state === 'AMIS') {
-          ensureFriendMenu(userId);
-          const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-          if (menu) menu.hidden = !menu.hidden;
-          return;
-        }
-        if (state === 'BLOQUE') return;
-        this.dataset.loading = '1';
-        this.disabled = true;
-
-        // Optimistic UI
-        const previous = state;
-        if (action === 'add') updateFriendButton(this, 'EN_ATTENTE_ENVOYE');
-        if (action === 'cancel') updateFriendButton(this, 'NEUTRE');
-        if (action === 'accept') updateFriendButton(this, 'AMIS');
-        this.classList.add('btn-clicked');
-        setTimeout(() => this.classList.remove('btn-clicked'), 180);
-
-        try {
-          const res = await fetch(actionUrl(userId, action), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(this, data.state || this.dataset.state);
-          if (data.state === 'AMIS' && rejectBtn) {
-            rejectBtn.style.display = 'none';
-            ensureFriendMenu(userId);
-          } else if (data.state !== 'AMIS') {
-            removeFriendMenu();
-          }
-        } catch (e) {
-          updateFriendButton(this, previous);
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
-        }
-      });
-    }
-
     if (followBtn) {
       updateFollowButton(followBtn.dataset.isFollowing === '1');
       followBtn.addEventListener('click', async function () {
@@ -2041,7 +2718,6 @@
         const isFollowing = this.dataset.isFollowing === '1';
         const endpoint = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
         const previous = isFollowing;
-        updateFollowButton(!isFollowing);
 
         try {
           const res = await fetch(endpoint, {
@@ -2052,7 +2728,7 @@
             },
             credentials: 'same-origin'
           });
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
 
           updateFollowButton(Boolean(data.is_following));
@@ -2064,6 +2740,7 @@
           }
         } catch (e) {
           updateFollowButton(previous);
+          showMenuToast(uiText.actionFailed);
           console.error(e);
         } finally {
           this.disabled = false;
@@ -2072,15 +2749,39 @@
       });
     }
 
-    if (rejectBtn) {
-      rejectBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const friendButton = document.querySelector('.friend-action-btn');
-        this.dataset.loading = '1';
-        this.disabled = true;
+    if (followersStatBtn) {
+      followersStatBtn.addEventListener('click', function () {
+        openFollowModal('followers');
+      });
+    }
+
+    if (followingStatBtn) {
+      followingStatBtn.addEventListener('click', function () {
+        openFollowModal('following');
+      });
+    }
+
+    profileFollowTabs.forEach((tab) => {
+      tab.addEventListener('click', function () {
+        loadFollowList(this.dataset.followTab);
+      });
+    });
+
+    if (profileFollowList) {
+      profileFollowList.addEventListener('click', async function (e) {
+        const actionBtn = e.target.closest('[data-follow-action]');
+        if (!actionBtn) return;
+
+        const action = actionBtn.dataset.followAction;
+        const userId = actionBtn.dataset.userId;
+        if (!action || !userId) return;
+
+        actionBtn.disabled = true;
         try {
-          const res = await fetch(actionUrl(userId, 'reject'), {
+          const endpoint = action === 'remove-follower'
+            ? removeFollowerApiUrl(userId)
+            : unfollowApiUrl(userId);
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'X-CSRFToken': getCsrfToken(),
@@ -2088,15 +2789,21 @@
             },
             credentials: 'same-origin'
           });
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          if (friendButton) updateFriendButton(friendButton, 'NEUTRE');
-          this.style.display = 'none';
-        } catch (e) {
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
+
+          const row = actionBtn.closest('[data-follow-user-row]');
+          if (row) row.remove();
+          updateHeaderFollowCounts(data);
+
+          if (!profileFollowList.querySelector('[data-follow-user-row]') && profileFollowEmpty) {
+            profileFollowEmpty.hidden = false;
+            profileFollowEmpty.textContent = uiText.noUsersFound;
+          }
+        } catch (err) {
+          actionBtn.disabled = false;
+          showMenuToast(uiText.actionFailed);
+          console.error(err);
         }
       });
     }
@@ -2208,10 +2915,8 @@
       }
 
       const blockBtn = e.target.closest('.profile-menu-block');
-      if (blockBtn && friendBtn) {
+      if (blockBtn) {
         const userId = blockBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'NEUTRE';
-        updateFriendButton(friendBtn, 'BLOQUE');
         try {
           const res = await fetch(actionUrl(userId, 'block'), {
             method: 'POST',
@@ -2223,10 +2928,9 @@
           });
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'BLOQUE');
           showMenuToast(uiText.blockedDone);
+          setTimeout(() => window.location.reload(), 350);
         } catch (err) {
-          updateFriendButton(friendBtn, prev);
           showMenuToast(uiText.blockedFailed);
           console.error(err);
         }
@@ -2235,52 +2939,28 @@
       }
 
       if (e.target.closest('.profile-menu-more')) {
-        showMenuToast(uiText.moreSoon);
+        openShareModal();
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
       }
-
-      const cancelBtn = e.target.closest('.friend-cancel-btn');
-      if (cancelBtn) {
-        const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-        if (menu) menu.hidden = true;
+      const shareBtn = e.target.closest('.profile-share-item');
+      if (shareBtn) {
+        const network = shareBtn.dataset.shareNetwork;
+        await handleShareAction(network);
+        if (network !== 'copy') closeShareModal();
         return;
       }
 
-      const removeBtn = e.target.closest('.friend-remove-btn');
-      if (removeBtn && friendBtn) {
-        const userId = removeBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'AMIS';
-        updateFriendButton(friendBtn, 'NEUTRE');
-        removeFriendMenu();
-        try {
-          const res = await fetch(actionUrl(userId, 'remove'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'NEUTRE');
-        } catch (err) {
-          updateFriendButton(friendBtn, prev);
-          if (prev === 'AMIS') ensureFriendMenu(userId);
-          console.error(err);
-        }
+      if (profileShareModal && e.target.closest('[data-close-share-modal]')) {
+        closeShareModal();
         return;
       }
 
-      const friendActionClick = e.target.closest('.friend-action-btn');
-      if (friendActionClick && (friendBtn?.dataset.state === 'AMIS')) {
+      if (profileFollowModal && e.target.closest('[data-close-follow-modal]')) {
+        closeFollowModal();
         return;
       }
 
-      document.querySelectorAll('.friend-menu').forEach((m) => {
-        if (!m.closest('.friend-menu-wrap')?.contains(e.target)) m.hidden = true;
-      });
       if (profileMenuDropdown && profileMenuWrap && !profileMenuWrap.contains(e.target)) {
         profileMenuDropdown.hidden = true;
         profileMenuToggle?.setAttribute('aria-expanded', 'false');
@@ -2291,6 +2971,12 @@
       if (e.key === 'Escape' && profileMenuDropdown && !profileMenuDropdown.hidden) {
         profileMenuDropdown.hidden = true;
         profileMenuToggle?.setAttribute('aria-expanded', 'false');
+      }
+      if (e.key === 'Escape' && profileShareModal && !profileShareModal.hidden) {
+        closeShareModal();
+      }
+      if (e.key === 'Escape' && profileFollowModal && !profileFollowModal.hidden) {
+        closeFollowModal();
       }
     });
 
@@ -2334,5 +3020,76 @@
     });
   });
 </script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const PAGE_SIZE = 5;
+    const contribLists = document.querySelectorAll(".contrib-card .contrib-list");
+
+    contribLists.forEach((list) => {
+      const items = Array.from(list.querySelectorAll(":scope > .contrib-item"));
+      if (items.length <= PAGE_SIZE) return;
+
+      let page = 0;
+      const totalPages = Math.ceil(items.length / PAGE_SIZE);
+
+      const pager = document.createElement("div");
+      pager.className = "contrib-pager";
+
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "contrib-pager-btn";
+      prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prevBtn.setAttribute("aria-label", "Previous page");
+
+      const info = document.createElement("span");
+      info.className = "contrib-pager-info";
+
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "contrib-pager-btn";
+      nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      nextBtn.setAttribute("aria-label", "Next page");
+
+      function renderPage() {
+        const start = page * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        items.forEach((item, idx) => {
+          item.style.display = idx >= start && idx < end ? "" : "none";
+        });
+        info.textContent = (page + 1) + " / " + totalPages;
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = page === totalPages - 1;
+      }
+
+      prevBtn.addEventListener("click", function () {
+        if (page > 0) {
+          page -= 1;
+          renderPage();
+        }
+      });
+
+      nextBtn.addEventListener("click", function () {
+        if (page < totalPages - 1) {
+          page += 1;
+          renderPage();
+        }
+      });
+
+      pager.appendChild(prevBtn);
+      pager.appendChild(info);
+      pager.appendChild(nextBtn);
+      list.insertAdjacentElement("afterend", pager);
+
+      renderPage();
+    });
+  });
+</script>
 {% endblock extra_scripts %}
+
+
+
+
+
+
+
 

@@ -7,6 +7,8 @@ from django.http import JsonResponse
 from django.views import View
 from django.urls import reverse
 from django.utils.html import mark_safe, escape as html_escape
+from django.contrib.auth import get_user_model
+from django.db.models import Q as DJQ
 
 from elasticsearch_dsl import Q, Search
 from elasticsearch.exceptions import ConnectionError, NotFoundError
@@ -19,6 +21,7 @@ from .documents import (
 )
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 def detect_language(query: str) -> str:
@@ -491,6 +494,7 @@ class SearchAutocompleteView(View):
         
         detected_lang = detect_language(q)
         suggestions = []
+        seen_keys = set()
         hidden_user_ids = {str(pk) for pk in blocked_user_ids_for(request.user)}
         
         for doc_type, config in self.AUTOCOMPLETE_DOCS.items():
@@ -553,11 +557,56 @@ class SearchAutocompleteView(View):
                             avatar = getattr(hit, 'avatar', '')
                             if avatar:
                                 suggestion['avatar'] = avatar
+                            email = getattr(hit, 'email', '')
+                            if email and str(email) != str(title):
+                                suggestion['subtitle'] = str(email)
+                            seen_keys.add(("user", str(hit.meta.id)))
+                        else:
+                            seen_keys.add((doc_type, str(hit.meta.id)))
                         
                         suggestions.append(suggestion)
             except Exception as e:
                 logger.warning(f"Autocomplete error for {doc_type}: {e}")
                 continue
+
+        # DB fallback for users by name/email (works even when ES index is stale)
+        # This guarantees profile lookup by full name, not only email.
+        try:
+            user_qs = (
+                User.objects.filter(
+                    DJQ(full_name_en__icontains=q)
+                    | DJQ(full_name_ar__icontains=q)
+                    | DJQ(full_name__icontains=q)
+                    | DJQ(email__icontains=q)
+                )
+                .exclude(id__in=hidden_user_ids)
+                .only("id", "email", "full_name_en", "full_name_ar", "full_name", "avatar")
+                [:8]
+            )
+            for u in user_qs:
+                key = ("user", str(u.id))
+                if key in seen_keys:
+                    continue
+                title = (u.get_full_name_display or "").strip() or u.email
+                if not title:
+                    continue
+                suggestion = {
+                    "title": title,
+                    "type": "user",
+                    "link": reverse("accounts:profile", kwargs={"pk": u.id}),
+                    "score": 10.0,
+                }
+                if u.email and u.email != title:
+                    suggestion["subtitle"] = u.email
+                if getattr(u, "avatar", None):
+                    try:
+                        suggestion["avatar"] = u.avatar.url
+                    except Exception:
+                        pass
+                suggestions.append(suggestion)
+                seen_keys.add(key)
+        except Exception as e:
+            logger.warning(f"Autocomplete DB user fallback error: {e}")
         
         # Sort by score and limit to top 8
         suggestions.sort(key=lambda x: x.get('score', 0), reverse=True)

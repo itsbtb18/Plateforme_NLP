@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سلة المحذوفات{% else %}Recycle Bin{% endif %}
+{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <h2 class="h4 mb-2">
+        <i class="fas fa-trash-alt me-2"></i>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سلة المحذوفات{% else %}Recycle Bin{% endif %}
+      </h2>
+      <p class="text-muted mb-0">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+          يمكنك استعادة العناصر المحذوفة أو حذفها نهائيا.
+        {% else %}
+          You can restore deleted items or permanently remove them.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body d-flex flex-wrap gap-2">
+      <a class="btn btn-sm {% if selected_type == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=all">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}All{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'course' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=course">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}Courses{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'corpus' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=corpus">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المدونات{% else %}Corpora{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'tool' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=tool">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأدوات{% else %}Tools{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'article' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=article">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المقالات{% else %}Articles{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'thesis' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=thesis">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأطروحات{% else %}Theses{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'memoir' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=memoir">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المذكرات{% else %}Memoirs{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'project' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=project">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}Projects{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'event' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=event">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأحداث{% else %}Events{% endif %}
+      </a>
+      <a class="btn btn-sm {% if selected_type == 'topic' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="?type=topic">
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}النقاشات{% else %}Topics{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      {% if trash_items %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان{% else %}Title{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}النوع{% else %}Type{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ الحذف{% else %}Deleted At{% endif %}</th>
+                <th class="text-end">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الإجراءات{% else %}Actions{% endif %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in trash_items %}
+              <tr>
+                <td>{{ item.title|default:"-" }}</td>
+                <td>
+                  {% if item.content_type == "course" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دورة{% else %}Course{% endif %}
+                  {% elif item.content_type == "corpus" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مدونة{% else %}Corpus{% endif %}
+                  {% elif item.content_type == "tool" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أداة{% else %}Tool{% endif %}
+                  {% elif item.content_type == "article" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقال{% else %}Article{% endif %}
+                  {% elif item.content_type == "thesis" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أطروحة{% else %}Thesis{% endif %}
+                  {% elif item.content_type == "memoir" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مذكرة{% else %}Memoir{% endif %}
+                  {% elif item.content_type == "project" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشروع{% else %}Project{% endif %}
+                  {% elif item.content_type == "event" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حدث{% else %}Event{% endif %}
+                  {% elif item.content_type == "topic" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نقاش{% else %}Topic{% endif %}
+                  {% else %}{{ item.content_type }}{% endif %}
+                </td>
+                <td>{{ item.deleted_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-2">
+                    <form method="post" action="{% url 'accounts:trash_restore' content_type=item.content_type pk=item.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-success">
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استعادة{% else %}Restore{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" action="{% url 'accounts:trash_delete' content_type=item.content_type pk=item.pk %}" onsubmit="return confirm('{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هل تريد الحذف النهائي؟{% else %}Do you want to permanently delete this item?{% endif %}');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger">
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حذف نهائي{% else %}Delete Permanently{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Trash pagination">
+          <ul class="pagination justify-content-center mt-3">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?type={{ selected_type }}&page={{ page_obj.previous_page_number }}">
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}السابق{% else %}Previous{% endif %}
+                </a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?type={{ selected_type }}&page={{ page_obj.next_page_number }}">
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التالي{% else %}Next{% endif %}
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-inbox fa-2x mb-2"></i>
+          <p class="mb-0">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+              لا توجد عناصر في سلة المحذوفات.
+            {% else %}
+              No items in the recycle bin.
+            {% endif %}
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

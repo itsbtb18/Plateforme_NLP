@@ -476,6 +476,77 @@ html[dir="rtl"] body {
     margin-top: 0.1rem;
 }
 
+/* ===== COMMENTS ===== */
+.course-detail-comments-form {
+    margin-bottom: 1rem;
+}
+
+.course-detail-comment-input {
+    width: 100%;
+    border: 1px solid var(--course-border);
+    border-radius: var(--course-radius-md);
+    padding: 0.75rem 0.9rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--course-text);
+    background: var(--course-white);
+    resize: vertical;
+}
+
+.course-detail-comment-input:focus {
+    outline: none;
+    border-color: var(--course-primary);
+    box-shadow: 0 0 0 4px var(--course-primary-glow);
+}
+
+.course-detail-comment-submit {
+    margin-top: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none;
+    border-radius: var(--course-radius-md);
+    background: linear-gradient(135deg, var(--course-primary), var(--course-primary-light));
+    color: var(--course-white);
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.course-detail-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.course-detail-comment-item {
+    border: 1px solid var(--course-border);
+    border-radius: var(--course-radius-md);
+    padding: 0.8rem 0.9rem;
+    background: var(--course-muted);
+}
+
+.course-detail-comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--course-text-muted);
+    margin-bottom: 0.35rem;
+}
+
+.course-detail-comment-author {
+    color: var(--course-text);
+    font-weight: 700;
+}
+
+.course-detail-comment-text {
+    margin: 0;
+    color: var(--course-text-secondary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
 /* ===== SIDEBAR ===== */
 .course-detail-sidebar {
     display: flex;
@@ -1163,6 +1234,38 @@ html[dir="rtl"] .course-detail-enroll-stat {
                         {% endif %}
                     </div>
                 </article>
+
+                <article class="course-detail-card" id="comments">
+                    <div class="course-detail-card-header">
+                        <i class="bi bi-chat-dots"></i>
+                        <h2>{% translate "Comments" %} ({{ course_comments|length }})</h2>
+                    </div>
+                    <div class="course-detail-card-body">
+                        <form method="post" class="course-detail-comments-form">
+                            {% csrf_token %}
+                            {{ course_comment_form.content }}
+                            <button type="submit" class="course-detail-comment-submit">
+                                <i class="bi bi-send"></i>
+                                {% translate "Add Comment" %}
+                            </button>
+                        </form>
+
+                        <div class="course-detail-comment-list">
+                            {% for comment in course_comments %}
+                            <article class="course-detail-comment-item">
+                                <div class="course-detail-comment-meta">
+                                    <span class="course-detail-comment-author">{{ comment.author.get_full_name_display|default:comment.author.username }}</span>
+                                    <span>•</span>
+                                    <span>{{ comment.created_at|date:"d/m/Y H:i" }}</span>
+                                </div>
+                                <p class="course-detail-comment-text">{{ comment.content }}</p>
+                            </article>
+                            {% empty %}
+                            <p class="course-detail-intro">{% translate "No comments yet. Be the first to comment on this course." %}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
                 
                 <!-- Back Button -->
                 <a href="{% url 'resources:course_list' %}" class="course-detail-back">
@@ -1240,7 +1343,7 @@ html[dir="rtl"] .course-detail-enroll-stat {
                             
                             <a href="{% url 'chatbot:chatbot_interface' %}?context=course&id={{ object.id }}" class="course-detail-action-btn ai-chatbot">
                                 <i class="bi bi-robot"></i>
-                                {% translate "Ask AI Robot" %}
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% translate "Ask AI Robot" %}{% endif %}
                                 <span class="ai-badge-inline">AI</span>
                             </a>
                         </div>

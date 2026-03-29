@@ -1,87 +1,113 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "Invitations" %}{% endblock %}
+{% block title %}{% trans "Network" %}{% endblock %}
 
 {% block content %}
-{% get_current_language as LANGUAGE_CODE %}
 <div class="nr-page">
   <input type="hidden" id="nrCsrfToken" value="{{ csrf_token }}">
   <div class="nr-shell">
     <div class="nr-header">
       <div class="nr-title-wrap">
         <span class="nr-title-icon" aria-hidden="true"><i class="fas fa-user-friends"></i></span>
-        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة طلبات الشبكة{% else %}Manage Network Requests{% endif %}</h1>
+        <h1>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            إدارة المتابعين
+          {% else %}
+            Follow management
+          {% endif %}
+        </h1>
       </div>
-      <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الطلبات الواردة والمرسلة في لوحة احترافية واحدة.{% else %}Incoming and outgoing invitations in one professional dashboard.{% endif %}</p>
+      <p>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+          إدارة المتابعين والمتابَعين من مكان واحد.
+        {% else %}
+          Manage your followers and following from one place.
+        {% endif %}
+      </p>
     </div>
 
-    <div class="nr-tabs" role="tablist" aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تبويبات الدعوات{% else %}Invitation tabs{% endif %}">
+    <div class="nr-tabs" role="tablist" aria-label="{% trans 'Network tabs' %}">
       <button class="nr-tab active" data-target="incoming" role="tab" aria-selected="true">
         <i class="fas fa-inbox" aria-hidden="true"></i>
-        {% if LANGUAGE_CODE|slice:":2" == "ar" %}الواردة{% else %}Received{% endif %}
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}
         <span class="nr-tab-count">{{ incoming_requests|length }}</span>
       </button>
       <button class="nr-tab" data-target="outgoing" role="tab" aria-selected="false">
         <i class="fas fa-paper-plane" aria-hidden="true"></i>
-        {% if LANGUAGE_CODE|slice:":2" == "ar" %}المرسلة{% else %}Sent{% endif %}
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
         <span class="nr-tab-count">{{ outgoing_requests|length }}</span>
       </button>
     </div>
 
     <div id="incoming" class="nr-pane active">
       {% for rel in incoming_requests %}
-      <article class="nr-card" id="card-{{ rel.requester.id }}">
+      <article class="nr-card" id="card-in-{{ rel.follower.id }}">
         <div class="nr-user">
           <div class="nr-avatar">
-            {% if rel.requester.avatar %}
-              <img src="{{ rel.requester.avatar.url }}" alt="{{ rel.requester.get_full_name_display }}">
+            {% if rel.follower.avatar %}
+              <img src="{{ rel.follower.avatar.url }}" alt="{{ rel.follower.get_full_name_display }}">
             {% else %}
-              <span>{{ rel.requester.get_full_name_display|slice:":1"|upper }}</span>
+              <span>{{ rel.follower.get_full_name_display|slice:":1"|upper }}</span>
             {% endif %}
           </div>
           <div class="nr-meta">
-            <a href="{% url 'accounts:profile' rel.requester.id %}">{{ rel.requester.get_full_name_display }}</a>
-            <small>{{ rel.requester.institution|default:_("No institution") }}</small>
+            <a href="{% url 'accounts:profile' rel.follower.id %}">{{ rel.follower.get_full_name_display }}</a>
+            <small>
+              {% if rel.follower.institution %}
+                {{ rel.follower.institution }}
+              {% else %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+              {% endif %}
+            </small>
           </div>
         </div>
         <div class="nr-actions">
-          <button class="nr-btn primary" data-action="accept" data-user="{{ rel.requester.id }}">{% trans "Accept" %}</button>
-          <button class="nr-btn outline" data-action="reject" data-user="{{ rel.requester.id }}">{% trans "Reject" %}</button>
+          {% if rel.follower_id in following_ids %}
+          <button class="nr-btn outline" disabled>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Mutual follow{% endif %}</button>
+          {% else %}
+          <button class="nr-btn primary" data-action="follow-back" data-user="{{ rel.follower.id }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة{% else %}Follow back{% endif %}</button>
+          {% endif %}
         </div>
       </article>
       {% empty %}
       <div class="nr-empty">
-        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات واردة{% else %}No incoming requests{% endif %}</h3>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واصل مشاركة عملك وستنمو شبكتك.{% else %}Keep sharing your work, your network will grow.{% endif %}</p>
+        <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد متابعون بعد{% else %}No followers yet{% endif %}</h3>
+        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استمر في مشاركة أعمالك، وستنمو شبكتك.{% else %}Keep sharing your work, your network will grow.{% endif %}</p>
       </div>
       {% endfor %}
     </div>
 
     <div id="outgoing" class="nr-pane">
       {% for rel in outgoing_requests %}
-      <article class="nr-card" id="card-{{ rel.addressee.id }}">
+      <article class="nr-card" id="card-out-{{ rel.following.id }}">
         <div class="nr-user">
           <div class="nr-avatar">
-            {% if rel.addressee.avatar %}
-              <img src="{{ rel.addressee.avatar.url }}" alt="{{ rel.addressee.get_full_name_display }}">
+            {% if rel.following.avatar %}
+              <img src="{{ rel.following.avatar.url }}" alt="{{ rel.following.get_full_name_display }}">
             {% else %}
-              <span>{{ rel.addressee.get_full_name_display|slice:":1"|upper }}</span>
+              <span>{{ rel.following.get_full_name_display|slice:":1"|upper }}</span>
             {% endif %}
           </div>
           <div class="nr-meta">
-            <a href="{% url 'accounts:profile' rel.addressee.id %}">{{ rel.addressee.get_full_name_display }}</a>
-            <small>{{ rel.addressee.institution|default:_("No institution") }}</small>
+            <a href="{% url 'accounts:profile' rel.following.id %}">{{ rel.following.get_full_name_display }}</a>
+            <small>
+              {% if rel.following.institution %}
+                {{ rel.following.institution }}
+              {% else %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+              {% endif %}
+            </small>
           </div>
         </div>
         <div class="nr-actions">
-          <button class="nr-btn outline" data-action="cancel" data-user="{{ rel.addressee.id }}">{% trans "Cancel invitation" %}</button>
+          <button class="nr-btn outline" data-action="unfollow" data-user="{{ rel.following.id }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء المتابعة{% else %}Unfollow{% endif %}</button>
         </div>
       </article>
       {% empty %}
       <div class="nr-empty">
-        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات مرسلة{% else %}No outgoing requests{% endif %}</h3>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}يمكنك دعوة المستخدمين من القسم أدناه.{% else %}You can invite professionals from suggestions below.{% endif %}</p>
+        <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أنت لا تتابع أحدًا بعد{% else %}You are not following anyone yet{% endif %}</h3>
+        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ابدأ بمتابعة الأشخاص ليظهروا هنا.{% else %}Start following people to see them here.{% endif %}</p>
       </div>
       {% endfor %}
     </div>
@@ -121,7 +147,7 @@
 @media (max-width: 700px) {
   .nr-page { padding: 12px; }
   .nr-shell { padding: 14px; }
-  .nr-card, .nr-project-invite-item { flex-direction: column; align-items: stretch; }
+  .nr-card { flex-direction: column; align-items: stretch; }
   .nr-actions { width: 100%; }
   .nr-actions .nr-btn { flex: 1; }
 }
@@ -148,20 +174,22 @@
     return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
   }
 
-  function friendshipUrl(userId, action) {
-    return `/${currentLang()}/accounts/network/${userId}/${action}/`;
+  function followUrl(userId) {
+    return `/${currentLang()}/accounts/network/follow/${userId}/`;
   }
 
-  async function postForm(url, body) {
+  function unfollowUrl(userId) {
+    return `/${currentLang()}/accounts/network/unfollow/${userId}/`;
+  }
+
+  async function postForm(url) {
     return fetch(url, {
       method: 'POST',
       headers: {
         'X-CSRFToken': csrf(),
         'X-Requested-With': 'XMLHttpRequest',
-        'Content-Type': 'application/x-www-form-urlencoded',
       },
       credentials: 'same-origin',
-      body,
     });
   }
 
@@ -169,22 +197,38 @@
     const btn = e.target.closest('.nr-btn[data-action][data-user]');
     if (!btn) return;
     e.preventDefault();
+
     const action = btn.dataset.action;
     const userId = btn.dataset.user;
-    const card = document.getElementById(`card-${userId}`);
+    const card = btn.closest('.nr-card');
     if (!card) return;
 
     btn.disabled = true;
     try {
-      const res = await postForm(friendshipUrl(userId, action), '');
+      let res;
+      if (action === 'follow-back') {
+        res = await postForm(followUrl(userId));
+      } else if (action === 'unfollow') {
+        res = await postForm(unfollowUrl(userId));
+      } else {
+        btn.disabled = false;
+        return;
+      }
+
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
-      card.remove();
+
+      if (action === 'unfollow') {
+        card.remove();
+      } else {
+        btn.classList.remove('primary');
+        btn.classList.add('outline');
+        btn.textContent = '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}';
+      }
     } catch (_) {
       btn.disabled = false;
     }
   });
-
 })();
 </script>
 {% endblock %}

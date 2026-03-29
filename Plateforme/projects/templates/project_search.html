@@ -636,7 +636,8 @@ html[dir="rtl"] .ps-avatar:first-child { margin-right: 0; }
                         </span>
                     </div>
                     <div class="ps-avatars">
-                        {% for member in project.members.all|slice:":3" %}
+                        {% for membership in project.visible_memberships|slice:":3" %}
+                        {% with member=membership.member %}
                         <span class="ps-avatar">
                             {% if member.avatar %}
                             <img src="{{ member.avatar.url }}" alt="{{ member.get_full_name_display }}">
@@ -644,9 +645,10 @@ html[dir="rtl"] .ps-avatar:first-child { margin-right: 0; }
                             {{ member.get_full_name_display|slice:":1"|upper }}
                             {% endif %}
                         </span>
+                        {% endwith %}
                         {% endfor %}
-                        {% if project.members.count > 3 %}
-                        <span class="ps-avatar">+{{ project.members.count|add:"-3" }}</span>
+                        {% if project.visible_memberships|length > 3 %}
+                        <span class="ps-avatar">+{{ project.visible_memberships|length|add:"-3" }}</span>
                         {% endif %}
                     </div>
                 </div>

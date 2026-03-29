@@ -36,19 +36,59 @@
         </div>
         
         <div class="course-hub-card-footer">
-            {% if course.approval_status == 'pending' and course.author == request.user %}
-                <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="course-hub-card-cta" title="{% translate 'Edit Form' %}">
-                    <i class="bi bi-file-earmark-text"></i>
-                    {% translate "Edit Form" %}
-                </a>
-            {% else %}
-                <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-card-cta">
-                    <i class="bi bi-play-circle"></i>
-                    {% translate "Start Learning" %}
-                </a>
-            {% endif %}
-            <div class="course-hub-footer-actions">
-                {% include "includes/card_top_actions.html" with content_type="course" object_id=course.id title=course.get_localized_title description=course.get_localized_description|truncatewords:40 category=course.get_course_field_display author=course.author.get_full_name_display url=request.build_absolute_uri %}
+            <div class="card-actions-bar">
+                <div class="course-hub-primary-actions social-actions">
+                    <button type="button" class="course-hub-action-text like-btn" data-course-id="{{ course.id }}" aria-label="{% translate 'Like' %}">
+                        <i class="bi bi-heart" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
+                    </button>
+                    <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn icon-only" aria-label="{% translate 'Comment' %}">
+                        <i class="bi bi-chat"></i>
+                    </a>
+                    <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-action-text view-only icon-only" aria-label="{% translate 'View details' %}">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+                <div class="course-hub-secondary-actions tool-actions">
+                    <button type="button"
+                            class="course-hub-compact-icon ask-chatbot-btn"
+                            title="{% trans 'Ask chatbot about this' %}"
+                            data-ct="course"
+                            data-oid="{{ course.id }}"
+                            data-title="{{ course.get_localized_title|default:''|truncatechars:200 }}"
+                            data-category="{{ course.get_course_field_display|default:'course' }}"
+                            data-author="{{ course.author.get_full_name_display|default:''|truncatechars:120 }}"
+                            data-description="{{ course.get_localized_description|default:''|truncatechars:400 }}"
+                            data-url="{% url 'resources:course_detail' course.id %}"
+                            data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.id %}","type":"course","id":"{{ course.id|escapejs }}"}'
+                            aria-label="{% trans 'Ask chatbot' %}">
+                        <i class="fas fa-robot"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل AI{% else %}{% trans "Ask AI" %}{% endif %}</span>
+                    </button>
+                    <div class="course-hub-share-wrap">
+                        <button type="button"
+                                class="course-hub-compact-icon share-trigger-btn"
+                                data-share-type="course"
+                                data-share-id="{{ course.id }}"
+                                data-share-title="{{ course.get_localized_title|default:'' }}"
+                                data-share-url="{% url 'resources:course_detail' course.id %}"
+                                aria-label="{% trans 'Share' %}"
+                                title="{% trans 'Share with friends' %}">
+                            <i class="bi bi-send"></i>
+                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال{% else %}{% trans "Send" %}{% endif %}</span>
+                        </button>
+                        <div class="course-hub-share-popover" role="menu">
+                            <button type="button" class="course-hub-share-item" data-share-action="friends">
+                                <i class="bi bi-people"></i> {% trans "Send to friends" %}
+                            </button>
+                            <button type="button" class="course-hub-share-item" data-share-action="copy">
+                                <i class="bi bi-link-45deg"></i> {% trans "Copy link" %}
+                            </button>
+                            <button type="button" class="course-hub-share-item" data-share-action="social">
+                                <i class="bi bi-globe2"></i> {% trans "Share on social media" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </article>

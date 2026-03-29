@@ -23,6 +23,7 @@ class Notification(models.Model):
         ('LEAVE_REQUEST', _('Leave Request')),
         
         # Community & Communication
+        ('FOLLOW_REQUEST', _('Follow Request')),
         ('COMMENT', _('Comment')),
         ('MESSAGE', _('Message')),
         

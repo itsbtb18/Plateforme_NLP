@@ -748,6 +748,16 @@ html[dir="rtl"] .pd-timeline-dot {
     min-width: 0;
 }
 
+.pd-member-link {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    text-decoration: none;
+    color: inherit;
+}
+
 .pd-member-name {
     font-size: 0.9rem;
     font-weight: 600;
@@ -1363,6 +1373,7 @@ html[dir="rtl"] .pd-timeline-dot {
                     <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
                 </a>
                 {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1441,7 +1452,7 @@ html[dir="rtl"] .pd-timeline-dot {
                 <!-- Action Card (Course Style) -->
                 <div class="project-action-card">
                     <div class="project-action-header">
-                        <p class="project-action-label">{% translate "Research Project" %}</p>
+                        <p class="project-action-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشروع بحثي{% else %}{% translate "Research Project" %}{% endif %}</p>
                         <h3 class="project-action-title">{{ project.get_status_display }}</h3>
                     </div>
                     <div class="project-action-body">
@@ -1449,12 +1460,12 @@ html[dir="rtl"] .pd-timeline-dot {
                             <div class="project-action-stat">
                                 <i class="bi bi-people"></i>
                                 <span class="project-action-stat-value">{{ team_members.count|add:"1" }}</span>
-                                <span class="project-action-stat-label">{% translate "Team Size" %}</span>
+                                <span class="project-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حجم الفريق{% else %}{% translate "Team Size" %}{% endif %}</span>
                             </div>
                             <div class="project-action-stat">
                                 <i class="bi bi-file-earmark"></i>
                                 <span class="project-action-stat-value">{% if project.attachment %}1{% else %}0{% endif %}</span>
-                                <span class="project-action-stat-label">{% translate "Files" %}</span>
+                                <span class="project-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الملفات{% else %}{% translate "Files" %}{% endif %}</span>
                             </div>
                         </div>
                         
@@ -1473,12 +1484,12 @@ html[dir="rtl"] .pd-timeline-dot {
                         
                         <button type="button" class="project-action-btn secondary" onclick="window.print()">
                             <i class="bi bi-printer"></i>
-                            {% trans "Print Info" %}
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طباعة المعلومات{% else %}{% trans "Print Info" %}{% endif %}
                         </button>
                         
                         <a href="{% url 'chatbot:chatbot_interface' %}?context=project&id={{ project.id }}" class="project-action-btn ai-chatbot">
                             <i class="bi bi-robot"></i>
-                            {% trans "Ask AI Robot" %}
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% trans "Ask AI Robot" %}{% endif %}
                             <span class="ai-badge-inline">AI</span>
                         </a>
 
@@ -1508,34 +1519,38 @@ html[dir="rtl"] .pd-timeline-dot {
                         <div class="pd-team-list">
                             <!-- Coordinator -->
                             <div class="pd-team-member coordinator">
-                                <div class="pd-member-avatar">
-                                    {% if project.coordinator.avatar %}
-                                    <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
-                                    {% else %}
-                                    <span class="pd-member-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
-                                    {% endif %}
-                                </div>
-                                <div class="pd-member-info">
-                                    <div class="pd-member-name">{{ project.coordinator.full_name }}</div>
-                                    <div class="pd-member-role">{% translate "Coordinator" %}</div>
-                                </div>
+                                <a href="{% url 'accounts:profile' project.coordinator.pk %}" class="pd-member-link">
+                                    <div class="pd-member-avatar">
+                                        {% if project.coordinator.avatar %}
+                                        <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
+                                        {% else %}
+                                        <span class="pd-member-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="pd-member-info">
+                                        <div class="pd-member-name">{{ project.coordinator.full_name }}</div>
+                                        <div class="pd-member-role">{% translate "Coordinator" %}</div>
+                                    </div>
+                                </a>
                                 <span class="pd-member-badge">{% translate "Lead" %}</span>
                             </div>
                             
                             <!-- Team Members -->
                             {% for member in team_members %}
                             <div class="pd-team-member">
-                                <div class="pd-member-avatar">
-                                    {% if member.avatar %}
-                                    <img src="{{ member.avatar.url }}" alt="{{ member.full_name }}">
-                                    {% else %}
-                                    <span class="pd-member-avatar-placeholder">{{ member.full_name|slice:":2"|upper }}</span>
-                                    {% endif %}
-                                </div>
-                                <div class="pd-member-info">
-                                    <div class="pd-member-name">{{ member.full_name }}</div>
-                                    <div class="pd-member-role">{% translate "Researcher" %}</div>
-                                </div>
+                                <a href="{% url 'accounts:profile' member.pk %}" class="pd-member-link">
+                                    <div class="pd-member-avatar">
+                                        {% if member.avatar %}
+                                        <img src="{{ member.avatar.url }}" alt="{{ member.full_name }}">
+                                        {% else %}
+                                        <span class="pd-member-avatar-placeholder">{{ member.full_name|slice:":2"|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="pd-member-info">
+                                        <div class="pd-member-name">{{ member.full_name }}</div>
+                                        <div class="pd-member-role">{% translate "Researcher" %}</div>
+                                    </div>
+                                </a>
                             </div>
                             {% empty %}
                             <div class="pd-empty">

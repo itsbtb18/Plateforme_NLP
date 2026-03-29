@@ -2,7 +2,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import CustomUser, Friendship
+from accounts.models import CustomUser, Follow, Friendship
 
 from .models import Conversation, MAX_CHAT_FILE_SIZE, Message
 
@@ -13,22 +13,26 @@ class DirectMessagesRulesTests(TestCase):
         self.u2 = CustomUser.objects.create_user(email="u2@test.com", password="Pass12345")
         self.client.force_login(self.u1)
 
-    def test_start_conversation_requires_accepted_friendship(self):
-        url = reverse("direct_messages:start_conversation", kwargs={"user_id": self.u2.id})
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(Conversation.objects.count(), 0)
-
-    def test_start_conversation_allowed_when_friendship_accepted(self):
-        Friendship.objects.create(
-            requester=self.u1,
-            addressee=self.u2,
-            status=Friendship.Status.ACCEPTED,
-        )
+    def test_start_conversation_without_follow_creates_request(self):
         url = reverse("direct_messages:start_conversation", kwargs={"user_id": self.u2.id})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Conversation.objects.count(), 1)
+        conv = Conversation.objects.first()
+        self.assertIsNotNone(conv)
+        self.assertEqual(conv.status, Conversation.ConversationStatus.REQUEST)
+        self.assertFalse(conv.is_accepted)
+
+    def test_start_conversation_allowed_when_following(self):
+        Follow.objects.create(follower=self.u1, following=self.u2)
+        url = reverse("direct_messages:start_conversation", kwargs={"user_id": self.u2.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Conversation.objects.count(), 1)
+        conv = Conversation.objects.first()
+        self.assertIsNotNone(conv)
+        self.assertEqual(conv.status, Conversation.ConversationStatus.PRIMARY)
+        self.assertTrue(conv.is_accepted)
 
     def test_start_conversation_blocked_is_forbidden(self):
         Friendship.objects.create(

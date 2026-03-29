@@ -18,11 +18,12 @@ from django.views.decorators.http import require_GET
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import DeleteView, FormView
 
-from .forms import ResourceForm
+from .forms import CourseCommentForm, ResourceForm
 from .models import (
     Article,
     Corpus,
     Course,
+    CourseComment,
     Document,
     Memoir,
     NLPTool,
@@ -31,6 +32,7 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+VISIBLE_APPROVAL_STATUSES = ["approved"]
 
 ResourceVariant = Document | NLPTool | Course | Corpus
 
@@ -48,7 +50,7 @@ class ResourceListView(LoginAndVerifiedRequiredMixin, ListView):
 
         # STRICT: Public resources list only shows approved content
         # Pending resources are only visible in the admin pending review panel
-        approval_filter = {"approval_status": "approved"}
+        approval_filter = {"approval_status__in": VISIBLE_APPROVAL_STATUSES}
 
         querysets = []
 
@@ -176,7 +178,7 @@ def resource_ajax_search(request):
     sort_by = request.GET.get("sort", "newest")
 
     # STRICT: Public search only shows approved content
-    approval_filter = {"approval_status": "approved"}
+    approval_filter = {"approval_status__in": VISIBLE_APPROVAL_STATUSES}
     querysets = []
 
     def get_resource_type_label(obj):
@@ -301,7 +303,7 @@ class ToolListView(LoginAndVerifiedRequiredMixin, ListView):
         # STRICT: Only show APPROVED tools in the public section
         # Pending tools are only visible in the admin panel
         queryset = exclude_hidden_users(
-            NLPTool.objects.filter(approval_status="approved"),
+            NLPTool.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author",),
         )
@@ -372,7 +374,7 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
         # STRICT: Only show APPROVED courses in the public section
         # Pending courses are only visible in the admin panel
         queryset = exclude_hidden_users(
-            Course.objects.filter(approval_status="approved"),
+            Course.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author", "teacher"),
         )
@@ -441,9 +443,9 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Public articles list only shows approved content.
         if self.request.user.is_staff:
-            return Article.objects.filter(approval_status="approved")
+            return Article.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
         return exclude_hidden_users(
-            Article.objects.filter(approval_status="approved"),
+            Article.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author",),
         )
@@ -463,9 +465,9 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Public theses list only shows approved content.
         if self.request.user.is_staff:
-            return Thesis.objects.filter(approval_status="approved")
+            return Thesis.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
         return exclude_hidden_users(
-            Thesis.objects.filter(approval_status="approved"),
+            Thesis.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author",),
         )
@@ -485,9 +487,9 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
     def get_queryset(self):
         # STRICT: Public memoirs list only shows approved content.
         if self.request.user.is_staff:
-            return Memoir.objects.filter(approval_status="approved")
+            return Memoir.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
         return exclude_hidden_users(
-            Memoir.objects.filter(approval_status="approved"),
+            Memoir.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author",),
         )
@@ -515,7 +517,9 @@ class CorpusListView(LoginAndVerifiedRequiredMixin, ListView):
         if self.request.user.is_staff:
             queryset = Corpus.objects.all()
         else:
-            queryset = Corpus.objects.filter(approval_status="approved")
+            queryset = Corpus.objects.filter(
+                approval_status__in=VISIBLE_APPROVAL_STATUSES
+            )
 
         # Search query
         search_query = self.request.GET.get("q", "").strip()
@@ -656,7 +660,10 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
                 related_document = getattr(obj, "document", None)
                 approval_status = getattr(related_document, "approval_status", None)
 
-            if approval_status is not None and approval_status != "approved":
+            if (
+                approval_status is not None
+                and approval_status not in VISIBLE_APPROVAL_STATUSES
+            ):
                 raise Http404("This resource is pending approval.")
 
         hidden_ids = blocked_user_ids_for(self.request.user)
@@ -688,6 +695,32 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        resource_type = self.kwargs.get("type")
+
+        if resource_type == "course":
+            comment_form = CourseCommentForm(request.POST)
+            if comment_form.is_valid():
+                content = (comment_form.cleaned_data.get("content") or "").strip()
+                if content:
+                    CourseComment.objects.create(
+                        course=cast(Course, self.object),
+                        author=request.user,
+                        content=content,
+                    )
+                    messages.success(request, _("Your comment has been added."))
+                else:
+                    messages.error(request, _("Comment cannot be empty."))
+            else:
+                messages.error(request, _("Please write a valid comment."))
+
+            return redirect(
+                f"{reverse('resources:course_detail', kwargs={'pk': self.object.pk})}#comments"
+            )
+
+        return self.get(request, *args, **kwargs)
 
     def get_template_names(self):
         # In admin review mode, force the shared detail template so all
@@ -732,12 +765,21 @@ class ResourceDetailView(LoginAndVerifiedRequiredMixin, DetailView):
 
             if field:
                 context["related_corpora"] = Corpus.objects.filter(
-                    approval_status="approved", field__icontains=field
+                    approval_status__in=VISIBLE_APPROVAL_STATUSES,
+                    field__icontains=field,
                 )[:3]
             else:
                 context["related_corpora"] = Corpus.objects.filter(
-                    approval_status="approved"
+                    approval_status__in=VISIBLE_APPROVAL_STATUSES
                 )[:3]
+
+        if resource_type == "course":
+            context["course_comments"] = (
+                CourseComment.objects.filter(course=self.object)
+                .select_related("author")
+                .order_by("-created_at")
+            )
+            context["course_comment_form"] = CourseCommentForm()
 
         return context
 
@@ -1054,14 +1096,12 @@ class ResourceDeleteView(
         resource = self.get_object()
         resource_title = resource.title
 
-        # For Document types, the related Article/Thesis/Memoir will be deleted automatically
-        # due to OneToOneField cascade
-        response = super().delete(request, *args, **kwargs)
-
+        resource.soft_delete(request.user)
         messages.success(
-            self.request, f"Resource '{resource_title}' deleted successfully!"
+            self.request,
+            _("Resource '%(title)s' moved to trash.") % {"title": resource_title},
         )
-        return response
+        return redirect(self.success_url)
 
     def test_func(self):
         resource = self.get_object()
@@ -1123,19 +1163,6 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
             ):
                 resource.approval_status = "approved"
                 resource.save(update_fields=["approval_status"])
-                messages.success(
-                    self.request,
-                    _("Your submission '%(title)s' has been created and published.")
-                    % {"title": resource.title},
-                )
-            else:
-                messages.info(
-                    self.request,
-                    _(
-                        "Your submission '%(title)s' has been received and is pending admin review. It will be visible to the public once approved."
-                    )
-                    % {"title": resource.title},
-                )
             return super().form_valid(form)
         except Exception as e:
             logger.error(
@@ -1232,21 +1259,9 @@ class CourseCreateView(LoginAndVerifiedRequiredMixin, FormView):
                 logger.info(
                     f"[COURSE_CREATE] Auto-approved staff course (ID: {resource.id})"
                 )
-                messages.success(
-                    self.request,
-                    _("Your course '%(title)s' has been created and published.")
-                    % {"title": resource.title},
-                )
             else:
                 logger.info(
                     f"[COURSE_CREATE] Course saved successfully (ID: {resource.id})"
-                )
-                messages.info(
-                    self.request,
-                    _(
-                        "Your course '%(title)s' has been submitted and is pending admin review."
-                    )
-                    % {"title": resource.title},
                 )
             return super().form_valid(form)
         except Exception as e:
@@ -1332,7 +1347,7 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
                 f"[CORPUS_CREATE] ✓ Corpus saved successfully (ID: {resource.id})"
             )
             success_message = _(
-                "Your corpus '%(title)s' has been created successfully and is pending admin approval."
+                "Your corpus '%(title)s' has been created successfully."
             ) % {"title": resource.get_localized_title()}
             if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse(
@@ -1342,7 +1357,6 @@ class CorpusCreateView(LoginAndVerifiedRequiredMixin, FormView):
                         "redirect_url": str(self.get_success_url()),
                     }
                 )
-            messages.success(self.request, success_message)
             return super().form_valid(form)
         except Exception as e:
             logger.error(
@@ -1431,13 +1445,6 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
         try:
             resource = form.save()
             logger.info(f"[TOOL_CREATE] ✓ Tool saved successfully (ID: {resource.id})")
-            messages.info(
-                self.request,
-                _(
-                    "Your tool '%(title)s' has been submitted and is pending admin review."
-                )
-                % {"title": resource.title},
-            )
             return super().form_valid(form)
         except Exception as e:
             logger.error(f"[TOOL_CREATE] ✗ Error saving tool: {str(e)}", exc_info=True)
