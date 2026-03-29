@@ -10,6 +10,29 @@ from django.utils.translation import gettext_lazy as _
 from institutions.models import Institution
 
 
+class EventSoftDeleteQuerySet(models.QuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        return self.filter(is_deleted=True)
+
+    def delete(self):
+        return super().update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+
+class ActiveEventManager(models.Manager.from_queryset(EventSoftDeleteQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllEventManager(models.Manager.from_queryset(EventSoftDeleteQuerySet)):
+    pass
+
+
 class Event(models.Model):
     """Model for scientific events related to Arabic NLP research."""
 
@@ -154,6 +177,18 @@ class Event(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        get_user_model(),
+        related_name="deleted_events_set",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    objects = ActiveEventManager()
+    all_objects = AllEventManager()
 
     class Meta:
         ordering = ["-start_date"]
@@ -254,6 +289,22 @@ class Event(models.Model):
 
         delta = self.submission_deadline - timezone.now().date()
         return delta.days if delta.days >= 0 else None
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and getattr(user, "is_authenticated", False):
+            self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def hard_delete(self):
+        super().delete()
 
     @property
     def domain_list(self):

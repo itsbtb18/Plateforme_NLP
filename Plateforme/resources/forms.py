@@ -6,6 +6,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, Row, Column, HTML
 from .models import (
     Course,
+    CourseComment,
     NLPTool,
     Corpus,
     Document,
@@ -16,6 +17,21 @@ from .models import (
     FieldChoices,
 )
 from accounts.models import Institution
+
+
+class CourseCommentForm(forms.ModelForm):
+    class Meta:
+        model = CourseComment
+        fields = ["content"]
+        widgets = {
+            "content": forms.Textarea(
+                attrs={
+                    "class": "course-detail-comment-input",
+                    "rows": 3,
+                    "placeholder": _("Write your comment about this course..."),
+                }
+            )
+        }
 
 
 def get_active_language():

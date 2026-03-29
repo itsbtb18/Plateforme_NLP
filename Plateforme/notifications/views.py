@@ -130,6 +130,7 @@ def api_notification_list(request):
             'PROJECT_UPDATE': 'fa-flask',
             'TASK_ASSIGNED': 'fa-tasks',
             'LEAVE_REQUEST': 'fa-door-open',
+            'FOLLOW_REQUEST': 'fa-user-plus',
             'COMMENT': 'fa-comment',
             'MESSAGE': 'fa-envelope',
             'EVENT_CREATED': 'fa-calendar-plus',
@@ -152,6 +153,7 @@ def api_notification_list(request):
             'MEMBERSHIP_REQUEST': 'bg-indigo-100 text-indigo-600',
             'PROJECT_UPDATE': 'bg-blue-100 text-blue-600',
             'TASK_ASSIGNED': 'bg-orange-100 text-orange-600',
+            'FOLLOW_REQUEST': 'bg-sky-100 text-sky-600',
             'COMMENT': 'bg-green-100 text-green-600',
             'EVENT_CREATED': 'bg-pink-100 text-pink-600',
             'EVENT_APPROVED': 'bg-emerald-100 text-emerald-600',
@@ -359,6 +361,7 @@ def go_to_notification(request, notification_id):
             'TOOL_ADDED': 'resources:tool_list',
             'CORPUS_UPDATE': 'resources:corpus_list',
             'INSTITUTION_UPDATE': 'institutions:institution_list',
+            'FOLLOW_REQUEST': 'accounts:network_invitations',
         }
         
         if notification.type in type_redirects:

@@ -958,7 +958,7 @@ def admin_user_history(request, user_id):
 
     admins_activity = (
         UserStatusHistory.objects.filter(user=user)
-        .values("changed_by__id", "changed_by__username")
+        .values("changed_by__id", "changed_by__full_name", "changed_by__email")
         .annotate(
             changes_count=Count("id"),
             last_change=Max("change_date"),
@@ -970,7 +970,7 @@ def admin_user_history(request, user_id):
     admin_map = {u.id: u for u in CustomUser.objects.filter(id__in=admin_ids)}
     for a in admins_activity:
         admin_obj = admin_map.get(a["changed_by__id"])
-        a["username"] = a["changed_by__username"]
+        a["username"] = a.get("changed_by__full_name") or a.get("changed_by__email") or ""
         a["avatar"] = admin_obj.avatar if admin_obj else None
 
     pending_changes = UserStatusHistory.objects.filter(

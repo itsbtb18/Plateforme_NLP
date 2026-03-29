@@ -571,18 +571,19 @@ html[dir="rtl"] body {
 .social-actions {
     display: flex;
     align-items: center;
+    gap: 0.7rem;
 }
 
 .social-actions .comment-btn {
-    margin-inline-start: 30px;
+    margin-inline-start: 0;
 }
 
 .course-hub-secondary-actions,
 .tool-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-inline-end: 15px;
+    gap: 0.25rem;
+    margin-inline-end: 0;
 }
 
 .course-hub-action-text {
@@ -617,26 +618,84 @@ html[dir="rtl"] body {
     color: #e11d48;
 }
 
+.course-hub-action-text.icon-only {
+    gap: 0;
+}
+
+.course-hub-action-text.view-only i {
+    font-size: 1.28rem;
+}
+
+.course-hub-action-text.view-only {
+    margin-inline-start: 0.6rem;
+}
+
+html[dir="rtl"] .card-actions-bar {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .course-hub-action-text.view-only {
+    margin-inline-start: 0;
+    margin-inline-end: 0.65rem;
+}
+
+html[dir="rtl"] .course-hub-card-footer {
+    padding-inline: 1rem;
+}
+
+html[dir="rtl"] .course-hub-secondary-actions,
+html[dir="rtl"] .tool-actions {
+    gap: 0.08rem;
+}
+
+html[dir="rtl"] .course-hub-compact-icon {
+    min-height: 34px;
+    padding: 0.32rem 0.38rem;
+    font-size: 0.82rem;
+    gap: 0.24rem;
+}
+
+html[dir="rtl"] .course-hub-compact-icon span {
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
+    display: none;
+}
+
 .course-hub-compact-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 1px solid rgba(99, 102, 241, 0.26);
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: #fff;
+    min-height: 36px;
+    padding: 0.35rem 0.55rem;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #8f98a7;
     display: inline-flex;
     align-items: center;
+    gap: 0.45rem;
     justify-content: center;
     cursor: pointer;
     text-decoration: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
 }
 
 .course-hub-compact-icon:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 18px rgba(79, 70, 229, 0.28);
-    color: #fff;
+    background: #f3f4f6;
+    color: #7b8492;
+}
+
+.course-hub-compact-icon i {
+    font-size: 0.9rem;
+}
+
+.course-hub-compact-icon span {
+    display: inline;
+    line-height: 1;
 }
 
 .course-hub-share-wrap {
@@ -691,6 +750,10 @@ html[dir="rtl"] body {
     .course-hub-secondary-actions,
     .tool-actions {
         margin-inline-end: 8px;
+    }
+    html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span,
+    html[dir="rtl"] .course-hub-secondary-actions .ask-chatbot-btn span {
+        display: none;
     }
 }
 
@@ -990,11 +1053,12 @@ html[dir="rtl"] body {
                             <div class="course-hub-primary-actions social-actions">
                                 <button type="button" class="course-hub-action-text like-btn" data-course-id="{{ course.id }}" aria-label="{% translate 'Like' %}">
                                     <i class="bi bi-heart" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
-                                    <span>{% translate "Like" %}</span>
                                 </button>
-                                <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn" aria-label="{% translate 'Comment' %}">
+                                <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn icon-only" aria-label="{% translate 'Comment' %}">
                                     <i class="bi bi-chat"></i>
-                                    <span>{% translate "Comment" %}</span>
+                                </a>
+                                <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-action-text view-only icon-only" aria-label="{% translate 'View details' %}">
+                                    <i class="bi bi-eye"></i>
                                 </a>
                             </div>
                             <div class="course-hub-secondary-actions tool-actions">
@@ -1011,6 +1075,7 @@ html[dir="rtl"] body {
                                         data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.id %}","type":"course","id":"{{ course.id|escapejs }}"}'
                                         aria-label="{% trans 'Ask chatbot' %}">
                                     <i class="fas fa-robot"></i>
+                                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل AI{% else %}{% trans "Ask AI" %}{% endif %}</span>
                                 </button>
                                 <div class="course-hub-share-wrap">
                                     <button type="button"
@@ -1022,6 +1087,7 @@ html[dir="rtl"] body {
                                             aria-label="{% trans 'Share' %}"
                                             title="{% trans 'Share with friends' %}">
                                         <i class="bi bi-send"></i>
+                                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال{% else %}{% trans "Send" %}{% endif %}</span>
                                     </button>
                                     <div class="course-hub-share-popover" role="menu">
                                         <button type="button" class="course-hub-share-item" data-share-action="friends">

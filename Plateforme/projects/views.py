@@ -11,7 +11,7 @@ from django.views.generic import (
 )
 from .models import Project, ProjectMember, ProjectInvitation
 from django.db.models import Q
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Prefetch
 from django.urls import reverse, reverse_lazy
 from django.core.paginator import Paginator
 from .forms import ProjectForm
@@ -41,6 +41,7 @@ from .models import ProjectChatRoom, ProjectChatMessage
 from pages.moderation import approve_object
 
 logger = logging.getLogger(__name__)
+VISIBLE_APPROVAL_STATUSES = ["approved"]
 
 if TYPE_CHECKING:
     from django.forms import BaseModelForm
@@ -108,6 +109,15 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
     template_name = "project_list.html"
     context_object_name = "projects"
     paginate_by = 10
+
+    def _visible_members_prefetch(self) -> Prefetch:
+        hidden_ids = blocked_user_ids_for(self.request.user)
+        members_qs = ProjectMember.objects.filter(status="accepted").select_related(
+            "member"
+        )
+        if hidden_ids:
+            members_qs = members_qs.exclude(member_id__in=hidden_ids)
+        return Prefetch("members", queryset=members_qs, to_attr="visible_memberships")
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         """Handle both AJAX and regular requests."""
@@ -300,9 +310,13 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             if request.GET.get("my_projects"):
                 projects_qs = projects_qs.filter(coordinator=request.user)
             else:
-                projects_qs = projects_qs.filter(approval_status="approved")
+                projects_qs = projects_qs.filter(
+                    approval_status__in=VISIBLE_APPROVAL_STATUSES
+                )
 
-            projects_qs = projects_qs.annotate(is_member=Exists(membership))
+            projects_qs = projects_qs.annotate(is_member=Exists(membership)).prefetch_related(
+                self._visible_members_prefetch()
+            )
 
             # Convert to dict for ordering
             projects_dict = {str(p.pk): p for p in projects_qs}
@@ -330,7 +344,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         if self.request.GET.get("my_projects"):
             qs = qs.filter(coordinator=self.request.user)
         else:
-            qs = qs.filter(approval_status="approved")
+            qs = qs.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
 
         membership = ProjectMember.objects.filter(
             project=OuterRef("pk"), member=self.request.user
@@ -368,7 +382,9 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         else:  # newest (default)
             qs = qs.order_by("-created_at")
 
-        return qs.annotate(is_member=Exists(membership))
+        return qs.annotate(is_member=Exists(membership)).prefetch_related(
+            self._visible_members_prefetch()
+        )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -396,13 +412,13 @@ class ProjectDetailView(LoginAndVerifiedRequiredMixin, DetailView):
         qs = exclude_hidden_users(qs, self.request.user, ("coordinator",))
         if self.request.user.is_staff or self.request.user.is_superuser:
             return qs
-        return qs.filter(approval_status="approved")
+        return qs.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
 
     def get_object(self, queryset: QuerySet[Project] | None = None) -> Project:
         project: Project = super().get_object(queryset)  # type: ignore[assignment]
         if (
             not (self.request.user.is_staff or self.request.user.is_superuser)
-            and project.approval_status != "approved"
+            and project.approval_status not in VISIBLE_APPROVAL_STATUSES
         ):
             raise Http404(_("Project not found."))
         return project
@@ -496,14 +512,6 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
                 raise
         # Ensure project discussion room exists immediately after project creation.
         _ensure_project_chatroom(form.instance)
-        # Show pending approval message - don't notify all users until approved
-        messages.info(
-            self.request,
-            _(
-                "Your project '%(title)s' has been submitted and is pending admin review."
-            )
-            % {"title": form.instance.title},
-        )
         return response
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -668,6 +676,16 @@ class ProjectDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Dele
         context = super().get_context_data(**kwargs)
         context["page"] = "research_projects"
         return context
+
+    def delete(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        project = self.get_object()
+        title = project.title
+        project.soft_delete(request.user)
+        messages.success(
+            request,
+            _("Project '%(title)s' moved to trash.") % {"title": title},
+        )
+        return redirect(self.success_url)
 
 
 class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
@@ -1045,15 +1063,17 @@ class ProjectInvitationsView(LoginAndVerifiedRequiredMixin, ListView):
                 "project__coordinator",
             )
         )
-        incoming_join_requests = exclude_hidden_users(
-            ProjectMember.objects.filter(
-                project__coordinator=user,
-                status="pending",
-            )
-            .select_related("project", "member")
-            .order_by("-created_at")[:120],
-            user,
-            ("member",),
+        incoming_join_requests = (
+            exclude_hidden_users(
+                ProjectMember.objects.filter(
+                    project__coordinator=user,
+                    status="pending",
+                )
+                .select_related("project", "member")
+                .order_by("-created_at"),
+                user,
+                ("member",),
+            )[:120]
         )
         context["sent_invitations"] = ProjectInvitation.objects.filter(
             invited_by=user,
@@ -1312,8 +1332,15 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self) -> QuerySet[Project]:
+        hidden_ids = blocked_user_ids_for(self.request.user)
+        members_qs = ProjectMember.objects.filter(status="accepted").select_related(
+            "member"
+        )
+        if hidden_ids:
+            members_qs = members_qs.exclude(member_id__in=hidden_ids)
+
         qs = exclude_hidden_users(
-            Project.objects.filter(approval_status="approved"),
+            Project.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("coordinator",),
         )
@@ -1326,7 +1353,9 @@ class ProjectSearchView(LoginAndVerifiedRequiredMixin, ListView):
                 | Q(institution__name__icontains=query)
                 | Q(coordinator__full_name__icontains=query)
             )
-        return qs
+        return qs.prefetch_related(
+            Prefetch("members", queryset=members_qs, to_attr="visible_memberships")
+        )
 
 
 class RemoveMemberView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, View):

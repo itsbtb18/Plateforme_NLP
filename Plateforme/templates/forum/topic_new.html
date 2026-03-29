@@ -478,7 +478,13 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
                             <div class="tf-section-icon">
                                 <i class="bi bi-diagram-3"></i>
                             </div>
-                            <h2 class="tf-section-title">{% translate "Bind Discussion (Optional)" %}</h2>
+                            <h2 class="tf-section-title">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                    ربط المناقشة (اختياري)
+                                {% else %}
+                                    {% translate "Bind Discussion (Optional)" %}
+                                {% endif %}
+                            </h2>
                         </div>
 
                         {% if prefill_project_id or prefill_event_id or prefill_news_id %}
@@ -494,9 +500,15 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
                         {% endif %}
 
                         <div class="tf-field {% if form.related_project.errors %}has-error{% endif %}">
-                            <label for="{{ form.related_project.id_for_label }}" class="tf-label">{{ form.related_project.label }}</label>
+                            <label for="{{ form.related_project.id_for_label }}" class="tf-label">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                    المشروع المرتبط (اختياري)
+                                {% else %}
+                                    {{ form.related_project.label }}
+                                {% endif %}
+                            </label>
                             <select name="{{ form.related_project.name }}" id="{{ form.related_project.id_for_label }}" class="tf-input">
-                                <option value="">{% translate "None" %}</option>
+                                <option value="" {% if not form.related_project.value %}selected{% endif %}></option>
                                 {% for obj in form.fields.related_project.queryset %}
                                 <option value="{{ obj.pk }}" {% if form.related_project.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title }}</option>
                                 {% endfor %}
@@ -505,9 +517,15 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
                         </div>
 
                         <div class="tf-field {% if form.related_event.errors %}has-error{% endif %}">
-                            <label for="{{ form.related_event.id_for_label }}" class="tf-label">{{ form.related_event.label }}</label>
+                            <label for="{{ form.related_event.id_for_label }}" class="tf-label">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                    الحدث المرتبط (اختياري)
+                                {% else %}
+                                    {{ form.related_event.label }}
+                                {% endif %}
+                            </label>
                             <select name="{{ form.related_event.name }}" id="{{ form.related_event.id_for_label }}" class="tf-input">
-                                <option value="">{% translate "None" %}</option>
+                                <option value="" {% if not form.related_event.value %}selected{% endif %}></option>
                                 {% for obj in form.fields.related_event.queryset %}
                                 <option value="{{ obj.pk }}" {% if form.related_event.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title }}</option>
                                 {% endfor %}
@@ -516,9 +534,15 @@ html[dir="rtl"] .tf-char-count { text-align: left; }
                         </div>
 
                         <div class="tf-field {% if form.related_news.errors %}has-error{% endif %}">
-                            <label for="{{ form.related_news.id_for_label }}" class="tf-label">{{ form.related_news.label }}</label>
+                            <label for="{{ form.related_news.id_for_label }}" class="tf-label">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                    الخبر المرتبط (اختياري)
+                                {% else %}
+                                    {{ form.related_news.label }}
+                                {% endif %}
+                            </label>
                             <select name="{{ form.related_news.name }}" id="{{ form.related_news.id_for_label }}" class="tf-input">
-                                <option value="">{% translate "None" %}</option>
+                                <option value="" {% if not form.related_news.value %}selected{% endif %}></option>
                                 {% for obj in form.fields.related_news.queryset %}
                                 <option value="{{ obj.pk }}" {% if form.related_news.value|stringformat:"s" == obj.pk|stringformat:"s" %}selected{% endif %}>{{ obj.title|default:obj.slug }}</option>
                                 {% endfor %}

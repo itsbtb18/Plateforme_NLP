@@ -398,9 +398,14 @@ class EventDeleteView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Delete
         return self.request.user == event.created_by or self.request.user.is_staff
     
     def delete(self, request, *args, **kwargs):
-        event_title = self.get_object().title
-        messages.success(request, _('Event "{}" deleted successfully.').format(event_title))
-        return super().delete(request, *args, **kwargs)
+        event = self.get_object()
+        event_title = event.title
+        event.soft_delete(request.user)
+        messages.success(
+            request,
+            _('Event "%(title)s" moved to trash.') % {"title": event_title},
+        )
+        return redirect(self.success_url)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

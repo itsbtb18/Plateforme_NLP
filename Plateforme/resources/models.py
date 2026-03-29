@@ -17,6 +17,29 @@ from institutions.models import Institution
 logger = logging.getLogger(__name__)
 
 
+class SoftDeleteQuerySet(models.QuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        return self.filter(is_deleted=True)
+
+    def delete(self):
+        return super().update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+
+class ActiveSoftDeleteManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllSoftDeleteManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
+    pass
+
+
 class ResourceBase(models.Model):
     """
     Base model for all resources.
@@ -134,6 +157,18 @@ class ResourceBase(models.Model):
         null=True,
         help_text=_("Upload a document (PDF, DOCX, TXT, etc.)"),
     )
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_%(app_label)s_%(class)s_set",
+    )
+
+    objects = ActiveSoftDeleteManager()
+    all_objects = AllSoftDeleteManager()
 
     def get_supported_languages_list(self):
         """Return supported languages as a list"""
@@ -220,6 +255,22 @@ class ResourceBase(models.Model):
     def increment_views(self):
         type(self).objects.filter(pk=self.pk).update(views_count=F("views_count") + 1)
         self.refresh_from_db(fields=["views_count"])
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and getattr(user, "is_authenticated", False):
+            self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def hard_delete(self):
+        super().delete()
 
     def save(self, *args, **kwargs):
         try:
@@ -437,6 +488,33 @@ class Course(ResourceBase):
         if not self.is_public:
             raise PermissionDenied(_("This course requires authentication"))
         return self
+
+
+class CourseComment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="comments",
+        verbose_name=_("Course"),
+    )
+    author = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="course_comments",
+        verbose_name=_("Author"),
+    )
+    content = models.TextField(verbose_name=_("Comment"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated at"))
+
+    class Meta:
+        verbose_name = _("Course Comment")
+        verbose_name_plural = _("Course Comments")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.author} - {self.course.title[:40]}"
 
 
 class Document(ResourceBase):

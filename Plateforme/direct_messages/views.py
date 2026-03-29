@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from datetime import timedelta
 
-from accounts.models import Friendship
+from accounts.models import Follow, Friendship
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -56,28 +56,30 @@ def _create_group_system_message(conversation, sender, event, actor_name="", tar
     )
 
 
-def _friendship(user_a, user_b):
-    return Friendship.between(user_a, user_b)
-
-
 def _is_blocked(user_a, user_b):
-    rel = _friendship(user_a, user_b)
+    rel = Friendship.between(user_a, user_b)
     return bool(rel and rel.status == Friendship.Status.BLOCKED)
 
 
-def _is_accepted_friend(user_a, user_b):
-    rel = _friendship(user_a, user_b)
-    return bool(rel and rel.status == Friendship.Status.ACCEPTED)
+def _is_following(user_a, user_b):
+    if not user_a or not user_b:
+        return False
+    return Follow.objects.filter(follower=user_a, following=user_b).exists()
 
 
 def _friend_candidates(user):
-    accepted = Friendship.objects.filter(
-        status=Friendship.Status.ACCEPTED
-    ).filter(Q(requester=user) | Q(addressee=user))
-    ids = set()
-    for row in accepted:
-        ids.add(row.addressee_id if row.requester_id == user.id else row.requester_id)
-    return User.objects.filter(id__in=ids, is_active=True).exclude(id=user.id).order_by("email")
+    following_ids = Follow.objects.filter(follower=user).values_list(
+        "following_id", flat=True
+    )
+    follower_ids = Follow.objects.filter(following=user).values_list(
+        "follower_id", flat=True
+    )
+    candidate_ids = set(following_ids).union(set(follower_ids))
+    return (
+        User.objects.filter(id__in=candidate_ids, is_active=True)
+        .exclude(id=user.id)
+        .order_by("email")
+    )
 
 
 def _conversation_display(conversation, viewer):
@@ -241,11 +243,7 @@ def start_conversation(request, user_id):
             return redirect("direct_messages:inbox")
         return JsonResponse({"ok": False, "error": _("Chat is forbidden because one user is blocked.")}, status=403)
 
-    # Private discussions are only allowed between accepted friends.
-    if not _is_accepted_friend(request.user, other):
-        if request.method == "GET":
-            return redirect("direct_messages:inbox")
-        return JsonResponse({"ok": False, "error": _("You can only start a conversation with accepted friends.")}, status=403)
+    can_start_directly = _is_following(request.user, other)
 
     first, second = _pair_order(request.user, other)
     conversation, created = Conversation.objects.get_or_create(
@@ -255,14 +253,22 @@ def start_conversation(request, user_id):
             "conversation_type": Conversation.ConversationType.PRIVATE,
             "created_by": request.user,
             "status": Conversation.ConversationStatus.PRIMARY
-            if _is_accepted_friend(request.user, other)
+            if can_start_directly
             else Conversation.ConversationStatus.REQUEST,
-            "is_accepted": _is_accepted_friend(request.user, other),
-            "requested_by": None if _is_accepted_friend(request.user, other) else request.user,
+            "is_accepted": can_start_directly,
+            "requested_by": None if can_start_directly else request.user,
         },
     )
     if created:
         conversation.participants.add(first, second)
+    elif can_start_directly and (
+        conversation.status != Conversation.ConversationStatus.PRIMARY
+        or not conversation.is_accepted
+    ):
+        conversation.status = Conversation.ConversationStatus.PRIMARY
+        conversation.is_accepted = True
+        conversation.requested_by = None
+        conversation.save(update_fields=["status", "is_accepted", "requested_by"])
 
     thread_url = reverse("direct_messages:thread", kwargs={"conversation_id": conversation.id})
     if request.method == "GET":
@@ -291,7 +297,7 @@ def thread(request, conversation_id):
             msg.conversation = conversation
             msg.sender = request.user
             if conversation.conversation_type == Conversation.ConversationType.PRIVATE and conversation.status == Conversation.ConversationStatus.REQUEST:
-                if _is_accepted_friend(request.user, other):
+                if _is_following(request.user, other):
                     conversation.status = Conversation.ConversationStatus.PRIMARY
                     conversation.is_accepted = True
                     conversation.requested_by = None

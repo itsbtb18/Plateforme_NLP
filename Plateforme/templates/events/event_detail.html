@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load i18n static %}
 
 {% block title %}{{ event.get_localized_title }} | {% translate "Events" %}{% endblock %}
@@ -1103,7 +1103,7 @@ html[dir="rtl"] .ai-badge-inline {
                 
                 {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
                 <a class="ed-review-btn back" href="{% url 'pages:admin_calls' %}?tab=pending">
-                    <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
+                    <i class="bi bi-arrow-left"></i>{% translate "Back" %}
                 </a>
                 {% elif request.user == event.author %}
                 <a href="{% url 'events:event-update' pk=event.pk %}" class="ed-btn-action btn-edit">
@@ -1204,7 +1204,7 @@ html[dir="rtl"] .ai-badge-inline {
             <!-- Action Card (Course Style) -->
             <div class="event-action-card">
                 <div class="event-action-header">
-                    <p class="event-action-label">{% translate "Event" %}</p>
+                    <p class="event-action-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الحدث{% else %}{% translate "Event" %}{% endif %}</p>
                     <h3 class="event-action-title">{{ event.get_event_type_display }}</h3>
                 </div>
                 <div class="event-action-body">
@@ -1212,12 +1212,12 @@ html[dir="rtl"] .ai-badge-inline {
                         <div class="event-action-stat">
                             <i class="bi bi-people"></i>
                             <span class="event-action-stat-value">{{ registration_count }}</span>
-                            <span class="event-action-stat-label">{% translate "Registered" %}</span>
+                            <span class="event-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مسجل{% else %}{% translate "Registered" %}{% endif %}</span>
                         </div>
                         <div class="event-action-stat">
                             <i class="bi bi-calendar-check"></i>
-                            <span class="event-action-stat-value">{{ event.days_until_start|default:"—" }}</span>
-                            <span class="event-action-stat-label">{% translate "Days Left" %}</span>
+                            <span class="event-action-stat-value">{{ event.days_until_start|default:"â€”" }}</span>
+                            <span class="event-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأيام المتبقية{% else %}{% translate "Days Left" %}{% endif %}</span>
                         </div>
                     </div>
                     
@@ -1230,23 +1230,23 @@ html[dir="rtl"] .ai-badge-inline {
                     </button>
                     <a href="{{ event.attachment.url }}" class="event-action-btn secondary" download>
                         <i class="bi bi-download"></i>
-                        {% trans "Download Attachment" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحميل المرفق{% else %}{% trans "Download Attachment" %}{% endif %}
                     </a>
                     {% elif event.website %}
                     <a href="{{ event.website }}" target="_blank" class="event-action-btn primary">
                         <i class="bi bi-globe"></i>
-                        {% trans "Event Website" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}موقع الحدث{% else %}{% trans "Event Website" %}{% endif %}
                     </a>
                     {% endif %}
                     
                     <button type="button" class="event-action-btn secondary" onclick="window.print()">
                         <i class="bi bi-printer"></i>
-                        {% trans "Print Info" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طباعة المعلومات{% else %}{% trans "Print Info" %}{% endif %}
                     </button>
                     
                     <a href="{% url 'chatbot:chatbot_interface' %}?context=event&id={{ event.id }}" class="event-action-btn ai-chatbot">
                         <i class="bi bi-robot"></i>
-                        {% trans "Ask AI Robot" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% trans "Ask AI Robot" %}{% endif %}
                         <span class="ai-badge-inline">AI</span>
                     </a>
                 </div>
@@ -1309,7 +1309,7 @@ html[dir="rtl"] .ai-badge-inline {
                         </div>
                         <div class="ed-logistics-content">
                             <div class="ed-logistics-label">{% translate "Registrations" %}</div>
-                            <div class="ed-logistics-value">{{ registration_count }} {% translate "registered" %}</div>
+                            <div class="ed-logistics-value">{{ registration_count }} {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مسجل{% else %}{% translate "Registered" %}{% endif %}</div>
                         </div>
                     </div>
                 </div>
@@ -1339,7 +1339,7 @@ html[dir="rtl"] .ai-badge-inline {
                 <div class="ed-deadline-date">{{ event.submission_deadline|date:"F d, Y" }}</div>
                 <span class="ed-deadline-countdown">
                     <i class="bi bi-clock"></i>
-                    {{ event.days_until_deadline }} {% translate "days left" %}
+                    {{ event.days_until_deadline }} {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأيام المتبقية{% else %}{% translate "Days Left" %}{% endif %}
                 </span>
             </div>
             {% endif %}
@@ -1350,3 +1350,4 @@ html[dir="rtl"] .ai-badge-inline {
 
 {% include "components/document_viewer_modal.html" %}
 {% endblock %}
+

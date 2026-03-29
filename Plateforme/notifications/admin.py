@@ -78,6 +78,7 @@ class NotificationAdmin(admin.ModelAdmin):
             'PROJECT_UPDATE': '#28a745',
             'TASK_ASSIGNED': '#ffc107',
             'LEAVE_REQUEST': '#dc3545',
+            'FOLLOW_REQUEST': '#0ea5e9',
             'COMMENT': '#6610f2',
             'MESSAGE': '#e83e8c',
             'EVENT_CREATED': '#fd7e14',

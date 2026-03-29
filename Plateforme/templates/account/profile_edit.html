@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
+        /* â”€â”€ Scoped reset â”€â”€ */
+        .profile-edit-container *,
+        .profile-edit-container *::before,
+        .profile-edit-container *::after {
             box-sizing: border-box;
         }
 
@@ -25,19 +26,8 @@
             --bg-light: #f8f9fa;
         }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e8eef7 100%);
-            min-height: 100vh;
-            padding: 0;
-        }
-
-        .header-banner {
+        /* â”€â”€ Header Banner â”€â”€ */
+        .pe-header-banner {
             background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, #4285f4 100%);
             height: 250px;
             position: relative;
@@ -93,20 +83,16 @@
             z-index: 10;
         }
 
-        .main-container {
-            max-width: 1000px;
-            margin: -80px auto 0;
-            padding: 0 20px;
+        /* â”€â”€ Main Wrapper â€“ does NOT conflict with base .main-container â”€â”€ */
+        .profile-edit-container {
+            max-width: 700px;
+            margin: 30px auto 0;
+            padding: 0;
             position: relative;
-            z-index: 5;
         }
 
-        .profile-summary {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-            margin-bottom: 30px;
+        /* â”€â”€ Avatar Section â€“ Instagram Style â”€â”€ */
+        .pe-avatar-section {
             text-align: center;
             display: grid;
             grid-template-columns: auto auto 1fr;
@@ -120,8 +106,10 @@
 
         .avatar-wrapper {
             position: relative;
-            display: inline-block;
-            margin-bottom: 20px;
+            padding: 4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            cursor: pointer;
         }
 
         .user-avatar {
@@ -161,33 +149,129 @@
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.2rem;
-            border: 5px solid white;
-            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4);
-        }
-
-        .avatar-input {
-            display: none;
-        }
-
-        .btn-choose-image {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 10px 22px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+            font-size: 0.8rem;
             cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.25);
+            transition: transform 0.2s, background 0.2s;
+            z-index: 5;
         }
 
-        .btn-choose-image:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.35);
+        html[dir="rtl"] .pe-camera-btn {
+            right: auto;
+            left: 4px;
+        }
+
+        .pe-camera-btn:hover {
+            transform: scale(1.1);
+            background: var(--pe-primary-dark);
+        }
+
+        /* â”€â”€ Avatar Preview Modal â”€â”€ */
+        .pe-photo-view-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            z-index: 10020;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .pe-photo-view-overlay.active {
+            display: flex;
+        }
+
+        .pe-photo-view-modal {
+            width: min(92vw, 520px);
+            background: #ffffff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+        }
+
+        .pe-photo-view-head {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 10px 12px;
+            border-bottom: 1px solid #eceff5;
+        }
+
+        .pe-photo-view-close {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid #dbe1ee;
+            background: #f8fafc;
+            color: #475569;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pe-photo-view-body {
+            padding: 14px 14px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+        }
+
+        .pe-photo-view-body img {
+            width: min(100%, 420px);
+            max-height: 62vh;
+            object-fit: contain;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+        }
+
+        .pe-photo-view-footer {
+            padding: 12px 14px 16px;
+            border-top: 1px solid #eceff5;
+            background: #ffffff;
+        }
+
+        .pe-photo-edit-btn {
+            width: 100%;
+            border: 1px solid #c4b5fd;
+            background: #ede9fe;
+            color: #6d28d9;
+            border-radius: 12px;
+            height: 44px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .pe-photo-edit-btn:hover {
+            background: #ddd6fe;
+            transform: translateY(-1px);
+        }
+
+        /* â”€â”€ Avatar Modal â”€â”€ */
+        .pe-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pe-modal-overlay.active {
+            display: flex;
         }
 
         .user-info {
@@ -207,26 +291,55 @@
             margin-bottom: 16px;
         }
 
-        .user-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            font-size: 0.9rem;
-            color: var(--text-light);
+        .pe-modal-title {
+            text-align: center;
+            padding: 20px 20px 16px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--pe-text-dark);
+            border-bottom: 1px solid #efefef;
+            margin: 0;
         }
 
-        .user-meta-item {
+        .pe-modal-btn {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 15px 20px;
+            border: none;
+            background: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+            font-family: inherit;
+            color: var(--pe-text-dark);
         }
 
-        .user-meta-item i {
+        .pe-modal-btn:hover {
+            background: #fafafa;
+        }
+
+        .pe-modal-btn i {
+            font-size: 1rem;
             width: 20px;
             color: var(--primary);
         }
 
-        .form-container {
+        .pe-modal-btn.remove {
+            color: #ed4956;
+            font-weight: 600;
+            border-bottom: 1px solid #efefef;
+        }
+
+        .pe-modal-btn.cancel {
+            color: var(--pe-text-light);
+        }
+
+        /* â”€â”€ Form Container â”€â”€ */
+        .pe-form-container {
             background: white;
             border-radius: 16px;
             padding: 40px;
@@ -266,7 +379,8 @@
             font-size: 0.9rem;
         }
 
-        .form-row {
+        /* â”€â”€ Single Column Form Rows â”€â”€ */
+        .pe-form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
@@ -355,16 +469,34 @@
         .error-list li {
             color: #dc3545;
             font-size: 0.8rem;
-            margin-bottom: 4px;
         }
 
-        .form-buttons {
+        /* â”€â”€ Alert Box â”€â”€ */
+        .pe-alert-box {
+            background: linear-gradient(135deg, rgba(52,168,83,0.1) 0%, rgba(52,168,83,0.04) 100%);
+            border-left: 4px solid var(--pe-secondary);
+            border-radius: 8px;
+            padding: 13px 16px;
+            margin-bottom: 22px;
+            font-size: 0.9rem;
+            color: #1e8449;
             display: flex;
-            flex-direction: row;
-            gap: 15px;
-            margin-top: 35px;
-            padding-top: 25px;
-            border-top: 2px solid var(--bg-light);
+            align-items: center;
+            gap: 10px;
+        }
+
+        html[dir="rtl"] .pe-alert-box {
+            border-left: none;
+            border-right: 4px solid var(--pe-secondary);
+        }
+
+        /* â”€â”€ Form Buttons â”€â”€ */
+        .pe-form-buttons {
+            display: flex;
+            gap: 14px;
+            margin-top: 30px;
+            padding-top: 22px;
+            border-top: 2px solid var(--pe-bg-light);
         }
 
         .btn-save,
@@ -406,29 +538,30 @@
             transform: translateY(-2px);
         }
 
-        .alert-box {
-            background: linear-gradient(135deg, rgba(52, 168, 83, 0.1) 0%, rgba(52, 168, 83, 0.05) 100%);
-            border-left: 4px solid var(--secondary);
-            border-radius: 8px;
-            padding: 14px;
-            margin-bottom: 25px;
-            font-size: 0.9rem;
-            color: #1e8449;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .alert-box i {
-            font-size: 1.1rem;
-            flex-shrink: 0;
-        }
-
-        .footer {
+        /* â”€â”€ Footer â”€â”€ */
+        .pe-footer {
             text-align: center;
-            padding: 40px 20px;
-            color: var(--text-light);
-            font-size: 0.9rem;
+            padding: 25px 0;
+            color: var(--pe-text-light);
+            font-size: 0.85rem;
+        }
+
+        /* â”€â”€ Hide native file input & legacy fields â”€â”€ */
+        .pe-hidden-fields {
+            display: block !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            position: absolute !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -9999 !important;
+            clip: rect(0, 0, 0, 0) !important;
+        }
+
+        /* â”€â”€ RTL Support â”€â”€ */
+        html[dir="rtl"] .pe-section-title {
+            flex-direction: row-reverse;
         }
 
         @media (max-width: 768px) {
@@ -439,36 +572,43 @@
                 padding: 30px;
             }
 
-            .user-info {
-                text-align: center;
-            }
-
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .form-buttons {
-                flex-direction: column;
-            }
-
-            .page-title {
-                font-size: 1.5rem;
-                top: 80px;
-            }
-
-            .form-container {
-                padding: 25px;
-            }
+        html[dir="rtl"] .pe-form-group input[type="url"] {
+            text-align: left;
+            direction: ltr;
         }
 
-        @media (max-width: 480px) {
-            .header-banner {
-                height: 200px;
-            }
+        html[dir="rtl"] .pe-form-buttons {
+            flex-direction: row-reverse;
+        }
 
-            .main-container {
-                margin: -60px auto 0;
+        html[dir="rtl"] .pe-btn-save,
+        html[dir="rtl"] .pe-btn-secondary {
+            flex-direction: row-reverse;
+        }
+
+        html[dir="rtl"] .pe-back-btn i {
+            transform: scaleX(-1);
+        }
+
+        html[dir="rtl"] .pe-camera-btn {
+            left: auto;
+            right: 5px;
+        }
+
+        html[dir="rtl"] .pe-help-text {
+            text-align: right;
+        }
+
+        html[dir="rtl"] .pe-footer {
+            text-align: center;
+        }
+
+        /* â”€â”€ Responsive â”€â”€ */
+        @media (max-width: 768px) {
+            .pe-header-banner {
+                margin: -20px -20px 0 -20px;
+                height: 130px;
+                border-radius: 0;
             }
 
             .profile-summary {
@@ -511,24 +651,28 @@
         <h1 class="page-title">{% trans "Edit Profile" %}</h1>
     </div>
 
-    <!-- Main Container -->
-    <div class="main-container">
-        <!-- Profile Summary Card -->
-        <div class="profile-summary">
-            <div class="avatar-section">
-                <div class="avatar-wrapper">
-                    {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}" class="user-avatar" id="avatarPreview">
-                    {% else %}
-                        <div class="avatar-placeholder" id="avatarPreview">
-                            <i class="fas fa-user"></i>
-                        </div>
-                    {% endif %}
-                    {% if user.is_verified %}
-                        <div class="verify-badge">
-                            <i class="fas fa-check"></i>
-                        </div>
-                    {% endif %}
+    <!-- Main Wrapper -->
+    <div class="profile-edit-container">
+
+        <!-- Hidden legacy fields (Django needs them rendered) -->
+        <div class="pe-hidden-fields">
+            {{ form.full_name }}
+            {{ form.bio }}
+
+        </div>
+
+        <!-- â”€â”€ Instagram-Style Avatar â”€â”€ -->
+        <div class="pe-avatar-section">
+            <div class="pe-avatar-ring" id="avatarRing">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" id="avatarPreview">
+                {% else %}
+                    <div class="pe-avatar-placeholder" id="avatarPreview">
+                        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><circle cx="60" cy="42" r="22" fill="#fff"/><ellipse cx="60" cy="106" rx="38" ry="30" fill="#fff"/></svg>
+                    </div>
+                {% endif %}
+                <div class="pe-camera-btn" id="cameraBtn" title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تغيير صورة الملف الشخصي{% else %}{% trans "Change Profile Photo" %}{% endif %}">
+                    <i class="fas fa-camera"></i>
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" class="avatar-input">
                 <button type="button" class="btn-choose-image" onclick="document.getElementById('avatarInput').click()">
@@ -536,40 +680,45 @@
                 </button>
             </div>
 
-            <div style="flex: 1;"></div>
+        <!-- â”€â”€ Avatar Modal â”€â”€ -->
+        <div class="pe-modal-overlay" id="avatarModal">
+            <div class="pe-modal">
+                <h3 class="pe-modal-title">{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تغيير صورة الملف الشخصي{% else %}{% trans "Change Profile Photo" %}{% endif %}</h3>
+                <button type="button" class="pe-modal-btn upload" id="modalUploadBtn">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}رفع صورة جديدة{% else %}{% trans "Upload New Photo" %}{% endif %}
+                </button>
+                <button type="button" class="pe-modal-btn remove" id="modalRemoveBtn">
+                    <i class="fas fa-trash-alt"></i>
+                    {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إزالة الصورة الحالية{% else %}{% trans "Remove Current Photo" %}{% endif %}
+                </button>
+                <button type="button" class="pe-modal-btn cancel" id="modalCancelBtn">
+                    {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
+                </button>
+            </div>
+        </div>
 
-            <div class="user-info">
-                <div class="user-name">
-                    {{ user.first_name }} {{ user.last_name }}
-                    {% if user.is_verified %}
-                        <i class="fas fa-badge-check" style="color: var(--secondary); margin-left: 8px;"></i>
-                    {% endif %}
+        <div class="pe-photo-view-overlay" id="avatarPreviewModal" onclick="if(event.target===this){this.classList.remove('active');var img=document.getElementById('avatarPreviewLarge');if(img){img.src='';}}">
+            <div class="pe-photo-view-modal" role="dialog" aria-modal="true">
+                <div class="pe-photo-view-head">
+                    <button type="button" class="pe-photo-view-close" id="avatarPreviewClose" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إغلاق{% else %}{% trans 'Close' %}{% endif %}" onclick="var m=document.getElementById('avatarPreviewModal');if(m){m.classList.remove('active');}var img=document.getElementById('avatarPreviewLarge');if(img){img.src='';}">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div class="user-email">{{ user.email }}</div>
-                <div class="user-meta">
-                    <div class="user-meta-item">
-                        <i class="fas fa-calendar"></i>
-                        <span>{% trans "Member since" %} {{ user.date_joined|date:"M Y" }}</span>
-                    </div>
-                    {% if user.account.institution %}
-                    <div class="user-meta-item">
-                        <i class="fas fa-university"></i>
-                        <span>{{ user.account.institution.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if user.account.country %}
-                    <div class="user-meta-item">
-                        <i class="fas fa-globe"></i>
-                        <span>{{ user.account.country }}</span>
-                    </div>
-                    {% endif %}
+                <div class="pe-photo-view-body">
+                    <img id="avatarPreviewLarge" src="" alt="{{ user.get_full_name_display }}">
+                </div>
+                <div class="pe-photo-view-footer">
+                    <button type="button" class="pe-photo-edit-btn" id="avatarPreviewEditBtn">
+                        <i class="fas fa-pen"></i>
+                        {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تعديل{% else %}{% trans "Edit" %}{% endif %}
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Form Container -->
-        <div class="form-container">
-            <form method="post" enctype="multipart/form-data" novalidate>
+        <div class="pe-form-container">
+            <form method="post" enctype="multipart/form-data" novalidate id="profileForm">
                 {% csrf_token %}
 
                 {% if messages %}
@@ -580,10 +729,9 @@
                     {% endfor %}
                 {% endif %}
 
-                <!-- Basic Information Section -->
-                {% if form.first_name or form.last_name or form.phone %}
-                <div class="form-section">
-                    <div class="section-title">
+                <!-- â–¸ Basic Information -->
+                <div class="pe-form-section">
+                    <div class="pe-section-title">
                         <i class="fas fa-user-circle"></i>
                         {% trans "Basic Information" %}
                     </div>
@@ -659,12 +807,11 @@
                 </div>
                 {% endif %}
 
-                <!-- Location & Institution Section -->
-                {% if form.country or form.institution or form.city %}
-                <div class="form-section">
-                    <div class="section-title">
-                        <i class="fas fa-map-marker-alt"></i>
-                        {% trans "Location & Institution" %}
+                <!-- â–¸ Biography -->
+                <div class="pe-form-section">
+                    <div class="pe-section-title">
+                        <i class="fas fa-pen-fancy"></i>
+                        {% trans "Biography" %}
                     </div>
                     <div class="form-row">
                         {% if form.country %}
@@ -690,24 +837,43 @@
                         </div>
                         {% endif %}
                     </div>
-                    {% if form.institution %}
-                    <div class="form-group">
-                        <label for="{{ form.institution.id_for_label }}">
-                            {{ form.institution.label }}
-                            {% if form.institution.field.required %}<span class="required">*</span>{% endif %}
-                        </label>
-                        {{ form.institution }}
-                        {% if form.institution.help_text %}<div class="help-text">{{ form.institution.help_text|safe }}</div>{% endif %}
-                        {% if form.institution.errors %}<ul class="error-list">{% for error in form.institution.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
-                    </div>
-                    {% endif %}
                 </div>
-                {% endif %}
 
-                <!-- Additional Information Section -->
-                {% if form.linkedin or form.website or form.specialty %}
-                <div class="form-section">
-                    <div class="section-title">
+                <!-- â–¸ Institution & Specialization -->
+                <div class="pe-form-section">
+                    <div class="pe-section-title">
+                        <i class="fas fa-university"></i>
+                        {% trans "Institution & Specialization" %}
+                    </div>
+                    <div class="pe-form-row">
+                        {% if form.institution %}
+                        <div class="pe-form-group">
+                            <label for="{{ form.institution.id_for_label }}">
+                                {{ form.institution.label }}
+                                {% if form.institution.field.required %}<span class="required">*</span>{% endif %}
+                            </label>
+                            {{ form.institution }}
+                            {% if form.institution.help_text %}<div class="pe-help-text">{{ form.institution.help_text|safe }}</div>{% endif %}
+                            {% if form.institution.errors %}<ul class="pe-error-list">{% for e in form.institution.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.speciality %}
+                        <div class="pe-form-group">
+                            <label for="{{ form.speciality.id_for_label }}">
+                                {{ form.speciality.label }}
+                            </label>
+                            {{ form.speciality }}
+                            {% if form.speciality.help_text %}<div class="pe-help-text">{{ form.speciality.help_text|safe }}</div>{% endif %}
+                            {% if form.speciality.errors %}<ul class="pe-error-list">{% for e in form.speciality.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- â–¸ Social & Web -->
+                <div class="pe-form-section">
+                    <div class="pe-section-title">
                         <i class="fas fa-link"></i>
                         {% trans "Social & Web" %}
                     </div>
@@ -749,7 +915,7 @@
                 </div>
                 {% endif %}
 
-                <!-- Other Fields -->
+                <!-- â–¸ Catch-all for any remaining fields -->
                 {% for field in form %}
                     {% if field.name not in 'avatar,first_name,last_name,phone,email,bio,country,city,institution,linkedin,website,specialty' %}
                         <div class="form-section">
@@ -766,9 +932,9 @@
                     {% endif %}
                 {% endfor %}
 
-                <!-- Form Buttons -->
-                <div class="form-buttons">
-                    <button type="submit" class="btn-save">
+                <!-- â–¸ Buttons -->
+                <div class="pe-form-buttons">
+                    <button type="submit" class="pe-btn-save">
                         <i class="fas fa-save"></i>
                         {% trans "Save Changes" %}
                     </button>
@@ -786,40 +952,151 @@
         </div>
     </div>
 
+    <!-- â”€â”€ JavaScript â”€â”€ -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const avatarInput = document.getElementById('avatarInput');
-            const avatarPreview = document.getElementById('avatarPreview');
-            
-            if (avatarInput && avatarPreview) {
-                avatarInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        // Check file size (max 5MB)
-                        if (file.size > 5 * 1024 * 1024) {
-                            alert('{% trans "File size must be less than 5MB" %}');
-                            return;
-                        }
-                        
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            if (avatarPreview.tagName === 'IMG') {
-                                avatarPreview.src = event.target.result;
-                            } else {
-                                const img = document.createElement('img');
-                                img.src = event.target.result;
-                                img.alt = 'Avatar Preview';
-                                img.className = 'user-avatar';
-                                img.id = 'avatarPreview';
-                                avatarPreview.parentNode.replaceChild(img, avatarPreview);
-                            }
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        const cameraBtn     = document.getElementById('cameraBtn');
+        const avatarRing    = document.getElementById('avatarRing');
+        const modal         = document.getElementById('avatarModal');
+        const uploadBtn     = document.getElementById('modalUploadBtn');
+        const removeBtn     = document.getElementById('modalRemoveBtn');
+        const cancelBtn     = document.getElementById('modalCancelBtn');
+        const previewModal  = document.getElementById('avatarPreviewModal');
+        const previewClose  = document.getElementById('avatarPreviewClose');
+        const previewEditBtn = document.getElementById('avatarPreviewEditBtn');
+        const previewLarge  = document.getElementById('avatarPreviewLarge');
+        const avatarInput   = document.getElementById('avatarInput');
+        const form          = document.getElementById('profileForm');
+
+        function openPreviewModal() {
+            var img = document.getElementById('avatarPreview');
+            if (!previewModal || !previewLarge || !img || img.tagName !== 'IMG' || !img.src) return;
+            previewLarge.src = img.src;
+            previewModal.classList.add('active');
+        }
+
+        function closePreviewModal() {
+            if (!previewModal) return;
+            previewModal.classList.remove('active');
+            if (previewLarge) previewLarge.src = '';
+        }
+
+        /* â”€â”€ Open modal â”€â”€ */
+        if (cameraBtn) {
+            cameraBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                modal.classList.add('active');
+            });
+        }
+        if (avatarRing) {
+            avatarRing.addEventListener('click', function(e) {
+                if (e.target.closest('#cameraBtn')) return;
+                openPreviewModal();
+            });
+        }
+
+        /* â”€â”€ Close helpers â”€â”€ */
+        function closeModal() { modal.classList.remove('active'); }
+
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
         });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) closeModal();
+            if (e.key === 'Escape' && previewModal && previewModal.classList.contains('active')) closePreviewModal();
+        });
+
+        if (previewClose) previewClose.addEventListener('click', closePreviewModal);
+        if (previewModal) {
+            previewModal.addEventListener('click', function(e) {
+                if (e.target === previewModal) closePreviewModal();
+            });
+        }
+        if (previewEditBtn) {
+            previewEditBtn.addEventListener('click', function() {
+                closePreviewModal();
+                modal.classList.add('active');
+            });
+        }
+
+        /* â”€â”€ Upload â”€â”€ */
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', function() {
+                avatarInput.click();
+                closeModal();
+            });
+        }
+
+        /* â”€â”€ Remove avatar â”€â”€ */
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                var ring = document.querySelector('.pe-avatar-ring');
+                var placeholder = document.createElement('div');
+                placeholder.className = 'pe-avatar-placeholder';
+                placeholder.id = 'avatarPreview';
+                placeholder.innerHTML = '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><circle cx="60" cy="42" r="22" fill="#fff"/><ellipse cx="60" cy="106" rx="38" ry="30" fill="#fff"/></svg>';
+
+                var current = document.getElementById('avatarPreview');
+                if (current) ring.replaceChild(placeholder, current);
+
+                // Signal backend to clear
+                var clearInput = document.getElementById('avatar-clear');
+                if (!clearInput) {
+                    clearInput = document.createElement('input');
+                    clearInput.type = 'hidden';
+                    clearInput.name = 'avatar-clear';
+                    clearInput.id = 'avatar-clear';
+                    form.appendChild(clearInput);
+                }
+                clearInput.value = 'on';
+
+                closeModal();
+            });
+        }
+
+        /* â”€â”€ Live preview on file select â”€â”€ */
+        if (avatarInput) {
+            avatarInput.addEventListener('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+
+                if (file.size > 5 * 1024 * 1024) {
+                    alert("{% trans 'File size must be less than 5MB' %}");
+                    avatarInput.value = '';
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var ring = document.querySelector('.pe-avatar-ring');
+                    var img  = document.getElementById('avatarPreview');
+
+                    if (!img || img.tagName !== 'IMG') {
+                        var newImg = document.createElement('img');
+                        newImg.id  = 'avatarPreview';
+                        newImg.alt = 'Preview';
+                        if (img) ring.replaceChild(newImg, img);
+                        img = newImg;
+                    }
+                    img.src = ev.target.result;
+                    if (previewLarge && previewModal && previewModal.classList.contains('active')) {
+                        previewLarge.src = ev.target.result;
+                    }
+
+                    // Remove clear signal
+                    var clearInput = document.getElementById('avatar-clear');
+                    if (clearInput) clearInput.remove();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    });
     </script>
-</body>
-</html>
+{% endblock content %}
+
+
+
 

@@ -276,7 +276,6 @@ SpeakerFormSet = inlineformset_factory(
         "affiliation",
         "bio",
         "talk_title",
-        "talk_abstract",
         "website",
         "avatar",
         "order",

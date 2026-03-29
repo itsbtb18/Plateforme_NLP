@@ -7,10 +7,11 @@ import mimetypes
 import re
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from django.db.models import Manager, QuerySet
-from typing import Any
+from typing import Any, cast
 from datetime import datetime, date
 from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
+from django.utils import timezone
 
 class User(models.Model):
     id: int
@@ -22,14 +23,47 @@ class User(models.Model):
 class ProjectMemberQuerySet(QuerySet["ProjectMember"]): ...
 
 class ProjectMemberManager(Manager["ProjectMember"]):
-    def filter(self, *args: Any, **kwargs: Any) -> ProjectMemberQuerySet: ...
-    def get(self, *args: Any, **kwargs: Any) -> "ProjectMember": ...
+    def filter(self, *args: Any, **kwargs: Any) -> ProjectMemberQuerySet:
+        return cast(ProjectMemberQuerySet, super().filter(*args, **kwargs))
+
+    def get(self, *args: Any, **kwargs: Any) -> "ProjectMember":
+        return cast("ProjectMember", super().get(*args, **kwargs))
 
 class ProjectQuerySet(QuerySet["Project"]): ...
 
 class ProjectManager(Manager["Project"]):
-    def filter(self, *args: Any, **kwargs: Any) -> ProjectQuerySet: ...
-    def get(self, *args: Any, **kwargs: Any) -> "Project": ...
+    def filter(self, *args: Any, **kwargs: Any) -> ProjectQuerySet:
+        return cast(ProjectQuerySet, super().filter(*args, **kwargs))
+
+    def get(self, *args: Any, **kwargs: Any) -> "Project":
+        return cast("Project", super().get(*args, **kwargs))
+
+
+class ProjectSoftDeleteQuerySet(ProjectQuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        return self.filter(is_deleted=True)
+
+    def delete(self):
+        return super().update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+
+class ActiveProjectManager(ProjectManager):
+    def get_queryset(self):
+        return ProjectSoftDeleteQuerySet(self.model, using=self._db).filter(
+            is_deleted=False
+        )
+
+
+class AllProjectManager(ProjectManager):
+    def get_queryset(self):
+        return ProjectSoftDeleteQuerySet(self.model, using=self._db)
+
 
 class Project(models.Model):
     STATUS_CHOICES = (
@@ -103,6 +137,18 @@ class Project(models.Model):
     attachment = models.FileField(upload_to='project_attachments/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_projects_set",
+    )
+
+    objects = ActiveProjectManager()
+    all_objects = AllProjectManager()
 
     class Meta:
         ordering = ['-date_start', 'title']
@@ -152,6 +198,22 @@ class Project(models.Model):
 
     def get_absolute_url(self):
         return reverse('projects:project_detail', kwargs={'pk': self.pk})
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and getattr(user, "is_authenticated", False):
+            self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def hard_delete(self):
+        super().delete()
 
 
 class ProjectMember(models.Model):

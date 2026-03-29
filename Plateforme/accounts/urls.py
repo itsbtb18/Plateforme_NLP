@@ -4,7 +4,8 @@ from .views import (
     InviteToProjectView, RespondToProjectInviteView,
     awaiting_verification_view, delete_account, custom_logout,
     NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api,
-    set_online_visibility_api, follow_user, unfollow_user
+    set_online_visibility_api, follow_user, unfollow_user, follow_list_api, remove_follower,
+    TrashBinView, trash_restore_item, trash_delete_item
 )
 from .two_factor_views import (
     OTPVerificationView,
@@ -28,7 +29,12 @@ urlpatterns = [
     path('network/<uuid:user_id>/<str:action>/', friendship_action, name='friendship_action'),
     path('network/follow/<uuid:user_id>/', follow_user, name='follow_user'),
     path('network/unfollow/<uuid:user_id>/', unfollow_user, name='unfollow_user'),
+    path('network/follow-list/<uuid:user_id>/', follow_list_api, name='follow_list_api'),
+    path('network/remove-follower/<uuid:user_id>/', remove_follower, name='remove_follower'),
     path('profile/<uuid:pk>/invite/', InviteToProjectView.as_view(), name='invite_to_project'),
+    path('trash/', TrashBinView.as_view(), name='trash'),
+    path('trash/<str:content_type>/<uuid:pk>/restore/', trash_restore_item, name='trash_restore'),
+    path('trash/<str:content_type>/<uuid:pk>/delete/', trash_delete_item, name='trash_delete'),
     path('project/<uuid:project_id>/respond-invite/', RespondToProjectInviteView.as_view(), name='respond_project_invite'),
     # path('my-content/', my_content_view, name='my_content'),  # TODO: Fix import issue
     path('awaiting-verification/', awaiting_verification_view, name='awaiting_verification'),

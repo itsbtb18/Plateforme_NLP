@@ -141,11 +141,8 @@ class ModeratedContentCreationMixin:
                     _("Your submission has been published successfully!")
                 )
             else:
-                messages.info(
-                    self.request,
-                    _("Your submission has been received and is pending admin review. "
-                      "It will be visible to the public once approved.")
-                )
+                # No informational banner for pending submissions (per UI requirement).
+                pass
             
             return response
             

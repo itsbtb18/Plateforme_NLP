@@ -5,6 +5,7 @@ from django.core.validators import EmailValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _, get_language
 from .models import CustomUser
+from institutions.models import Institution
 import re
 
 
@@ -25,6 +26,17 @@ def get_bilingual_labels():
             'bio_ar': _("Biography (Arabic)"),
             'bio_en': _("Biography (English)"),
         }
+
+
+def get_algerian_institutions_queryset():
+    """
+    Return Algerian institutions for account forms.
+    Fallback to all institutions if DZ-tagged rows are unavailable.
+    """
+    qs = Institution.objects.filter(country__code__iexact="DZ").order_by("name")
+    if qs.exists():
+        return qs
+    return Institution.objects.all().order_by("name")
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -92,6 +104,7 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['email'].label = _("Email Address")
         self.fields['institution'].label = _("Institution")
         self.fields['institution'].widget.attrs.update({'class': 'form-select'})
+        self.fields['institution'].queryset = get_algerian_institutions_queryset()
         
         # Password fields with enhanced security labels
         self.fields['password1'].label = _("Password")
@@ -294,6 +307,7 @@ class CustomUserChangeForm(UserChangeForm):
         
         self.fields['institution'].label = _("Institution")
         self.fields['institution'].widget.attrs.update({'class': 'form-select'})
+        self.fields['institution'].queryset = get_algerian_institutions_queryset()
         
         self.fields['bio'].label = _("Biography (Legacy)")
         self.fields['bio'].widget.attrs.update({'class': 'form-control d-none'})  # Hide legacy field
