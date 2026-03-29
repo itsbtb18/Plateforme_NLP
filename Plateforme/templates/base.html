@@ -1655,6 +1655,33 @@
             </ul>
 
             <div class="header-actions">
+                <div class="search-dropdown-container action-dropdown-container">
+                    <button class="action-btn icon-btn search-icon-btn"
+                            id="searchIconBtn"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="{% trans 'Search' %}">
+                        <i class="fas fa-search"></i>
+                        <span class="btn-label">{% trans "Search" %}</span>
+                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-panel search-dropdown" id="searchDropdown" role="menu" aria-labelledby="searchIconBtn">
+                        <form class="search-form" method="get" action="{% url 'search:global_search' %}" style="padding: 1rem;">
+                            <div class="search-input-wrapper">
+                                <input type="text" 
+                                       name="q" 
+                                       class="search-input" 
+                                       placeholder="{% trans 'Search...' %}"
+                                       autocomplete="off">
+                                <button type="submit" class="search-submit-btn">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="language-dropdown-container action-dropdown-container">
                     <button class="action-btn icon-btn language-icon-btn"
                             id="languageIconBtn"
@@ -1663,7 +1690,7 @@
                             aria-expanded="false"
                             title="{% trans 'Language' %}">
                         <i class="fas fa-globe"></i>
-                        <span class="btn-label">{% trans "Language" %}</span>
+                        <span class="btn-label">{% if LANGUAGE_CODE == 'en' %}EN{% elif LANGUAGE_CODE == 'ar' %}AR{% endif %}</span>
                         <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                     </button>
                     <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
@@ -2102,19 +2129,18 @@
     .chatbot-button {
         position: fixed;
         bottom: 30px;
-        background-color: #007bff;
-        color: white;
+        background-color: #A78BFA;
+        color: white; 
         padding: 15px 18px;
         border-radius: 50%;
         text-decoration: none;
         font-size: 24px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.3);
         z-index: 1000;
         transition: 0.3s;
     }
     .chatbot-button:hover {
         transform: scale(1.1);
-        background-color: #0056b3;
+        background-color: white;
     }
     html[dir="ltr"] .chatbot-button {
         right: 30px;
@@ -2732,6 +2758,10 @@
             // Language dropdown toggle
             const languageIconBtn = document.getElementById('languageIconBtn');
             const languageDropdown = document.getElementById('languageDropdown');
+            
+            // Search dropdown toggle
+            const searchIconBtn = document.getElementById('searchIconBtn');
+            const searchDropdown = document.getElementById('searchDropdown');
 
             if (languageIconBtn && languageDropdown) {
                 languageIconBtn.addEventListener('click', function(e) {
@@ -2748,6 +2778,11 @@
                         profileDropdown.classList.remove('show');
                     }
                     
+                    // Close search dropdown if open
+                    if (searchDropdown && searchDropdown.classList.contains('show')) {
+                        searchDropdown.classList.remove('show');
+                    }
+                    
                     // Toggle language dropdown
                     languageDropdown.classList.toggle('show');
                 });
@@ -2757,6 +2792,44 @@
                     if (e.target.tagName !== 'A' && !e.target.closest('a')) {
                         e.stopPropagation();
                     }
+                });
+            }
+
+            if (searchIconBtn && searchDropdown) {
+                searchIconBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Close notification dropdown if open
+                    if (notificationDropdown && notificationDropdown.classList.contains('show')) {
+                        notificationDropdown.classList.remove('show');
+                    }
+                    
+                    // Close profile dropdown if open
+                    if (profileDropdown && profileDropdown.classList.contains('show')) {
+                        profileDropdown.classList.remove('show');
+                    }
+                    
+                    // Close language dropdown if open
+                    if (languageDropdown && languageDropdown.classList.contains('show')) {
+                        languageDropdown.classList.remove('show');
+                    }
+                    
+                    // Toggle search dropdown
+                    searchDropdown.classList.toggle('show');
+                    
+                    // Focus on search input when opened
+                    if (searchDropdown.classList.contains('show')) {
+                        const searchInput = searchDropdown.querySelector('.search-input');
+                        if (searchInput) {
+                            searchInput.focus();
+                        }
+                    }
+                });
+
+                // Prevent dropdown from closing when clicking inside
+                searchDropdown.addEventListener('click', function(e) {
+                    e.stopPropagation();
                 });
             }
             
@@ -2786,6 +2859,15 @@
                     !languageIconBtn.contains(e.target)) {
                     languageDropdown.classList.remove('show');
                     if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                // Add search dropdown closing
+                if (searchDropdown && 
+                    !searchDropdown.contains(e.target) && 
+                    searchIconBtn && 
+                    !searchIconBtn.contains(e.target)) {
+                    searchDropdown.classList.remove('show');
+                    if (searchIconBtn) searchIconBtn.setAttribute('aria-expanded', 'false');
                 }
             });
             
@@ -3385,13 +3467,15 @@
             ntfToggle.setAttribute('aria-expanded', 'false');
         }
         
-        // Close other dropdowns (profile, language)
+        // Close other dropdowns (profile, language, search)
         function closeOtherDropdowns() {
             const profileDropdown = document.getElementById('profileDropdown');
             const languageDropdown = document.getElementById('languageDropdown');
+            const searchDropdown = document.getElementById('searchDropdown');
             
             if (profileDropdown) profileDropdown.classList.remove('show');
             if (languageDropdown) languageDropdown.classList.remove('show');
+            if (searchDropdown) searchDropdown.classList.remove('show');
         }
         
         // Load notifications via AJAX
