@@ -5,7 +5,8 @@ from .views import (
     awaiting_verification_view, delete_account, custom_logout,
     NetworkInvitationsView, friendship_action, blocked_users_api, invitations_count_api,
     set_online_visibility_api, follow_user, unfollow_user, follow_list_api, remove_follower,
-    TrashBinView, trash_restore_item, trash_delete_item
+    TrashBinView, trash_restore_item, trash_delete_item,
+    ExperienceCreateView, ExperienceUpdateView, ExperienceDeleteView,
 )
 from .two_factor_views import (
     OTPVerificationView,
@@ -22,6 +23,9 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='account_login'),
     path('profile/<uuid:pk>/', ProfileView.as_view(), name='profile'),
     path('profile/<uuid:pk>/edit/', ProfileEditView.as_view(), name='profile-edit'),
+    path('profile/experience/add/', ExperienceCreateView.as_view(), name='experience_add'),
+    path('profile/experience/<int:pk>/edit/', ExperienceUpdateView.as_view(), name='experience_edit'),
+    path('profile/experience/<int:pk>/delete/', ExperienceDeleteView.as_view(), name='experience_delete'),
     path('network/invitations/', NetworkInvitationsView.as_view(), name='network_invitations'),
     path('network/invitations/count/', invitations_count_api, name='invitations_count_api'),
     path('network/online-visibility/', set_online_visibility_api, name='set_online_visibility_api'),

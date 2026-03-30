@@ -28,8 +28,8 @@ from notifications.services import LocalizedValue, NotificationService
 from pages.security import log_admin_activity
 from projects.models import Project, ProjectMember
 
-from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import Follow, Friendship
+from .forms import CustomUserChangeForm, CustomUserCreationForm, ExperienceForm
+from .models import Experience, Follow, Friendship
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
 from .two_factor_utils import generate_otp, send_otp, store_otp
@@ -410,7 +410,7 @@ class ProfileView(DetailView):
             members__member=profile_user, members__status="accepted"
         ).distinct()
 
-        from QA.models import Post
+        from feed.models import Post
 
         user_posts_qs = Post.objects.filter(author=profile_user).order_by("-created_at")
 
@@ -476,6 +476,39 @@ class ProfileView(DetailView):
             )
 
         experiences = []
+
+        manual_experiences_qs = Experience.objects.filter(user=profile_user).order_by(
+            "-start_date", "-created_at"
+        )
+
+        for experience in manual_experiences_qs:
+            experiences.append(
+                {
+                    "kind": "manual",
+                    "kind_label": experience.get_experience_type_display(),
+                    "icon": "fa-briefcase",
+                    "title": experience.institution_name,
+                    "subtitle": experience.description or "",
+                    "role": experience.role_title,
+                    "description": experience.description or "",
+                    "url": reverse(
+                        "accounts:profile",
+                        kwargs={"pk": profile_user.pk},
+                    ),
+                    "started_at": experience.start_date,
+                    "ended_at": experience.end_date,
+                    "sort_date": experience.start_date,
+                    "can_manage": is_own_profile or bool(viewer and viewer.is_staff),
+                    "edit_url": reverse(
+                        "accounts:experience_edit",
+                        kwargs={"pk": experience.pk},
+                    ),
+                    "delete_url": reverse(
+                        "accounts:experience_delete",
+                        kwargs={"pk": experience.pk},
+                    ),
+                }
+            )
 
         for project in coordinated_projects_qs.select_related("institution").order_by(
             "-created_at"
@@ -668,6 +701,78 @@ class ProfileEditView(LoginRequiredMixin, UpdateView):
     def form_invalid(self, form: Any) -> Any:
         messages.error(self.request, _("Please correct the errors in the form."))
         return super().form_invalid(form)
+
+
+class ExperienceOwnerMixin(LoginRequiredMixin):
+    model = Experience
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if user.is_staff:
+            return queryset
+        return queryset.filter(user=user)
+
+
+class ExperienceCreateView(LoginRequiredMixin, CreateView):
+    model = Experience
+    form_class = ExperienceForm
+    template_name = "account/experience_form.html"
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, _("Experience added successfully."))
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("accounts:profile", kwargs={"pk": self.request.user.pk})
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["experience_mode"] = "create"
+        return context
+
+
+class ExperienceUpdateView(ExperienceOwnerMixin, UpdateView):
+    form_class = ExperienceForm
+    template_name = "account/experience_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, _("Experience updated successfully."))
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("accounts:profile", kwargs={"pk": self.object.user.pk})
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["experience_mode"] = "edit"
+        return context
+
+
+class ExperienceDeleteView(ExperienceOwnerMixin, View):
+    template_name = "account/experience_confirm_delete.html"
+
+    def get_object(self):
+        return get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        experience = self.get_object()
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": experience,
+                "experience": experience,
+            },
+        )
+
+    def post(self, request: Any, *args: Any, **kwargs: Any) -> Any:
+        experience = self.get_object()
+        profile_pk = experience.user.pk
+        experience.delete()
+        messages.success(request, _("Experience deleted successfully."))
+        return redirect("accounts:profile", pk=profile_pk)
 
 
 # --------------------------

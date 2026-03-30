@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
 
 User = get_user_model()
 
@@ -367,3 +368,126 @@ class SecurityLog(models.Model):
     def __str__(self):
         actor = getattr(self.user, 'email', 'anonymous')
         return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"
+
+
+def news_cover_upload_to(instance, filename):
+    return f"news/covers/{timezone.now():%Y/%m}/{filename}"
+
+
+def news_pdf_upload_to(instance, filename):
+    return f"news/pdfs/{timezone.now():%Y/%m}/{filename}"
+
+
+class NewsPublication(models.Model):
+    TYPE_PAPER = "paper"
+    TYPE_DATASET = "dataset"
+    TYPE_TOOL = "tool"
+    TYPE_EVENT = "event"
+    TYPE_THESIS = "thesis"
+    TYPE_NEWS = "news"
+
+    STATUS_DRAFT = "draft"
+    STATUS_PUBLISHED = "published"
+
+    TYPE_CHOICES = [
+        (TYPE_PAPER, _("Paper")),
+        (TYPE_DATASET, _("Dataset")),
+        (TYPE_TOOL, _("Tool")),
+        (TYPE_EVENT, _("Event")),
+        (TYPE_THESIS, _("Thesis")),
+        (TYPE_NEWS, _("News")),
+    ]
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, _("Draft")),
+        (STATUS_PUBLISHED, _("Published")),
+    ]
+
+    title = models.CharField(max_length=120)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_NEWS)
+    abstract = models.TextField(validators=[MinLengthValidator(150)])
+    authors = models.JSONField(default=list, blank=True)
+    affiliations = models.CharField(max_length=255, blank=True, default="")
+    year = models.IntegerField(
+        validators=[MinValueValidator(1900), MaxValueValidator(2100)],
+        default=timezone.now().year,
+    )
+    venue = models.CharField(max_length=255, blank=True, default="")
+    nlp_tasks = models.JSONField(default=list, blank=True)
+    languages = models.JSONField(default=list, blank=True)
+    keywords = models.JSONField(default=list, blank=True)
+    doi = models.CharField(max_length=255, blank=True, null=True)
+    pdf_url = models.URLField(blank=True, null=True)
+    github_url = models.URLField(blank=True, null=True)
+    dataset_url = models.URLField(blank=True, null=True)
+    demo_url = models.URLField(blank=True, null=True)
+    cover_image = models.ImageField(upload_to=news_cover_upload_to, blank=True, null=True)
+    pdf_file = models.FileField(upload_to=news_pdf_upload_to, blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PUBLISHED,
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="news_publications",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-year", "-created_at"]
+        indexes = [
+            models.Index(fields=["type", "status"]),
+            models.Index(fields=["year", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
+        verbose_name = _("News Publication")
+        verbose_name_plural = _("News Publications")
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+
+        return reverse("pages:publication_detail", kwargs={"publication_id": self.pk})
+
+    @property
+    def authors_display(self):
+        return ", ".join(self.authors or [])
+
+    @property
+    def cover_image_url(self):
+        if self.cover_image:
+            return self.cover_image.url
+        return ""
+
+    @property
+    def pdf_file_url(self):
+        if self.pdf_file:
+            return self.pdf_file.url
+        return ""
+
+    @property
+    def type_icon(self):
+        return {
+            self.TYPE_PAPER: "fa-file-lines",
+            self.TYPE_DATASET: "fa-database",
+            self.TYPE_TOOL: "fa-screwdriver-wrench",
+            self.TYPE_EVENT: "fa-calendar-days",
+            self.TYPE_THESIS: "fa-graduation-cap",
+            self.TYPE_NEWS: "fa-newspaper",
+        }.get(self.type, "fa-newspaper")
+
+    @property
+    def type_color(self):
+        return {
+            self.TYPE_PAPER: "#3B82F6",
+            self.TYPE_DATASET: "#1D9E75",
+            self.TYPE_TOOL: "#F59E0B",
+            self.TYPE_EVENT: "#FF7F50",
+            self.TYPE_THESIS: "#534AB7",
+            self.TYPE_NEWS: "#6B7280",
+        }.get(self.type, "#6B7280")

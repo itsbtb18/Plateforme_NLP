@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.validators import EmailValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _, get_language
-from .models import CustomUser
+from .models import CustomUser, Experience
 from institutions.models import Institution
 import re
 
@@ -417,3 +417,75 @@ class EmailVerificationForm(forms.Form):
         max_length=6,
         label=_("Verification code")
     )
+
+
+class ExperienceForm(forms.ModelForm):
+    class Meta:
+        model = Experience
+        fields = [
+            "experience_type",
+            "institution_name",
+            "role_title",
+            "start_date",
+            "end_date",
+            "description",
+        ]
+        widgets = {
+            "experience_type": forms.Select(attrs={"class": "form-select"}),
+            "institution_name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": _("Institution")}
+            ),
+            "role_title": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": _("Role")}
+            ),
+            "start_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "end_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": _("Optional description"),
+                }
+            ),
+        }
+
+    def clean_institution_name(self):
+        value = (self.cleaned_data.get("institution_name") or "").strip()
+        if not value:
+            raise forms.ValidationError(_("Institution name is required."))
+        return value
+
+    def clean_role_title(self):
+        value = (self.cleaned_data.get("role_title") or "").strip()
+        if not value:
+            raise forms.ValidationError(_("Role title is required."))
+        return value
+
+    def clean(self):
+        cleaned = super().clean()
+        start_date = cleaned.get("start_date")
+        end_date = cleaned.get("end_date")
+
+        if end_date and start_date and start_date > end_date:
+            self.add_error(
+                "end_date",
+                _("End date must be greater than or equal to start date."),
+            )
+
+        if not end_date:
+            cleaned["is_current"] = True
+        else:
+            cleaned["is_current"] = False
+
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.is_current = not bool(instance.end_date)
+        if commit:
+            instance.save()
+        return instance

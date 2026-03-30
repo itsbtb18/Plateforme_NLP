@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Experience" %}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px; padding: 1.5rem 0;">
+  <div class="card" style="border-radius:14px; border:1px solid #e5e7eb;">
+    <div class="card-body">
+      <h3 class="mb-3">{% if form.instance.pk %}{% trans "Edit Experience" %}{% else %}{% trans "Add Experience" %}{% endif %}</h3>
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">{{ form.experience_type.label }}</label>
+            {{ form.experience_type }}
+            {{ form.experience_type.errors }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{{ form.institution_name.label }}</label>
+            {{ form.institution_name }}
+            {{ form.institution_name.errors }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{{ form.role_title.label }}</label>
+            {{ form.role_title }}
+            {{ form.role_title.errors }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ form.start_date.label }}</label>
+            {{ form.start_date }}
+            {{ form.start_date.errors }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ form.end_date.label }}</label>
+            {{ form.end_date }}
+            {{ form.end_date.errors }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.description.label }}</label>
+            {{ form.description }}
+            {{ form.description.errors }}
+          </div>
+        </div>
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger mt-3 mb-0">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+          <a href="{% url 'accounts:profile' request.user.pk %}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار والمنشورات{% else %}News & Publications{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+.pub-shell{padding:1.25rem 0 2rem}
+.pub-hero{background:linear-gradient(135deg,#f4f2ff,#f8fbff 55%,#eefaf7);border:1px solid #e2e8f0;border-radius:28px;padding:1.5rem;margin-bottom:1.25rem}
+.pub-hero h1{margin:0;font-size:2.2rem;font-weight:900;color:#0f172a}
+.pub-hero p{margin:.55rem 0 0;color:#475569;max-width:780px}
+.pub-filter-card{background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:1rem;margin-bottom:1.1rem}
+.pub-filter-grid{display:grid;grid-template-columns:2fr repeat(4,1fr) auto;gap:.75rem}
+.pub-input,.pub-select{width:100%;border:1px solid #cbd5e1;border-radius:14px;padding:.85rem 1rem}
+.pub-btn{border:none;border-radius:14px;padding:.9rem 1rem;background:#534AB7;color:#fff;font-weight:800}
+.pub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem}
+.pub-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(15,23,42,.05);transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.pub-card:hover{transform:translateY(-6px);border-color:#cbd5e1;box-shadow:0 24px 56px rgba(15,23,42,.10)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:linear-gradient(90deg,#534AB7,#2dd4bf)}
+.pub-cover{height:132px;background:linear-gradient(135deg,#eef2ff,#f8fafc);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.pub-cover img{width:100%;height:100%;object-fit:cover}
+.pub-body{padding:.95rem 1rem .8rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.4rem;padding:.34rem .68rem;border-radius:999px;color:#fff;font-size:.74rem;font-weight:800}
+.pub-title{margin:.65rem 0 .3rem;font-size:1rem;font-weight:800;color:#0f172a;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#64748b;font-size:.8rem;margin-bottom:.55rem;display:flex;flex-wrap:wrap;gap:.35rem}
+.pub-excerpt{color:#334155;line-height:1.55;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #e2e8f0}
+.pub-tag{background:#e6fffa;color:#116149;border-radius:999px;padding:.24rem .55rem;font-size:.72rem;font-weight:700}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.82rem 1rem;border-top:1px solid #e2e8f0;color:#534AB7;font-weight:800;text-decoration:none;margin-top:auto;font-size:.92rem}
+.pub-empty{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:3rem 1rem;text-align:center;color:#64748b}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:1fr 1fr}.pub-btn{grid-column:span 2}}
+@media (max-width:640px){.pub-filter-grid{grid-template-columns:1fr}.pub-btn{grid-column:auto}}
+</style>
+
+<div class="pub-shell">
+  <div class="pub-hero">
+    <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار والمنشورات الأكاديمية{% else %}Academic News & Publications{% endif %}</h1>
+    <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف الأوراق العلمية والبيانات والأدوات والأحداث والأطروحات والأخبار المرتبطة بمعالجة اللغة الطبيعية.{% else %}Discover papers, datasets, tools, events, theses, and news related to NLP and collaborative research.{% endif %}</p>
+  </div>
+
+  <div class="pub-filter-card">
+    <form method="get" class="pub-filter-grid">
+      <input class="pub-input" type="text" name="q" value="{{ search }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث في العنوان أو الملخص أو المؤلفين{% else %}Search title, abstract, keywords, authors{% endif %}">
+      <select class="pub-select" name="type">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنواع{% else %}All types{% endif %}</option>
+        {% for choice in type_choices %}
+        <option value="{{ choice.value }}" {% if active_type == choice.value %}selected{% endif %}>{{ choice.label }}</option>
+        {% endfor %}
+      </select>
+      <select class="pub-select" name="task">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل المهام{% else %}All NLP tasks{% endif %}</option>
+        {% for value in task_choices %}
+        <option value="{{ value }}" {% if active_task == value %}selected{% endif %}>{{ value }}</option>
+        {% endfor %}
+      </select>
+      <select class="pub-select" name="language">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل اللغات{% else %}All languages{% endif %}</option>
+        {% for value in language_choices %}
+        <option value="{{ value }}" {% if active_language == value %}selected{% endif %}>{{ value }}</option>
+        {% endfor %}
+      </select>
+      <select class="pub-select" name="year">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل السنوات{% else %}All years{% endif %}</option>
+        {% for value in year_choices %}
+        <option value="{{ value }}" {% if active_year == value|stringformat:"s" %}selected{% endif %}>{{ value }}</option>
+        {% endfor %}
+      </select>
+      <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
+    </form>
+  </div>
+
+  {% if publications %}
+  <div class="pub-grid">
+    {% for publication in publications %}
+    <article class="pub-card">
+      <div class="pub-accent"></div>
+      <div class="pub-cover">
+        {% if publication.cover_image %}
+        <img src="{{ publication.cover_image.url }}" alt="{{ publication.title }}">
+        {% else %}
+        <i class="fas {{ publication.type_icon }}" style="font-size:2.4rem;color:{{ publication.type_color }}"></i>
+        {% endif %}
+      </div>
+      <div class="pub-body">
+        <span class="pub-type" style="background:{{ publication.type_color }}">
+          <i class="fas {{ publication.type_icon }}"></i>
+          {{ publication.get_type_display }}
+        </span>
+        <h2 class="pub-title">{{ publication.title }}</h2>
+        <div class="pub-meta">
+          <span>{{ publication.authors_display|default:"-" }}</span>
+          <span>{{ publication.year }}</span>
+          {% if publication.venue %}<span>{{ publication.venue }}</span>{% endif %}
+        </div>
+        <p class="pub-excerpt">{{ publication.abstract|truncatechars:150 }}</p>
+        <div class="pub-tags">
+          {% for task in publication.nlp_tasks|slice:":3" %}
+          <span class="pub-tag">{{ task }}</span>
+          {% endfor %}
+          {% for language in publication.languages|slice:":2" %}
+          <span class="pub-tag">{{ language }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <a class="pub-link" href="{% url 'pages:publication_detail' publication.id %}">
+        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </article>
+    {% endfor %}
+  </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+  {% else %}
+  <div class="pub-empty">
+    <i class="fas fa-newspaper" style="font-size:2rem;color:#534AB7"></i>
+    <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد نتائج{% else %}No results found{% endif %}</h3>
+    <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث.{% else %}Try adjusting your filters or search keywords.{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

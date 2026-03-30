@@ -639,7 +639,7 @@ class NewsScraper(PlaywrightFallbackScraper):
         news_category="paper",
     ):
         """Create a ``QA.Post`` (News) item with LLM-enriched content."""
-        from QA.models import Post
+        from feed.models import Post
 
         if not title:
             return

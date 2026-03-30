@@ -1,5 +1,7 @@
 
 from django import forms
+import json
+import re
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -9,7 +11,7 @@ from django.core.validators import validate_email
 
 from accounts.models import CustomUser
 from pages.security import ROLE_ADMIN, ROLE_MODERATOR, ROLE_USER, sanitize_admin_text
-from .models import ContactMessage
+from .models import ContactMessage, NewsPublication
 
 
 
@@ -160,3 +162,137 @@ class AdminUserCreateForm(forms.Form):
             user.groups.remove(moderator_group)
 
         return user
+
+
+class AdminNewsPublicationForm(forms.ModelForm):
+    DOI_PATTERN = re.compile(r"^10\.\d{4,}/\S+$")
+
+    authors_input = forms.CharField(required=False, widget=forms.HiddenInput())
+    nlp_tasks_input = forms.CharField(required=False, widget=forms.HiddenInput())
+    languages_input = forms.CharField(required=False, widget=forms.HiddenInput())
+    keywords_input = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = NewsPublication
+        fields = [
+            "type",
+            "title",
+            "abstract",
+            "affiliations",
+            "year",
+            "venue",
+            "doi",
+            "pdf_url",
+            "github_url",
+            "dataset_url",
+            "demo_url",
+            "cover_image",
+            "pdf_file",
+        ]
+        widgets = {
+            "type": forms.Select(),
+            "title": forms.TextInput(attrs={"maxlength": 120}),
+            "abstract": forms.Textarea(attrs={"maxlength": 1500, "rows": 8}),
+            "affiliations": forms.TextInput(),
+            "year": forms.NumberInput(),
+            "venue": forms.TextInput(),
+            "doi": forms.TextInput(),
+            "pdf_url": forms.URLInput(),
+            "github_url": forms.URLInput(),
+            "dataset_url": forms.URLInput(),
+            "demo_url": forms.URLInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.get("instance") or self.instance
+        if instance and instance.pk:
+            self.fields["authors_input"].initial = json.dumps(instance.authors or [])
+            self.fields["nlp_tasks_input"].initial = json.dumps(instance.nlp_tasks or [])
+            self.fields["languages_input"].initial = json.dumps(instance.languages or [])
+            self.fields["keywords_input"].initial = json.dumps(instance.keywords or [])
+
+    def _parse_json_list(self, field_name):
+        raw_value = self.cleaned_data.get(field_name) or "[]"
+        try:
+            values = json.loads(raw_value)
+        except json.JSONDecodeError as exc:
+            raise forms.ValidationError(_("Invalid tag data.")) from exc
+
+        if not isinstance(values, list):
+            raise forms.ValidationError(_("Invalid tag data."))
+
+        clean_values = []
+        for value in values:
+            cleaned = sanitize_admin_text(value, max_len=80)
+            if cleaned and cleaned not in clean_values:
+                clean_values.append(cleaned)
+        return clean_values
+
+    def clean_title(self):
+        return sanitize_admin_text(self.cleaned_data.get("title"), max_len=120)
+
+    def clean_abstract(self):
+        abstract = sanitize_admin_text(self.cleaned_data.get("abstract"), max_len=1500)
+        if len(abstract) < 150:
+            raise forms.ValidationError(_("Abstract must contain at least 150 characters."))
+        return abstract
+
+    def clean_affiliations(self):
+        return sanitize_admin_text(self.cleaned_data.get("affiliations"), max_len=255)
+
+    def clean_venue(self):
+        return sanitize_admin_text(self.cleaned_data.get("venue"), max_len=255)
+
+    def clean_doi(self):
+        doi = sanitize_admin_text(self.cleaned_data.get("doi"), max_len=255)
+        if doi and not self.DOI_PATTERN.match(doi):
+            raise forms.ValidationError(_("Please enter a valid DOI."))
+        return doi or None
+
+    def clean_cover_image(self):
+        cover = self.cleaned_data.get("cover_image")
+        if cover and cover.size > 4 * 1024 * 1024:
+            raise forms.ValidationError(_("Cover image must be 4MB or less."))
+        return cover
+
+    def clean_pdf_file(self):
+        pdf_file = self.cleaned_data.get("pdf_file")
+        if pdf_file and pdf_file.size > 20 * 1024 * 1024:
+            raise forms.ValidationError(_("PDF file must be 20MB or less."))
+        return pdf_file
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["authors"] = self._parse_json_list("authors_input")
+        cleaned["nlp_tasks"] = self._parse_json_list("nlp_tasks_input")
+        cleaned["languages"] = self._parse_json_list("languages_input")
+        cleaned["keywords"] = self._parse_json_list("keywords_input")
+
+        if not cleaned["authors"]:
+            self.add_error("authors_input", _("Please add at least one author."))
+        if not cleaned["nlp_tasks"]:
+            self.add_error("nlp_tasks_input", _("Please add at least one NLP task."))
+        return cleaned
+
+    def save(self, commit=True, *, created_by=None, publish_status=None):
+        instance = super().save(commit=False)
+        instance.authors = self.cleaned_data["authors"]
+        instance.nlp_tasks = self.cleaned_data["nlp_tasks"]
+        instance.languages = self.cleaned_data["languages"]
+        instance.keywords = self.cleaned_data["keywords"]
+
+        valid_statuses = {
+            NewsPublication.STATUS_DRAFT,
+            NewsPublication.STATUS_PUBLISHED,
+        }
+        if publish_status in valid_statuses:
+            instance.status = publish_status
+        else:
+            instance.status = NewsPublication.STATUS_PUBLISHED
+
+        if created_by is not None and not instance.pk:
+            instance.created_by = created_by
+        if commit:
+            instance.save()
+        return instance

@@ -29,7 +29,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
 from institutions.models import Institution
-from QA.models import Post
+from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends

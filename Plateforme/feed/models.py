@@ -48,7 +48,7 @@ class Post(models.Model):
 
     NEWS_CATEGORY_CHOICES = (
         ("paper", _("Paper")),
-        ("news", _("News")),
+        ("news", _("Feed")),
         ("announcement", _("Announcement")),
         ("blog", _("Blog")),
     )
@@ -149,7 +149,7 @@ class Post(models.Model):
         return f"{title} - {self.author.full_name}"  # type: ignore
 
     def get_absolute_url(self):
-        return reverse("QA:post_detail", kwargs={"slug": self.slug})
+        return reverse("feed:post_detail", kwargs={"slug": self.slug})
 
     def get_localized_title(self):
         """Return title based on current language with fallback."""

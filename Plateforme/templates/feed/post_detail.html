@@ -633,7 +633,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
 <div class="pd-page">
     <div class="pd-container">
         
-        <a href="{% url 'QA:feed' %}" class="pd-back-link">
+        <a href="{% url 'feed:feed' %}" class="pd-back-link">
             <i class="bi bi-arrow-left"></i>
             {% trans "Back to Feed" %}
         </a>
@@ -660,10 +660,10 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                 
                 {% if post.author == request.user %}
                 <div class="pd-actions">
-                    <a href="{% url 'QA:edit_post' post.id %}" class="pd-action-btn primary" title="{% trans 'Edit' %}">
+                    <a href="{% url 'feed:edit_post' post.id %}" class="pd-action-btn primary" title="{% trans 'Edit' %}">
                         <i class="bi bi-pencil"></i>
                     </a>
-                    <a href="{% url 'QA:delete_post' post.id %}" class="pd-action-btn danger" title="{% trans 'Delete' %}"
+                    <a href="{% url 'feed:delete_post' post.id %}" class="pd-action-btn danger" title="{% trans 'Delete' %}"
                        onclick="return confirm('{% trans "Are you sure you want to delete this post?" %}')">
                         <i class="bi bi-trash3"></i>
                     </a>
@@ -739,7 +739,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
             </div>
             
             <div class="pd-post-actions">
-                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}" data-like-url="{% url 'QA:like_post' post.id %}">
+                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}" data-like-url="{% url 'feed:like_post' post.id %}">
                     <i class="bi {% if request.user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                     <span>{% trans "Like" %}</span>
                 </button>
@@ -786,7 +786,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
             
             <div class="pd-comments-body">
                 <!-- Comment Form -->
-                <form method="post" action="{% url 'QA:add_comment' post.id %}" class="pd-comment-form">
+                <form method="post" action="{% url 'feed:add_comment' post.id %}" class="pd-comment-form">
                     {% csrf_token %}
                     <textarea name="content" class="pd-textarea" placeholder="{% trans 'Write a comment...' %}" required></textarea>
                     <button type="submit" class="pd-btn pd-btn-primary">
@@ -831,7 +831,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                                         <i class="bi bi-pencil"></i>
                                         {% trans "Edit" %}
                                     </button>
-                                    <a href="{% url 'QA:delete_comment' comment.id %}" class="pd-comment-action danger"
+                                    <a href="{% url 'feed:delete_comment' comment.id %}" class="pd-comment-action danger"
                                        onclick="return confirm('{% trans "Are you sure you want to delete this comment?" %}')">
                                         <i class="bi bi-trash3"></i>
                                     </a>
@@ -840,7 +840,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                                 
                                 <!-- Reply Form -->
                                 <div class="pd-reply-form" id="reply-form-{{ comment.id }}">
-                                    <form method="post" action="{% url 'QA:add_comment' post.id %}">
+                                    <form method="post" action="{% url 'feed:add_comment' post.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="parent_id" value="{{ comment.id }}">
                                         <textarea name="content" class="pd-reply-textarea" placeholder="{% trans 'Write your reply...' %}" required></textarea>
@@ -858,7 +858,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                                 
                                 <!-- Edit Form -->
                                 <div class="pd-reply-form" id="edit-form-{{ comment.id }}">
-                                    <form method="post" action="{% url 'QA:edit_comment' comment.id %}">
+                                    <form method="post" action="{% url 'feed:edit_comment' comment.id %}">
                                         {% csrf_token %}
                                         <textarea name="content" class="pd-reply-textarea" required>{{ comment.content }}</textarea>
                                         <div class="pd-reply-actions">
@@ -897,7 +897,7 @@ html[dir="rtl"] .pd-card-body { font-family: 'Tajawal', 'Inter', sans-serif; tex
                                                 </button>
                                                 <span class="pd-reply-time">{{ reply.created_at|timesince }} {% trans "ago" %}</span>
                                                 {% if reply.author == request.user %}
-                                                <a href="{% url 'QA:delete_comment' reply.id %}" class="pd-comment-action danger"
+                                                <a href="{% url 'feed:delete_comment' reply.id %}" class="pd-comment-action danger"
                                                    onclick="return confirm('{% trans "Are you sure you want to delete this reply?" %}')">
                                                     <i class="bi bi-trash3"></i>
                                                 </a>
@@ -1113,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', async function() {
             const commentId = this.dataset.commentId;
             try {
-                const response = await fetch(`/QA/comment/${commentId}/like/`, {
+                const response = await fetch(`/feed/comment/${commentId}/like/`, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': getCsrfToken(),

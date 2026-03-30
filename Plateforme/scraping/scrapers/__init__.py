@@ -5,7 +5,7 @@ Scraper registry — maps category names to scraper classes.
 from .courses import CourseScraper
 from .events import EventScraper
 from .institutions import InstitutionScraper
-from .news import NewsScraper
+from .feed import NewsScraper
 from .tools import ToolScraper
 
 SCRAPERS = {

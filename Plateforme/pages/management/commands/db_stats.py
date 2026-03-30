@@ -11,7 +11,7 @@ class Command(BaseCommand):
         from projects.models import Project
         from events.models import Event
         from forum.models import Topic
-        from QA.models import Post
+        from feed.models import Post
 
         self.stdout.write('=== DATABASE SUMMARY ===')
         self.stdout.write(f'Countries: {Country.objects.count()}')

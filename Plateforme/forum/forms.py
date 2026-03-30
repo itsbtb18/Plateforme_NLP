@@ -1,7 +1,7 @@
 from django import forms
 from .models import Topic, ChatRoom
 from django.utils.translation import get_language, gettext_lazy as _
-from QA.models import Post
+from feed.models import Post
 from events.models import Event
 from projects.models import Project
 
@@ -141,7 +141,7 @@ class TopicForm(forms.ModelForm):
 
         self.fields['related_project'].label = _("Related Project (optional)")
         self.fields['related_event'].label = _("Related Event (optional)")
-        self.fields['related_news'].label = _("Related News Post (optional)")
+        self.fields['related_news'].label = _("Related Feed Post (optional)")
 
     def clean(self):
         cleaned_data = super().clean()

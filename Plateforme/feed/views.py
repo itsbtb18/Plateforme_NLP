@@ -66,15 +66,15 @@ def ask_question(request):
             existing = Question.objects.filter(title__icontains=title)
             if existing.exists():
                 return render(
-                    request, "QA/duplicate_found.html", {"questions": existing}
+                    request, "feed/duplicate_found.html", {"questions": existing}
                 )
             question = form.save(commit=False)
             question.author = request.user
             question.save()
-            return redirect("QA:question_detail", pk=question.pk)
+            return redirect("feed:question_detail", pk=question.pk)
     else:
         form = QuestionForm()
-    return render(request, "QA/ask_question.html", {"form": form})
+    return render(request, "feed/ask_question.html", {"form": form})
 
 
 def question_detail(request, pk):
@@ -100,12 +100,12 @@ def question_detail(request, pk):
                         "title": question.title,
                     },
                 )
-            return redirect("QA:question_detail", pk=pk)
+            return redirect("feed:question_detail", pk=pk)
     else:
         form = AnswerForm()
     return render(
         request,
-        "QA/question_detail.html",
+        "feed/question_detail.html",
         {"question": question, "answers": answers, "form": form},
     )
 
@@ -117,7 +117,7 @@ def search_questions(request):
         results = Question.objects.filter(
             Q(title__icontains=query) | Q(description__icontains=query)
         )
-    return render(request, "QA/search.html", {"results": results, "query": query})
+    return render(request, "feed/search.html", {"results": results, "query": query})
 
 
 def qa_home(request):
@@ -151,7 +151,7 @@ def qa_home(request):
         "page": "feed",
     }
 
-    return render(request, "QA/qa_home.html", context)
+    return render(request, "feed/qa_home.html", context)
 
 
 @login_required
@@ -198,7 +198,7 @@ def feed(request):
 
     return render(
         request,
-        "QA/feed.html",
+        "feed/feed.html",
         {
             "posts": page_obj,
             "page_obj": page_obj,
@@ -244,7 +244,7 @@ def create_post(request):
                     request,
                     _("Your post has been submitted and is pending admin approval."),
                 )
-                return redirect("QA:feed")
+                return redirect("feed:feed")
 
             except Exception as e:
                 logger.error(
@@ -264,7 +264,7 @@ def create_post(request):
 
     return render(
         request,
-        "QA/create_post.html",
+        "feed/create_post.html",
         {
             "form": form,
             "page": "feed",
@@ -308,7 +308,7 @@ def post_detail(request, slug):
     comment_form = CommentForm()
     return render(
         request,
-        "QA/post_detail.html",
+        "feed/post_detail.html",
         {"post": post, "comment_form": comment_form, "page": "feed"},
     )
 
@@ -373,7 +373,7 @@ def add_comment(request, post_id):
                 }
             )
 
-    return redirect("QA:post_detail", slug=post.slug)
+    return redirect("feed:post_detail", slug=post.slug)
 
 
 @login_required
@@ -465,11 +465,11 @@ def like_comment(request, comment_id):
 def delete_post(request, post_id):
     if request.method != "POST":
         messages.error(request, "Invalid request method.")
-        return redirect("QA:feed")
+        return redirect("feed:feed")
     post = get_object_or_404(Post, id=post_id, author=request.user)
     post.delete()
     messages.success(request, "The post has been deleted.")
-    return redirect("QA:feed")
+    return redirect("feed:feed")
 
 
 @login_required
@@ -477,12 +477,12 @@ def delete_post(request, post_id):
 def delete_comment(request, comment_id):
     if request.method != "POST":
         messages.error(request, "Invalid request method.")
-        return redirect("QA:feed")
+        return redirect("feed:feed")
     comment = get_object_or_404(Comment, id=comment_id, author=request.user)
     post_slug = comment.post.slug
     comment.delete()
     messages.success(request, "The comment has been deleted.")
-    return redirect("QA:post_detail", slug=post_slug)
+    return redirect("feed:post_detail", slug=post_slug)
 
 
 @login_required
@@ -496,7 +496,7 @@ def edit_post(request, post_id):
     is_admin = request.user.is_staff or request.user.is_superuser
     if post.author != request.user and not is_admin:
         messages.error(request, "You do not have permission to edit this post.")
-        return redirect("QA:post_detail", slug=post.slug)
+        return redirect("feed:post_detail", slug=post.slug)
 
     if (not is_admin) and post.approval_status != "approved":
         raise Http404(_("Post not found."))
@@ -548,7 +548,7 @@ def edit_post(request, post_id):
                 post.approval_status = "approved"
                 post.save()
                 messages.success(request, _("Post has been approved and published."))
-                return redirect("pages:admin_news")
+                return redirect("pages:admin_feed")
 
             post.save()
             messages.success(request, "Your post has been successfully edited.")
@@ -564,8 +564,8 @@ def edit_post(request, post_id):
                     pk=request.GET.get("review_pk"),
                 )
             if review_mode:
-                return redirect("pages:admin_news")
-            return redirect("QA:post_detail", slug=post.slug)
+                return redirect("pages:admin_feed")
+            return redirect("feed:post_detail", slug=post.slug)
     else:
         form = PostForm(instance=post)
 
@@ -578,7 +578,7 @@ def edit_post(request, post_id):
 
     return render(
         request,
-        "QA/edit_post.html",
+        "feed/edit_post.html",
         {
             "form": form,
             "post": post,
@@ -621,26 +621,26 @@ def edit_comment(request, comment_id):
             )
         messages.success(request, "Your comment has been edited.")
 
-    return redirect("QA:post_detail", slug=comment.post.slug)
+    return redirect("feed:post_detail", slug=comment.post.slug)
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_news_approve(request, post_id):
+def admin_feed_approve(request, post_id):
     """
-    Moderation handler moved from pages.views for cleaner QA ownership.
+    Moderation handler moved from pages.views for cleaner feed ownership.
     """
     post = get_object_or_404(Post, id=post_id)
     approve_object(post, moderator=request.user, save=True)
-    return redirect("pages:admin_news")
+    return redirect("pages:admin_feed")
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_news_delete(request, post_id):
+def admin_feed_delete(request, post_id):
     """
-    Hard-delete news item from admin panel.
+    Hard-delete feed item from admin panel.
     """
     post = get_object_or_404(Post, id=post_id)
     post.delete()
-    return redirect("pages:admin_news")
+    return redirect("pages:admin_feed")

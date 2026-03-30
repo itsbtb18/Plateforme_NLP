@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from scraping.scrapers.courses import CourseScraper
 from scraping.scrapers.events import EventScraper
 from scraping.scrapers.institutions import InstitutionScraper
-from scraping.scrapers.news import NewsScraper
+from scraping.scrapers.feed import NewsScraper
 from scraping.scrapers.tools import _extract_language_support, _resolve_tool_type
 
 

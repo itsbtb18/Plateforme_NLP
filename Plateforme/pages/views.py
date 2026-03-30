@@ -5,7 +5,8 @@ from django.core.mail import send_mail
 from django.views.generic import TemplateView
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from pages.forms import AdminResponseForm, ContactForm
+from django.utils.translation import get_language
+from pages.forms import AdminNewsPublicationForm, AdminResponseForm, ContactForm
 from accounts.models import CustomUser
 from events.models import Event
 from resources.models import Corpus, NLPTool, Document, Course
@@ -15,7 +16,7 @@ from forum.models import Topic, ChatRoom, Message
 from django.db.models.functions import TruncDate, TruncMonth
 from notifications.models import Notification
 from notifications.services import NotificationService
-from QA.models import Post, Question
+from feed.models import Post, Question
 from pages.moderation import approve_object, reject_object
 from django.db.models import Count, Sum, Max
 import datetime
@@ -31,6 +32,11 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 User = get_user_model()
+
+
+def _label_for_language(english: str, arabic: str) -> str:
+    lang = (get_language() or "").lower()
+    return arabic if lang.startswith("ar") else english
 
 
 class HomePageView(TemplateView):
@@ -110,6 +116,15 @@ class HomePageView(TemplateView):
         return context
 
 
+class OpportunitiesPageView(TemplateView):
+    template_name = "opportunities.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page"] = "opportunities"
+        return context
+
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -122,6 +137,7 @@ from .models import (
     UserStatusHistory,
     AdminActivityLog,
     SecurityLog,
+    NewsPublication,
 )
 from institutions.models import Institution
 import datetime
@@ -134,6 +150,298 @@ User = get_user_model()
 def is_admin(user):
     """Check if user is an admin"""
     return user.is_staff or user.is_superuser
+
+
+NEWS_TYPE_META = {
+    NewsPublication.TYPE_PAPER: {
+        "icon": "fa-file-lines",
+        "color": "#3B82F6",
+    },
+    NewsPublication.TYPE_DATASET: {
+        "icon": "fa-database",
+        "color": "#1D9E75",
+    },
+    NewsPublication.TYPE_TOOL: {
+        "icon": "fa-screwdriver-wrench",
+        "color": "#F59E0B",
+    },
+    NewsPublication.TYPE_EVENT: {
+        "icon": "fa-calendar-days",
+        "color": "#FF7F50",
+    },
+    NewsPublication.TYPE_THESIS: {
+        "icon": "fa-graduation-cap",
+        "color": "#534AB7",
+    },
+    NewsPublication.TYPE_NEWS: {
+        "icon": "fa-newspaper",
+        "color": "#6B7280",
+    },
+}
+
+
+NEWS_LANGUAGE_OPTIONS = [
+    "Arabic",
+    "French",
+    "English",
+    "Darija",
+    "Tamazight",
+    "Multilingual",
+]
+
+
+def _news_type_choices():
+    return [{"value": value, "label": label} for value, label in NewsPublication.TYPE_CHOICES]
+
+
+def _news_collection_response(request, message, *, level="success", redirect_url=None, status=200, payload=None):
+    wants_json = request.headers.get("x-requested-with") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "")
+    if wants_json:
+        body = {"ok": level == "success", "message": message}
+        if payload:
+            body.update(payload)
+        return JsonResponse(body, status=status)
+    if level == "success":
+        messages.success(request, message)
+    else:
+        messages.error(request, message)
+    return redirect(redirect_url or "pages:admin_news")
+
+
+def _tag_options_for_queryset(queryset, field_name):
+    values = set()
+    for item in queryset:
+        for value in getattr(item, field_name, []) or []:
+            cleaned = str(value or "").strip()
+            if cleaned:
+                values.add(cleaned)
+    return sorted(values)
+
+
+def _news_method_override(request):
+    if request.method == "POST":
+        return (request.POST.get("_method") or "").upper() or "POST"
+    return request.method.upper()
+
+
+def _news_publish_status(request):
+    action = (request.POST.get("publish_action") or "publish").strip().lower()
+    if action == "draft":
+        return NewsPublication.STATUS_DRAFT
+    return NewsPublication.STATUS_PUBLISHED
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news(request):
+    search = request.GET.get("search", "").strip()
+    content_type = request.GET.get("type", "").strip()
+    year = request.GET.get("year", "").strip()
+
+    queryset = NewsPublication.objects.select_related("created_by").order_by("-created_at")
+
+    if content_type:
+        queryset = queryset.filter(type=content_type)
+    if year.isdigit():
+        queryset = queryset.filter(year=int(year))
+    if search:
+        queryset = queryset.filter(
+            Q(title__icontains=search)
+            | Q(abstract__icontains=search)
+            | Q(authors__icontains=search)
+            | Q(keywords__icontains=search)
+            | Q(venue__icontains=search)
+        )
+
+    paginator = Paginator(queryset, 12)
+    page_obj = paginator.get_page(request.GET.get("page") or 1)
+
+    context = {
+        "page": "admin_news",
+        "news_items": page_obj,
+        "page_obj": page_obj,
+        "is_paginated": page_obj.has_other_pages(),
+        "search": search,
+        "active_type": content_type,
+        "active_year": year,
+        "type_choices": _news_type_choices(),
+        "year_choices": list(
+            NewsPublication.objects.order_by("-year").values_list("year", flat=True).distinct()
+        ),
+        "type_meta": NEWS_TYPE_META,
+    }
+    return render(request, "admin/news_list.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_news_form(request, publication_id=None):
+    publication = None
+    if publication_id is not None:
+        publication = get_object_or_404(NewsPublication, pk=publication_id)
+
+    form = AdminNewsPublicationForm(instance=publication)
+    context = {
+        "page": "admin_news",
+        "form": form,
+        "publication": publication,
+        "type_choices": _news_type_choices(),
+        "type_meta": NEWS_TYPE_META,
+        "language_options": NEWS_LANGUAGE_OPTIONS,
+        "form_action": reverse(
+            "pages:admin_publications_detail_api",
+            kwargs={"publication_id": publication.pk},
+        ) if publication else reverse("pages:admin_publications_api"),
+    }
+    return render(request, "admin/news_form.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_publications_api(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "message": "Method not allowed"}, status=405)
+
+    form = AdminNewsPublicationForm(request.POST, request.FILES)
+    publish_status = _news_publish_status(request)
+    if form.is_valid():
+        publication = form.save(created_by=request.user, publish_status=publish_status)
+        if publication.status == NewsPublication.STATUS_DRAFT:
+            success_message = _label_for_language("News saved as draft.", "تم حفظ الخبر كمسودة.")
+        else:
+            success_message = _label_for_language("News published successfully.", "تم نشر الخبر بنجاح.")
+        return _news_collection_response(
+            request,
+            success_message,
+            redirect_url="pages:admin_news",
+            payload={"id": publication.pk},
+        )
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+    context = {
+        "page": "admin_news",
+        "form": form,
+        "publication": None,
+        "type_choices": _news_type_choices(),
+        "type_meta": NEWS_TYPE_META,
+        "language_options": NEWS_LANGUAGE_OPTIONS,
+        "form_action": reverse("pages:admin_publications_api"),
+    }
+    return render(request, "admin/news_form.html", context, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_publications_detail_api(request, publication_id):
+    publication = get_object_or_404(NewsPublication, pk=publication_id)
+    method = _news_method_override(request)
+
+    if method == "DELETE":
+        publication.delete()
+        return _news_collection_response(
+            request,
+            _label_for_language("News deleted successfully.", "تم حذف الخبر بنجاح."),
+            redirect_url="pages:admin_news",
+        )
+
+    if method not in {"PUT", "POST"}:
+        return JsonResponse({"ok": False, "message": "Method not allowed"}, status=405)
+
+    form = AdminNewsPublicationForm(request.POST, request.FILES, instance=publication)
+    publish_status = _news_publish_status(request)
+    if form.is_valid():
+        updated = form.save(publish_status=publish_status)
+        if updated.status == NewsPublication.STATUS_DRAFT:
+            success_message = _label_for_language("News saved as draft.", "تم حفظ الخبر كمسودة.")
+        else:
+            success_message = _label_for_language("News updated successfully.", "تم تحديث الخبر بنجاح.")
+        return _news_collection_response(
+            request,
+            success_message,
+            redirect_url="pages:admin_news",
+            payload={"id": publication.pk},
+        )
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+    context = {
+        "page": "admin_news",
+        "form": form,
+        "publication": publication,
+        "type_choices": _news_type_choices(),
+        "type_meta": NEWS_TYPE_META,
+        "language_options": NEWS_LANGUAGE_OPTIONS,
+        "form_action": reverse(
+            "pages:admin_publications_detail_api",
+            kwargs={"publication_id": publication.pk},
+        ),
+    }
+    return render(request, "admin/news_form.html", context, status=400)
+
+
+def publications_list(request):
+    search = request.GET.get("q", "").strip()
+    content_type = request.GET.get("type", "").strip()
+    task = request.GET.get("task", "").strip()
+    language = request.GET.get("language", "").strip()
+    year = request.GET.get("year", "").strip()
+
+    queryset = NewsPublication.objects.filter(status=NewsPublication.STATUS_PUBLISHED).order_by("-year", "-created_at")
+
+    if content_type:
+        queryset = queryset.filter(type=content_type)
+    if task:
+        queryset = queryset.filter(nlp_tasks__icontains=task)
+    if language:
+        queryset = queryset.filter(languages__icontains=language)
+    if year.isdigit():
+        queryset = queryset.filter(year=int(year))
+    if search:
+        queryset = queryset.filter(
+            Q(title__icontains=search)
+            | Q(abstract__icontains=search)
+            | Q(keywords__icontains=search)
+            | Q(authors__icontains=search)
+        )
+
+    paginator = Paginator(queryset, 12)
+    page_obj = paginator.get_page(request.GET.get("page") or 1)
+
+    base_queryset = NewsPublication.objects.filter(status=NewsPublication.STATUS_PUBLISHED)
+    context = {
+        "page": "news",
+        "publications": page_obj,
+        "page_obj": page_obj,
+        "is_paginated": page_obj.has_other_pages(),
+        "search": search,
+        "active_type": content_type,
+        "active_task": task,
+        "active_language": language,
+        "active_year": year,
+        "type_choices": _news_type_choices(),
+        "task_choices": _tag_options_for_queryset(base_queryset, "nlp_tasks"),
+        "language_choices": _tag_options_for_queryset(base_queryset, "languages"),
+        "year_choices": list(base_queryset.order_by("-year").values_list("year", flat=True).distinct()),
+        "type_meta": NEWS_TYPE_META,
+    }
+    return render(request, "news/publication_list.html", context)
+
+
+def publication_detail(request, publication_id):
+    publication = get_object_or_404(
+        NewsPublication,
+        pk=publication_id,
+        status=NewsPublication.STATUS_PUBLISHED,
+    )
+    context = {
+        "page": "news",
+        "publication": publication,
+        "type_meta": NEWS_TYPE_META,
+    }
+    return render(request, "news/publication_detail.html", context)
 
 
 @login_required
@@ -478,7 +786,7 @@ def admin_dashboard(request):
         ("document", _("Resources"), Document),
         ("project", _("Projects"), Project),
         ("topic", _("Topics"), Topic),
-        ("post", _("News"), Post),
+        ("post", _label_for_language("Feed", "المنشورات"), Post),
         ("course", _("Courses"), Course),
         ("event", _("Events"), Event),
     ]
@@ -565,11 +873,11 @@ def admin_dashboard(request):
             "active": topics_pending == 0,
         },
         {
-            "title": _("News"),
+            "title": _label_for_language("Feed", "المنشورات"),
             "owner": _("Editorial Team"),
             "pending": news_pending,
             "approved": news_approved,
-            "url": reverse("pages:admin_news"),
+            "url": reverse("pages:admin_feed"),
             "active": news_pending == 0,
         },
         {
@@ -1678,8 +1986,8 @@ def admin_institutions(request):
 
 @login_required
 @user_passes_test(is_admin)
-def admin_news(request):
-    """Admin news/posts management with approval workflow"""
+def admin_feed(request):
+    """Admin feed/posts management with approval workflow"""
     from pages.content_parser import extract_paper_metadata
 
     search = request.GET.get("search", "").strip()
@@ -1735,30 +2043,30 @@ def admin_news(request):
         "is_paginated": page_obj.has_other_pages(),
         "pagination_qs": _build_query_string("page"),
     }
-    return render(request, "admin/news.html", context)
+    return render(request, "admin/feed.html", context)
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_news_approve(request, post_id):
-    # Backward-compatible proxy to QA ownership.
-    from QA.views import admin_news_approve as qa_admin_news_approve
+def admin_feed_approve(request, post_id):
+    # Backward-compatible proxy to feed ownership.
+    from feed.views import admin_feed_approve as feed_admin_feed_approve
 
-    return qa_admin_news_approve(request, post_id)
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_news_delete(request, post_id):
-    # Backward-compatible proxy to QA ownership.
-    from QA.views import admin_news_delete as qa_admin_news_delete
-
-    return qa_admin_news_delete(request, post_id)
+    return feed_admin_feed_approve(request, post_id)
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_news_view(request, post_id):
+def admin_feed_delete(request, post_id):
+    # Backward-compatible proxy to feed ownership.
+    from feed.views import admin_feed_delete as feed_admin_feed_delete
+
+    return feed_admin_feed_delete(request, post_id)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_feed_view(request, post_id):
     from pages.content_parser import extract_structured_content, extract_paper_metadata
     post = get_object_or_404(Post, id=post_id)
 
@@ -1772,7 +2080,7 @@ def admin_news_view(request, post_id):
         "parsed_content": parsed_content,
         "preview_meta": preview_meta,
     }
-    return render(request, "admin/news_view.html", context)
+    return render(request, "admin/feed_view.html", context)
 
 
 @login_required
@@ -2684,7 +2992,7 @@ REDIRECT_MAP = {
     "project": "pages:admin_projects",
     "topic": "pages:admin_forum",
     "event": "pages:admin_calls",
-    "post": "pages:admin_news",
+    "post": "pages:admin_feed",
     "institution": "pages:admin_institutions",
 }
 
@@ -2760,7 +3068,7 @@ EDIT_URL_MAP = {
     "project": ("projects:project_update", {}),
     "topic": ("forum:topic-update", {}),
     "event": ("events:event_update", {}),
-    "post": ("QA:edit_post", {"post_id": None}),  # post_id will be set separately
+    "post": ("feed:edit_post", {"post_id": None}),  # post_id will be set separately
     "institution": ("institutions:institution_update", {}),
 }
 
@@ -2821,7 +3129,7 @@ def get_view_url(model_type, pk):
         return reverse("events:event_detail", kwargs={"pk": pk})
 
     if model_type == "post":
-        return reverse("pages:admin_news_view", kwargs={"post_id": pk})
+        return reverse("pages:admin_feed_view", kwargs={"post_id": pk})
 
     if model_type == "topic":
         return reverse("forum:topic-detail", kwargs={"pk": pk})

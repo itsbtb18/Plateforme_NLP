@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 
-from QA.models import Post
+from feed.models import Post
 from scraping.models import ScrapedItemMeta, ScrapingRun
 
 

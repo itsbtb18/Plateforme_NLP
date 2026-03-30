@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Opportunities" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  .content { background:#f5f3ee; }
+  .op-shell{font-family:'DM Sans',sans-serif;color:#0d0f14}
+  .op-wrap{width:min(1100px,calc(100% - 2rem));margin:0 auto 2rem}
+  .op-hero{margin:1rem 0;border-radius:14px;overflow:hidden;background:radial-gradient(circle at 12% 12%,rgba(26,60,255,.22),transparent 35%),radial-gradient(circle at 85% 15%,rgba(255,77,28,.18),transparent 35%),#0d0f14;color:#f4f6fb;box-shadow:0 10px 30px rgba(13,15,20,.06)}
+  .op-hero-inner{display:grid;grid-template-columns:1.2fr 1fr;gap:1rem;padding:clamp(1.3rem,2.5vw,2.1rem);min-height:260px}
+  .op-eyebrow{display:inline-flex;align-items:center;gap:.45rem;color:#a8b5ff;font-size:.85rem;border:1px solid rgba(168,181,255,.35);border-radius:999px;padding:.24rem .58rem;margin-bottom:1rem}
+  .op-h1{margin:0;font-family:'Syne',sans-serif;font-size:clamp(1.7rem,3vw,2.6rem);line-height:1.12;letter-spacing:-.02em;max-width:13ch}
+  .op-hl{color:#8ea2ff}
+  .op-sub{color:#c9cde0;max-width:58ch;margin:.9rem 0 1.2rem;font-size:.98rem}
+  .op-stats{display:flex;flex-wrap:wrap;gap:.7rem}
+  .op-stat{border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:.58rem .72rem;min-width:130px;background:rgba(255,255,255,.03)}
+  .op-stat strong{display:block;color:#fff}
+  .op-stat span{color:#c2c7d9;font-size:.83rem}
+  .op-pills{position:relative;display:grid;place-items:center;min-height:200px}
+  .op-pill{position:absolute;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#e9edff;padding:.5rem .8rem;font-size:.82rem;background:rgba(255,255,255,.08);animation:opFloat 4.2s ease-in-out infinite;backdrop-filter:blur(8px);white-space:nowrap}
+  .op-pill:nth-child(1){top:12%;left:8%}.op-pill:nth-child(2){top:20%;right:10%;animation-delay:.4s}.op-pill:nth-child(3){top:45%;left:20%;animation-delay:.9s}.op-pill:nth-child(4){top:58%;right:16%;animation-delay:1.3s}.op-pill:nth-child(5){bottom:8%;left:36%;animation-delay:.7s}
+  @keyframes opFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  .op-layout{display:grid;grid-template-columns:290px 1fr;gap:1rem;align-items:start}
+  .op-sidebar{position:sticky;top:88px;background:#fff;border:1px solid #e2e0d8;border-radius:12px;box-shadow:0 10px 30px rgba(13,15,20,.06);padding:1rem}
+  .op-search{position:relative;margin-bottom:1rem}
+  .op-search input{width:100%;border:1px solid #e2e0d8;border-radius:10px;padding:.68rem .8rem .68rem 2.2rem;font-size:.9rem;outline:none}
+  .op-search input:focus{border-color:#bfc8ff;box-shadow:0 0 0 3px rgba(26,60,255,.12)}
+  .op-search i{position:absolute;top:50%;left:.76rem;transform:translateY(-50%);color:#6b7080}
+  .op-ft-group{margin-bottom:1.1rem}
+  .op-ft-title{margin:0 0 .58rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7080;font-weight:700}
+  .op-ft-item{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.55rem;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:170ms ease;margin-bottom:.34rem}
+  .op-ft-item:hover{border-color:#e2e0d8;background:#faf9f5}
+  .op-ft-item.active{background:rgba(26,60,255,.08);border-color:rgba(26,60,255,.3)}
+  .op-ft-label{display:inline-flex;align-items:center;gap:.5rem;font-size:.9rem}
+  .op-chk{width:15px;height:15px;border:1.5px solid #bbc2d5;border-radius:4px;background:#fff;position:relative}
+  .op-ft-item.active .op-chk{border-color:#1a3cff;background:#1a3cff}
+  .op-ft-item.active .op-chk:after{content:'';position:absolute;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);top:1px;left:4px}
+  .op-count{min-width:24px;text-align:center;font-size:.76rem;background:#f0f1f7;border:1px solid #e1e4ee;border-radius:999px;padding:.12rem .4rem;font-weight:700}
+
+  .op-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;gap:.6rem}
+  .op-top h2{font-family:'Syne',sans-serif;font-size:1.12rem;margin:0}
+  .op-actions{display:flex;gap:.5rem;align-items:center}
+  .op-sort{border:1px solid #e2e0d8;background:#fff;border-radius:10px;padding:.55rem .72rem;font-size:.87rem}
+  .op-post{border:1px solid #1a3cff;background:#1a3cff;color:#fff;padding:.55rem .8rem;border-radius:10px;font-weight:700;cursor:pointer}
+
+  .op-cards{display:grid;gap:.8rem}
+  .op-card{background:#fff;border:1px solid #e2e0d8;border-radius:12px;padding:.92rem;box-shadow:0 10px 30px rgba(13,15,20,.06);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;cursor:pointer;opacity:0;transform:translateY(8px);animation:opIn .42s ease forwards}
+  @keyframes opIn{to{opacity:1;transform:translateY(0)}}
+  .op-card:hover{transform:translateY(-3px);box-shadow:0 18px 34px rgba(13,15,20,.12);border-color:#cad0df}
+  .op-card.featured{border-left:4px solid #1a3cff;background:linear-gradient(180deg,rgba(26,60,255,.05),#fff)}
+  .op-head{display:flex;gap:.8rem;align-items:start}
+  .op-org{width:42px;height:42px;border-radius:11px;background:#f1f4ff;border:1px solid #dce3ff;display:grid;place-items:center;color:#1f36bf;font-weight:800;font-size:.86rem;flex-shrink:0}
+  .op-title{font-family:'Syne',sans-serif;margin:0;font-size:1rem}
+  .op-orgline{color:#6b7080;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .op-badges,.op-skills{display:flex;gap:.38rem;flex-wrap:wrap;margin-top:.56rem}
+  .op-badge{font-size:.74rem;padding:.2rem .48rem;border-radius:999px;border:1px solid #dbe0ef;background:#f4f6fc;font-weight:700}
+  .op-badge.type{background:rgba(26,60,255,.09);border-color:rgba(26,60,255,.18);color:#1f34a8}
+  .op-badge.new{background:rgba(255,77,28,.12);border-color:rgba(255,77,28,.2);color:#b93a16}
+  .op-meta{margin-top:.6rem;display:flex;gap:.8rem;flex-wrap:wrap;color:#4f566b;font-size:.83rem}
+  .op-meta span{border:1px solid #e2e6f2;border-radius:8px;background:#fafbff;padding:.18rem .48rem}
+  .op-desc{font-size:.9rem;color:#4b5367;margin-top:.62rem;display:-webkit-box;line-clamp:2;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .op-foot{margin-top:.72rem;display:flex;justify-content:space-between;gap:.6rem;flex-wrap:wrap;border-top:1px dashed #eaedf5;padding-top:.64rem}
+  .op-deadline{font-size:.83rem;color:#5a6075;font-weight:600}.op-deadline.urgent{color:#d0352b}
+  .op-btn{border-radius:9px;border:1px solid #d8deee;background:#fff;padding:.38rem .65rem;font-size:.81rem;font-weight:700;cursor:pointer}
+  .op-btn.primary{background:#1a3cff;border-color:#1a3cff;color:#fff}
+
+  .op-empty{display:none;border:1px dashed #d5d9e6;border-radius:12px;background:#fbfbfd;color:#626a7e;text-align:center;padding:1.4rem}
+
+  .op-backdrop{position:fixed;inset:0;background:rgba(10,12,18,.55);display:none;align-items:center;justify-content:center;padding:1rem;z-index:1600}
+  .op-backdrop.show{display:flex}
+  .op-modal{width:min(760px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid #e4e7ef;box-shadow:0 26px 60px rgba(8,12,24,.3);transform:scale(.94);opacity:0;transition:.19s}
+  .op-backdrop.show .op-modal{transform:scale(1);opacity:1}
+  .op-mh{padding:.95rem 1rem;border-bottom:1px solid #eceff6;display:flex;justify-content:space-between;align-items:center}
+  .op-mc{padding:1rem;display:grid;gap:.8rem}
+  .op-mf{border-top:1px solid #eceff6;padding:.8rem 1rem;display:flex;justify-content:end;gap:.5rem}
+  .op-close{border:1px solid #dce1ef;background:#fff;border-radius:9px;width:34px;height:34px;cursor:pointer}
+
+  .op-form{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;padding:0 1rem 1rem}
+  .op-field{display:grid;gap:.28rem}.op-field.full{grid-column:1/-1}
+  .op-field label{font-size:.8rem;color:#4e5568;font-weight:700}
+  .op-field input,.op-field textarea,.op-field select{border:1px solid #dce1ee;border-radius:9px;padding:.62rem .7rem;font-size:.9rem;font-family:inherit}
+  .op-field textarea{min-height:96px;resize:vertical}
+  .op-notice{margin:0 1rem .9rem;padding:.62rem .68rem;border-radius:10px;background:rgba(255,77,28,.08);border:1px solid rgba(255,77,28,.25);color:#a84021;font-size:.84rem}
+
+  .op-toast{position:fixed;right:1rem;bottom:1rem;background:#121722;color:#eaf0ff;border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:.72rem .88rem;box-shadow:0 14px 35px rgba(10,12,18,.35);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s;z-index:2000;font-size:.86rem}
+  .op-toast.show{opacity:1;transform:translateY(0)}
+
+  @media(max-width:980px){.op-hero-inner{grid-template-columns:1fr}.op-layout{grid-template-columns:1fr}.op-sidebar{position:static}.op-form{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="op-shell">
+  <div class="op-wrap">
+    <div class="op-hero">
+      <div class="op-hero-inner">
+        <div>
+          <span class="op-eyebrow" data-i18n="heroEyebrow">NLP Opportunities</span>
+          <h1 class="op-h1"><span data-i18n="heroTitle1">Build your career in</span> <span class="op-hl" data-i18n="heroTitle2">AI & NLP</span></h1>
+          <p class="op-sub" data-i18n="heroSubtitle">Discover curated opportunities across jobs, internships, PFE, PhD fellowships, and collaborations in the Arabic NLP ecosystem.</p>
+          <div class="op-stats"><div class="op-stat"><strong>47</strong><span data-i18n="statActive">Active opportunities</span></div><div class="op-stat"><strong>12</strong><span data-i18n="statNew">New this month</span></div><div class="op-stat"><strong>23</strong><span data-i18n="statOrg">Organizations</span></div></div>
+        </div>
+        <div class="op-pills"><span class="op-pill">NLP Engineer</span><span class="op-pill">R&D Internship</span><span class="op-pill">PFE / Master</span><span class="op-pill">PhD Fellowship</span><span class="op-pill">Collaboration</span></div>
+      </div>
+    </div>
+
+    <div class="op-layout">
+      <aside class="op-sidebar">
+        <div class="op-search"><i>⌕</i><input id="opSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search by title, organization, skills..."></div>
+        <div class="op-ft-group"><h4 class="op-ft-title" data-i18n="filterType">Type</h4><div id="opType"></div></div>
+        <div class="op-ft-group"><h4 class="op-ft-title" data-i18n="filterMode">Mode</h4><div id="opMode"></div></div>
+        <div class="op-ft-group"><h4 class="op-ft-title" data-i18n="filterLevel">Level</h4><div id="opLevel"></div></div>
+      </aside>
+
+      <section>
+        <div class="op-top"><h2 id="opCount"></h2><div class="op-actions"><select id="opSort" class="op-sort"><option value="recent" data-i18n="sortRecent">Most recent</option><option value="deadline" data-i18n="sortDeadline">Closest deadline</option><option value="relevance" data-i18n="sortRelevance">Best relevance</option></select><button id="opOpenPost" class="op-post" data-i18n="publishBtn">+ Post Opportunity</button></div></div>
+        <div id="opCards" class="op-cards"></div>
+        <div id="opEmpty" class="op-empty" data-i18n="noResults">No opportunities match your filters.</div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<div id="opDetailBackdrop" class="op-backdrop"><article class="op-modal"><header class="op-mh"><h3 id="opDetailTitle" style="margin:0;font-family:'Syne',sans-serif">Opportunity details</h3><button class="op-close" id="opCloseDetail">✕</button></header><div id="opDetailContent" class="op-mc"></div><footer class="op-mf"><button class="op-btn" id="opDetailClose" data-i18n="close">Close</button><button class="op-btn primary" data-i18n="applyNow">Apply now</button></footer></article></div>
+
+<div id="opPostBackdrop" class="op-backdrop"><article class="op-modal"><header class="op-mh"><h3 style="margin:0;font-family:'Syne',sans-serif" data-i18n="postModalTitle">Publish a new opportunity</h3><button class="op-close" id="opClosePost">✕</button></header><form id="opPostForm"><div class="op-form"><div class="op-field"><label data-i18n="fieldTitle">Title</label><input required name="title"></div><div class="op-field"><label data-i18n="fieldType">Type</label><select required name="type"><option value="job">Job</option><option value="internship">Internship</option><option value="pfe">PFE / Master</option><option value="phd">PhD</option><option value="collab">Collaboration</option></select></div><div class="op-field"><label data-i18n="fieldOrg">Organization</label><input required name="organization"></div><div class="op-field"><label data-i18n="fieldLocation">Location</label><input required name="location"></div><div class="op-field"><label data-i18n="fieldMode">Mode</label><select required name="mode"><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div><div class="op-field"><label data-i18n="fieldLevel">Level</label><select required name="level"><option value="student">Student</option><option value="junior">Junior</option><option value="senior">Senior</option><option value="researcher">Researcher</option></select></div><div class="op-field"><label data-i18n="fieldDeadline">Deadline</label><input required name="deadline" type="date"></div><div class="op-field full"><label data-i18n="fieldSkills">Skills (comma separated)</label><input required name="skills"></div><div class="op-field full"><label data-i18n="fieldDesc">Description</label><textarea required name="description"></textarea></div><div class="op-field full"><label data-i18n="fieldContact">Contact link/email</label><input required name="contact"></div></div><p class="op-notice" data-i18n="moderationNotice">Your opportunity will be reviewed within 24–48h before publication.</p><footer class="op-mf"><button type="button" class="op-btn" id="opCancelPost" data-i18n="cancel">Cancel</button><button type="submit" class="op-btn primary" data-i18n="submitOffer">Submit offer</button></footer></form></article></div>
+<div id="opToast" class="op-toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function(){
+  const lang=((document.documentElement.lang||'en').startsWith('ar')?'ar':'en');
+  const i18n={en:{heroEyebrow:'NLP Opportunities',heroTitle1:'Build your career in',heroTitle2:'AI & NLP',heroSubtitle:'Discover curated opportunities across jobs, internships, PFE, PhD fellowships, and collaborations in the Arabic NLP ecosystem.',statActive:'Active opportunities',statNew:'New this month',statOrg:'Organizations',searchPlaceholder:'Search by title, organization, skills...',filterType:'Type',filterMode:'Mode',filterLevel:'Level',sortRecent:'Most recent',sortDeadline:'Closest deadline',sortRelevance:'Best relevance',countShown:'{count} opportunities shown',noResults:'No opportunities match your filters.',close:'Close',applyNow:'Apply now',publishBtn:'+ Post Opportunity',postModalTitle:'Publish a new opportunity',fieldTitle:'Title',fieldType:'Type',fieldOrg:'Organization',fieldLocation:'Location',fieldMode:'Mode',fieldLevel:'Level',fieldDeadline:'Deadline',fieldSkills:'Skills (comma separated)',fieldDesc:'Description',fieldContact:'Contact link/email',moderationNotice:'Your opportunity will be reviewed within 24–48h before publication.',cancel:'Cancel',submitOffer:'Submit offer',type:{job:'Job',internship:'Internship',pfe:'PFE / Master',phd:'PhD',collab:'Collaboration'},mode:{remote:'Remote',hybrid:'Hybrid',onsite:'On-site'},level:{student:'Student',junior:'Junior',senior:'Senior',researcher:'Researcher'},newBadge:'New',deadlineLabel:'Deadline',urgent:'Urgent',view:'View',postedSuccess:'Offer submitted successfully. Moderation is in progress.'},ar:{heroEyebrow:'فرص NLP',heroTitle1:'ابنِ مسارك المهني في',heroTitle2:'الذكاء الاصطناعي ومعالجة اللغة',heroSubtitle:'اكتشف فرصًا منتقاة بعناية في الوظائف والتربصات وPFE والدكتوراه والتعاون داخل منظومة معالجة اللغة العربية.',statActive:'فرصة نشطة',statNew:'جديد هذا الشهر',statOrg:'مؤسسة',searchPlaceholder:'ابحث بالعنوان أو المؤسسة أو المهارات...',filterType:'النوع',filterMode:'نمط العمل',filterLevel:'المستوى',sortRecent:'الأحدث',sortDeadline:'الأقرب في الآجال',sortRelevance:'الأكثر صلة',countShown:'عرض {count} فرصة',noResults:'لا توجد فرص مطابقة للفلاتر.',close:'إغلاق',applyNow:'قدّم الآن',publishBtn:'+ نشر فرصة',postModalTitle:'نشر فرصة جديدة',fieldTitle:'العنوان',fieldType:'النوع',fieldOrg:'المؤسسة',fieldLocation:'الموقع',fieldMode:'نمط العمل',fieldLevel:'المستوى',fieldDeadline:'آخر أجل',fieldSkills:'المهارات (مفصولة بفاصلة)',fieldDesc:'الوصف',fieldContact:'رابط/بريد التواصل',moderationNotice:'سيتم التحقق من الفرصة خلال 24-48 ساعة قبل النشر.',cancel:'إلغاء',submitOffer:'إرسال الفرصة',type:{job:'وظيفة',internship:'تربص',pfe:'PFE / ماستر',phd:'دكتوراه',collab:'تعاون'},mode:{remote:'عن بُعد',hybrid:'هجين',onsite:'حضوري'},level:{student:'طالب',junior:'مبتدئ',senior:'خبير',researcher:'باحث'},newBadge:'جديد',deadlineLabel:'آخر أجل',urgent:'قريب',view:'عرض',postedSuccess:'تم إرسال الفرصة بنجاح. سيتم مراجعتها قريبًا.'}};
+
+  const opportunities=[{id:1,featured:true,type:'job',mode:'hybrid',level:'senior',isNew:true,relevance:98,createdAt:'2026-03-28',deadline:'2026-04-07',orgInitials:'AT',organization:{en:'AtlasTech AI',ar:'أطلس تيك للذكاء الاصطناعي'},location:{en:'Algiers, Algeria',ar:'الجزائر العاصمة، الجزائر'},title:{en:'Senior NLP Engineer (Arabic LLMs)',ar:'مهندس NLP أول (نماذج لغوية عربية)'},short:{en:'Lead Arabic LLM fine-tuning, optimize inference pipelines, and ship multilingual NLP APIs for production-scale products.',ar:'قيادة ضبط النماذج اللغوية العربية وتحسين خطوط الاستدلال ونشر واجهات NLP متعددة اللغات على نطاق إنتاجي.'},full:{en:'You will own end-to-end NLP delivery: data curation, model training, evaluation, and deployment.',ar:'ستقود دورة تطوير NLP كاملة: تجهيز البيانات والتدريب والتقييم والنشر.'},comp:{en:'$52k–$68k',ar:'52–68 ألف دولار'},skills:['Python','Transformers','MLOps','Arabic NLP']},{id:2,type:'internship',mode:'remote',level:'student',isNew:true,relevance:90,createdAt:'2026-03-27',deadline:'2026-04-15',orgInitials:'CR',organization:{en:'CogniResearch Lab',ar:'مختبر كوغني ريسرش'},location:{en:'Remote (MENA)',ar:'عن بعد (الشرق الأوسط وشمال إفريقيا)'},title:{en:'R&D Internship — Arabic Speech & NLP',ar:'تربص بحث وتطوير — الكلام العربي وNLP'},short:{en:'Contribute to speech-text alignment experiments and evaluate ASR + NLU performance.',ar:'المساهمة في تجارب محاذاة الكلام والنص وتقييم أداء ASR وNLU.'},full:{en:'Interns will work with mentors on low-resource speech datasets and model benchmarking.',ar:'سيعمل المتربصون مع مرشدين على بيانات كلام منخفضة الموارد ومقارنة أداء النماذج.'},comp:{en:'4 months',ar:'4 أشهر'},skills:['PyTorch','ASR','Evaluation']},{id:3,type:'pfe',mode:'onsite',level:'student',isNew:false,relevance:84,createdAt:'2026-03-20',deadline:'2026-04-03',orgInitials:'DL',organization:{en:'DeepLex University',ar:'جامعة ديب ليكس'},location:{en:'Oran, Algeria',ar:'وهران، الجزائر'},title:{en:'PFE — Arabic Named Entity Linking',ar:'مشروع تخرج — ربط الكيانات العربية'},short:{en:'Build and benchmark an entity linking system for Arabic news.',ar:'بناء ومقارنة نظام ربط كيانات للأخبار العربية.'},full:{en:'Project includes dataset curation, weak supervision, and leaderboard-ready evaluation.',ar:'يشمل المشروع تجهيز البيانات والإشراف الضعيف وتقييمًا جاهزًا للمنافسات.'},comp:{en:'6 months',ar:'6 أشهر'},skills:['NER','Entity Linking','spaCy']},{id:4,type:'phd',mode:'hybrid',level:'researcher',isNew:true,relevance:96,createdAt:'2026-03-26',deadline:'2026-04-28',orgInitials:'MB',organization:{en:'MENA Brain Institute',ar:'معهد مينا براين'},location:{en:'Doha, Qatar',ar:'الدوحة، قطر'},title:{en:'PhD Fellowship — Multimodal Arabic LLM',ar:'منحة دكتوراه — نموذج عربي متعدد الوسائط'},short:{en:'Research grounded multimodal models with text, OCR, and speech.',ar:'بحث نماذج متعددة الوسائط تشمل النص وOCR والكلام.'},full:{en:'The fellowship focuses on multilingual transfer learning and robust evaluation.',ar:'تركز المنحة على نقل التعلم متعدد اللغات والتقييم المتين.'},comp:{en:'$28k stipend / year',ar:'منحة 28 ألف دولار سنويًا'},skills:['Multimodal','LLM','Research']},{id:5,type:'collab',mode:'remote',level:'researcher',isNew:false,relevance:82,createdAt:'2026-03-18',deadline:'2026-04-19',orgInitials:'AN',organization:{en:'ArabNLP Network',ar:'شبكة عرب NLP'},location:{en:'Distributed',ar:'موزّع'},title:{en:'Research Collaboration — Arabic Benchmark Suite',ar:'تعاون بحثي — حزمة معايير عربية'},short:{en:'Co-develop open Arabic benchmark datasets and evaluation tasks.',ar:'تطوير مشترك لمعايير عربية مفتوحة ومهام تقييم.'},full:{en:'Ideal for labs and researchers looking to collaborate on Arabic NLP standards.',ar:'مناسب للمخابر والباحثين الراغبين في التعاون على معايير عربية.'},comp:{en:'Open call',ar:'دعوة مفتوحة'},skills:['Benchmarking','Open Science','QA']},{id:6,type:'job',mode:'onsite',level:'junior',isNew:false,relevance:78,createdAt:'2026-03-14',deadline:'2026-04-05',orgInitials:'NV',organization:{en:'NexVerse Labs',ar:'مختبرات نيكس فيرس'},location:{en:'Tunis, Tunisia',ar:'تونس، تونس'},title:{en:'Junior NLP Product Engineer',ar:'مهندس منتج NLP مبتدئ'},short:{en:'Integrate NLP microservices into user-facing products and improve latency.',ar:'دمج خدمات NLP المصغّرة داخل المنتجات وتحسين السرعة.'},full:{en:'You will ship product features using LLM APIs and search pipelines.',ar:'ستقوم بتطوير ميزات منتج باستخدام واجهات LLM وخطوط البحث.'},comp:{en:'$24k–$34k',ar:'24–34 ألف دولار'},skills:['API Design','Search','Prompting']},{id:7,type:'internship',mode:'hybrid',level:'junior',isNew:true,relevance:81,createdAt:'2026-03-25',deadline:'2026-04-10',orgInitials:'SP',organization:{en:'Sahara Predict',ar:'ساهارا برِدِكت'},location:{en:'Casablanca, Morocco',ar:'الدار البيضاء، المغرب'},title:{en:'ML/NLP Internship — Retrieval & RAG',ar:'تربص ML/NLP — الاسترجاع وRAG'},short:{en:'Prototype retrieval-augmented generation pipelines.',ar:'نمذجة أولية لخطوط RAG.'},full:{en:'You will evaluate chunking, embedding strategies, and relevance scoring.',ar:'ستقيّم استراتيجيات التقسيم والتضمين وتسجيل الصلة.'},comp:{en:'5 months',ar:'5 أشهر'},skills:['RAG','Vector DB','Embeddings']},{id:8,type:'collab',mode:'remote',level:'senior',isNew:false,relevance:76,createdAt:'2026-03-10',deadline:'2026-04-30',orgInitials:'BL',organization:{en:'Bayt Linguistics',ar:'بيت اللسانيات'},location:{en:'Remote (Global)',ar:'عن بعد (عالميًا)'},title:{en:'Industry Collaboration — Arabic Data Governance',ar:'تعاون صناعي — حوكمة البيانات العربية'},short:{en:'Partner on ethical data pipelines, governance policies, and compliance-aware training.',ar:'شراكة في خطوط بيانات أخلاقية وسياسات حوكمة وتدريب متوافق.'},full:{en:'Seeking institutions with legal, NLP, and platform capabilities.',ar:'نبحث عن مؤسسات ذات خبرة قانونية وNLP ومنصات تقنية.'},comp:{en:'Strategic partnership',ar:'شراكة استراتيجية'},skills:['Data Governance','Compliance','Policy']}];
+
+  const state={search:'',type:new Set(),mode:new Set(),level:new Set(),sort:'recent'};
+  const typeKeys=['job','internship','pfe','phd','collab'],modeKeys=['remote','hybrid','onsite'],levelKeys=['student','junior','senior','researcher'];
+  const byId=id=>document.getElementById(id),dict=i18n[lang];
+  const cards=byId('opCards'),count=byId('opCount'),empty=byId('opEmpty');
+
+  function t(){document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(dict[k])el.textContent=dict[k]});document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{const k=el.dataset.i18nPlaceholder;if(dict[k])el.placeholder=dict[k]})}
+  function daysLeft(d){const n=new Date();n.setHours(0,0,0,0);const x=new Date(d+'T00:00:00');return Math.ceil((x-n)/86400000)}
+
+  function renderFilters(){
+    const make=(k,g,c)=>`<div class="op-ft-item ${state[g].has(k)?'active':''}" data-g="${g}" data-k="${k}"><span class="op-ft-label"><span class="op-chk"></span><span>${dict[g][k]}</span></span>${c?`<span class="op-count">${opportunities.filter(o=>o[g]===k).length}</span>`:''}</div>`;
+    byId('opType').innerHTML=typeKeys.map(k=>make(k,'type',true)).join('');
+    byId('opMode').innerHTML=modeKeys.map(k=>make(k,'mode',false)).join('');
+    byId('opLevel').innerHTML=levelKeys.map(k=>make(k,'level',false)).join('');
+    document.querySelectorAll('.op-ft-item').forEach(it=>it.onclick=()=>{const g=it.dataset.g,k=it.dataset.k;state[g].has(k)?state[g].delete(k):state[g].add(k);renderFilters();renderCards()});
+  }
+
+  function filtered(){
+    const q=(state.search||'').toLowerCase();
+    let data=opportunities.filter(o=>{
+      const txt=[o.title[lang],o.organization[lang],o.location[lang],o.short[lang],...o.skills].join(' ').toLowerCase();
+      return (state.type.size?state.type.has(o.type):true)&&(state.mode.size?state.mode.has(o.mode):true)&&(state.level.size?state.level.has(o.level):true)&&(q?txt.includes(q):true);
+    });
+    if(state.sort==='recent')data.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    else if(state.sort==='deadline')data.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
+    else data.sort((a,b)=>b.relevance-a.relevance);
+    return data;
+  }
+
+  function renderCards(){
+    const data=filtered();
+    count.textContent=dict.countShown.replace('{count}',data.length);
+    cards.innerHTML='';
+    if(!data.length){empty.style.display='block';return}else empty.style.display='none';
+    data.forEach((o,i)=>{
+      const urgent=daysLeft(o.deadline)<=7;
+      const info=(o.type==='internship'||o.type==='pfe')?'Duration':'Salary';
+      const el=document.createElement('article');el.className=`op-card ${o.featured?'featured':''}`;el.style.animationDelay=(i*45)+'ms';
+      el.innerHTML=`<div class="op-head"><div class="op-org">${o.orgInitials}</div><div style="min-width:0;flex:1"><h3 class="op-title">${o.title[lang]}</h3><div class="op-orgline">${o.organization[lang]} • ${o.location[lang]}</div><div class="op-badges"><span class="op-badge type">${dict.type[o.type]}</span><span class="op-badge">${dict.mode[o.mode]}</span>${o.isNew?`<span class="op-badge new">${dict.newBadge}</span>`:''}</div></div></div><div class="op-meta"><span>${dict.level[o.level]}</span><span>${dict[info.toLowerCase()]}: ${o.comp[lang]}</span><span>${o.location[lang]}</span></div><p class="op-desc">${o.short[lang]}</p><div class="op-skills">${o.skills.map(s=>`<span class="op-badge">${s}</span>`).join('')}</div><div class="op-foot"><span class="op-deadline ${urgent?'urgent':''}">${dict.deadlineLabel}: ${new Date(o.deadline).toLocaleDateString(lang==='ar'?'ar':'en-GB')} ${urgent?`• ${dict.urgent}`:''}</span><div><button class="op-btn" type="button">☆</button> <button class="op-btn primary" type="button">${dict.view}</button></div></div>`;
+      el.onclick=(e)=>{if(e.target.tagName.toLowerCase()==='button'&&e.target.textContent==='☆'){e.target.textContent='★';e.stopPropagation();return}openDetail(o)};
+      cards.appendChild(el);
+    })
+  }
+
+  const dBack=byId('opDetailBackdrop'),dCont=byId('opDetailContent');
+  function openDetail(o){const urgent=daysLeft(o.deadline)<=7;dCont.innerHTML=`<h3 style="margin:0;font-family:'Syne',sans-serif">${o.title[lang]}</h3><p style="margin:0;color:#6b7080">${o.organization[lang]} • ${o.location[lang]}</p><div class="op-badges"><span class="op-badge type">${dict.type[o.type]}</span><span class="op-badge">${dict.mode[o.mode]}</span><span class="op-badge">${dict.level[o.level]}</span></div><p>${o.full[lang]}</p><div class="op-skills">${o.skills.map(s=>`<span class="op-badge">${s}</span>`).join('')}</div><div class="op-badges"><span class="op-badge">${dict.deadlineLabel}: ${new Date(o.deadline).toLocaleDateString(lang==='ar'?'ar':'en-GB')} ${urgent?`• ${dict.urgent}`:''}</span><span class="op-badge">Relevance: ${o.relevance}/100</span></div>`;dBack.classList.add('show')}
+  function closeDetail(){dBack.classList.remove('show')}
+  byId('opCloseDetail').onclick=closeDetail;byId('opDetailClose').onclick=closeDetail;dBack.onclick=e=>{if(e.target===dBack)closeDetail()}
+
+  const pBack=byId('opPostBackdrop'),pForm=byId('opPostForm'),toast=byId('opToast');
+  const openPost=()=>pBack.classList.add('show'),closePost=()=>pBack.classList.remove('show');
+  byId('opOpenPost').onclick=openPost;byId('opClosePost').onclick=closePost;byId('opCancelPost').onclick=closePost;pBack.onclick=e=>{if(e.target===pBack)closePost()}
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2500)}
+  pForm.onsubmit=(e)=>{e.preventDefault();closePost();pForm.reset();showToast(dict.postedSuccess)}
+
+  byId('opSearch').oninput=e=>{state.search=e.target.value;renderCards()};
+  byId('opSort').onchange=e=>{state.sort=e.target.value;renderCards()};
+
+  t();renderFilters();renderCards();
+})();
+</script>
+{% endblock %}

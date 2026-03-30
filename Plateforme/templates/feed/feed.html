@@ -3,7 +3,7 @@
 {% load i18n %}
 {% get_current_language as language_code %}
 
-{% block title %}{% translate "News" %}{% endblock %}
+{% block title %}{% if language_code|slice:':2' == 'ar' %}المنشورات{% else %}Feed{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1368,15 +1368,15 @@ html[dir="rtl"] .share-dropdown-menu {
                 </div>
                 <h1 class="hero-title">
                     {% if language_code == 'ar' %}
-                        {% translate "News" %}
+                        المنشورات
                     {% else %}
-                        {% translate "Arabic NLP" %} <span class="accent">{% translate "Research Feed" %}</span>
+                        {% translate "Arabic NLP" %} <span class="accent">Feed</span>
                     {% endif %}
                 </h1>
                 <p class="hero-subtitle">{% translate "Stay updated with the latest in NLP research, datasets, and community updates" %}</p>
                 
                 <!-- Search Bar -->
-                <form class="search-container" method="GET" action="{% url 'QA:feed' %}">
+                <form class="search-container" method="GET" action="{% url 'feed:feed' %}">
                     <div class="search-pill">
                         <span class="search-icon"><i class="bi bi-search"></i></span>
                         <input type="text" name="q" class="search-input" 
@@ -1392,15 +1392,15 @@ html[dir="rtl"] .share-dropdown-menu {
     <main class="feed-content">
         <!-- Filter Pills -->
         <nav class="filter-section">
-            <a href="{% url 'QA:feed' %}" class="filter-pill {% if current_filter == 'all' %}active{% endif %}">
+            <a href="{% url 'feed:feed' %}" class="filter-pill {% if current_filter == 'all' %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i>
                 <span>{% translate "All Posts" %}</span>
             </a>
-            <a href="{% url 'QA:feed' %}?filter=popular" class="filter-pill {% if current_filter == 'popular' %}active{% endif %}">
+            <a href="{% url 'feed:feed' %}?filter=popular" class="filter-pill {% if current_filter == 'popular' %}active{% endif %}">
                 <i class="bi bi-graph-up-arrow"></i>
                 <span>{% translate "Most Popular" %}</span>
             </a>
-            <a href="{% url 'QA:feed' %}?filter=my_posts" class="filter-pill {% if current_filter == 'my_posts' %}active{% endif %}">
+            <a href="{% url 'feed:feed' %}?filter=my_posts" class="filter-pill {% if current_filter == 'my_posts' %}active{% endif %}">
                 <i class="bi bi-person"></i>
                 <span>{% translate "My Posts" %}</span>
             </a>
@@ -1417,22 +1417,22 @@ html[dir="rtl"] .share-dropdown-menu {
                         {{ user.get_full_name_display|slice:":1"|upper }}
                     {% endif %}
                 </div>
-                <a href="{% url 'QA:create_post' %}" class="create-post-input">
+                <a href="{% url 'feed:create_post' %}" class="create-post-input">
                     {% translate "What's on your mind," %} {{ user.get_full_name_display }}?
                 </a>
             </div>
             <div class="create-post-actions">
                 <div class="create-post-options">
-                    <a href="{% url 'QA:create_post' %}" class="feed-option-btn image-btn">
+                    <a href="{% url 'feed:create_post' %}" class="feed-option-btn image-btn">
                         <i class="bi bi-image"></i>
                         <span>{% translate "Image" %}</span>
                     </a>
-                    <a href="{% url 'QA:create_post' %}" class="feed-option-btn file-btn">
+                    <a href="{% url 'feed:create_post' %}" class="feed-option-btn file-btn">
                         <i class="bi bi-paperclip"></i>
                         <span>{% translate "Attach File" %}</span>
                     </a>
                 </div>
-                <a href="{% url 'QA:create_post' %}" class="btn btn-primary">
+                <a href="{% url 'feed:create_post' %}" class="btn btn-primary">
                     <i class="bi bi-send"></i>
                     {% translate "Publish" %}
                 </a>
@@ -1474,13 +1474,13 @@ html[dir="rtl"] .share-dropdown-menu {
                     <!-- Action Buttons - Consistent with Community page -->
                     {% if post.author == user or user.is_staff %}
                     <div class="post-header-actions">
-                        <a href="{% url 'QA:edit_post' post.id %}" class="post-action-btn primary" title="{% if post.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
+                        <a href="{% url 'feed:edit_post' post.id %}" class="post-action-btn primary" title="{% if post.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
                             <i class="bi {% if post.approval_status == 'pending' %}bi-file-earmark-text{% else %}bi-pencil{% endif %}"></i>
                         </a>
                         <button type="button" class="post-action-btn danger" onclick="confirmDelete('{{ post.id }}')" title="{% translate 'Delete' %}">
                             <i class="bi bi-trash3"></i>
                         </button>
-                        <a href="{% url 'QA:post_detail' post.slug %}" class="post-action-btn" title="{% translate 'View details' %}">
+                        <a href="{% url 'feed:post_detail' post.slug %}" class="post-action-btn" title="{% translate 'View details' %}">
                             <i class="bi bi-three-dots-vertical"></i>
                         </a>
                     </div>
@@ -1563,7 +1563,7 @@ html[dir="rtl"] .share-dropdown-menu {
                         {% if user.is_authenticated %}
                         <button type="button"
                                 class="feed-action-btn btn-like {% if user in post.likes.all %}liked{% endif %}"
-                                data-like-url="{% url 'QA:like_post' post.id %}"
+                                data-like-url="{% url 'feed:like_post' post.id %}"
                                 onclick="toggleLike('{{ post.id }}', this, event)">
                             <i class="bi {% if user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
                             <span>{% translate "Like" %}</span>
@@ -1575,7 +1575,7 @@ html[dir="rtl"] .share-dropdown-menu {
                         </a>
                         {% endif %}
                     </div>
-                    <a href="{% url 'QA:post_detail' post.slug %}" class="feed-action-btn comment-btn comment-center">
+                    <a href="{% url 'feed:post_detail' post.slug %}" class="feed-action-btn comment-btn comment-center">
                         <i class="bi bi-chat-dots" data-outline-icon="bi-chat-dots" data-solid-icon="bi-chat-dots-fill"></i>
                         <span>{% translate "Comment" %}</span>
                     </a>
@@ -1625,7 +1625,7 @@ html[dir="rtl"] .share-dropdown-menu {
                         {% endfor %}
                     </div>
                     {% if post.comments.count > 2 %}
-                    <a href="{% url 'QA:post_detail' post.slug %}" class="view-comments-link">
+                    <a href="{% url 'feed:post_detail' post.slug %}" class="view-comments-link">
                         {% translate "View all" %} {{ post.comments.count }} {% translate "comments" %}
                         <i class="bi bi-chevron-right"></i>
                     </a>
@@ -1681,7 +1681,7 @@ html[dir="rtl"] .share-dropdown-menu {
     function getPostUrlFromActionNode(node) {
         const dropdown = node.closest('.feed-share-dropdown');
         const slug = dropdown ? dropdown.dataset.postSlug : '';
-        return `${window.location.origin}/QA/post/${slug}/`;
+        return `${window.location.origin}/feed/post/${slug}/`;
     }
 
     function showFeedToast(message) {
@@ -1948,7 +1948,7 @@ html[dir="rtl"] .share-dropdown-menu {
             event.stopPropagation();
         }
         try {
-            const likeUrl = btn?.dataset?.likeUrl || `/QA/post/${postId}/like/`;
+            const likeUrl = btn?.dataset?.likeUrl || `/feed/post/${postId}/like/`;
             const icon = btn.querySelector('i');
             const wasLiked = btn.classList.contains('liked');
 
@@ -2016,7 +2016,7 @@ html[dir="rtl"] .share-dropdown-menu {
     window.confirmDelete = function(postId) {
         if (confirm('{% translate "Are you sure you want to delete this post? This action cannot be undone." %}')) {
             const form = document.getElementById('deleteForm');
-            form.action = `/QA/post/${postId}/delete/`;
+            form.action = `/feed/post/${postId}/delete/`;
             form.submit();
         }
     };
