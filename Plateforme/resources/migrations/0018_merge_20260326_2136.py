@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('resources', '0014_alter_corpus_options_remove_document_file_format_and_more'),
+        ('resources', '0018_alter_corpus_options_remove_document_file_format_and_more'),
         ('resources', '0017_domain_model_indexes'),
     ]
 

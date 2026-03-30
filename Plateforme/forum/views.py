@@ -133,16 +133,6 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-<<<<<<< HEAD
-        visible_topics_qs = self.get_queryset()
-        context['page'] = 'community'
-        context['search_query'] = self.request.GET.get('q', '')
-        context['total_topics'] = visible_topics_qs.count()
-        context['total_chatrooms'] = ChatRoom.objects.filter(topic__in=visible_topics_qs).count()
-        # Category filter context
-        context['current_sort'] = self.request.GET.get('sort', '')
-        context['my_topics'] = self.request.GET.get('my_topics', '')
-=======
         full_qs = self.get_queryset()
         stats_qs = Topic.objects.all()
 
@@ -183,7 +173,6 @@ class TopicListView(LoginAndVerifiedRequiredMixin, ListView):
         context["current_page"] = page_obj.number if page_obj else 1
         context["num_pages"] = paginator.num_pages if paginator else 1
 
->>>>>>> 837180b3e4c0b6aa7c0b518c135929979317e47e
         return context
 
 

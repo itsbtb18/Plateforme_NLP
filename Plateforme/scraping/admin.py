@@ -8,7 +8,11 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
-from .selector_discovery import SelectorDiscoveryEngine
+
+try:
+    from .selector_discovery import SelectorDiscoveryEngine
+except Exception:
+    SelectorDiscoveryEngine = None
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +308,14 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
 
     @admin.action(description="Auto-discover CSS selectors for selected sources")
     def auto_discover_selectors(self, request, queryset):
+        if SelectorDiscoveryEngine is None:
+            self.message_user(
+                request,
+                _("Selector discovery dependencies are not installed in this environment."),
+                level=messages.ERROR,
+            )
+            return
+
         engine = SelectorDiscoveryEngine()
         results = []
 

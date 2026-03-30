@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0003_event_approval_date_event_approved_by_and_more'),
+        ('events', '0003_add_event_approval_metadata'),
         ('events', '0006_domain_model_indexes'),
     ]
 

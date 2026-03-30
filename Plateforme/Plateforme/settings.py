@@ -7,9 +7,18 @@ import os
 from pathlib import Path
 
 import dj_database_url
-from celery.schedules import crontab
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
+
+try:
+    from celery.schedules import crontab
+
+    CELERY_AVAILABLE = True
+except Exception:
+    CELERY_AVAILABLE = False
+
+    def crontab(*args, **kwargs):
+        return None
 
 # Load environment variables for local, non-Docker runs.
 from dotenv import load_dotenv
@@ -23,6 +32,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+INTERNAL_IPS = [
+    "127.0.0.1",
+    "172.25.0.5",
+    "172.25.0.0/16",
+]
+PROMETHEUS_ALLOWED_IPS = [
+    "172.25.0.0/16",
+]
+PROMETHEUS_ALLOWED_NETWORKS = os.environ.get(
+    "PROMETHEUS_ALLOWED_NETWORKS",
+    "172.25.0.0/16,172.16.0.0/12,127.0.0.1/32",
+).split(",")
 
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
@@ -47,7 +68,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sites",
     "django.contrib.staticfiles",
-    "django_celery_beat",
     # Elasticsearch
     "django_elasticsearch_dsl",
     # Apps projet
@@ -80,7 +100,7 @@ INSTALLED_APPS = [
     "widget_tweaks",
 ]
 
-if importlib.util.find_spec("django_celery_beat") is not None:
+if CELERY_AVAILABLE and importlib.util.find_spec("django_celery_beat") is not None:
     INSTALLED_APPS.append("django_celery_beat")
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -451,9 +471,13 @@ CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 min soft limit
 CELERY_TASK_TIME_LIMIT = 900  # 15 min hard limit
 CELERY_TASK_DEFAULT_QUEUE = "scraping"
 
-CELERY_BEAT_SCHEDULE = {
-    "update-adaptive-schedules": {
-        "task": "scraping.tasks.update_adaptive_schedules",
-        "schedule": crontab(hour=3, minute=0),
+CELERY_BEAT_SCHEDULE = (
+    {
+        "update-adaptive-schedules": {
+            "task": "scraping.tasks.update_adaptive_schedules",
+            "schedule": crontab(hour=3, minute=0),
+        }
     }
-}
+    if CELERY_AVAILABLE
+    else {}
+)
