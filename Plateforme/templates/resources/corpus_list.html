@@ -1,172 +1,292 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% load static %}
+{% get_current_language as language_code %}
 
-{% block title %}{% trans "Corpus Collection" %} - {% trans "Arabic NLP Platform" %}{% endblock title %}
+{% block title %}{% trans "Corpus Collection" %} - {% trans "Advanced AI Resources" %}{% endblock title %}
 
 {% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-/* ===== CSS VARIABLES - Academic SaaS Theme ===== */
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
 :root {
-    --primary-deep: #1e3a5f;
-    --primary-accent: #2563eb;
-    --primary-light: #3b82f6;
-    --teal-accent: #0d9488;
-    --surface-white: #ffffff;
-    --surface-light: #f8fafc;
-    --surface-muted: #f1f5f9;
-    --border-subtle: #e2e8f0;
-    --border-light: #f1f5f9;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
     /* Corpus Type Colors */
-    --type-medical: #dc2626;
-    --type-medical-bg: #fef2f2;
-    --type-linguistics: #7c3aed;
-    --type-linguistics-bg: #f5f3ff;
-    --type-translation: #059669;
-    --type-translation-bg: #ecfdf5;
-    --type-general: #2563eb;
-    --type-general-bg: #eff6ff;
-    --type-social: #ea580c;
-    --type-social-bg: #fff7ed;
-    --type-legal: #4f46e5;
-    --type-legal-bg: #eef2ff;
+    --type-medical: #ef4444;
+    --type-medical-bg: rgba(239, 68, 68, 0.15);
+    --type-linguistics: #a78bfa;
+    --type-linguistics-bg: rgba(167, 139, 250, 0.15);
+    --type-translation: #10b981;
+    --type-translation-bg: rgba(16, 185, 129, 0.15);
+    --type-general: #3b82f6;
+    --type-general-bg: rgba(59, 130, 246, 0.15);
+    --type-social: #f97316;
+    --type-social-bg: rgba(249, 115, 22, 0.15);
+    --type-legal: #8b5cf6;
+    --type-legal-bg: rgba(139, 92, 246, 0.15);
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
 }
 
 html[dir="rtl"] body {
-    font-family: 'Tajawal', 'Inter', sans-serif;
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* ===== PAGE WRAPPER ===== */
+
+/* ===== PAGE LAYOUT ===== */
 .corpus-page {
-    min-height: calc(100vh - 200px);
-    background: linear-gradient(180deg, var(--surface-light) 0%, var(--surface-white) 100%);
-    padding: 2rem 0 4rem;
-}
-
-.corpus-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-}
-
-/* ===== HEADER SECTION - Academic Style ===== */
-.corpus-header-section {
-    background: linear-gradient(135deg, var(--primary-deep) 0%, #1e40af 50%, var(--teal-accent) 100%);
-    border-radius: var(--radius-xl);
-    padding: 2.5rem 3rem;
-    margin-bottom: 2rem;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
     position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    overflow-x: hidden;
 }
 
-.corpus-header-section::before {
+.corpus-page::before {
     content: '';
-    position: absolute;
+    position: fixed;
     top: 0;
+    left: 0;
     right: 0;
-    width: 40%;
-    height: 100%;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    opacity: 0.5;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ===== HERO SECTION ===== */
+.corpus-header-section {
+    position: relative;
+    z-index: 1;
+    padding: 4rem 2rem;
+    margin: 2rem auto;
+    max-width: 1400px;
+    width: calc(100% - 4rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.06) 0%, rgba(124, 58, 237, 0.03) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
 }
 
 .header-content {
-    position: relative;
-    z-index: 2;
     display: flex;
-    justify-content: space-between;
+    align-items: flex-start;
+    gap: 3rem;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.header-text-content {
+    flex: 0 1 auto;
+    text-align: start;
+    min-width: 0;
+}
+
+.header-illustration-wrapper {
+    flex: 0 0 auto;
+    display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 1.5rem;
+}
+
+.header-text {
+    text-align: start;
 }
 
 .header-text h1 {
-    color: white;
-    font-size: 2.25rem;
+    font-size: clamp(2.5rem, 8vw, 3.5rem);
     font-weight: 800;
-    margin: 0 0 0.5rem;
-    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
 }
 
-.header-text .subtitle {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 1.1rem;
-    margin: 0;
+.header-text h1 .accent {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin: 0 0 2rem;
+    max-width: 500px;
+    line-height: 1.6;
+}
+
+/* Hero Actions Section */
+.hero-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.stats-showcase {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
-.corpus-count {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
+.stat-badge {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    text-align: center;
 }
 
-/* Glassmorphism Button */
-.btn-glass {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.75rem;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: var(--radius-md);
-    color: white;
-    font-weight: 600;
-    font-size: 1rem;
-    text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1;
 }
 
-.btn-glass:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    color: white;
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.5rem;
+    font-weight: 700;
 }
 
-.btn-glass .icon-circle {
-    width: 28px;
-    height: 28px;
-    background: white;
-    border-radius: 50%;
+/* ===== HERO ILLUSTRATION ===== */
+.hero-illustration {
+    width: 400px;
+    height: 300px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--primary-deep);
-    font-size: 1rem;
+    flex-shrink: 0;
 }
 
+.nlp-illustration {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.3));
+}
+
+@keyframes floatCircle {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+}
+
+@keyframes rotateElement {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulseCircle {
+    0%, 100% { r: 28; opacity: 0.3; }
+    50% { r: 35; opacity: 0.1; }
+}
+
+.float-circle {
+    animation: floatCircle 4s ease-in-out infinite;
+}
+
+.rotate-element {
+    animation: rotateElement 8s linear infinite;
+    transform-origin: 200px 150px;
+}
+
+.pulse-circle {
+    animation: pulseCircle 2s ease-in-out infinite;
+}
+
+.corpus-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+.btn-glass {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
+    color: var(--bg-dark);
+    font-weight: 700;
+    font-size: 1rem;
+    border: none;
+    border-radius: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.btn-glass:hover {
+    transform: translateY(-3px);
+    color: #ffffff;
+}
+
+.btn-glass:hover::before { opacity: 1; }
+.btn-glass > * { position: relative; z-index: 1; }
+
 .login-notice {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-md);
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     padding: 1rem 1.5rem;
-    color: white;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -175,7 +295,11 @@ html[dir="rtl"] body {
 
 /* ===== SEARCH BAR ===== */
 .search-section {
-    margin-bottom: 2rem;
+    max-width: 1280px;
+    margin: 3rem auto 0;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .search-wrapper {
@@ -185,17 +309,18 @@ html[dir="rtl"] body {
 .search-box {
     display: flex;
     align-items: center;
-    background: var(--surface-white);
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: 0.5rem;
-    box-shadow: var(--shadow-sm);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 0.75rem;
+    backdrop-filter: blur(10px);
     transition: all 0.3s ease;
 }
 
 .search-box:focus-within {
-    border-color: var(--primary-accent);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.2);
 }
 
 .search-icon {
@@ -212,241 +337,114 @@ html[dir="rtl"] body {
     font-size: 1rem;
     color: var(--text-primary);
     outline: none;
-    text-align: start; /* auto-flips to right in RTL */
 }
 
 .search-input::placeholder {
     color: var(--text-muted);
-    text-align: start;
 }
 
 .search-btn {
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 12px;
     padding: 0.875rem 1.5rem;
-    color: white;
-    font-weight: 600;
+    color: var(--bg-dark);
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 1rem;
 }
 
 .search-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.3);
 }
 
-/* ===== CONTENT LAYOUT WITH SIDEBAR ===== */
+/* ===== FILTER TABS ===== */
+.filter-section {
+    max-width: 1280px;
+    margin: 3rem auto 0;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.filter-tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+}
+
+.filter-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 50px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.filter-tab:hover {
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    background: rgba(167, 139, 250, 0.1);
+    transform: translateY(-2px);
+}
+
+.filter-tab.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--bg-dark);
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
+}
+
+.filter-tab-count {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+    margin-left: 0.3rem;
+}
+
+.filter-tab.active .filter-tab-count {
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+}
+
+/* ===== CONTENT LAYOUT ===== */
+.hub-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+    position: relative;
+    z-index: 1;
+}
+
 .content-layout {
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 1fr;
     gap: 2rem;
     align-items: start;
-}
-
-@media (max-width: 992px) {
-    .content-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ===== FILTER SIDEBAR ===== */
-.filter-sidebar {
-    background: var(--surface-white);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    position: sticky;
-    top: 1rem;
-    overflow: hidden;
-}
-
-.filter-header {
-    padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-accent) 100%);
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.filter-header h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-clear-filters {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.btn-clear-filters:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.btn-clear-filters:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.filter-section {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.filter-section:last-child {
-    border-bottom: none;
-}
-
-.filter-section-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filter-section-title i {
-    color: var(--primary-accent);
-    font-size: 1rem;
-}
-
-.filter-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 180px;
-    overflow-y: auto;
-}
-
-.filter-options::-webkit-scrollbar {
-    width: 4px;
-}
-
-.filter-options::-webkit-scrollbar-track {
-    background: var(--surface-muted);
-    border-radius: 2px;
-}
-
-.filter-options::-webkit-scrollbar-thumb {
-    background: var(--border-subtle);
-    border-radius: 2px;
-}
-
-.filter-option {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    cursor: pointer;
-    padding: 0.5rem 0.625rem;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
-}
-
-.filter-option:hover {
-    background: var(--surface-light);
-}
-
-.filter-option input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-subtle);
-    border-radius: 4px;
-    cursor: pointer;
-    accent-color: var(--primary-accent);
-    flex-shrink: 0;
-}
-
-.filter-option-label {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    flex: 1;
-    line-height: 1.4;
-}
-
-.filter-option input:checked + .filter-option-label {
-    color: var(--primary-accent);
-    font-weight: 500;
-}
-
-/* Mobile filter toggle */
-.mobile-filter-toggle {
-    display: none;
-    width: 100%;
-    padding: 1rem;
-    background: var(--surface-white);
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    color: var(--text-secondary);
-    cursor: pointer;
-    margin-bottom: 1rem;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.2s ease;
-}
-
-.mobile-filter-toggle:hover {
-    border-color: var(--primary-accent);
-    color: var(--primary-accent);
-}
-
-@media (max-width: 992px) {
-    .mobile-filter-toggle {
-        display: flex;
-    }
-    
-    .filter-sidebar {
-        position: fixed;
-        top: 0;
-        left: -100%;
-        width: 300px;
-        height: 100vh;
-        z-index: 1000;
-        border-radius: 0;
-        transition: left 0.3s ease;
-        overflow-y: auto;
-    }
-    
-    .filter-sidebar.active {
-        left: 0;
-    }
-    
-    .filter-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-    }
-    
-    .filter-overlay.active {
-        display: block;
-    }
 }
 
 /* ===== RESULTS SECTION ===== */
@@ -458,31 +456,14 @@ html[dir="rtl"] body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding: 1rem 1.25rem;
-    background: var(--surface-white);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    flex-wrap: wrap;
-    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .results-count {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     font-size: 0.95rem;
     color: var(--text-secondary);
-}
-
-.results-count strong {
-    color: var(--primary-accent);
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-.results-count i {
-    color: var(--primary-accent);
 }
 
 .active-filters-display {
@@ -497,17 +478,17 @@ html[dir="rtl"] body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.375rem 0.75rem;
-    background: var(--primary-accent);
-    color: white;
+    background: var(--primary-color);
+    color: var(--bg-dark);
     border-radius: 50px;
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .active-filter-tag button {
     background: none;
     border: none;
-    color: white;
+    color: var(--bg-dark);
     cursor: pointer;
     padding: 0;
     margin-left: 0.25rem;
@@ -556,8 +537,8 @@ html[dir="rtl"] body {
 .loading-spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid var(--border-subtle);
-    border-top-color: var(--primary-accent);
+    border: 4px solid var(--border-color);
+    border-top-color: var(--primary-color);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -574,54 +555,65 @@ html[dir="rtl"] body {
 /* ===== CORPUS GRID ===== */
 .corpus-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+    transition: all 0.3s ease;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
     .corpus-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
     .corpus-grid {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
     }
 }
 
-/* ===== CORPUS CARD - Premium Design ===== */
+/* ===== CORPUS CARD ===== */
 .corpus-card {
-    background: var(--surface-white);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
+    position: relative;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
+    transition: all 0.3s ease;
+    animation: cardFadeIn 0.5s ease-out forwards;
+    opacity: 0;
 }
 
 .corpus-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-xl);
-    border-color: transparent;
+    transform: translateY(-8px);
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
+    box-shadow: 0 16px 40px rgba(167, 139, 250, 0.2);
 }
 
-.corpus-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-accent), var(--teal-accent));
-    opacity: 0;
-    transition: opacity 0.3s ease;
+@keyframes cardFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.corpus-card:hover::before {
-    opacity: 1;
+.corpus-card:nth-child(1) { animation-delay: 0.03s; }
+.corpus-card:nth-child(2) { animation-delay: 0.06s; }
+.corpus-card:nth-child(3) { animation-delay: 0.09s; }
+.corpus-card:nth-child(4) { animation-delay: 0.12s; }
+.corpus-card:nth-child(5) { animation-delay: 0.15s; }
+.corpus-card:nth-child(6) { animation-delay: 0.18s; }
+.corpus-card:nth-child(7) { animation-delay: 0.21s; }
+.corpus-card:nth-child(8) { animation-delay: 0.24s; }
+.corpus-card:nth-child(9) { animation-delay: 0.27s; }
+
+.card-accent-line {
+    height: 3px;
+    width: 100%;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 50%, var(--accent-pink) 100%);
 }
 
 /* Card Header with Icon */
@@ -635,7 +627,7 @@ html[dir="rtl"] body {
 .corpus-icon {
     width: 52px;
     height: 52px;
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -662,11 +654,11 @@ html[dir="rtl"] body {
 }
 
 .corpus-title {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 0.25rem;
-    line-height: 1.4;
+    margin: 0 0 0.75rem;
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -674,13 +666,19 @@ html[dir="rtl"] body {
 }
 
 .corpus-type-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
     font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.625rem;
-    border-radius: 20px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.025em;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    width: fit-content;
+    border: 1px solid currentColor;
+    opacity: 0.8;
 }
 
 .corpus-type-badge.type-medical { background: var(--type-medical-bg); color: var(--type-medical); }
@@ -706,20 +704,20 @@ html[dir="rtl"] body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    font-size: 0.9rem;
 }
 
 .meta-label {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--text-muted);
     min-width: 70px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    text-align: start; /* auto-flips based on dir */
 }
 
 .meta-value {
-    font-size: 0.925rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
     font-weight: 500;
 }
@@ -737,7 +735,7 @@ html[dir="rtl"] body {
     align-items: center;
     gap: 0.35rem;
     padding: 0.375rem 0.75rem;
-    background: var(--surface-muted);
+    background: rgba(167, 139, 250, 0.2);
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 500;
@@ -746,17 +744,17 @@ html[dir="rtl"] body {
 }
 
 .tag-pill i { font-size: 0.75rem; color: var(--text-muted); }
-.tag-pill.format-csv { background: #dcfce7; color: #166534; }
-.tag-pill.format-txt { background: #e0e7ff; color: #3730a3; }
-.tag-pill.format-json { background: #fef3c7; color: #92400e; }
-.tag-pill.format-xml { background: #fce7f3; color: #9d174d; }
-.tag-pill.lang-ar { background: #dbeafe; color: #1e40af; }
-.tag-pill.lang-en { background: #f3e8ff; color: #6b21a8; }
+.tag-pill.format-csv { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.tag-pill.format-txt { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.tag-pill.format-json { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.tag-pill.format-xml { background: rgba(236, 72, 153, 0.2); color: #ec4899; }
+.tag-pill.lang-ar { background: rgba(167, 139, 250, 0.2); color: var(--primary-color); }
+.tag-pill.lang-en { background: rgba(139, 92, 246, 0.2); color: var(--accent-color); }
 
 /* Card Footer */
 .card-footer {
     padding: 1rem 1.5rem;
-    background: var(--surface-light);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
     border-top: 1px solid var(--border-light);
     display: flex;
     justify-content: flex-start;
@@ -776,178 +774,189 @@ html[dir="rtl"] body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background: transparent;
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
+    padding: 0.7rem 1.25rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    color: var(--primary-color);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     text-decoration: none;
     transition: all 0.3s ease;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
 }
 
 .btn-view:hover {
-    background: var(--primary-accent);
-    border-color: var(--primary-accent);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--bg-dark);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+    transform: translateY(-2px);
 }
 
-.btn-view i { transition: transform 0.3s ease; }
-.btn-view:hover i { transform: translateX(4px); }
+.btn-view i {
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.btn-view:hover i { transform: translateX(3px); }
 
 /* ===== EMPTY STATE ===== */
 .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
-    background: var(--surface-white);
-    border-radius: var(--radius-xl);
-    border: 2px dashed var(--border-subtle);
+    padding: 5rem 2rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    border: 2px dashed var(--border-color);
+    border-radius: 16px;
 }
 
 .empty-icon {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto 1.5rem;
-    background: var(--surface-muted);
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
-    color: var(--text-muted);
+    border: 2px solid var(--border-color);
+}
+
+.empty-icon i {
+    font-size: 4rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .empty-state h3 {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
 }
 
-.empty-state p { color: var(--text-muted); margin: 0 0 1.5rem; }
+.empty-state p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin: 0 0 2rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
 
-.btn-primary-modern {
+.btn-reset {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-light) 100%);
-    border: none;
-    border-radius: var(--radius-md);
-    color: white;
+    gap: 0.5rem;
+    padding: 0.95rem 2rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--bg-dark);
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    border-radius: 12px;
     text-decoration: none;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    border: none;
+    cursor: pointer;
 }
 
-.btn-primary-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
-    color: white;
+.btn-reset:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(167, 139, 250, 0.3);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════ */
-/* RTL SUPPORT — Uses direction: rtl + CSS logical properties                     */
-/* With direction: rtl, flex-direction: row lays items right-to-left,             */
-/* text-align: start resolves to right, and flex-start means the right edge.      */
-/* ══════════════════════════════════════════════════════════════════════════════ */
-
-/* --- Content Layout: direction:rtl flips the grid columns automatically --- */
-/* Column 1 (280px filter) renders on the right, column 2 (1fr results) on the left */
-html[dir="rtl"] .content-layout {
-    direction: rtl;
-}
-
-@media (max-width: 992px) {
-    html[dir="rtl"] .filter-sidebar {
-        right: -100%;
-        left: auto;
-    }
-    html[dir="rtl"] .filter-sidebar.active {
-        right: 0;
-        left: auto;
-    }
-}
-
-/* --- Header Section: title on the right, button on the left --- */
-html[dir="rtl"] .corpus-header-section { direction: rtl; }
-html[dir="rtl"] .header-text { text-align: start; }
-html[dir="rtl"] .header-text h1 { text-align: start; }
-html[dir="rtl"] .subtitle { justify-content: flex-start; }
-
-html[dir="rtl"] .corpus-header-section::before {
-    right: auto;
-    left: 0;
-}
-
-html[dir="rtl"] .corpus-header-section::after {
-    right: auto;
-    left: -10%;
-}
-
-/* --- Search Bar: right-aligned placeholder, reversed element order --- */
-html[dir="rtl"] .search-section { direction: rtl; }
-html[dir="rtl"] .search-input { text-align: right; }
-html[dir="rtl"] .search-input::placeholder { text-align: right; }
-html[dir="rtl"] .search-btn i { transform: scaleX(-1); }
-
-/* --- Results Header --- */
-html[dir="rtl"] .results-header { direction: rtl; }
-html[dir="rtl"] .results-count { text-align: start; }
-
-/* --- Corpus Cards: all content right-aligned --- */
-html[dir="rtl"] .corpus-card {
-    direction: rtl;
-    text-align: start;
-}
-
-html[dir="rtl"] .card-title-section { text-align: start; }
-html[dir="rtl"] .corpus-title { text-align: start; }
-html[dir="rtl"] .meta-label { text-align: start; min-width: 75px; }
-html[dir="rtl"] .meta-value { text-align: start; }
-
-/* Tags: flex-start in RTL = right edge */
-html[dir="rtl"] .card-tags { justify-content: flex-start; }
-
-/* Card Footer: Keep details opposite to quick actions in both LTR/RTL */
-html[dir="rtl"] .btn-view i { transform: scaleX(-1); }
-html[dir="rtl"] .btn-view:hover i { transform: scaleX(-1) translateX(4px); }
-
-/* --- Filter Sidebar internals --- */
-html[dir="rtl"] .filter-sidebar { direction: rtl; }
-html[dir="rtl"] .filter-section-title { text-align: start; }
-html[dir="rtl"] .filter-option-label { text-align: start; }
-
-/* --- Empty State --- */
-html[dir="rtl"] .empty-state { text-align: center; }
-
-/* --- Active Filter Tags --- */
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .meta-item { flex-direction: row-reverse; }
 html[dir="rtl"] .active-filter-tag button {
     margin-inline-start: 0.25rem;
     margin-inline-end: 0;
 }
 
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
-@media (max-width: 992px) {
-    .corpus-header-section { padding: 2rem; }
-    .header-text h1 { font-size: 1.75rem; }
-    .header-content { flex-direction: column; align-items: flex-start; }
+@media (max-width: 1024px) {
+    .corpus-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .header-text h1 {
+        font-size: 2rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .header-text-content {
+        text-align: center;
+    }
+    
+    .header-text {
+        text-align: center;
+    }
+    
+    .hero-illustration {
+        width: 300px;
+        height: 200px;
+    }
+    
+    .hero-actions {
+        align-items: center;
+    }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
     .corpus-page { padding: 1rem 0 2rem; }
-    .corpus-header-section { padding: 1.5rem; border-radius: var(--radius-lg); }
-    .header-text h1 { font-size: 1.5rem; }
-    .btn-glass { width: 100%; justify-content: center; }
-    .search-btn span { display: none; }
+    .corpus-header-section {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+        width: calc(100% - 2rem);
+    }
+    
+    .header-text h1 { font-size: 1.75rem; }
+    .search-section { padding: 0 1rem; margin: 2rem auto 0; }
+    .filter-section { padding: 0 1rem; margin: 2rem auto 0; }
+    .hub-content { padding: 2rem 1rem; }
     .card-header { padding: 1.25rem; }
     .card-body { padding: 0 1.25rem 1rem; }
     .card-tags { padding: 0 1.25rem 1rem; }
     .card-footer { padding: 1rem 1.25rem; }
+    
+    .hero-illustration {
+        width: 280px;
+        height: 180px;
+    }
 }
+
+@media (max-width: 640px) {
+    .corpus-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .header-content { gap: 1rem; }
+    .header-text h1 { font-size: 1.5rem; }
+    .subtitle { font-size: 1rem; }
+    .filter-tabs { gap: 0.5rem; padding: 1rem; }
+    .filter-tab { padding: 0.625rem 1rem; font-size: 0.85rem; }
+    .btn-glass { width: 100%; justify-content: center; padding: 0.9rem; }
+    .search-input { font-size: 1rem; }
+    .search-btn span { font-size: 0.8rem; }
+    
+    .hero-illustration {
+        width: 250px;
+        height: 160px;
+    }
+    
+    .stats-showcase {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 
 /* ===== ANIMATIONS ===== */
 @keyframes fadeInUp {
@@ -967,134 +976,193 @@ html[dir="rtl"] .active-filter-tag button {
 
 {% block content %}
 <div class="corpus-page">
-    <div class="corpus-container">
-        
-        <!-- ===== HEADER SECTION ===== -->
-        <section class="corpus-header-section">
-            <div class="header-content">
+    
+    <!-- ============ HERO SECTION ============ -->
+    <section class="corpus-header-section">
+        <div class="header-content">
+            <div class="header-text-content">
                 <div class="header-text">
-                    <h1>{% trans "Corpus Collection" %}</h1>
+                    <h1>
+                        {% trans "Corpus" %}
+                        <span class="accent">{% trans "Collection" %}</span>
+                    </h1>
                     <p class="subtitle">
-                        <span class="corpus-count" id="totalCount">{{ total_count }}</span>
-                        {% trans "curated corpora available for research" %}
+                        {% trans "Discover and work with curated corpora for advanced Arabic and multilingual NLP research" %}
                     </p>
                 </div>
                 
-                {% if user.is_authenticated %}
-                <a href="{% url 'resources:corpus-create' %}" class="btn-glass">
-                    <span class="icon-circle">
+                <!-- Hero Actions -->
+                <div class="hero-actions">
+                    <!-- Stats -->
+                    <div class="stats-showcase">
+                        <div class="stat-badge">
+                            <div class="stat-number" id="totalCount">{{ total_count|default:"0" }}</div>
+                            <div class="stat-label">{% trans "Total Corpora" %}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Create Button -->
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'resources:corpus-create' %}" class="btn-glass">
                         <i class="bi bi-plus-lg"></i>
-                    </span>
-                    <span>{% trans "Add New Corpus" %}</span>
-                </a>
-                {% else %}
-                <div class="login-notice">
-                    <i class="bi bi-info-circle"></i>
-                    <span>{% trans "Sign in to contribute corpora" %}</span>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-        
-        <!-- ===== SEARCH BAR ===== -->
-        <section class="search-section">
-            <div class="search-wrapper">
-                <div class="search-box">
-                    <span class="search-icon">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input type="text" 
-                           id="searchInput"
-                           class="search-input" 
-                           placeholder="{% trans 'Search corpora by title, type, or keywords...' %}"
-                           value="{{ request.GET.q|default:'' }}"
-                           autocomplete="off">
-                    <button type="button" class="search-btn" id="searchBtn">
-                        <i class="bi bi-arrow-right"></i>
-                        <span>{% trans "Search" %}</span>
-                    </button>
+                        <span>{% trans "Create New Corpus" %}</span>
+                    </a>
+                    {% else %}
+                    <div class="login-notice">
+                        <i class="bi bi-info-circle"></i>
+                        <span>{% trans "Sign in to contribute corpora" %}</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-        </section>
+            
+            <!-- Illustration -->
+            <div class="header-illustration-wrapper">
+                <div class="hero-illustration">
+                    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" class="nlp-illustration">
+                        <defs>
+                            <linearGradient id="gradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.8" />
+                            </linearGradient>
+                            <linearGradient id="gradAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.6" />
+                                <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.6" />
+                            </linearGradient>
+                            <linearGradient id="gradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#0891b2;stop-opacity:0.8" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <!-- Background geometric elements -->
+                        <circle cx="320" cy="50" r="60" fill="url(#gradPrimary)" opacity="0.12" class="float-circle" />
+                        <circle cx="80" cy="260" r="50" fill="url(#gradAccent)" opacity="0.1" class="float-circle" style="animation-delay: -2s;" />
+                        <rect x="290" y="200" width="80" height="80" rx="10" fill="url(#gradCyan)" opacity="0.08" class="float-circle" style="animation-delay: -4s;" />
+                        
+                        <!-- Document stack -->
+                        <g>
+                            <!-- Back document (offset) -->
+                            <g transform="translate(-8, -8)">
+                                <rect x="100" y="80" width="200" height="140" rx="6" fill="url(#gradAccent)" opacity="0.6" />
+                                <line x1="110" y1="100" x2="280" y2="100" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1.5" />
+                                <line x1="110" y1="120" x2="280" y2="120" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1.5" />
+                                <line x1="110" y1="140" x2="280" y2="140" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1.5" />
+                                <line x1="110" y1="160" x2="250" y2="160" stroke="rgba(255, 255, 255, 0.2)" stroke-width="1.5" />
+                                <line x1="110" y1="180" x2="260" y2="180" stroke="rgba(255, 255, 255, 0.2)" stroke-width="1.5" />
+                            </g>
+                            
+                            <!-- Middle document -->
+                            <g transform="translate(-4, -4)">
+                                <rect x="100" y="80" width="200" height="140" rx="6" fill="url(#gradPrimary)" opacity="0.7" />
+                                <line x1="110" y1="100" x2="280" y2="100" stroke="rgba(255, 255, 255, 0.4)" stroke-width="1.5" />
+                                <line x1="110" y1="120" x2="280" y2="120" stroke="rgba(255, 255, 255, 0.4)" stroke-width="1.5" />
+                                <line x1="110" y1="140" x2="280" y2="140" stroke="rgba(255, 255, 255, 0.4)" stroke-width="1.5" />
+                                <line x1="110" y1="160" x2="270" y2="160" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1.5" />
+                                <line x1="110" y1="180" x2="280" y2="180" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1.5" />
+                            </g>
+                            
+                            <!-- Front document (main) -->
+                            <rect x="100" y="80" width="200" height="140" rx="6" fill="url(#gradPrimary)" />
+                            <rect x="100" y="80" width="200" height="20" rx="6" fill="url(#gradAccent)" opacity="0.8" />
+                            <line x1="110" y1="110" x2="280" y2="110" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2" />
+                            <line x1="110" y1="130" x2="280" y2="130" stroke="rgba(255, 255, 255, 0.4)" stroke-width="2" />
+                            <line x1="110" y1="150" x2="280" y2="150" stroke="rgba(255, 255, 255, 0.4)" stroke-width="2" />
+                            <line x1="110" y1="170" x2="260" y2="170" stroke="rgba(255, 255, 255, 0.3)" stroke-width="2" />
+                            <line x1="110" y1="190" x2="270" y2="190" stroke="rgba(255, 255, 255, 0.3)" stroke-width="2" />
+                            
+                            <!-- Checkmark badge -->
+                            <circle cx="310" cy="100" r="20" fill="url(#gradCyan)" />
+                            <path d="M 305 100 L 310 105 L 318 95" stroke="rgba(255, 255, 255, 0.9)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                        </g>
+                        
+                        <!-- Floating text elements -->
+                        <g class="float-circle" style="animation-delay: -1s;">
+                            <rect x="280" y="220" width="90" height="50" rx="4" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1" />
+                            <line x1="290" y1="230" x2="360" y2="230" stroke="rgba(167, 139, 250, 0.5)" stroke-width="1" />
+                            <line x1="290" y1="240" x2="355" y2="240" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1" />
+                            <line x1="290" y1="250" x2="350" y2="250" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1" />
+                            <line x1="290" y1="260" x2="340" y2="260" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1" />
+                        </g>
+                        
+                        <!-- Pulse effect -->
+                        <circle cx="200" cy="150" r="30" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="1.5" class="pulse-circle" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ============ SEARCH AND FILTER ============ -->
+    <section class="search-section">
+        <div class="search-wrapper">
+            <div class="search-box">
+                <span class="search-icon">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       id="searchInput"
+                       class="search-input" 
+                       placeholder="{% trans 'Search corpora by title, language, or keywords...' %}"
+                       value="{{ request.GET.q|default:'' }}"
+                       autocomplete="off">
+                <button type="button" class="search-btn" id="searchBtn">
+                    <i class="bi bi-arrow-right"></i>
+                    <span>{% trans "Search" %}</span>
+                </button>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="hub-content">
         
-        <!-- Mobile Filter Toggle -->
-        <button type="button" class="mobile-filter-toggle" id="mobileFilterToggle">
-            <i class="bi bi-funnel"></i>
-            <span>{% trans "Show Filters" %}</span>
-        </button>
+        <!-- Filter Tabs -->
+        <div class="filter-section">
+            <div class="filter-tabs" role="tablist">
+                <button class="filter-tab active" data-type="" role="tab">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <span>{% trans "All" %}</span>
+                    <span class="filter-tab-count" data-count="all">{{ total_count|default:"0" }}</span>
+                </button>
+                <button class="filter-tab" data-type="medical" role="tab">
+                    <i class="bi bi-capsule"></i>
+                    <span>{% trans "Medical" %}</span>
+                    <span class="filter-tab-count" data-count="medical">0</span>
+                </button>
+                <button class="filter-tab" data-type="linguistics" role="tab">
+                    <i class="bi bi-chat-left-dots"></i>
+                    <span>{% trans "Linguistics" %}</span>
+                    <span class="filter-tab-count" data-count="linguistics">0</span>
+                </button>
+                <button class="filter-tab" data-type="translation" role="tab">
+                    <i class="bi bi-translate"></i>
+                    <span>{% trans "Translation" %}</span>
+                    <span class="filter-tab-count" data-count="translation">0</span>
+                </button>
+                <button class="filter-tab" data-type="general" role="tab">
+                    <i class="bi bi-collection"></i>
+                    <span>{% trans "General" %}</span>
+                    <span class="filter-tab-count" data-count="general">0</span>
+                </button>
+                <button class="filter-tab" data-type="social" role="tab">
+                    <i class="bi bi-chat-dots"></i>
+                    <span>{% trans "Social Media" %}</span>
+                    <span class="filter-tab-count" data-count="social">0</span>
+                </button>
+            </div>
+        </div>
         
-        <!-- Filter Overlay (Mobile) -->
-        <div class="filter-overlay" id="filterOverlay"></div>
+        <!-- Results Header -->
+        <div class="results-header">
+            <div class="active-filters-display" id="activeFiltersDisplay">
+                <!-- Active filter tags will be inserted here by JS -->
+            </div>
+        </div>
         
-        <!-- ===== CONTENT LAYOUT ===== -->
+        <!-- Results Section -->
         <div class="content-layout">
-            
-            <!-- ===== FILTER SIDEBAR ===== -->
-            <aside class="filter-sidebar" id="filterSidebar">
-                <div class="filter-header">
-                    <h3>
-                        <i class="bi bi-funnel"></i>
-                        {% trans "Filters" %}
-                    </h3>
-                    <button type="button" class="btn-clear-filters" id="clearFilters" {% if not has_active_filters %}disabled{% endif %}>
-                        <i class="bi bi-x-lg"></i>
-                        {% trans "Clear" %}
-                    </button>
-                </div>
-                
-                <!-- Categories Filter -->
-                <div class="filter-section">
-                    <h4 class="filter-section-title">
-                        <i class="bi bi-bookmark"></i>
-                        {% trans "Categories" %}
-                    </h4>
-                    <div class="filter-options" id="fieldFilters">
-                        {% for value, label in field_choices %}
-                        <label class="filter-option">
-                            <input type="checkbox" 
-                                   name="field" 
-                                   value="{{ value }}"
-                                   {% if value in active_fields %}checked{% endif %}>
-                            <span class="filter-option-label">{{ label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <!-- Language Filter -->
-                <div class="filter-section">
-                    <h4 class="filter-section-title">
-                        <i class="bi bi-globe"></i>
-                        {% trans "Language" %}
-                    </h4>
-                    <div class="filter-options" id="languageFilters">
-                        <label class="filter-option">
-                            <input type="checkbox" name="language" value="ar" {% if 'ar' in active_languages %}checked{% endif %}>
-                            <span class="filter-option-label">{% trans "Arabic" %}</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" name="language" value="en" {% if 'en' in active_languages %}checked{% endif %}>
-                            <span class="filter-option-label">{% trans "English" %}</span>
-                        </label>
-                    </div>
-                </div>
-            </aside>
-            
-            <!-- ===== RESULTS SECTION ===== -->
             <div class="results-section">
-                
-                <!-- Results Header -->
-                <div class="results-header">
-                    <div class="results-count">
-                        <i class="bi bi-collection"></i>
-                        <span>{% trans "Results" %}:</span>
-                        <strong id="resultsCount">{{ total_count }}</strong>
-                    </div>
-                    <div class="active-filters-display" id="activeFiltersDisplay">
-                        <!-- Active filter tags will be inserted here by JS -->
-                    </div>
-                </div>
-                
                 <!-- Results Container -->
                 <div class="results-container" id="resultsContainer">
                     <!-- Loading Overlay -->
@@ -1108,219 +1176,125 @@ html[dir="rtl"] .active-filter-tag button {
                         {% include "resources/_corpus_cards.html" %}
                     </div>
                 </div>
-                
             </div>
         </div>
         
-    </div>
+    </main>
+    
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Elements
-    const searchInput = document.getElementById('searchInput');
-    const searchBtn = document.getElementById('searchBtn');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const corpusResults = document.getElementById('corpusResults');
-    const resultsCount = document.getElementById('resultsCount');
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    const resultsArea = document.getElementById('corpusResults');
     const totalCount = document.getElementById('totalCount');
-    const clearFiltersBtn = document.getElementById('clearFilters');
-    const activeFiltersDisplay = document.getElementById('activeFiltersDisplay');
-    const filterSidebar = document.getElementById('filterSidebar');
-    const filterOverlay = document.getElementById('filterOverlay');
-    const mobileFilterToggle = document.getElementById('mobileFilterToggle');
+    const resultsCount = document.getElementById('resultsCount');
     
-    // Filter checkboxes
-    const fieldCheckboxes = document.querySelectorAll('#fieldFilters input[type="checkbox"]');
-    const languageCheckboxes = document.querySelectorAll('#languageFilters input[type="checkbox"]');
+    let currentType = '{{ current_type|escapejs }}';
     
-    let searchTimeout = null;
-    const DEBOUNCE_DELAY = 300;
-    
-    // Build query string from current filters
-    function buildQueryString() {
-        const params = new URLSearchParams();
+    // Count corpora by type
+    function updateCategoryCounts() {
+        const cards = document.querySelectorAll('.corpus-card:not(.hidden-card)');
+        const counts = {
+            all: cards.length,
+            medical: 0,
+            linguistics: 0,
+            translation: 0,
+            general: 0,
+            social: 0
+        };
         
-        // Search query
-        const query = searchInput.value.trim();
-        if (query) {
-            params.append('q', query);
-        }
-        
-        // Field filters
-        fieldCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                params.append('field', cb.value);
+        cards.forEach(card => {
+            const type = card.dataset.type || '';
+            if (type && counts[type] !== undefined) {
+                counts[type]++;
             }
         });
         
-        // Language filters
-        languageCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                params.append('language', cb.value);
-            }
-        });
-        
-        return params.toString();
-    }
-    
-    // Perform AJAX search
-    async function performSearch() {
-        const queryString = buildQueryString();
-        
-        // Show loading state
-        resultsContainer.classList.add('loading');
-        
-        try {
-            const response = await fetch(`?${queryString}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (!response.ok) throw new Error('Search failed');
-            
-            const html = await response.text();
-            corpusResults.innerHTML = html;
-            
-            // Update results count (extract from response or count cards)
-            const cards = corpusResults.querySelectorAll('.corpus-card');
-            const count = cards.length;
-            resultsCount.textContent = count;
-            totalCount.textContent = count;
-            
-            // Update URL without reload
-            const newUrl = queryString ? `?${queryString}` : window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
-            
-            // Update active filters display
-            updateActiveFiltersDisplay();
-            
-            // Update clear button state
-            updateClearButtonState();
-            
-        } catch (error) {
-            console.error('Search error:', error);
-        } finally {
-            resultsContainer.classList.remove('loading');
-        }
-    }
-    
-    // Debounced search
-    function debouncedSearch() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(performSearch, DEBOUNCE_DELAY);
-    }
-    
-    // Update active filters display
-    function updateActiveFiltersDisplay() {
-        activeFiltersDisplay.innerHTML = '';
-        
-        // Search query tag
-        const query = searchInput.value.trim();
-        if (query) {
-            activeFiltersDisplay.appendChild(createFilterTag('search', query, `"${query}"`));
-        }
-        
-        // Field tags
-        fieldCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const label = cb.nextElementSibling.textContent.trim();
-                activeFiltersDisplay.appendChild(createFilterTag('field', cb.value, label));
-            }
-        });
-        
-        // Language tags
-        languageCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const label = cb.nextElementSibling.textContent.trim();
-                activeFiltersDisplay.appendChild(createFilterTag('language', cb.value, label));
+        // Update counter displays
+        filterTabs.forEach(tab => {
+            const tabType = tab.dataset.type || 'all';
+            const counter = tab.querySelector('.filter-tab-count');
+            if (counter) {
+                counter.textContent = counts[tabType];
             }
         });
     }
     
-    // Create a filter tag element
-    function createFilterTag(type, value, label) {
-        const tag = document.createElement('span');
-        tag.className = 'active-filter-tag';
-        tag.innerHTML = `
-            ${label}
-            <button type="button" data-type="${type}" data-value="${value}" aria-label="Remove filter">
-                <i class="bi bi-x"></i>
-            </button>
-        `;
+    // Filter tab clicks
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            currentType = this.dataset.type;
+            filterCorpora();
+        });
+    });
+    
+    function filterCorpora() {
+        const cards = document.querySelectorAll('.corpus-card');
+        let visibleCount = 0;
         
-        // Add click handler to remove button
-        tag.querySelector('button').addEventListener('click', function() {
-            if (type === 'search') {
-                searchInput.value = '';
+        cards.forEach(card => {
+            const cardType = card.dataset.type || '';
+            const isVisible = currentType === '' || cardType === currentType;
+            
+            if (isVisible) {
+                card.classList.remove('hidden-card');
+                visibleCount++;
             } else {
-                const checkbox = document.querySelector(`input[name="${type}"][value="${value}"]`);
-                if (checkbox) {
-                    checkbox.checked = false;
-                }
+                card.classList.add('hidden-card');
             }
-            performSearch();
         });
         
-        return tag;
-    }
-    
-    // Update clear button state
-    function updateClearButtonState() {
-        const hasFilters = searchInput.value.trim() ||
-            [...fieldCheckboxes].some(cb => cb.checked) ||
-            [...languageCheckboxes].some(cb => cb.checked);
-        
-        clearFiltersBtn.disabled = !hasFilters;
-    }
-    
-    // Clear all filters
-    function clearAllFilters() {
-        searchInput.value = '';
-        [...fieldCheckboxes, ...languageCheckboxes].forEach(cb => {
-            cb.checked = false;
-        });
-        performSearch();
-    }
-    
-    // Mobile filter toggle
-    function toggleMobileFilters() {
-        filterSidebar.classList.toggle('active');
-        filterOverlay.classList.toggle('active');
-    }
-    
-    // Event Listeners
-    
-    // Search input - debounced search as you type
-    searchInput.addEventListener('input', debouncedSearch);
-    
-    // Search button
-    searchBtn.addEventListener('click', performSearch);
-    
-    // Enter key in search
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            clearTimeout(searchTimeout);
-            performSearch();
+        // Show empty state if no results
+        if (visibleCount === 0) {
+            showEmptyState();
+        } else {
+            hideEmptyState();
         }
-    });
+        
+        resultsCount.textContent = visibleCount;
+        updateCategoryCounts();
+    }
     
-    // Filter checkboxes
-    [...fieldCheckboxes, ...languageCheckboxes].forEach(checkbox => {
-        checkbox.addEventListener('change', performSearch);
-    });
+    function showEmptyState() {
+        if (!document.querySelector('.empty-state')) {
+            const emptyHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <h3>{% trans "No corpora found" %}</h3>
+                    <p>{% trans "Try adjusting your filters or search query" %}</p>
+                    <button class="btn-reset" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        {% trans "Reset Filters" %}
+                    </button>
+                </div>
+            `;
+            resultsArea.innerHTML = emptyHTML;
+        }
+    }
     
-    // Clear filters button
-    clearFiltersBtn.addEventListener('click', clearAllFilters);
+    function hideEmptyState() {
+        const emptyState = resultsArea.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+    }
     
-    // Mobile filter toggle
-    mobileFilterToggle.addEventListener('click', toggleMobileFilters);
-    filterOverlay.addEventListener('click', toggleMobileFilters);
+    // Initial count update
+    updateCategoryCounts();
     
-    // Initialize
-    updateActiveFiltersDisplay();
-    updateClearButtonState();
+    // Hide cards with animation
+    const style = document.createElement('style');
+    style.textContent = `
+        .corpus-card.hidden-card {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(style);
 });
 </script>
 {% endblock content %}
