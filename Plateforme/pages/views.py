@@ -121,6 +121,26 @@ class OpportunitiesPageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from institutions.models import Institution
+
+        institutions_qs = (
+            Institution.objects.filter(country__code__iexact="DZ")
+            .order_by("name_en", "name")
+        )
+        if not institutions_qs.exists():
+            institutions_qs = Institution.objects.all().order_by("name_en", "name")
+
+        context["algerian_institutions"] = [
+            {
+                "id": str(item.pk),
+                "name_en": (item.name_en or item.name or "").strip(),
+                "name_ar": (item.name_ar or item.name or "").strip(),
+                "city_en": (item.city_en or item.city or "").strip(),
+                "city_ar": (item.city_ar or item.city or "").strip(),
+                "type": item.type,
+            }
+            for item in institutions_qs
+        ]
         context["page"] = "opportunities"
         return context
 

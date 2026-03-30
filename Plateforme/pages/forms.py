@@ -3,6 +3,7 @@ from django import forms
 import json
 import re
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
@@ -211,6 +212,29 @@ class AdminNewsPublicationForm(forms.ModelForm):
             self.fields["nlp_tasks_input"].initial = json.dumps(instance.nlp_tasks or [])
             self.fields["languages_input"].initial = json.dumps(instance.languages or [])
             self.fields["keywords_input"].initial = json.dumps(instance.keywords or [])
+
+        is_ar = (get_language() or "").lower().startswith("ar")
+        labels = {
+            "type": _("النوع") if is_ar else _("Type"),
+            "title": _("العنوان") if is_ar else _("Title"),
+            "abstract": _("الملخص") if is_ar else _("Abstract"),
+            "year": _("السنة") if is_ar else _("Year"),
+            "github_url": _("رابط GitHub") if is_ar else _("Github link"),
+            "cover_image": _("صورة الغلاف") if is_ar else _("Cover image"),
+            "pdf_file": _("ملف PDF") if is_ar else _("PDF file"),
+        }
+        for field_name, label in labels.items():
+            if field_name in self.fields:
+                self.fields[field_name].label = label
+
+        placeholders = {
+            "title": _("أدخل عنوان الخبر") if is_ar else _("Enter the news title"),
+            "abstract": _("اكتب الملخص هنا") if is_ar else _("Write the abstract here"),
+            "github_url": _("https://github.com/example/project") if is_ar else _("https://github.com/example/project"),
+        }
+        for field_name, placeholder in placeholders.items():
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs["placeholder"] = placeholder
 
     def _parse_json_list(self, field_name):
         raw_value = self.cleaned_data.get(field_name) or "[]"
