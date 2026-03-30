@@ -8,73 +8,54 @@
 {{ block.super }}
 <style>
   /* ============================================
-     Premium Academic Dashboard - Notifications
+     Modern News-Themed Notifications
+     Dark Purple/Violet - Hero Layout (2026)
      ============================================ */
   
   :root {
-    --notif-primary: #2563eb;
-    --notif-primary-light: #3b82f6;
-    --notif-secondary: #64748b;
+    --notif-primary: #a78bfa;
+    --notif-primary-light: #c4b5fd;
+    --notif-accent: #7c3aed;
+    --notif-accent-hover: #8b5cf6;
+    --notif-secondary: #9ca3af;
     --notif-success: #10b981;
-    --notif-warning: #f59e0b;
+    --notif-warning: #f97316;
     --notif-danger: #ef4444;
-    --notif-academic: #8b5cf6;
-    --notif-resource: #0ea5e9;
-    --notif-tool: #f97316;
-    --notif-community: #ec4899;
-    --notif-bg: #f8fafc;
-    --notif-card-bg: #ffffff;
-    --notif-border: #e2e8f0;
-    --notif-text: #1e293b;
-    --notif-text-muted: #64748b;
-    --notif-unread-border: #2563eb;
-    --notif-radius: 12px;
-    --notif-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --notif-shadow-hover: 0 4px 12px rgba(0,0,0,0.12);
+    --notif-academic: #a78bfa;
+    --notif-resource: #06b6d4;
+    --notif-tool: #ec4899;
+    --notif-community: #f472b6;
+    --notif-bg: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    --notif-card-bg: rgba(255, 255, 255, 0.05);
+    --notif-border: rgba(167, 139, 250, 0.2);
+    --notif-text: #ffffff;
+    --notif-text-muted: #d1d5db;
+    --notif-unread-border: #a78bfa;
+    --notif-radius: 14px;
+    --notif-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
+    --notif-shadow-hover: 0 20px 50px rgba(167, 139, 250, 0.2);
   }
 
   /* RTL Support */
-  [dir="rtl"] .notif-page,
-  html[lang="ar"] .notif-page {
-    direction: rtl;
-    text-align: right;
+  [dir="rtl"] .notif-header-top,
+  html[lang="ar"] .notif-header-top {
+    flex-direction: row-reverse;
   }
 
-  /* Fix RTL overflow - constrain content within viewport */
-  .notif-page {
-    overflow-x: hidden;
-    box-sizing: border-box;
-    max-width: 100%;
+  [dir="rtl"] .notif-title-section h1,
+  html[lang="ar"] .notif-title-section h1 {
+    flex-direction: row-reverse;
   }
 
-  .notif-container {
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  [dir="rtl"] .notif-card-indicator,
-  html[lang="ar"] .notif-card-indicator {
-    left: auto;
-    right: 0;
-    border-radius: 0 var(--notif-radius) var(--notif-radius) 0;
+  [dir="rtl"] .notif-card-inner,
+  html[lang="ar"] .notif-card-inner {
+    flex-direction: row-reverse;
   }
 
   [dir="rtl"] .notif-icon-wrap,
   html[lang="ar"] .notif-icon-wrap {
-    margin-right: 0;
-    margin-left: 1rem;
-  }
-
-  [dir="rtl"] .notif-delete-btn,
-  html[lang="ar"] .notif-delete-btn {
-    right: auto;
-    left: 1rem;
-  }
-
-  [dir="rtl"] .notif-time i,
-  html[lang="ar"] .notif-time i {
-    margin-right: 0;
-    margin-left: 0.25rem;
+    margin-left: 0;
+    margin-right: 1rem;
   }
 
   [dir="rtl"] .notif-header-actions,
@@ -82,21 +63,73 @@
     flex-direction: row-reverse;
   }
 
-  /* Page Container */
+  /* Smooth Animations */
+  .notif-card {
+    animation: slideInUpNotif 0.4s ease-out forwards;
+  }
+
+  .notif-card:nth-child(1) { animation-delay: 0.1s; }
+  .notif-card:nth-child(2) { animation-delay: 0.2s; }
+  .notif-card:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes slideInUpNotif {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Decorative floating elements animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* Page Container - Dark Hero Layout */
   .notif-page {
     background: var(--notif-bg);
+    background-attachment: fixed;
     min-height: 100vh;
     padding: 2rem 1rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Decorative radial gradients (matching news page) */
+  .notif-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
   }
 
   .notif-container {
-    max-width: 56rem;
+    max-width: 64rem;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
   }
 
-  /* Header Section */
+  /* Header Section - Hero Layout */
   .notif-header {
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
+    animation: slideInDown 0.6s ease-out;
+  }
+
+  @keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .notif-header-top {
@@ -104,93 +137,123 @@
     justify-content: space-between;
     align-items: flex-start;
     flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 3rem;
+    margin-bottom: 2rem;
+    align-items: center;
+  }
+
+  .notif-title-section {
+    flex: 1;
+    min-width: 280px;
   }
 
   .notif-title-section h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
+    font-size: 2.25rem;
+    font-weight: 800;
     color: var(--notif-text);
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.75rem 0;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
+    letter-spacing: -0.02em;
   }
 
   .notif-title-section h1 i {
-    color: var(--notif-primary);
+    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* News page hero illustration */
+  .notif-hero-illustration {
+    width: 260px;
+    height: 220px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .notif-hero-illustration svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 20px 40px rgba(167, 139, 250, 0.2));
   }
 
   .notif-subtitle {
     color: var(--notif-text-muted);
-    font-size: 0.95rem;
+    font-size: 1rem;
     margin: 0;
+    font-weight: 400;
+    line-height: 1.6;
   }
 
   .notif-header-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: 1rem;
     flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 2rem;
   }
 
   .notif-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    border-radius: 9999px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     text-decoration: none;
     transition: all 0.2s ease;
     cursor: pointer;
     border: none;
+    letter-spacing: 0.4px;
   }
 
   .notif-btn-primary {
-    background: var(--notif-primary);
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
     color: white;
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.3);
   }
 
   .notif-btn-primary:hover {
-    background: var(--notif-primary-light);
-    color: white;
-    transform: translateY(-1px);
-  }
-
-  .notif-btn-outline {
-    background: white;
-    color: var(--notif-text);
-    border: 1px solid var(--notif-border);
-  }
-
-  .notif-btn-outline:hover {
-    background: var(--notif-bg);
-    border-color: var(--notif-secondary);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(167, 139, 250, 0.4);
   }
 
   .notif-btn-danger {
-    background: white;
-    color: var(--notif-danger);
-    border: 1px solid var(--notif-danger);
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    border: 1.5px solid rgba(239, 68, 68, 0.3);
+    backdrop-filter: blur(10px);
   }
 
   .notif-btn-danger:hover {
-    background: var(--notif-danger);
+    background: #ef4444;
     color: white;
+    border-color: #ef4444;
+    transform: translateY(-2px);
   }
 
-  /* Stats Cards */
+  /* Stats Cards with Glassmorphism */
   .notif-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-top: 2.5rem;
+    animation: fadeInUp 0.6s ease-out 0.1s both;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .notif-stat-card {
-    background: var(--notif-card-bg);
+    background: rgba(167, 139, 250, 0.08);
     border: 1px solid var(--notif-border);
     border-radius: var(--notif-radius);
     padding: 1.25rem;
@@ -198,6 +261,14 @@
     align-items: center;
     gap: 1rem;
     box-shadow: var(--notif-shadow);
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+  }
+
+  .notif-stat-card:hover {
+    border-color: rgba(167, 139, 250, 0.4);
+    box-shadow: var(--notif-shadow-hover);
+    transform: translateY(-2px);
   }
 
   .notif-stat-icon {
@@ -208,20 +279,17 @@
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
-  }
-
-  .notif-stat-icon.total {
-    background: rgba(37, 99, 235, 0.1);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(124, 58, 237, 0.15));
     color: var(--notif-primary);
   }
 
   .notif-stat-icon.unread {
-    background: rgba(16, 185, 129, 0.1);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
     color: var(--notif-success);
   }
 
   .notif-stat-icon.action {
-    background: rgba(245, 158, 11, 0.1);
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.1));
     color: var(--notif-warning);
   }
 
@@ -231,7 +299,7 @@
 
   .notif-stat-value {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--notif-text);
     line-height: 1.2;
   }
@@ -240,6 +308,7 @@
     font-size: 0.8125rem;
     color: var(--notif-text-muted);
     margin-top: 0.25rem;
+    font-weight: 500;
   }
 
   /* Date Group Sections */
@@ -279,7 +348,7 @@
     border: 1px solid var(--notif-border);
   }
 
-  /* Notification Cards */
+  /* Notification Cards - Glassmorphism */
   .notif-list {
     display: flex;
     flex-direction: column;
@@ -287,7 +356,7 @@
   }
 
   .notif-card {
-    background: var(--notif-card-bg);
+    background: rgba(167, 139, 250, 0.06);
     border: 1px solid var(--notif-border);
     border-radius: var(--notif-radius);
     box-shadow: var(--notif-shadow);
@@ -295,9 +364,14 @@
     overflow: hidden;
     transition: all 0.2s ease;
     cursor: pointer;
+    backdrop-filter: blur(10px);
   }
 
   .notif-card:hover {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.4);
+    box-shadow: var(--notif-shadow-hover);
+    transform: translateY(-2px);
     box-shadow: var(--notif-shadow-hover);
     transform: translateY(-2px);
   }
@@ -634,13 +708,67 @@
   }
 
   /* Responsive */
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .notif-header-top {
       flex-direction: column;
-      align-items: stretch;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .notif-title-section h1 {
+      font-size: 1.75rem;
+    }
+
+    .notif-hero-illustration {
+      width: 220px;
+      height: 200px;
     }
 
     .notif-header-actions {
+      width: 100%;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    .notif-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .notif-header-top {
+      flex-direction: column;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .notif-title-section {
+      text-align: center;
+    }
+
+    .notif-title-section h1 {
+      font-size: 1.5rem;
+      justify-content: center;
+    }
+
+    .notif-subtitle {
+      font-size: 0.9rem;
+    }
+
+    .notif-hero-illustration {
+      width: 200px;
+      height: 180px;
+    }
+
+    .notif-header-actions {
+      width: 100%;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-direction: column;
+    }
+
+    .notif-btn {
+      width: 100%;
       justify-content: center;
     }
 
@@ -679,30 +807,99 @@
         <div class="notif-title-section">
           <h1>
             <i class="fas fa-bell"></i>
-            {% translate "Notifications" %}
+            {% translate "Your Notifications" %}
           </h1>
           <p class="notif-subtitle">
-            {% translate "Stay updated with invitations, assignments, and platform announcements." %}
+            {% translate "Stay connected with your community - invitations, updates, and important messages in one place." %}
           </p>
         </div>
         
-        {% if total_notifications %}
-        <div class="notif-header-actions">
-          <a href="{% url 'notifications:mark_all_read' %}" class="notif-btn notif-btn-primary">
-            <i class="fas fa-check-double"></i>
-            {% translate "Mark all as read" %}
-          </a>
-          <form method="post" action="{% url 'notifications:delete_all' %}" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit" class="notif-btn notif-btn-danger"
-                    onclick="return confirm('{% translate "Are you sure you want to delete all notifications?" %}');">
-              <i class="fas fa-trash-alt"></i>
-              {% translate "Delete all" %}
-            </button>
-          </form>
+        <!-- Creative Illustration -->
+        <div class="notif-hero-illustration">
+          <svg viewBox="0 0 260 220" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="notif-grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.9" />
+                <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.7" />
+              </linearGradient>
+              <linearGradient id="notif-grad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.8" />
+                <stop offset="100%" style="stop-color:#0891b2;stop-opacity:0.6" />
+              </linearGradient>
+              <radialGradient id="notif-glow1">
+                <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0" />
+              </radialGradient>
+              <filter id="notif-blur">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" />
+              </filter>
+            </defs>
+            
+            <!-- Background glow -->
+            <circle cx="130" cy="110" r="80" fill="url(#notif-glow1)" opacity="0.8"/>
+            
+            <!-- Bell notification container -->
+            <g opacity="0.95">
+              <!-- Bell body -->
+              <path d="M 60 90 Q 60 55 90 55 Q 120 55 120 90 L 120 105 Q 120 125 100 125 L 80 125 Q 60 125 60 105 Z" fill="url(#notif-grad1)" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
+              <!-- Bell clapper -->
+              <circle cx="90" cy="135" r="7" fill="url(#notif-grad1)" stroke="rgba(167,139,250,0.3)" stroke-width="1.5"/>
+              <!-- Red notification dot -->
+              <circle cx="115" cy="60" r="7" fill="#ef4444" filter="url(#notif-blur)"/>
+              <circle cx="115" cy="60" r="5" fill="#fca5a5"/>
+            </g>
+            
+            <!-- Floating notification messages -->
+            <g opacity="0.9">
+              <!-- Message bubble 1 -->
+              <rect x="140" y="45" width="95" height="50" rx="12" fill="url(#notif-grad2)" stroke="rgba(6,182,212,0.3)" stroke-width="1.5"/>
+              <!-- Dots in bubble -->
+              <circle cx="155" cy="62" r="2.5" fill="rgba(255,255,255,0.7)"/>
+              <circle cx="163" cy="62" r="2.5" fill="rgba(255,255,255,0.7)"/>
+              <circle cx="171" cy="62" r="2.5" fill="rgba(255,255,255,0.7)"/>
+              <!-- Text lines -->
+              <line x1="155" y1="75" x2="210" y2="75" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="155" y1="82" x2="200" y2="82" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
+              
+              <!-- Message bubble 2 -->
+              <rect x="145" y="115" width="95" height="45" rx="12" fill="url(#notif-grad1)" stroke="rgba(167,139,250,0.3)" stroke-width="1.5"/>
+              <!-- Dots -->
+              <circle cx="160" cy="130" r="2" fill="rgba(255,255,255,0.6)"/>
+              <circle cx="167" cy="130" r="2" fill="rgba(255,255,255,0.6)"/>
+              <circle cx="174" cy="130" r="2" fill="rgba(255,255,255,0.6)"/>
+              <!-- Text lines -->
+              <line x1="160" y1="142" x2="215" y2="142" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="160" y1="148" x2="205" y2="148" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round"/>
+            </g>
+            
+            <!-- Decorative connection lines -->
+            <path d="M 125 80 Q 140 75 155 85" stroke="url(#notif-grad1)" stroke-width="1.5" fill="none" opacity="0.5" stroke-linecap="round"/>
+            <path d="M 125 100 Q 142 110 160 125" stroke="url(#notif-grad2)" stroke-width="1.5" fill="none" opacity="0.4" stroke-linecap="round"/>
+            
+            <!-- Accent circles -->
+            <circle cx="45" cy="180" r="8" fill="url(#notif-grad2)" opacity="0.4"/>
+            <circle cx="225" cy="50" r="6" fill="url(#notif-grad1)" opacity="0.35"/>
+            
+            <!-- Bottom accent line -->
+            <line x1="30" y1="200" x2="230" y2="200" stroke="url(#notif-grad1)" stroke-width="2" opacity="0.3" stroke-linecap="round"/>
+          </svg>
         </div>
-        {% endif %}
       </div>
+
+      <!-- Action Buttons (below header on mobile) -->
+      {% if total_notifications %}
+      <div class="notif-header-actions">
+        <a href="{% url 'notifications:mark_all_read' %}" class="notif-btn notif-btn-primary">
+          <i class="fas fa-check-double"></i>
+          {% translate "Mark all as read" %}
+        </a>
+        <a href="{% url 'notifications:delete_all' %}" class="notif-btn notif-btn-danger"
+           onclick="return confirm('{% translate "Are you sure you want to delete all notifications?" %}');">
+          <i class="fas fa-trash-alt"></i>
+          {% translate "Delete all" %}
+        </a>
+      </div>
+      {% endif %}
 
       <!-- Stats Cards -->
       <div class="notif-stats">
