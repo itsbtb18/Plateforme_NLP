@@ -1,244 +1,383 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% trans "Sign Out" %} - Plateforme NLP{% endblock %}
+{% block title %}{% trans "Sign Out" %} - {% trans "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
-/* Scope everything to avoid overriding base styles */
-.logout-page * { box-sizing: border-box; }
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: calc(100vh - var(--site-header-height));
+    }
 
-.logout-page {
-    font-family: 'Poppins', sans-serif;
-    background: linear-gradient(135deg, rgba(26, 115, 232, 0.15) 0%, rgba(13, 71, 161, 0.1) 50%, rgba(52, 168, 83, 0.08) 100%);
-    min-height: calc(100vh - 160px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 16px;
-    position: relative;
-}
+    .main-container {
+        min-height: calc(100vh - var(--site-header-height)) !important;
+    }
 
-.logout-page::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 200px;
-    background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 50%, rgba(52, 168, 83, 0.3) 100%);
-    z-index: 0;
-}
+    .logout-page-wrapper {
+        min-height: calc(100vh - var(--site-header-height));
+        height: calc(100vh - var(--site-header-height));
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        background: linear-gradient(180deg, #0d1020 0%, #14182d 52%, #0d1020 100%);
+        width: 100%;
+        margin: 0;
+    }
 
-.logout-container {
-    max-width: 520px;
-    width: 100%;
-    z-index: 1;
-    animation: slideUp 0.5s ease-out;
-}
+    .logout-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        background: #ffffff;
+        overflow: hidden;
+    }
 
-.logout-card {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-    padding: 50px 40px;
-    text-align: center;
-    position: relative;
-}
+    .logout-visual-side {
+        background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+        background-attachment: fixed;
+        padding: 3rem;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
 
-.logout-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 30px;
-    background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
-    color: white;
-    box-shadow: 0 10px 30px rgba(26, 115, 232, 0.3);
-}
+    .logout-visual-side::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+        z-index: 1;
+    }
 
-.logout-title {
-    color: #202124;
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 10px;
-    letter-spacing: -0.5px;
-}
+    .logout-visual-content {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 420px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-self: center;
+        align-self: center;
+        text-align: center;
+    }
 
-.logout-subtitle {
-    color: #5f6368;
-    font-size: 1rem;
-    font-weight: 400;
-    margin-bottom: 30px;
-    line-height: 1.5;
-}
+    .logout-visual-icon {
+        width: 140px;
+        height: 140px;
+        margin-bottom: 2rem;
+        background: rgba(167, 139, 250, 0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(167, 139, 250, 0.2);
+    }
 
-.user-info {
-    background: linear-gradient(135deg, #f0f8ff 0%, #f5f5f5 100%);
-    border-left: 4px solid #0d47a1;
-    padding: 15px 20px;
-    border-radius: 8px;
-    margin-bottom: 35px;
-    text-align: left;
-}
+    .logout-visual-icon i {
+        font-size: 4rem;
+        color: #ffffff;
+    }
 
-html[dir="rtl"] .user-info {
-    border-left: none;
-    border-right: 4px solid #0d47a1;
-    text-align: right;
-}
+    .logout-visual-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 1rem;
+        line-height: 1.3;
+    }
 
-html[dir="rtl"] .btn-cancel i {
-    transform: scaleX(-1);
-}
+    .logout-visual-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+        max-width: 340px;
+    }
 
-.user-info-label {
-    color: #5f6368;
-    font-size: 0.85rem;
-    font-weight: 500;
-    margin-bottom: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+    .logout-visual-features {
+        margin-top: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+    }
 
-.user-email {
-    color: #0d47a1;
-    font-size: 1.05rem;
-    font-weight: 600;
-    word-break: break-all;
-}
+    .logout-visual-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.95rem;
+        justify-content: center;
+    }
 
-.logout-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
+    .logout-visual-feature i {
+        width: 24px;
+        height: 24px;
+        background: rgba(167, 139, 250, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #a78bfa;
+    }
 
-.btn-logout,
-.btn-cancel {
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-family: 'Poppins', sans-serif;
-}
+    .logout-form-side {
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+    }
 
-.btn-logout {
-    background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
-    color: white;
-    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.25);
-}
+    .logout-form-shell {
+        width: min(100%, 520px);
+        margin: 0 auto;
+    }
 
-.btn-logout:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(26, 115, 232, 0.35);
-    color: white;
-    text-decoration: none;
-}
+    .logout-form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
 
-.btn-logout:active {
-    transform: translateY(0);
-}
+    .logout-form-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
 
-.btn-cancel {
-    background: white;
-    color: #0d47a1;
-    border: 2px solid #0d47a1;
-}
+    .logout-form-header p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
 
-.btn-cancel:hover {
-    background: #f0f8ff;
-    transform: translateY(-2px);
-    color: #1a73e8;
-    border-color: #1a73e8;
-    text-decoration: none;
-}
+    .logout-user-card {
+        background: linear-gradient(135deg, #f0f8ff 0%, #f8fbff 100%);
+        border: 1px solid #dbeafe;
+        border-inline-start: 4px solid #2563eb;
+        border-radius: 12px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 1.5rem;
+    }
 
-.btn-cancel:active {
-    transform: translateY(0);
-}
+    .logout-user-label {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+    }
 
-.logout-footer {
-    color: #5f6368;
-    font-size: 0.9rem;
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #e8e8e8;
-}
+    .logout-user-email {
+        color: #1d4ed8;
+        font-size: 1.05rem;
+        font-weight: 700;
+        word-break: break-word;
+    }
 
-.logout-footer i {
-    color: #34a853;
-    margin: 0 3px;
-}
+    .logout-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
 
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+    .logout-btn,
+    .logout-cancel {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.25s ease;
+        cursor: pointer;
+    }
 
-@media (max-width: 520px) {
-    .logout-card { padding: 40px 25px; }
-    .logout-title { font-size: 1.6rem; }
-    .logout-subtitle { font-size: 0.95rem; }
-    .btn-logout, .btn-cancel { padding: 11px 20px; font-size: 0.95rem; }
-    .user-email { font-size: 0.95rem; }
-}
+    .logout-btn {
+        border: none;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(31, 41, 55, 0.4);
+    }
+
+    .logout-btn:hover {
+        transform: scale(1.02) translateY(-2px);
+        box-shadow: 0 8px 25px rgba(31, 41, 55, 0.5);
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+    .logout-cancel {
+        background: #ffffff;
+        color: #2563eb;
+        border: 2px solid #2563eb;
+    }
+
+    .logout-cancel:hover {
+        background: #eff6ff;
+        color: #1d4ed8;
+        text-decoration: none;
+        transform: translateY(-2px);
+    }
+
+    .logout-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+
+    .logout-footer i {
+        color: #22c55e;
+        margin: 0 0.2rem;
+    }
+
+    html[dir="rtl"] .logout-visual-feature,
+    html[dir="rtl"] .logout-form {
+        direction: rtl;
+    }
+
+    html[dir="rtl"] .logout-visual-content {
+        align-items: center;
+        justify-self: center;
+        text-align: center;
+    }
+
+    html[dir="rtl"] .logout-user-card {
+        border-inline-start: none;
+        border-inline-end: 4px solid #2563eb;
+        text-align: right;
+    }
+
+    @media (max-width: 900px) {
+        .logout-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            min-height: 100%;
+        }
+
+        .logout-visual-side {
+            display: none;
+        }
+
+        .logout-page-wrapper {
+            height: auto;
+        }
+
+        .logout-form-side {
+            padding: 2rem;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .logout-page-wrapper {
+            min-height: calc(100vh - var(--site-header-height));
+            height: auto;
+        }
+
+        .logout-form-side {
+            padding: 1.5rem;
+        }
+
+        .logout-form-header h1 {
+            font-size: 1.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="logout-page">
+<div class="logout-page-wrapper">
     <div class="logout-container">
-        <div class="logout-card">
-            <div class="logout-icon">
-                <i class="fas fa-sign-out-alt"></i>
-            </div>
-
-            <h1 class="logout-title">{% trans "Sign Out" %}</h1>
-            <p class="logout-subtitle">{% trans "Are you sure you want to leave?" %}</p>
-
-            <div class="user-info">
-                <div class="user-info-label" style="text-transform:none;">{% trans "Signed in as:" %}</div>
-                <div class="user-email">{{ user.email }}</div>
-            </div>
-
-            <form method="post" action="{% url 'account_logout' %}" class="logout-form">
-                {% csrf_token %}
-                <button type="submit" class="btn-logout">
+        <div class="logout-visual-side">
+            <div class="logout-visual-content">
+                <div class="logout-visual-icon">
                     <i class="fas fa-sign-out-alt"></i>
-                    {% trans "Yes, Sign Me Out" %}
-                </button>
-                <a href="/" class="btn-cancel">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% if LANGUAGE_CODE == "ar" %}
-                        إلغاء
-                        <i class="fas fa-chevron-right"></i>
+                </div>
+                <h2 class="logout-visual-title">
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        نراك قريبًا
                     {% else %}
-                        <i class="fas fa-chevron-left"></i>
-                        Cancel
+                        {% trans "See you soon" %}
                     {% endif %}
-                </a>
-            </form>
+                </h2>
+                <p class="logout-visual-subtitle">
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        يمكنك العودة في أي وقت لمواصلة استكشاف أدوات معالجة اللغة العربية والموارد ومساحات المجتمع.
+                    {% else %}
+                        {% trans "You can return any time to continue exploring Arabic NLP tools, resources, and community spaces." %}
+                    {% endif %}
+                </p>
+                <div class="logout-visual-features">
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات متقدمة لمعالجة اللغة{% else %}{% trans "Advanced NLP Tools" %}{% endif %}</span>
+                    </div>
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التعاون البحثي{% else %}{% trans "Research Collaboration" %}{% endif %}</span>
+                    </div>
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مجموعات بيانات عربية غنية{% else %}{% trans "Rich Arabic Datasets" %}{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <div class="logout-footer">
-                {% trans "Come back soon!" %} <i class="fas fa-hand-paper"></i>
+        <div class="logout-form-side">
+            <div class="logout-form-shell">
+                <div class="logout-form-header">
+                    <h1>{% trans "Sign Out" %}</h1>
+                    <p>{% trans "Are you sure you want to leave?" %}</p>
+                </div>
+
+                <div class="logout-user-card">
+                    <div class="logout-user-label">{% trans "Signed in as:" %}</div>
+                    <div class="logout-user-email">{{ user.email }}</div>
+                </div>
+
+                <form method="post" action="{% url 'account_logout' %}" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        {% trans "Yes, Sign Me Out" %}
+                    </button>
+                    <a href="/" class="logout-cancel">
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                            <i class="fas fa-chevron-right"></i>
+                            <span>إلغاء</span>
+                        {% else %}
+                            <i class="fas fa-chevron-left"></i>
+                            <span>{% trans "Cancel" %}</span>
+                        {% endif %}
+                    </a>
+                </form>
+
+                <div class="logout-footer">
+                    {% trans "Come back soon!" %} <i class="fas fa-hand-paper"></i>
+                </div>
             </div>
         </div>
     </div>
-</section>
+</div>
 {% endblock %}

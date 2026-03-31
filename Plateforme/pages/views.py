@@ -6,7 +6,12 @@ from django.views.generic import TemplateView
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
-from pages.forms import AdminNewsPublicationForm, AdminResponseForm, ContactForm
+from pages.forms import (
+    AdminNewsPublicationForm,
+    AdminResponseForm,
+    ContactForm,
+    OpportunityForm,
+)
 from accounts.models import CustomUser
 from events.models import Event
 from resources.models import Corpus, NLPTool, Document, Course
@@ -130,7 +135,7 @@ class OpportunitiesPageView(TemplateView):
         if not institutions_qs.exists():
             institutions_qs = Institution.objects.all().order_by("name_en", "name")
 
-        context["algerian_institutions"] = [
+        institution_options = [
             {
                 "id": str(item.pk),
                 "name_en": (item.name_en or item.name or "").strip(),
@@ -141,8 +146,153 @@ class OpportunitiesPageView(TemplateView):
             }
             for item in institutions_qs
         ]
+
+        # Add a curated set of Algerian companies so the opportunities form is not
+        # limited to universities and research institutions when posting jobs.
+        fallback_companies = [
+            {
+                "id": "company-sonatrach",
+                "name_en": "Sonatrach",
+                "name_ar": "سوناطراك",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-sonelgaz",
+                "name_en": "Sonelgaz",
+                "name_ar": "سونلغاز",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-mobilis",
+                "name_en": "Mobilis",
+                "name_ar": "موبيليس",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-ooredoo-algerie",
+                "name_en": "Ooredoo Algeria",
+                "name_ar": "أوريدو الجزائر",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-djezzy",
+                "name_en": "Djezzy",
+                "name_ar": "جازي",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-cerist-services",
+                "name_en": "CERIST Innovation & Services",
+                "name_ar": "خدمات وابتكار سيريست",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-yassir",
+                "name_en": "Yassir",
+                "name_ar": "ياسير",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+            {
+                "id": "company-condor",
+                "name_en": "Condor Electronics",
+                "name_ar": "كوندور للإلكترونيات",
+                "city_en": "Bordj Bou Arreridj",
+                "city_ar": "برج بوعريريج",
+                "type": "Other",
+            },
+            {
+                "id": "company-geeks",
+                "name_en": "Geeks",
+                "name_ar": "جيكس",
+                "city_en": "Sidi Abdellah",
+                "city_ar": "سيدي عبد الله",
+                "type": "Other",
+            },
+            {
+                "id": "company-satim",
+                "name_en": "SATIM",
+                "name_ar": "ساتيم",
+                "city_en": "Algiers",
+                "city_ar": "الجزائر العاصمة",
+                "type": "Other",
+            },
+        ]
+
+        existing_names = {
+            (entry["name_en"] or entry["name_ar"]).strip().lower()
+            for entry in institution_options
+            if (entry["name_en"] or entry["name_ar"]).strip()
+        }
+        for company in fallback_companies:
+            company_name = (company["name_en"] or company["name_ar"]).strip().lower()
+            if company_name not in existing_names:
+                institution_options.append(company)
+
+        context["algerian_institutions"] = institution_options
+        context["opportunities_data"] = [
+            serialize_opportunity_for_frontend(item)
+            for item in Opportunity.objects.filter(
+                status=Opportunity.STATUS_APPROVED, is_published=True
+            ).select_related("institution", "created_by")
+        ]
         context["page"] = "opportunities"
         return context
+
+
+def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
+    institution = getattr(opportunity, "institution", None)
+    organization_en = (
+        opportunity.organization_en
+        or getattr(institution, "name_en", "")
+        or getattr(institution, "name", "")
+    )
+    organization_ar = (
+        opportunity.organization_ar
+        or getattr(institution, "name_ar", "")
+        or getattr(institution, "name", "")
+    )
+    location_en = opportunity.location or getattr(institution, "city_en", "") or getattr(institution, "city", "")
+    location_ar = opportunity.location or getattr(institution, "city_ar", "") or getattr(institution, "city", "")
+    description = (opportunity.description or "").strip()
+    short_text = description[:180] + ("..." if len(description) > 180 else "")
+    created_at = getattr(opportunity, "created_at", timezone.now())
+    return {
+        "id": str(opportunity.pk),
+        "title": {
+            "en": opportunity.title_en or opportunity.title,
+            "ar": opportunity.title_ar or opportunity.title,
+        },
+        "organization": {"en": organization_en, "ar": organization_ar or organization_en},
+        "location": {"en": location_en, "ar": location_ar or location_en},
+        "short": {"en": short_text, "ar": short_text},
+        "full": {"en": description, "ar": description},
+        "type": opportunity.opportunity_type,
+        "mode": opportunity.mode,
+        "level": opportunity.level,
+        "skills": normalize_skills(opportunity.skills or []),
+        "deadline": opportunity.deadline.isoformat(),
+        "createdAt": created_at.isoformat(),
+        "relevance": 100,
+        "isNew": (timezone.now() - created_at).days <= 30,
+        "orgInitials": "".join(part[0] for part in organization_en.split()[:2]).upper() if organization_en else "OP",
+        "contact": opportunity.contact,
+    }
+
+
 
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -158,10 +308,13 @@ from .models import (
     AdminActivityLog,
     SecurityLog,
     NewsPublication,
+    Opportunity,
 )
+from .opportunities_service import apply_creation_policy, normalize_skills
 from institutions.models import Institution
 import datetime
 from accounts.forms import CustomUserChangeForm
+from pages.security import ROLE_ADMIN, get_user_role
 
 
 User = get_user_model()
@@ -170,6 +323,172 @@ User = get_user_model()
 def is_admin(user):
     """Check if user is an admin"""
     return user.is_staff or user.is_superuser
+
+
+def is_strict_admin(user):
+    return get_user_role(user) == ROLE_ADMIN
+
+
+@login_required
+def create_opportunity(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+
+    institutions_qs = Institution.objects.all()
+    data = request.POST.copy()
+    if "type" in data and "opportunity_type" not in data:
+        data["opportunity_type"] = data["type"]
+    form = OpportunityForm(data, institution_queryset=institutions_qs)
+    if not form.is_valid():
+        errors = {
+            field: [str(err) for err in field_errors]
+            for field, field_errors in form.errors.items()
+        }
+        return JsonResponse({"ok": False, "errors": errors}, status=400)
+
+    opportunity = form.save(commit=False)
+    opportunity.created_by = request.user
+    role = apply_creation_policy(opportunity, user=request.user)
+    opportunity.save()
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "opportunity": serialize_opportunity_for_frontend(opportunity)
+            if opportunity.is_published
+            else None,
+            "status": opportunity.status,
+            "is_published": opportunity.is_published,
+            "user_role": role,
+            "message": _(
+                "Opportunity published successfully."
+                if opportunity.is_published
+                else "Opportunity submitted successfully. Moderation is in progress."
+            ),
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_opportunities(request):
+    """Admin moderation page for opportunities."""
+    institutions_count = Institution.objects.count()
+    algerian_institutions_count = Institution.objects.filter(
+        country__code__iexact="DZ"
+    ).count()
+    opportunities_qs = Opportunity.objects.select_related("created_by", "institution", "approved_by")
+    context = {
+        "page": "admin_opportunities",
+        "institutions_count": institutions_count,
+        "algerian_institutions_count": algerian_institutions_count,
+        "can_moderate_opportunities": is_strict_admin(request.user),
+        "pending_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_PENDING),
+        "approved_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_APPROVED),
+        "rejected_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_REJECTED),
+        "pending_count": opportunities_qs.filter(status=Opportunity.STATUS_PENDING).count(),
+        "approved_count": opportunities_qs.filter(status=Opportunity.STATUS_APPROVED).count(),
+        "rejected_count": opportunities_qs.filter(status=Opportunity.STATUS_REJECTED).count(),
+    }
+    return render(request, "admin/opportunities.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_opportunity_update(request, pk):
+    opportunity = get_object_or_404(
+        Opportunity.objects.select_related("created_by", "institution", "approved_by"),
+        pk=pk,
+    )
+    institutions_qs = Institution.objects.all()
+    initial = {
+        "institution_ref": str(opportunity.institution_id) if opportunity.institution_id else "other",
+        "skills_payload": json.dumps(opportunity.skills or []),
+    }
+
+    def _style_form(current_form):
+        for name, field in current_form.fields.items():
+            if name in {"description"}:
+                field.widget.attrs.setdefault("class", "form-control")
+                field.widget.attrs.setdefault("rows", 6)
+            elif name not in {"institution_ref", "skills_payload"}:
+                existing = field.widget.attrs.get("class", "")
+                field.widget.attrs["class"] = (existing + " form-control").strip()
+        return current_form
+
+    if request.method == "POST":
+        form = OpportunityForm(
+            request.POST,
+            instance=opportunity,
+            institution_queryset=institutions_qs,
+            initial=initial,
+        )
+        form = _style_form(form)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                _("Opportunity changes saved successfully."),
+            )
+            return redirect(
+                f"{reverse('pages:admin_opportunity_update', kwargs={'pk': opportunity.pk})}"
+                f"?{request.GET.urlencode()}"
+            )
+    else:
+        form = OpportunityForm(
+            instance=opportunity,
+            institution_queryset=institutions_qs,
+            initial=initial,
+        )
+        form = _style_form(form)
+
+    context = {
+        "page": "admin_opportunities",
+        "opportunity": opportunity,
+        "form": form,
+        "is_pending": opportunity.status == Opportunity.STATUS_PENDING,
+        "review_mode": request.GET.get("review") == "1",
+        "edit_only": request.GET.get("edit_only") == "1",
+        "read_only_review": request.GET.get("admin_review") == "1" and request.GET.get("edit_only") != "1",
+    }
+    return render(request, "admin/opportunity_update.html", context)
+
+
+@login_required
+@user_passes_test(is_strict_admin)
+def admin_opportunity_approve(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+
+    opportunity = get_object_or_404(Opportunity, pk=pk)
+    approve_object(opportunity, moderator=request.user, save=True)
+    messages.success(
+        request,
+        _("'%(title)s' has been approved and published.")
+        % {"title": opportunity.title},
+    )
+    return redirect("pages:admin_opportunities")
+
+
+@login_required
+@user_passes_test(is_strict_admin)
+def admin_opportunity_reject(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+
+    opportunity = get_object_or_404(Opportunity, pk=pk)
+    rejection_reason = (request.POST.get("reason") or "").strip()
+    reject_object(
+        opportunity,
+        moderator=request.user,
+        rejection_reason=rejection_reason,
+        save=True,
+    )
+    messages.success(
+        request,
+        _("'%(title)s' has been rejected.") % {"title": opportunity.title},
+    )
+    return redirect("pages:admin_opportunities")
 
 
 NEWS_TYPE_META = {
@@ -809,6 +1128,7 @@ def admin_dashboard(request):
         ("post", _label_for_language("Feed", "المنشورات"), Post),
         ("course", _("Courses"), Course),
         ("event", _("Events"), Event),
+        ("opportunity", _("Opportunities"), Opportunity),
     ]
     pending_review_items = []
     for model_type, section_label, model in section_defs:
@@ -850,6 +1170,7 @@ def admin_dashboard(request):
     news_pending, news_approved = _status_counts(Post)
     courses_pending, courses_approved = _status_counts(Course)
     events_pending, events_approved = _status_counts(Event)
+    opportunities_pending, opportunities_approved = _status_counts(Opportunity)
 
     context["approval_sections"] = [
         {
@@ -913,8 +1234,16 @@ def admin_dashboard(request):
             "owner": _("Events Team"),
             "pending": events_pending,
             "approved": events_approved,
-            "url": reverse("events:event_list"),
+            "url": reverse("pages:admin_calls"),
             "active": events_pending == 0,
+        },
+        {
+            "title": _("Opportunities"),
+            "owner": _("Opportunities Team"),
+            "pending": opportunities_pending,
+            "approved": opportunities_approved,
+            "url": reverse("pages:admin_opportunities"),
+            "active": opportunities_pending == 0,
         },
     ]
 
@@ -1015,15 +1344,39 @@ def admin_review_save_api(request, model_type, pk):
             break
 
     action = (payload.get("action") or "").strip().lower()
-    if action in {"accept", "approve"} and hasattr(item, "approval_status"):
-        setattr(item, "approval_status", "approved")
-        updated_fields.append("approval_status")
+    if action in {"accept", "approve"}:
+        if hasattr(item, "approval_status"):
+            setattr(item, "approval_status", "approved")
+            updated_fields.append("approval_status")
+        if hasattr(item, "status"):
+            try:
+                status_field = item._meta.get_field("status")
+                if any(choice_value == "approved" for choice_value, _ in (status_field.choices or [])):
+                    setattr(item, "status", "approved")
+                    updated_fields.append("status")
+            except Exception:
+                pass
+        if hasattr(item, "is_published"):
+            setattr(item, "is_published", True)
+            updated_fields.append("is_published")
         if hasattr(item, "is_approved"):
             setattr(item, "is_approved", True)
             updated_fields.append("is_approved")
-    elif action == "reject" and hasattr(item, "approval_status"):
-        setattr(item, "approval_status", "rejected")
-        updated_fields.append("approval_status")
+    elif action == "reject":
+        if hasattr(item, "approval_status"):
+            setattr(item, "approval_status", "rejected")
+            updated_fields.append("approval_status")
+        if hasattr(item, "status"):
+            try:
+                status_field = item._meta.get_field("status")
+                if any(choice_value == "rejected" for choice_value, _ in (status_field.choices or [])):
+                    setattr(item, "status", "rejected")
+                    updated_fields.append("status")
+            except Exception:
+                pass
+        if hasattr(item, "is_published"):
+            setattr(item, "is_published", False)
+            updated_fields.append("is_published")
         if hasattr(item, "is_approved"):
             setattr(item, "is_approved", False)
             updated_fields.append("is_approved")
@@ -3002,6 +3355,7 @@ MODEL_MAP = {
     "event": Event,
     "post": Post,
     "institution": Institution,
+    "opportunity": Opportunity,
 }
 
 REDIRECT_MAP = {
@@ -3014,6 +3368,7 @@ REDIRECT_MAP = {
     "event": "pages:admin_calls",
     "post": "pages:admin_feed",
     "institution": "pages:admin_institutions",
+    "opportunity": "pages:admin_opportunities",
 }
 
 # Translation field requirements for each model
@@ -3085,6 +3440,7 @@ EDIT_URL_MAP = {
     "corpus": ("resources:resource-update", {"type": "corpus"}),
     "nlptool": ("resources:resource-update", {"type": "tool"}),
     "course": ("resources:resource-update", {"type": "course"}),
+    "opportunity": ("pages:admin_opportunity_update", {}),
     "project": ("projects:project_update", {}),
     "topic": ("forum:topic-update", {}),
     "event": ("events:event_update", {}),
@@ -3153,6 +3509,9 @@ def get_view_url(model_type, pk):
 
     if model_type == "topic":
         return reverse("forum:topic-detail", kwargs={"pk": pk})
+
+    if model_type == "opportunity":
+        return reverse("pages:admin_opportunity_update", kwargs={"pk": pk})
 
     return reverse("pages:admin_dashboard")
 

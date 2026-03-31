@@ -217,6 +217,12 @@
         transform: translateY(0);
       }
 
+      .nav-dropdown-menu.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
       .nav-dropdown-item {
         display: flex;
         align-items: center;
@@ -239,6 +245,32 @@
       html[dir="rtl"] .nav-dropdown-menu {
         left: auto;
         right: 0;
+      }
+
+      .guest-join-item {
+        margin-left: auto;
+        list-style: none;
+      }
+
+      .guest-join-item .nav-dropdown-trigger {
+        min-width: 132px;
+        justify-content: center;
+      }
+
+      .guest-join-item .nav-dropdown-menu {
+        left: auto;
+        right: 0;
+        min-width: 200px;
+      }
+
+      html[dir="rtl"] .guest-join-item {
+        margin-left: 0;
+        margin-right: auto;
+      }
+
+      html[dir="rtl"] .guest-join-item .nav-dropdown-menu {
+        right: auto;
+        left: 0;
       }
 
       @media (max-width: 1280px) {
@@ -1157,18 +1189,17 @@
                         <ul class="nav-dropdown-menu" id="resourcesDropdown">
                             <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Corpus" %}</a></li>
                             <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Tools" %}</a></li>
-                            <li><a href="{% url 'resources:list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Resources" %}</a></li>
                             <li><a href="{% url 'resources:course_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Courses" %}</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
                         <button class="nav-dropdown-trigger" type="button" data-dropdown="communityDropdown">
-                            <span>{% trans "Community" %}</span>
+                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجتمع{% else %}{% trans "Community" %}{% endif %}</span>
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <ul class="nav-dropdown-menu" id="communityDropdown">
-                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Forums" %}</a></li>
-                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item" role="menuitem">{% trans "Feed" %}</a></li>
+                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a></li>
+                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -1193,7 +1224,7 @@
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'pages:opportunities' %}" class="nav-link {% if page == 'opportunities' %}active{% endif %}">
-                            <span>{% trans "Opportunities" %}</span>
+                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
                         </a>
                     </li>
                     {% if user.is_staff %}
@@ -2139,9 +2170,9 @@
                 </div>
                 {% else %}
                 <!-- JOIN US Dropdown - Same as Community Dropdown -->
-                <li class="nav-item" style="margin-left: auto; list-style: none;">
+                <li class="nav-item guest-join-item">
                     <button class="nav-dropdown-trigger" id="joinUsDropdownTrigger" data-dropdown="joinUsDropdown">
-                        <span>{% trans "Join Us" %}</span>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}انضم إلينا{% else %}{% trans "Join Us" %}{% endif %}</span>
                         <i class="fas fa-chevron-down"></i>
                     </button>
                     <ul class="nav-dropdown-menu" id="joinUsDropdown">
@@ -2175,20 +2206,25 @@
                     <li><a href="{% url 'resources:tool_list' %}" class="{% if page == 'tools' %}active{% endif %}">
                         <span>{% trans "Tools" %}</span>
                     </a></li>
-                    <li><a class="{% if page == 'resources' %}active{% endif %}" href="{% url 'resources:list' %}">
-                        <i class="fas fa-archive"></i><span>{% trans "Resources" %}</span>
-                    </a></li>
                     <li><a href="{% url 'projects:project_list' %}" class="{% if page == 'research_projects' %}active{% endif %}">
                         <i class="fas fa-flask"></i><span>{% trans "Research Projects" %}</span>
                     </a></li>
-                    <li><a class="{% if page == 'community' %}active{% endif %}" href="{% url 'forum:topic-list' %}">
-                        <span>{% trans "Community" %}</span>
-                    </a></li>
-                    <li><a class="{% if page == 'feed' %}active{% endif %}" href="{% url 'feed:feed' %}">
-                        <i class="fas fa-newspaper"></i><span>{% trans "News" %}</span>
-                    </a></li>
+                    <li class="nav-item">
+                        <button class="nav-dropdown-trigger" type="button" data-dropdown="mobileCommunityDropdown">
+                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجتمع{% else %}{% trans "Community" %}{% endif %}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <ul class="nav-dropdown-menu" id="mobileCommunityDropdown">
+                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item {% if page == 'feed' %}active{% endif %}" role="menuitem">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}
+                            </a></li>
+                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}
+                            </a></li>
+                        </ul>
+                    </li>
                     <li><a class="{% if page == 'opportunities' %}active{% endif %}" href="{% url 'pages:opportunities' %}">
-                        <i class="fas fa-briefcase"></i><span>{% trans "Opportunities" %}</span>
+                        <i class="fas fa-briefcase"></i><span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
                     </a></li>
                     <li><a class="{% if page == 'events' %}active{% endif %}" href="{% url 'events:event_list' %}">
                         <i class="fas fa-calendar-alt"></i><span>{% trans "Events" %}</span>

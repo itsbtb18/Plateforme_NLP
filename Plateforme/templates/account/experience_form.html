@@ -1,58 +1,474 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "Experience" %}{% endblock %}
+{% block title %}{% if form.instance.pk %}{% trans "Edit Experience" %}{% else %}{% trans "Add Experience" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  .exp-shell{padding:1.25rem 0 2rem;background:linear-gradient(180deg,#0d1020 0%,#14182d 52%,#0d1020 100%);overflow:visible}
+  .exp-wrap{width:min(1120px,calc(100% - 1rem));margin:0 auto;overflow:visible}
+  .exp-modal{position:relative;isolation:isolate;border:1px solid rgba(167,139,250,.16);box-shadow:0 22px 60px rgba(4,8,20,.28);border-radius:28px;background:linear-gradient(180deg,rgba(24,18,52,.98) 0%,rgba(14,12,32,.98) 100%);color:#f8fafc;overflow:visible;z-index:1}
+  .exp-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1.45rem 1.45rem 1.2rem;border-bottom:1px solid rgba(167,139,250,.14);background:radial-gradient(circle at 15% 20%,rgba(139,92,246,.18),transparent 30%),radial-gradient(circle at 85% 18%,rgba(167,139,250,.22),transparent 28%),linear-gradient(135deg,#120f2a 0%,#21143f 52%,#32185d 100%)}
+  .exp-kicker{display:inline-flex;align-items:center;gap:.45rem;padding:.42rem .78rem;border-radius:999px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.24);color:#c4b5fd;font-weight:800;font-size:.8rem}
+  .exp-title{margin:.8rem 0 .4rem;font-family:'Syne',sans-serif;font-size:2rem;line-height:1.05;color:#f8fafc}
+  .exp-sub{margin:0;color:#cbd5e1;line-height:1.7;max-width:62ch}
+  .exp-form-shell{padding:1rem;overflow:visible}
+  .exp-form-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:1rem}
+  .op-section{background:linear-gradient(180deg,rgba(25,31,54,.98) 0%,rgba(18,22,40,.98) 100%);border:1px solid rgba(167,139,250,.18);border-radius:24px;overflow:visible;box-shadow:0 18px 50px rgba(15,23,42,.18)}
+  .op-section-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1rem 1.1rem .8rem;border-bottom:1px solid rgba(167,139,250,.16);background:linear-gradient(180deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.02) 100%)}
+  .op-section-head h3{margin:0;font-size:1.08rem;font-weight:800}
+  .op-section-head p{margin:.32rem 0 0;color:#cbd5e1;line-height:1.65}
+  .op-step{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;border-radius:999px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.2);color:#c4b5fd;font-weight:800;font-size:.82rem}
+  .op-section-body{padding:1rem 1.1rem 1.1rem;overflow:visible}
+  .op-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem;min-width:0}
+  .op-field{position:relative;display:flex;flex-direction:column;gap:.42rem;z-index:1;min-width:0;overflow:visible}
+  .op-col-12{grid-column:span 12}
+  .op-col-6{grid-column:span 6}
+  .op-col-4{grid-column:span 4}
+  .op-field label{font-weight:800;font-size:.95rem;color:#eef2ff}
+  .op-help{margin:0;color:#cbd5e1;font-size:.84rem;line-height:1.55}
+  .op-help.strong{color:#ddd6fe}
+  .op-req{color:#b91c1c}
+  .op-input,.op-select,.op-textarea{display:block;width:100%;max-width:100%;min-width:0;border:1px solid rgba(167,139,250,.24);border-radius:16px;background:rgba(20,18,40,.96);color:#eef2ff;padding:.85rem .95rem;font-size:.94rem;outline:none}
+  .op-input,.op-select{min-height:52px}
+  .op-select-native{display:none}
+  .op-dropdown{position:relative;z-index:80}
+  .op-dropdown-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:52px;padding:.85rem .95rem;border-radius:16px;border:1px solid rgba(167,139,250,.24);background:rgba(20,18,40,.96);color:#eef2ff;font-size:.94rem;font-weight:700;cursor:pointer;text-align:start;box-shadow:0 0 0 0 rgba(96,165,250,0);transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+  .op-dropdown-toggle:hover{border-color:rgba(196,181,253,.38);background:rgba(27,24,52,.98)}
+  .op-dropdown-toggle:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+  .op-dropdown-toggle.is-open{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+  .op-dropdown-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .op-dropdown-value.is-placeholder{color:#cbd5e1;font-weight:600}
+  .op-dropdown-icon{flex:0 0 auto;color:#c4b5fd;transition:transform .18s ease}
+  .op-dropdown-toggle.is-open .op-dropdown-icon{transform:rotate(180deg)}
+  .op-dropdown-menu{position:absolute;top:calc(100% + .45rem);left:0;right:0;display:none;z-index:120;max-height:280px;overflow:auto;padding:.45rem;background:linear-gradient(180deg,rgba(24,18,52,1) 0%,rgba(14,12,32,1) 100%);border:1px solid rgba(167,139,250,.24);border-radius:18px;box-shadow:0 24px 52px rgba(4,8,20,.42)}
+  .op-dropdown.open .op-dropdown-menu{display:block}
+  .op-dropdown.open-up .op-dropdown-menu{top:auto;bottom:calc(100% + .45rem)}
+  .op-dropdown-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.72rem .8rem;border:none;border-radius:12px;background:transparent;color:#eef2ff;font-size:.92rem;font-weight:700;cursor:pointer;text-align:start}
+  .op-dropdown-option:hover,.op-dropdown-option:focus{outline:none;background:rgba(167,139,250,.12)}
+  .op-dropdown-option.is-selected{background:linear-gradient(135deg,rgba(167,139,250,.26),rgba(139,92,246,.34));color:#fff}
+  .op-dropdown-option-other{border:1px dashed rgba(236,72,153,.35);background:rgba(236,72,153,.08);color:#fce7ff}
+  .op-dropdown-option-label{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .op-textarea{min-height:120px;resize:vertical}
+  .op-errors{display:block;padding:1rem;border-radius:20px;border:1px solid rgba(185,28,28,.18);background:#fef2f2;color:#b91c1c}
+  .op-errors ul{margin:0;padding-inline-start:1.1rem}
+  .exp-actions{display:grid;gap:.7rem;margin-top:1rem}
+  .op-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:46px;padding:.72rem 1rem;border-radius:16px;border:1px solid rgba(167,139,250,.24);background:rgba(255,255,255,.05);color:#eef2ff;font-weight:700;cursor:pointer;text-decoration:none}
+  .op-btn.primary{background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);border-color:#8b5cf6;color:#fff}
+  .exp-side-note{padding:.95rem;border:1px solid rgba(167,139,250,.18);border-radius:18px;background:rgba(167,139,250,.08);color:#cbd5e1;line-height:1.7}
+  .exp-hidden{display:none}
+  .exp-project-link{display:none}
+  .exp-project-link.is-visible{display:block}
+  .errorlist{margin:0;padding-inline-start:1rem;color:#b91c1c;font-size:.82rem}
+  html[dir="rtl"] .exp-head{text-align:right}
+  html[dir="rtl"] .op-field,
+  html[dir="rtl"] .op-field label,
+  html[dir="rtl"] .op-help,
+  html[dir="rtl"] .errorlist{text-align:right}
+  html[dir="rtl"] .op-input,
+  html[dir="rtl"] .op-textarea,
+  html[dir="rtl"] .op-select{direction:rtl}
+  html[dir="rtl"] .op-dropdown-toggle,
+  html[dir="rtl"] .op-dropdown-option{text-align:right}
+  html[dir="rtl"] .op-errors ul,
+  html[dir="rtl"] .errorlist{padding-inline-start:0;padding-inline-end:1rem}
+  @media(max-width:900px){.exp-form-grid{grid-template-columns:1fr}}
+  @media(max-width:760px){.exp-wrap{width:calc(100% - .5rem)}.op-fields{grid-template-columns:1fr}.op-col-12,.op-col-6,.op-col-4{grid-column:auto}.exp-head{flex-direction:column;align-items:stretch}}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width:760px; padding: 1.5rem 0;">
-  <div class="card" style="border-radius:14px; border:1px solid #e5e7eb;">
-    <div class="card-body">
-      <h3 class="mb-3">{% if form.instance.pk %}{% trans "Edit Experience" %}{% else %}{% trans "Add Experience" %}{% endif %}</h3>
-      <form method="post">
-        {% csrf_token %}
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">{{ form.experience_type.label }}</label>
-            {{ form.experience_type }}
-            {{ form.experience_type.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">{{ form.institution_name.label }}</label>
-            {{ form.institution_name }}
-            {{ form.institution_name.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">{{ form.role_title.label }}</label>
-            {{ form.role_title }}
-            {{ form.role_title.errors }}
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ form.start_date.label }}</label>
-            {{ form.start_date }}
-            {{ form.start_date.errors }}
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ form.end_date.label }}</label>
-            {{ form.end_date }}
-            {{ form.end_date.errors }}
-          </div>
-          <div class="col-12">
-            <label class="form-label">{{ form.description.label }}</label>
-            {{ form.description }}
-            {{ form.description.errors }}
-          </div>
+<section class="exp-shell">
+  <div class="exp-wrap">
+    <article class="exp-modal">
+      <header class="exp-head">
+        <div>
+          <span class="exp-kicker">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الخبرات المهنية والأكاديمية{% else %}{% trans "Experience editor" %}{% endif %}
+          </span>
+          <h1 class="exp-title">
+            {% if form.instance.pk %}
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل الخبرة{% else %}{% trans "Edit Experience" %}{% endif %}
+            {% else %}
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة خبرة{% else %}{% trans "Add Experience" %}{% endif %}
+            {% endif %}
+          </h1>
+          <p class="exp-sub">
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            أضف خبرة مهنية أو أكاديمية بنفس الواجهة الأنيقة المستخدمة في نموذج إضافة الفرص، مع دعم العربية والإنجليزية.
+            {% else %}
+            Add a professional or academic experience with the same polished workflow used for opportunities, including Arabic and English support.
+            {% endif %}
+          </p>
         </div>
+      </header>
 
-        {% if form.non_field_errors %}
-          <div class="alert alert-danger mt-3 mb-0">{{ form.non_field_errors }}</div>
+      <form method="post" class="exp-form-shell" novalidate>
+        {% csrf_token %}
+        {{ form.institution_name }}
+        {{ form.role_title }}
+        {{ form.institution_choice }}
+        {{ form.role_choice }}
+
+        {% if form.errors %}
+        <div class="op-errors" style="margin-bottom:1rem;">
+          <ul>
+            {% for field in form %}
+              {% for error in field.errors %}
+              <li>{{ field.label }}: {{ error }}</li>
+              {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
         {% endif %}
 
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
-          <a href="{% url 'accounts:profile' request.user.pk %}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+        <div class="exp-form-grid">
+          <div style="display:grid;gap:1rem">
+            <section class="op-section">
+              <div class="op-section-head">
+                <div>
+                  <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}1. الأساسيات{% else %}{% trans "1. Essentials" %}{% endif %}</h3>
+                  <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر نوع الخبرة والمؤسسة والدور، أو استخدم خيار أخرى لإدخال القيم يدويًا بالعربية والإنجليزية.{% else %}{% trans "Choose the experience type, institution, and role, or use Other to enter Arabic and English values manually." %}{% endif %}</p>
+                </div>
+                <span class="op-step">01</span>
+              </div>
+              <div class="op-section-body">
+                <div class="op-fields">
+                  <div class="op-field op-col-6">
+                    <label for="{{ form.experience_type.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نوع الخبرة{% else %}{{ form.experience_type.label }}{% endif %} <span class="op-req">*</span></label>
+                    <div class="op-select-native">
+                      {{ form.experience_type }}
+                    </div>
+                    <div class="op-dropdown open-up" data-select-id="{{ form.experience_type.id_for_label }}" data-placeholder="{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر نوع الخبرة{% else %}{% trans "Select experience type" %}{% endif %}">
+                      <button type="button" class="op-dropdown-toggle" data-dropdown-toggle aria-haspopup="listbox" aria-expanded="false">
+                        <span class="op-dropdown-value is-placeholder" data-dropdown-label>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر نوع الخبرة{% else %}{% trans "Select experience type" %}{% endif %}</span>
+                        <span class="op-dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+                      </button>
+                      <div class="op-dropdown-menu" role="listbox">
+                        {% for value, label in form.experience_type.field.choices %}
+                          {% if value %}
+                            <button type="button" class="op-dropdown-option" data-value="{{ value }}" data-label="{{ label }}">
+                              <span class="op-dropdown-option-label">{{ label }}</span>
+                            </button>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {{ form.experience_type.errors }}
+                  </div>
+                  <div class="op-field op-col-6">
+                    <label for="{{ form.institution_choice.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسة{% else %}{{ form.institution_choice.label }}{% endif %} <span class="op-req">*</span></label>
+                    <div class="op-dropdown" data-select-id="{{ form.institution_choice.id_for_label }}" data-placeholder="{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر المؤسسة{% else %}{% trans "Select institution" %}{% endif %}">
+                      <button type="button" class="op-dropdown-toggle" data-dropdown-toggle aria-haspopup="listbox" aria-expanded="false">
+                        <span class="op-dropdown-value is-placeholder" data-dropdown-label>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر المؤسسة{% else %}{% trans "Select institution" %}{% endif %}</span>
+                        <span class="op-dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+                      </button>
+                      <div class="op-dropdown-menu" role="listbox">
+                        {% for value, label in form.institution_choice_options %}
+                          {% if value %}
+                            <button type="button" class="op-dropdown-option{% if value == 'other' %} op-dropdown-option-other{% endif %}" data-value="{{ value }}" data-label="{{ label }}">
+                              <span class="op-dropdown-option-label">{{ label }}</span>
+                            </button>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <p class="op-help strong">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر جامعة أو شركة من الجزائر من القائمة، أو اختر "مؤسسة أخرى" لكتابتها بالعربية والإنجليزية.{% else %}{% trans "Choose an Algerian university or company from the list, or select Other institution to type it in Arabic and English." %}{% endif %}</p>
+                    {{ form.institution_choice.errors }}
+                  </div>
+
+                  <div id="expInstitutionOther" class="op-col-12 exp-hidden">
+                    <div class="op-fields">
+                      <div class="op-field op-col-6">
+                        <label for="{{ form.institution_name_ar_custom.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة (بالعربية){% else %}{{ form.institution_name_ar_custom.label }}{% endif %} <span class="op-req">*</span></label>
+                        {{ form.institution_name_ar_custom }}
+                        <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتب اسم المؤسسة أو الشركة بالعربية.{% else %}{% trans "Type the institution or company name in Arabic." %}{% endif %}</p>
+                        {{ form.institution_name_ar_custom.errors }}
+                      </div>
+                      <div class="op-field op-col-6">
+                        <label for="{{ form.institution_name_en_custom.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة (بالإنجليزية){% else %}{{ form.institution_name_en_custom.label }}{% endif %} <span class="op-req">*</span></label>
+                        {{ form.institution_name_en_custom }}
+                        <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتب اسم المؤسسة أو الشركة بالإنجليزية.{% else %}{% trans "Type the institution or company name in English." %}{% endif %}</p>
+                        {{ form.institution_name_en_custom.errors }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="op-field op-col-6">
+                    <label for="{{ form.role_choice.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدور{% else %}{{ form.role_choice.label }}{% endif %} <span class="op-req">*</span></label>
+                    <div class="op-dropdown open-up" data-select-id="{{ form.role_choice.id_for_label }}" data-placeholder="{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر الدور{% else %}{% trans "Select role" %}{% endif %}">
+                      <button type="button" class="op-dropdown-toggle" data-dropdown-toggle aria-haspopup="listbox" aria-expanded="false">
+                        <span class="op-dropdown-value is-placeholder" data-dropdown-label>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر الدور{% else %}{% trans "Select role" %}{% endif %}</span>
+                        <span class="op-dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+                      </button>
+                      <div class="op-dropdown-menu" role="listbox">
+                        {% for value, label in form.role_choice_options %}
+                          {% if value %}
+                            <button type="button" class="op-dropdown-option{% if value == 'other' %} op-dropdown-option-other{% endif %}" data-value="{{ value }}" data-label="{{ label }}">
+                              <span class="op-dropdown-option-label">{{ label }}</span>
+                            </button>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <p class="op-help strong">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر دورًا من القائمة، أو اختر "دور آخر" لكتابته بالعربية والإنجليزية.{% else %}{% trans "Choose a role from the list, or select Other role to type it in Arabic and English." %}{% endif %}</p>
+                    {{ form.role_choice.errors }}
+                  </div>
+
+                  <div id="expRoleOther" class="op-col-12 exp-hidden">
+                    <div class="op-fields">
+                      <div class="op-field op-col-6">
+                        <label for="{{ form.role_title_ar_custom.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المسمى الوظيفي (بالعربية){% else %}{{ form.role_title_ar_custom.label }}{% endif %} <span class="op-req">*</span></label>
+                        {{ form.role_title_ar_custom }}
+                        <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتب المسمى الوظيفي بالعربية.{% else %}{% trans "Type the custom role title in Arabic." %}{% endif %}</p>
+                        {{ form.role_title_ar_custom.errors }}
+                      </div>
+                      <div class="op-field op-col-6">
+                        <label for="{{ form.role_title_en_custom.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المسمى الوظيفي (بالإنجليزية){% else %}{{ form.role_title_en_custom.label }}{% endif %} <span class="op-req">*</span></label>
+                        {{ form.role_title_en_custom }}
+                        <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتب المسمى الوظيفي بالإنجليزية.{% else %}{% trans "Type the custom role title in English." %}{% endif %}</p>
+                        {{ form.role_title_en_custom.errors }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="expProjectLinkField" class="op-col-12 exp-project-link">
+                    <div class="op-field op-col-12">
+                      <label for="{{ form.project_url.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط المشروع{% else %}{{ form.project_url.label }}{% endif %}</label>
+                      {{ form.project_url }}
+                      <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أضف رابط المشروع إذا كانت هذه الخبرة من نوع مشروع.{% else %}{% trans "Add the project link when this experience is a project." %}{% endif %}</p>
+                      {{ form.project_url.errors }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="op-section">
+              <div class="op-section-head">
+                <div>
+                  <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}2. المدة والوصف{% else %}{% trans "2. Timeline and description" %}{% endif %}</h3>
+                  <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حدّد تاريخ البداية والنهاية، ثم أضف وصفًا اختياريًا لخبرتك.{% else %}{% trans "Set the start and end dates, then add an optional description for your experience." %}{% endif %}</p>
+                </div>
+                <span class="op-step">02</span>
+              </div>
+              <div class="op-section-body">
+                <div class="op-fields">
+                  <div class="op-field op-col-6">
+                    <label for="{{ form.start_date.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ البداية{% else %}{{ form.start_date.label }}{% endif %} <span class="op-req">*</span></label>
+                    {{ form.start_date }}
+                    {{ form.start_date.errors }}
+                  </div>
+                  <div class="op-field op-col-6">
+                    <label for="{{ form.end_date.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ النهاية{% else %}{{ form.end_date.label }}{% endif %}</label>
+                    {{ form.end_date }}
+                    <p class="op-help">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اتركه فارغًا إذا كانت الخبرة مستمرة حاليًا.{% else %}{% trans "Leave empty if this experience is currently ongoing." %}{% endif %}</p>
+                    {{ form.end_date.errors }}
+                  </div>
+                  <div class="op-field op-col-12">
+                    <label for="{{ form.description.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف{% else %}{{ form.description.label }}{% endif %}</label>
+                    {{ form.description }}
+                    {{ form.description.errors }}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside style="display:grid;gap:1rem">
+            {% if form.non_field_errors %}
+            <div class="op-errors">
+              <ul>
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            <section class="op-section">
+              <div class="op-section-head">
+                <div>
+                  <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}3. الحفظ{% else %}{% trans "3. Save" %}{% endif %}</h3>
+                  <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع المدخلات ثم احفظ الخبرة لتظهر في ملفك الشخصي.{% else %}{% trans "Review your entries and save the experience to display it on your profile." %}{% endif %}</p>
+                </div>
+                <span class="op-step">03</span>
+              </div>
+              <div class="op-section-body">
+                <div class="exp-side-note">
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                  يمكنك اختيار جامعة أو شركة من القائمة، أو إدخال مؤسسة ودور مخصصين بالعربية والإنجليزية عبر خيار "أخرى".
+                  {% else %}
+                  You can select either a university or a company from the list, or provide custom institution and role names in Arabic and English via the "Other" option.
+                  {% endif %}
+                </div>
+                <div class="exp-actions">
+                  <a href="{% url 'accounts:profile' request.user.pk %}" class="op-btn">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}</a>
+                  <button type="submit" class="op-btn primary">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حفظ الخبرة{% else %}{% trans "Save Experience" %}{% endif %}</button>
+                </div>
+              </div>
+            </section>
+          </aside>
         </div>
       </form>
-    </div>
+    </article>
   </div>
-</div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const experienceType = document.getElementById("id_experience_type");
+    const institutionChoice = document.getElementById("id_institution_choice");
+    const roleChoice = document.getElementById("id_role_choice");
+    const institutionOther = document.getElementById("expInstitutionOther");
+    const roleOther = document.getElementById("expRoleOther");
+    const projectLinkField = document.getElementById("expProjectLinkField");
+    const projectLinkInput = document.getElementById("id_project_url");
+
+    function syncConditionalField(select, target) {
+      if (!select || !target) return;
+      const showOtherFields = select.value === "other";
+      target.classList.toggle("exp-hidden", !showOtherFields);
+
+      target.querySelectorAll("input").forEach(function (input, index) {
+        input.disabled = !showOtherFields;
+        input.toggleAttribute("required", showOtherFields);
+        if (showOtherFields && index === 0) {
+          window.requestAnimationFrame(function () {
+            input.focus();
+          });
+        } else if (!showOtherFields) {
+          input.removeAttribute("required");
+        }
+      });
+    }
+
+    function syncProjectLinkField() {
+      if (!experienceType || !projectLinkField || !projectLinkInput) return;
+      const isProject = experienceType.value === "project";
+      projectLinkField.classList.toggle("is-visible", isProject);
+      projectLinkInput.disabled = !isProject;
+      if (!isProject) {
+        projectLinkInput.value = "";
+      }
+    }
+
+    function closeAllDropdowns(except) {
+      document.querySelectorAll(".op-dropdown").forEach(function (dropdown) {
+        if (dropdown === except) return;
+        dropdown.classList.remove("open");
+        const toggle = dropdown.querySelector("[data-dropdown-toggle]");
+        if (toggle) {
+          toggle.classList.remove("is-open");
+          toggle.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    function syncDropdown(dropdown) {
+      const selectId = dropdown.getAttribute("data-select-id");
+      const hiddenInput = selectId ? document.getElementById(selectId) : null;
+      const label = dropdown.querySelector("[data-dropdown-label]");
+      const options = dropdown.querySelectorAll(".op-dropdown-option");
+      if (!hiddenInput || !label) return;
+
+      const selectedButton = Array.from(options).find(function (optionButton) {
+        return optionButton.dataset.value === hiddenInput.value;
+      });
+
+      if (selectedButton) {
+        label.textContent = selectedButton.dataset.label || selectedButton.textContent.trim();
+        label.classList.remove("is-placeholder");
+      } else {
+        const placeholder = dropdown.dataset.placeholder || "";
+        label.textContent = placeholder;
+        label.classList.add("is-placeholder");
+      }
+
+      options.forEach(function (optionButton) {
+        optionButton.classList.toggle("is-selected", optionButton.dataset.value === hiddenInput.value);
+      });
+    }
+
+    function setDropdownSelection(dropdown, hiddenInput, value, labelText) {
+      const label = dropdown.querySelector("[data-dropdown-label]");
+      hiddenInput.value = value;
+
+      if (label) {
+        label.textContent = labelText || value || "";
+        label.classList.toggle("is-placeholder", !value);
+      }
+
+      dropdown.querySelectorAll(".op-dropdown-option").forEach(function (optionButton) {
+        optionButton.classList.toggle("is-selected", optionButton.dataset.value === value);
+      });
+
+      hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function setupDropdown(dropdown) {
+      const selectId = dropdown.getAttribute("data-select-id");
+      const hiddenInput = selectId ? document.getElementById(selectId) : null;
+      const toggle = dropdown.querySelector("[data-dropdown-toggle]");
+      const options = dropdown.querySelectorAll(".op-dropdown-option");
+      if (!hiddenInput || !toggle) return;
+
+      toggle.addEventListener("click", function () {
+        const willOpen = !dropdown.classList.contains("open");
+        closeAllDropdowns(dropdown);
+        dropdown.classList.toggle("open", willOpen);
+        toggle.classList.toggle("is-open", willOpen);
+        toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      });
+
+      options.forEach(function (optionButton) {
+        optionButton.addEventListener("click", function () {
+          const value = optionButton.dataset.value || "";
+          const labelText = optionButton.dataset.label || optionButton.textContent.trim();
+          setDropdownSelection(dropdown, hiddenInput, value, labelText);
+          closeAllDropdowns();
+        });
+      });
+
+      hiddenInput.addEventListener("change", function () {
+        syncDropdown(dropdown);
+      });
+
+      syncDropdown(dropdown);
+    }
+
+    document.querySelectorAll(".op-dropdown").forEach(setupDropdown);
+
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest(".op-dropdown")) {
+        closeAllDropdowns();
+      }
+    });
+
+    if (experienceType) {
+      experienceType.addEventListener("change", syncProjectLinkField);
+      syncProjectLinkField();
+    }
+
+    if (institutionChoice) {
+      institutionChoice.addEventListener("change", function () {
+        syncConditionalField(institutionChoice, institutionOther);
+      });
+      syncConditionalField(institutionChoice, institutionOther);
+    }
+
+    if (roleChoice) {
+      roleChoice.addEventListener("change", function () {
+        syncConditionalField(roleChoice, roleOther);
+      });
+      syncConditionalField(roleChoice, roleOther);
+    }
+  })();
+</script>
 {% endblock %}

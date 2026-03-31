@@ -6,6 +6,7 @@ app_name = "pages"
 urlpatterns = [
     path("", HomePageView.as_view(), name="home"),
     path("opportunities/", OpportunitiesPageView.as_view(), name="opportunities"),
+    path("opportunities/create/", views.create_opportunity, name="create_opportunity"),
     # Main admin views
     path("admin/contact", views.contact_view, name="contact"),
     path("admin/", views.admin_contact_list, name="admin_contact_list"),
@@ -26,6 +27,22 @@ urlpatterns = [
     path("admin/tools/", views.admin_tools, name="admin_tools"),
     path("admin/projects/", views.admin_projects, name="admin_projects"),
     path("admin/courses/", views.admin_courses, name="admin_courses"),
+    path("admin/opportunities/", views.admin_opportunities, name="admin_opportunities"),
+    path(
+        "admin/opportunities/<uuid:pk>/edit/",
+        views.admin_opportunity_update,
+        name="admin_opportunity_update",
+    ),
+    path(
+        "admin/opportunities/<uuid:pk>/approve/",
+        views.admin_opportunity_approve,
+        name="admin_opportunity_approve",
+    ),
+    path(
+        "admin/opportunities/<uuid:pk>/reject/",
+        views.admin_opportunity_reject,
+        name="admin_opportunity_reject",
+    ),
     path("admin/forum/", views.admin_forum, name="admin_forum"),
     path("admin/institutions/", views.admin_institutions, name="admin_institutions"),
     path("admin/feed/", views.admin_feed, name="admin_feed"),

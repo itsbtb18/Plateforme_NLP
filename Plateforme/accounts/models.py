@@ -460,6 +460,8 @@ class Experience(models.Model):
         PROFESSIONAL = "professional", _("Professional")
         PROJECT = "project", _("Project")
         EVENT = "event", _("Event")
+        VOLUNTEER = "volunteer", _("Volunteer")
+        INTERNSHIP = "internship", _("Internship")
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -473,6 +475,7 @@ class Experience(models.Model):
     )
     institution_name = models.CharField(max_length=255)
     role_title = models.CharField(max_length=255)
+    project_url = models.URLField(blank=True)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     is_current = models.BooleanField(default=False)
@@ -491,12 +494,16 @@ class Experience(models.Model):
 
         self.institution_name = (self.institution_name or "").strip()
         self.role_title = (self.role_title or "").strip()
+        self.project_url = (self.project_url or "").strip()
 
         if not self.institution_name:
             raise ValidationError({"institution_name": _("Institution name is required.")})
 
         if not self.role_title:
             raise ValidationError({"role_title": _("Role title is required.")})
+
+        if self.project_url and self.experience_type != self.ExperienceType.PROJECT:
+            self.project_url = ""
 
         if not self.end_date:
             self.is_current = True

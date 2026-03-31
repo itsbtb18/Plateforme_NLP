@@ -8,6 +8,18 @@ def _has_field(instance, field_name: str) -> bool:
     return hasattr(instance, field_name)
 
 
+def _field_supports_value(instance, field_name: str, value: str) -> bool:
+    try:
+        field = instance._meta.get_field(field_name)
+    except Exception:
+        return False
+
+    choices = getattr(field, "choices", None) or []
+    if not choices:
+        return False
+    return any(choice_value == value for choice_value, _ in choices)
+
+
 def approve_object(instance, moderator=None, *, save: bool = True):
     """
     Generic moderation transition to approved.
@@ -24,6 +36,14 @@ def approve_object(instance, moderator=None, *, save: bool = True):
     if _has_field(instance, "approval_status"):
         instance.approval_status = "approved"
         updated_fields.append("approval_status")
+
+    if _has_field(instance, "status") and _field_supports_value(instance, "status", "approved"):
+        instance.status = "approved"
+        updated_fields.append("status")
+
+    if _has_field(instance, "is_published"):
+        instance.is_published = True
+        updated_fields.append("is_published")
 
     if _has_field(instance, "approved_by") and moderator is not None:
         instance.approved_by = moderator
@@ -61,6 +81,14 @@ def reject_object(instance, moderator=None, rejection_reason: str = "", *, save:
     if _has_field(instance, "approval_status"):
         instance.approval_status = "rejected"
         updated_fields.append("approval_status")
+
+    if _has_field(instance, "status") and _field_supports_value(instance, "status", "rejected"):
+        instance.status = "rejected"
+        updated_fields.append("status")
+
+    if _has_field(instance, "is_published"):
+        instance.is_published = False
+        updated_fields.append("is_published")
 
     if _has_field(instance, "rejection_reason"):
         instance.rejection_reason = (rejection_reason or "").strip()

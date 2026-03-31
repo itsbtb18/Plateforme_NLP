@@ -1,5 +1,7 @@
+import uuid
+
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
@@ -368,6 +370,136 @@ class SecurityLog(models.Model):
     def __str__(self):
         actor = getattr(self.user, 'email', 'anonymous')
         return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"
+
+
+class Opportunity(models.Model):
+    TYPE_JOB = "job"
+    TYPE_INTERNSHIP = "internship"
+    TYPE_PFE = "pfe"
+    TYPE_PHD = "phd"
+    TYPE_COLLAB = "collab"
+
+    MODE_REMOTE = "remote"
+    MODE_HYBRID = "hybrid"
+    MODE_ONSITE = "onsite"
+
+    LEVEL_STUDENT = "student"
+    LEVEL_JUNIOR = "junior"
+    LEVEL_SENIOR = "senior"
+    LEVEL_RESEARCHER = "researcher"
+
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+
+    TYPE_CHOICES = [
+        (TYPE_JOB, _("Job")),
+        (TYPE_INTERNSHIP, _("Internship")),
+        (TYPE_PFE, _("PFE / Master")),
+        (TYPE_PHD, _("PhD")),
+        (TYPE_COLLAB, _("Collaboration")),
+    ]
+
+    MODE_CHOICES = [
+        (MODE_REMOTE, _("Remote")),
+        (MODE_HYBRID, _("Hybrid")),
+        (MODE_ONSITE, _("On-site")),
+    ]
+
+    LEVEL_CHOICES = [
+        (LEVEL_STUDENT, _("Student")),
+        (LEVEL_JUNIOR, _("Junior")),
+        (LEVEL_SENIOR, _("Senior")),
+        (LEVEL_RESEARCHER, _("Researcher")),
+    ]
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_APPROVED, _("Approved")),
+        (STATUS_REJECTED, _("Rejected")),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, blank=True, default="")
+    title_en = models.CharField(max_length=255)
+    title_ar = models.CharField(max_length=255)
+    opportunity_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    institution = models.ForeignKey(
+        "institutions.Institution",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="opportunities",
+    )
+    organization_en = models.CharField(max_length=255, blank=True, default="")
+    organization_ar = models.CharField(max_length=255, blank=True, default="")
+    location = models.CharField(max_length=255)
+    mode = models.CharField(max_length=20, choices=MODE_CHOICES)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES)
+    description = models.TextField(validators=[MinLengthValidator(40)])
+    skills = models.JSONField(default=list, blank=True)
+    contact = models.CharField(max_length=255)
+    deadline = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    approval_status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    is_published = models.BooleanField(default=False, db_index=True)
+    user_role = models.CharField(max_length=32, default="user")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="opportunities_created",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="opportunities_moderated",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "is_published"]),
+            models.Index(fields=["approval_status", "created_at"]),
+            models.Index(fields=["created_by", "status"]),
+            models.Index(fields=["deadline"]),
+        ]
+        verbose_name = _("Opportunity")
+        verbose_name_plural = _("Opportunities")
+
+    def __str__(self):
+        return self.title or self.title_en or self.title_ar or str(self.pk)
+
+    def save(self, *args, **kwargs):
+        self.title = (self.title_en or self.title_ar or self.title or "").strip()
+        if self.status in {
+            self.STATUS_PENDING,
+            self.STATUS_APPROVED,
+            self.STATUS_REJECTED,
+        }:
+            self.approval_status = self.status
+        elif self.approval_status in {
+            self.STATUS_PENDING,
+            self.STATUS_APPROVED,
+            self.STATUS_REJECTED,
+        }:
+            self.status = self.approval_status
+        super().save(*args, **kwargs)
+
+    def get_localized_title(self):
+        lang = (get_language() or "").lower()
+        if lang.startswith("ar") and self.title_ar:
+            return self.title_ar
+        return self.title_en or self.title_ar or self.title
 
 
 def news_cover_upload_to(instance, filename):

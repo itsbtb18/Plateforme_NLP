@@ -307,17 +307,17 @@
 
       {% if user_experiences %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
-        <h3 class="section-title">
-          <i class="fas fa-briefcase"></i>
-          {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
-        </h3>
-        {% if is_own_profile %}
-        <div style="margin-bottom:1rem;">
-          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
+          </h3>
+          {% if is_own_profile %}
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
             <i class="fas fa-plus"></i> {% trans "Add Experience" %}
           </a>
+          {% endif %}
         </div>
-        {% endif %}
         <div class="contrib-list">
           {% for exp in user_experiences %}
           {% if exp.can_manage %}
@@ -344,6 +344,9 @@
               {% if exp.description %}
               <span class="contrib-subline">{{ exp.description|striptags|truncatechars:120 }}</span>
               {% endif %}
+              {% if exp.project_url %}
+              <span class="contrib-subline"><a href="{{ exp.project_url }}" target="_blank" rel="noopener noreferrer">{% trans "Project link" %}</a></span>
+              {% endif %}
               <span class="contrib-date">
                 {% if exp.ended_at %}
                   {{ exp.started_at|date:"M Y" }} - {{ exp.ended_at|date:"M Y" }}
@@ -368,12 +371,12 @@
       </div>
       {% elif is_own_profile %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
-        <h3 class="section-title">
-          <i class="fas fa-briefcase"></i>
-          {% trans "Experience" %} <span class="section-count">0</span>
-        </h3>
-        <div style="margin-top:.5rem;">
-          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">0</span>
+          </h3>
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
             <i class="fas fa-plus"></i> {% trans "Add Experience" %}
           </a>
         </div>
@@ -1863,6 +1866,25 @@
   .section-title i {
     color: var(--notion-blue) !important;
     font-size: 1.1rem;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .section-title-inline {
+    margin: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .experience-add-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   /* Info Rows */

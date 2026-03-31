@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 
-{% block title %}{% trans "Opportunities" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,149 +15,213 @@
   .op-hero,.op-panel,.op-card,.op-modal{border:1px solid rgba(167,139,250,.16);box-shadow:0 22px 60px rgba(4,8,20,.28)}
   .op-hero{position:relative;overflow:hidden;border-radius:28px;padding:clamp(1.25rem,2.5vw,2rem);background:radial-gradient(circle at 15% 18%,rgba(96,165,250,.18),transparent 30%),radial-gradient(circle at 82% 20%,rgba(167,139,250,.22),transparent 28%),linear-gradient(135deg,#161a2f 0%,#0f1326 100%)}
   .op-hero:after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:18px 18px;opacity:.18;pointer-events:none}
-  .op-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:1.2rem;align-items:center}
-  .op-eyebrow,.op-chip,.op-skill-option,.op-mini-tag,.op-badge{display:inline-flex;align-items:center;gap:.45rem;border-radius:999px}
-  .op-eyebrow{padding:.4rem .78rem;border:1px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);color:#c4b5fd;font-weight:700;font-size:.82rem}
-  .op-h1{margin:.95rem 0 0;font-family:'Syne',sans-serif;font-size:clamp(2rem,4vw,3.45rem);line-height:1;letter-spacing:-.03em;max-width:12ch}
+  .op-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:minmax(320px,.95fr) minmax(420px,1.05fr);gap:1.5rem;align-items:center}
+  .op-hero-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:0;width:min(100%,640px)}
+  .op-skill-option,.op-mini-tag,.op-badge{display:inline-flex;align-items:center;gap:.45rem;border-radius:999px}
+  .op-h1{margin:.2rem 0 0;font-family:'Syne',sans-serif;font-size:clamp(2rem,4vw,3.45rem);line-height:1.05;letter-spacing:-.03em;max-width:100%;text-wrap:balance}
   .op-hl{color:#9fb3ff}
   .op-sub{margin:1rem 0 1.35rem;max-width:58ch;color:#d7dcf2;font-size:1rem;line-height:1.75}
-  .op-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
-  .op-stat{padding:.85rem .95rem;border-radius:18px;border:1px solid rgba(167,139,250,.18);background:rgba(255,255,255,.04)}
-  .op-stat strong{display:block;font-size:1.2rem;color:#fff}
-  .op-stat span{display:block;margin-top:.25rem;color:#cbd5e1;font-size:.88rem}
-  .op-visual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}
-  .op-chip{justify-content:center;min-height:72px;padding:1rem;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);font-weight:700;color:#edf2ff;text-align:center}
-  .op-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:1rem;align-items:start;margin-top:1rem}
+  .op-hero-publish{margin-top:.2rem}
+  .op-visual{display:grid;grid-template-columns:minmax(190px,1fr) 140px minmax(190px,1fr);grid-template-rows:repeat(2,minmax(180px,auto));gap:1.2rem 1.5rem;align-items:center;position:relative}
+  .op-chip{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px;padding:1.25rem;border:1px solid rgba(167,139,250,.24);border-radius:28px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035));font-weight:700;color:#edf2ff;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 38px rgba(8,12,26,.18);backdrop-filter:blur(8px)}
+  .op-chip-1{grid-column:1;grid-row:1}
+  .op-chip-2{grid-column:3;grid-row:1}
+  .op-chip-3{grid-column:1;grid-row:2}
+  .op-chip-4{grid-column:3;grid-row:2}
+  .op-chip-1::after,
+  .op-chip-3::after,
+  .op-chip-2::after,
+  .op-chip-4::after{content:"";position:absolute;top:50%;width:44px;height:68px;transform:translateY(-50%);border-color:rgba(167,139,250,.32);border-style:solid}
+  .op-chip-1::after,
+  .op-chip-3::after{right:-46px;border-width:1.5px 1.5px 1.5px 0;border-radius:0 18px 18px 0}
+  .op-chip-2::after,
+  .op-chip-4::after{left:-46px;border-width:1.5px 0 1.5px 1.5px;border-radius:18px 0 0 18px}
+  .op-chip-title{font-size:1.15rem;font-weight:800;color:#f8fafc;line-height:1.35}
+  .op-chip-icon{display:flex;align-items:center;justify-content:center;width:92px;height:92px;margin-top:1rem}
+  .op-chip-icon i{font-size:2.8rem;color:#d8c1ff;text-shadow:0 0 18px rgba(216,193,255,.32)}
+  .op-visual-center{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+  .op-visual-center img{width:min(148px,100%);height:auto;display:block;object-fit:contain;filter:drop-shadow(0 0 20px rgba(167,139,250,.24)) brightness(1.05)}
+  html[dir="rtl"] .op-hero{position:relative}
+  html[dir="rtl"] .op-hero-copy{align-items:stretch;text-align:right;margin-left:auto;padding-inline:1rem 0;width:min(100%,700px);justify-content:flex-start;padding-top:.35rem}
+  html[dir="rtl"] .op-h1{align-self:flex-end;max-width:min(100%,620px);width:100%;font-size:clamp(2.2rem,4vw,3.75rem);line-height:1.08;margin-inline:auto 0}
+  html[dir="rtl"] .op-sub{align-self:flex-end;margin-left:auto;max-width:min(100%,620px);width:100%;font-size:1.06rem;margin-bottom:1.15rem}
+  html[dir="rtl"] .op-hero-publish{position:absolute;right:clamp(2rem,8vw,5rem);bottom:clamp(2.5rem,10vw,5rem);align-self:auto;display:inline-flex;width:auto;min-height:52px;padding:.9rem 1.25rem;font-size:1rem;margin:0;z-index:3}
+  html[dir="rtl"] .op-hero-inner{align-items:start}
+  html[dir="rtl"] .op-top{align-items:center}
+  html[dir="rtl"] .op-top h2{text-align:right;width:auto;justify-self:end}
+  .op-layout{display:block;margin-top:1rem}
   .op-panel{border-radius:24px;background:linear-gradient(180deg,rgba(22,27,48,.98) 0%,rgba(16,19,38,.98) 100%)}
-  .op-sidebar{position:sticky;top:88px;padding:1rem}
   .op-panel-title{margin:0 0 .85rem;font-family:'Syne',sans-serif;font-size:1.02rem;color:#fff}
-  .op-search{position:relative;margin-bottom:1rem}
+  .op-toolbar{display:flex;flex-wrap:nowrap;gap:.75rem;align-items:center;justify-content:flex-start;margin-bottom:0;min-width:0;flex:1 1 auto}
+  .op-toolbar-group{display:flex;flex-wrap:nowrap;gap:.65rem;align-items:center;justify-content:flex-start;flex:0 0 auto}
+  .op-search{position:relative;margin:0;min-width:280px;flex:1 1 320px}
   .op-search i{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:#a5b4fc}
   .op-search input,.op-select,.op-input,.op-textarea{width:100%;border:1px solid rgba(167,139,250,.24);border-radius:16px;background:rgba(255,255,255,.05);color:#eef2ff;padding:.85rem .95rem;font-size:.94rem;outline:none}
+  .op-select{appearance:auto;-webkit-appearance:menulist;background-color:#182038;color:#eef2ff;color-scheme:dark}
+  .op-select option,.op-select optgroup{background:#ffffff;color:#0f172a}
   .op-search input{padding-left:2.4rem}
   .op-search input::placeholder,.op-input::placeholder,.op-textarea::placeholder{color:#aab4d4}
-  .op-group{margin-top:1rem}
-  .op-group h4{margin:0 0 .55rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:#aeb8d7}
-  .op-filter-list{display:grid;gap:.45rem}
-  .op-filter{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.62rem .68rem;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,.02);color:#f8fafc;cursor:pointer}
-  .op-filter.active{border-color:rgba(167,139,250,.28);background:rgba(167,139,250,.08)}
-  .op-filter-label{display:flex;align-items:center;gap:.55rem}
-  .op-check{width:15px;height:15px;border-radius:4px;border:1.5px solid #cbd5e1;position:relative}
-  .op-filter.active .op-check{background:#8b5cf6;border-color:#8b5cf6}
-  .op-filter.active .op-check:after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
-  .op-filter-count{min-width:24px;padding:.14rem .42rem;border-radius:999px;border:1px solid rgba(167,139,250,.22);background:rgba(255,255,255,.05);font-size:.75rem;font-weight:700;text-align:center}
-  .op-main{padding:.95rem}
-  .op-top{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.8rem}
-  .op-top h2{margin:0;font-family:'Syne',sans-serif;font-size:1.18rem;color:#fff}
-  .op-actions{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
+  .op-toolbar .op-select{width:auto;min-width:160px;flex:0 0 160px}
+  .op-main{padding:1.1rem;display:flex;flex-direction:column}
+  .op-top{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr) auto;gap:1rem;align-items:center;margin:0 0 1.1rem;width:100%}
+  .op-top h2{margin:0;font-family:'Syne',sans-serif;font-size:1.18rem;color:#fff;justify-self:end;text-align:right;white-space:nowrap}
+  .op-hero-action-slot{display:none}
+  .op-actions{display:flex;gap:.55rem;align-items:center;justify-content:center;flex-wrap:nowrap;padding:0;border:none;border-radius:0;background:transparent;box-shadow:none}
+  .op-actions .op-select{width:auto;min-width:160px;flex:0 0 160px}
+  .op-actions .op-btn{flex:0 0 auto;white-space:nowrap}
   .op-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:46px;padding:.72rem 1rem;border-radius:16px;border:1px solid rgba(167,139,250,.24);background:rgba(255,255,255,.05);color:#eef2ff;font-weight:700;cursor:pointer}
   .op-modal .op-btn:not(.primary){background:#fff;color:#162033;border-color:#d4dceb}
   .op-btn.primary{background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);border-color:#8b5cf6}
-  .op-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:1rem}
-  .op-card{display:flex;flex-direction:column;min-height:320px;border-radius:24px;background:linear-gradient(180deg,rgba(20,24,45,.98) 0%,rgba(14,17,34,.98) 100%);overflow:hidden}
-  .op-card-banner{padding:1rem 1rem .85rem;background:radial-gradient(circle at top right,rgba(45,212,191,.22),transparent 32%),linear-gradient(135deg,#1a2548 0%,#233772 100%);border-bottom:1px solid rgba(167,139,250,.16)}
-  .op-card-top{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start}
-  .op-badge{padding:.28rem .62rem;background:rgba(20,184,166,.2);border:1px solid rgba(45,212,191,.25);font-size:.74rem;font-weight:800;color:#ecfeff}
-  .op-mark{width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.08);display:grid;place-items:center;font-weight:800;color:#fff;border:1px solid rgba(255,255,255,.14)}
-  .op-card-body{display:flex;flex-direction:column;gap:.72rem;padding:1rem;flex:1}
-  .op-title{margin:0;font-family:'Syne',sans-serif;font-size:1.15rem;color:#fff}
-  .op-subline{color:#cbd5e1;font-size:.92rem;line-height:1.55}
-  .op-meta,.op-tags{display:flex;flex-wrap:wrap;gap:.45rem}
-  .op-mini-tag{padding:.24rem .56rem;background:rgba(255,255,255,.05);border:1px solid rgba(167,139,250,.16);font-size:.77rem;color:#dbe4ff}
-  .op-desc{margin:0;color:#d8ddef;font-size:.92rem;line-height:1.7;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-  .op-card-foot{display:flex;justify-content:space-between;gap:.75rem;align-items:center;margin-top:auto;padding-top:.85rem;border-top:1px dashed rgba(167,139,250,.16)}
-  .op-deadline{color:#ddd6fe;font-size:.84rem;font-weight:700}
-  .op-empty{display:none;padding:1.6rem;border-radius:22px;border:1px dashed rgba(167,139,250,.28);background:rgba(255,255,255,.03);text-align:center;color:#cbd5e1}
-  .op-backdrop{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding:2.35rem 1rem 1rem;background:rgba(4,8,18,.7);z-index:1600;overflow:auto}
+  .op-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,320px));gap:1rem;width:100%;align-items:start}
+  .op-card{display:flex;flex-direction:column;min-height:248px;border-radius:16px;background:linear-gradient(180deg,rgba(24,18,52,.98) 0%,rgba(14,12,32,.98) 100%);overflow:hidden;border:1px solid rgba(167,139,250,.28);box-shadow:0 18px 44px rgba(4,8,20,.3);transition:all .3s cubic-bezier(.4,0,.2,1)}
+  .op-card:hover{box-shadow:0 22px 52px rgba(76,29,149,.28);transform:translateY(-2px);border-color:rgba(196,181,253,.42)}
+  .op-card-banner{padding:1rem 1rem .75rem;display:flex;justify-content:center;align-items:center;gap:.75rem;background:transparent;border-bottom:none;position:relative}
+  .op-card-top{display:flex;justify-content:center;align-items:center;width:100%}
+  .op-badge{position:absolute;top:1rem;left:1rem;padding:.32rem .7rem;background:rgba(255,255,255,.08);border:1px solid rgba(196,181,253,.2);font-size:.74rem;font-weight:700;color:#ddd6fe}
+  .op-mark{width:46px;height:46px;border-radius:12px;background:linear-gradient(to bottom right,#8b5cf6,#6366f1);display:grid;place-items:center;font-weight:800;color:#fff;border:none;box-shadow:0 4px 12px rgba(139,92,246,.25);position:absolute;right:1rem;top:50%;transform:translateY(-50%)}
+  .op-card-body{display:flex;flex-direction:column;gap:.5rem;padding:.35rem 1rem .85rem;flex:1}
+  .op-title{margin:0;padding-right:52px;font-size:1.05rem;font-weight:700;color:#f8fafc;line-height:1.35;text-align:center;word-wrap:break-word;overflow-wrap:anywhere;letter-spacing:-.01em;font-family:'Inter',-apple-system,sans-serif}
+  .op-subline,.op-meta-row,.op-desc,.op-contact-line{display:flex;justify-content:space-between;align-items:center;padding:.65rem .8rem;background:rgba(255,255,255,.05);border:1px solid rgba(196,181,253,.16);border-radius:10px;gap:.75rem;transition:all .2s ease}
+  .op-subline:hover,.op-meta-row:hover,.op-desc:hover,.op-contact-line:hover{background:rgba(255,255,255,.08);border-color:rgba(196,181,253,.24)}
+  .op-subline{color:#f8fafc;font-size:.82rem;font-weight:600;line-height:1.35}
+  .op-subline small{display:inline-block;color:#cbd5e1;font-size:.78rem;font-weight:500;flex-shrink:0}
+  .op-subline span{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .op-meta,.op-tags{display:flex;flex-wrap:wrap;gap:.4rem}
+  .op-mini-tag{padding:.5rem .875rem;background:rgba(255,255,255,.08);border:1px solid rgba(196,181,253,.18);font-size:.8125rem;font-weight:600;color:#e9d5ff;border-radius:8px;display:inline-flex;align-items:center;gap:.375rem;white-space:nowrap;transition:all .2s ease}
+  .op-mini-tag:hover{border-color:rgba(196,181,253,.3);background:rgba(255,255,255,.12)}
+  .op-desc{margin:0;color:#f8fafc;font-size:.84rem;font-weight:600;line-height:1.5;display:block;overflow-wrap:anywhere;word-break:break-word}
+  .op-desc small{display:block;margin-top:.25rem;color:#cbd5e1;font-size:.78rem;font-weight:500;line-height:1.45;overflow-wrap:anywhere;word-break:break-word}
+  .op-contact-line{color:#e5e7eb;font-size:.8rem;font-weight:600}
+  .op-contact-label{color:#cbd5e1;font-weight:700;white-space:nowrap}
+  .op-contact-value{color:#f8fafc;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:end;text-decoration:none}
+  .op-contact-value:hover{color:#c4b5fd}
+  .op-card-foot{display:flex;flex-direction:row;gap:.75rem;padding:.85rem 1rem 1rem;background:transparent;border-top:none;margin-top:auto;justify-content:space-between;align-items:center}
+  .op-deadline{color:#e5e7eb;font-size:.75rem;font-weight:600;background:rgba(255,255,255,.06);border:1px solid rgba(196,181,253,.18);border-radius:8px;padding:.45rem .7rem;display:inline-flex;align-items:center;gap:.375rem;align-self:auto}
+  .op-card-foot .op-btn.primary{align-self:auto;border:none;border-radius:10px;padding:.62rem 1rem;background:linear-gradient(to bottom right,#8b5cf6,#6366f1);color:#fff;font-size:.84rem;font-weight:700;box-shadow:0 4px 12px rgba(139,92,246,.3)}
+  .op-card-foot .op-btn.primary:hover{transform:translateY(-2px)}
+  .op-empty{display:none;padding:1.6rem;border-radius:22px;border:1px dashed rgba(167,139,250,.28);background:rgba(255,255,255,.03);text-align:center;color:#cbd5e1;width:100%}
+  .op-backdrop{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding:calc(var(--site-header-height, 80px) + 1.5rem) 1rem 1.5rem;background:rgba(4,8,18,.7);backdrop-filter:blur(8px);z-index:1600;overflow:auto}
   .op-backdrop.show{display:flex}
-  .op-modal{width:min(1040px,100%);max-height:92vh;overflow:auto;border-radius:28px;background:linear-gradient(180deg,#f8fbff 0%,#edf3ff 100%);color:#12233f}
-  .op-modal-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1.2rem 1.25rem;border-bottom:1px solid #dbe4f0}
-  .op-modal-kicker{display:inline-flex;align-items:center;gap:.45rem;padding:.38rem .72rem;border-radius:999px;background:rgba(29,78,216,.08);border:1px solid rgba(29,78,216,.16);color:#1d4ed8;font-weight:800;font-size:.8rem}
-  .op-modal-title{margin:.7rem 0 .35rem;font-family:'Syne',sans-serif;font-size:2rem;line-height:1.05}
-  .op-modal-sub{margin:0;color:#64748b;line-height:1.7;max-width:62ch}
-  .op-close{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;border:1px solid #d9e2ef;background:#fff;color:#12233f;cursor:pointer;font-size:1.15rem}
-  .op-form-shell{padding:1rem}
+  .op-modal{width:min(1100px,100%);max-height:calc(100vh - var(--site-header-height, 80px) - 3rem);overflow:auto;border-radius:24px;background:linear-gradient(180deg,#151a31 0%,#101426 100%);color:#eef2ff;border:1px solid rgba(167,139,250,.22);box-shadow:0 26px 70px rgba(2,6,23,.4)}
+  .op-modal-head{display:block;padding:0;background:transparent;position:sticky;top:0;z-index:2}
+  .op-detail-hero{padding:1.5rem 1.5rem 1.25rem;background:linear-gradient(135deg,#151a31 0%,#1b2140 100%);border-bottom:1px solid rgba(167,139,250,.14)}
+  .op-modal-kicker{display:inline-flex;align-items:center;padding:.34rem .72rem;border-radius:999px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.22);color:#ddd6fe;font-size:.8rem;font-weight:800;margin-bottom:.9rem}
+  .op-post-hero{background:linear-gradient(135deg,#120f2a 0%,#21143f 52%,#32185d 100%);padding:2.25rem 1.5rem 2.75rem;position:relative;overflow:hidden;border-radius:24px 24px 0 0}
+  .op-post-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(139,92,246,.2) 0%,transparent 60%);pointer-events:none}
+  .op-post-hero-inner{max-width:900px;margin:0 auto;position:relative;z-index:1;text-align:center}
+  .op-post-breadcrumb{display:flex;align-items:center;justify-content:center;gap:.5rem;margin:0 0 1.25rem;padding:0;list-style:none;font-size:.875rem;color:rgba(255,255,255,.65)}
+  .op-post-breadcrumb a{color:rgba(255,255,255,.72);text-decoration:none}
+  .op-post-breadcrumb .separator{color:rgba(255,255,255,.35);font-size:.75rem}
+  .op-post-breadcrumb .current{color:rgba(255,255,255,.92)}
+  .op-post-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#8B5CF6 0%,#7C3AED 100%);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;color:#fff;font-size:1.7rem;box-shadow:0 8px 24px rgba(139,92,246,.4)}
+  .op-modal-title{margin:0 0 .45rem;font-family:'Syne',sans-serif;font-size:2rem;line-height:1.05;color:#f8fafc}
+  .op-modal-sub{margin:0;color:rgba(255,255,255,.9);line-height:1.7;max-width:62ch;margin-inline:auto;font-weight:600}
+  .op-steps-bar{display:flex;align-items:center;justify-content:center;gap:0;margin:1.8rem auto 0;background:rgba(255,255,255,.08);border-radius:999px;padding:.375rem;width:fit-content;border:1px solid rgba(196,181,253,.18);box-shadow:0 12px 30px rgba(15,23,42,.16)}
+  .op-step-item{display:flex;align-items:center;gap:.5rem;padding:.5rem 1.25rem;border-radius:999px;font-size:.875rem;font-weight:500;color:rgba(255,255,255,.52);white-space:nowrap}
+  .op-step-item.active{background:#fff;color:#8B5CF6;font-weight:600;box-shadow:0 8px 18px rgba(139,92,246,.18)}
+  .op-step-number{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;background:rgba(255,255,255,.15);color:rgba(255,255,255,.78)}
+  .op-step-item.active .op-step-number{background:#8B5CF6;color:#fff}
+  .op-close{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;border:1px solid rgba(196,181,253,.18);background:rgba(255,255,255,.08);color:#f8fafc;cursor:pointer;font-size:1.15rem;position:absolute;top:1rem;right:1rem;flex-shrink:0;box-shadow:0 10px 24px rgba(15,23,42,.14)}
+  .op-close:hover{background:rgba(255,255,255,.14);border-color:rgba(196,181,253,.28)}
+  html[dir="rtl"] .op-close{right:auto;left:1rem}
+  .op-form-shell{padding:1.25rem;background:linear-gradient(180deg,rgba(18,22,40,.96) 0%,rgba(12,15,30,.98) 100%)}
   .op-form-grid{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(280px,.72fr);gap:1rem}
-  .op-section{background:#fff;border:1px solid #dbe4f0;border-radius:24px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}
-  .op-section-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1rem 1.1rem .8rem;border-bottom:1px solid #dbe4f0;background:linear-gradient(180deg,#fbfdff 0%,#fff 100%)}
-  .op-section-head h3{margin:0;font-size:1.08rem;font-weight:800}
-  .op-section-head p{margin:.32rem 0 0;color:#64748b;line-height:1.65}
-  .op-step{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;border-radius:999px;background:rgba(29,78,216,.1);border:1px solid rgba(29,78,216,.12);color:#1e40af;font-weight:800;font-size:.82rem}
+  .op-section{background:linear-gradient(180deg,rgba(25,31,54,.98) 0%,rgba(18,22,40,.98) 100%);border:1px solid rgba(167,139,250,.18);border-radius:16px;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.22)}
+  .op-section-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 1.1rem;border-bottom:1px solid rgba(167,139,250,.16);background:linear-gradient(180deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.02) 100%)}
+  .op-section-title{display:flex;align-items:center;gap:1rem}
+  .op-section-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+  .op-section-icon.blue{background:rgba(96,165,250,.16);color:#93c5fd}
+  .op-section-icon.purple{background:rgba(167,139,250,.16);color:#c4b5fd}
+  .op-section-head h3{margin:0;font-size:1.08rem;font-weight:800;color:#f8fafc}
+  .op-section-head p{margin:.32rem 0 0;color:#cbd5e1;line-height:1.65}
+  .op-step{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;border-radius:999px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.2);color:#c4b5fd;font-weight:800;font-size:.82rem}
   .op-section-body{padding:1rem 1.1rem 1.1rem}
   .op-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem}
   .op-field{display:flex;flex-direction:column;gap:.42rem}.op-col-12{grid-column:span 12}.op-col-6{grid-column:span 6}.op-col-4{grid-column:span 4}
-  .op-field label{font-weight:800;font-size:.95rem;color:#12233f}.op-help{margin:0;color:#64748b;font-size:.84rem;line-height:1.55}.op-req{color:#b91c1c}
-  .op-select,.op-input,.op-textarea{background:#fff;color:#12233f;border-color:#c7d2e5}
+  .op-field label{font-weight:800;font-size:.95rem;color:#eef2ff}.op-help{margin:0;color:#cbd5e1;font-size:.84rem;line-height:1.55}.op-req{color:#fca5a5}
+  .op-select,.op-input,.op-textarea{background:rgba(255,255,255,.05);color:#eef2ff;border-color:rgba(167,139,250,.24)}
   .op-textarea{min-height:120px;resize:vertical}
-  .op-feedback{min-height:1.15rem;color:#64748b;font-size:.82rem}.op-feedback.err{color:#b91c1c}.op-feedback.ok{color:#15803d}
+  .op-feedback{min-height:1.15rem;color:#cbd5e1;font-size:.82rem}.op-feedback.err{color:#fca5a5}.op-feedback.ok{color:#86efac}
   .op-input-wrap.err .op-input,.op-input-wrap.err .op-select,.op-input-wrap.err .op-textarea{border-color:rgba(185,28,28,.45);background:#fef2f2}
   .op-input-wrap.ok .op-input,.op-input-wrap.ok .op-select,.op-input-wrap.ok .op-textarea{border-color:rgba(21,128,61,.35);background:#f0fdf4}
   .op-skills-grid,.op-custom-list{display:flex;flex-wrap:wrap;gap:.55rem}
-  .op-skill-option{padding:.55rem .8rem;border:1px solid #c7d2e5;background:#f8fbff;color:#12233f;font-size:.88rem;font-weight:700;cursor:pointer}
+  .op-skill-option{padding:.55rem .8rem;border:1px solid rgba(167,139,250,.22);background:rgba(255,255,255,.04);color:#eef2ff;font-size:.88rem;font-weight:700;cursor:pointer;user-select:none;transition:border-color .2s ease,background .2s ease,color .2s ease,transform .2s ease}
   .op-skill-option.active{border-color:#8b5cf6;background:rgba(139,92,246,.08);color:#6d28d9}.op-skill-option input{display:none}
-  .op-custom-skills{display:none;gap:.55rem;flex-wrap:wrap}.op-custom-skills.show{display:flex}
-  .op-custom-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .72rem;border-radius:999px;background:rgba(139,92,246,.09);border:1px solid rgba(139,92,246,.16);font-size:.85rem;font-weight:700;color:#5b21b6}
+  .op-skill-option:hover{transform:translateY(-1px)}
+  .op-custom-skills{display:none;gap:.55rem;flex-wrap:wrap;align-items:center}.op-custom-skills.show{display:flex}
+  .op-custom-skills .op-input{flex:1 1 240px;min-width:220px}
+  .op-custom-skills .op-btn{flex:0 0 auto}
+  .op-custom-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .72rem;border-radius:999px;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.22);font-size:.85rem;font-weight:700;color:#ddd6fe}
   .op-custom-tag button{border:none;background:transparent;color:inherit;cursor:pointer;font-size:1rem;line-height:1}
   .op-summary{display:grid;gap:.8rem}
-  .op-summary-card{padding:.9rem;border:1px solid #dbe4f0;border-radius:18px;background:#f8fbff}
-  .op-summary-label{display:block;margin-bottom:.32rem;color:#64748b;font-size:.77rem;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
-  .op-summary-value{font-weight:700;line-height:1.6;word-break:break-word}
+  .op-summary-card{padding:.9rem;border:1px solid rgba(167,139,250,.18);border-radius:18px;background:rgba(255,255,255,.04)}
+  .op-summary-label{display:block;margin-bottom:.32rem;color:#cbd5e1;font-size:.77rem;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
+  .op-summary-value{font-weight:700;line-height:1.6;word-break:break-word;color:#f8fafc}
   .op-errors{display:none;padding:1rem;border-radius:20px;border:1px solid rgba(185,28,28,.18);background:#fef2f2;color:#b91c1c}
   .op-errors.show{display:block}.op-errors h4{margin:0 0 .6rem;font-size:.96rem}.op-errors ul{margin:0;padding-inline-start:1.1rem}
   .op-modal-actions{display:grid;gap:.7rem;margin-top:1rem}
-  .op-note{padding:.75rem .85rem;border-radius:16px;background:#fff7ed;border:1px solid rgba(249,115,22,.18);color:#9a3412;font-size:.84rem;line-height:1.6}
+  .op-note{padding:.75rem .85rem;border-radius:16px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.18);color:#e9d5ff;font-size:.84rem;line-height:1.6}
   .op-toast{position:fixed;right:1rem;bottom:1rem;padding:.8rem .95rem;border-radius:14px;background:#12182a;border:1px solid rgba(255,255,255,.14);color:#eef2ff;box-shadow:0 18px 36px rgba(2,6,23,.4);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s;z-index:1700}
   .op-toast.show{opacity:1;transform:translateY(0)}
-  @media(max-width:1100px){.op-layout,.op-form-grid,.op-hero-inner{grid-template-columns:1fr}.op-sidebar{position:static}}
-  @media(max-width:760px){.op-wrap{width:calc(100% - .5rem)}.op-stats,.op-fields{grid-template-columns:1fr}.op-col-12,.op-col-6,.op-col-4{grid-column:auto}.op-top,.op-modal-head{flex-direction:column;align-items:stretch}.op-actions,.op-select,.op-btn{width:100%}}
+  @media(max-width:1100px){.op-form-grid,.op-hero-inner{grid-template-columns:1fr}.op-hero-copy{align-items:center;text-align:center}html[dir="rtl"] .op-hero-copy{align-items:center;text-align:center;margin-left:0}.op-h1,html[dir="rtl"] .op-h1{max-width:none;width:auto}.op-sub,html[dir="rtl"] .op-sub{margin-left:0;margin-right:0;width:auto}html[dir="rtl"] .op-hero-publish{position:static;align-self:center;margin-top:.2rem}.op-visual{max-width:760px;margin:0 auto}}
+  @media(max-width:760px){.op-wrap{width:calc(100% - .5rem)}.op-fields{grid-template-columns:1fr}.op-col-12,.op-col-6,.op-col-4{grid-column:auto}.op-top{grid-template-columns:1fr}.op-toolbar,.op-toolbar-group,.op-actions{width:100%;flex-wrap:wrap}.op-search,.op-toolbar .op-select,.op-actions .op-select,.op-actions .op-btn,.op-select,.op-btn{width:100%;min-width:0}.op-top h2,.op-hero-action-slot{justify-self:stretch;text-align:right}.op-backdrop{padding:calc(var(--site-header-height, 80px) + 1rem) .55rem 1rem}.op-modal{max-height:calc(100vh - var(--site-header-height, 80px) - 2rem)}.op-visual{grid-template-columns:1fr 1fr;grid-template-rows:auto}.op-visual-center{display:none}.op-chip-1,.op-chip-2,.op-chip-3,.op-chip-4{grid-column:auto;grid-row:auto}.op-chip::after{display:none}.op-post-breadcrumb{flex-wrap:wrap}.op-steps-bar{flex-wrap:wrap;border-radius:12px}}
 </style>
 {% endblock %}
 
 {% block content %}
 {{ algerian_institutions|json_script:"opInstitutionData" }}
+{{ opportunities_data|json_script:"opportunitiesData" }}
 <section class="op-shell">
   <div class="op-wrap">
     <section class="op-hero">
       <div class="op-hero-inner">
-        <div>
-          <span class="op-eyebrow" data-i18n="heroEyebrow">NLP Opportunities</span>
-          <h1 class="op-h1"><span data-i18n="heroTitle1">Build your next step in</span> <span class="op-hl" data-i18n="heroTitle2">AI & NLP</span></h1>
+        <div class="op-hero-copy">
+          <h1 class="op-h1"><span data-i18n="heroTitle1">Build your next opportunity</span></h1>
           <p class="op-sub" data-i18n="heroSubtitle">Discover bilingual opportunities across jobs, internships, research projects, PFE topics, and academic collaborations.</p>
-          <div class="op-stats">
-            <div class="op-stat"><strong id="opStatActive">0</strong><span data-i18n="statActive">Active opportunities</span></div>
-            <div class="op-stat"><strong id="opStatNew">0</strong><span data-i18n="statNew">New this month</span></div>
-            <div class="op-stat"><strong id="opStatOrg">0</strong><span data-i18n="statOrg">Organizations</span></div>
-          </div>
+          <button id="opOpenPost" class="op-btn primary op-hero-publish" type="button" data-i18n="publishBtn">+ Post Opportunity</button>
         </div>
         <div class="op-visual" aria-hidden="true">
-          <span class="op-chip" data-i18n="chip1">NLP Engineer</span>
-          <span class="op-chip" data-i18n="chip2">Arabic Research</span>
-          <span class="op-chip" data-i18n="chip3">PFE / Master</span>
-          <span class="op-chip" data-i18n="chip4">Algerian Institutions</span>
+          <div class="op-chip op-chip-1">
+            <span class="op-chip-title" data-i18n="chip1">NLP Engineer</span>
+            <span class="op-chip-icon"><i class="fas fa-microchip"></i></span>
+          </div>
+          <div class="op-chip op-chip-2">
+            <span class="op-chip-title" data-i18n="chip2">Arabic Research</span>
+            <span class="op-chip-icon"><i class="fas fa-book-open"></i></span>
+          </div>
+          <div class="op-visual-center">
+            <img src="{% static 'images/navbarlogo.png' %}" alt="{% trans 'Sanad logo' %}">
+          </div>
+          <div class="op-chip op-chip-3">
+            <span class="op-chip-title" data-i18n="chip3">PFE / Master</span>
+            <span class="op-chip-icon"><i class="fas fa-graduation-cap"></i></span>
+          </div>
+          <div class="op-chip op-chip-4">
+            <span class="op-chip-title" data-i18n="chip4">Algerian Institutions</span>
+            <span class="op-chip-icon"><i class="fas fa-university"></i></span>
+          </div>
         </div>
       </div>
     </section>
 
     <div class="op-layout">
-      <aside class="op-panel op-sidebar">
-        <h2 class="op-panel-title" data-i18n="filtersTitle">Filter opportunities</h2>
-        <div class="op-search"><i class="fas fa-search"></i><input id="opSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search by title, organization, skills..."></div>
-        <div class="op-group"><h4 data-i18n="filterType">Type</h4><div id="opType" class="op-filter-list"></div></div>
-        <div class="op-group"><h4 data-i18n="filterMode">Mode</h4><div id="opMode" class="op-filter-list"></div></div>
-        <div class="op-group"><h4 data-i18n="filterLevel">Level</h4><div id="opLevel" class="op-filter-list"></div></div>
-      </aside>
-
       <section class="op-panel op-main">
         <div class="op-top">
-          <h2 id="opCount"></h2>
-          <div class="op-actions">
-            <select id="opSort" class="op-select">
-              <option value="recent" data-i18n="sortRecent">Most recent</option>
-              <option value="deadline" data-i18n="sortDeadline">Closest deadline</option>
-              <option value="relevance" data-i18n="sortRelevance">Best relevance</option>
-            </select>
-            <button id="opOpenPost" class="op-btn primary" type="button" data-i18n="publishBtn">+ Post Opportunity</button>
+          <div class="op-hero-action-slot"></div>
+          <div class="op-toolbar">
+            <div class="op-toolbar-group">
+              <select id="opTypeFilter" class="op-select"></select>
+              <select id="opModeFilter" class="op-select"></select>
+              <select id="opLevelFilter" class="op-select"></select>
+              <select id="opSort" class="op-select">
+                <option value="recent" data-i18n="sortRecent">Most recent</option>
+                <option value="deadline" data-i18n="sortDeadline">Closest deadline</option>
+                <option value="relevance" data-i18n="sortRelevance">Best relevance</option>
+              </select>
+            </div>
+            <div class="op-search"><i class="fas fa-search"></i><input id="opSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search by title, organization, skills..."></div>
           </div>
+          <h2 id="opCount"></h2>
         </div>
         <div id="opCards" class="op-grid"></div>
         <div id="opEmpty" class="op-empty" data-i18n="noResults">No opportunities match your filters.</div>
@@ -168,7 +233,7 @@
 <div id="opDetailBackdrop" class="op-backdrop">
   <article class="op-modal">
     <header class="op-modal-head">
-      <div>
+      <div class="op-detail-hero">
         <span class="op-modal-kicker" data-i18n="detailKicker">Opportunity overview</span>
         <h3 id="opDetailTitle" class="op-modal-title">Opportunity details</h3>
         <p id="opDetailSub" class="op-modal-sub"></p>
@@ -181,21 +246,46 @@
 <div id="opPostBackdrop" class="op-backdrop">
   <article class="op-modal">
     <header class="op-modal-head">
-      <div>
-        <span class="op-modal-kicker" data-i18n="postKicker">Editorial opportunity form</span>
-        <h3 class="op-modal-title" data-i18n="postModalTitle">Publish a new opportunity</h3>
-        <p class="op-modal-sub" data-i18n="postModalSubtitle">Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.</p>
+      <div class="op-post-hero">
+        <div class="op-post-hero-inner">
+          <ol class="op-post-breadcrumb">
+            <li><a href="{% url 'pages:opportunities' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</a></li>
+            <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
+            <li class="current" data-i18n="postModalTitle">Publish a new opportunity</li>
+          </ol>
+          <div class="op-post-icon"><i class="bi bi-briefcase"></i></div>
+          <h3 class="op-modal-title" data-i18n="postModalTitle">Publish a new opportunity</h3>
+          <p class="op-modal-sub" data-i18n="postModalSubtitle">Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.</p>
+          <div class="op-steps-bar">
+            <div class="op-step-item active">
+              <span class="op-step-number">1</span>
+              <span data-i18n="sectionBasics">1. Essentials</span>
+            </div>
+            <div class="op-step-item">
+              <span class="op-step-number">2</span>
+              <span data-i18n="sectionDetails">2. Position details</span>
+            </div>
+            <div class="op-step-item">
+              <span class="op-step-number">3</span>
+              <span data-i18n="sectionReview">3. Review & publish</span>
+            </div>
+          </div>
+          <button id="opClosePost" class="op-close" type="button" aria-label="{% trans 'Close' %}">&times;</button>
+        </div>
       </div>
-      <button id="opClosePost" class="op-close" type="button" aria-label="{% trans 'Close' %}">&times;</button>
     </header>
     <form id="opPostForm" class="op-form-shell" novalidate>
+      {% csrf_token %}
       <div class="op-form-grid">
         <div style="display:grid;gap:1rem">
           <section class="op-section">
             <div class="op-section-head">
-              <div>
-                <h3 data-i18n="sectionBasics">1. Essentials</h3>
-                <p data-i18n="sectionBasicsHint">Provide bilingual titles, choose the opportunity type, and select the hosting institution.</p>
+              <div class="op-section-title">
+                <div class="op-section-icon blue"><i class="bi bi-briefcase"></i></div>
+                <div>
+                  <h3 data-i18n="sectionBasics">1. Essentials</h3>
+                  <p data-i18n="sectionBasicsHint">Provide bilingual titles, choose the opportunity type, and select the hosting institution.</p>
+                </div>
               </div>
               <span class="op-step">01</span>
             </div>
@@ -213,9 +303,12 @@
           </section>
           <section class="op-section">
             <div class="op-section-head">
-              <div>
-                <h3 data-i18n="sectionDetails">2. Position details</h3>
-                <p data-i18n="sectionDetailsHint">Complete the editorial metadata used on the public opportunities page.</p>
+              <div class="op-section-title">
+                <div class="op-section-icon purple"><i class="bi bi-card-checklist"></i></div>
+                <div>
+                  <h3 data-i18n="sectionDetails">2. Position details</h3>
+                  <p data-i18n="sectionDetailsHint">Complete the editorial metadata used on the public opportunities page.</p>
+                </div>
               </div>
               <span class="op-step">02</span>
             </div>
@@ -265,56 +358,86 @@
 (function(){
   const lang=((document.documentElement.lang||"en").toLowerCase().startsWith("ar"))?"ar":"en";
   const dict={
-    en:{heroEyebrow:"NLP Opportunities",heroTitle1:"Build your next step in",heroTitle2:"AI & NLP",heroSubtitle:"Discover bilingual opportunities across jobs, internships, research projects, PFE topics, and academic collaborations.",statActive:"Active opportunities",statNew:"New this month",statOrg:"Organizations",chip1:"NLP Engineer",chip2:"Arabic Research",chip3:"PFE / Master",chip4:"Algerian Institutions",filtersTitle:"Filter opportunities",searchPlaceholder:"Search by title, organization, skills...",filterType:"Type",filterMode:"Mode",filterLevel:"Level",sortRecent:"Most recent",sortDeadline:"Closest deadline",sortRelevance:"Best relevance",publishBtn:"+ Post Opportunity",noResults:"No opportunities match your filters.",countShown:"{count} opportunities shown",detailKicker:"Opportunity overview",postKicker:"Editorial opportunity form",postModalTitle:"Publish a new opportunity",postModalSubtitle:"Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.",sectionBasics:"1. Essentials",sectionBasicsHint:"Provide bilingual titles, choose the opportunity type, and select the hosting institution.",sectionDetails:"2. Position details",sectionDetailsHint:"Complete the editorial metadata used on the public opportunities page.",sectionReview:"3. Review & publish",sectionReviewHint:"Check the live summary before sending the opportunity for moderation.",fieldTitleEn:"Title (English)",fieldTitleAr:"Title (Arabic)",fieldTitleEnHint:"This title is shown on English screens.",fieldTitleArHint:"This title is shown on Arabic screens.",fieldType:"Type",fieldTypeHint:"Choose the opportunity category.",fieldInstitution:"Institution",fieldInstitutionHint:"Only Algerian institutions are listed here, plus an Other option.",fieldLocation:"Location",fieldLocationHint:"Auto-filled from the selected institution when available.",fieldOrgEn:"Organization name (English)",fieldOrgAr:"Organization name (Arabic)",fieldMode:"Mode",fieldLevel:"Level",fieldDeadline:"Deadline",fieldDescription:"Description",fieldDescriptionHint:"Summarize responsibilities, expected profile, and the publication context.",fieldSkills:"Skills",fieldSkillsHint:"Choose from common NLP skills. If you pick Other, you can type custom skills manually.",fieldContact:"Contact link or email",fieldContactHint:"Use a URL or an email address for applications.",addSkill:"Add skill",validationErrors:"Ongoing validation errors",sumTitle:"Displayed title",sumInstitution:"Institution",sumType:"Type",sumSkills:"Skills",moderationNotice:"Your opportunity will be reviewed before it is publicly displayed.",cancel:"Cancel",submitOffer:"Submit opportunity",notSet:"Not set",noSkills:"No skills selected",otherInstitution:"Other organization",customSkillPlaceholder:"Type a custom skill and press Enter",submitted:"Opportunity submitted successfully. Moderation is in progress.",req:"This field is required.",emailOrUrl:"Enter a valid URL or email address.",futureDate:"Please choose a future deadline.",selectSkill:"Select at least one skill.",selectInstitution:"Select an institution.",otherOrgReq:"This field becomes required when Other is selected.",close:"Close",applyNow:"Apply now",newBadge:"New",deadlineLabel:"Deadline",relevanceLabel:"Relevance",urgent:"Urgent",type:{job:"Job",internship:"Internship",pfe:"PFE / Master",phd:"PhD",collab:"Collaboration"},mode:{remote:"Remote",hybrid:"Hybrid",onsite:"On-site"},level:{student:"Student",junior:"Junior",senior:"Senior",researcher:"Researcher"},skills:["Python","Transformers","ASR","NER","OCR","MLOps","RAG","LLM","Arabic NLP","Data Annotation","Other"]},
-    ar:{heroEyebrow:"فرص الذكاء الاصطناعي ومعالجة اللغة",heroTitle1:"ابن خطوتك القادمة في",heroTitle2:"الذكاء الاصطناعي ومعالجة اللغة",heroSubtitle:"اكتشف فرصًا ثنائية اللغة في الوظائف والتربصات والمشاريع البحثية ومواضيع التخرج والتعاون الأكاديمي.",statActive:"فرص نشطة",statNew:"جديد هذا الشهر",statOrg:"مؤسسات",chip1:"مهندس NLP",chip2:"بحث عربي",chip3:"تخرج / ماستر",chip4:"مؤسسات جزائرية",filtersTitle:"تصفية الفرص",searchPlaceholder:"ابحث بالعنوان أو المؤسسة أو المهارات...",filterType:"النوع",filterMode:"نمط العمل",filterLevel:"المستوى",sortRecent:"الأحدث",sortDeadline:"الأقرب في الآجال",sortRelevance:"الأكثر صلة",publishBtn:"+ نشر فرصة",noResults:"لا توجد فرص مطابقة لمرشحاتك.",countShown:"تم عرض {count} فرصة",detailKicker:"نظرة عامة على الفرصة",postKicker:"واجهة نشر الفرص",postModalTitle:"نشر فرصة جديدة",postModalSubtitle:"استخدم نفس واجهة التحرير الأنيقة الموجودة في الصفحات الأخرى. العنوانان العربي والإنجليزي إلزاميان.",sectionBasics:"1. الأساسيات",sectionBasicsHint:"أدخل العنوانين بالعربية والإنجليزية، واختر النوع، ثم حدّد المؤسسة المضيفة.",sectionDetails:"2. تفاصيل الفرصة",sectionDetailsHint:"أكمل البيانات التحريرية التي ستظهر في صفحة الفرص العامة.",sectionReview:"3. المراجعة والنشر",sectionReviewHint:"راجع الملخص المباشر قبل إرسال الفرصة للمراجعة.",fieldTitleEn:"العنوان (بالإنجليزية)",fieldTitleAr:"العنوان (بالعربية)",fieldTitleEnHint:"يظهر هذا العنوان في الواجهات الإنجليزية.",fieldTitleArHint:"يظهر هذا العنوان في الواجهات العربية.",fieldType:"النوع",fieldTypeHint:"اختر فئة الفرصة.",fieldInstitution:"المؤسسة",fieldInstitutionHint:"تظهر هنا المؤسسات الجزائرية فقط مع خيار أخرى.",fieldLocation:"الموقع",fieldLocationHint:"يُملأ تلقائيًا من المؤسسة المختارة عندما يكون متاحًا.",fieldOrgEn:"اسم المؤسسة (بالإنجليزية)",fieldOrgAr:"اسم المؤسسة (بالعربية)",fieldMode:"نمط العمل",fieldLevel:"المستوى",fieldDeadline:"آخر أجل",fieldDescription:"الوصف",fieldDescriptionHint:"لخّص المسؤوليات والملف المطلوب وسياق النشر.",fieldSkills:"المهارات",fieldSkillsHint:"اختر من مهارات NLP الشائعة. إذا اخترت أخرى يمكنك كتابة مهارات مخصصة يدويًا.",fieldContact:"رابط أو بريد التواصل",fieldContactHint:"استخدم رابطًا أو بريدًا إلكترونيًا للتقديم.",addSkill:"إضافة مهارة",validationErrors:"أخطاء التحقق الحالية",sumTitle:"العنوان المعروض",sumInstitution:"المؤسسة",sumType:"النوع",sumSkills:"المهارات",moderationNotice:"ستُراجع الفرصة قبل عرضها علنًا.",cancel:"إلغاء",submitOffer:"إرسال الفرصة",notSet:"غير محدد",noSkills:"لم يتم اختيار مهارات",otherInstitution:"مؤسسة أخرى",customSkillPlaceholder:"اكتب مهارة مخصصة ثم اضغط Enter",submitted:"تم إرسال الفرصة بنجاح. المراجعة قيد التنفيذ.",req:"هذا الحقل مطلوب.",emailOrUrl:"أدخل رابطًا صحيحًا أو بريدًا إلكترونيًا صحيحًا.",futureDate:"يرجى اختيار تاريخ مستقبلي.",selectSkill:"يرجى اختيار مهارة واحدة على الأقل.",selectInstitution:"يرجى اختيار مؤسسة.",otherOrgReq:"هذا الحقل يصبح مطلوبًا عند اختيار أخرى.",close:"إغلاق",applyNow:"قدّم الآن",newBadge:"جديد",deadlineLabel:"آخر أجل",relevanceLabel:"الملاءمة",urgent:"عاجل",type:{job:"وظيفة",internship:"تربص",pfe:"تخرج / ماستر",phd:"دكتوراه",collab:"تعاون"},mode:{remote:"عن بُعد",hybrid:"هجين",onsite:"حضوري"},level:{student:"طالب",junior:"مبتدئ",senior:"خبير",researcher:"باحث"},skills:["بايثون","المحوّلات","التعرّف على الكلام","التعرّف على الكيانات","التعرف الضوئي","إدارة النماذج","الاسترجاع المعزّز","النماذج اللغوية","معالجة العربية","وسم البيانات","أخرى"]}
+    en:{heroEyebrow:"NLP Opportunities",heroTitle1:"Build your next opportunity",heroTitle2:"AI & NLP",heroSubtitle:"Discover bilingual opportunities across jobs, internships, research projects, PFE topics, and academic collaborations.",statActive:"Opportunities",statNew:"New this month",statOrg:"Organizations",chip1:"NLP Engineer",chip2:"Arabic Research",chip3:"PFE / Master",chip4:"Algerian Institutions",filtersTitle:"Filter opportunities",searchPlaceholder:"Search by title, organization, skills...",filterType:"Type",filterMode:"Mode",filterLevel:"Level",sortRecent:"Most recent",sortDeadline:"Closest deadline",sortRelevance:"Best relevance",publishBtn:"+ Post Opportunity",noResults:"No opportunities match your filters.",countShown:"{count} opportunities shown",detailKicker:"Opportunity overview",postKicker:"Editorial opportunity form",postModalTitle:"Publish a new opportunity",postModalSubtitle:"Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.",sectionBasics:"1. Essentials",sectionBasicsHint:"Provide bilingual titles, choose the opportunity type, and select the hosting institution.",sectionDetails:"2. Position details",sectionDetailsHint:"Complete the editorial metadata used on the public opportunities page.",sectionReview:"3. Review & publish",sectionReviewHint:"Check the live summary before sending the opportunity for moderation.",fieldTitleEn:"Title (English)",fieldTitleAr:"Title (Arabic)",fieldTitleEnHint:"This title is shown on English screens.",fieldTitleArHint:"This title is shown on Arabic screens.",fieldType:"Type",fieldTypeHint:"Choose the opportunity category.",fieldInstitution:"Institution",fieldInstitutionHint:"Only Algerian institutions are listed here, plus an Other option.",fieldLocation:"Location",fieldLocationHint:"Auto-filled from the selected institution when available.",fieldOrgEn:"Organization name (English)",fieldOrgAr:"Organization name (Arabic)",fieldMode:"Mode",fieldLevel:"Level",fieldDeadline:"Deadline",fieldDescription:"Description",fieldDescriptionHint:"Summarize responsibilities, expected profile, and the publication context.",fieldSkills:"Skills",fieldSkillsHint:"Choose from common NLP skills. If you pick Other, you can type custom skills manually.",fieldContact:"Contact link or email",fieldContactHint:"Use a URL or an email address for applications.",addSkill:"Add skill",validationErrors:"Ongoing validation errors",sumTitle:"Displayed title",sumInstitution:"Institution",sumType:"Type",sumSkills:"Skills",moderationNotice:"Your opportunity will be reviewed before it is publicly displayed.",cancel:"Cancel",submitOffer:"Submit opportunity",notSet:"Not set",noSkills:"No skills selected",otherInstitution:"Other organization",customSkillPlaceholder:"Type a custom skill and press Enter",submitted:"Opportunity submitted successfully. Moderation is in progress.",req:"This field is required.",emailOrUrl:"Enter a valid URL or email address.",futureDate:"Please choose a future deadline.",selectSkill:"Select at least one skill.",selectInstitution:"Select an institution.",otherOrgReq:"This field becomes required when Other is selected.",close:"Close",applyNow:"Apply now",newBadge:"New",deadlineLabel:"Deadline",relevanceLabel:"Relevance",urgent:"Urgent",allTypes:"All types",allModes:"All modes",allLevels:"All levels",type:{job:"Job",internship:"Internship",pfe:"PFE / Master",phd:"PhD",collab:"Collaboration"},mode:{remote:"Remote",hybrid:"Hybrid",onsite:"On-site"},level:{student:"Student",junior:"Junior",senior:"Senior",researcher:"Researcher"},skills:["Python","Transformers","ASR","NER","OCR","MLOps","RAG","LLM","Arabic NLP","Data Annotation","Other"]},
+    ar:{heroEyebrow:"فرص الذكاء الاصطناعي ومعالجة اللغة",heroTitle1:"ابن فرصتك القادمة",heroTitle2:"الذكاء الاصطناعي ومعالجة اللغة",heroSubtitle:"اكتشف فرصًا ثنائية اللغة في الوظائف والتربصات والمشاريع البحثية ومواضيع التخرج والتعاون الأكاديمي.",statActive:"الفرص",statNew:"جديد هذا الشهر",statOrg:"مؤسسات",chip1:"مهندس NLP",chip2:"بحث عربي",chip3:"تخرج / ماستر",chip4:"مؤسسات جزائرية",filtersTitle:"تصفية الفرص",searchPlaceholder:"ابحث بالعنوان أو المؤسسة أو المهارات...",filterType:"النوع",filterMode:"نمط العمل",filterLevel:"المستوى",sortRecent:"الأحدث",sortDeadline:"الأقرب في الآجال",sortRelevance:"الأكثر صلة",publishBtn:"+ نشر فرصة",noResults:"لا توجد فرص مطابقة لمرشحاتك.",countShown:"تم عرض {count} فرصة",detailKicker:"نظرة عامة على الفرصة",postKicker:"واجهة نشر الفرص",postModalTitle:"نشر فرصة جديدة",postModalSubtitle:"استخدم نفس واجهة التحرير الأنيقة الموجودة في الصفحات الأخرى. العنوانان العربي والإنجليزي إلزاميان.",sectionBasics:"1. الأساسيات",sectionBasicsHint:"أدخل العنوانين بالعربية والإنجليزية، واختر النوع، ثم حدّد المؤسسة المضيفة.",sectionDetails:"2. تفاصيل الفرصة",sectionDetailsHint:"أكمل البيانات التحريرية التي ستظهر في صفحة الفرص العامة.",sectionReview:"3. المراجعة والنشر",sectionReviewHint:"راجع الملخص المباشر قبل إرسال الفرصة للمراجعة.",fieldTitleEn:"العنوان (بالإنجليزية)",fieldTitleAr:"العنوان (بالعربية)",fieldTitleEnHint:"يظهر هذا العنوان في الواجهات الإنجليزية.",fieldTitleArHint:"يظهر هذا العنوان في الواجهات العربية.",fieldType:"النوع",fieldTypeHint:"اختر فئة الفرصة.",fieldInstitution:"المؤسسة",fieldInstitutionHint:"تظهر هنا المؤسسات الجزائرية فقط مع خيار أخرى.",fieldLocation:"الموقع",fieldLocationHint:"يُملأ تلقائيًا من المؤسسة المختارة عندما يكون متاحًا.",fieldOrgEn:"اسم المؤسسة (بالإنجليزية)",fieldOrgAr:"اسم المؤسسة (بالعربية)",fieldMode:"نمط العمل",fieldLevel:"المستوى",fieldDeadline:"آخر أجل",fieldDescription:"الوصف",fieldDescriptionHint:"لخّص المسؤوليات والملف المطلوب وسياق النشر.",fieldSkills:"المهارات",fieldSkillsHint:"اختر من مهارات NLP الشائعة. إذا اخترت أخرى يمكنك كتابة مهارات مخصصة يدويًا.",fieldContact:"رابط أو بريد التواصل",fieldContactHint:"استخدم رابطًا أو بريدًا إلكترونيًا للتقديم.",addSkill:"إضافة مهارة",validationErrors:"أخطاء التحقق الحالية",sumTitle:"العنوان المعروض",sumInstitution:"المؤسسة",sumType:"النوع",sumSkills:"المهارات",moderationNotice:"ستُراجع الفرصة قبل عرضها علنًا.",cancel:"إلغاء",submitOffer:"إرسال الفرصة",notSet:"غير محدد",noSkills:"لم يتم اختيار مهارات",otherInstitution:"مؤسسة أخرى",customSkillPlaceholder:"اكتب مهارة مخصصة ثم اضغط Enter",submitted:"تم إرسال الفرصة بنجاح. المراجعة قيد التنفيذ.",req:"هذا الحقل مطلوب.",emailOrUrl:"أدخل رابطًا صحيحًا أو بريدًا إلكترونيًا صحيحًا.",futureDate:"يرجى اختيار تاريخ مستقبلي.",selectSkill:"يرجى اختيار مهارة واحدة على الأقل.",selectInstitution:"يرجى اختيار مؤسسة.",otherOrgReq:"هذا الحقل يصبح مطلوبًا عند اختيار أخرى.",close:"إغلاق",applyNow:"قدّم الآن",newBadge:"جديد",deadlineLabel:"آخر أجل",relevanceLabel:"الملاءمة",urgent:"عاجل",allTypes:"كل الأنواع",allModes:"كل أنماط العمل",allLevels:"كل المستويات",type:{job:"وظيفة",internship:"تربص",pfe:"تخرج / ماستر",phd:"دكتوراه",collab:"تعاون"},mode:{remote:"عن بُعد",hybrid:"هجين",onsite:"حضوري"},level:{student:"طالب",junior:"مبتدئ",senior:"خبير",researcher:"باحث"},skills:["بايثون","المحوّلات","التعرّف على الكلام","التعرّف على الكيانات","التعرف الضوئي","إدارة النماذج","الاسترجاع المعزّز","النماذج اللغوية","معالجة العربية","وسم البيانات","أخرى"]}
   }[lang];
   const institutions=JSON.parse(document.getElementById("opInstitutionData").textContent||"[]");
   const institutionMap=new Map(institutions.map(item=>[item.id,item]));
   const typeKeys=["job","internship","pfe","phd","collab"],modeKeys=["remote","hybrid","onsite"],levelKeys=["student","junior","senior","researcher"],skillKeys=["Python","Transformers","ASR","NER","OCR","MLOps","RAG","LLM","Arabic NLP","Data Annotation","Other"];
   const state={search:"",type:new Set(),mode:new Set(),level:new Set(),sort:"recent"};
   const formState={customSkills:[]};
-  const opportunities=[
-    {id:1,featured:true,type:"job",mode:"hybrid",level:"senior",isNew:true,relevance:98,createdAt:"2026-03-28",deadline:"2026-04-07",orgInitials:"AT",organization:{en:"AtlasTech AI",ar:"أطلس تيك للذكاء الاصطناعي"},location:{en:"Algiers, Algeria",ar:"الجزائر العاصمة، الجزائر"},title:{en:"Senior NLP Engineer (Arabic LLMs)",ar:"مهندس NLP أول للنماذج العربية"},short:{en:"Lead Arabic LLM fine-tuning, optimize inference pipelines, and ship multilingual NLP APIs.",ar:"قيادة ضبط النماذج العربية وتحسين الاستدلال ونشر واجهات برمجية متعددة اللغات."},full:{en:"You will own end-to-end NLP delivery: data curation, model training, evaluation, and deployment.",ar:"ستقود دورة تطوير NLP كاملة من تجهيز البيانات إلى التدريب والتقييم والنشر."},comp:{en:"$52k-$68k",ar:"52-68 ألف دولار"},skills:["Python","Transformers","MLOps","Arabic NLP"]},
-    {id:2,type:"internship",mode:"remote",level:"student",isNew:true,relevance:90,createdAt:"2026-03-27",deadline:"2026-04-15",orgInitials:"CR",organization:{en:"CogniResearch Lab",ar:"مختبر كوغني ريسرش"},location:{en:"Remote (MENA)",ar:"عن بعد (الشرق الأوسط وشمال إفريقيا)"},title:{en:"R&D Internship - Arabic Speech & NLP",ar:"تربص بحث وتطوير - الكلام العربي وNLP"},short:{en:"Contribute to speech-text alignment experiments and evaluate ASR + NLU performance.",ar:"المساهمة في تجارب محاذاة الكلام والنص وتقييم أداء ASR وNLU."},full:{en:"Interns will work with mentors on low-resource speech datasets and model benchmarking.",ar:"سيعمل المتربصون مع مرشدين على بيانات كلام منخفضة الموارد ومقارنة أداء النماذج."},comp:{en:"4 months",ar:"4 أشهر"},skills:["PyTorch","ASR","Evaluation"]},
-    {id:3,type:"pfe",mode:"onsite",level:"student",isNew:false,relevance:84,createdAt:"2026-03-20",deadline:"2026-04-03",orgInitials:"DL",organization:{en:"DeepLex University",ar:"جامعة ديب ليكس"},location:{en:"Oran, Algeria",ar:"وهران، الجزائر"},title:{en:"PFE - Arabic Named Entity Linking",ar:"مشروع تخرج - ربط الكيانات العربية"},short:{en:"Build and benchmark an entity linking system for Arabic news.",ar:"بناء ومقارنة نظام ربط كيانات للأخبار العربية."},full:{en:"Project includes dataset curation, weak supervision, and leaderboard-ready evaluation.",ar:"يشمل المشروع تجهيز البيانات والإشراف الضعيف وتقييما جاهزا للمنافسات."},comp:{en:"6 months",ar:"6 أشهر"},skills:["NER","Entity Linking","spaCy"]},
-    {id:4,type:"phd",mode:"hybrid",level:"researcher",isNew:true,relevance:96,createdAt:"2026-03-26",deadline:"2026-04-28",orgInitials:"MB",organization:{en:"MENA Brain Institute",ar:"معهد مينا براين"},location:{en:"Doha, Qatar",ar:"الدوحة، قطر"},title:{en:"PhD Fellowship - Multimodal Arabic LLM",ar:"منحة دكتوراه - نموذج عربي متعدد الوسائط"},short:{en:"Research grounded multimodal models with text, OCR, and speech.",ar:"بحث نماذج متعددة الوسائط تشمل النص وOCR والكلام."},full:{en:"The fellowship focuses on multilingual transfer learning and robust evaluation.",ar:"تركز المنحة على نقل التعلم متعدد اللغات والتقييم المتين."},comp:{en:"$28k stipend / year",ar:"منحة 28 ألف دولار سنويا"},skills:["Multimodal","LLM","Research"]},
-    {id:5,type:"collab",mode:"remote",level:"researcher",isNew:false,relevance:82,createdAt:"2026-03-18",deadline:"2026-04-19",orgInitials:"AN",organization:{en:"ArabNLP Network",ar:"شبكة عرب NLP"},location:{en:"Distributed",ar:"موزع"},title:{en:"Research Collaboration - Arabic Benchmark Suite",ar:"تعاون بحثي - حزمة معايير عربية"},short:{en:"Co-develop open Arabic benchmark datasets and evaluation tasks.",ar:"تطوير مشترك لمعايير عربية مفتوحة ومهام تقييم."},full:{en:"Ideal for labs and researchers looking to collaborate on Arabic NLP standards.",ar:"مناسب للمخابر والباحثين الراغبين في التعاون على معايير عربية."},comp:{en:"Open call",ar:"دعوة مفتوحة"},skills:["Benchmarking","Open Science","QA"]}
-  ];
+  const opportunities=JSON.parse(document.getElementById("opportunitiesData").textContent||"[]");
   const byId=id=>document.getElementById(id),cards=byId("opCards"),count=byId("opCount"),empty=byId("opEmpty"),toast=byId("opToast"),pBack=byId("opPostBackdrop"),dBack=byId("opDetailBackdrop"),form=byId("opPostForm");
   const institutionSelect=byId("opInstitution"),typeSelect=byId("opTypeSelect"),modeSelect=byId("opModeSelect"),levelSelect=byId("opLevelSelect"),otherOrgEnWrap=byId("opOtherOrgEnWrap"),otherOrgArWrap=byId("opOtherOrgArWrap"),customSkillsWrap=byId("opCustomSkillsWrap"),customSkillInput=byId("opCustomSkillInput"),customSkillList=byId("opCustomSkillList");
+  const topTypeFilter=byId("opTypeFilter"),topModeFilter=byId("opModeFilter"),topLevelFilter=byId("opLevelFilter");
   const summaries={title:form.querySelector('[data-summary="title"]'),institution:form.querySelector('[data-summary="institution"]'),type:form.querySelector('[data-summary="type"]'),skills:form.querySelector('[data-summary="skills"]')};
   const t=k=>dict[k]||k;
   function setTexts(){document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.dataset.i18n;if(dict[k])el.textContent=dict[k]});document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{const k=el.dataset.i18nPlaceholder;if(dict[k])el.placeholder=dict[k]});customSkillInput.placeholder=t("customSkillPlaceholder");document.documentElement.dir=lang==="ar"?"rtl":"ltr";}
   function daysLeft(d){const n=new Date();n.setHours(0,0,0,0);const x=new Date(d+"T00:00:00");return Math.ceil((x-n)/86400000)}
   function fillSelect(select,keys,labels){select.innerHTML=keys.map(k=>`<option value="${k}">${labels[k]}</option>`).join("")}
+  function fillTopFilter(select,allLabel,keys,labels,current){select.innerHTML=`<option value="">${allLabel}</option>`+keys.map(k=>`<option value="${k}" ${current===k?"selected":""}>${labels[k]}</option>`).join("")}
   function populateInstitutions(){const opts=institutions.map(item=>`<option value="${item.id}">${lang==="ar"?item.name_ar:item.name_en}</option>`);opts.push(`<option value="other">${t("otherInstitution")}</option>`);institutionSelect.innerHTML=`<option value="">${t("selectInstitution")}</option>`+opts.join("")}
   function initials(name){return (name||"").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"OP"}
+  function safeText(value){return String(value||"").replace(/[&<>\"']/g,match=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[match]))}
+  function contactMarkup(contact){const value=(contact||"").trim();if(!value)return"";const href=value.includes("@")&&!/^https?:/i.test(value)?`mailto:${value}`:value;return `<div class="op-contact-line"><span class="op-contact-label">${safeText(t("fieldContact"))}</span><a class="op-contact-value" href="${safeText(href)}" target="_blank" rel="noopener noreferrer">${safeText(value)}</a></div>`}
   function filtered(){const q=state.search.toLowerCase();let data=opportunities.filter(item=>{const hay=[item.title[lang],item.organization[lang],item.location[lang],item.short[lang],...item.skills].join(" ").toLowerCase();return (!state.type.size||state.type.has(item.type))&&(!state.mode.size||state.mode.has(item.mode))&&(!state.level.size||state.level.has(item.level))&&(!q||hay.includes(q))});if(state.sort==="recent")data.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));if(state.sort==="deadline")data.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));if(state.sort==="relevance")data.sort((a,b)=>b.relevance-a.relevance);return data}
-  function renderStats(){byId("opStatActive").textContent=String(opportunities.length);byId("opStatNew").textContent=String(opportunities.filter(i=>i.isNew).length);byId("opStatOrg").textContent=String(new Set(opportunities.map(i=>i.organization.en)).size)}
-  function renderFilters(){const make=(k,g,c)=>`<button class="op-filter ${state[g].has(k)?"active":""}" type="button" data-group="${g}" data-key="${k}"><span class="op-filter-label"><span class="op-check"></span><span>${dict[g][k]}</span></span>${c?`<span class="op-filter-count">${opportunities.filter(i=>i[g]===k).length}</span>`:""}</button>`;byId("opType").innerHTML=typeKeys.map(k=>make(k,"type",true)).join("");byId("opMode").innerHTML=modeKeys.map(k=>make(k,"mode",false)).join("");byId("opLevel").innerHTML=levelKeys.map(k=>make(k,"level",false)).join("");document.querySelectorAll(".op-filter").forEach(btn=>btn.addEventListener("click",()=>{const g=btn.dataset.group,k=btn.dataset.key;state[g].has(k)?state[g].delete(k):state[g].add(k);renderFilters();renderCards()}))}
-  function renderCards(){const data=filtered();count.textContent=t("countShown").replace("{count}",data.length);cards.innerHTML="";empty.style.display=data.length?"none":"block";data.forEach(item=>{const urgent=daysLeft(item.deadline)<=7;const article=document.createElement("article");article.className="op-card";article.innerHTML=`<div class="op-card-banner"><div class="op-card-top"><span class="op-badge">${dict.type[item.type]}</span><div class="op-mark">${item.orgInitials||initials(item.organization[lang])}</div></div></div><div class="op-card-body"><h3 class="op-title">${item.title[lang]}</h3><div class="op-subline">${item.organization[lang]} · ${item.location[lang]}</div><div class="op-meta"><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span>${item.isNew?`<span class="op-mini-tag">${t("newBadge")}</span>`:""}</div><p class="op-desc">${item.short[lang]}</p><div class="op-tags">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div><div class="op-card-foot"><span class="op-deadline">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")} ${urgent?`· ${t("urgent")}`:""}</span><button class="op-btn primary" type="button">${t("applyNow")}</button></div></div>`;article.addEventListener("click",()=>openDetail(item));article.querySelector("button").addEventListener("click",e=>{e.stopPropagation();openDetail(item)});cards.appendChild(article)})}
-  function openDetail(item){byId("opDetailTitle").textContent=item.title[lang];byId("opDetailSub").textContent=`${item.organization[lang]} · ${item.location[lang]}`;byId("opDetailContent").innerHTML=`<section class="op-section"><div class="op-section-body"><div class="op-meta" style="margin-bottom:1rem"><span class="op-mini-tag">${dict.type[item.type]}</span><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span><span class="op-mini-tag">${t("relevanceLabel")}: ${item.relevance}/100</span></div><p style="margin:0 0 1rem;color:#334155;line-height:1.8">${item.full[lang]}</p><div class="op-tags" style="margin-bottom:1rem">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div><div class="op-note">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")}</div></div></section>`;dBack.classList.add("show")}
+  function renderFilters(){fillTopFilter(topTypeFilter,t("allTypes"),typeKeys,dict.type,[...state.type][0]||"");fillTopFilter(topModeFilter,t("allModes"),modeKeys,dict.mode,[...state.mode][0]||"");fillTopFilter(topLevelFilter,t("allLevels"),levelKeys,dict.level,[...state.level][0]||"")}
+  function renderCards(){const data=filtered();count.textContent=t("countShown").replace("{count}",data.length);cards.innerHTML="";empty.style.display=data.length?"none":"block";data.forEach(item=>{const urgent=daysLeft(item.deadline)<=7;const article=document.createElement("article");article.className="op-card";article.innerHTML=`<div class="op-card-banner"><div class="op-card-top"><span class="op-badge">${dict.type[item.type]}</span><h3 class="op-title">${item.title[lang]}</h3><div class="op-mark">${item.orgInitials||initials(item.organization[lang])}</div></div></div><div class="op-card-body"><div class="op-subline"><span>${item.organization[lang]} · ${item.location[lang]}</span><small>${t("relevanceLabel")}: ${item.relevance}/100</small></div><div class="op-meta-row"><div class="op-meta"><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span>${item.isNew?`<span class="op-mini-tag">${t("newBadge")}</span>`:""}</div><small>${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")}</small></div><div class="op-desc">${item.short[lang]}<small>${item.skills.slice(0,3).join(" · ") || ""}</small></div>${contactMarkup(item.contact)}<div class="op-tags">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div></div><div class="op-card-foot"><span class="op-deadline">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")} ${urgent?`· ${t("urgent")}`:""}</span><button class="op-btn primary" type="button">${t("applyNow")}</button></div>`;article.addEventListener("click",()=>openDetail(item));article.querySelector("button").addEventListener("click",e=>{e.stopPropagation();openDetail(item)});cards.appendChild(article)})}
+  function openDetail(item){byId("opDetailTitle").textContent=item.title[lang];byId("opDetailSub").textContent=`${item.organization[lang]} · ${item.location[lang]}`;byId("opDetailContent").innerHTML=`<section class="op-section"><div class="op-section-body"><div class="op-meta" style="margin-bottom:1rem"><span class="op-mini-tag">${dict.type[item.type]}</span><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span><span class="op-mini-tag">${t("relevanceLabel")}: ${item.relevance}/100</span></div><p style="margin:0 0 1rem;color:#334155;line-height:1.8">${item.full[lang]}</p>${contactMarkup(item.contact)}<div class="op-tags" style="margin:1rem 0">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div><div class="op-note">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")}</div></div></section>`;dBack.classList.add("show")}
   function closeDetail(){dBack.classList.remove("show")}
-  function renderSkillChoices(){const wrap=byId("opSkillChoices");wrap.innerHTML=skillKeys.map((key,idx)=>`<label class="op-skill-option" data-skill="${key}"><input type="checkbox" value="${key}"><span>${dict.skills[idx]||key}</span></label>`).join("");wrap.querySelectorAll(".op-skill-option").forEach(option=>option.addEventListener("click",()=>{option.classList.toggle("active");option.querySelector("input").checked=option.classList.contains("active");toggleCustomSkillInput();updateSummary();validateSkills()}))}
+  function syncSkillOptionState(){
+    document.querySelectorAll("#opSkillChoices .op-skill-option").forEach(option=>{
+      const input=option.querySelector("input");
+      option.classList.toggle("active",Boolean(input&&input.checked));
+    });
+    toggleCustomSkillInput();
+    updateSummary();
+    validateSkills();
+  }
+  function renderSkillChoices(){
+    const wrap=byId("opSkillChoices");
+    wrap.innerHTML=skillKeys.map((key,idx)=>`<label class="op-skill-option" data-skill="${key}" tabindex="0"><input type="checkbox" value="${key}"><span>${dict.skills[idx]||key}</span></label>`).join("");
+    wrap.querySelectorAll('.op-skill-option input').forEach(input=>input.addEventListener("change",syncSkillOptionState));
+    wrap.querySelectorAll(".op-skill-option").forEach(option=>option.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){
+        e.preventDefault();
+        const input=option.querySelector("input");
+        input.checked=!input.checked;
+        syncSkillOptionState();
+      }
+    }));
+    syncSkillOptionState();
+  }
   function selectedPredefinedSkills(){return Array.from(document.querySelectorAll('#opSkillChoices input:checked')).map(input=>input.value)}
-  function toggleCustomSkillInput(){const useOther=selectedPredefinedSkills().includes("Other");customSkillsWrap.classList.toggle("show",useOther);if(!useOther){formState.customSkills=[];renderCustomSkills()}}
+  function toggleCustomSkillInput(){
+    const useOther=selectedPredefinedSkills().includes("Other");
+    const wasVisible=customSkillsWrap.classList.contains("show");
+    customSkillsWrap.classList.toggle("show",useOther);
+    if(useOther&&!wasVisible)setTimeout(()=>customSkillInput.focus(),0);
+    if(!useOther){
+      formState.customSkills=[];
+      customSkillInput.value="";
+      renderCustomSkills();
+    }
+  }
   function renderCustomSkills(){customSkillList.innerHTML=formState.customSkills.map((skill,index)=>`<span class="op-custom-tag">${skill}<button type="button" data-remove-skill="${index}">&times;</button></span>`).join("");customSkillList.querySelectorAll("[data-remove-skill]").forEach(btn=>btn.addEventListener("click",()=>{formState.customSkills.splice(Number(btn.dataset.removeSkill),1);renderCustomSkills();updateSummary();validateSkills()}))}
   function addCustomSkill(){const value=customSkillInput.value.trim();if(!value)return;if(!formState.customSkills.some(skill=>skill.toLowerCase()===value.toLowerCase()))formState.customSkills.push(value);customSkillInput.value="";renderCustomSkills();updateSummary();validateSkills()}
   function getInstitutionLabel(value){if(!value)return t("notSet");if(value==="other")return form.organization_en.value.trim()||form.organization_ar.value.trim()||t("otherInstitution");const item=institutionMap.get(value);return item?(lang==="ar"?item.name_ar:item.name_en):t("notSet")}
   function updateSummary(){const title=lang==="ar"?(form.title_ar.value.trim()||form.title_en.value.trim()):(form.title_en.value.trim()||form.title_ar.value.trim());summaries.title.textContent=title||t("notSet");summaries.institution.textContent=getInstitutionLabel(form.institution.value);summaries.type.textContent=form.type.value?dict.type[form.type.value]:t("notSet");const skills=selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills);summaries.skills.textContent=skills.length?skills.join(", "):t("noSkills")}
   function setFeedback(name,stateName,message){const wrap=form.querySelector(`[data-wrap="${name}"]`),feedback=form.querySelector(`[data-feedback="${name}"]`);if(wrap)wrap.classList.remove("err","ok");if(feedback){feedback.textContent=message||"";feedback.classList.remove("err","ok")}if(stateName){if(wrap)wrap.classList.add(stateName);if(feedback)feedback.classList.add(stateName)}}
-  function isEmailOrUrl(value){if(!value)return false;const email=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;if(email.test(value))return true;try{const parsed=new URL(value);return Boolean(parsed.protocol&&parsed.host)}catch(error){return false}}
+  function isEmailOrUrl(value){if(!value)return false;const email=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;if(email.test(value))return true;try{const parsed=new URL(value);return Boolean(parsed.protocol&&parsed.host)}catch(error){return false}}
   function validateField(name){const input=form[name];if(!input)return null;const value=(input.value||"").trim();let error=null;if(["title_en","title_ar","location","description","institution"].includes(name)&&!value)error=t("req");if(name==="deadline"){if(!value)error=t("req");else if(daysLeft(value)<0)error=t("futureDate")}if(name==="contact"&&!isEmailOrUrl(value))error=t("emailOrUrl");if((name==="organization_en"||name==="organization_ar")&&form.institution.value==="other"&&!value)error=t("otherOrgReq");if(error){setFeedback(name,"err",error);return error}if(value)setFeedback(name,"ok","");else setFeedback(name,"","");return null}
   function validateSkills(){const selected=selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills),feedback=form.querySelector('[data-feedback="skills"]');if(!selected.length){feedback.textContent=t("selectSkill");feedback.className="op-feedback err";return t("selectSkill")}feedback.textContent="";feedback.className="op-feedback ok";return null}
   function syncInstitutionSelection(){const value=institutionSelect.value,isOther=value==="other";otherOrgEnWrap.hidden=!isOther;otherOrgArWrap.hidden=!isOther;form.organization_en.toggleAttribute("required",isOther);form.organization_ar.toggleAttribute("required",isOther);if(!isOther&&institutionMap.has(value)){const item=institutionMap.get(value);form.location.value=lang==="ar"?item.city_ar:item.city_en;form.organization_en.value=item.name_en;form.organization_ar.value=item.name_ar}else if(isOther){form.location.value="";form.organization_en.value="";form.organization_ar.value=""}validateField("institution");validateField("organization_en");validateField("organization_ar");validateField("location");updateSummary()}
   function updateErrorSummary(errors){const box=byId("opErrorSummary"),list=box.querySelector("ul");list.innerHTML="";errors.forEach(message=>{const li=document.createElement("li");li.textContent=message;list.appendChild(li)});box.classList.toggle("show",Boolean(errors.length));if(errors.length)box.focus()}
   function openPost(){pBack.classList.add("show")} function closePost(){pBack.classList.remove("show")}
   function showToast(message){toast.textContent=message;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2600)}
+  function appendOpportunity(item){if(!item)return;opportunities.unshift(item);renderCards()}
   function populatePostingControls(){fillSelect(typeSelect,typeKeys,dict.type);fillSelect(modeSelect,modeKeys,dict.mode);fillSelect(levelSelect,levelKeys,dict.level);populateInstitutions();typeSelect.value="job";modeSelect.value="remote";levelSelect.value="student"}
   form.querySelectorAll("input, textarea, select").forEach(field=>{field.addEventListener("blur",()=>{validateField(field.name);updateSummary()});field.addEventListener("input",()=>{if(field.name)validateField(field.name);updateSummary()})});
-  byId("opSearch").addEventListener("input",e=>{state.search=e.target.value||"";renderCards()});byId("opSort").addEventListener("change",e=>{state.sort=e.target.value;renderCards()});institutionSelect.addEventListener("change",syncInstitutionSelection);byId("opOpenPost").addEventListener("click",openPost);byId("opClosePost").addEventListener("click",closePost);byId("opCancelPost").addEventListener("click",closePost);byId("opCloseDetail").addEventListener("click",closeDetail);dBack.addEventListener("click",e=>{if(e.target===dBack)closeDetail()});pBack.addEventListener("click",e=>{if(e.target===pBack)closePost()});byId("opAddCustomSkill").addEventListener("click",addCustomSkill);customSkillInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustomSkill()}});
-  form.addEventListener("submit",e=>{e.preventDefault();const errors=[];["title_en","title_ar","institution","location","deadline","description","contact","organization_en","organization_ar"].forEach(name=>{const result=validateField(name);if(result)errors.push(result)});const skillError=validateSkills();if(skillError)errors.push(skillError);updateErrorSummary([...new Set(errors)]);if(errors.length)return;closePost();form.reset();formState.customSkills=[];renderCustomSkills();renderSkillChoices();populatePostingControls();syncInstitutionSelection();updateSummary();updateErrorSummary([]);showToast(t("submitted"))});
-  setTexts();populatePostingControls();renderStats();renderFilters();renderCards();renderSkillChoices();syncInstitutionSelection();updateSummary();
+  byId("opSearch").addEventListener("input",e=>{state.search=e.target.value||"";renderCards()});byId("opSort").addEventListener("change",e=>{state.sort=e.target.value;renderCards()});topTypeFilter.addEventListener("change",e=>{state.type=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});topModeFilter.addEventListener("change",e=>{state.mode=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});topLevelFilter.addEventListener("change",e=>{state.level=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});institutionSelect.addEventListener("change",syncInstitutionSelection);byId("opOpenPost").addEventListener("click",openPost);byId("opClosePost").addEventListener("click",closePost);byId("opCancelPost").addEventListener("click",closePost);byId("opCloseDetail").addEventListener("click",closeDetail);dBack.addEventListener("click",e=>{if(e.target===dBack)closeDetail()});pBack.addEventListener("click",e=>{if(e.target===pBack)closePost()});byId("opAddCustomSkill").addEventListener("click",addCustomSkill);customSkillInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustomSkill()}});
+  form.addEventListener("submit",async e=>{e.preventDefault();const errors=[];["title_en","title_ar","institution","location","deadline","description","contact","organization_en","organization_ar"].forEach(name=>{const result=validateField(name);if(result)errors.push(result)});const skillError=validateSkills();if(skillError)errors.push(skillError);updateErrorSummary([...new Set(errors)]);if(errors.length)return;const formData=new FormData(form);formData.set("institution_ref",form.institution.value);formData.set("skills_payload",JSON.stringify(selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills)));try{const response=await fetch("{% url 'pages:create_opportunity' %}",{method:"POST",body:formData,headers:{"X-Requested-With":"XMLHttpRequest"}});const data=await response.json().catch(()=>({ok:false}));if(!response.ok||!data.ok){const serverErrors=[];Object.values(data.errors||{}).forEach(items=>(items||[]).forEach(msg=>serverErrors.push(String(msg))));updateErrorSummary(serverErrors.length?serverErrors:[data.error||"Submission failed."]);return}closePost();form.reset();formState.customSkills=[];renderCustomSkills();renderSkillChoices();populatePostingControls();syncInstitutionSelection();updateSummary();updateErrorSummary([]);appendOpportunity(data.opportunity);showToast(data.message||t("submitted"))}catch(error){updateErrorSummary(["Submission failed."])}})
+  setTexts();populatePostingControls();renderFilters();renderCards();renderSkillChoices();syncInstitutionSelection();updateSummary();
 })();
 </script>
 {% endblock %}

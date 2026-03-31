@@ -1,0 +1,135 @@
+{% extends "base_admin.html" %}
+{% load i18n %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل الفرصة{% else %}{% trans "Edit Opportunity" %}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;max-width:1100px;">
+  <div class="n-card">
+    <div class="n-card-head">
+      <h6 class="n-card-title">
+        <i class="fas fa-briefcase"></i>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحرير الفرصة{% else %}{% trans "Opportunity Review" %}{% endif %}
+      </h6>
+    </div>
+    <div style="padding:1rem 1.25rem 1.25rem;">
+      <div style="margin-bottom:1rem;color:var(--n-text-2);">
+        <strong style="color:var(--n-text);">{{ opportunity.title }}</strong><br>
+        {% if read_only_review %}
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض فقط للمراجعة{% else %}{% trans "Read-only review mode" %}{% endif %}
+        {% elif review_mode or edit_only %}
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع وعدّل ثم اقبل أو ارفض{% else %}{% trans "Review, edit, then accept or reject" %}{% endif %}
+        {% else %}
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل بيانات الفرصة{% else %}{% trans "Edit opportunity details" %}{% endif %}
+        {% endif %}
+      </div>
+
+      <form method="post" id="opportunityAdminForm">
+        {% csrf_token %}
+        {{ form.institution_ref }}
+        {{ form.skills_payload }}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان بالإنجليزية{% else %}{% trans "Title (English)" %}{% endif %}</label>
+            {{ form.title_en }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان بالعربية{% else %}{% trans "Title (Arabic)" %}{% endif %}</label>
+            {{ form.title_ar }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}النوع{% else %}{% trans "Type" %}{% endif %}</label>
+            {{ form.opportunity_type }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نمط العمل{% else %}{% trans "Mode" %}{% endif %}</label>
+            {{ form.mode }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى{% else %}{% trans "Level" %}{% endif %}</label>
+            {{ form.level }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة بالإنجليزية{% else %}{% trans "Organization name (English)" %}{% endif %}</label>
+            {{ form.organization_en }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة بالعربية{% else %}{% trans "Organization name (Arabic)" %}{% endif %}</label>
+            {{ form.organization_ar }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموقع{% else %}{% trans "Location" %}{% endif %}</label>
+            {{ form.location }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}آخر أجل{% else %}{% trans "Deadline" %}{% endif %}</label>
+            {{ form.deadline }}
+          </div>
+          <div class="col-md-12">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف{% else %}{% trans "Description" %}{% endif %}</label>
+            {{ form.description }}
+          </div>
+          <div class="col-md-12">
+            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط أو بريد التواصل{% else %}{% trans "Contact link or email" %}{% endif %}</label>
+            {{ form.contact }}
+          </div>
+        </div>
+
+        {% if form.errors %}
+        <div class="alert alert-danger mt-3 mb-0">
+          {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between flex-wrap gap-2 mt-4">
+          <a href="{% url 'pages:admin_opportunities' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى الإدارة{% else %}{% trans "Back to Admin" %}{% endif %}
+          </a>
+          <div class="d-flex gap-2 flex-wrap">
+            {% if read_only_review and request.GET.review_model and request.GET.review_pk %}
+            <a href="?edit_only=1&review=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn btn-outline-primary">
+              <i class="fas fa-edit me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل{% else %}{% trans "Edit" %}{% endif %}
+            </a>
+            {% endif %}
+            {% if not read_only_review %}
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حفظ التغييرات{% else %}{% trans "Save Changes" %}{% endif %}
+            </button>
+            {% endif %}
+            {% if (review_mode or edit_only) and is_pending %}
+            <button type="submit"
+                    class="btn btn-outline-danger"
+                    formaction="{% url 'pages:admin_reject_item' model_type='opportunity' pk=opportunity.pk %}"
+                    onclick="return confirm('{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هل تريد رفض هذا الطلب؟{% else %}{% trans "Are you sure you want to reject this request?" %}{% endif %}');">
+              <i class="fas fa-times-circle me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% trans "Reject" %}{% endif %}
+            </button>
+            <button type="submit"
+                    class="btn btn-success"
+                    formaction="{% url 'pages:admin_approve_item' model_type='opportunity' pk=opportunity.pk %}">
+              <i class="fas fa-check-circle me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}{% trans "Accept" %}{% endif %}
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if read_only_review %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('#opportunityAdminForm input, #opportunityAdminForm textarea, #opportunityAdminForm select').forEach(function(el) {
+    if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button') return;
+    el.setAttribute('readonly', 'readonly');
+    el.setAttribute('disabled', 'disabled');
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

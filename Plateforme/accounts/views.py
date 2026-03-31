@@ -480,24 +480,36 @@ class ProfileView(DetailView):
         manual_experiences_qs = Experience.objects.filter(user=profile_user).order_by(
             "-start_date", "-created_at"
         )
+        is_arabic_ui = self.request.LANGUAGE_CODE.startswith("ar")
+        experience_type_labels = {
+            "professional": "خبرة مهنية" if is_arabic_ui else _("Professional"),
+            "project": "مشروع" if is_arabic_ui else _("Project"),
+            "event": "فعالية" if is_arabic_ui else _("Event"),
+            "volunteer": "تطوعي" if is_arabic_ui else _("Volunteer"),
+            "internship": "تدريب" if is_arabic_ui else _("Internship"),
+        }
 
         for experience in manual_experiences_qs:
             experiences.append(
                 {
                     "kind": "manual",
-                    "kind_label": experience.get_experience_type_display(),
+                    "kind_label": experience_type_labels.get(
+                        experience.experience_type,
+                        experience.get_experience_type_display(),
+                    ),
                     "icon": "fa-briefcase",
                     "title": experience.institution_name,
                     "subtitle": experience.description or "",
                     "role": experience.role_title,
                     "description": experience.description or "",
+                    "project_url": experience.project_url or "",
                     "url": reverse(
                         "accounts:profile",
                         kwargs={"pk": profile_user.pk},
                     ),
                     "started_at": experience.start_date,
                     "ended_at": experience.end_date,
-                    "sort_date": experience.start_date,
+                    "sort_date": experience.end_date or experience.start_date,
                     "can_manage": is_own_profile or bool(viewer and viewer.is_staff),
                     "edit_url": reverse(
                         "accounts:experience_edit",

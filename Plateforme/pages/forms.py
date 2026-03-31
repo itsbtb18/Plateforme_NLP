@@ -2,6 +2,7 @@
 from django import forms
 import json
 import re
+import uuid
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
 from django.contrib.auth import get_user_model
@@ -9,10 +10,12 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.utils import timezone
 
 from accounts.models import CustomUser
 from pages.security import ROLE_ADMIN, ROLE_MODERATOR, ROLE_USER, sanitize_admin_text
-from .models import ContactMessage, NewsPublication
+from .models import ContactMessage, NewsPublication, Opportunity
+from .opportunities_service import normalize_skills
 
 
 
@@ -163,6 +166,133 @@ class AdminUserCreateForm(forms.Form):
             user.groups.remove(moderator_group)
 
         return user
+
+
+class OpportunityForm(forms.ModelForm):
+    institution_ref = forms.CharField(required=False)
+    skills_payload = forms.CharField(required=False)
+
+    class Meta:
+        model = Opportunity
+        fields = [
+            "title_en",
+            "title_ar",
+            "opportunity_type",
+            "organization_en",
+            "organization_ar",
+            "location",
+            "mode",
+            "level",
+            "deadline",
+            "description",
+            "contact",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.institution_queryset = kwargs.pop("institution_queryset", None)
+        super().__init__(*args, **kwargs)
+
+    def clean_title_en(self):
+        return sanitize_admin_text(self.cleaned_data.get("title_en"), max_len=255)
+
+    def clean_title_ar(self):
+        return sanitize_admin_text(self.cleaned_data.get("title_ar"), max_len=255)
+
+    def clean_organization_en(self):
+        return sanitize_admin_text(self.cleaned_data.get("organization_en"), max_len=255)
+
+    def clean_organization_ar(self):
+        return sanitize_admin_text(self.cleaned_data.get("organization_ar"), max_len=255)
+
+    def clean_location(self):
+        return sanitize_admin_text(self.cleaned_data.get("location"), max_len=255)
+
+    def clean_description(self):
+        return sanitize_admin_text(self.cleaned_data.get("description"), max_len=4000)
+
+    def clean_contact(self):
+        value = sanitize_admin_text(self.cleaned_data.get("contact"), max_len=255)
+        if not value:
+            raise forms.ValidationError(_("This field is required."))
+
+        email_ok = False
+        url_ok = False
+        try:
+            validate_email(value)
+            email_ok = True
+        except ValidationError:
+            email_ok = False
+
+        if not email_ok:
+            validator = forms.URLField()
+            try:
+                validator.clean(value)
+                url_ok = True
+            except ValidationError:
+                url_ok = False
+
+        if not (email_ok or url_ok):
+            raise forms.ValidationError(_("Enter a valid URL or email address."))
+        return value
+
+    def clean_deadline(self):
+        deadline = self.cleaned_data.get("deadline")
+        if deadline and deadline < timezone.localdate():
+            raise forms.ValidationError(_("Please choose a future deadline."))
+        return deadline
+
+    def clean_skills_payload(self):
+        raw = self.cleaned_data.get("skills_payload") or "[]"
+        try:
+            values = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise forms.ValidationError(_("Invalid skills payload.")) from exc
+        if not isinstance(values, list):
+            raise forms.ValidationError(_("Invalid skills payload."))
+        values = normalize_skills(values)
+        if not values:
+            raise forms.ValidationError(_("Select at least one skill."))
+        return values
+
+    def clean(self):
+        cleaned = super().clean()
+        institution_ref = (cleaned.get("institution_ref") or "").strip()
+        org_en = (cleaned.get("organization_en") or "").strip()
+        org_ar = (cleaned.get("organization_ar") or "").strip()
+
+        institution = None
+        is_custom_source = institution_ref == "other" or institution_ref.startswith("company-")
+        is_uuid_ref = False
+
+        if institution_ref and not is_custom_source:
+            try:
+                uuid.UUID(institution_ref)
+                is_uuid_ref = True
+            except (ValueError, AttributeError, TypeError):
+                is_uuid_ref = False
+
+        if is_uuid_ref and self.institution_queryset is not None:
+            institution = self.institution_queryset.filter(pk=institution_ref).first()
+
+        if institution is None and institution_ref and not is_custom_source and not (org_en or org_ar):
+            self.add_error("institution_ref", _("Select a valid institution."))
+
+        if is_custom_source and not org_en and not org_ar:
+            error = _("This field becomes required when Other is selected.")
+            self.add_error("organization_en", error)
+            self.add_error("organization_ar", error)
+
+        cleaned["institution_obj"] = institution
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.institution = self.cleaned_data.get("institution_obj")
+        instance.skills = self.cleaned_data.get("skills_payload") or []
+        instance.title = self.cleaned_data.get("title_en") or self.cleaned_data.get("title_ar") or ""
+        if commit:
+            instance.save()
+        return instance
 
 
 class AdminNewsPublicationForm(forms.ModelForm):

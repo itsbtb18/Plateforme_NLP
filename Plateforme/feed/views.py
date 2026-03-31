@@ -225,8 +225,8 @@ def create_post(request):
             try:
                 post = form.save(commit=False)
                 post.author = request.user
-                # All posts require admin approval - no exceptions
-                post.approval_status = "pending"
+                is_admin_author = request.user.is_staff or request.user.is_superuser
+                post.approval_status = "approved" if is_admin_author else "pending"
 
                 logger.info(
                     f"[POST_CREATE] Creating post by user: {request.user.email}, "
@@ -235,15 +235,24 @@ def create_post(request):
 
                 post.save()
 
+                if is_admin_author:
+                    approve_object(post, moderator=request.user)
+
                 logger.info(
                     f"[POST_CREATE] ✓ Post created successfully "
                     f"(ID: {post.id}, Status: {post.approval_status})"
                 )
 
-                messages.info(
-                    request,
-                    _("Your post has been submitted and is pending admin approval."),
-                )
+                if is_admin_author:
+                    messages.success(
+                        request,
+                        _("Your post has been published immediately."),
+                    )
+                else:
+                    messages.info(
+                        request,
+                        _("Your post has been submitted and is pending admin approval."),
+                    )
                 return redirect("feed:feed")
 
             except Exception as e:

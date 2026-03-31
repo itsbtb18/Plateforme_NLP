@@ -39,6 +39,138 @@ def get_algerian_institutions_queryset():
     return Institution.objects.all().order_by("name")
 
 
+def get_experience_institution_choices():
+    base_queryset = get_algerian_institutions_queryset()
+    seen = set()
+    choices = []
+
+    for item in base_queryset:
+        name_en = (getattr(item, "name_en", "") or getattr(item, "name", "") or "").strip()
+        name_ar = (getattr(item, "name_ar", "") or name_en or "").strip()
+        if not name_en and not name_ar:
+            continue
+        key = (name_en or name_ar).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        label = f"{name_ar} / {name_en}" if name_ar and name_en and name_ar != name_en else (name_ar or name_en)
+        choices.append((name_en or name_ar, label))
+
+    fallback_companies = [
+        ("University of Algiers 1", "جامعة الجزائر 1"),
+        ("University of Algiers 2", "جامعة الجزائر 2"),
+        ("University of Algiers 3", "جامعة الجزائر 3"),
+        ("USTHB", "جامعة العلوم والتكنولوجيا هواري بومدين"),
+        ("ESI Algiers", "المدرسة الوطنية العليا للإعلام الآلي"),
+        ("ENSIA", "المدرسة الوطنية العليا للذكاء الاصطناعي"),
+        ("University of Oran 1", "جامعة وهران 1"),
+        ("University of Constantine 2", "جامعة قسنطينة 2"),
+        ("University of Blida 1", "جامعة البليدة 1"),
+        ("University of Sidi Bel Abbes", "جامعة سيدي بلعباس"),
+        ("Sonatrach", "سوناطراك"),
+        ("Sonelgaz", "سونلغاز"),
+        ("Mobilis", "موبيليس"),
+        ("Djezzy", "جازي"),
+        ("Ooredoo Algeria", "أوريدو الجزائر"),
+        ("Yassir", "ياسير"),
+        ("Condor Electronics", "كوندور إلكترونيكس"),
+        ("SATIM", "ساتيم"),
+        ("CERIST", "مركز البحث في الإعلام العلمي والتقني"),
+    ]
+    for name_en, name_ar in fallback_companies:
+        if name_en.lower() in seen:
+            continue
+        seen.add(name_en.lower())
+        choices.append((name_en, f"{name_ar} / {name_en}"))
+
+    choices.sort(key=lambda item: item[1].lower())
+    return choices
+
+
+def get_experience_role_choices():
+    return [
+        ("NLP Engineer", _("مهندس NLP / NLP Engineer")),
+        ("AI Engineer", _("مهندس ذكاء اصطناعي / AI Engineer")),
+        ("Researcher", _("باحث / Researcher")),
+        ("Research Assistant", _("مساعد بحث / Research Assistant")),
+        ("Data Scientist", _("عالم بيانات / Data Scientist")),
+        ("Machine Learning Engineer", _("مهندس تعلم آلي / Machine Learning Engineer")),
+        ("Intern", _("متربص / Intern")),
+        ("Project Member", _("عضو مشروع / Project Member")),
+        ("Teaching Assistant", _("مساعد تدريس / Teaching Assistant")),
+    ]
+
+
+def get_experience_institution_choices_localized():
+    is_arabic = bool(get_language() and get_language().startswith("ar"))
+    base_queryset = get_algerian_institutions_queryset()
+    seen = set()
+    choices = []
+
+    for item in base_queryset:
+        name_en = (getattr(item, "name_en", "") or getattr(item, "name", "") or "").strip()
+        name_ar = (getattr(item, "name_ar", "") or name_en or "").strip()
+        if not name_en and not name_ar:
+            continue
+        key = (name_en or name_ar).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        label = (name_ar or name_en) if is_arabic else (name_en or name_ar)
+        choices.append((name_en or name_ar, label))
+
+    fallback_companies = [
+        ("University of Algiers 1", "جامعة الجزائر 1"),
+        ("University of Algiers 2", "جامعة الجزائر 2"),
+        ("University of Algiers 3", "جامعة الجزائر 3"),
+        ("USTHB", "جامعة العلوم والتكنولوجيا هواري بومدين"),
+        ("ESI Algiers", "المدرسة الوطنية العليا للإعلام الآلي"),
+        ("ENSIA", "المدرسة الوطنية العليا للذكاء الاصطناعي"),
+        ("University of Oran 1", "جامعة وهران 1"),
+        ("University of Constantine 2", "جامعة قسنطينة 2"),
+        ("University of Blida 1", "جامعة البليدة 1"),
+        ("University of Sidi Bel Abbes", "جامعة سيدي بلعباس"),
+        ("Sonatrach", "سوناطراك"),
+        ("Sonelgaz", "سونلغاز"),
+        ("Mobilis", "موبيليس"),
+        ("Djezzy", "جازي"),
+        ("Ooredoo Algeria", "أوريدو الجزائر"),
+        ("Yassir", "ياسير"),
+        ("Condor Electronics", "كوندور إلكترونيكس"),
+        ("SATIM", "ساتيم"),
+        ("CERIST", "مركز البحث في الإعلام العلمي والتقني"),
+    ]
+    for name_en, name_ar in fallback_companies:
+        if name_en.lower() in seen:
+            continue
+        seen.add(name_en.lower())
+        choices.append((name_en, name_ar if is_arabic else name_en))
+
+    choices.sort(key=lambda item: item[1].lower())
+    return choices
+
+
+def get_experience_role_choices_localized():
+    is_arabic = bool(get_language() and get_language().startswith("ar"))
+    return [
+        ("NLP Engineer", "مهندس معالجة اللغة الطبيعية" if is_arabic else "NLP Engineer"),
+        ("AI Engineer", "مهندس ذكاء اصطناعي" if is_arabic else "AI Engineer"),
+        ("Machine Learning Engineer", "مهندس تعلم آلي" if is_arabic else "Machine Learning Engineer"),
+        ("Data Scientist", "عالم بيانات" if is_arabic else "Data Scientist"),
+        ("Researcher", "باحث" if is_arabic else "Researcher"),
+        ("Research Assistant", "مساعد بحث" if is_arabic else "Research Assistant"),
+        ("Professor", "أستاذ" if is_arabic else "Professor"),
+        ("Teaching Assistant", "مساعد تدريس" if is_arabic else "Teaching Assistant"),
+        ("PhD Student", "طالب دكتوراه" if is_arabic else "PhD Student"),
+        ("Master Student", "طالب ماستر" if is_arabic else "Master Student"),
+        ("Intern", "متدرب" if is_arabic else "Intern"),
+        ("Volunteer", "متطوع" if is_arabic else "Volunteer"),
+        ("Project Member", "عضو مشروع" if is_arabic else "Project Member"),
+        ("Project Lead", "قائد مشروع" if is_arabic else "Project Lead"),
+        ("Consultant", "مستشار" if is_arabic else "Consultant"),
+    ]
+
+
 class CustomUserCreationForm(UserCreationForm):
     """
     Enhanced user creation form with bilingual support and validation.
@@ -420,12 +552,22 @@ class EmailVerificationForm(forms.Form):
 
 
 class ExperienceForm(forms.ModelForm):
+    institution_name = forms.CharField(required=False, widget=forms.HiddenInput())
+    role_title = forms.CharField(required=False, widget=forms.HiddenInput())
+    institution_choice = forms.CharField(required=False, widget=forms.HiddenInput())
+    institution_name_ar_custom = forms.CharField(required=False)
+    institution_name_en_custom = forms.CharField(required=False)
+    role_choice = forms.CharField(required=False, widget=forms.HiddenInput())
+    role_title_ar_custom = forms.CharField(required=False)
+    role_title_en_custom = forms.CharField(required=False)
+
     class Meta:
         model = Experience
         fields = [
             "experience_type",
             "institution_name",
             "role_title",
+            "project_url",
             "start_date",
             "end_date",
             "description",
@@ -437,6 +579,9 @@ class ExperienceForm(forms.ModelForm):
             ),
             "role_title": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": _("Role")}
+            ),
+            "project_url": forms.URLInput(
+                attrs={"class": "form-control", "placeholder": _("Project link")}
             ),
             "start_date": forms.DateInput(
                 attrs={"class": "form-control", "type": "date"}
@@ -455,20 +600,50 @@ class ExperienceForm(forms.ModelForm):
 
     def clean_institution_name(self):
         value = (self.cleaned_data.get("institution_name") or "").strip()
-        if not value:
-            raise forms.ValidationError(_("Institution name is required."))
         return value
 
     def clean_role_title(self):
         value = (self.cleaned_data.get("role_title") or "").strip()
-        if not value:
-            raise forms.ValidationError(_("Role title is required."))
         return value
+
+    def clean_project_url(self):
+        return (self.cleaned_data.get("project_url") or "").strip()
 
     def clean(self):
         cleaned = super().clean()
         start_date = cleaned.get("start_date")
         end_date = cleaned.get("end_date")
+        institution_choice = (cleaned.get("institution_choice") or "").strip()
+        role_choice = (cleaned.get("role_choice") or "").strip()
+        institution_name_ar_custom = (cleaned.get("institution_name_ar_custom") or "").strip()
+        institution_name_en_custom = (cleaned.get("institution_name_en_custom") or "").strip()
+        role_title_ar_custom = (cleaned.get("role_title_ar_custom") or "").strip()
+        role_title_en_custom = (cleaned.get("role_title_en_custom") or "").strip()
+
+        if institution_choice == "other":
+            if not institution_name_ar_custom:
+                self.add_error("institution_name_ar_custom", _("Arabic institution name is required."))
+            if not institution_name_en_custom:
+                self.add_error("institution_name_en_custom", _("English institution name is required."))
+            cleaned["institution_name"] = " / ".join(
+                part for part in [institution_name_ar_custom, institution_name_en_custom] if part
+            )
+        elif institution_choice:
+            cleaned["institution_name"] = institution_choice
+
+        if role_choice == "other":
+            if not role_title_ar_custom:
+                self.add_error("role_title_ar_custom", _("Arabic role title is required."))
+            if not role_title_en_custom:
+                self.add_error("role_title_en_custom", _("English role title is required."))
+            cleaned["role_title"] = " / ".join(
+                part for part in [role_title_ar_custom, role_title_en_custom] if part
+            )
+        elif role_choice:
+            cleaned["role_title"] = role_choice
+
+        if cleaned.get("experience_type") != Experience.ExperienceType.PROJECT:
+            cleaned["project_url"] = ""
 
         if end_date and start_date and start_date > end_date:
             self.add_error(
@@ -485,7 +660,106 @@ class ExperienceForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        instance.institution_name = (self.cleaned_data.get("institution_name") or "").strip()
+        instance.role_title = (self.cleaned_data.get("role_title") or "").strip()
+        instance.project_url = (self.cleaned_data.get("project_url") or "").strip()
         instance.is_current = not bool(instance.end_date)
         if commit:
             instance.save()
         return instance
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        is_arabic = bool(get_language() and get_language().startswith("ar"))
+
+        institution_choices = get_experience_institution_choices_localized()
+        role_choices = get_experience_role_choices_localized()
+
+        self.fields["experience_type"].widget.attrs.update({"class": "op-select"})
+        self.fields["experience_type"].choices = [
+            ("professional", "خبرة مهنية" if is_arabic else "Professional"),
+            ("project", "مشروع" if is_arabic else "Project"),
+            ("event", "فعالية" if is_arabic else "Event"),
+            ("volunteer", "تطوعي" if is_arabic else "Volunteer"),
+            ("internship", "تدريب" if is_arabic else "Internship"),
+        ]
+        self.fields["institution_name"].widget = forms.HiddenInput()
+        self.fields["role_title"].widget = forms.HiddenInput()
+        self.fields["project_url"].widget.attrs.update(
+            {
+                "class": "op-input",
+                "type": "url",
+                "dir": "ltr",
+                "placeholder": "https://example.com/project" if is_arabic else _("https://example.com/project"),
+            }
+        )
+        self.fields["start_date"].widget.attrs.update({"class": "op-input", "type": "date"})
+        self.fields["end_date"].widget.attrs.update({"class": "op-input", "type": "date"})
+        description_placeholder = "وصف اختياري" if is_arabic else _("Optional description")
+        self.fields["description"].widget.attrs.update(
+            {
+                "class": "op-textarea",
+                "rows": 4,
+                "dir": "rtl" if is_arabic else "ltr",
+                "placeholder": description_placeholder,
+            }
+        )
+
+        self.institution_choice_options = [("", "اختر المؤسسة" if is_arabic else _("Select institution"))] + institution_choices + [("other", "مؤسسة أخرى" if is_arabic else _("Other institution"))]
+        self.fields["institution_choice"].widget = forms.HiddenInput()
+        self.fields["institution_choice"].label = _("Institution")
+
+        self.fields["institution_name_ar_custom"].widget = forms.TextInput(
+            attrs={"class": "op-input", "dir": "rtl", "placeholder": "اسم المؤسسة بالعربية" if is_arabic else _("Institution name in Arabic")}
+        )
+        self.fields["institution_name_ar_custom"].label = "اسم المؤسسة (بالعربية)" if is_arabic else _("Institution name (Arabic)")
+
+        self.fields["institution_name_en_custom"].widget = forms.TextInput(
+            attrs={"class": "op-input", "placeholder": "Institution name in English" if is_arabic else _("Institution name in English")}
+        )
+        self.fields["institution_name_en_custom"].label = "اسم المؤسسة (بالإنجليزية)" if is_arabic else _("Institution name (English)")
+
+        self.role_choice_options = [("", "اختر الدور" if is_arabic else _("Select role"))] + role_choices + [("other", "دور آخر" if is_arabic else _("Other role"))]
+        self.fields["role_choice"].widget = forms.HiddenInput()
+        self.fields["role_choice"].label = _("Role")
+
+        self.fields["role_title_ar_custom"].widget = forms.TextInput(
+            attrs={"class": "op-input", "dir": "rtl", "placeholder": "المسمى الوظيفي بالعربية" if is_arabic else _("Role title in Arabic")}
+        )
+        self.fields["role_title_ar_custom"].label = "المسمى الوظيفي (بالعربية)" if is_arabic else _("Role title (Arabic)")
+
+        self.fields["role_title_en_custom"].widget = forms.TextInput(
+            attrs={"class": "op-input", "placeholder": "Role title in English" if is_arabic else _("Role title in English")}
+        )
+        self.fields["role_title_en_custom"].label = "المسمى الوظيفي (بالإنجليزية)" if is_arabic else _("Role title (English)")
+
+        existing_institution = (self.instance.institution_name or "").strip()
+        existing_role = (self.instance.role_title or "").strip()
+        institution_values = {value for value, _label in institution_choices}
+        role_values = {value for value, _label in role_choices}
+
+        if existing_institution:
+            if existing_institution in institution_values:
+                self.initial["institution_choice"] = existing_institution
+            else:
+                self.initial["institution_choice"] = "other"
+                if " / " in existing_institution:
+                    ar_name, en_name = existing_institution.split(" / ", 1)
+                    self.initial["institution_name_ar_custom"] = ar_name
+                    self.initial["institution_name_en_custom"] = en_name
+                else:
+                    self.initial["institution_name_en_custom"] = existing_institution
+
+        if existing_role:
+            if existing_role in role_values:
+                self.initial["role_choice"] = existing_role
+            else:
+                self.initial["role_choice"] = "other"
+                if " / " in existing_role:
+                    ar_role, en_role = existing_role.split(" / ", 1)
+                    self.initial["role_title_ar_custom"] = ar_role
+                    self.initial["role_title_en_custom"] = en_role
+                else:
+                    self.initial["role_title_en_custom"] = existing_role
+
+        self.fields["project_url"].label = "رابط المشروع" if is_arabic else _("Project link")

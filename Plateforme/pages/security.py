@@ -74,6 +74,7 @@ ROUTE_PERMISSION_MAP: dict[str, str] = {
     "admin_corpora": PERM_DELETE_CONTENT,
     "admin_tools": PERM_DELETE_CONTENT,
     "admin_courses": PERM_DELETE_CONTENT,
+    "admin_opportunities": PERM_DELETE_CONTENT,
     "admin_institutions": PERM_DELETE_CONTENT,
     "admin_review_item_api": PERM_DELETE_CONTENT,
     "admin_review_save_api": PERM_DELETE_CONTENT,
