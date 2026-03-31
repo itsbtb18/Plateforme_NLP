@@ -10,17 +10,26 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
 :root {
-    --td-primary: #2563eb;
-    --td-ink: #0f172a;
-    --td-subtle: #475569;
-    --td-muted: #f8fafc;
-    --td-surface: #ffffff;
-    --td-border: #e2e8f0;
-    --td-success: #059669;
-    --td-warning: #d97706;
-    --td-danger: #dc2626;
+    /* Forum Dark Theme - Modern Purple/Violet */
+    --td-primary: #a78bfa;
+    --td-primary-dark: #8b5cf6;
+    --td-accent: #7c3aed;
+    --td-accent-cyan: #06b6d4;
+    --td-accent-pink: #ec4899;
+    --td-deep: #0f1419;
+    --td-navy: #1a1a2e;
+    --td-ink: #ffffff;
+    --td-subtle: #d1d5db;
+    --td-muted: rgba(167, 139, 250, 0.08);
+    --td-surface: rgba(167, 139, 250, 0.08);
+    --td-border: rgba(167, 139, 250, 0.2);
+    --td-success: #10b981;
+    --td-warning: #f59e0b;
+    --td-danger: #ef4444;
+    --td-text-secondary: #d1d5db;
+    --td-text-muted: #9ca3af;
     --td-radius: 18px;
-    --td-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    --td-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -28,29 +37,52 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 .td-page {
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 32%),
-        linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
-    padding: 2rem 1rem 4rem;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+.td-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .td-shell {
-    max-width: 980px;
-    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
 }
 
 .td-card {
-    background: var(--td-surface);
-    border: 1px solid var(--td-border);
-    border-radius: 24px;
-    box-shadow: var(--td-shadow);
+    background: rgba(167, 139, 250, 0.08);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: blur(10px);
     overflow: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .td-hero {
-    padding: 2rem;
-    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+    padding: 2.5rem 3rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
     color: #fff;
+    flex-shrink: 0;
 }
 
 .td-breadcrumb {
@@ -62,12 +94,17 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 }
 
 .td-breadcrumb a {
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.7);
     text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.td-breadcrumb a:hover {
+    color: var(--td-primary);
 }
 
 .td-breadcrumb .current {
-    color: #fff;
+    color: var(--td-primary);
     font-weight: 600;
 }
 
@@ -75,18 +112,24 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     margin: 0 0 0.75rem;
     font-size: clamp(1.8rem, 3vw, 2.5rem);
     font-weight: 800;
+    background: linear-gradient(135deg, var(--td-primary) 0%, var(--td-accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .td-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem 1.5rem;
-    color: rgba(255,255,255,0.82);
+    color: var(--td-text-secondary);
     font-size: 0.95rem;
 }
 
 .td-body {
-    padding: 2rem;
+    padding: 2.5rem 3rem;
+    background: transparent;
+    flex-grow: 1;
 }
 
 .td-grid {
@@ -96,10 +139,11 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 }
 
 .td-panel {
-    border: 1px solid var(--td-border);
+    border: 1px solid rgba(167, 139, 250, 0.2);
     border-radius: var(--td-radius);
-    background: var(--td-surface);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
     padding: 1.4rem;
+    backdrop-filter: blur(10px);
 }
 
 .td-panel h2 {
@@ -109,7 +153,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 }
 
 .td-description {
-    color: var(--td-subtle);
+    color: var(--td-text-secondary);
     line-height: 1.75;
     white-space: pre-line;
 }
@@ -123,9 +167,9 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     font-weight: 700;
 }
 
-.td-status.pending { background: rgba(217, 119, 6, 0.14); color: var(--td-warning); }
-.td-status.approved { background: rgba(5, 150, 105, 0.14); color: var(--td-success); }
-.td-status.rejected { background: rgba(220, 38, 38, 0.14); color: var(--td-danger); }
+.td-status.pending { background: rgba(245, 158, 11, 0.15); color: var(--td-warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+.td-status.approved { background: rgba(16, 185, 129, 0.15); color: var(--td-success); border: 1px solid rgba(16, 185, 129, 0.3); }
+.td-status.rejected { background: rgba(239, 68, 68, 0.15); color: var(--td-danger); border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .td-facts {
     display: grid;
@@ -139,11 +183,11 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #94a3b8;
+    color: var(--td-text-muted);
 }
 
 .td-fact-value {
-    color: var(--td-ink);
+    color: var(--td-text-secondary);
     font-weight: 600;
 }
 
@@ -157,21 +201,27 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 }
 
 .td-chatroom {
-    border: 1px solid var(--td-border);
+    border: 1px solid rgba(167, 139, 250, 0.15);
     border-radius: 14px;
     padding: 1rem 1.1rem;
-    background: var(--td-muted);
+    background: rgba(167, 139, 250, 0.05);
+    transition: all 0.2s ease;
+}
+
+.td-chatroom:hover {
+    border-color: rgba(167, 139, 250, 0.3);
+    background: rgba(167, 139, 250, 0.1);
 }
 
 .td-chatroom-name {
     margin: 0 0 0.35rem;
-    color: var(--td-ink);
+    color: var(--td-primary);
     font-weight: 700;
 }
 
 .td-chatroom-desc {
     margin: 0;
-    color: var(--td-subtle);
+    color: var(--td-text-secondary);
     line-height: 1.6;
 }
 
@@ -179,7 +229,10 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     display: flex;
     justify-content: flex-end;
     gap: 0.85rem;
-    padding: 0 2rem 2rem;
+    padding: 1.5rem 3rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.2);
+    background: linear-gradient(to top, rgba(167, 139, 250, 0.05), transparent);
+    flex-shrink: 0;
 }
 
 .td-btn {
@@ -188,22 +241,37 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     justify-content: center;
     gap: 0.45rem;
     min-width: 160px;
-    padding: 0.9rem 1.3rem;
-    border-radius: 14px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
     text-decoration: none;
-    font-weight: 700;
-    border: 1px solid var(--td-border);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
 }
 
 .td-btn-secondary {
-    background: #fff;
-    color: var(--td-subtle);
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--td-text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.td-btn-secondary:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--td-primary);
+    color: var(--td-primary);
+    transform: translateY(-2px);
 }
 
 .td-btn-primary {
-    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    background: linear-gradient(135deg, var(--td-primary), var(--td-accent));
     border-color: transparent;
-    color: #fff;
+    color: var(--td-deep);
+}
+
+.td-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.3);
+    color: var(--td-deep);
 }
 
 @media (max-width: 800px) {
@@ -213,17 +281,39 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
     .td-actions {
         flex-direction: column;
-        padding: 0 1.25rem 1.25rem;
+        padding: 1.25rem;
     }
 
     .td-btn {
         width: 100%;
+        min-width: auto;
     }
 
     .td-hero,
     .td-body {
-        padding: 1.25rem;
+        padding: 1.5rem;
     }
+}
+
+/* Dark theme animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.td-card {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+/* RTL Support */
+html[dir="rtl"] .td-breadcrumb {
+    flex-direction: row-reverse;
 }
 </style>
 {% endblock %}
@@ -250,14 +340,14 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
             <div class="td-body">
                 {% if related_discussion_label %}
-                <div class="td-panel" style="margin-bottom: 1.2rem; background: #eff6ff; border-color: #bfdbfe;">
+                <div class="td-panel" style="margin-bottom: 1.2rem; background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.08) 100%); border-color: rgba(167, 139, 250, 0.3);">
                     <h2 style="margin-bottom:0.45rem;">{% translate "Discussion for" %}</h2>
                     {% if related_discussion_url %}
-                    <a href="{{ related_discussion_url }}" style="font-weight:700; color:#1d4ed8; text-decoration:none;">
+                    <a href="{{ related_discussion_url }}" style="font-weight:700; color:var(--td-primary); text-decoration:none;">
                         {{ related_discussion_label }}
                     </a>
                     {% else %}
-                    <span style="font-weight:700; color:#1d4ed8;">{{ related_discussion_label }}</span>
+                    <span style="font-weight:700; color:var(--td-primary);">{{ related_discussion_label }}</span>
                     {% endif %}
                 </div>
                 {% endif %}
