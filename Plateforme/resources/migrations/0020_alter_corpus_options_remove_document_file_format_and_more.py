@@ -42,9 +42,19 @@ class Migration(migrations.Migration):
         #    name='rejection_reason',
         #    field=models.TextField(blank=True, default='', help_text='Reason for rejection (only filled when status is rejected)', null=True, verbose_name='Rejection Reason'),
         #),
-        migrations.AddIndex(
-            model_name='corpus',
-            index=models.Index(fields=['field'], name='resources_c_field_88bfb4_idx'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="CREATE INDEX IF NOT EXISTS resources_c_field_88bfb4_idx ON resources_corpus (field);",
+                    reverse_sql="DROP INDEX IF EXISTS resources_c_field_88bfb4_idx;",
+                ),
+            ],
+            state_operations=[
+                migrations.AddIndex(
+                    model_name='corpus',
+                    index=models.Index(fields=['field'], name='resources_c_field_88bfb4_idx'),
+                ),
+            ],
         ),
         migrations.AlterModelTable(
             name='corpus',

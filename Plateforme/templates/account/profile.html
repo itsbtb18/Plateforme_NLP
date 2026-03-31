@@ -307,18 +307,33 @@
 
       {% if user_experiences %}
       <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
-        <h3 class="section-title">
-          <i class="fas fa-briefcase"></i>
-          {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
-        </h3>
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
+          </h3>
+          {% if is_own_profile %}
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
+          {% endif %}
+        </div>
         <div class="contrib-list">
           {% for exp in user_experiences %}
+          {% if exp.can_manage %}
+          <div class="contrib-item experience-item">
+          {% else %}
           <a href="{{ exp.url }}" class="contrib-item experience-item">
+          {% endif %}
             <div class="contrib-icon {% if exp.kind == 'event' %}topic-icon{% else %}project-icon{% endif %}">
               <i class="fas {{ exp.icon }}"></i>
             </div>
             <div class="contrib-info">
+              {% if exp.can_manage %}
               <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% else %}
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% endif %}
               <span class="experience-role-line">
                 <span class="experience-role">{{ exp.role }}</span>
                 <span class="experience-kind-badge">{{ exp.kind_label }}</span>
@@ -329,6 +344,9 @@
               {% if exp.description %}
               <span class="contrib-subline">{{ exp.description|striptags|truncatechars:120 }}</span>
               {% endif %}
+              {% if exp.project_url %}
+              <span class="contrib-subline"><a href="{{ exp.project_url }}" target="_blank" rel="noopener noreferrer">{% trans "Project link" %}</a></span>
+              {% endif %}
               <span class="contrib-date">
                 {% if exp.ended_at %}
                   {{ exp.started_at|date:"M Y" }} - {{ exp.ended_at|date:"M Y" }}
@@ -336,9 +354,31 @@
                   {% trans "Since" %} {{ exp.started_at|date:"M Y" }}
                 {% endif %}
               </span>
+              {% if exp.can_manage %}
+              <span class="contrib-subline" style="margin-top:.35rem;display:flex;gap:.75rem;align-items:center;">
+                <span><a href="{{ exp.edit_url }}">{% trans "Edit" %}</a></span>
+                <span><a href="{{ exp.delete_url }}" style="color:#b91c1c;">{% trans "Delete" %}</a></span>
+              </span>
+              {% endif %}
             </div>
+          {% if exp.can_manage %}
+          </div>
+          {% else %}
           </a>
+          {% endif %}
           {% endfor %}
+        </div>
+      </div>
+      {% elif is_own_profile %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">0</span>
+          </h3>
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
         </div>
       </div>
       {% endif %}
@@ -423,7 +463,7 @@
         </h3>
         <div class="contrib-list">
           {% for post in user_posts %}
-          <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
+          <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
             <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">
@@ -1828,6 +1868,25 @@
     font-size: 1.1rem;
   }
 
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .section-title-inline {
+    margin: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .experience-add-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   /* Info Rows */
   .info-rows {
     display: flex;
@@ -2367,8 +2426,8 @@
             type: "bar",
             data: {
               labels: langIsArabic
-                ? ["المشاريع", "الأخبار", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
-                : ["Projects", "News", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
+                ? ["المشاريع", "المنشورات", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
+                : ["Projects", "Feed", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
               datasets: [{
                 data: [
                   metrics.projects,

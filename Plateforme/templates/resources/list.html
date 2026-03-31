@@ -11,13 +11,13 @@
 <style>
 /* ===== CSS VARIABLES ===== */
 :root {
-    --hub-deep-blue: #0f172a;
-    --hub-navy: #1e3a5f;
-    --hub-slate: #334155;
-    --hub-accent: #2563eb;
-    --hub-accent-light: #3b82f6;
-    --hub-accent-hover: #1d4ed8;
-    --hub-accent-glow: rgba(37, 99, 235, 0.12);
+    --hub-deep-blue: #19162b;
+    --hub-navy: #241f3d;
+    --hub-slate: #31295a;
+    --hub-accent: #8b5cf6;
+    --hub-accent-light: #a78bfa;
+    --hub-accent-hover: #7c3aed;
+    --hub-accent-glow: rgba(139, 92, 246, 0.16);
     --hub-white: #ffffff;
     --hub-surface: #ffffff;
     --hub-background: #f8fafc;
@@ -32,8 +32,8 @@
     --hub-success: #059669;
     --hub-warning: #d97706;
     --hub-danger: #dc2626;
-    --type-article: #2563eb;
-    --type-article-bg: rgba(37, 99, 235, 0.08);
+    --type-article: #8b5cf6;
+    --type-article-bg: rgba(139, 92, 246, 0.08);
     --type-thesis: #7c3aed;
     --type-thesis-bg: rgba(124, 58, 237, 0.08);
     --type-memoir: #ea580c;
@@ -66,7 +66,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
 html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
 
 /* ===== PAGE LAYOUT ===== */
-.hub-page { min-height: 100vh; background: linear-gradient(180deg, var(--hub-muted) 0%, var(--hub-background) 50%); }
+.hub-page { min-height: 100vh; background: linear-gradient(180deg, #f6f3ff 0%, #faf8ff 52%, #f6f3ff 100%); }
 
 /* ===== HERO SECTION ===== */
 .hub-hero {
@@ -79,7 +79,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.15), transparent),
+        background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.18), transparent),
         url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     pointer-events: none;
 }
@@ -88,7 +88,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
     position: absolute;
     width: 500px; height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
     top: -200px; right: -100px;
     pointer-events: none;
 }
@@ -98,9 +98,9 @@ html[dir="rtl"] .hero-inner { text-align: center; }
 .hero-badge {
     display: inline-flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: rgba(37, 99, 235, 0.15);
+    background: rgba(139, 92, 246, 0.14);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(37, 99, 235, 0.25);
+    border: 1px solid rgba(167, 139, 250, 0.28);
     border-radius: var(--radius-full);
     margin-bottom: 1.5rem;
     font-size: 0.8rem; font-weight: 600;
@@ -135,9 +135,9 @@ html[dir="rtl"] .hero-action { direction: rtl; }
     border: none; border-radius: var(--radius-lg);
     text-decoration: none; cursor: pointer;
     transition: all var(--transition-base);
-    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
 }
-.btn-add-resource:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5); color: var(--hub-white); }
+.btn-add-resource:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(139, 92, 246, 0.45); color: var(--hub-white); }
 
 /* ===== MAIN CONTENT ===== */
 .hub-content { max-width: 1280px; margin: 0 auto; padding: 0 2rem 4rem; margin-top: -3rem; position: relative; z-index: 2; }
@@ -506,14 +506,13 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
             <div class="hero-inner">
                 <div class="hero-badge">
                     <i class="bi bi-stars"></i>
-                    {% translate "Arabic NLP Assets" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أصول معالجة اللغة العربية{% else %}{% translate "Arabic NLP Assets" %}{% endif %}
                 </div>
                 <h1 class="hero-title">
-                    {% translate "Research Resources" %}
-                    <span class="accent">{% translate "Hub" %}</span>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مركز <span class="accent">الموارد البحثية</span>{% else %}{% translate "Research Resources" %} <span class="accent">{% translate "Hub" %}</span>{% endif %}
                 </h1>
                 <p class="hero-subtitle">
-                    {% translate "Discover articles, theses, tools, courses, and corpora for Arabic Natural Language Processing" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف المقالات والأطروحات والأدوات والدورات والمدونات الخاصة بمعالجة اللغة العربية.{% else %}{% translate "Discover articles, theses, tools, courses, and corpora for Arabic Natural Language Processing" %}{% endif %}
                 </p>
                 <div class="hero-stats">
                     <div class="stat-item">
@@ -521,14 +520,14 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                             <span id="totalCount">{{ total_count|default:"0" }}</span>
                             <span class="suffix">+</span>
                         </div>
-                        <div class="stat-label">{% translate "Resources" %}</div>
+                        <div class="stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموارد{% else %}{% translate "Resources" %}{% endif %}</div>
                     </div>
                 </div>
                 {% if user.is_authenticated %}
                 <div class="hero-action">
                     <a href="{% url 'resources:create' %}" class="btn-add-resource">
                         <i class="bi bi-plus-lg"></i>
-                        {% translate "Add Resource" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة مورد{% else %}{% translate "Add Resource" %}{% endif %}
                     </a>
                 </div>
                 {% endif %}

@@ -45,7 +45,7 @@ localized_patterns = [
     path("events/", include("events.urls", namespace="events")),
     path("resources/", include("resources.urls", namespace="resources")),
     path("institutions/", include("institutions.urls", namespace="institutions")),
-    path("QA/", include("QA.urls")),
+    path("feed/", include(("feed.urls", "feed"), namespace="feed")),
     path("notifications/", include("notifications.urls", namespace="notifications")),
     path("chatbot/", include("chatbot.urls")),
     path("messages/", include("direct_messages.urls", namespace="direct_messages")),

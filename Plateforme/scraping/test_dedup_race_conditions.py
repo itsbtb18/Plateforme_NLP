@@ -3,7 +3,7 @@ from threading import Lock
 
 import pytest
 from django.db import connection
-from QA.models import Post
+from feed.models import Post
 
 from scraping.scrapers.base import BaseScraper
 

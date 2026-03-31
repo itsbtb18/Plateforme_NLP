@@ -151,13 +151,23 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_opportunities' %}active{% endif %}" href="{% url 'pages:admin_opportunities' %}">
+                            <i class="fas fa-briefcase"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'admin_forum' %}active{% endif %}" href="{% url 'pages:admin_forum' %}">
                             <i class="fas fa-comments"></i> <span>{% trans "Forum" %}</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_news' %}active{% endif %}" href="{% url 'pages:admin_news' %}">
-                            <i class="fas fa-newspaper"></i> <span>{% trans "News" %}</span>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_feed' %}active{% endif %}" href="{% url 'pages:admin_feed' %}">
+                            <i class="fas fa-newspaper"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_news' or request.resolver_match.url_name == 'admin_news_create' or request.resolver_match.url_name == 'admin_news_edit' %}active{% endif %}" href="{% url 'pages:admin_news' %}">
+                            <i class="fas fa-book-open"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}Admin News{% endif %}</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -391,11 +401,11 @@
             return normalizeUrl(a.href).indexOf('/admin/approve/') !== -1;
           });
           const newsApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
-            return normalizeUrl(a.href).indexOf('/admin/news/') !== -1 && normalizeUrl(a.href).indexOf('/approve') !== -1;
+            return normalizeUrl(a.href).indexOf('/admin/feed/') !== -1 && normalizeUrl(a.href).indexOf('/approve') !== -1;
           });
           const newsViewLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
             const p = normalizeUrl(a.href);
-            return p.indexOf('/admin/news/') !== -1 && p.indexOf('/view') !== -1;
+            return p.indexOf('/admin/feed/') !== -1 && p.indexOf('/view') !== -1;
           });
 
           let targetUrl = null;

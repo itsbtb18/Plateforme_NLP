@@ -1,7 +1,10 @@
+import uuid
+
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
 
 User = get_user_model()
 
@@ -367,3 +370,256 @@ class SecurityLog(models.Model):
     def __str__(self):
         actor = getattr(self.user, 'email', 'anonymous')
         return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"
+
+
+class Opportunity(models.Model):
+    TYPE_JOB = "job"
+    TYPE_INTERNSHIP = "internship"
+    TYPE_PFE = "pfe"
+    TYPE_PHD = "phd"
+    TYPE_COLLAB = "collab"
+
+    MODE_REMOTE = "remote"
+    MODE_HYBRID = "hybrid"
+    MODE_ONSITE = "onsite"
+
+    LEVEL_STUDENT = "student"
+    LEVEL_JUNIOR = "junior"
+    LEVEL_SENIOR = "senior"
+    LEVEL_RESEARCHER = "researcher"
+
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+
+    TYPE_CHOICES = [
+        (TYPE_JOB, _("Job")),
+        (TYPE_INTERNSHIP, _("Internship")),
+        (TYPE_PFE, _("PFE / Master")),
+        (TYPE_PHD, _("PhD")),
+        (TYPE_COLLAB, _("Collaboration")),
+    ]
+
+    MODE_CHOICES = [
+        (MODE_REMOTE, _("Remote")),
+        (MODE_HYBRID, _("Hybrid")),
+        (MODE_ONSITE, _("On-site")),
+    ]
+
+    LEVEL_CHOICES = [
+        (LEVEL_STUDENT, _("Student")),
+        (LEVEL_JUNIOR, _("Junior")),
+        (LEVEL_SENIOR, _("Senior")),
+        (LEVEL_RESEARCHER, _("Researcher")),
+    ]
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_APPROVED, _("Approved")),
+        (STATUS_REJECTED, _("Rejected")),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, blank=True, default="")
+    title_en = models.CharField(max_length=255)
+    title_ar = models.CharField(max_length=255)
+    opportunity_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    institution = models.ForeignKey(
+        "institutions.Institution",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="opportunities",
+    )
+    organization_en = models.CharField(max_length=255, blank=True, default="")
+    organization_ar = models.CharField(max_length=255, blank=True, default="")
+    location = models.CharField(max_length=255)
+    mode = models.CharField(max_length=20, choices=MODE_CHOICES)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES)
+    description = models.TextField(validators=[MinLengthValidator(40)])
+    skills = models.JSONField(default=list, blank=True)
+    contact = models.CharField(max_length=255)
+    deadline = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    approval_status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    is_published = models.BooleanField(default=False, db_index=True)
+    user_role = models.CharField(max_length=32, default="user")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="opportunities_created",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="opportunities_moderated",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "is_published"]),
+            models.Index(fields=["approval_status", "created_at"]),
+            models.Index(fields=["created_by", "status"]),
+            models.Index(fields=["deadline"]),
+        ]
+        verbose_name = _("Opportunity")
+        verbose_name_plural = _("Opportunities")
+
+    def __str__(self):
+        return self.title or self.title_en or self.title_ar or str(self.pk)
+
+    def save(self, *args, **kwargs):
+        self.title = (self.title_en or self.title_ar or self.title or "").strip()
+        if self.status in {
+            self.STATUS_PENDING,
+            self.STATUS_APPROVED,
+            self.STATUS_REJECTED,
+        }:
+            self.approval_status = self.status
+        elif self.approval_status in {
+            self.STATUS_PENDING,
+            self.STATUS_APPROVED,
+            self.STATUS_REJECTED,
+        }:
+            self.status = self.approval_status
+        super().save(*args, **kwargs)
+
+    def get_localized_title(self):
+        lang = (get_language() or "").lower()
+        if lang.startswith("ar") and self.title_ar:
+            return self.title_ar
+        return self.title_en or self.title_ar or self.title
+
+
+def news_cover_upload_to(instance, filename):
+    return f"news/covers/{timezone.now():%Y/%m}/{filename}"
+
+
+def news_pdf_upload_to(instance, filename):
+    return f"news/pdfs/{timezone.now():%Y/%m}/{filename}"
+
+
+class NewsPublication(models.Model):
+    TYPE_PAPER = "paper"
+    TYPE_DATASET = "dataset"
+    TYPE_TOOL = "tool"
+    TYPE_EVENT = "event"
+    TYPE_THESIS = "thesis"
+    TYPE_NEWS = "news"
+
+    STATUS_DRAFT = "draft"
+    STATUS_PUBLISHED = "published"
+
+    TYPE_CHOICES = [
+        (TYPE_PAPER, _("Paper")),
+        (TYPE_DATASET, _("Dataset")),
+        (TYPE_TOOL, _("Tool")),
+        (TYPE_EVENT, _("Event")),
+        (TYPE_THESIS, _("Thesis")),
+        (TYPE_NEWS, _("News")),
+    ]
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, _("Draft")),
+        (STATUS_PUBLISHED, _("Published")),
+    ]
+
+    title = models.CharField(max_length=120)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_NEWS)
+    abstract = models.TextField(validators=[MinLengthValidator(150)])
+    authors = models.JSONField(default=list, blank=True)
+    affiliations = models.CharField(max_length=255, blank=True, default="")
+    year = models.IntegerField(
+        validators=[MinValueValidator(1900), MaxValueValidator(2100)],
+        default=timezone.now().year,
+    )
+    venue = models.CharField(max_length=255, blank=True, default="")
+    nlp_tasks = models.JSONField(default=list, blank=True)
+    languages = models.JSONField(default=list, blank=True)
+    keywords = models.JSONField(default=list, blank=True)
+    doi = models.CharField(max_length=255, blank=True, null=True)
+    pdf_url = models.URLField(blank=True, null=True)
+    github_url = models.URLField(blank=True, null=True)
+    dataset_url = models.URLField(blank=True, null=True)
+    demo_url = models.URLField(blank=True, null=True)
+    cover_image = models.ImageField(upload_to=news_cover_upload_to, blank=True, null=True)
+    pdf_file = models.FileField(upload_to=news_pdf_upload_to, blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PUBLISHED,
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="news_publications",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-year", "-created_at"]
+        indexes = [
+            models.Index(fields=["type", "status"]),
+            models.Index(fields=["year", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
+        verbose_name = _("News Publication")
+        verbose_name_plural = _("News Publications")
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+
+        return reverse("pages:publication_detail", kwargs={"publication_id": self.pk})
+
+    @property
+    def authors_display(self):
+        return ", ".join(self.authors or [])
+
+    @property
+    def cover_image_url(self):
+        if self.cover_image:
+            return self.cover_image.url
+        return ""
+
+    @property
+    def pdf_file_url(self):
+        if self.pdf_file:
+            return self.pdf_file.url
+        return ""
+
+    @property
+    def type_icon(self):
+        return {
+            self.TYPE_PAPER: "fa-file-lines",
+            self.TYPE_DATASET: "fa-database",
+            self.TYPE_TOOL: "fa-screwdriver-wrench",
+            self.TYPE_EVENT: "fa-calendar-days",
+            self.TYPE_THESIS: "fa-graduation-cap",
+            self.TYPE_NEWS: "fa-newspaper",
+        }.get(self.type, "fa-newspaper")
+
+    @property
+    def type_color(self):
+        return {
+            self.TYPE_PAPER: "#3B82F6",
+            self.TYPE_DATASET: "#1D9E75",
+            self.TYPE_TOOL: "#F59E0B",
+            self.TYPE_EVENT: "#FF7F50",
+            self.TYPE_THESIS: "#534AB7",
+            self.TYPE_NEWS: "#6B7280",
+        }.get(self.type, "#6B7280")

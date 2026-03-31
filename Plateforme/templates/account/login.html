@@ -6,45 +6,38 @@
 
 {% block extra_styles %}
 <style>
-    /* ===== FULL SCREEN AUTH PAGE LAYOUT ===== */
-    .content {
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    .sidebar {
-        margin-top: 0 !important;
-    }
-    
+    /* ===== AUTH PAGE LAYOUT ===== */
     .auth-page-wrapper {
-        min-height: calc(100vh - var(--site-header-height));
+        min-height: calc(100vh - 200px);
         display: flex;
-        align-items: stretch;
-        justify-content: flex-start;
-        padding: 0;
-        background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f5f9ff 100%);
-        width: 100%;
-        margin: 0;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(180deg, #0d1020 0%, #14182d 52%, #0d1020 100%);
+        overflow-x: hidden;
     }
 
     .auth-container {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1.2fr;
+        max-width: 1100px;
         width: 100%;
-        height: 100%;
         background: #ffffff;
-        border-radius: 0;
-        box-shadow: none;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(59, 130, 246, 0.05);
         overflow: hidden;
-        animation: fadIn 0.5s ease-out;
+        animation: fadeInScale 0.5s ease-out;
     }
 
-    @keyframes fadIn {
+    @keyframes fadeInScale {
         from {
             opacity: 0;
+            transform: scale(0.95) translateY(20px);
         }
         to {
             opacity: 1;
+            transform: scale(1) translateY(0);
         }
     }
 
@@ -56,12 +49,10 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        align-items: flex-start;
-        text-align: left;
+        align-items: center;
+        text-align: center;
         position: relative;
         overflow: hidden;
-        width: 100%;
-        height: 100%;
     }
 
     .visual-side::before {
@@ -85,11 +76,19 @@
     .visual-content {
         position: relative;
         z-index: 1;
+        width: 100%;
+        max-width: 340px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
     .visual-icon {
-        width: 140px;
-        height: 140px;
+        width: 124px;
+        height: 124px;
         margin-bottom: 2rem;
         background: rgba(167, 139, 250, 0.15);
         border-radius: 50%;
@@ -101,8 +100,8 @@
     }
 
     .visual-icon svg {
-        width: 80px;
-        height: 80px;
+        width: 72px;
+        height: 72px;
         fill: white;
     }
 
@@ -119,6 +118,7 @@
         color: rgba(255, 255, 255, 0.85);
         line-height: 1.6;
         max-width: 320px;
+        margin: 0 auto;
     }
 
     .visual-features {
@@ -126,6 +126,7 @@
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
+        align-items: center;
     }
 
     .visual-feature {
@@ -134,6 +135,7 @@
         gap: 0.75rem;
         color: rgba(255, 255, 255, 0.9);
         font-size: 0.9rem;
+        justify-content: center;
     }
 
     .visual-feature i {
@@ -154,9 +156,7 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        width: 100%;
-        height: 100%;
-        overflow-y: auto;
+        overflow: visible;
     }
 
     .form-header {
@@ -502,7 +502,6 @@
         .auth-container {
             grid-template-columns: 1fr;
             width: 100%;
-            height: 100%;
         }
 
         .visual-side {
@@ -516,15 +515,14 @@
 
     @media (max-width: 600px) {
         .auth-page-wrapper {
-            padding: 0;
+            padding: 1rem 0.75rem;
             min-height: calc(100vh - var(--site-header-height));
         }
 
         .auth-container {
             grid-template-columns: 1fr;
             width: 100%;
-            height: 100%;
-            border-radius: 0;
+            border-radius: 20px;
         }
 
         .form-side {
@@ -560,6 +558,7 @@
     /* ===== RTL ADJUSTMENTS ===== */
     html[dir="rtl"] .visual-feature {
         flex-direction: row-reverse;
+        text-align: center;
     }
 
     html[dir="rtl"] .remember-me {
@@ -589,24 +588,24 @@
                         <line x1="35" y1="75" x2="45" y2="62" stroke="white" stroke-width="2"/>
                         <line x1="65" y1="75" x2="55" y2="62" stroke="white" stroke-width="2"/>
                         <!-- Arabic letter ع stylized -->
-                        <text x="44" y="60" font-size="16" fill="#3B82F6" font-weight="bold" font-family="Arial">ع</text>
+                        <text x="44" y="60" font-size="16" fill="#8B5CF6" font-weight="bold" font-family="Arial">ع</text>
                     </svg>
                 </div>
-                <h2 class="visual-title">{% trans "Welcome Back" %}</h2>
-                <p class="visual-subtitle">{% trans "Access state-of-the-art tools and datasets for Arabic NLP research." %}</p>
+                <h2 class="visual-title">{% if LANGUAGE_CODE == 'ar' %}مرحبًا بعودتك{% else %}{% trans "Welcome Back" %}{% endif %}</h2>
+                <p class="visual-subtitle">{% if LANGUAGE_CODE == 'ar' %}الوصول إلى أحدث الأدوات ومجموعات البيانات لأبحاث معالجة اللغة العربية.{% else %}{% trans "Access state-of-the-art tools and datasets for Arabic NLP research." %}{% endif %}</p>
                 
                 <div class="visual-features">
                     <div class="visual-feature">
                         <i class="fas fa-check"></i>
-                        <span>{% trans "Advanced NLP Tools" %}</span>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}أدوات متقدمة لمعالجة اللغة{% else %}{% trans "Advanced NLP Tools" %}{% endif %}</span>
                     </div>
                     <div class="visual-feature">
                         <i class="fas fa-check"></i>
-                        <span>{% trans "Research Collaboration" %}</span>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}التعاون البحثي{% else %}{% trans "Research Collaboration" %}{% endif %}</span>
                     </div>
                     <div class="visual-feature">
                         <i class="fas fa-check"></i>
-                        <span>{% trans "Rich Arabic Datasets" %}</span>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}مجموعات بيانات عربية غنية{% else %}{% trans "Rich Arabic Datasets" %}{% endif %}</span>
                     </div>
                 </div>
             </div>

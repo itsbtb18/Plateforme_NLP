@@ -157,7 +157,7 @@
   </div>
   <div class="n-st">
     <div class="n-st-info">
-      <p class="n-st-label">{% trans "News" %}</p>
+      <p class="n-st-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</p>
       <p class="n-st-num">{{ model_counts.news|default:"0" }}</p>
       {% if pending_counts.news %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</span>{% endif %}
     </div>
@@ -215,7 +215,7 @@
             <td>{{ media_stats.tools.without_pdfs|default:"0" }}</td>
           </tr>
           <tr>
-            <td>{% trans "News" %}</td>
+            <td>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</td>
             <td>{{ media_stats.news.storage_bytes|default:"0" }}</td>
             <td>{{ media_stats.news.with_images|default:"0" }}</td>
             <td>{{ media_stats.news.without_images|default:"0" }}</td>
@@ -249,7 +249,7 @@
   {% for cat in categories %}
   <button class="n-tab{% if forloop.first %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
     <i class="fas {{ cat.meta.icon }}"></i>
-    {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% trans "News" %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+    {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
     {% if cat.last_run %}<span class="n-tab-badge">{{ cat.last_run.items_created }}</span>{% endif %}
   </button>
   {% endfor %}
@@ -264,7 +264,7 @@
     <div class="n-card-head">
       <h3 class="n-card-title">
         <i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }}"></i>
-        {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% trans "News" %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+        {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
       </h3>
       <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
         <span class="ws-spin"></span>
@@ -406,7 +406,7 @@
     var CATEGORY_LABELS = {
       events: '{% trans "Events" %}',
       tools: '{% trans "Tools" %}',
-      news: '{% trans "News" %}',
+      news: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}',
       courses: '{% trans "Courses" %}',
       institutions: '{% trans "Institutions" %}'
     };

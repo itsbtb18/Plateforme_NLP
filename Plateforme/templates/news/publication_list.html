@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار والمنشورات{% else %}News & Publications{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pub-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
+.pub-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.pub-wrap>*{position:relative;z-index:1}
+.pub-hero{position:relative;padding:3.25rem 2rem 2.2rem;margin:1.5rem auto 1.25rem;background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%);border:1px solid rgba(167,139,250,.16);border-radius:24px;box-shadow:0 16px 40px rgba(15,23,42,.24);backdrop-filter:blur(10px);overflow:hidden;text-align:center}
+.pub-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-hero::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:22px 22px;opacity:.22;pointer-events:none}
+.pub-hero-inner{max-width:920px;margin:0 auto;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+.pub-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:5rem;height:5rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:1px solid rgba(167,139,250,.22);border-radius:1.5rem;font-size:2.1rem;color:#a78bfa;margin-bottom:1.5rem;box-shadow:0 12px 28px rgba(15,23,42,.22)}
+.pub-hero h1{margin:0;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em}
+.pub-hero p{margin:1rem 0 0;color:#a78bfa;max-width:760px;font-size:1.1rem;line-height:1.7;font-weight:600}
+.pub-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;padding:1rem;margin-bottom:1.1rem;box-shadow:0 12px 28px rgba(15,23,42,.2);backdrop-filter:blur(10px)}
+.pub-filter-grid{display:grid;grid-template-columns:2fr repeat(4,1fr) auto;gap:.75rem;align-items:stretch}
+.pub-input,.pub-select{width:100%;border:1.5px solid rgba(167,139,250,.24);border-radius:14px;padding:.85rem 1rem;background:rgba(255,255,255,.06);color:#fff}
+.pub-input{background:#fff;color:#111827}
+.pub-input::placeholder{color:#ddd6fe}
+.pub-input:focus,.pub-select:focus{outline:none;border-color:rgba(167,139,250,.5);box-shadow:0 0 0 3px rgba(167,139,250,.12)}
+.pub-select option{background:#17152b;color:#fff}
+.pub-btn{border:none;border-radius:14px;padding:.9rem 1rem;background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;font-weight:800;box-shadow:0 0 20px rgba(167,139,250,.28);transition:transform .3s ease,box-shadow .3s ease}
+.pub-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,280px));gap:1rem;justify-content:center}
+.pub-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px}
+.pub-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:linear-gradient(90deg,#a78bfa,#7c3aed)}
+.pub-cover{height:104px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.pub-cover img{width:100%;height:100%;object-fit:cover}
+.pub-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
+.pub-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.pub-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
+.pub-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.pub-link:hover{background:rgba(255,255,255,.04)}
+.pub-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:24px;padding:3rem 1rem;text-align:center;color:#d1d5db}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:1fr 1fr}.pub-btn{grid-column:span 2}}
+@media (max-width:640px){.pub-wrap{width:min(100%,calc(100% - 1rem))}.pub-shell{padding-top:.5rem}.pub-hero{padding:2.5rem 1.25rem;margin:1rem auto 1.25rem}.pub-hero h1{font-size:2rem}.pub-hero p{font-size:1rem}.pub-filter-grid{grid-template-columns:1fr}.pub-btn{grid-column:auto}.pub-grid{grid-template-columns:1fr}.pub-card{max-width:none;min-height:unset}.pub-cover{height:130px}}
+</style>
+
+<div class="pub-shell">
+  <div class="pub-wrap">
+    <div class="pub-hero">
+      <div class="pub-hero-inner">
+        <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-newspaper"></i></span>
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار والمنشورات الأكاديمية{% else %}Academic News & Publications{% endif %}</h1>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف الأوراق العلمية والبيانات والأدوات والأحداث والأطروحات والأخبار المرتبطة بمعالجة اللغة الطبيعية.{% else %}Discover papers, datasets, tools, events, theses, and news related to NLP and collaborative research.{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="pub-filter-card">
+      <form method="get" class="pub-filter-grid">
+        <input class="pub-input" type="text" name="q" value="{{ search }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث في العنوان أو الملخص أو المؤلفين{% else %}Search title, abstract, keywords, authors{% endif %}">
+        <select class="pub-select" name="type">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنواع{% else %}All types{% endif %}</option>
+          {% for choice in type_choices %}
+          <option value="{{ choice.value }}" {% if active_type == choice.value %}selected{% endif %}>{{ choice.label }}</option>
+          {% endfor %}
+        </select>
+        <select class="pub-select" name="task">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل المهام{% else %}All NLP tasks{% endif %}</option>
+          {% for value in task_choices %}
+          <option value="{{ value }}" {% if active_task == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <select class="pub-select" name="language">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل اللغات{% else %}All languages{% endif %}</option>
+          {% for value in language_choices %}
+          <option value="{{ value }}" {% if active_language == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <select class="pub-select" name="year">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل السنوات{% else %}All years{% endif %}</option>
+          {% for value in year_choices %}
+          <option value="{{ value }}" {% if active_year == value|stringformat:"s" %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
+      </form>
+    </div>
+
+    {% if publications %}
+    <div class="pub-grid">
+      {% for publication in publications %}
+      <article class="pub-card">
+        <div class="pub-accent"></div>
+        <div class="pub-cover">
+          {% if publication.cover_image %}
+          <img src="{{ publication.cover_image.url }}" alt="{{ publication.title }}">
+          {% else %}
+          <i class="fas {{ publication.type_icon }}" style="font-size:2.4rem;color:{{ publication.type_color }}"></i>
+          {% endif %}
+        </div>
+        <div class="pub-body">
+          <span class="pub-type" style="background:{{ publication.type_color }}">
+            <i class="fas {{ publication.type_icon }}"></i>
+            {{ publication.get_type_display }}
+          </span>
+          <h2 class="pub-title">{{ publication.title }}</h2>
+          <div class="pub-meta">
+            <span>{{ publication.authors_display|default:"-" }}</span>
+            <span>{{ publication.year }}</span>
+            {% if publication.venue %}<span>{{ publication.venue }}</span>{% endif %}
+          </div>
+          <p class="pub-excerpt">{{ publication.abstract|truncatechars:150 }}</p>
+          <div class="pub-tags">
+            {% for task in publication.nlp_tasks|slice:":3" %}
+            <span class="pub-tag">{{ task }}</span>
+            {% endfor %}
+            {% for language in publication.languages|slice:":2" %}
+            <span class="pub-tag">{{ language }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <a class="pub-link" href="{% url 'pages:publication_detail' publication.id %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+    {% else %}
+    <div class="pub-empty">
+      <i class="fas fa-newspaper" style="font-size:2rem;color:#a78bfa"></i>
+      <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد نتائج{% else %}No results found{% endif %}</h3>
+      <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث.{% else %}Try adjusting your filters or search keywords.{% endif %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1164,7 +1164,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, HttpMixin, ABC):
         return False, "", 0.0
 
     def _dedup_news(self, item_data: dict) -> tuple[bool, str, float]:
-        from QA.models import Post
+        from feed.models import Post
 
         arxiv_id = (item_data.get("arxiv_id") or "").strip()
         if arxiv_id:

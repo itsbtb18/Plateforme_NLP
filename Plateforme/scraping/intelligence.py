@@ -679,7 +679,7 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
 
     # Check news posts
     try:
-        from QA.models import Post
+        from feed.models import Post
         qs = Post.objects.filter(**date_filter_start, **date_filter_end)
         for post in qs.values_list("title_en", "content_en"):
             text = f"{post[0]} {(post[1] or '')[:300]}"

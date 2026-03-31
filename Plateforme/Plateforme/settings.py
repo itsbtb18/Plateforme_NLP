@@ -80,7 +80,7 @@ INSTALLED_APPS = [
     "project_chatroom",
     "forum",
     "events",
-    "QA",
+    "feed",
     "notifications",
     "search",
     "chatbot",

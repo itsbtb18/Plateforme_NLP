@@ -1,6 +1,6 @@
 import pytest
 
-from QA.models import Post
+from feed.models import Post
 from scraping.models import ScrapedItemMeta
 from scraping.scrapers.base import BaseScraper
 

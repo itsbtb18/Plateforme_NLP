@@ -12,7 +12,7 @@ from projects.models import Project
 from events.models import Event
 from forum.models import Topic
 from institutions.models import Institution, Country
-from QA.models import Post
+from feed.models import Post
 
 User = get_user_model()
 

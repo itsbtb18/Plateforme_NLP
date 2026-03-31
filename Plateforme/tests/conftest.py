@@ -7,7 +7,7 @@ import responses
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from QA.models import Post
+from feed.models import Post
 from events.models import Event
 from institutions.models import Country, Institution
 from resources.models import Course, NLPTool

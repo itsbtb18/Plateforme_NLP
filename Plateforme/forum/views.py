@@ -35,7 +35,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from accounts.blocking import exclude_hidden_users
-from QA.models import Post
+from feed.models import Post
 from events.models import Event
 from projects.models import Project
 
@@ -505,10 +505,10 @@ class TopicDetailView(LoginAndVerifiedRequiredMixin, DetailView):
             context["related_discussion_label"] = topic.related_news.title
             if topic.related_news.slug:
                 context["related_discussion_url"] = reverse(
-                    "QA:post_detail", kwargs={"slug": topic.related_news.slug}
+                    "feed:post_detail", kwargs={"slug": topic.related_news.slug}
                 )
             else:
-                context["related_discussion_url"] = reverse("QA:feed")
+                context["related_discussion_url"] = reverse("feed:feed")
         context["page"] = "community"
         return context
 

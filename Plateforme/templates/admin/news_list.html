@@ -1,0 +1,120 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}Admin News{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+.news-admin-shell{padding-top:.75rem}
+.news-admin-head,.news-admin-filters,.news-admin-grid{display:grid;gap:1rem}
+.news-admin-head{grid-template-columns:1fr auto;align-items:center;margin-bottom:1rem}
+.news-admin-title h1{margin:0;font-size:2rem;font-weight:800}
+.news-admin-title p{margin:.35rem 0 0;color:#64748b}
+.news-admin-create{background:#534AB7;border:none;color:#fff;border-radius:14px;padding:.9rem 1.2rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:.6rem}
+.news-admin-card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:.82rem;box-shadow:0 18px 50px rgba(15,23,42,.06)}
+.news-admin-filters{grid-template-columns:2fr 1fr 1fr auto auto}
+.news-admin-input,.news-admin-select{width:100%;border:1px solid #cbd5e1;border-radius:14px;padding:.85rem 1rem}
+.news-admin-btn{border-radius:14px;padding:.85rem 1rem;font-weight:700;border:1px solid #cbd5e1;background:#fff}
+.news-admin-btn.primary{background:#534AB7;border-color:#534AB7;color:#fff}
+.news-admin-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.news-card-cover{height:132px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#f8fafc);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:.72rem}
+.news-card-cover img{width:100%;height:100%;object-fit:cover}
+.news-type-badge{display:inline-flex;align-items:center;gap:.42rem;padding:.34rem .68rem;border-radius:999px;color:#fff;font-size:.76rem;font-weight:700}
+.news-card-title{margin:.62rem 0 .34rem;font-size:1rem;font-weight:800;color:#0f172a;line-height:1.35}
+.news-card-meta{color:#64748b;font-size:.85rem;margin-bottom:.55rem}
+.news-card-abstract{color:#334155;line-height:1.52;margin-bottom:.72rem;font-size:.9rem}
+.news-chip-row{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.72rem}
+.news-chip{background:#e6fffa;color:#116149;border-radius:999px;padding:.24rem .56rem;font-size:.74rem;font-weight:700}
+.news-card-actions{display:flex;gap:.48rem}
+.news-card-actions a,.news-card-actions button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.38rem;border-radius:11px;padding:.65rem .7rem;text-decoration:none;font-weight:700;border:1px solid #dbe4ff;background:#fff;color:#1e293b;font-size:.88rem}
+.news-card-actions .edit{border-color:#534AB7;color:#534AB7}
+.news-card-actions .delete{border-color:#fecaca;color:#b91c1c}
+.news-empty{text-align:center;padding:3rem 1rem;color:#64748b}
+@media (max-width: 900px){.news-admin-head,.news-admin-filters{grid-template-columns:1fr}.news-admin-create{justify-content:center}}
+</style>
+
+<div class="container-fluid news-admin-shell">
+  <div class="news-admin-head">
+    <div class="news-admin-title">
+      <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}Admin News{% endif %}</h1>
+      <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء ونشر وتعديل وحذف الأخبار والمنشورات الأكاديمية مباشرة دون مراجعة.{% else %}Create, publish, edit, and delete academic news instantly with no review workflow.{% endif %}</p>
+    </div>
+    <a href="{% url 'pages:admin_news_create' %}" class="news-admin-create">
+      <i class="fas fa-plus"></i>
+      <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء خبر{% else %}Create News{% endif %}</span>
+    </a>
+  </div>
+
+  <div class="news-admin-card">
+    <form method="get" class="news-admin-filters">
+      <input class="news-admin-input" type="text" name="search" value="{{ search }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث في العنوان أو الملخص أو الكلمات المفتاحية{% else %}Search title, abstract, keywords, authors{% endif %}">
+      <select class="news-admin-select" name="type">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنواع{% else %}All types{% endif %}</option>
+        {% for choice in type_choices %}
+        <option value="{{ choice.value }}" {% if active_type == choice.value %}selected{% endif %}>{{ choice.label }}</option>
+        {% endfor %}
+      </select>
+      <select class="news-admin-select" name="year">
+        <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل السنوات{% else %}All years{% endif %}</option>
+        {% for value in year_choices %}
+        <option value="{{ value }}" {% if active_year == value|stringformat:"s" %}selected{% endif %}>{{ value }}</option>
+        {% endfor %}
+      </select>
+      <button class="news-admin-btn primary" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تصفية{% else %}Filter{% endif %}</button>
+      <a class="news-admin-btn" href="{% url 'pages:admin_news' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة ضبط{% else %}Reset{% endif %}</a>
+    </form>
+  </div>
+
+  {% if news_items %}
+  <div class="news-admin-grid">
+    {% for item in news_items %}
+    <article class="news-admin-card">
+      <div class="news-card-cover">
+        {% if item.cover_image %}
+        <img src="{{ item.cover_image.url }}" alt="{{ item.title }}">
+        {% else %}
+        <i class="fas {{ item.type_icon }}" style="font-size:2.2rem;color:{{ item.type_color }}"></i>
+        {% endif %}
+      </div>
+      <span class="news-type-badge" style="background:{{ item.type_color }};">
+        <i class="fas {{ item.type_icon }}"></i>
+        {{ item.get_type_display }}
+      </span>
+      <h2 class="news-card-title">{{ item.title }}</h2>
+      <div class="news-card-meta">{{ item.authors_display|default:"-" }} · {{ item.year }}{% if item.venue %} · {{ item.venue }}{% endif %}</div>
+      <p class="news-card-abstract">{{ item.abstract|truncatechars:110 }}</p>
+      <div class="news-chip-row">
+        {% for task in item.nlp_tasks|slice:":4" %}
+        <span class="news-chip">{{ task }}</span>
+        {% endfor %}
+      </div>
+      <div class="news-card-actions">
+        <a href="{% url 'pages:publication_detail' item.id %}" target="_blank">
+          <i class="fas fa-eye"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}عرض{% else %}View{% endif %}</span>
+        </a>
+        <a href="{% url 'pages:admin_news_edit' item.id %}" class="edit">
+          <i class="fas fa-pen"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل{% else %}Edit{% endif %}</span>
+        </a>
+        <form method="post" action="{% url 'pages:admin_publications_detail_api' item.id %}" style="flex:1;">
+          {% csrf_token %}
+          <input type="hidden" name="_method" value="DELETE">
+          <button class="delete" type="submit" onclick="return confirm('{% if LANGUAGE_CODE|slice:":2" == "ar" %}هل تريد حذف هذا الخبر نهائيًا؟{% else %}Delete this news item permanently?{% endif %}')">
+            <i class="fas fa-trash"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}حذف{% else %}Delete{% endif %}</span>
+          </button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+  {% else %}
+  <div class="news-admin-card news-empty">
+    <i class="fas fa-newspaper" style="font-size:2rem;color:#534AB7"></i>
+    <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد أخبار حالياً{% else %}No news yet{% endif %}</h3>
+    <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابدأ بإضافة أول خبر من لوحة الإدارة.{% else %}Start by creating the first news item from the admin panel.{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from defusedxml.common import DefusedXmlException
 
 from scraping.scrapers.base import BaseScraper
-from scraping.scrapers.news import NewsScraper
+from scraping.scrapers.feed import NewsScraper
 
 
 def _resp_with_bytes(payload: bytes):
@@ -195,7 +195,7 @@ def test_semantic_scholar_uses_cursor_pagination(monkeypatch):
         }
 
     monkeypatch.setattr(scraper, "_s2_request", fake_s2_request)
-    monkeypatch.setattr("scraping.scrapers.news.time.sleep", lambda *_: None)
+    monkeypatch.setattr("scraping.scrapers.feed.time.sleep", lambda *_: None)
 
     created = MagicMock()
     monkeypatch.setattr(scraper, "_create_news_post", created)
@@ -294,7 +294,7 @@ def test_news_article_falls_back_to_heuristics_when_selectors_empty(monkeypatch)
     monkeypatch.setattr(scraper, "_extract_article_image", lambda *_a, **_k: "")
 
     warning_mock = MagicMock()
-    monkeypatch.setattr("scraping.scrapers.news.logger.warning", warning_mock)
+    monkeypatch.setattr("scraping.scrapers.feed.logger.warning", warning_mock)
 
     created = {}
     monkeypatch.setattr(

@@ -888,3 +888,67 @@ Staff-only access. `months` parameter is clamped to 1–24.
 - Filters by category and primary domain
 - Search by item title
 - Ordered by highest relevance score
+
+---
+
+## Prompt — Section Experience (Style LinkedIn)
+
+Copie-colle cette prompt pour guider l’implémentation:
+
+```text
+Tu es un développeur Django senior. Implémente la section “Experience” dans la page Profile avec un UX proche de LinkedIn.
+
+Objectif principal
+- Refaire la section Experience pour qu’elle soit claire, moderne, et orientée timeline professionnelle.
+- Ajouter une petite action “+ Ajouter une expérience”.
+
+Contraintes UX
+1) Choix du thème avant affichage (Light / Dark / System).
+2) La section Experience doit respecter le thème choisi (couleurs, contrastes, lisibilité).
+3) Le bouton “+ Ajouter une expérience” doit être compact et visible en haut de la section.
+4) Affichage en cartes/listes, triées par date début la plus récente.
+
+Données obligatoires pour une expérience
+- Nom de l’institution
+- Rôle / poste
+- Date de début
+- Date de fin (optionnelle)
+
+Règles métier
+- Si la date de fin est vide: afficher le statut “En cours”.
+- Si date de fin renseignée: afficher la période complète (Début → Fin).
+- Validation: date début <= date fin (si date fin existe).
+- Interdire institution et rôle vides.
+
+Types d’expérience à supporter
+- Professional (job, stage, freelance)
+- Project (expérience projet)
+- Event (organisation/participation à événement)
+
+Comportement attendu
+- Un formulaire modal ou inline s’ouvre via “+ Ajouter une expérience”.
+- L’utilisateur choisit le type (Professional / Project / Event).
+- Sauvegarde puis refresh immédiat de la liste.
+- Chaque item affiche: institution, rôle, type, période, statut.
+
+Exigences techniques (Django)
+- Créer un modèle Experience relié à l’utilisateur.
+- Champs recommandés: user, experience_type, institution_name, role_title, start_date, end_date, is_current, description, created_at, updated_at.
+- Si is_current=true, end_date doit être null.
+- Ajouter formulaire + validations backend.
+- Ajouter vues CRUD minimales: create, update, delete.
+- Ajouter rendu template dans Profile.
+- Sécuriser: utilisateur ne modifie que ses propres expériences.
+
+I18n
+- Labels FR/AR/EN traduisibles.
+- Le texte de statut doit être localisé (ex: “En cours” / “Ongoing” / “مستمر”).
+
+Critères d’acceptation
+- Le bouton “+ Ajouter une expérience” fonctionne.
+- On peut créer une expérience avec institution + rôle + dates.
+- Si pas de date fin, le statut “En cours” s’affiche.
+- Les expériences Event et Project sont aussi ajoutables.
+- Le rendu respecte le thème choisi.
+```
+

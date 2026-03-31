@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand
 from events.models import Event
 from institutions.models import Institution
-from QA.models import Post
+from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.file_downloader import attach_file_to_model

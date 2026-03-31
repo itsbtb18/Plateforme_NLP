@@ -395,7 +395,7 @@ PDF_URL_PATTERNS: list[str] = os.getenv(
 # ---------------------------------------------------------------------------
 
 SCRAPER_REGISTRY: dict[str, str] = {
-    "news": "scraping.scrapers.news.NewsScraper",
+    "news": "scraping.scrapers.feed.NewsScraper",
     "events": "scraping.scrapers.events.EventScraper",
     "courses": "scraping.scrapers.courses.CourseScraper",
     "institutions": "scraping.scrapers.institutions.InstitutionScraper",

@@ -1002,7 +1002,7 @@ class Command(BaseCommand):
 
     def _populate_posts(self, admin_user):
         """Populate QA posts"""
-        from QA.models import Post
+        from feed.models import Post
 
         self.stdout.write("  Populating posts...")
 

@@ -524,7 +524,7 @@ class CustomDomainScraper(BaseScraper):
         return {"title_en": title, "id": str(event.id)}
 
     def _save_as_news(self, item):
-        from QA.models import Post
+        from feed.models import Post
 
         title = item.get("title", "").strip()
         if not title:

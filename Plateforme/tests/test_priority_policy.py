@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 from scraping.scrapers.events import EventScraper
-from scraping.scrapers.news import NewsScraper
+from scraping.scrapers.feed import NewsScraper
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 

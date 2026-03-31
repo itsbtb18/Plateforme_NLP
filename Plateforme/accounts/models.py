@@ -453,3 +453,75 @@ class Follow(models.Model):
 
     def __str__(self):
         return f"{self.follower_id} follows {self.following_id}"
+
+
+class Experience(models.Model):
+    class ExperienceType(models.TextChoices):
+        PROFESSIONAL = "professional", _("Professional")
+        PROJECT = "project", _("Project")
+        EVENT = "event", _("Event")
+        VOLUNTEER = "volunteer", _("Volunteer")
+        INTERNSHIP = "internship", _("Internship")
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="experiences",
+    )
+    experience_type = models.CharField(
+        max_length=20,
+        choices=ExperienceType.choices,
+        default=ExperienceType.PROFESSIONAL,
+    )
+    institution_name = models.CharField(max_length=255)
+    role_title = models.CharField(max_length=255)
+    project_url = models.URLField(blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    is_current = models.BooleanField(default=False)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-start_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-start_date"]),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        self.institution_name = (self.institution_name or "").strip()
+        self.role_title = (self.role_title or "").strip()
+        self.project_url = (self.project_url or "").strip()
+
+        if not self.institution_name:
+            raise ValidationError({"institution_name": _("Institution name is required.")})
+
+        if not self.role_title:
+            raise ValidationError({"role_title": _("Role title is required.")})
+
+        if self.project_url and self.experience_type != self.ExperienceType.PROJECT:
+            self.project_url = ""
+
+        if not self.end_date:
+            self.is_current = True
+        elif self.is_current:
+            self.end_date = None
+
+        if self.end_date and self.start_date and self.start_date > self.end_date:
+            raise ValidationError(
+                {"end_date": _("End date must be greater than or equal to start date.")}
+            )
+
+    def save(self, *args, **kwargs):
+        if not self.end_date:
+            self.is_current = True
+        elif self.is_current:
+            self.end_date = None
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.role_title} @ {self.institution_name}"
