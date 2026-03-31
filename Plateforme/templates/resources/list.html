@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% translate "Research Resources Hub" %} - {% translate "Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مركز الموارد البحثية - منصة العربية للمعالجة اللغوية{% else %}{% translate "Research Resources Hub" %} - {% translate "Arabic NLP Platform" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -545,11 +545,11 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                 <input type="text"
                        id="liveSearchInput"
                        class="search-input"
-                       placeholder="{% translate 'Search by title, author, or keyword...' %}"
+                       placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث بالعنوان أو المؤلف أو الكلمات المفتاحية...{% else %}{% translate 'Search by title, author, or keyword...' %}{% endif %}"
                        value="{{ request.GET.q|default:'' }}"
                        autocomplete="off">
                 <div class="search-spinner" id="searchSpinner"><div class="spinner"></div></div>
-                <button type="button" class="search-clear" id="searchClear" title="{% translate 'Clear' %}">
+                <button type="button" class="search-clear" id="searchClear" title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مسح{% else %}{% translate 'Clear' %}{% endif %}">
                     <i class="bi bi-x-lg" style="font-size:0.8rem;"></i>
                 </button>
             </div>
@@ -562,38 +562,38 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
             <div class="filter-tabs" role="tablist">
                 <button class="filter-tab active" data-type="" role="tab">
                     <i class="bi bi-grid-3x3-gap"></i>
-                    <span>{% translate "All" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="article" role="tab">
                     <i class="bi bi-file-earmark-text"></i>
-                    <span>{% translate "Articles" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المقالات{% else %}{% translate "Articles" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="thesis" role="tab">
                     <i class="bi bi-journal-richtext"></i>
-                    <span>{% translate "Theses" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأطروحات{% else %}{% translate "Theses" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="memoir" role="tab">
                     <i class="bi bi-book"></i>
-                    <span>{% translate "Memoirs" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المذكرات{% else %}{% translate "Memoirs" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="tool" role="tab">
                     <i class="bi bi-cpu"></i>
-                    <span>{% translate "Tools" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأدوات{% else %}{% translate "Tools" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="course" role="tab">
                     <i class="bi bi-mortarboard"></i>
-                    <span>{% translate "Courses" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}{% translate "Courses" %}{% endif %}</span>
                 </button>
                 <button class="filter-tab" data-type="corpus" role="tab">
                     <i class="bi bi-database"></i>
-                    <span>{% translate "Corpus" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المدونات{% else %}{% translate "Corpus" %}{% endif %}</span>
                 </button>
                 
                 <div class="sort-dropdown" style="margin-inline-start: auto;">
                     <select class="sort-select" id="sortSelect">
-                        <option value="newest" {% if current_sort == 'newest' or not current_sort %}selected{% endif %}>{% translate "Newest First" %}</option>
-                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>{% translate "Oldest First" %}</option>
-                        <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>{% translate "Most Popular" %}</option>
+                        <option value="newest" {% if current_sort == 'newest' or not current_sort %}selected{% endif %}>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأحدث أولاً{% else %}{% translate "Newest First" %}{% endif %}</option>
+                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأقدم أولاً{% else %}{% translate "Oldest First" %}{% endif %}</option>
+                        <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأكثر شيوعاً{% else %}{% translate "Most Popular" %}{% endif %}</option>
                     </select>
                 </div>
             </div>
@@ -605,14 +605,14 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
             <div class="results-header">
                 <div class="results-info">
                     <span class="results-count" id="resultsCount">
-                        {% translate "Showing" %} <strong>{{ resources|length }}</strong> {% translate "resources" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض <strong>{{ resources|length }}</strong> مورد{% else %}{% translate "Showing" %} <strong>{{ resources|length }}</strong> {% translate "resources" %}{% endif %}
                     </span>
                 </div>
                 <div class="view-toggle" id="viewToggle">
-                    <button class="view-btn active" data-view="grid" title="{% translate 'Grid View' %}">
+                    <button class="view-btn active" data-view="grid" title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}عرض شبكي{% else %}{% translate 'Grid View' %}{% endif %}">
                         <i class="bi bi-grid-3x3-gap-fill"></i>
                     </button>
-                    <button class="view-btn" data-view="list" title="{% translate 'List View' %}">
+                    <button class="view-btn" data-view="list" title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}عرض قائمة{% else %}{% translate 'List View' %}{% endif %}">
                         <i class="bi bi-list-ul"></i>
                     </button>
                 </div>
@@ -636,26 +636,48 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                                        {% elif resource.resource_type == 'course' %}bi-mortarboard
                                        {% elif resource.resource_type == 'corpus' %}bi-database
                                        {% else %}bi-file-earmark{% endif %}"></i>
-                            {% if resource.resource_type == 'course' %}{% translate "Course" %}
-                            {% elif resource.resource_type == 'tool' %}{% translate "Tool" %}
-                            {% elif resource.resource_type == 'corpus' %}{% translate "Corpus" %}
-                            {% elif resource.resource_type == 'article' %}{% translate "Article" %}
-                            {% elif resource.resource_type == 'thesis' %}{% translate "Thesis" %}
-                            {% elif resource.resource_type == 'memoir' %}{% translate "Memoir" %}
+                            {% if resource.resource_type == 'course' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دورة{% else %}{% translate "Course" %}{% endif %}
+                            {% elif resource.resource_type == 'tool' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أداة{% else %}{% translate "Tool" %}{% endif %}
+                            {% elif resource.resource_type == 'corpus' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مدونة{% else %}{% translate "Corpus" %}{% endif %}
+                            {% elif resource.resource_type == 'article' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقال{% else %}{% translate "Article" %}{% endif %}
+                            {% elif resource.resource_type == 'thesis' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أطروحة{% else %}{% translate "Thesis" %}{% endif %}
+                            {% elif resource.resource_type == 'memoir' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مذكرة{% else %}{% translate "Memoir" %}{% endif %}
                             {% else %}{{ resource.resource_type|title }}{% endif %}
                         </span>
                         <h3 class="card-title">{{ resource.get_localized_title }}</h3>
                         <p class="card-description">
-                            {{ resource.get_localized_description|truncatewords:25|default:_('No description provided') }}
+                            {% if resource.get_localized_description %}
+                                {{ resource.get_localized_description|truncatewords:25 }}
+                            {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                لا يوجد وصف متاح
+                            {% else %}
+                                {% translate "No description provided" %}
+                            {% endif %}
                         </p>
                         <div class="card-meta">
                             <div class="meta-item">
                                 <i class="bi bi-person"></i>
-                                <span>{{ resource.author.get_full_name_display|default:_('Unknown') }}</span>
+                                <span>
+                                    {% if resource.author.get_full_name_display %}
+                                        {{ resource.author.get_full_name_display }}
+                                    {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        غير معروف
+                                    {% else %}
+                                        {% translate "Unknown" %}
+                                    {% endif %}
+                                </span>
                             </div>
                             <div class="meta-item">
                                 <i class="bi bi-calendar3"></i>
-                                <span>{{ resource.creation_date|date:"M d, Y"|default:_("Not specified") }}</span>
+                                <span>
+                                    {% if resource.creation_date %}
+                                        {{ resource.creation_date|date:"M d, Y" }}
+                                    {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        غير محدد
+                                    {% else %}
+                                        {% translate "Not specified" %}
+                                    {% endif %}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -663,14 +685,14 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                         {% if resource.approval_status == 'pending' and resource.author == request.user %}
                             <a href="{% url 'resources:resource-update' type=resource.resource_type pk=resource.id %}"
                                class="btn-view-details"
-                               title="{% translate 'Edit Form' %}">
-                                <span>{% translate "Edit Form" %}</span>
+                               title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تعديل النموذج{% else %}{% translate 'Edit Form' %}{% endif %}">
+                                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}</span>
                                 <i class="bi bi-file-earmark-text"></i>
                             </a>
                         {% else %}
                             <a href="{% url 'resources:resource-detail' resource.resource_type resource.id %}"
                                class="btn-view-details">
-                                <span>{% translate "View Details" %}</span>
+                                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% translate "View Details" %}{% endif %}</span>
                                 <i class="bi bi-arrow-right"></i>
                             </a>
                         {% endif %}
@@ -687,11 +709,11 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
             {% else %}
             <div class="empty-state">
                 <div class="empty-illustration"><i class="bi bi-search"></i></div>
-                <h3>{% translate "No resources found" %}</h3>
-                <p>{% translate "Try adjusting your search query or filter criteria to discover more resources" %}</p>
+                <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على موارد{% else %}{% translate "No resources found" %}{% endif %}</h3>
+                <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تعديل عبارة البحث أو معايير التصفية لاكتشاف المزيد من الموارد{% else %}{% translate "Try adjusting your search query or filter criteria to discover more resources" %}{% endif %}</p>
                 <a href="{% url 'resources:list' %}" class="btn-reset">
                     <i class="bi bi-arrow-counterclockwise"></i>
-                    {% translate "Reset Filters" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إعادة ضبط التصفية{% else %}{% translate "Reset Filters" %}{% endif %}
                 </a>
             </div>
             {% endif %}
@@ -716,10 +738,10 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
         corpus: 'bi-database'
     };
     const TRANSLATIONS = {
-        showing: '{% translate "Showing" %}',
-        resources: '{% translate "resources" %}',
-        noResults: '{% translate "No results found" %}',
-        viewAll: '{% translate "View all results" %}'
+        showing: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض{% else %}{% translate "Showing" %}{% endif %}',
+        resources: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مورد{% else %}{% translate "resources" %}{% endif %}',
+        noResults: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على نتائج{% else %}{% translate "No results found" %}{% endif %}',
+        viewAll: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض كل النتائج{% else %}{% translate "View all results" %}{% endif %}'
     };
     
     // ===== DOM References =====

@@ -3,7 +3,7 @@
 {% load static %}
 {% get_current_language as language_code %}
 
-{% block title %}{% trans "Corpus Collection" %} - {% trans "Advanced AI Resources" %}{% endblock title %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مجموعة المدونات - موارد الذكاء الاصطناعي المتقدمة{% else %}{% trans "Corpus Collection" %} - {% trans "Advanced AI Resources" %}{% endif %}{% endblock title %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -456,9 +456,9 @@ html[dir="rtl"] body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .results-count {
@@ -983,11 +983,10 @@ html[dir="rtl"] .active-filter-tag button {
             <div class="header-text-content">
                 <div class="header-text">
                     <h1>
-                        {% trans "Corpus" %}
-                        <span class="accent">{% trans "Collection" %}</span>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مجموعة <span class="accent">المدونات</span>{% else %}{% trans "Corpus" %} <span class="accent">{% trans "Collection" %}</span>{% endif %}
                     </h1>
                     <p class="subtitle">
-                        {% trans "Discover and work with curated corpora for advanced Arabic and multilingual NLP research" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف واعمل على مدونات منسقة لدعم أبحاث معالجة اللغة العربية ومتعددة اللغات المتقدمة.{% else %}{% trans "Discover and work with curated corpora for advanced Arabic and multilingual NLP research" %}{% endif %}
                     </p>
                 </div>
                 
@@ -997,7 +996,7 @@ html[dir="rtl"] .active-filter-tag button {
                     <div class="stats-showcase">
                         <div class="stat-badge">
                             <div class="stat-number" id="totalCount">{{ total_count|default:"0" }}</div>
-                            <div class="stat-label">{% trans "Total Corpora" %}</div>
+                            <div class="stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي المدونات{% else %}{% trans "Total Corpora" %}{% endif %}</div>
                         </div>
                     </div>
                     
@@ -1005,12 +1004,12 @@ html[dir="rtl"] .active-filter-tag button {
                     {% if user.is_authenticated %}
                     <a href="{% url 'resources:corpus-create' %}" class="btn-glass">
                         <i class="bi bi-plus-lg"></i>
-                        <span>{% trans "Create New Corpus" %}</span>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء مدونة جديدة{% else %}{% trans "Create New Corpus" %}{% endif %}</span>
                     </a>
                     {% else %}
                     <div class="login-notice">
                         <i class="bi bi-info-circle"></i>
-                        <span>{% trans "Sign in to contribute corpora" %}</span>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سجّل الدخول للمساهمة بمدونات جديدة{% else %}{% trans "Sign in to contribute corpora" %}{% endif %}</span>
                     </div>
                     {% endif %}
                 </div>
@@ -1103,12 +1102,12 @@ html[dir="rtl"] .active-filter-tag button {
                 <input type="text" 
                        id="searchInput"
                        class="search-input" 
-                       placeholder="{% trans 'Search corpora by title, language, or keywords...' %}"
+                       placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث في المدونات حسب العنوان أو اللغة أو الكلمات المفتاحية...{% else %}{% trans 'Search corpora by title, language, or keywords...' %}{% endif %}"
                        value="{{ request.GET.q|default:'' }}"
                        autocomplete="off">
                 <button type="button" class="search-btn" id="searchBtn">
                     <i class="bi bi-arrow-right"></i>
-                    <span>{% trans "Search" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}{% trans "Search" %}{% endif %}</span>
                 </button>
             </div>
         </div>
@@ -1122,32 +1121,32 @@ html[dir="rtl"] .active-filter-tag button {
             <div class="filter-tabs" role="tablist">
                 <button class="filter-tab active" data-type="" role="tab">
                     <i class="bi bi-grid-3x3-gap"></i>
-                    <span>{% trans "All" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% trans "All" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="all">{{ total_count|default:"0" }}</span>
                 </button>
                 <button class="filter-tab" data-type="medical" role="tab">
                     <i class="bi bi-capsule"></i>
-                    <span>{% trans "Medical" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طبي{% else %}{% trans "Medical" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="medical">0</span>
                 </button>
                 <button class="filter-tab" data-type="linguistics" role="tab">
                     <i class="bi bi-chat-left-dots"></i>
-                    <span>{% trans "Linguistics" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لغويات{% else %}{% trans "Linguistics" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="linguistics">0</span>
                 </button>
                 <button class="filter-tab" data-type="translation" role="tab">
                     <i class="bi bi-translate"></i>
-                    <span>{% trans "Translation" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ترجمة{% else %}{% trans "Translation" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="translation">0</span>
                 </button>
                 <button class="filter-tab" data-type="general" role="tab">
                     <i class="bi bi-collection"></i>
-                    <span>{% trans "General" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عام{% else %}{% trans "General" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="general">0</span>
                 </button>
                 <button class="filter-tab" data-type="social" role="tab">
                     <i class="bi bi-chat-dots"></i>
-                    <span>{% trans "Social Media" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}وسائل التواصل{% else %}{% trans "Social Media" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="social">0</span>
                 </button>
             </div>
@@ -1168,7 +1167,7 @@ html[dir="rtl"] .active-filter-tag button {
                     <!-- Loading Overlay -->
                     <div class="loading-overlay">
                         <div class="loading-spinner"></div>
-                        <span class="loading-text">{% trans "Loading..." %}</span>
+                        <span class="loading-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جارٍ التحميل...{% else %}{% trans "Loading..." %}{% endif %}</span>
                     </div>
                     
                     <!-- Corpus Cards -->
@@ -1265,11 +1264,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="empty-icon">
                         <i class="bi bi-inbox"></i>
                     </div>
-                    <h3>{% trans "No corpora found" %}</h3>
-                    <p>{% trans "Try adjusting your filters or search query" %}</p>
+                    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على مدونات{% else %}{% trans "No corpora found" %}{% endif %}</h3>
+                    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تعديل عوامل التصفية أو عبارة البحث{% else %}{% trans "Try adjusting your filters or search query" %}{% endif %}</p>
                     <button class="btn-reset" onclick="location.reload()">
                         <i class="bi bi-arrow-clockwise"></i>
-                        {% trans "Reset Filters" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إعادة ضبط التصفية{% else %}{% trans "Reset Filters" %}{% endif %}
                     </button>
                 </div>
             `;

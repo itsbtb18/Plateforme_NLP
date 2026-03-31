@@ -196,12 +196,12 @@
         position: absolute;
         top: calc(100% + 0.55rem);
         left: 0;
-        min-width: 220px;
+        min-width: 200px;
         margin: 0;
-        padding: 0.55rem;
+        padding: 0.6rem;
         list-style: none;
-        background: rgba(15, 23, 42, 0.98);
-        border: 1px solid rgba(167, 139, 250, 0.16);
+        background: rgba(58, 52, 104, 0.98);
+        border: 1px solid rgba(167, 139, 250, 0.22);
         border-radius: 18px;
         box-shadow: 0 24px 50px rgba(2, 6, 23, 0.38);
         opacity: 0;
@@ -209,6 +209,19 @@
         transform: translateY(-6px);
         transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
         z-index: 2100;
+      }
+
+      .nav-dropdown-menu::before {
+        content: "";
+        position: absolute;
+        top: -8px;
+        left: 30px;
+        width: 16px;
+        height: 16px;
+        background: rgba(58, 52, 104, 0.98);
+        border-top: 1px solid rgba(167, 139, 250, 0.22);
+        border-left: 1px solid rgba(167, 139, 250, 0.22);
+        transform: rotate(45deg);
       }
 
       .nav-item.open > .nav-dropdown-menu {
@@ -226,12 +239,13 @@
       .nav-dropdown-item {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 0.55rem;
-        padding: 0.8rem 0.9rem;
-        border-radius: 12px;
-        color: rgba(255, 255, 255, 0.86);
+        padding: 0.95rem 1rem;
+        border-radius: 14px;
+        color: rgba(255, 255, 255, 0.92);
         text-decoration: none;
-        font-weight: 600;
+        font-weight: 700;
         transition: background-color 0.18s ease, color 0.18s ease;
       }
 
@@ -242,9 +256,19 @@
         text-decoration: none;
       }
 
+      .nav-dropdown-item.active {
+        color: #ffffff;
+        background: rgba(167, 139, 250, 0.24);
+      }
+
       html[dir="rtl"] .nav-dropdown-menu {
         left: auto;
         right: 0;
+      }
+
+      html[dir="rtl"] .nav-dropdown-menu::before {
+        left: auto;
+        right: 30px;
       }
 
       .guest-join-item {
@@ -1187,9 +1211,9 @@
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <ul class="nav-dropdown-menu" id="resourcesDropdown">
-                            <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Corpus" %}</a></li>
-                            <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Tools" %}</a></li>
-                            <li><a href="{% url 'resources:course_list' %}" class="nav-dropdown-item" role="menuitem">{% trans "Courses" %}</a></li>
+                            <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item {% if page == 'corpus' %}active{% endif %}" role="menuitem">{% trans "Corpus" %}</a></li>
+                            <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item {% if page == 'tools' %}active{% endif %}" role="menuitem">{% trans "Tools" %}</a></li>
+                            <li><a href="{% url 'resources:course_list' %}" class="nav-dropdown-item {% if page == 'course' %}active{% endif %}" role="menuitem">{% trans "Courses" %}</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -1198,8 +1222,8 @@
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <ul class="nav-dropdown-menu" id="communityDropdown">
-                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a></li>
-                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}</a></li>
+                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item {% if page == 'feed' %}active{% endif %}" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a></li>
+                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item {% if page == 'forum' or page == 'forums' %}active{% endif %}" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
