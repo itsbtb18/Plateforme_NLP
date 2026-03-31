@@ -38,16 +38,16 @@
         <div class="card-body">
             <div class="meta-list">
                 <div class="meta-item">
-                    <span class="meta-label">{% trans "Created" %}</span>
+                    <span class="meta-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ الإنشاء{% else %}{% trans "Created" %}{% endif %}</span>
                     <span class="meta-value">{{ corpus.creation_date|date:"M d, Y" }}</span>
                 </div>
                 <div class="meta-item">
-                    <span class="meta-label">{% trans "Author" %}</span>
+                    <span class="meta-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكاتب{% else %}{% trans "Author" %}{% endif %}</span>
                     <span class="meta-value">
                         {% if corpus.author %}
                             {{ corpus.author.get_full_name_display }}
                         {% else %}
-                            {% trans "Unknown" %}
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}غير معروف{% else %}{% trans "Unknown" %}{% endif %}
                         {% endif %}
                     </span>
                 </div>
@@ -65,7 +65,7 @@
             {% if corpus.uploaded_file %}
             <span class="tag-pill">
                 <i class="bi bi-paperclip"></i>
-                {% trans "File Attached" %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف مرفق{% else %}{% trans "File Attached" %}{% endif %}
             </span>
             {% endif %}
             
@@ -79,7 +79,7 @@
         
         <div class="card-footer">
             <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
-                <span>{% trans "View Details" %}</span>
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% trans "View Details" %}{% endif %}</span>
                 <i class="bi bi-arrow-right"></i>
             </a>
             <div class="card-footer-actions">
@@ -99,7 +99,7 @@
     <div class="empty-icon">
         <i class="bi bi-folder2-open"></i>
     </div>
-    <h3>{% trans "No corpora available yet" %}</h3>
-    <p>{% trans "Be the first to contribute to our research collection" %}</p>
+    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد مدونات متاحة بعد{% else %}{% trans "No corpora available yet" %}{% endif %}</h3>
+    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كن أول من يساهم في مجموعتنا البحثية{% else %}{% trans "Be the first to contribute to our research collection" %}{% endif %}</p>
 </div>
 {% endif %}

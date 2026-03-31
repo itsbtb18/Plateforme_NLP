@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
-{% block title %}{% translate "Arabic NLP Academy" %} | {% translate "Courses" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات | منصة العربية للمعالجة اللغوية{% else %}{% translate "Arabic NLP Academy" %} | {% translate "Courses" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -127,16 +127,19 @@ html[dir="rtl"] body {
 .course-hub-hero-content {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     flex-direction: row;
     gap: 3rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .course-hub-hero-text {
     flex: 1;
     min-width: 280px;
-    text-align: center;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .course-hub-badge {
@@ -179,7 +182,7 @@ html[dir="rtl"] body {
 .course-hub-stats {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 2rem;
     flex-wrap: wrap;
     margin: 2rem 0;
@@ -231,7 +234,7 @@ html[dir="rtl"] body {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    margin-top: 1.5rem;
+    margin-top: 0.75rem;
 }
 
 .course-hub-add-btn:hover {
@@ -315,6 +318,24 @@ html[dir="rtl"] .course-hub-search-icon {
 
 html[dir="rtl"] .course-hub-search-input {
     padding: 0.875rem 3rem 0.875rem 1.25rem;
+}
+
+html[dir="rtl"] .course-hub-hero-content {
+    direction: rtl;
+}
+
+html[dir="rtl"] .course-hub-hero-text {
+    text-align: right;
+    align-items: flex-end;
+}
+
+html[dir="rtl"] .course-hub-title,
+html[dir="rtl"] .course-hub-subtitle {
+    text-align: right;
+}
+
+html[dir="rtl"] .course-hub-stats {
+    justify-content: flex-start;
 }
 
 .course-hub-search-btn {
@@ -891,6 +912,24 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
     
     .course-hub-hero-content {
         flex-direction: column;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+
+    .course-hub-hero-text {
+        align-items: center;
+        text-align: center;
+    }
+
+    .course-hub-stats {
+        justify-content: center;
+    }
+
+    html[dir="rtl"] .course-hub-hero-text,
+    html[dir="rtl"] .course-hub-title,
+    html[dir="rtl"] .course-hub-subtitle {
+        align-items: center;
+        text-align: center;
     }
     
     .course-hub-title {
@@ -1052,25 +1091,31 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                 <div class="course-hub-hero-text">
                     <span class="course-hub-badge">
                         <i class="bi bi-mortarboard-fill"></i>
-                        {% translate "Learning Platform" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}منصة التعلم{% else %}{% translate "Learning Platform" %}{% endif %}
                     </span>
-                    <h1 class="course-hub-title">{% translate "Arabic NLP" %} <span style="background: linear-gradient(135deg, var(--academy-primary) 0%, var(--academy-accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{% translate "Academy" %}</span></h1>
+                    <h1 class="course-hub-title">
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                            المنصة الجزائرية لتكنولوجيات اللغة والذكاء الاصطناعي خدمة للغة العربية
+                        {% else %}
+                            {% translate "Arabic NLP" %} <span style="background: linear-gradient(135deg, var(--academy-primary) 0%, var(--academy-accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{% translate "Academy" %}</span>
+                        {% endif %}
+                    </h1>
                     <p class="course-hub-subtitle">
-                        {% translate "Master Natural Language Processing with comprehensive courses designed for Arabic language research." %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتقن معالجة اللغة الطبيعية من خلال دورات شاملة مصممة لبحوث اللغة العربية.{% else %}{% translate "Master Natural Language Processing with comprehensive courses designed for Arabic language research." %}{% endif %}
                     </p>
                     <div class="course-hub-stats">
                         <div class="course-hub-stat">
                             <span class="course-hub-stat-value">{{ total_count|default:"0" }}</span>
-                            <span class="course-hub-stat-label">{% translate "Courses" %}</span>
+                            <span class="course-hub-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}{% translate "Courses" %}{% endif %}</span>
                         </div>
                         <div class="course-hub-stat">
                             <span class="course-hub-stat-value">3</span>
-                            <span class="course-hub-stat-label">{% translate "Levels" %}</span>
+                            <span class="course-hub-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستويات{% else %}{% translate "Levels" %}{% endif %}</span>
                         </div>
                     </div>
                     <a href="{% url 'resources:course-create' %}" class="course-hub-add-btn">
                         <i class="bi bi-plus-circle"></i>
-                        {% translate "Add New Course" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة دورة جديدة{% else %}{% translate "Add New Course" %}{% endif %}
                     </a>
                 </div>
                 
@@ -1088,34 +1133,34 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                         type="text" 
                         name="q" 
                         class="course-hub-search-input" 
-                        placeholder="{% translate 'Search courses by title, topic, or instructor...' %}"
+                        placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن الدورات حسب العنوان أو الموضوع أو المدرّس...{% else %}{% translate 'Search courses by title, topic, or instructor...' %}{% endif %}"
                         value="{{ request.GET.q|default:'' }}"
                     >
                 </div>
                 <button type="submit" class="course-hub-search-btn">
                     <i class="bi bi-search"></i>
-                    {% translate "Search" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}{% translate "Search" %}{% endif %}
                 </button>
             </form>
             
             <div class="course-hub-pill-group">
-                <span class="course-hub-pill-label">{% translate "Level" %}:</span>
+                <span class="course-hub-pill-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى:{% else %}{% translate "Level" %}:{% endif %}</span>
                 <div class="course-hub-pills">
                     <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=" class="course-hub-pill {% if not request.GET.level %}active{% endif %}">
                         <i class="bi bi-grid-3x3-gap"></i>
-                        {% translate "All" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}
                     </a>
                     <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=bachelor" class="course-hub-pill {% if request.GET.level == 'bachelor' %}active{% endif %}" data-level="beginner">
                         <i class="bi bi-1-circle"></i>
-                        {% translate "Bachelor" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ليسانس{% else %}{% translate "Bachelor" %}{% endif %}
                     </a>
                     <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=master" class="course-hub-pill {% if request.GET.level == 'master' %}active{% endif %}" data-level="intermediate">
                         <i class="bi bi-2-circle"></i>
-                        {% translate "Master" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ماستر{% else %}{% translate "Master" %}{% endif %}
                     </a>
                     <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=doctorate" class="course-hub-pill {% if request.GET.level == 'doctorate' %}active{% endif %}" data-level="advanced">
                         <i class="bi bi-3-circle"></i>
-                        {% translate "Doctorate" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}{% translate "Doctorate" %}{% endif %}
                     </a>
                 </div>
             </div>
@@ -1127,7 +1172,7 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
         <div id="courses-grid-wrapper">
             <div class="course-hub-loading-spinner">
                 <i class="bi bi-arrow-repeat"></i>
-                <span>{% translate "Loading..." %}</span>
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جارٍ التحميل...{% else %}{% translate "Loading..." %}{% endif %}</span>
             </div>
             {% if courses %}
             <div class="course-hub-grid" id="courses-grid">
@@ -1147,13 +1192,27 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                     <div class="course-hub-card-body">
                         <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
                         <p class="course-hub-card-desc">
-                            {{ course.get_localized_description|truncatewords:18|default:_("Comprehensive course content covering essential topics in Arabic NLP.") }}
+                            {% if course.get_localized_description %}
+                                {{ course.get_localized_description|truncatewords:18 }}
+                            {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                محتوى دراسي شامل يغطي الموضوعات الأساسية في معالجة اللغة العربية.
+                            {% else %}
+                                {% translate "Comprehensive course content covering essential topics in Arabic NLP." %}
+                            {% endif %}
                         </p>
                         
                         <div class="course-hub-card-meta">
                             <div class="course-hub-meta-row">
                                 <i class="bi bi-person-workspace"></i>
-                                <strong>{{ course.teacher.get_full_name_display|default:_("Instructor") }}</strong>
+                                <strong>
+                                    {% if course.teacher.get_full_name_display %}
+                                        {{ course.teacher.get_full_name_display }}
+                                    {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                                        المدرّس
+                                    {% else %}
+                                        {% translate "Instructor" %}
+                                    {% endif %}
+                                </strong>
                             </div>
                             <div class="course-hub-meta-row">
                                 <i class="bi bi-building"></i>
@@ -1193,7 +1252,7 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                                         data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.id %}","type":"course","id":"{{ course.id|escapejs }}"}'
                                         aria-label="{% trans 'Ask chatbot' %}">
                                     <i class="fas fa-robot"></i>
-                                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل AI{% else %}{% trans "Ask AI" %}{% endif %}</span>
+                                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل الذكاء الاصطناعي{% else %}{% trans "Ask AI" %}{% endif %}</span>
                                 </button>
                                 <div class="course-hub-share-wrap">
                                     <button type="button"
@@ -1202,20 +1261,20 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                                             data-share-id="{{ course.id }}"
                                             data-share-title="{{ course.get_localized_title|default:'' }}"
                                             data-share-url="{% url 'resources:course_detail' course.id %}"
-                                            aria-label="{% trans 'Share' %}"
-                                            title="{% trans 'Share with friends' %}">
+                                            aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مشاركة{% else %}{% trans 'Share' %}{% endif %}"
+                                            title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مشاركة مع الأصدقاء{% else %}{% trans 'Share with friends' %}{% endif %}">
                                         <i class="bi bi-send"></i>
                                         <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال{% else %}{% trans "Send" %}{% endif %}</span>
                                     </button>
                                     <div class="course-hub-share-popover" role="menu">
                                         <button type="button" class="course-hub-share-item" data-share-action="friends">
-                                            <i class="bi bi-people"></i> {% trans "Send to friends" %}
+                                            <i class="bi bi-people"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}{% trans "Send to friends" %}{% endif %}
                                         </button>
                                         <button type="button" class="course-hub-share-item" data-share-action="copy">
-                                            <i class="bi bi-link-45deg"></i> {% trans "Copy link" %}
+                                            <i class="bi bi-link-45deg"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}{% trans "Copy link" %}{% endif %}
                                         </button>
                                         <button type="button" class="course-hub-share-item" data-share-action="social">
-                                            <i class="bi bi-globe2"></i> {% trans "Share on social media" %}
+                                            <i class="bi bi-globe2"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة على وسائل التواصل{% else %}{% trans "Share on social media" %}{% endif %}
                                         </button>
                                     </div>
                                 </div>
@@ -1232,8 +1291,8 @@ html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
                     <div class="course-hub-empty-icon">
                         <i class="bi bi-journal-x"></i>
                     </div>
-                    <h3>{% translate "No Courses Found" %}</h3>
-                    <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
+                    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على دورات{% else %}{% translate "No Courses Found" %}{% endif %}</h3>
+                    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كن أول من يساهم بإضافة دورة إلى المنصة.{% else %}{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}{% endif %}</p>
                 </div>
             </div>
             {% endif %}

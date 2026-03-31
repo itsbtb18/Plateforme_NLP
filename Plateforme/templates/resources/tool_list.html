@@ -3,7 +3,7 @@
 {% load static %}
 {% get_current_language as language_code %}
 
-{% block title %}{% trans "NLP Tools" %} - {% trans "Advanced AI Resources" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات معالجة اللغة - موارد الذكاء الاصطناعي المتقدمة{% else %}{% trans "NLP Tools" %} - {% trans "Advanced AI Resources" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,17 +76,21 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
 
 .hero-content-wrapper {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: space-between;
     gap: 3rem;
-    max-width: 1200px;
+    max-width: 1240px;
     width: 100%;
     margin: 0 auto;
 }
 
 .hero-text-content {
-    flex: 0 1 auto;
-    text-align: center;
+    flex: 1 1 0;
+    text-align: left;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .hero-illustration-wrapper {
@@ -176,15 +180,13 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
     color: var(--text-secondary);
     margin: 0 0 2.5rem;
     max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
     line-height: 1.6;
 }
 
 /* ===== STATS SECTION ===== */
 .stats-container {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     gap: 2rem;
     margin-bottom: 2rem;
@@ -230,7 +232,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
 /* ===== ACTION BUTTON ===== */
 .hero-action {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 1rem;
     flex-wrap: wrap;
 }
@@ -256,6 +258,29 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacS
     transform: translateY(-2px);
     box-shadow: 0 10px 20px rgba(167, 139, 250, 0.3);
     color: #ffffff;
+}
+
+html[dir="rtl"] .hero-content-wrapper {
+    direction: rtl;
+}
+
+html[dir="rtl"] .hero-text-content {
+    text-align: right;
+    align-items: flex-end;
+}
+
+html[dir="rtl"] .hero-title,
+html[dir="rtl"] .hero-subtitle {
+    text-align: right;
+}
+
+html[dir="rtl"] .stats-container,
+html[dir="rtl"] .hero-action {
+    justify-content: center;
+}
+
+html[dir="rtl"] .hero-action {
+    width: 100%;
 }
 
 /* ===== MAIN CONTENT ===== */
@@ -621,6 +646,21 @@ html[dir="rtl"] .btn-view-details:hover i { transform: translateX(-3px); }
         align-items: center;
         text-align: center;
     }
+
+    .hero-text-content {
+        align-items: center;
+        text-align: center;
+    }
+
+    .hero-subtitle {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .stats-container,
+    .hero-action {
+        justify-content: center;
+    }
     
     .hero-illustration {
         width: 300px;
@@ -640,6 +680,17 @@ html[dir="rtl"] .btn-view-details:hover i { transform: translateX(-3px); }
     html[dir="rtl"] .results-header { align-items: flex-end; }
     .hero-content-wrapper {
         flex-direction: column;
+    }
+    .hero-text-content,
+    html[dir="rtl"] .hero-text-content {
+        align-items: center;
+        text-align: center;
+    }
+    .hero-title,
+    .hero-subtitle,
+    html[dir="rtl"] .hero-title,
+    html[dir="rtl"] .hero-subtitle {
+        text-align: center;
     }
     .hero-illustration {
         width: 280px;
@@ -670,9 +721,7 @@ html[dir="rtl"] .btn-view-details:hover i { transform: translateX(-3px); }
 html[dir="rtl"] .meta-item { flex-direction: row-reverse; }
 html[dir="rtl"] .card-type-badge { flex-direction: row-reverse; }
 html[dir="rtl"] .results-info { flex-direction: row-reverse; }
-html[dir="rtl"] .hero-action { direction: rtl; }
 html[dir="rtl"] .filter-tabs { direction: rtl; }
-html[dir="rtl"] .hero-content-wrapper { direction: rtl; }
 </style>
 {% endblock %}
 
@@ -685,21 +734,20 @@ html[dir="rtl"] .hero-content-wrapper { direction: rtl; }
             <div class="hero-text-content">
                 <div class="hero-badge">
                     <i class="bi bi-lightning-charge"></i>
-                    {% translate "Advanced AI Tools" %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات الذكاء الاصطناعي المتقدمة{% else %}{% translate "Advanced AI Tools" %}{% endif %}
                 </div>
                 <h1 class="hero-title">
-                    {% translate "NLP" %}
-                    <span class="accent">{% translate "Tools" %}</span>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معالجة اللغة <span class="accent">أدوات</span>{% else %}{% translate "NLP" %} <span class="accent">{% translate "Tools" %}</span>{% endif %}
                 </h1>
                 <p class="hero-subtitle">
-                    {% translate "Discover and integrate powerful Natural Language Processing tools <br> for Arabic and multilingual text analysis." %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف وادمج أدوات قوية لمعالجة اللغة الطبيعية<br> لتحليل النصوص العربية ومتعددة اللغات.{% else %}{% translate "Discover and integrate powerful Natural Language Processing tools <br> for Arabic and multilingual text analysis." %}{% endif %}
                 </p>
                 
                 <!-- Stats Section -->
                 <div class="stats-container">
                     <div class="stat-card">
                         <div class="stat-number" id="totalCount">{{ total_count|default:"0" }}</div>
-                        <div class="stat-label">{% translate "Total Tools" %}</div>
+                        <div class="stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي الأدوات{% else %}{% translate "Total Tools" %}{% endif %}</div>
                     </div>
                 </div>
                 
@@ -708,7 +756,7 @@ html[dir="rtl"] .hero-content-wrapper { direction: rtl; }
                 <div class="hero-action">
                     <a href="{% url 'resources:tool-create' %}" class="btn-add-resource">
                         <i class="bi bi-plus-lg"></i>
-                        {% translate "Create New Tool" %}
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء أداة جديدة{% else %}{% translate "Create New Tool" %}{% endif %}
                     </a>
                 </div>
                 {% endif %}
@@ -757,10 +805,10 @@ html[dir="rtl"] .hero-content-wrapper { direction: rtl; }
         <div class="guidance-card">
             <h2 class="guidance-title">
                 <i class="bi bi-lightbulb"></i>
-                {% translate "How do I choose the right NLP tool?" %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كيف أختار أداة معالجة اللغة المناسبة؟{% else %}{% translate "How do I choose the right NLP tool?" %}{% endif %}
             </h2>
             <p class="guidance-text">
-                {% translate "Use the search bar, category tabs, and filters to narrow the list. You can browse by task, compare multiple tools, and select the one that best matches your research goals, language needs, and technical workflow." %}
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استخدم شريط البحث وعلامات التصنيف والفلاتر لتضييق القائمة. يمكنك التصفح حسب المهمة، ومقارنة عدة أدوات، ثم اختيار الأداة الأنسب لأهدافك البحثية واحتياجاتك اللغوية وسير عملك التقني.{% else %}{% translate "Use the search bar, category tabs, and filters to narrow the list. You can browse by task, compare multiple tools, and select the one that best matches your research goals, language needs, and technical workflow." %}{% endif %}
             </p>
         </div>
     </section>
@@ -773,32 +821,32 @@ html[dir="rtl"] .hero-content-wrapper { direction: rtl; }
             <div class="filter-tabs" role="tablist">
                 <button class="filter-tab active" data-type="" role="tab">
                     <i class="bi bi-grid-3x3-gap"></i>
-                    <span>{% translate "All" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="all">{{ total_count|default:"0" }}</span>
                 </button>
                 <button class="filter-tab" data-type="tokenization" role="tab">
                     <i class="bi bi-scissors"></i>
-                    <span>{% translate "Tokenization" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تجزئة النص{% else %}{% translate "Tokenization" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="tokenization">0</span>
                 </button>
                 <button class="filter-tab" data-type="ner" role="tab">
                     <i class="bi bi-tag"></i>
-                    <span>{% translate "NER" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التعرف على الكيانات{% else %}{% translate "NER" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="ner">0</span>
                 </button>
                 <button class="filter-tab" data-type="pos_tagging" role="tab">
                     <i class="bi bi-tags"></i>
-                    <span>{% translate "POS Tagging" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}وسم أجزاء الكلام{% else %}{% translate "POS Tagging" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="pos_tagging">0</span>
                 </button>
                 <button class="filter-tab" data-type="sentiment_analysis" role="tab">
                     <i class="bi bi-emoji-smile"></i>
-                    <span>{% translate "Sentiment" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحليل المشاعر{% else %}{% translate "Sentiment" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="sentiment_analysis">0</span>
                 </button>
                 <button class="filter-tab" data-type="machine_translation" role="tab">
                     <i class="bi bi-translate"></i>
-                    <span>{% translate "Translation" %}</span>
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة{% else %}{% translate "Translation" %}{% endif %}</span>
                     <span class="filter-tab-count" data-count="machine_translation">0</span>
                 </button>
             </div>
@@ -893,8 +941,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="empty-illustration">
                         <i class="bi bi-inbox"></i>
                     </div>
-                    <h3>{% translate "No tools found" %}</h3>
-                    <p>{% translate "Try adjusting your filters or search query" %}</p>
+                    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على أدوات{% else %}{% translate "No tools found" %}{% endif %}</h3>
+                    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تعديل عوامل التصفية أو عبارة البحث{% else %}{% translate "Try adjusting your filters or search query" %}{% endif %}</p>
                 </div>
             `;
             resultsArea.innerHTML = emptyHTML;
