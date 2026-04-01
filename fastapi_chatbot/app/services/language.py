@@ -32,22 +32,29 @@ class LanguageService:
         if not text or len(text.strip()) < 3:
             return "en"
 
-        # Heuristic: if >= 30 % of characters are Arabic script, it's Arabic
-        arabic_chars = len(_ARABIC_RE.findall(text))
-        total_alpha = sum(1 for c in text if c.isalpha())
-        if total_alpha > 0 and arabic_chars / total_alpha >= 0.3:
+        q = text.strip()
+        
+        # Heuristic 1: If 20% or more of the string is Arabic script, it's Arabic.
+        # This is more robust for short queries or queries with many numbers/citations.
+        arabic_chars = len(_ARABIC_RE.findall(q))
+        if arabic_chars / len(q) >= 0.2:
+            return "ar"
+
+        # Heuristic 2: Specific Arabic lexical markers (common small words)
+        _AR_MARKERS = {"ما", "من", "هل", "في", "على", "إلى", "عن", "مع"}
+        words = q.lower().split()
+        if any(w in _AR_MARKERS for w in words):
             return "ar"
 
         try:
-            lang = detect(text)
+            lang = detect(q)
             if lang == "ar":
                 return "ar"
             if lang == "fr":
                 return "fr"
+                
             # Everything else (including Romance languages that langdetect
-            # may confuse with French) defaults to English.  The platform
-            # only supports ar/fr/en — guessing "fr" for Spanish/Italian
-            # caused random French responses.
+            # may confuse with French) defaults to English.
             return "en"
         except LangDetectException:
             return "en"

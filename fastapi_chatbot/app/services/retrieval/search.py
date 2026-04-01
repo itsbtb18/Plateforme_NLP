@@ -104,13 +104,23 @@ async def search_nlp_knowledge(
         qe = embedding_svc.encode_single(query)
         qf = build_language_filter(language) if language else None
 
+        # Prefer same-language matches first, but fall back to cross-lingual
+        # retrieval when that strict filter returns nothing.
         hits = qdrant.search(
             collection=COLLECTION_NLP_KNOWLEDGE,
             query_vector=qe,
             limit=k,
             query_filter=qf,
-            score_threshold=0.45,
+            score_threshold=0.40,
         )
+        if not hits and qf is not None:
+            hits = qdrant.search(
+                collection=COLLECTION_NLP_KNOWLEDGE,
+                query_vector=qe,
+                limit=k,
+                query_filter=None,
+                score_threshold=0.40,
+            )
         if not hits:
             return []
 

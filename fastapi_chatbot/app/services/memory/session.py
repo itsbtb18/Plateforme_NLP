@@ -11,6 +11,7 @@ Phase 8 — Memory strategy:
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func as sqlfunc
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.models import ChatSession, ChatMessage
 from app.schemas import SessionInfo, SessionListResponse
 from app.config import get_settings
@@ -26,6 +27,32 @@ settings = get_settings()
 
 class SessionService:
     """Pure session operations — no RAG, no LLM, no vectors."""
+
+    async def ensure_exists(
+        self,
+        session_id: str,
+        db: AsyncSession,
+        user_id: Optional[str] = None,
+        user_country: Optional[str] = None,
+        user_city: Optional[str] = None,
+    ):
+        """Ensure a ChatSession row exists for the provided session_id.
+
+        Uses PostgreSQL upsert semantics to avoid race conditions and
+        prevent foreign-key failures when persisting messages.
+        """
+        stmt = (
+            pg_insert(ChatSession)
+            .values(
+                session_id=session_id,
+                user_id=user_id,
+                user_country=user_country,
+                user_city=user_city,
+            )
+            .on_conflict_do_nothing(index_elements=[ChatSession.session_id])
+        )
+        await db.execute(stmt)
+        await db.commit()
 
     async def create(
         self,

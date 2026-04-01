@@ -7,8 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("events", "0007_event_entities"),
-        ("events", "0007_merge_20260325_1814"),
-        ("events", "0007_merge_20260326_2135"),
+        ("events", "0007_alter_event_attachment_upload_to"),
         ("events", "0009_event_soft_delete_fields"),
     ]
 

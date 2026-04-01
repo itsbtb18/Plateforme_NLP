@@ -3,6 +3,8 @@ from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.db.models import Exists, OuterRef
+from django.db.models import Q
 from django.core.cache import cache
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -12,11 +14,15 @@ import uuid
 import json
 import logging
 import time
+import re
 
 from .models import ChatSession, ChatMessage
 from .content_helpers import get_content_object, build_context_prompt, get_content_metadata
 
 logger = logging.getLogger("chatbot")
+
+CARD_CONTEXT_PREFIX = "__CARD_CONTEXT__:"
+WEB_RESULTS_PREFIX = "__WEB_RESULTS__:"
 
 # Configuration from settings
 FASTAPI_URL = getattr(settings, "FASTAPI_URL", "http://localhost:8000")
@@ -64,6 +70,69 @@ def save_message(session_id, message_type, content, source="bot", language="en")
         logger.warning(f"Session {session_id} not found for message save")
     except Exception as e:
         logger.error(f"Error saving message: {str(e)}")
+
+
+def save_card_context(session_id, context, language="en"):
+    """Persist selected entity card context so it can be restored on reload."""
+    if not isinstance(context, dict):
+        return
+
+    clean = {
+        "type": str(context.get("type", "resource"))[:50],
+        "title": str(context.get("title", ""))[:500],
+        "description": str(context.get("description", ""))[:5000],
+        "category": str(context.get("category", ""))[:200],
+        "author": str(context.get("author", ""))[:200],
+        "url": str(context.get("url", ""))[:500],
+    }
+    if not clean["title"]:
+        return
+
+    payload = CARD_CONTEXT_PREFIX + json.dumps(clean, ensure_ascii=False)
+    save_message(
+        session_id,
+        "system",
+        payload,
+        source="platform_context",
+        language=language,
+    )
+
+
+def save_web_results(session_id, results, source_urls=None, language="en"):
+    """Persist Tavily results so source cards/links survive refresh."""
+    if not isinstance(results, list) or not results:
+        return
+
+    cleaned_results = []
+    for r in results[:10]:
+        if not isinstance(r, dict):
+            continue
+        url = str(r.get("url", "")).strip()[:1000]
+        if not url:
+            continue
+        cleaned_results.append(
+            {
+                "url": url,
+                "title": str(r.get("title", "")).strip()[:500],
+                "content": str(r.get("content", "")).strip()[:2000],
+                "score": r.get("score"),
+            }
+        )
+
+    if not cleaned_results:
+        return
+
+    payload = {
+        "results": cleaned_results,
+        "source_urls": [str(u)[:1000] for u in (source_urls or []) if u],
+    }
+    save_message(
+        session_id,
+        "system",
+        WEB_RESULTS_PREFIX + json.dumps(payload, ensure_ascii=False),
+        source="web_results",
+        language=language,
+    )
 
 
 def _get_user_id(user):
@@ -235,9 +304,22 @@ def create_session(request):
 
 @login_required
 def list_sessions(request):
-    sessions = ChatSession.objects.filter(
-        user=request.user,
-    ).order_by("-updated_at")
+    user_message_exists = ChatMessage.objects.filter(
+        session=OuterRef("pk"),
+        message_type="user",
+    )
+    context_card_exists = ChatMessage.objects.filter(
+        session=OuterRef("pk"),
+        message_type="system",
+        source="platform_context",
+    )
+    sessions = (
+        ChatSession.objects.filter(user=request.user)
+        .annotate(has_user_messages=Exists(user_message_exists))
+        .annotate(has_context_cards=Exists(context_card_exists))
+        .filter(Q(has_user_messages=True) | Q(has_context_cards=True))
+        .order_by("-is_pinned", "-updated_at")
+    )
 
     data = {
         "sessions": [
@@ -246,6 +328,7 @@ def list_sessions(request):
                 "session_id": s.fastapi_session_id,
                 "title": s.title or f"Chat {s.created_at.strftime('%Y-%m-%d %H:%M')}",
                 "created_at": s.created_at.isoformat(),
+                "is_pinned": s.is_pinned,
                 "updated_at": s.updated_at.isoformat(),
                 "is_active": s.is_active,
                 "message_count": s.messages.count(),
@@ -340,21 +423,124 @@ def session_history(request, session_id):
         return JsonResponse({"error": _("Session not found.")}, status=404)
 
     messages = session.messages.order_by("timestamp")[:200]
-    data = {
-        "session_id": session_id,
-        "title": session.title or "",
-        "messages": [
+    serialized_messages = []
+    for m in messages:
+        if (
+            m.message_type == "user"
+            and (m.source or "") == "platform"
+            and isinstance(m.content, str)
+            and m.content.startswith("Ask AI about:")
+        ):
+            # Synthetic helper line used internally for card explain.
+            # Keep it in DB if present, but do not replay in chat history UI.
+            continue
+
+        if (
+            m.message_type == "system"
+            and m.content
+            and m.content.startswith(CARD_CONTEXT_PREFIX)
+        ):
+            ctx_raw = m.content[len(CARD_CONTEXT_PREFIX):]
+            try:
+                ctx = json.loads(ctx_raw)
+            except json.JSONDecodeError:
+                ctx = None
+            if isinstance(ctx, dict) and ctx.get("title"):
+                serialized_messages.append(
+                    {
+                        "type": "context_card",
+                        "content": ctx,
+                        "source": "platform_context",
+                        "language": m.language,
+                        "timestamp": m.timestamp.isoformat(),
+                        "message_id": str(m.id),
+                        "is_pinned": m.is_pinned,
+                    }
+                )
+                continue
+
+        if (
+            m.message_type == "system"
+            and m.content
+            and m.content.startswith(WEB_RESULTS_PREFIX)
+        ):
+            web_raw = m.content[len(WEB_RESULTS_PREFIX):]
+            try:
+                web_payload = json.loads(web_raw)
+            except json.JSONDecodeError:
+                web_payload = None
+            if isinstance(web_payload, dict) and isinstance(web_payload.get("results"), list):
+                serialized_messages.append(
+                    {
+                        "type": "web_results",
+                        "content": web_payload,
+                        "source": "web_results",
+                        "language": m.language,
+                        "timestamp": m.timestamp.isoformat(),
+                        "message_id": str(m.id),
+                        "is_pinned": m.is_pinned,
+                    }
+                )
+                continue
+
+        serialized_messages.append(
             {
                 "type": m.message_type,
                 "content": m.content,
                 "source": m.source or "bot",
                 "language": m.language,
                 "timestamp": m.timestamp.isoformat(),
+                "message_id": str(m.id),
+                "is_pinned": m.is_pinned,
             }
-            for m in messages
-        ],
+        )
+
+    data = {
+        "session_id": session_id,
+        "title": session.title or "",
+        "messages": serialized_messages,
     }
     return JsonResponse(data)
+
+
+# ------------------------------------------------------------------
+# Pin / Unpin messages
+# ------------------------------------------------------------------
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def toggle_pin_message(request, message_id):
+    """Toggle the is_pinned flag on a ChatMessage owned by the user."""
+    try:
+        message = ChatMessage.objects.select_related("session").get(id=message_id)
+    except ChatMessage.DoesNotExist:
+        return JsonResponse({"error": _("Message not found.")}, status=404)
+
+    if message.session.user != request.user:
+        return JsonResponse({"error": _("Permission denied.")}, status=403)
+
+    message.is_pinned = not message.is_pinned
+    message.save(update_fields=["is_pinned"])
+    return JsonResponse({"status": "ok", "is_pinned": message.is_pinned, "message_id": str(message.id)})
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def toggle_pin_session(request, session_id):
+    """Toggle the is_pinned flag on a ChatSession owned by the user."""
+    try:
+        session = ChatSession.objects.get(fastapi_session_id=session_id)
+    except ChatSession.DoesNotExist:
+        return JsonResponse({"error": _("Session not found.")}, status=404)
+
+    if session.user != request.user:
+        return JsonResponse({"error": _("Permission denied.")}, status=403)
+
+    session.is_pinned = not session.is_pinned
+    session.save(update_fields=["is_pinned"])
+    return JsonResponse({"status": "ok", "is_pinned": session.is_pinned, "session_id": str(session.fastapi_session_id)})
 
 
 # ------------------------------------------------------------------
@@ -417,10 +603,6 @@ def ask_bot(request):
         # Build user profile context for the LLM
         user_profile = _build_user_profile(request.user)
 
-        # Save user message
-        if question:
-            save_message(session_id, "user", question)
-
         # ----- Mode: conversation -----
         if mode == "conversation":
             if not question:
@@ -428,6 +610,7 @@ def ask_bot(request):
                     {"error": _("Please type a message."), "source": "error"},
                     status=400,
                 )
+            save_message(session_id, "user", question)
             effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
@@ -438,6 +621,9 @@ def ask_bot(request):
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
                     "max_tokens": min(CHATBOT_MAX_TOKENS, 8192),
+                    **({
+                        "mode": data.get("chatbot_mode"),
+                    } if data.get("chatbot_mode") else {}),
                     **user_profile,
                 },
                 headers=get_api_headers(),
@@ -470,6 +656,7 @@ def ask_bot(request):
                     {"error": _("Please type a question."), "source": "error"},
                     status=400,
                 )
+            save_message(session_id, "user", question)
             effective_question = _inject_context_into_question(question, context_prompt)
 
             resp = requests.post(
@@ -493,6 +680,7 @@ def ask_bot(request):
             response_data["session_id"] = session_id
             response_data["context_applied"] = bool(context_prompt)
             response_data["context_metadata"] = context_metadata
+            _auto_title_session(session_id, question)
             return JsonResponse(response_data)
 
         # ----- Mode: legal -----
@@ -502,6 +690,7 @@ def ask_bot(request):
                     {"error": _("Please type a legal question."), "source": "error"},
                     status=400,
                 )
+            save_message(session_id, "user", question)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/legal_search",
@@ -527,6 +716,7 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            _auto_title_session(session_id, question)
             return JsonResponse(response_data)
 
         # ----- Mode: platform -----
@@ -536,6 +726,7 @@ def ask_bot(request):
                     {"error": _("Please type a search query."), "source": "error"},
                     status=400,
                 )
+            save_message(session_id, "user", question)
 
             resp = requests.post(
                 f"{FASTAPI_URL}/platform/search",
@@ -551,6 +742,7 @@ def ask_bot(request):
             resp.raise_for_status()
             platform_data = resp.json()
             platform_data["session_id"] = session_id
+            _auto_title_session(session_id, question)
             return JsonResponse(platform_data)
 
         # ----- Mode: platform_entity (explain a specific entity) -----
@@ -561,6 +753,7 @@ def ask_bot(request):
                     {"error": _("Entity context required."), "source": "error"},
                     status=400,
                 )
+            save_card_context(session_id, entity_ctx, language=data.get("language") or "en")
 
             resp = requests.post(
                 f"{FASTAPI_URL}/platform/entity_explain",
@@ -593,6 +786,9 @@ def ask_bot(request):
                 )
 
             response_data["session_id"] = session_id
+            entity_title = str(entity_ctx.get("title", "")).strip()
+            if entity_title:
+                _auto_title_session(session_id, entity_title)
             return JsonResponse(response_data)
 
         # ----- Mode: platform_document (ingest & analyse a platform PDF) --
@@ -736,6 +932,8 @@ def ask_bot(request):
             response_data["session_id"] = session_id
             response_data["document_id"] = fastapi_doc_id
             response_data["document_status"] = "completed"
+            if doc_title:
+                _auto_title_session(session_id, doc_title)
             return JsonResponse(response_data)
 
         # ----- Mode: upload -----
@@ -847,6 +1045,7 @@ def ask_bot(request):
                             "please ask your question again in a few seconds."
                         )
                     else:
+                        save_message(session_id, "user", question)
                         ask_resp = requests.post(
                             f"{FASTAPI_URL}/ask_document",
                             json={
@@ -878,6 +1077,9 @@ def ask_bot(request):
                         "Document uploaded but the question failed. Please try asking again."
                     )
 
+            title_seed = question or uploaded_file.name
+            _auto_title_session(session_id, title_seed)
+
             return JsonResponse(result)
 
         # ----- Mode: ask_document -----
@@ -890,6 +1092,7 @@ def ask_bot(request):
                     },
                     status=400,
                 )
+            save_message(session_id, "user", question)
 
             # Wait for any pending documents to finish processing
             try:
@@ -966,6 +1169,7 @@ def ask_bot(request):
             response_data["session_id"] = session_id
             response_data["context_applied"] = bool(context_prompt)
             response_data["context_metadata"] = context_metadata
+            _auto_title_session(session_id, question)
             return JsonResponse(response_data)
 
         # ----- Mode: web (user-triggered web search via Tavily) -----
@@ -1016,6 +1220,8 @@ def ask_bot(request):
                     source="web",
                     language="en",
                 )
+            if results:
+                save_web_results(session_id, results, source_urls, language="en")
 
             result = {
                 "answer": answer,
@@ -1025,6 +1231,7 @@ def ask_bot(request):
                 "source_urls": source_urls,
                 "response_time": web_data.get("response_time", 0),
             }
+            _auto_title_session(session_id, question)
             return JsonResponse(result)
 
         else:
@@ -1159,6 +1366,7 @@ def ask_bot_stream(request):
     # ----- Mode: web (Tavily streaming) -----
     if mode == "web":
         save_message(session_id, "user", question)
+        _auto_title_session(session_id, question)
 
         def web_stream_generator():
             try:
@@ -1175,6 +1383,7 @@ def ask_bot_stream(request):
                 resp.raise_for_status()
 
                 full_answer = ""
+                final_payload = None
                 for line in resp.iter_lines(chunk_size=1):
                     if line:
                         decoded = line.decode("utf-8", errors="replace")
@@ -1183,6 +1392,7 @@ def ask_bot_stream(request):
                                 obj = json.loads(decoded[6:])
                                 if obj.get("done") and obj.get("answer"):
                                     full_answer = obj["answer"]
+                                    final_payload = obj
                             except (json.JSONDecodeError, TypeError):
                                 pass
                         yield line + b"\n\n"
@@ -1191,6 +1401,13 @@ def ask_bot_stream(request):
                     save_message(
                         session_id, "bot", full_answer,
                         source="web", language="en",
+                    )
+                if final_payload and isinstance(final_payload.get("web_results"), list):
+                    save_web_results(
+                        session_id,
+                        final_payload.get("web_results") or [],
+                        final_payload.get("source_urls") or [],
+                        language="en",
                     )
 
             except requests.exceptions.RequestException as e:
@@ -1211,6 +1428,7 @@ def ask_bot_stream(request):
     # ----- Mode: platform (streaming) -----
     if mode == "platform":
         save_message(session_id, "user", question)
+        _auto_title_session(session_id, question)
 
         def platform_stream_generator():
             try:
@@ -1280,6 +1498,9 @@ def ask_bot_stream(request):
         return response
 
     # ----- Mode: conversation (original streaming) -----
+    # Phase 6: accept chatbot_mode for mode-aware routing, but only
+    # for the conversation stream (web/platform have their own paths)
+    chatbot_mode = data.get("chatbot_mode")  # nlp_ai | legal | platform | None
     if mode != "conversation":
         return JsonResponse(
             {"error": _("Streaming is only available for conversation, web, and platform modes."), "source": "error"},
@@ -1288,10 +1509,39 @@ def ask_bot_stream(request):
 
     if question:
         save_message(session_id, "user", question)
+        _auto_title_session(session_id, question)
 
     effective_question = _inject_context_into_question(question, context_prompt)
 
     def stream_generator():
+        full_answer = ""
+        sse_buffer = ""
+        done_payload = None
+
+        def _consume_sse_and_capture(chunk_bytes):
+            nonlocal sse_buffer, full_answer, done_payload
+            try:
+                sse_buffer += chunk_bytes.decode("utf-8", errors="replace")
+            except Exception:
+                return
+            events = re.split(r"\r?\n\r?\n", sse_buffer)
+            sse_buffer = events.pop() if events else ""
+            for evt in events:
+                if not evt:
+                    continue
+                m = re.search(r"^data:\s*(.+)$", evt, re.MULTILINE)
+                if not m:
+                    continue
+                try:
+                    obj = json.loads(m.group(1))
+                except (TypeError, ValueError):
+                    continue
+                delta = obj.get("delta")
+                if isinstance(delta, str):
+                    full_answer += delta
+                if obj.get("done"):
+                    done_payload = obj
+
         try:
             resp = requests.post(
                 f"{FASTAPI_URL}/conversation/stream",
@@ -1301,6 +1551,9 @@ def ask_bot_stream(request):
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
                     "max_tokens": min(CHATBOT_MAX_TOKENS, 8192),
+                    **({
+                        "mode": chatbot_mode,
+                    } if chatbot_mode else {}),
                     **user_profile,
                 },
                 headers=get_api_headers(),
@@ -1310,7 +1563,18 @@ def ask_bot_stream(request):
             resp.raise_for_status()
             for chunk in resp.iter_content(chunk_size=None):
                 if chunk:
+                    _consume_sse_and_capture(chunk)
                     yield chunk
+            if done_payload and isinstance(done_payload.get("answer"), str) and done_payload.get("answer").strip():
+                full_answer = done_payload.get("answer").strip()
+            if full_answer.strip():
+                save_message(
+                    session_id,
+                    "bot",
+                    full_answer.strip(),
+                    source=(done_payload or {}).get("source", "bot"),
+                    language=(done_payload or {}).get("lang", "en"),
+                )
         except requests.exceptions.RequestException as e:
             logger.error("Stream proxy error: %s", e)
             err_msg = _(
@@ -1414,8 +1678,9 @@ def _auto_title_session(session_id, question):
     """Auto-set session title from first question if untitled."""
     try:
         session = ChatSession.objects.get(fastapi_session_id=session_id)
-        if not session.title:
-            session.title = question[:100]
+        seed = (question or "").strip()
+        if not session.title and seed:
+            session.title = seed[:100]
             session.save()
     except ChatSession.DoesNotExist:
         pass

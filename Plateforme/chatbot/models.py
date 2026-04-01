@@ -18,6 +18,7 @@ class ChatSession(models.Model):
     is_pinned = models.BooleanField(default=False, verbose_name=_("Is Pinned"))
     has_documents = models.BooleanField(default=False, verbose_name=_("Has Documents"))
     document_filename = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Document Filename"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("Pinned"))
     
     # Content context - what the chat is about
     content_type = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Content Type"))
@@ -53,6 +54,7 @@ class ChatMessage(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("Timestamp"))
     source = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Source"))
     language = models.CharField(max_length=10, default='en', verbose_name=_("Language"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("Pinned"))
     
     class Meta:
         verbose_name = _("Chat Message")

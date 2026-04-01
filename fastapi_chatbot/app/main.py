@@ -195,7 +195,11 @@ async def conversation_stream(
 async def quick_query(request: QuickQueryRequest, db: AsyncSession = Depends(get_db)):
     try:
         return await get_chat_logic().handle_quick_query(
-            request.question, db, request.language
+            request.question,
+            db,
+            request.language,
+            request.domain,
+            request.source_hint,
         )
     except Exception as e:
         logger.error("Quick query error: %s", e)
