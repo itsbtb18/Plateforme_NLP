@@ -491,6 +491,11 @@ class ProjectCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     template_name = "project_new.html"
     success_url = reverse_lazy("projects:project_list")
 
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         import logging
 
@@ -525,6 +530,11 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
     form_class = ProjectForm
     template_name = "project_update.html"
     success_url = reverse_lazy("projects:project_list")
+
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def get_object(self, queryset: QuerySet[Project] | None = None) -> Project:
         project: Project = super().get_object(queryset)  # type: ignore[assignment]

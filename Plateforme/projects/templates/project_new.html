@@ -502,6 +502,42 @@ html[dir="rtl"] .pf-btn .bi-arrow-right { transform: scaleX(-1); }
                                 </select>
                             </div>
                             {% for error in form.institution.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                            <p class="pf-help">{% translate "Choose an existing institution or select Other to type the Arabic and English names manually." %}</p>
+                        </div>
+
+                        <div id="projectInstitutionOtherFields" {% if form.institution.value != 'other' %}hidden{% endif %}>
+                            <div class="pf-row">
+                                <div class="pf-field {% if form.institution_name_ar_custom.errors %}has-error{% endif %}">
+                                    <label for="{{ form.institution_name_ar_custom.id_for_label }}" class="pf-label">
+                                        {{ form.institution_name_ar_custom.label }} <span class="required">*</span>
+                                    </label>
+                                    <div class="pf-input-group">
+                                        <i class="bi bi-translate pf-input-icon"></i>
+                                        <input type="text"
+                                               name="{{ form.institution_name_ar_custom.name }}"
+                                               id="{{ form.institution_name_ar_custom.id_for_label }}"
+                                               class="pf-input"
+                                               value="{{ form.institution_name_ar_custom.value|default:'' }}"
+                                               placeholder="{% translate 'Type the institution name in Arabic' %}">
+                                    </div>
+                                    {% for error in form.institution_name_ar_custom.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                                </div>
+                                <div class="pf-field {% if form.institution_name_en_custom.errors %}has-error{% endif %}">
+                                    <label for="{{ form.institution_name_en_custom.id_for_label }}" class="pf-label">
+                                        {{ form.institution_name_en_custom.label }} <span class="required">*</span>
+                                    </label>
+                                    <div class="pf-input-group">
+                                        <i class="bi bi-translate pf-input-icon"></i>
+                                        <input type="text"
+                                               name="{{ form.institution_name_en_custom.name }}"
+                                               id="{{ form.institution_name_en_custom.id_for_label }}"
+                                               class="pf-input"
+                                               value="{{ form.institution_name_en_custom.value|default:'' }}"
+                                               placeholder="{% translate 'Type the institution name in English' %}">
+                                    </div>
+                                    {% for error in form.institution_name_en_custom.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Description -->
@@ -640,6 +676,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const input = zone?.querySelector('input[type="file"]');
     const selected = document.getElementById('fileSelected');
     const removeBtn = document.getElementById('fileRemove');
+    const institutionSelect = document.getElementById('{{ form.institution.id_for_label }}');
+    const institutionOtherFields = document.getElementById('projectInstitutionOtherFields');
+    const institutionNameAr = document.getElementById('{{ form.institution_name_ar_custom.id_for_label }}');
+    const institutionNameEn = document.getElementById('{{ form.institution_name_en_custom.id_for_label }}');
+
+    const syncInstitutionOtherFields = () => {
+        if (!institutionSelect || !institutionOtherFields) return;
+        const isOther = institutionSelect.value === 'other';
+        institutionOtherFields.hidden = !isOther;
+        institutionNameAr?.toggleAttribute('required', isOther);
+        institutionNameEn?.toggleAttribute('required', isOther);
+    };
+
+    institutionSelect?.addEventListener('change', syncInstitutionOtherFields);
+    syncInstitutionOtherFields();
 
     if (!zone || !input || !selected) return;
 

@@ -15,6 +15,7 @@ class ChatSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
     is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("Is Pinned"))
     has_documents = models.BooleanField(default=False, verbose_name=_("Has Documents"))
     document_filename = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Document Filename"))
     
