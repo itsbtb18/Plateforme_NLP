@@ -1,162 +1,723 @@
 ﻿{% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 
-{% block title %}{% trans "Network" %}{% endblock %}
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إدارة الشبكة{% else %}{% trans "Network Management" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --success-color: #10b981;
+    --success-light: rgba(16, 185, 129, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.nr-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+    padding: 1rem 2rem 2rem 2rem;
+}
+
+.nr-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ===== HERO SECTION ===== */
+.nr-shell {
+    position: relative;
+    z-index: 1;
+    margin: 0 auto 3rem;
+    max-width: 1200px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+}
+
+.nr-header {
+    margin: 0 auto 4rem;
+    max-width: 1200px;
+    padding: 4rem 3rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.06) 0%, rgba(124, 58, 237, 0.03) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+.nr-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.nr-title-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+    font-size: 1.5rem;
+}
+
+.nr-header h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(2.5rem, 8vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.nr-header h1 .accent {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nr-header p {
+    margin: 0 0 2rem;
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.nr-hero-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.hero-illustration {
+    width: 100%;
+    max-width: 320px;
+    filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.3));
+}
+
+/* ===== TABS SECTION ===== */
+.nr-tabs {
+    position: relative;
+    z-index: 1;
+    margin: 0 auto 1.5rem;
+    max-width: 1200px;
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 1rem;
+}
+
+.nr-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+    border-radius: 8px 8px 0 0;
+}
+
+.nr-tab:hover {
+    color: var(--text-primary);
+    background: rgba(167, 139, 250, 0.1);
+}
+
+.nr-tab.active {
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+}
+
+.nr-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1.5rem;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    border-radius: 2px;
+}
+
+.nr-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    background: rgba(167, 139, 250, 0.2);
+    border-radius: 50%;
+    font-size: 0.65rem;
+    margin-left: 0.4rem;
+}
+
+/* ===== CARDS CONTAINER ===== */
+.nr-pane {
+    position: relative;
+    z-index: 1;
+    display: none;
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+.nr-pane.active {
+    display: block;
+}
+
+.nr-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+}
+
+/* ===== CARD ===== */
+.nr-card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.nr-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--accent-pink));
+}
+
+.nr-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+    transform: translateY(-8px);
+}
+
+.nr-user {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.nr-avatar {
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    overflow: hidden;
+    box-shadow: var(--shadow-glow);
+}
+
+.nr-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.nr-meta a {
+    font-weight: 700;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 1.125rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.nr-meta small {
+    color: var(--text-muted);
+    display: block;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.user-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--success-light);
+    border-radius: 20px;
+    color: var(--success-color);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* ===== ACTIONS ===== */
+.nr-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: auto;
+}
+
+.nr-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.nr-btn.primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: var(--text-primary);
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
+}
+
+.nr-btn.primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(167, 139, 250, 0.4);
+}
+
+.nr-btn.outline {
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.nr-btn.outline:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    background: rgba(167, 139, 250, 0.15);
+}
+
+.nr-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ===== EMPTY STATE ===== */
+.nr-empty {
+    border: 1px dashed var(--border-light);
+    border-radius: 12px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.nr-empty h3 {
+    margin: 0 0 0.5rem;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.nr-empty p {
+    margin: 0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .nr-page {
+        padding: 1rem;
+    }
+
+    .nr-header {
+        grid-template-columns: 1fr;
+        padding: 2rem;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .nr-hero-image {
+        min-height: 200px;
+    }
+
+    .nr-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .hero-stats {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .nr-tabs {
+        flex-wrap: wrap;
+    }
+
+    .nr-tab {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nr-header h1 {
+        font-size: 2rem;
+    }
+
+    .nr-card {
+        padding: 1.5rem;
+    }
+
+    .nr-actions {
+        flex-direction: column;
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nr-card {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.nr-card:nth-child(1) { animation-delay: 0.06s; }
+.nr-card:nth-child(2) { animation-delay: 0.12s; }
+.nr-card:nth-child(3) { animation-delay: 0.18s; }
+.nr-card:nth-child(4) { animation-delay: 0.24s; }
+.nr-card:nth-child(5) { animation-delay: 0.30s; }
+.nr-card:nth-child(6) { animation-delay: 0.36s; }
+
+</style>
+{% endblock extra_styles %}
 
 {% block content %}
 <div class="nr-page">
   <input type="hidden" id="nrCsrfToken" value="{{ csrf_token }}">
+  
   <div class="nr-shell">
+    <!-- Hero Section -->
     <div class="nr-header">
-      <div class="nr-title-wrap">
-        <span class="nr-title-icon" aria-hidden="true"><i class="fas fa-user-friends"></i></span>
+      <div>
+        <div class="nr-title-wrap">
+          <span class="nr-title-icon" aria-hidden="true"><i class="fas fa-network-wired"></i></span>
+        </div>
         <h1>
           {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-            إدارة المتابعين
+            توسيع <span class="accent">شبكتك</span>
           {% else %}
-            Follow management
+            Expand Your <span class="accent">Network</span>
           {% endif %}
         </h1>
+        <p>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            إدارة متابعيك والمتابعين من مكان واحد. قبول أو رفض الطلبات بسهولة والتواصل مع الزملاء.
+          {% else %}
+            Manage your followers and following from one place. Easily accept or reject requests and connect with colleagues.
+          {% endif %}
+        </p>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <div class="stat-number">{{ incoming_requests|length }}</div>
+            <div class="stat-label">
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعون جدد{% else %}Incoming{% endif %}
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ outgoing_requests|length }}</div>
+            <div class="stat-label">
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
+            </div>
+          </div>
+        </div>
       </div>
-      <p>
-        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-          إدارة المتابعين والمتابَعين من مكان واحد.
-        {% else %}
-          Manage your followers and following from one place.
-        {% endif %}
-      </p>
+      <div class="nr-hero-image">
+        <svg class="hero-illustration" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="networkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
+              <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.6" />
+            </linearGradient>
+            <linearGradient id="nodeGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="nodeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          
+          <!-- Background circle -->
+          <circle cx="150" cy="150" r="140" fill="url(#networkGrad)" opacity="0.1"/>
+          
+          <!-- Connection lines -->
+          <line x1="150" y1="60" x2="80" y2="140" stroke="url(#networkGrad)" stroke-width="2" opacity="0.4"/>
+          <line x1="150" y1="60" x2="220" y2="140" stroke="url(#networkGrad)" stroke-width="2" opacity="0.4"/>
+          <line x1="150" y1="60" x2="150" y2="240" stroke="url(#networkGrad)" stroke-width="2" opacity="0.4"/>
+          <line x1="80" y1="140" x2="220" y2="140" stroke="url(#networkGrad)" stroke-width="2" opacity="0.3"/>
+          <line x1="80" y1="140" x2="150" y2="240" stroke="url(#networkGrad)" stroke-width="2" opacity="0.3"/>
+          <line x1="220" y1="140" x2="150" y2="240" stroke="url(#networkGrad)" stroke-width="2" opacity="0.3"/>
+          
+          <!-- Main node (center) -->
+          <circle cx="150" cy="60" r="20" fill="url(#nodeGrad1)" filter="drop-shadow(0 4px 12px rgba(167, 139, 250, 0.4))"/>
+          <circle cx="150" cy="60" r="15" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+          
+          <!-- Left node -->
+          <circle cx="80" cy="140" r="18" fill="url(#nodeGrad2)" filter="drop-shadow(0 4px 12px rgba(124, 58, 237, 0.3))"/>
+          <circle cx="80" cy="140" r="13" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+          
+          <!-- Right node -->
+          <circle cx="220" cy="140" r="18" fill="url(#nodeGrad2)" filter="drop-shadow(0 4px 12px rgba(124, 58, 237, 0.3))"/>
+          <circle cx="220" cy="140" r="13" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+          
+          <!-- Bottom node -->
+          <circle cx="150" cy="240" r="16" fill="url(#nodeGrad1)" filter="drop-shadow(0 4px 12px rgba(167, 139, 250, 0.3))"/>
+          <circle cx="150" cy="240" r="11" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+          
+          <!-- Icons -->
+          <g transform="translate(150, 60)">
+            <text x="0" y="8" text-anchor="middle" font-size="16" fill="white" font-weight="bold">+</text>
+          </g>
+          <g transform="translate(80, 140)">
+            <circle cx="0" cy="0" r="6" fill="white" opacity="0.8"/>
+          </g>
+          <g transform="translate(220, 140)">
+            <circle cx="0" cy="0" r="6" fill="white" opacity="0.8"/>
+          </g>
+        </svg>
+      </div>
     </div>
 
-    <div class="nr-tabs" role="tablist" aria-label="{% trans 'Network tabs' %}">
+    <!-- Tabs -->
+    <div class="nr-tabs" role="tablist">
       <button class="nr-tab active" data-target="incoming" role="tab" aria-selected="true">
-        <i class="fas fa-inbox" aria-hidden="true"></i>
-        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}
+        <i class="fas fa-inbox"></i>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون الجدد{% else %}Incoming Requests{% endif %}
         <span class="nr-tab-count">{{ incoming_requests|length }}</span>
       </button>
       <button class="nr-tab" data-target="outgoing" role="tab" aria-selected="false">
-        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        <i class="fas fa-paper-plane"></i>
         {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
         <span class="nr-tab-count">{{ outgoing_requests|length }}</span>
       </button>
     </div>
 
+    <!-- Incoming Pane -->
     <div id="incoming" class="nr-pane active">
-      {% for rel in incoming_requests %}
-      <article class="nr-card" id="card-in-{{ rel.follower.id }}">
-        <div class="nr-user">
-          <div class="nr-avatar">
-            {% if rel.follower.avatar %}
-              <img src="{{ rel.follower.avatar.url }}" alt="{{ rel.follower.get_full_name_display }}">
-            {% else %}
-              <span>{{ rel.follower.get_full_name_display|slice:":1"|upper }}</span>
-            {% endif %}
-          </div>
-          <div class="nr-meta">
-            <a href="{% url 'accounts:profile' rel.follower.id %}">{{ rel.follower.get_full_name_display }}</a>
-            <small>
-              {% if rel.follower.institution %}
-                {{ rel.follower.institution }}
+      {% if incoming_requests %}
+        <div class="nr-cards-grid">
+          {% for rel in incoming_requests %}
+          <div class="nr-card" id="card-in-{{ rel.follower.id }}">
+            <div class="nr-user">
+              <div class="nr-avatar">
+                {% if rel.follower.avatar %}
+                  <img src="{{ rel.follower.avatar.url }}" alt="{{ rel.follower.get_full_name_display }}">
+                {% else %}
+                  {{ rel.follower.get_full_name_display|slice:":1"|upper }}
+                {% endif %}
+              </div>
+              <div class="nr-meta">
+                <a href="{% url 'accounts:profile' rel.follower.id %}">{{ rel.follower.get_full_name_display }}</a>
+                <small>
+                  {% if rel.follower.institution %}
+                    {{ rel.follower.institution }}
+                  {% else %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+                  {% endif %}
+                </small>
+                <span class="user-status">
+                  <i class="fas fa-clock"></i>
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قيد الانتظار{% else %}Pending{% endif %}
+                </span>
+              </div>
+            </div>
+            <div class="nr-actions">
+              {% if rel.follower_id in following_ids %}
+              <button class="nr-btn outline" disabled>
+                <i class="fas fa-check"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Mutual Follow{% endif %}
+              </button>
               {% else %}
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+              <button class="nr-btn primary" data-action="follow-back" data-user="{{ rel.follower.id }}">
+                <i class="fas fa-user-plus"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة{% else %}Follow Back{% endif %}
+              </button>
               {% endif %}
-            </small>
+            </div>
           </div>
+          {% endfor %}
         </div>
-        <div class="nr-actions">
-          {% if rel.follower_id in following_ids %}
-          <button class="nr-btn outline" disabled>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Mutual follow{% endif %}</button>
-          {% else %}
-          <button class="nr-btn primary" data-action="follow-back" data-user="{{ rel.follower.id }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة{% else %}Follow back{% endif %}</button>
-          {% endif %}
+      {% else %}
+        <div class="nr-empty">
+          <h3>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات متابعة جديدة{% else %}No incoming requests{% endif %}
+          </h3>
+          <p>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ستظهر طلبات المتابعة الجديدة هنا{% else %}New follow requests will appear here{% endif %}
+          </p>
         </div>
-      </article>
-      {% empty %}
-      <div class="nr-empty">
-        <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد متابعون بعد{% else %}No followers yet{% endif %}</h3>
-        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استمر في مشاركة أعمالك، وستنمو شبكتك.{% else %}Keep sharing your work, your network will grow.{% endif %}</p>
-      </div>
-      {% endfor %}
+      {% endif %}
+
     </div>
 
+    <!-- Outgoing Pane -->
     <div id="outgoing" class="nr-pane">
-      {% for rel in outgoing_requests %}
-      <article class="nr-card" id="card-out-{{ rel.following.id }}">
-        <div class="nr-user">
-          <div class="nr-avatar">
-            {% if rel.following.avatar %}
-              <img src="{{ rel.following.avatar.url }}" alt="{{ rel.following.get_full_name_display }}">
-            {% else %}
-              <span>{{ rel.following.get_full_name_display|slice:":1"|upper }}</span>
-            {% endif %}
+      {% if outgoing_requests %}
+        <div class="nr-cards-grid">
+          {% for rel in outgoing_requests %}
+          <div class="nr-card" id="card-out-{{ rel.following.id }}">
+            <div class="nr-user">
+              <div class="nr-avatar">
+                {% if rel.following.avatar %}
+                  <img src="{{ rel.following.avatar.url }}" alt="{{ rel.following.get_full_name_display }}">
+                {% else %}
+                  {{ rel.following.get_full_name_display|slice:":1"|upper }}
+                {% endif %}
+              </div>
+              <div class="nr-meta">
+                <a href="{% url 'accounts:profile' rel.following.id %}">{{ rel.following.get_full_name_display }}</a>
+                <small>
+                  {% if rel.following.institution %}
+                    {{ rel.following.institution }}
+                  {% else %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+                  {% endif %}
+                </small>
+              </div>
+            </div>
+            <div class="nr-actions">
+              <button class="nr-btn outline" data-action="unfollow" data-user="{{ rel.following.id }}">
+                <i class="fas fa-trash"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}Unfollow{% endif %}
+              </button>
+            </div>
           </div>
-          <div class="nr-meta">
-            <a href="{% url 'accounts:profile' rel.following.id %}">{{ rel.following.get_full_name_display }}</a>
-            <small>
-              {% if rel.following.institution %}
-                {{ rel.following.institution }}
-              {% else %}
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
-              {% endif %}
-            </small>
-          </div>
+          {% endfor %}
         </div>
-        <div class="nr-actions">
-          <button class="nr-btn outline" data-action="unfollow" data-user="{{ rel.following.id }}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء المتابعة{% else %}Unfollow{% endif %}</button>
+      {% else %}
+        <div class="nr-empty">
+          <h3>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أنت لا تتابع أحدًا بعد{% else %}You are not following anyone yet{% endif %}
+          </h3>
+          <p>
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ابدأ بمتابعة الأشخاص ليظهروا هنا.{% else %}Start following people to see them here.{% endif %}
+          </p>
         </div>
-      </article>
-      {% empty %}
-      <div class="nr-empty">
-        <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أنت لا تتابع أحدًا بعد{% else %}You are not following anyone yet{% endif %}</h3>
-        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ابدأ بمتابعة الأشخاص ليظهروا هنا.{% else %}Start following people to see them here.{% endif %}</p>
-      </div>
-      {% endfor %}
+      {% endif %}
     </div>
 
   </div>
 </div>
 
-<style>
-.nr-page { background: #fff; min-height: 100vh; padding: 28px 18px; }
-.nr-shell { max-width: 1040px; margin: 0 auto; border: 1px solid #dbe4f0; border-radius: 18px; box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08); padding: 22px; background: #fff; }
-.nr-header { margin-bottom: 18px; }
-.nr-title-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-.nr-title-icon { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-.nr-header h1 { margin: 0; font-size: 1.45rem; font-weight: 800; color: #0f172a; }
-.nr-header p { margin: 0; color: #64748b; }
-.nr-tabs { display: flex; gap: 12px; margin-bottom: 16px; }
-.nr-tab { border: 1px solid #cbd5e1; background: #fff; color: #1e3a8a; border-radius: 999px; padding: 8px 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
-.nr-tab.active { border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,.2); }
-.nr-tab-count { min-width: 20px; height: 20px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: .74rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
-.nr-pane { display: none; }
-.nr-pane.active { display: block; }
-.nr-card { border: 1px solid #dbe4f0; border-radius: 14px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
-.nr-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.nr-avatar { width: 42px; height: 42px; border-radius: 999px; overflow: hidden; border: 1px solid #bfdbfe; background: #dbeafe; color: #1e3a8a; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
-.nr-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.nr-meta a { font-weight: 700; color: #0f172a; text-decoration: none; }
-.nr-meta small { color: #64748b; display: block; }
-.nr-actions { display: flex; gap: 8px; }
-.nr-btn { border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #1e3a8a; padding: 8px 12px; font-weight: 700; }
-.nr-btn.primary { border-color: #1d4ed8; background: #1d4ed8; color: #fff; }
-.nr-btn.outline { background: #fff; }
-.nr-btn:disabled { opacity: .55; cursor: not-allowed; }
-.nr-empty { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; color: #64748b; }
-.nr-empty h3 { margin: 0 0 4px; color: #0f172a; font-size: 1rem; }
-.nr-empty p { margin: 0; }
-
-@media (max-width: 700px) {
-  .nr-page { padding: 12px; }
-  .nr-shell { padding: 14px; }
-  .nr-card { flex-direction: column; align-items: stretch; }
-  .nr-actions { width: 100%; }
-  .nr-actions .nr-btn { flex: 1; }
-}
-</style>
-
 <script>
 (function(){
   const tabs = document.querySelectorAll('.nr-tab');
   const panes = document.querySelectorAll('.nr-pane');
+  
   tabs.forEach((t) => t.addEventListener('click', () => {
     tabs.forEach((x) => x.classList.remove('active'));
     panes.forEach((x) => x.classList.remove('active'));
@@ -220,10 +781,11 @@
 
       if (action === 'unfollow') {
         card.remove();
-      } else {
+      } else if (action === 'follow-back') {
         btn.classList.remove('primary');
         btn.classList.add('outline');
-        btn.textContent = '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-check"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Following{% endif %}';
       }
     } catch (_) {
       btn.disabled = false;
