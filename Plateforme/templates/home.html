@@ -6,389 +6,6 @@
 <link rel="stylesheet" href="{% static 'css/home.css' %}" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <style>
-  .home-feed-section {
-    width: 100vw;
-    min-height: 100vh;
-    height: 100vh;
-    margin-inline: calc(50% - 50vw);
-    padding: clamp(1.25rem, 3vw, 2rem);
-    background:
-      radial-gradient(circle at 15% 20%, rgba(167, 139, 250, 0.18), transparent 22%),
-      radial-gradient(circle at 80% 18%, rgba(167, 139, 250, 0.24), transparent 20%),
-      radial-gradient(circle at 50% 85%, rgba(167, 139, 250, 0.14), transparent 26%),
-      linear-gradient(135deg, #1a1a2e 0%, #1a1a2e 100%);
-  }
-  .home-feed-showcase {
-    position: relative;
-    width: min(1360px, 100%);
-    min-height: calc(100vh - clamp(2.5rem, 6vw, 4rem));
-    margin: 0 auto;
-    padding: clamp(1.5rem, 3vw, 2rem);
-    display: grid;
-    place-items: center;
-    border-radius: 0;
-    overflow: hidden;
-    background: transparent;
-    box-shadow: none;
-    border: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  .home-feed-showcase::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 42px 42px;
-    opacity: 0.35;
-    pointer-events: none;
-  }
-  .home-feed-showcase > * {
-    position: relative;
-    z-index: 1;
-  }
-  .home-feed-panel {
-    position: relative;
-    width: min(1180px, 100%);
-    padding: clamp(2rem, 5vw, 4rem);
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(280px, 420px);
-    gap: clamp(1.5rem, 4vw, 3rem);
-    align-items: center;
-    border-radius: 0;
-    border: none;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: none;
-  }
-  .home-feed-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: start;
-    gap: 1.25rem;
-  }
-  .home-feed-icon-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
-  }
-  .home-feed-icon {
-    width: 3.6rem;
-    height: 3.6rem;
-    border-radius: 20px;
-    display: grid;
-    place-items: center;
-    color: #f5f3ff;
-    background: linear-gradient(145deg, rgba(167, 139, 250, 0.24), rgba(167, 139, 250, 0.18));
-    border: 1px solid rgba(196, 181, 253, 0.2);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 16px 30px rgba(167, 139, 250, 0.2);
-  }
-  .home-feed-icon svg {
-    width: 1.45rem;
-    height: 1.45rem;
-  }
-  .home-feed-title {
-    margin: 0;
-    font-size: clamp(2.8rem, 6vw, 5.2rem);
-    line-height: 1;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.04em;
-  }
-  .home-feed-subtitle {
-    width: min(680px, 100%);
-    margin: 0;
-    color: #c4b5fd;
-    font-size: clamp(1.15rem, 2vw, 1.45rem);
-    line-height: 1.7;
-    font-weight: 700;
-  }
-  .home-feed-description {
-    width: min(700px, 100%);
-    margin: 0;
-    color: rgba(226, 232, 240, 0.92);
-    font-size: clamp(1rem, 1.55vw, 1.12rem);
-    line-height: 1.95;
-  }
-  .home-feed-points {
-    width: 100%;
-    margin: 0.5rem 0 0;
-    display: none;
-  }
-  .home-feed-point {
-    margin: 0;
-    padding: 1rem 1.1rem;
-    border-radius: 22px;
-    color: rgba(241, 245, 249, 0.92);
-    font-size: 0.97rem;
-    line-height: 1.8;
-    background: rgba(15, 23, 42, 0.36);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-  .home-feed-actions {
-    margin-top: 0.5rem;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
-  }
-  .home-feed-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    min-height: 58px;
-    padding: 1rem 1.65rem;
-    border-radius: 18px;
-    background: linear-gradient(135deg, #a78bfa 0%, #a78bfa 100%);
-    color: #ffffff;
-    font-weight: 800;
-    text-decoration: none;
-    box-shadow:
-      0 18px 35px rgba(167, 139, 250, 0.34),
-      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
-  }
-  .home-feed-btn:hover {
-    transform: scale(1.04);
-    filter: brightness(1.06);
-    box-shadow:
-      0 24px 48px rgba(167, 139, 250, 0.42),
-      0 0 30px rgba(167, 139, 250, 0.24);
-  }
-  .home-feed-search {
-    display: none;
-  }
-  .home-feed-search-icon {
-    display: none;
-  }
-  .home-feed-search-text {
-    display: none;
-  }
-  .home-feed-preview {
-    position: relative;
-  }
-  .home-feed-preview-card,
-  .home-feed-preview-mini {
-    position: relative;
-    border-radius: 28px;
-    border: 1px solid rgba(196, 181, 253, 0.18);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.46));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 22px 60px rgba(2, 8, 23, 0.34);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-  }
-  .home-feed-preview-card {
-    padding: 1.3rem;
-  }
-  .home-feed-preview-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  .home-feed-preview-user {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-  }
-  .home-feed-avatar {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 999px;
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    color: #ffffff;
-    background: linear-gradient(135deg, #a78bfa, #a78bfa);
-    box-shadow: 0 10px 24px rgba(167, 139, 250, 0.24);
-  }
-  .home-feed-preview-name {
-    display: block;
-    color: #f8fafc;
-    font-weight: 700;
-  }
-  .home-feed-preview-role,
-  .home-feed-preview-time {
-    display: block;
-    color: #94a3b8;
-    font-size: 0.9rem;
-  }
-  .home-feed-preview-badge {
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    color: #ddd6fe;
-    font-size: 0.82rem;
-    font-weight: 700;
-    background: rgba(139, 92, 246, 0.16);
-    border: 1px solid rgba(196, 181, 253, 0.16);
-  }
-  .home-feed-preview-title {
-    margin: 0 0 0.65rem;
-    color: #ffffff;
-    font-size: 1.16rem;
-    font-weight: 700;
-    line-height: 1.7;
-  }
-  .home-feed-preview-body {
-    margin: 0;
-    color: rgba(226, 232, 240, 0.9);
-    line-height: 1.9;
-    font-size: 0.95rem;
-  }
-  .home-feed-preview-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 1rem;
-  }
-  .home-feed-preview-tags span {
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    color: #ddd6fe;
-    font-size: 0.82rem;
-    background: rgba(167, 139, 250, 0.12);
-    border: 1px solid rgba(167, 139, 250, 0.18);
-  }
-  .home-feed-preview-footer {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    color: #cbd5e1;
-    font-size: 0.9rem;
-  }
-  .home-feed-preview-mini {
-    width: min(82%, 290px);
-    margin-top: -1.5rem;
-    margin-inline-start: auto;
-    padding: 1rem;
-  }
-  .home-feed-preview-mini-title {
-    margin: 0 0 0.45rem;
-    color: #f8fafc;
-    font-weight: 700;
-  }
-  .home-feed-preview-mini-text {
-    margin: 0;
-    color: #cbd5e1;
-    line-height: 1.7;
-    font-size: 0.9rem;
-  }
-  .home-feed-orb,
-  .home-feed-line,
-  .home-feed-star {
-    position: absolute;
-    pointer-events: none;
-    z-index: 0;
-  }
-  .home-feed-orb {
-    border-radius: 999px;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.85), rgba(167, 139, 250, 0.7));
-  }
-  .home-feed-orb.orb-a { width: 1.35rem; height: 1.35rem; top: 2rem; right: 2.8rem; }
-  .home-feed-orb.orb-b { width: 0.78rem; height: 0.78rem; top: 2.55rem; right: 4rem; opacity: 0.8; }
-  .home-feed-orb.orb-c { width: 1.45rem; height: 1.45rem; left: 2.2rem; top: 52%; opacity: 0.8; }
-  .home-feed-orb.orb-d { width: 0.7rem; height: 0.7rem; left: 3.35rem; top: 55%; opacity: 0.6; }
-  .home-feed-line {
-    right: 2.6rem;
-    top: 46%;
-    width: 3.25rem;
-    height: 3.25rem;
-    border-top: 1px solid rgba(167, 139, 250, 0.38);
-    border-right: 1px solid rgba(167, 139, 250, 0.38);
-    border-top-right-radius: 18px;
-    opacity: 0.9;
-  }
-  .home-feed-star {
-    right: 2rem;
-    bottom: 1.6rem;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 1.35rem;
-  }
-  .home-feed-glow {
-    position: absolute;
-    border-radius: 999px;
-    filter: blur(18px);
-    opacity: 0.7;
-    pointer-events: none;
-    z-index: 0;
-  }
-  .home-feed-glow.glow-a {
-    top: 10%;
-    left: 8%;
-    width: 10rem;
-    height: 10rem;
-    background: rgba(139, 92, 246, 0.28);
-  }
-  .home-feed-glow.glow-b {
-    right: 10%;
-    bottom: 12%;
-    width: 14rem;
-    height: 14rem;
-    background: rgba(167, 139, 250, 0.18);
-  }
-  html[dir="rtl"] .home-feed-point,
-  html[dir="rtl"] .home-feed-subtitle,
-  html[dir="rtl"] .home-feed-description {
-    text-align: right;
-  }
-  html[dir="rtl"] .home-feed-copy {
-    align-items: flex-start;
-  }
-  @media (max-width: 1100px) {
-    .home-feed-panel {
-      grid-template-columns: 1fr;
-    }
-    .home-feed-points {
-      grid-template-columns: 1fr;
-    }
-  }
-  @media (max-width: 768px) {
-    .home-feed-showcase {
-      min-height: calc(100vh - 2rem);
-      border-radius: 0;
-    }
-    .home-feed-panel {
-      padding: 1.5rem;
-      border-radius: 0;
-    }
-    .home-feed-point {
-      font-size: 0.98rem;
-    }
-    .home-feed-title {
-      font-size: clamp(2.3rem, 12vw, 3.2rem);
-    }
-    .home-feed-search {
-      min-width: 100%;
-    }
-    .home-feed-actions {
-      width: 100%;
-    }
-    .home-feed-btn {
-      width: 100%;
-    }
-    .home-feed-preview-mini {
-      width: 100%;
-      margin-top: 1rem;
-    }
-    .home-feed-orb,
-    .home-feed-line,
-    .home-feed-star,
-    .home-feed-glow {
-      display: none;
-    }
-  }
 
   .home-news-section {
     width: 100vw;
@@ -1428,118 +1045,176 @@
   </section>
 
   <!-- Section 10: Feed -->
-  <section class="fullscreen-section section-10 home-feed-section">
-    <div class="home-feed-showcase">
-      <span class="home-feed-glow glow-a"></span>
-      <span class="home-feed-glow glow-b"></span>
-      <span class="home-feed-orb orb-a"></span>
-      <span class="home-feed-orb orb-b"></span>
-      <span class="home-feed-orb orb-c"></span>
-      <span class="home-feed-orb orb-d"></span>
-      <span class="home-feed-line"></span>
-      <span class="home-feed-star">✦</span>
+  <section class="fullscreen-section section-10">
+    <div class="feed-container">
+      <!-- Header Section -->
+      <div class="feed-header">
+        <h2 class="feed-main-title">{% if LANGUAGE_CODE == 'ar' %}الخلاصة{% else %}{% trans "Feed" %}{% endif %}</h2>
+        <p class="feed-subtitle">
+          {% if LANGUAGE_CODE == 'ar' %}
+          تابع أحدث الأفكار والمحتوى من مجتمع المطورين.
+          اكتشف منشورات جديدة، شارك أفكارك، وتفاعل مع محتوى غني يعكس خبرات وتجارب المجتمع.
+          {% else %}
+          {% trans "Follow the latest ideas and content from the developer community. Discover new posts, share your ideas, and engage with rich content that reflects the community's experience." %}
+          {% endif %}
+        </p>
+      </div>
 
-      <div class="home-feed-panel">
-        <div class="home-feed-copy">
-          <div class="home-feed-icon-row" aria-hidden="true">
-            <span class="home-feed-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="4" width="16" height="16" rx="4"></rect>
-                <path d="M8 9h8"></path>
-                <path d="M8 13h8"></path>
-                <path d="M8 17h5"></path>
-              </svg>
-            </span>
-            <span class="home-feed-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"></path>
-              </svg>
-            </span>
-            <span class="home-feed-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 8a3 3 0 1 0-3-3"></path>
-                <path d="M6 14a3 3 0 1 0 3 3"></path>
-                <path d="M18 20a3 3 0 1 0-3-3"></path>
-                <path d="m8.6 15.5 6.8 3.1"></path>
-                <path d="m15.4 5.4-6.8 3.2"></path>
-              </svg>
-            </span>
+      <!-- Discussion Quote Section -->
+      <div class="feed-discussion-quote">
+        <div class="quote-inner">
+          <h3 class="quote-title">
+            {% if LANGUAGE_CODE == 'ar' %}
+            كيف نحول الأفكار الصغيرة إلى منشورات تصنع نقاشاً حقيقياً داخل المجتمع؟
+            {% else %}
+            {% trans "How do we turn small ideas into posts that spark real community discussion?" %}
+            {% endif %}
+          </h3>
+          <p class="quote-description">
+            {% if LANGUAGE_CODE == 'ar' %}
+            شارك تجربتك، أضف منظورك، واستكشف كيف يشارك الآخرون المعرفة والخبرات العملية في مساحة واحدة نابضة بالحياة. محتوى متجدد باستمرار
+            {% else %}
+            {% trans "Share your experience, add your perspective, and see how others exchange practical knowledge in one lively space. Always fresh content" %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Posts Grid -->
+      <div class="feed-posts-grid">
+        <!-- Post Card 1: Trending -->
+        <div class="feed-post-card feed-post-featured">
+          <div class="post-badge post-badge-trending">
+            <i class="fas fa-fire"></i> 
+            {% if LANGUAGE_CODE == 'ar' %}ترند{% else %}{% trans "Trending" %}{% endif %}
           </div>
-
-          <h2 class="home-feed-title">{% if LANGUAGE_CODE == 'ar' %}الخلاصة{% else %}{% trans "Feed" %}{% endif %}</h2>
-          <p class="home-feed-subtitle">
-            {% if LANGUAGE_CODE == 'ar' %}
-            تابع أحدث الأفكار والمحتوى من مجتمع المطورين
-            {% else %}
-            {% trans "Follow the latest ideas and content from the developer community." %}
-            {% endif %}
-          </p>
-          <p class="home-feed-description">
-            {% if LANGUAGE_CODE == 'ar' %}
-            اكتشف منشورات جديدة، شارك أفكارك، وتفاعل مع محتوى غني يعكس خبرات وتجارب المجتمع.
-            {% else %}
-            {% trans "Discover new posts, share your ideas, and engage with rich content that reflects the community's experience." %}
-            {% endif %}
-          </p>
-
-          <div class="home-feed-actions">
-            <a href="{% url 'feed:feed' %}" class="home-feed-btn">
-              <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الخلاصة{% else %}{% trans "Explore Feed" %}{% endif %}</span>
-              <i class="fas fa-arrow-right"></i>
-            </a>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'ND'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}سارة أحمد{% else %}{% trans "Sarah Ahmed" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مطورة Full-Stack{% else %}{% trans "Full-Stack Developer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">{% if LANGUAGE_CODE == 'ar' %}الآن{% else %}{% trans "Just now" %}{% endif %}</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              أفضل طرق تحسين أداء التطبيقات بالذكاء الاصطناعي
+              {% else %}
+              {% trans "Optimizing App Performance with AI" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شاركت نصائح عملية حول كيفية استخدام machine learning لتحسين سرعة التطبيق...
+              {% else %}
+              {% trans "Practical tips on using machine learning to boost app performance and user experience..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#AI</span>
+            <span class="post-tag">#Performance</span>
+            <span class="post-tag">#Development</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 2.4k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 486</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 312</span>
           </div>
         </div>
 
-        <div class="home-feed-preview" aria-hidden="true">
-          <div class="home-feed-preview-card">
-            <div class="home-feed-preview-top">
-              <div class="home-feed-preview-user">
-                <span class="home-feed-avatar">ن</span>
-                <div>
-                  <span class="home-feed-preview-name">{% if LANGUAGE_CODE == 'ar' %}مجتمع المطورين{% else %}{% trans "Developer Community" %}{% endif %}</span>
-                  <span class="home-feed-preview-role">{% if LANGUAGE_CODE == 'ar' %}منشور مميز لهذا اليوم{% else %}{% trans "Featured post of the day" %}{% endif %}</span>
-                </div>
-              </div>
-              <span class="home-feed-preview-badge">{% if LANGUAGE_CODE == 'ar' %}ترند{% else %}{% trans "Trending" %}{% endif %}</span>
-            </div>
-            <p class="home-feed-preview-title">
-              {% if LANGUAGE_CODE == 'ar' %}
-              كيف نحول الأفكار الصغيرة إلى منشورات تصنع نقاشاً حقيقياً داخل المجتمع؟
-              {% else %}
-              {% trans "How do we turn small ideas into posts that spark real community discussion?" %}
-              {% endif %}
-            </p>
-            <p class="home-feed-preview-body">
-              {% if LANGUAGE_CODE == 'ar' %}
-              شارك تجربتك، أضف منظورك، واستكشف كيف يشارك الآخرون المعرفة والخبرات العملية في مساحة واحدة نابضة بالحياة.
-              {% else %}
-              {% trans "Share your experience, add your perspective, and see how others exchange practical knowledge in one lively space." %}
-              {% endif %}
-            </p>
-            <div class="home-feed-preview-tags">
-              <span>#Feed</span>
-              <span>#Writing</span>
-              <span>#Community</span>
-            </div>
-            <div class="home-feed-preview-footer">
-              <span><i class="far fa-heart"></i> 1.2k</span>
-              <span><i class="far fa-comment"></i> 284</span>
-              <span class="home-feed-preview-time">{% if LANGUAGE_CODE == 'ar' %}منذ 8 دقائق{% else %}{% trans "8 min ago" %}{% endif %}</span>
-            </div>
+        <!-- Post Card 2 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-hot">
+            <i class="fas fa-bolt"></i>
+            {% if LANGUAGE_CODE == 'ar' %}ساخن{% else %}{% trans "Hot" %}{% endif %}
           </div>
-
-          <div class="home-feed-preview-mini">
-            <p class="home-feed-preview-mini-title">{% if LANGUAGE_CODE == 'ar' %}محتوى متجدد باستمرار{% else %}{% trans "Always fresh content" %}{% endif %}</p>
-            <p class="home-feed-preview-mini-text">
+          <div class="post-header">
+            <div class="post-avatar">{{ 'MK'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}محمود خليل{% else %}{% trans "Mahmoud Khalil" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مهندس بيانات{% else %}{% trans "Data Engineer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">2h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
               {% if LANGUAGE_CODE == 'ar' %}
-              واجهة تشبه منصات المجتمع الحديثة وتضع المنشورات في قلب التجربة.
+              معالجة اللغة الطبيعية: من النظرية إلى التطبيق
               {% else %}
-              {% trans "A modern community-style interface that keeps posts at the center of the experience." %}
+              {% trans "NLP: From Theory to Production" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              مناقشة شاملة حول التحديات والحلول العملية في مشاريع NLP الحقيقية...
+              {% else %}
+              {% trans "Comprehensive guide on challenges and real-world solutions in NLP projects..." %}
               {% endif %}
             </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#ML</span>
+            <span class="post-tag">#Tutorial</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 1.8k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 342</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 198</span>
           </div>
         </div>
+
+        <!-- Post Card 3 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-new">
+            <i class="fas fa-star"></i>
+            {% if LANGUAGE_CODE == 'ar' %}جديد{% else %}{% trans "New" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'FN'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}فاطمة النجار{% else %}{% trans "Fatima Elnajar" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}متخصصة في العربية{% else %}{% trans "Arabic NLP Specialist" %}{% endif %}</div>
+            </div>
+            <div class="post-time">4h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              تحديات معالجة النصوص العربية وكيفية تجاوزها
+              {% else %}
+              {% trans "Overcoming Arabic Text Processing Challenges" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شرح مفصل عن المشاكل الفريدة في معالجة اللغة العربية والحلول المبتكرة...
+              {% else %}
+              {% trans "Detailed explanation of unique Arabic NLP challenges and innovative solutions..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#Arabic</span>
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#Guide</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 956</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 218</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 142</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="feed-cta">
+        <a href="{% url 'feed:feed' %}" class="feed-explore-btn">
+          <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الخلاصة{% else %}{% trans "Explore Feed" %}{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
       </div>
     </div>
   </section>
