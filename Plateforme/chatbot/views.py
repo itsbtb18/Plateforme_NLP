@@ -621,6 +621,9 @@ def ask_bot(request):
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
                     "max_tokens": min(CHATBOT_MAX_TOKENS, 8192),
+                    **({
+                        "mode": data.get("chatbot_mode"),
+                    } if data.get("chatbot_mode") else {}),
                     **user_profile,
                 },
                 headers=get_api_headers(),
@@ -1495,6 +1498,9 @@ def ask_bot_stream(request):
         return response
 
     # ----- Mode: conversation (original streaming) -----
+    # Phase 6: accept chatbot_mode for mode-aware routing, but only
+    # for the conversation stream (web/platform have their own paths)
+    chatbot_mode = data.get("chatbot_mode")  # nlp_ai | legal | platform | None
     if mode != "conversation":
         return JsonResponse(
             {"error": _("Streaming is only available for conversation, web, and platform modes."), "source": "error"},
@@ -1518,7 +1524,7 @@ def ask_bot_stream(request):
                 sse_buffer += chunk_bytes.decode("utf-8", errors="replace")
             except Exception:
                 return
-            events = sse_buffer.split("\n\n")
+            events = re.split(r"\r?\n\r?\n", sse_buffer)
             sse_buffer = events.pop() if events else ""
             for evt in events:
                 if not evt:
@@ -1545,6 +1551,9 @@ def ask_bot_stream(request):
                     "user_id": user_id,
                     "max_history": CHATBOT_MAX_HISTORY,
                     "max_tokens": min(CHATBOT_MAX_TOKENS, 8192),
+                    **({
+                        "mode": chatbot_mode,
+                    } if chatbot_mode else {}),
                     **user_profile,
                 },
                 headers=get_api_headers(),
