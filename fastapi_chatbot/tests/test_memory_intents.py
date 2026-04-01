@@ -28,6 +28,8 @@ def test_translate_intent_en():
     assert _MEMORY_TRANSLATE_RE.search("translate my last question to english")
     assert _MEMORY_TRANSLATE_RE.search("translate the previous query to french")
     assert _MEMORY_TRANSLATE_RE.search("my last question translate to arabic")
+    assert _MEMORY_TRANSLATE_RE.search("translate your last answer to arabic")
+    assert _MEMORY_TRANSLATE_RE.search("translate the previous response to french")
 
 
 def test_repeat_intent_en():
@@ -53,6 +55,7 @@ def test_compare_intent_en():
 def test_translate_intent_fr():
     assert _MEMORY_TRANSLATE_RE.search("traduis ma dernière question en anglais")
     assert _MEMORY_TRANSLATE_RE.search("traduit ma dernière requête en français")
+    assert _MEMORY_TRANSLATE_RE.search("traduis ta dernière réponse en arabe")
 
 
 def test_repeat_intent_fr():
@@ -75,6 +78,7 @@ def test_compare_intent_fr():
 def test_translate_intent_ar():
     assert _MEMORY_TRANSLATE_RE.search("ترجم آخر سؤال إلى الإنجليزية")
     assert _MEMORY_TRANSLATE_RE.search("ترجم سؤال الأخير")
+    assert _MEMORY_TRANSLATE_RE.search("ترجم آخر إجابة إلى العربية")
 
 
 def test_repeat_intent_ar():

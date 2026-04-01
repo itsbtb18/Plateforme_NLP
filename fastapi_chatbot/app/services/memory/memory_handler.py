@@ -124,6 +124,19 @@ async def handle_memory_intent(
             target_lang, session_id,
         )
         return translated
+    elif intent == "memory_translate_last_answer":
+        last_answer = await sessions.get_last_assistant_answer(session_id, db)
+        if not last_answer:
+            logger.info("memory_action=translate_last_answer memory_hit=miss session=%s", session_id)
+            return _no_history(language)
+
+        target_lang = extract_target_language(question)
+        translated = await translate_text(last_answer, target_lang)
+        logger.info(
+            "memory_action=translate_last_answer memory_hit=hit target_lang=%s session=%s",
+            target_lang, session_id,
+        )
+        return translated
 
     elif intent == "memory_repeat_last_user_query":
         last_query = await sessions.get_last_user_query(session_id, db)

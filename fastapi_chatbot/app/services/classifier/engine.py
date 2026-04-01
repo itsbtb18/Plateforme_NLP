@@ -68,6 +68,7 @@ _INTENT_PARAMS: Dict[str, dict] = {
     "conceptual_question": {"qdrant_collections": ["nlp_knowledge"]},
     # Memory intents — handled before retrieval, no RAG needed
     "memory_translate_last_user_query": {"use_llm_direct": True},
+    "memory_translate_last_answer": {"use_llm_direct": True},
     "memory_repeat_last_user_query": {"use_llm_direct": True},
     "memory_summarize_last_answer": {"use_llm_direct": True},
     "memory_compare_last_two_queries": {"use_llm_direct": True},
@@ -110,10 +111,16 @@ _MEMORY_TRANSLATE_RE = re.compile(
     r"(?:"
     r"\btranslat[e]\b.*\b(?:last|previous|my)\b.*\b(?:question|query|message)\b|"
     r"\b(?:last|previous|my)\b.*\b(?:question|query|message)\b.*\btranslat|"
+    r"\btranslat[e]\b.*\b(?:last|previous|your|the)\b.*\b(?:answer|response|reply)\b|"
+    r"\b(?:last|previous|your|the)\b.*\b(?:answer|response|reply)\b.*\btranslat|"
     r"\btradui[st]\b.*\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te|message)\b|"
     r"\b(?:derni[eè]re?)\b.*\b(?:question|requ[eê]te)\b.*\btradui|"
+    r"\btradui[st]\b.*\b(?:derni[eè]re?)\b.*\b(?:r[eé]ponse|answer)\b|"
+    r"\b(?:derni[eè]re?)\b.*\b(?:r[eé]ponse|answer)\b.*\btradui|"
     r"ترجم.*(?:آخر|الأخير|سؤال)|"
-    r"(?:آخر|الأخير).*سؤال.*ترجم"
+    r"(?:آخر|الأخير).*سؤال.*ترجم|"
+    r"ترجم.*(?:آخر|الأخيرة?).*(?:إجابة|رد)|"
+    r"(?:آخر|الأخيرة?).*(?:إجابة|رد).*ترجم"
     r")",
     re.IGNORECASE,
 )
@@ -185,6 +192,18 @@ class QueryClassifier:
         q = question.strip()
         return len(q) >= 80 and bool(_ANALYZE_ANSWER_RE.search(q))
 
+    def _force_legal_when_explicit(self, question: str, intent: str) -> bool:
+        """Return True when legal lexical signals should override intent.
+
+        This protects legal questions that mention platform entities
+        (Academia/ResearchGate/author) from being misrouted to platform_query.
+        """
+        if intent == "legal_query":
+            return False
+        q = question.strip()
+        # Require at least one explicit legal marker.
+        return any(p.search(q) for p in LEGAL_PATTERNS)
+
     # ------------------------------------------------------------------
     # Synchronous fast-path (no LLM needed for trivial queries)
     # ------------------------------------------------------------------
@@ -209,11 +228,21 @@ class QueryClassifier:
         # Memory commands → no retrieval needed (fast-path)
         for regex, intent_name in _MEMORY_REGEX_MAP:
             if regex.search(q):
+                resolved_intent = intent_name
+                if (
+                    intent_name == "memory_translate_last_user_query"
+                    and re.search(
+                        r"\b(?:answer|response|reply|r[eé]ponse)\b|(?:إجابة|رد)",
+                        q,
+                        re.IGNORECASE,
+                    )
+                ):
+                    resolved_intent = "memory_translate_last_answer"
                 logger.info(
                     "Memory intent fast-path: %s for query '%s'",
-                    intent_name, q[:60],
+                    resolved_intent, q[:60],
                 )
-                return self._build_classification(intent_name, language, 0.97)
+                return self._build_classification(resolved_intent, language, 0.97)
 
         return None
 
@@ -268,6 +297,12 @@ class QueryClassifier:
             confidence = top_score
 
         result = self._build_classification(top_intent, language, confidence)
+
+        if self._force_legal_when_explicit(q, result.intent):
+            logger.info(
+                "Classifier correction: forcing legal_query for explicit legal wording"
+            )
+            return self._build_classification("legal_query", language, 0.90)
 
         if self._force_conceptual_for_answer_analysis(q, result.intent):
             return self._build_classification("conceptual_question", language, 0.80)
@@ -327,6 +362,14 @@ class QueryClassifier:
                     q[:60], intent, language,
                 )
                 result = self._build_classification(intent, language, 0.95)
+
+                if self._force_legal_when_explicit(q, result.intent):
+                    logger.info(
+                        "Classifier correction: forcing legal_query for explicit legal wording"
+                    )
+                    return self._build_classification(
+                        "legal_query", language, 0.92,
+                    )
 
                 if self._force_conceptual_for_answer_analysis(q, result.intent):
                     logger.info(

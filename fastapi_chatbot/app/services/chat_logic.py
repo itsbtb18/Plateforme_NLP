@@ -27,6 +27,7 @@ from app.services.memory import get_session_service
 from app.services.memory.memory_handler import handle_memory_intent
 from app.services.documents.embeddings import get_embedding_service
 from app.services.qdrant import get_qdrant_service, COLLECTION_DOCUMENT_CHUNKS
+from app.services.language import get_language_service
 from app.services.retrieval.filters import build_user_doc_filter
 from app.schemas import ConversationRequest, ChatResponse, RetrievedDoc, EntityExplainRequest
 from app.models import ChatSession, UserDocument
@@ -41,6 +42,67 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 
+def build_entity_explain_fallback_answer(
+    request: EntityExplainRequest,
+    language: str,
+) -> str:
+    """Build a deterministic answer from card metadata when LLM is unavailable."""
+    meta = request.entity_metadata or {}
+    category = str(meta.get("category", "")).strip()
+    author = str(meta.get("author", "")).strip()
+    url = str(meta.get("url", "")).strip()
+    entity_type = str(request.entity_type or "resource").strip() or "resource"
+    title = str(request.entity_title or "").strip() or "this item"
+    description = str(request.entity_description or "").strip()
+
+    if language == "ar":
+        lines = [f"معلومة مؤكدة حول {title}:"]
+        lines.append(f"- النوع: {entity_type}")
+        if category:
+            lines.append(f"- الفئة: {category}")
+        if author:
+            lines.append(f"- الجهة/المؤلف: {author}")
+        if description:
+            lines.append(f"- الوصف: {description[:500]}")
+        if url:
+            lines.append(f"- الرابط: {url}")
+        lines.append(
+            "يمكنني توضيح المزيد (الاستخدامات، المتطلبات، أو المقارنة مع موارد مشابهة) إذا حددت ما تريد بالضبط."
+        )
+        return "\n".join(lines)
+
+    if language == "fr":
+        lines = [f"Informations verifiees sur {title}:"]
+        lines.append(f"- Type: {entity_type}")
+        if category:
+            lines.append(f"- Categorie: {category}")
+        if author:
+            lines.append(f"- Auteur/Proprietaire: {author}")
+        if description:
+            lines.append(f"- Description: {description[:500]}")
+        if url:
+            lines.append(f"- Lien: {url}")
+        lines.append(
+            "Je peux detailler davantage (usages, pre-requis, ou comparaison avec des ressources similaires) si vous precisez votre besoin."
+        )
+        return "\n".join(lines)
+
+    lines = [f"Verified information about {title}:"]
+    lines.append(f"- Type: {entity_type}")
+    if category:
+        lines.append(f"- Category: {category}")
+    if author:
+        lines.append(f"- Author/Owner: {author}")
+    if description:
+        lines.append(f"- Description: {description[:500]}")
+    if url:
+        lines.append(f"- Link: {url}")
+    lines.append(
+        "I can provide more detail (use cases, prerequisites, or a comparison with similar resources) if you tell me what you need most."
+    )
+    return "\n".join(lines)
+
+
 class ChatLogic:
     """RAG orchestration — classify → route → generate → persist.
 
@@ -53,6 +115,7 @@ class ChatLogic:
         self.classifier = get_query_classifier()  # Step 1-2
         self.router = get_query_router()  # Step 3
         self.sessions = get_session_service()  # PostgreSQL session ops
+        self.lang_service = get_language_service()
 
     # ------------------------------------------------------------------
     # Conversation handler (full RAG pipeline)
@@ -63,6 +126,14 @@ class ChatLogic:
         request: ConversationRequest,
         db: AsyncSession,
     ) -> ChatResponse:
+        await self.sessions.ensure_exists(
+            request.session_id,
+            db,
+            user_id=request.user_id,
+            user_country=request.user_country,
+            user_city=request.user_city,
+        )
+
         # Check if the user actually has uploaded documents (not just a session)
         has_docs = False
         if request.user_id:
@@ -80,9 +151,13 @@ class ChatLogic:
         chat_history_for_rewrite = await self.sessions.get_recent_messages(
             request.session_id, db,
         )
+        # Detect language of the RAW input first (Phase 8.1 language-lock)
+        input_language = self.lang_service.detect(request.question)
+
         effective_question = await rewrite_query(
             request.question,
             chat_history_for_rewrite or [],
+            language=input_language
         )
         if effective_question != request.question:
             logger.info(
@@ -96,6 +171,38 @@ class ChatLogic:
             has_session_docs=has_docs,
         )
         language = classification.language
+
+        # ── Phase 6: Mode override ────────────────────────────────────
+        # When frontend specifies a mode, override classification intent
+        # while keeping the detected language from the classifier.
+        _active_mode = getattr(request, "mode", None)
+        if _active_mode == "legal":
+            classification = QueryClassification(
+                intent="legal_query",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=["legal_documents"],
+            )
+            logger.info("Mode override: legal → legal_query")
+        elif _active_mode == "platform":
+            classification = QueryClassification(
+                intent="platform_query",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=["platform_docs"],
+            )
+            classification.detected_resource_type = extract_resource_type(
+                effective_question
+            )
+            logger.info("Mode override: platform → platform_query")
+        elif _active_mode == "nlp_ai":
+            classification = QueryClassification(
+                intent="coding_question",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=[],
+            )
+            logger.info("Mode override: nlp_ai → coding_question")
 
         # ── Phase 4.1: Document Session Persistence ──────────────────
         # Maintains a sticky "document mode" across turns so follow-up
@@ -258,6 +365,7 @@ class ChatLogic:
         # ── Memory intents: early exit (no retrieval needed) ─────────
         _MEMORY_INTENTS = {
             "memory_translate_last_user_query",
+            "memory_translate_last_answer",
             "memory_repeat_last_user_query",
             "memory_summarize_last_answer",
             "memory_compare_last_two_queries",
@@ -437,6 +545,7 @@ class ChatLogic:
                 session_summary=session_summary,
                 source_type=source,
                 username=getattr(request, "user_name", None),
+                mode=_active_mode,
             )
             # If RAG returned a fallback (e.g. rate-limit), retry without
             # context so the conversation is never blocked.
@@ -527,6 +636,14 @@ class ChatLogic:
         db: AsyncSession,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream conversation tokens as they arrive (SSE-style)."""
+        await self.sessions.ensure_exists(
+            request.session_id,
+            db,
+            user_id=request.user_id,
+            user_country=request.user_country,
+            user_city=request.user_city,
+        )
+
         has_docs = False
         if request.user_id:
             doc_count = await db.execute(
@@ -548,11 +665,41 @@ class ChatLogic:
             )
             session_row = result.scalars().first()
 
-        classification = self.classifier.classify(
+        classification = await self.classifier.classify_with_llm(
             request.question,
             has_session_docs=has_docs,
         )
         language = classification.language
+
+        # ── Phase 6: Mode override (stream) ───────────────────────────
+        _active_mode = getattr(request, "mode", None)
+        if _active_mode == "legal":
+            classification = QueryClassification(
+                intent="legal_query",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=["legal_documents"],
+            )
+            logger.info("Stream mode override: legal → legal_query")
+        elif _active_mode == "platform":
+            classification = QueryClassification(
+                intent="platform_query",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=["platform_docs"],
+            )
+            classification.detected_resource_type = extract_resource_type(
+                request.question
+            )
+            logger.info("Stream mode override: platform → platform_query")
+        elif _active_mode == "nlp_ai":
+            classification = QueryClassification(
+                intent="coding_question",
+                language=language,
+                confidence=0.98,
+                qdrant_collections=[],
+            )
+            logger.info("Stream mode override: nlp_ai → coding_question")
 
         _doc_session_handled = False
         if session_row and has_docs and request.user_id:
@@ -658,6 +805,7 @@ class ChatLogic:
         # ── Memory intents: early exit in stream (no retrieval needed) ──
         _MEMORY_INTENTS = {
             "memory_translate_last_user_query",
+            "memory_translate_last_answer",
             "memory_repeat_last_user_query",
             "memory_summarize_last_answer",
             "memory_compare_last_two_queries",
@@ -842,17 +990,65 @@ class ChatLogic:
     # Quick query (no context / no session)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _quick_query_force_legal(
+        domain: Optional[str],
+        source_hint: Optional[str],
+    ) -> bool:
+        """Return True when request hints explicitly require legal routing."""
+        d = (domain or "").strip().lower()
+        if d in {"legal", "law", "juridique", "juridical"}:
+            return True
+
+        hint = (source_hint or "").strip().lower()
+        if not hint:
+            return False
+        legal_tokens = (
+            "legal",
+            "law",
+            "juridique",
+            "loi",
+            "lois",
+            "decret",
+            "décret",
+            "article",
+            "القانون",
+            "قانون",
+            "قوانين",
+            "مرسوم",
+            "مادة",
+            "مواد",
+        )
+        return any(tok in hint for tok in legal_tokens)
+
     async def handle_quick_query(
         self,
         question: str,
         db: Optional[AsyncSession] = None,
         language: Optional[str] = None,
+        domain: Optional[str] = None,
+        source_hint: Optional[str] = None,
     ) -> ChatResponse:
-        classification = self.classifier.classify(question)
+        classification = await self.classifier.classify_with_llm(question)
+        if self._quick_query_force_legal(domain, source_hint):
+            classification = QueryClassification(
+                intent="legal_query",
+                language=classification.language,
+                confidence=max(classification.confidence, 0.98),
+                qdrant_collections=["legal_documents"],
+                qdrant_type_filter="law",
+            )
         lang = language or classification.language
         
         # If it's a retrieval intent, do a simplified RAG flow (no DB persistence)
-        retrieval_intents = {"legal_query", "nlp_knowledge", "platform_query", "resource_query", "conceptual_question"}
+        retrieval_intents = {
+            "legal_query",
+            "platform_query",
+            "conceptual_question",
+            "bug_query",
+            "metadata_query",
+            "document_query",
+        }
         if classification.intent in retrieval_intents:
             try:
                 # 1. Route
@@ -1050,13 +1246,14 @@ class ChatLogic:
             routing = await self.router.route(
                 request.entity_title,
                 QueryClassification(
-                    intent="nlp_knowledge",
+                    intent="conceptual_question",
                     language=lang,
                     confidence=0.9,
                 ),
+                db=db,
             )
-            if routing.results:
-                extra_context = self._build_context(routing.results)
+            if routing.retrieved_docs:
+                extra_context = self._build_context(routing.retrieved_docs)
         except Exception:
             logger.debug("Entity explain: optional Qdrant enrichment failed", exc_info=True)
 
@@ -1076,18 +1273,32 @@ class ChatLogic:
             request.session_id, db
         )
 
-        answer = await self.groq.generate_answer_with_context(
-            question=question,
-            context=full_context,
-            language=lang,
-            chat_history=chat_history,
-            source_type="platform",
-        )
-
         source = "platform"
-        if GroqClient.is_fallback(answer):
-            answer = await self.groq.quick_answer(question, lang)
-            source = "groq"
+        answer = ""
+        try:
+            answer = await self.groq.generate_answer_with_context(
+                question=question,
+                context=full_context,
+                language=lang,
+                chat_history=chat_history,
+                source_type="platform",
+            )
+        except Exception:
+            logger.error("Entity explain generation failed", exc_info=True)
+
+        if not answer or GroqClient.is_fallback(answer):
+            quick = ""
+            try:
+                quick = await self.groq.quick_answer(question, lang)
+            except Exception:
+                logger.error("Entity explain quick fallback failed", exc_info=True)
+
+            if quick and not GroqClient.is_fallback(quick):
+                answer = quick
+                source = "groq"
+            else:
+                answer = build_entity_explain_fallback_answer(request, lang)
+                source = "platform"
 
         # Persist messages
         await self.sessions.save_message(

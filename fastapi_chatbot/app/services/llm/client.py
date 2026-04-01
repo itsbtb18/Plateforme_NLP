@@ -10,6 +10,7 @@ from groq.types.chat import ChatCompletionMessageParam, ChatCompletion
 from app.config import get_settings
 from app.services.llm.prompts import (
     CRITICAL_RULES,
+    MODE_SYSTEM_PROMPTS,
     SYSTEM_PROMPTS,
     identity_hint,
     rag_prompt,
@@ -74,6 +75,39 @@ class GroqClient:
             ),
             alt_model,
         )
+
+    def _build_system_prompt(
+        self,
+        *,
+        language: str,
+        source_type: Optional[str] = None,
+        username: Optional[str] = None,
+        session_summary: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> str:
+        """Build system prompt with explicit precedence.
+
+        Precedence is intentional:
+          1) Base system role (or mode-specific role if mode is set)
+          2) General critical rules
+          3) Source-specific rules (legal/platform/user_document)
+             appended LAST so they override general style constraints.
+          4) Identity hint
+          5) Session summary
+        """
+        # Phase 6: Use mode-specific prompt if available
+        if mode and mode in MODE_SYSTEM_PROMPTS:
+            mode_prompts = MODE_SYSTEM_PROMPTS[mode]
+            system = mode_prompts.get(language, mode_prompts["en"])
+        else:
+            system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        if source_type:
+            system += source_rules(language, source_type)
+        system += identity_hint(username, language)
+        if session_summary:
+            system += f"\n\n[Previous conversation summary]\n{session_summary}"
+        return system
 
     def _sync_chat_completion(
         self,
@@ -191,6 +225,7 @@ class GroqClient:
         session_summary: Optional[str] = None,
         source_type: Optional[str] = None,
         username: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> str:
         """RAG-augmented answer generation.
 
@@ -200,16 +235,14 @@ class GroqClient:
           3. Retrieved context     (labelled by source type)
           4. User query
         """
-        # 1) SYSTEM INSTRUCTIONS
-        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
-        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
-        if source_type:
-            system += source_rules(language, source_type)
-        system += identity_hint(username, language)
-
-        # 2) CONVERSATION MEMORY
-        if session_summary:
-            system += f"\n\n[Previous conversation summary]\n{session_summary}"
+        # 1) SYSTEM INSTRUCTIONS + 2) CONVERSATION MEMORY
+        system = self._build_system_prompt(
+            language=language,
+            source_type=source_type,
+            username=username,
+            session_summary=session_summary,
+            mode=mode,
+        )
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system}
@@ -218,7 +251,7 @@ class GroqClient:
             messages.extend(chat_history)
 
         # 3) RETRIEVED CONTEXT + 4) USER QUERY
-        user_msg = rag_prompt(question, context, language)
+        user_msg = rag_prompt(question, context, language, source_type)
         messages.append({"role": "user", "content": user_msg})
 
         return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
@@ -234,14 +267,12 @@ class GroqClient:
         username: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """RAG-augmented answer generation — streams tokens as they arrive."""
-        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
-        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
-        if source_type:
-            system += source_rules(language, source_type)
-        system += identity_hint(username, language)
-
-        if session_summary:
-            system += f"\n\n[Previous conversation summary]\n{session_summary}"
+        system = self._build_system_prompt(
+            language=language,
+            source_type=source_type,
+            username=username,
+            session_summary=session_summary,
+        )
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system}
@@ -249,7 +280,7 @@ class GroqClient:
         if chat_history:
             messages.extend(chat_history)
 
-        user_msg = rag_prompt(question, context, language)
+        user_msg = rag_prompt(question, context, language, source_type)
         messages.append({"role": "user", "content": user_msg})
 
         stream = None

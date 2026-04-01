@@ -23,6 +23,11 @@ class ConversationRequest(BaseModel):
     user_id: Optional[str] = None
     user_country: Optional[str] = None
     user_city: Optional[str] = None
+    # Phase 6: operational mode — nlp_ai (default), legal, platform
+    mode: Optional[str] = Field(
+        None,
+        description="Operational mode: nlp_ai, legal, or platform. None = auto-classify.",
+    )
     # Current user profile — so the LLM knows who is asking
     user_name: Optional[str] = None
     user_email: Optional[str] = None
@@ -39,6 +44,14 @@ class QuickQueryRequest(BaseModel):
     )
     language: Optional[str] = Field(
         None, description="Force response language (ar/en/fr)"
+    )
+    domain: Optional[str] = Field(
+        None,
+        description="Optional routing hint (e.g., legal, platform)",
+    )
+    source_hint: Optional[str] = Field(
+        None,
+        description="Optional source hint text used to bias retrieval routing",
     )
 
 
