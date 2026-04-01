@@ -28,7 +28,7 @@ def _normalize_exa_result(result, rank: int) -> Dict:
         "content": getattr(result, "text", "") or "",
         "source": "web_exa",
         "url": getattr(result, "url", "") or "",
-        "similarity": max(0.40, 0.60 - rank * 0.03),  # Synthetic score for ranking
+        "similarity": max(0.35, 0.55 - rank * 0.04),  # Synthetic score for ranking (lowered Phase 6)
         "metadata": {
             "source_type": "web",
             "provider": "exa",

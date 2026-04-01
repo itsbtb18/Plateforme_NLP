@@ -29,7 +29,11 @@ from app.services.retrieval import (
 )
 from app.services.platform_queries import get_platform_query_service
 from app.services.elasticsearch_service import get_elasticsearch_service
-from app.services.web.confidence import compute_retrieval_confidence, should_trigger_exa
+from app.services.web.confidence import (
+    compute_retrieval_confidence,
+    should_trigger_exa,
+    should_use_web_only_context,
+)
 from app.services.web.exa_client import search_exa
 from app.services.web.cache import cache_get, cache_set
 from app.services.web.policy import get_exa_policy
@@ -121,6 +125,45 @@ class QueryRouter:
         # (Qdrant, Elasticsearch, PostgreSQL).  This covers greetings,
         # conversational advice, brainstorming, and general knowledge.
         if classification.use_llm_direct:
+            # Balanced behavior for factual lookups: try local vector search first,
+            # then trigger Exa only when local retrieval is weak.
+            if intent == "general_knowledge" and self._is_fact_lookup_question(question):
+                docs, src = await self._semantic_targeted(
+                    question,
+                    db,
+                    lang,
+                    collections=["nlp_knowledge", "platform_docs"],
+                    top_k=settings.TOP_K_RESULTS,
+                )
+                result.retrieved_docs = docs
+                result.primary_source = src if docs else "none"
+
+                exa_docs = await self._maybe_exa_fallback(
+                    question,
+                    docs,
+                    "conceptual_question",
+                    lang,
+                    session_id=session_id,
+                    user_id=user_id,
+                    on_exa_fallback=on_exa_fallback,
+                )
+                if exa_docs:
+                    if should_use_web_only_context(docs, question, "conceptual_question"):
+                        result.retrieved_docs = list(exa_docs)[: settings.TOP_K_RESULTS]
+                    else:
+                        combined_docs = list(exa_docs) + list(docs or [])
+                        combined_docs.sort(
+                            key=lambda d: float(d.get("similarity", 0.0)),
+                            reverse=True,
+                        )
+                        result.retrieved_docs = combined_docs[: settings.TOP_K_RESULTS]
+                    result.primary_source = "web_exa"
+
+                if not result.retrieved_docs:
+                    result.skip_retrieval = True
+                    result.primary_source = "groq"
+                return result
+
             result.skip_retrieval = True
             result.primary_source = "groq"
             return result
@@ -186,8 +229,18 @@ class QueryRouter:
                 on_exa_fallback=on_exa_fallback,
             )
             if exa_docs:
-                result.retrieved_docs = docs + exa_docs
-                result.primary_source = src if docs else "web_exa"
+                if should_use_web_only_context(docs, question, intent):
+                    result.retrieved_docs = list(exa_docs)[: settings.TOP_K_RESULTS]
+                else:
+                    combined_docs = list(exa_docs) + list(docs or [])
+                    combined_docs.sort(
+                        key=lambda d: float(d.get("similarity", 0.0)),
+                        reverse=True,
+                    )
+                    result.retrieved_docs = combined_docs[: settings.TOP_K_RESULTS]
+                # Mark web_exa as the primary source whenever Exa docs are used
+                # so downstream generation and UI attribution stay truthful.
+                result.primary_source = "web_exa"
 
             if not result.retrieved_docs:
                 result.skip_retrieval = True
@@ -287,14 +340,17 @@ class QueryRouter:
                     }
                 ]
                 result.primary_source = "platform"
-            docs, _ = await self._semantic_targeted(
-                question,
-                db,
-                lang,
-                collections=["platform_docs", "nlp_knowledge"],
-                top_k=3,
-            )
-            result.retrieved_docs = docs
+            # Keep platform_query responses clean: do not attach semantic NLP docs
+            # when platform cards are already returned, to avoid mixed/confusing sources.
+            if not platform:
+                docs, _ = await self._semantic_targeted(
+                    question,
+                    db,
+                    lang,
+                    collections=["platform_docs", "nlp_knowledge"],
+                    top_k=3,
+                )
+                result.retrieved_docs = docs
             return result
 
         # ----- legal_query → Qdrant (law filter + same-language priority) -----
@@ -314,9 +370,16 @@ class QueryRouter:
                 on_exa_fallback=on_exa_fallback,
             )
             if exa_docs:
-                result.retrieved_docs = (docs or []) + exa_docs
-                if not docs:
-                    result.primary_source = "web_exa"
+                if should_use_web_only_context(docs, question, intent):
+                    result.retrieved_docs = list(exa_docs)[: settings.TOP_K_RESULTS]
+                else:
+                    combined_docs = list(exa_docs) + list(docs or [])
+                    combined_docs.sort(
+                        key=lambda d: float(d.get("similarity", 0.0)),
+                        reverse=True,
+                    )
+                    result.retrieved_docs = combined_docs[: settings.TOP_K_RESULTS]
+                result.primary_source = "web_exa"
 
             return result
 
@@ -468,6 +531,20 @@ class QueryRouter:
             q,
         ))
 
+    @staticmethod
+    def _is_fact_lookup_question(question: str) -> bool:
+        """Detect short factual lookup prompts suitable for RAG+Exa balancing."""
+        import re
+
+        q = (question or "").strip().lower()
+        return bool(
+            re.search(
+                r"^(?:who\s+is|what\s+is|tell\s+me\s+about|explain\s+what\s+is|"
+                r"من\s+هو|ما\s+هو|c'?est\s+quoi|qui\s+est)\b",
+                q,
+            )
+        )
+
     async def _semantic_broad(
         self,
         question: str,
@@ -492,7 +569,10 @@ class QueryRouter:
     _COLLECTION_THRESHOLDS: Dict[str, float] = {
         "document_chunks": 0.65,
         "legal_documents": 0.60,
-        "nlp_knowledge": 0.55,
+        # NLP queries with typos/noisy wording often score around 0.47-0.52.
+        # Some valid conceptual queries score around 0.40-0.44 in this corpus.
+        # 0.40 reduces unnecessary non-RAG fallbacks while keeping weak noise out.
+        "nlp_knowledge": 0.40,
         "platform_docs": 0.50,
         "resources": 0.50,
     }
@@ -572,7 +652,7 @@ class QueryRouter:
             return []
 
         confidence = compute_retrieval_confidence(retrieved_docs)
-        if not should_trigger_exa(confidence, intent):
+        if not should_trigger_exa(confidence, intent, retrieved_docs, question):
             logger.info(
                 "Exa fallback NOT triggered: confidence=%.3f intent=%s",
                 confidence, intent,
@@ -582,6 +662,11 @@ class QueryRouter:
         # Check cache first
         cached = cache_get(question, intent, language)
         if cached is not None:
+            if on_exa_fallback:
+                try:
+                    await on_exa_fallback()
+                except Exception as e:
+                    logger.error("Error in on_exa_fallback (cache hit): %s", e)
             logger.info(
                 "Exa fallback: using %d cached results (intent=%s)",
                 len(cached), intent,

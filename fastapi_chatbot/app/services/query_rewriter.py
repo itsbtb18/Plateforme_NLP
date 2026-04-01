@@ -87,18 +87,28 @@ async def rewrite_query(
 
         client = get_internal_groq_client()
         formatted_history = _format_history(history)
+        
+        # Phase 8.1: Explicit language-lock in rewriter
+        lang_note = ""
+        if language == "ar":
+            lang_note = "\n(Strict rule: The rewritten question MUST be in ARABIC.)"
+        elif language == "fr":
+            lang_note = "\n(Règle stricte: La question reformulée DOIT être en FRANÇAIS.)"
+            
         prompt = QUERY_REWRITE_PROMPT.format(
             history=formatted_history,
             question=question,
         )
+        if lang_note:
+            prompt += lang_note
 
         messages = [
-            {"role": "system", "content": "You are a query rewriter. Return only the rewritten question."},
+            {"role": "system", "content": f"You are a query rewriter. Respond only with the rewritten question in {language}."},
             {"role": "user", "content": prompt},
         ]
 
         rewritten = await client.chat_completion(
-            messages, temperature=0.0, max_tokens=150,
+            messages, temperature=0.0, max_tokens=250,
         )
         rewritten = rewritten.strip().strip('"').strip("'")
 

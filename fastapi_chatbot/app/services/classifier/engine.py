@@ -192,6 +192,18 @@ class QueryClassifier:
         q = question.strip()
         return len(q) >= 80 and bool(_ANALYZE_ANSWER_RE.search(q))
 
+    def _force_legal_when_explicit(self, question: str, intent: str) -> bool:
+        """Return True when legal lexical signals should override intent.
+
+        This protects legal questions that mention platform entities
+        (Academia/ResearchGate/author) from being misrouted to platform_query.
+        """
+        if intent == "legal_query":
+            return False
+        q = question.strip()
+        # Require at least one explicit legal marker.
+        return any(p.search(q) for p in LEGAL_PATTERNS)
+
     # ------------------------------------------------------------------
     # Synchronous fast-path (no LLM needed for trivial queries)
     # ------------------------------------------------------------------
@@ -286,6 +298,12 @@ class QueryClassifier:
 
         result = self._build_classification(top_intent, language, confidence)
 
+        if self._force_legal_when_explicit(q, result.intent):
+            logger.info(
+                "Classifier correction: forcing legal_query for explicit legal wording"
+            )
+            return self._build_classification("legal_query", language, 0.90)
+
         if self._force_conceptual_for_answer_analysis(q, result.intent):
             return self._build_classification("conceptual_question", language, 0.80)
 
@@ -344,6 +362,14 @@ class QueryClassifier:
                     q[:60], intent, language,
                 )
                 result = self._build_classification(intent, language, 0.95)
+
+                if self._force_legal_when_explicit(q, result.intent):
+                    logger.info(
+                        "Classifier correction: forcing legal_query for explicit legal wording"
+                    )
+                    return self._build_classification(
+                        "legal_query", language, 0.92,
+                    )
 
                 if self._force_conceptual_for_answer_analysis(q, result.intent):
                     logger.info(
