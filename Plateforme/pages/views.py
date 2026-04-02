@@ -765,6 +765,7 @@ def publications_list(request):
         "language_choices": _tag_options_for_queryset(base_queryset, "languages"),
         "year_choices": list(base_queryset.order_by("-year").values_list("year", flat=True).distinct()),
         "type_meta": NEWS_TYPE_META,
+        "publications_count": base_queryset.count(),
     }
     return render(request, "news/publication_list.html", context)
 
