@@ -158,92 +158,144 @@ async def _process_document_async(document_id: int, source: str = "user_upload")
                 await db.commit()
 
                 raw_text = doc.raw_text
-                if not raw_text:
-                    raise ValueError("No text content available for chunking")
+                if not raw_text or not raw_text.strip():
+                    # PyPDF2 failed during upload — retry with Docling
+                    # (runs in Celery worker, so blocking is safe)
+                    if doc.file_type == "pdf":
+                        logger.info(
+                            "Document %d: empty text — retrying with Docling",
+                            document_id,
+                        )
+                        import tempfile
+                        from pathlib import Path as _Path
+
+                        try:
+                            from docling.document_converter import DocumentConverter
+
+                            # Re-read from the upload bytes stored in DB
+                            # If raw_text is empty, we need the original file.
+                            # Check if file exists on disk (mounted volume)
+                            import glob
+                            search_pattern = f"/app/data/**/{doc.filename}"
+                            matches = glob.glob(search_pattern, recursive=True)
+                            if not matches:
+                                # Try without subdirectories
+                                matches = glob.glob(f"/app/data/*/{doc.filename}", recursive=True)
+
+                            if matches:
+                                file_path = matches[0]
+                                converter = DocumentConverter()
+                                result = converter.convert(file_path)
+                                raw_text = result.document.export_to_markdown() or ""
+                                logger.info(
+                                    "Docling extracted %d chars from %s",
+                                    len(raw_text), doc.filename,
+                                )
+                            else:
+                                raise ValueError(
+                                    f"Cannot find file '{doc.filename}' on disk "
+                                    f"for Docling re-extraction"
+                                )
+                        except ImportError:
+                            raise ValueError(
+                                "Docling not installed — cannot re-extract"
+                            )
+                    else:
+                        raise ValueError("No text content available for chunking")
+
+                if not raw_text or not raw_text.strip():
+                    raise ValueError("No text content after Docling re-extraction")
+
+                # Update raw_text in DB so future retries don't need Docling
+                doc.raw_text = raw_text.replace("\x00", "")[:200_000]
+                await db.commit()
 
                 cleaned = processor.clean_text(raw_text)
                 doc_language = lang_service.detect(cleaned[:2000])
                 chunks = processor.chunk_text(cleaned)
-
-                # Generate embeddings in batches
-                batch_size = 32
-                all_embeddings = []
-                for i in range(0, len(chunks), batch_size):
-                    batch_texts = [c["content"] for c in chunks[i : i + batch_size]]
-                    batch_emb = embedding_service.encode(
-                        batch_texts, batch_size=batch_size
-                    )
-                    all_embeddings.extend(batch_emb.tolist())
-
-                # Persist chunk text in PostgreSQL, embeddings in Qdrant
-                qdrant_points: list[PointStruct] = []
                 point_ids: list[int] = []
-                es_documents: list[dict] = []
-                for idx, (chunk, emb) in enumerate(zip(chunks, all_embeddings)):
-                    db_chunk = DocumentChunk(
-                        document_id=document_id,
-                        chunk_index=idx,
-                        content=chunk["content"],
-                        page_number=chunk.get("page"),
-                    )
-                    db.add(db_chunk)
-                    await db.flush()
 
-                    # Phase 10: extract named entities for search boosting
-                    chunk_entities = extract_entities(chunk["content"])
-
-                    qdrant_points.append(
-                        PointStruct(
-                            id=db_chunk.id,
-                            vector=emb,
-                            payload={
-                                "type": "document",
-                                "language": doc_language,
-                                "owner_id": doc.user_id or "",
-                                "document_id": document_id,
-                                "session_id": doc.session_id,
-                                "filename": doc.filename,
-                                "chunk_index": idx,
-                                "source": source,
-                                "entities": chunk_entities,
-                            },
-                        )
-                    )
-                    point_ids.append(db_chunk.id)
-                    es_documents.append(
-                        {
-                            "id": db_chunk.id,
-                            "document_id": document_id,
-                            "owner_id": doc.user_id or "",
-                            "session_id": doc.session_id,
-                            "filename": doc.filename,
-                            "chunk_index": idx,
-                            "language": doc_language,
-                            "type": "document",
-                            "source": source,
-                            "content": chunk["content"][:4000],
-                        }
-                    )
+                # Stream chunk embedding/indexing in small batches to avoid
+                # worker OOM on large uploads.
+                batch_size = 8
+                processed_chunks = 0
 
                 # Upsert to Qdrant FIRST so chunks are searchable
                 # before the status poller sees "completed"
                 qdrant_upserted = False
                 es_indexed = False
 
-                qdrant.upsert_batch(COLLECTION_DOCUMENT_CHUNKS, qdrant_points)
-                qdrant_upserted = True
+                for batch_start in range(0, len(chunks), batch_size):
+                    batch_chunks = chunks[batch_start : batch_start + batch_size]
+                    batch_texts = [c["content"] for c in batch_chunks]
+                    batch_embeddings = embedding_service.encode(
+                        batch_texts, batch_size=batch_size
+                    ).tolist()
 
-                if _es_indexing_enabled():
-                    await _index_chunks_in_es(es_documents)
-                    es_indexed = True
+                    qdrant_points: list[PointStruct] = []
+                    es_documents: list[dict] = []
 
-                doc.total_chunks = len(chunks)
+                    for offset, (chunk, emb) in enumerate(zip(batch_chunks, batch_embeddings)):
+                        idx = batch_start + offset
+                        db_chunk = DocumentChunk(
+                            document_id=document_id,
+                            chunk_index=idx,
+                            content=chunk["content"],
+                            page_number=chunk.get("page"),
+                        )
+                        db.add(db_chunk)
+                        await db.flush()
+
+                        chunk_entities = extract_entities(chunk["content"])
+                        qdrant_points.append(
+                            PointStruct(
+                                id=db_chunk.id,
+                                vector=emb,
+                                payload={
+                                    "type": "document",
+                                    "language": doc_language,
+                                    "owner_id": doc.user_id or "",
+                                    "document_id": document_id,
+                                    "session_id": doc.session_id,
+                                    "filename": doc.filename,
+                                    "chunk_index": idx,
+                                    "source": source,
+                                    "entities": chunk_entities,
+                                },
+                            )
+                        )
+                        point_ids.append(db_chunk.id)
+                        es_documents.append(
+                            {
+                                "id": db_chunk.id,
+                                "document_id": document_id,
+                                "owner_id": doc.user_id or "",
+                                "session_id": doc.session_id,
+                                "filename": doc.filename,
+                                "chunk_index": idx,
+                                "language": doc_language,
+                                "type": "document",
+                                "source": source,
+                                "content": chunk["content"][:4000],
+                            }
+                        )
+
+                    qdrant.upsert_batch(COLLECTION_DOCUMENT_CHUNKS, qdrant_points)
+                    qdrant_upserted = True
+
+                    if _es_indexing_enabled():
+                        await _index_chunks_in_es(es_documents)
+                        es_indexed = True
+
+                    processed_chunks += len(batch_chunks)
+
+                doc.total_chunks = processed_chunks
                 doc.status = "completed"
                 await db.commit()
                 logger.info(
                     "Document %d processed: %d chunks, lang=%s",
                     document_id,
-                    len(chunks),
+                    processed_chunks,
                     doc_language,
                 )
 

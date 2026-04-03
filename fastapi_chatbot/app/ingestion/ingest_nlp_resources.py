@@ -28,6 +28,7 @@ Usage::
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -47,8 +48,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s | %(me
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATA_DIR = Path(__file__).parent.parent.parent / "data"
-CHECKPOINT_FILE = Path(__file__).parent.parent.parent / ".nlp_ingest_checkpoint.json"
 EMBEDDING_BATCH_SIZE = 8
+
+
+def _resolve_checkpoint_file() -> Path:
+        """Return a writable checkpoint path.
+
+        Priority:
+            1) NLP_INGEST_CHECKPOINT env override
+            2) project root checkpoint (when writable)
+            3) /tmp fallback inside container/host
+        """
+        env_path = os.getenv("NLP_INGEST_CHECKPOINT")
+        if env_path:
+                return Path(env_path)
+        return Path(__file__).parent.parent.parent / ".nlp_ingest_checkpoint.json"
+
+
+CHECKPOINT_FILE = _resolve_checkpoint_file()
+FALLBACK_CHECKPOINT_FILE = Path("/tmp/.nlp_ingest_checkpoint.json")
 
 # Document type classification based on filename heuristics
 _DOC_TYPE_HINTS = {
@@ -74,23 +92,64 @@ def _classify_doc_type(filename: str) -> str:
     return "paper"
 
 
+def _detect_file_kind(file_path: Path) -> str | None:
+    """Detect ingestible file kind from extension or file header.
+
+    Returns one of: "pdf", "xml", or None for unsupported files.
+    """
+    suffix = file_path.suffix.lower()
+    if suffix == ".pdf":
+        return "pdf"
+    if suffix == ".xml":
+        return "xml"
+
+    try:
+        with open(file_path, "rb") as handle:
+            head = handle.read(1024)
+    except OSError:
+        return None
+
+    if head.startswith(b"%PDF"):
+        return "pdf"
+
+    try:
+        text_head = head.decode("utf-8", errors="ignore").lstrip()
+    except Exception:
+        text_head = ""
+    if text_head.startswith("<?xml") or "<article" in text_head[:300].lower():
+        return "xml"
+
+    return None
+
+
 # ------------------------------------------------------------------
 # Checkpoint management
 # ------------------------------------------------------------------
 
 def _load_checkpoint() -> dict:
-    if CHECKPOINT_FILE.exists():
-        return json.loads(CHECKPOINT_FILE.read_text())
-    return {"completed_files": [], "total_chunks": 0}
+    for path in (CHECKPOINT_FILE, FALLBACK_CHECKPOINT_FILE):
+        if path.exists():
+            return json.loads(path.read_text())
+    return {"completed_files": [], "failed_files": [], "total_chunks": 0}
 
 
 def _save_checkpoint(state: dict):
-    CHECKPOINT_FILE.write_text(json.dumps(state, indent=2))
+    payload = json.dumps(state, indent=2)
+    try:
+        CHECKPOINT_FILE.write_text(payload)
+    except PermissionError:
+        logger.warning(
+            "Checkpoint path not writable (%s); using fallback %s",
+            CHECKPOINT_FILE,
+            FALLBACK_CHECKPOINT_FILE,
+        )
+        FALLBACK_CHECKPOINT_FILE.write_text(payload)
 
 
 def _clear_checkpoint():
-    if CHECKPOINT_FILE.exists():
-        CHECKPOINT_FILE.unlink()
+    for path in (CHECKPOINT_FILE, FALLBACK_CHECKPOINT_FILE):
+        if path.exists():
+            path.unlink()
 
 
 # ------------------------------------------------------------------
@@ -106,11 +165,11 @@ async def ingest_single_document(
 
     Returns the number of chunks ingested.
     """
-    suffix = file_path.suffix.lower()
+    file_kind = _detect_file_kind(file_path)
 
-    if suffix == ".pdf":
+    if file_kind == "pdf":
         parsed = load_and_chunk_pdf(file_path, max_tokens=1000, overlap_tokens=100)
-    elif suffix == ".xml":
+    elif file_kind == "xml":
         parsed = load_and_chunk_xml(file_path, max_tokens=1000, overlap_tokens=100)
     else:
         logger.warning("Unsupported file type: %s — skipping", file_path.name)
@@ -231,8 +290,9 @@ async def ingest_all_nlp_docs(
     dry_run: bool = False,
 ):
     """Ingest all PDFs and XMLs in data_dir with resume support."""
+    all_files = [f for f in data_dir.rglob("*") if f.is_file()]
     files = sorted(
-        [f for f in data_dir.iterdir() if f.suffix.lower() in (".pdf", ".xml")],
+        [f for f in all_files if _detect_file_kind(f) in ("pdf", "xml")],
         key=lambda f: f.stat().st_size,  # smallest first (faster progress)
     )
 
@@ -243,12 +303,25 @@ async def ingest_all_nlp_docs(
     # Load or reset checkpoint
     if force:
         _clear_checkpoint()
-        state = {"completed_files": [], "total_chunks": 0}
+        state = {"completed_files": [], "failed_files": [], "total_chunks": 0}
     else:
         state = _load_checkpoint()
+        if "failed_files" not in state:
+            state["failed_files"] = []
+
+    def _file_key(path: Path) -> str:
+        try:
+            return str(path.relative_to(data_dir))
+        except ValueError:
+            return path.name
 
     completed = set(state["completed_files"])
-    pending = [f for f in files if f.name not in completed]
+    completed_basenames = {Path(name).name for name in completed}
+    pending = [
+        f
+        for f in files
+        if _file_key(f) not in completed and Path(_file_key(f)).name not in completed_basenames
+    ]
 
     logger.info(
         "Found %d files (%d already completed, %d pending)",
@@ -263,7 +336,11 @@ async def ingest_all_nlp_docs(
 
         try:
             n = await ingest_single_document(file_path, difficulty, dry_run)
-            state["completed_files"].append(file_path.name)
+            key = _file_key(file_path)
+            if key not in completed:
+                state["completed_files"].append(key)
+                completed.add(key)
+                completed_basenames.add(Path(key).name)
             state["total_chunks"] += n
             if not dry_run:
                 _save_checkpoint(state)
@@ -273,8 +350,12 @@ async def ingest_all_nlp_docs(
             )
         except Exception as e:
             logger.error("FAILED on %s: %s", file_path.name, e, exc_info=True)
-            logger.info("Stopping. Re-run to resume from checkpoint.")
-            break
+            key = _file_key(file_path)
+            if key not in state["failed_files"]:
+                state["failed_files"].append(key)
+            if not dry_run:
+                _save_checkpoint(state)
+            logger.info("Continuing with remaining files...")
 
     logger.info(
         "Done — %d files processed, %d total chunks ingested",

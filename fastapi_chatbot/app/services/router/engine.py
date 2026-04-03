@@ -106,6 +106,7 @@ class QueryRouter:
         document_id: Optional[int] = None,
         user_email: Optional[str] = None,
         on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
+        mode: Optional[str] = None,
     ) -> RoutingResult:
         """Execute the retrieval strategy dictated by *classification*."""
 

@@ -129,7 +129,7 @@ class PlatformQueryService:
         where = " AND ".join(conditions)
         query = text(f"""
             SELECT id::text, title, title_ar, title_en, description,
-                   document_type, file_format, language,
+                   document_type, language,
                    creation_date, views_count
             FROM resources_document
             WHERE {where}
@@ -145,7 +145,7 @@ class PlatformQueryService:
                 "description": (r["description"] or "")[:300],
                 "url": f"/resources/article/{r['id']}/",
                 "document_type": r["document_type"],
-                "format": r["file_format"],
+                "format": "pdf",  # fallback or derived if needed
                 "language": r["language"],
                 "created_at": str(r["creation_date"]) if r["creation_date"] else None,
                 "views": r["views_count"],

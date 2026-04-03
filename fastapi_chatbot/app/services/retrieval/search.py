@@ -98,29 +98,47 @@ async def search_nlp_knowledge(
 ) -> List[Dict]:
     try:
         k = top_k or settings.TOP_K_RESULTS
+        fetch_k = max(k * 4, 20)
         embedding_svc = get_embedding_service()
         qdrant = get_qdrant_service()
 
         qe = embedding_svc.encode_single(query)
         qf = build_language_filter(language) if language else None
 
-        # Prefer same-language matches first, but fall back to cross-lingual
-        # retrieval when that strict filter returns nothing.
-        hits = qdrant.search(
+        # Cross-lingual first-class behavior:
+        # fetch same-language and all-language candidates, then merge.
+        strict_hits = qdrant.search(
             collection=COLLECTION_NLP_KNOWLEDGE,
             query_vector=qe,
-            limit=k,
+            limit=fetch_k,
             query_filter=qf,
-            score_threshold=0.40,
+            score_threshold=0.30,
+        ) if qf is not None else []
+
+        broad_hits = qdrant.search(
+            collection=COLLECTION_NLP_KNOWLEDGE,
+            query_vector=qe,
+            limit=fetch_k,
+            query_filter=None,
+            score_threshold=0.30,
         )
-        if not hits and qf is not None:
-            hits = qdrant.search(
-                collection=COLLECTION_NLP_KNOWLEDGE,
-                query_vector=qe,
-                limit=k,
-                query_filter=None,
-                score_threshold=0.40,
-            )
+
+        merged: Dict[int, Dict] = {}
+        for h in broad_hits:
+            hid = int(h["id"])
+            merged[hid] = h
+
+        # Keep same-language preference, but never exclude cross-lingual docs.
+        lang_bonus = 0.03
+        for h in strict_hits:
+            hid = int(h["id"])
+            boosted = dict(h)
+            boosted["score"] = min(float(h.get("score", 0.0)) + lang_bonus, 1.0)
+            current = merged.get(hid)
+            if current is None or boosted["score"] > float(current.get("score", 0.0)):
+                merged[hid] = boosted
+
+        hits = sorted(merged.values(), key=lambda x: float(x.get("score", 0.0)), reverse=True)[:fetch_k]
         if not hits:
             return []
 
@@ -148,9 +166,56 @@ async def search_nlp_knowledge(
                     "similarity": score_map[pid],
                     "document_type": getattr(r, "document_type", None),
                     "section_title": getattr(r, "section_title", None),
+                    "source_file": getattr(r, "source_file", None),
                 }
             )
-        return results
+
+        # Prefer file-backed records (ingested docs with source_file) over
+        # legacy rows that have no source_file, then apply diversity.
+        known = [r for r in results if r.get("source_file")]
+        unknown = [r for r in results if not r.get("source_file")]
+        if known and unknown:
+            max_unknown = max(1, k // 4)
+            unknown = unknown[:max_unknown]
+        ranked = known + unknown
+
+        # Keep result diversity across NLP source files so answers do not
+        # collapse to chunks from only one or two documents.
+        if len(ranked) <= k:
+            return ranked
+
+        from collections import defaultdict
+
+        by_file: Dict[str, List[Dict]] = defaultdict(list)
+        for row in ranked:
+            key = row.get("source_file") or f"id-{row.get('id')}"
+            by_file[key].append(row)
+
+        selected: List[Dict] = []
+        selected_ids = set()
+
+        # Round 1: one best chunk per distinct source file.
+        for key in by_file:
+            cand = by_file[key][0]
+            cid = cand.get("id")
+            if cid not in selected_ids:
+                selected.append(cand)
+                selected_ids.add(cid)
+            if len(selected) >= k:
+                break
+
+        # Round 2: fill remaining slots by global relevance.
+        if len(selected) < k:
+            for row in ranked:
+                cid = row.get("id")
+                if cid in selected_ids:
+                    continue
+                selected.append(row)
+                selected_ids.add(cid)
+                if len(selected) >= k:
+                    break
+
+        return selected[:k]
     except Exception as e:
         logger.error("NLP knowledge search error: %s", e, exc_info=True)
         return []
