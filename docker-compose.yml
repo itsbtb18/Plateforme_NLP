@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database with pgvector extension
   db:
-    image: "pgvector/pgvector:pg16"
+    image: "pgvector/pgvector:pg15"
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "5432:5432"
@@ -28,7 +28,7 @@ services:
     container_name: nlp_redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?must be set}
     volumes:
-      - redis_data:/data
+      - ./data/redis:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -45,7 +45,7 @@ services:
     image: qdrant/qdrant:v1.12.4
     container_name: nlp_qdrant
     volumes:
-      - qdrant_data:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -76,7 +76,7 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
     healthcheck:
@@ -258,8 +258,8 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_celery_worker
     cpus: 1.0
-    mem_limit: 2g
-    mem_reservation: 512m
+    mem_limit: 4g
+    mem_reservation: 1g
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -491,7 +491,7 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus_data:/prometheus
+      - ./data/prometheus:/prometheus
     ports:
       - "9090:9090"
     depends_on:
@@ -520,7 +520,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3000:3000"
@@ -566,14 +566,6 @@ networks:
         - subnet: 172.25.0.0/16
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  qdrant_data:
-    driver: local
-  elasticsearch_data:
-    driver: local
   static_volume:
     driver: local
   media_volume:
@@ -581,8 +573,4 @@ volumes:
   scraping_media:
     driver: local
   fastapi_cache:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
     driver: local
