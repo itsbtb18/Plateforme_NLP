@@ -399,6 +399,15 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             invited_user=self.request.user,
             status=ProjectInvitation.Status.PENDING,
         ).count()
+        
+        # Count projects by status
+        queryset = self.get_queryset()
+        context["status_counts"] = {
+            "ongoing": queryset.filter(status="ongoing").count(),
+            "completed": queryset.filter(status="completed").count(),
+            "planned": queryset.filter(status="planned").count(),
+        }
+        
         return context
 
 
