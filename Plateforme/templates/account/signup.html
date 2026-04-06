@@ -298,10 +298,7 @@
     .form-header h1 {
         font-size: 1.8rem;
         font-weight: 800;
-        background: linear-gradient(to right, #1f2937 0%, #7c3aed 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #1f2937;
         margin-bottom: 0.5rem;
     }
 
@@ -382,18 +379,26 @@
         background-color: #ffffff !important;
     }
 
+    .input-wrapper select option:first-child {
+        color: #9ca3af !important;
+    }
+
+    .input-wrapper select option:checked:first-child {
+        color: #9ca3af !important;
+    }
+
     .input-wrapper select option:checked,
     .input-wrapper select option:hover {
         color: #ffffff !important;
-        background: linear-gradient(#7c3aed, #7c3aed) !important;
+        background: linear-gradient(#a78bfa, #a78bfa) !important;
     }
 
     .input-wrapper input:focus,
     .input-wrapper select:focus {
-        border-color: #7c3aed;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-        background-color: #ffffff;
+        border-color: #a78bfa !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+        background-color: #ffffff !important;
     }
 
     .input-wrapper input::placeholder {
@@ -414,7 +419,7 @@
 
     .input-wrapper input:focus ~ .input-icon,
     .input-wrapper select:focus ~ .input-icon {
-        color: #7c3aed;
+        color: #a78bfa;
     }
 
     /* Password field with toggle */
@@ -438,10 +443,10 @@
     }
 
     .password-wrapper input:focus {
-        border-color: #7c3aed;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-        background-color: #ffffff;
+        border-color: #a78bfa !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+        background-color: #ffffff !important;
     }
 
     .password-toggle {
@@ -462,7 +467,7 @@
     }
 
     .password-toggle:hover {
-        color: #7c3aed;
+        color: #a78bfa;
     }
 
     /* Password requirements */
@@ -476,7 +481,7 @@
 
     .password-requirements p {
         font-size: 0.8rem;
-        color: #4b5563;
+        color: #6b7280;
         margin: 0 0 0.5rem 0;
         font-weight: 600;
     }
@@ -527,14 +532,15 @@
 
     .terms-checkbox label {
         font-size: 0.85rem;
-        color: #4b5563;
+        color: #6b7280;
         line-height: 1.4;
     }
 
     .terms-checkbox label a {
-        color: #7c3aed;
+        color: #a78bfa;
         text-decoration: none;
         font-weight: 600;
+        transition: all 0.2s ease;
     }
 
     .terms-checkbox label a:hover {
@@ -562,9 +568,7 @@
     }
 
     .btn-submit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5);
-        background: linear-gradient(to right, #9d84ef, #8b5cf6);
+        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
     }
 
     .btn-submit:active {
@@ -598,7 +602,6 @@
         text-align: center;
         margin-top: 1.25rem;
         padding-top: 1.25rem;
-        border-top: 1px solid #e5e7eb;
     }
 
     .auth-footer p {
@@ -607,14 +610,14 @@
     }
 
     .auth-footer a {
-        color: #7c3aed;
+        color: #a78BFA;
         font-weight: 700;
         text-decoration: none;
         transition: color 0.2s ease;
     }
 
     .auth-footer a:hover {
-        color: #6d28d9;
+        color: #A78BFA;
         text-decoration: underline;
     }
 
@@ -814,7 +817,7 @@
         <div class="form-side">
             <div class="form-header">
                 <h1>{% trans "Create Account" %}</h1>
-                <p>{% trans "Join our research community today" %}</p>
+                <p>{% trans "Join our research community today!" %}</p>
             </div>
 
             {% if form.errors %}
@@ -1129,5 +1132,20 @@ document.getElementById('signup-form').addEventListener('submit', function() {
     btn.classList.add('loading');
     btn.disabled = true;
 });
+
+// Handle select placeholder color
+const institutionSelect = document.getElementById('id_institution');
+if (institutionSelect) {
+    function updateSelectColor() {
+        if (institutionSelect.value === '') {
+            institutionSelect.style.color = '#9ca3af';
+        } else {
+            institutionSelect.style.color = '#111827';
+        }
+    }
+    
+    institutionSelect.addEventListener('change', updateSelectColor);
+    updateSelectColor(); // Initial call
+}
 </script>
 {% endblock %}
