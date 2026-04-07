@@ -15,11 +15,12 @@
 .crs-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
 .crs-wrap>*{position:relative;z-index:1}
 .crs-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-.crs-filter-grid{display:grid;grid-template-columns:2.2fr repeat(4,1fr) auto;gap:1rem;align-items:stretch}
+.crs-filter-grid{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:1rem;align-items:center}
+.crs-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.crs-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.crs-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
 .crs-input-wrapper{position:relative;display:flex;align-items:center}
-.crs-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:linear-gradient(135deg,rgba(26,26,46,.8),rgba(26,26,46,.6));color:#fff;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
-.crs-input{background:#1a1a2e !important;color:#fff !important;box-shadow:none !important}
-.crs-input::placeholder{color:white;opacity:.6;font-weight:400}
+.crs-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none;box-shadow:none !important}
 .crs-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
 .crs-input:-webkit-autofill,
 .crs-input:-webkit-autofill:hover,
@@ -79,10 +80,6 @@
 .crs-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
 .crs-hero-stats{display:flex;align-items:center;justify-content:flex-start;gap:2rem;flex-shrink:0;margin-left:0}
 .crs-stat-card{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;width:180px}
-.crs-hero-search{flex:1;max-width:400px}
-.crs-hero-search .crs-input{height:56px;padding:1rem !important;font-size:1rem !important;border-radius:20px !important}
-.crs-stat-number{font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
-.crs-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin:0;font-weight:700}
 .crs-stat-empty-message{font-size:.9rem;color:#9ca3af;font-weight:500;margin-top:.3rem;padding-top:.35rem;border-top:1.5px solid #9ca3af;width:100%}
 @media (max-width:1000px){.crs-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
 @media (max-width:768px){.crs-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.crs-hero h1{font-size:2rem;text-align:center}.crs-hero p{font-size:1rem;text-align:center}.crs-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.crs-stat-card{width:140px}}
@@ -99,18 +96,16 @@
       <span class="crs-hero-icon"><i class="bi bi-book"></i></span>
       <div class="crs-hero-inner">
         <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الدورات الأكاديمية والتدريسية{% else %}Academic Courses <br>& Professional Training{% endif %}</h1>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف دورات شاملة متخصصة في معالجة اللغة الطبيعية والذكاء الاصطناعي.{% else %}Discover comprehensive courses specialized <br>in NLP and AI research.{% endif %}</p>
-      </div>
-      <div class="crs-hero-stats">
-        <div class="crs-stat-card">
-          <div class="crs-stat-number">{{ courses|length|default:"0" }}</div>
-          <div class="crs-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي الدورات{% else %}Total Courses{% endif %}</div>
-        </div>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف دورات شاملة متخصصة في معالجة اللغة الطبيعية والذكاء الاصطناعي.{% else %}Discover advanced courses in Natural Language <br>Processing and Artificial Intelligence.{% endif %}</p>
       </div>
     </div>
 
     <div class="crs-filter-card">
       <form method="get" class="crs-filter-grid">
+        <div class="crs-stat-badge">
+          <div class="crs-stat-number">{{ courses|length|default:"0" }}</div>
+          <div class="crs-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}Courses{% endif %}</div>
+        </div>
         <div class="crs-input-wrapper">
           <input class="crs-input" type="text" name="q" value="{{ request.GET.q }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث...{% else %}Search...{% endif %}">
         </div>
