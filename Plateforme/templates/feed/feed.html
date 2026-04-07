@@ -154,35 +154,35 @@
             <i class="bi bi-share"></i>
             <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة{% else %}Share{% endif %}</span>
           </button>
-          <!-- Share dropdown menu -->
-          <div class="feed-share-dropdown" id="feedShareDropdown-{{ post.id }}" data-post-id="{{ post.id }}" data-post-slug="{{ post.slug }}" data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
-            <div class="feed-share-menu">
-              <button type="button" class="feed-share-item" onclick="sendFeedPostToFriends(this)">
-                <i class="bi bi-people-fill"></i>
-                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}Send to Friends{% endif %}</span>
-              </button>
-              <button type="button" class="feed-share-item" onclick="copyFeedPostLink()">
-                <i class="bi bi-link-45deg"></i>
-                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}Copy Link{% endif %}</span>
-              </button>
-              <div class="feed-share-social">
-                <a href="#" class="feed-share-social-btn" onclick="shareFeedPostSocial('whatsapp'); return false;">
-                  <i class="bi bi-whatsapp"></i>
-                  <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واتساب{% else %}WhatsApp{% endif %}</span>
-                </a>
-                <a href="#" class="feed-share-social-btn" onclick="shareFeedPostSocial('linkedin'); return false;">
-                  <i class="bi bi-linkedin"></i>
-                  <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لينكدإن{% else %}LinkedIn{% endif %}</span>
-                </a>
-              </div>
-            </div>
-          </div>
         </div>
         <a class="feed-link" href="{% url 'feed:post_detail' post.slug %}">
           <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}View details{% endif %}</span>
           <i class="bi bi-arrow-right"></i>
         </a>
       </article>
+      <!-- Share dropdown menu - positioned outside card -->
+      <div class="feed-share-dropdown" id="feedShareDropdown-{{ post.id }}" data-post-id="{{ post.id }}" data-post-slug="{{ post.slug }}" data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
+        <div class="feed-share-menu">
+          <button type="button" class="feed-share-item" onclick="sendFeedPostToFriends(this)">
+            <i class="bi bi-people-fill"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}Send to Friends{% endif %}</span>
+          </button>
+          <button type="button" class="feed-share-item" onclick="copyFeedPostLink()">
+            <i class="bi bi-link-45deg"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}Copy Link{% endif %}</span>
+          </button>
+          <div class="feed-share-social">
+            <a href="#" class="feed-share-social-btn" onclick="shareFeedPostSocial('whatsapp'); return false;">
+              <i class="bi bi-whatsapp"></i>
+              <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واتساب{% else %}WhatsApp{% endif %}</span>
+            </a>
+            <a href="#" class="feed-share-social-btn" onclick="shareFeedPostSocial('linkedin'); return false;">
+              <i class="bi bi-linkedin"></i>
+              <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لينكدإن{% else %}LinkedIn{% endif %}</span>
+            </a>
+          </div>
+        </div>
+      </div>
       {% endfor %}
     </div>
     {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
@@ -214,9 +214,8 @@ function getFeedPostUrl() {
 window.toggleFeedShareMenu = function(btn) {
   const postId = btn.getAttribute('data-post-id');
   const shareDropdown = document.getElementById('feedShareDropdown-' + postId);
-  const menu = shareDropdown ? shareDropdown.querySelector('.feed-share-menu') : null;
   
-  if (!menu || !shareDropdown) return;
+  if (!shareDropdown) return;
   
   const wasOpen = shareDropdown.classList.contains('open');
   
@@ -226,18 +225,18 @@ window.toggleFeedShareMenu = function(btn) {
   });
   
   if (!wasOpen) {
-    // Position menu to the right of the button
+    // Position dropdown next to the button
     const btnRect = btn.getBoundingClientRect();
     const isRTL = document.documentElement.dir === 'rtl';
     
     if (isRTL) {
-      menu.style.right = (window.innerWidth - btnRect.left) + 'px';
-      menu.style.left = 'auto';
+      shareDropdown.style.right = (window.innerWidth - btnRect.left) + 'px';
+      shareDropdown.style.left = 'auto';
     } else {
-      menu.style.left = (btnRect.right + 8) + 'px';
-      menu.style.right = 'auto';
+      shareDropdown.style.left = (btnRect.right + 8) + 'px';
+      shareDropdown.style.right = 'auto';
     }
-    menu.style.top = btnRect.top + 'px';
+    shareDropdown.style.top = btnRect.top + 'px';
     
     shareDropdown.classList.add('open');
   } else {
