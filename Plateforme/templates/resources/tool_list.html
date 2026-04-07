@@ -1,963 +1,159 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load i18n %}
-{% load static %}
-{% get_current_language as language_code %}
-
-{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات معالجة اللغة - موارد الذكاء الاصطناعي المتقدمة{% else %}{% trans "NLP Tools" %} - {% trans "Advanced AI Resources" %}{% endif %}{% endblock %}
-
-{% block extra_styles %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<style>
-/* ===== CSS VARIABLES - Modern Dark Theme ===== */
-:root {
-    --primary-color: #a78bfa;
-    --primary-dark: #8b5cf6;
-    --accent-color: #7c3aed;
-    --accent-pink: #ec4899;
-    --accent-cyan: #06b6d4;
-    --bg-dark: #0f1419;
-    --bg-darker: #0a0e14;
-    --bg-card: rgba(167, 139, 250, 0.05);
-    --text-primary: #ffffff;
-    --text-secondary: #d1d5db;
-    --text-muted: #9ca3af;
-    --border-color: rgba(167, 139, 250, 0.2);
-    --border-light: rgba(167, 139, 250, 0.1);
-    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
-}
-
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-dark); color: var(--text-primary); }
-html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-
-/* ===== PAGE LAYOUT ===== */
-.tool-hub-page { 
-    min-height: 100vh; 
-    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
-    background-attachment: fixed;
-    position: relative;
-    overflow-x: hidden;
-}
-
-.tool-hub-page::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* ===== HERO SECTION ===== */
-.hero-section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem;
-    margin: 2rem auto;
-    max-width: 1400px;
-    width: calc(100% - 4rem);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.06) 0%, rgba(124, 58, 237, 0.03) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
-}
-
-.hero-content-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 3rem;
-    max-width: 1240px;
-    width: 100%;
-    margin: 0 auto;
-}
-
-.hero-text-content {
-    flex: 1 1 0;
-    text-align: left;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.hero-illustration-wrapper {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-}
-
-/* ===== HERO ILLUSTRATION ===== */
-.hero-illustration {
-    width: 400px;
-    height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.nlp-illustration {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.3));
-}
-
-@keyframes floatCircle {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-}
-
-@keyframes rotateElement {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-@keyframes pulseCircle {
-    0%, 100% { r: 28; opacity: 0.3; }
-    50% { r: 35; opacity: 0.1; }
-}
-
-.float-circle {
-    animation: floatCircle 4s ease-in-out infinite;
-}
-
-.rotate-element {
-    animation: rotateElement 8s linear infinite;
-    transform-origin: 200px 150px;
-}
-
-.pulse-circle {
-    animation: pulseCircle 2s ease-in-out infinite;
-}
-
-.hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
-    border: 1px solid rgba(167, 139, 250, 0.3);
-    color: var(--primary-color);
-    padding: 0.6rem 1.2rem;
-    border-radius: 50px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.hero-title {
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    font-weight: 800;
-    color: var(--text-primary);
-    margin: 0 0 1rem;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-}
-
-.hero-title .accent {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.hero-subtitle {
-    font-size: 1.125rem;
-    color: var(--text-secondary);
-    margin: 0 0 2.5rem;
-    max-width: 700px;
-    line-height: 1.6;
-}
-
-/* ===== STATS SECTION ===== */
-.stats-container {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 2rem;
-    margin-bottom: 2rem;
-    margin-top: 2rem;
-    flex-wrap: wrap;
-}
-
-.stat-card {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.5rem 2rem;
-    text-align: center;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    border-color: var(--primary-color);
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-glow);
-}
-
-.stat-number {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin: 0;
-}
-
-.stat-label {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.5rem;
-}
-
-/* ===== ACTION BUTTON ===== */
-.hero-action {
-    display: flex;
-    justify-content: flex-start;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.btn-add-resource {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-    box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
-    color: var(--bg-dark);
-    font-weight: 700;
-    font-size: 1rem;
-    border: none;
-    border-radius: 12px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-add-resource:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(167, 139, 250, 0.3);
-    color: #ffffff;
-}
-
-html[dir="rtl"] .hero-content-wrapper {
-    direction: rtl;
-}
-
-html[dir="rtl"] .hero-text-content {
-    text-align: right;
-    align-items: flex-end;
-}
-
-html[dir="rtl"] .hero-title,
-html[dir="rtl"] .hero-subtitle {
-    text-align: right;
-}
-
-html[dir="rtl"] .stats-container,
-html[dir="rtl"] .hero-action {
-    justify-content: center;
-}
-
-html[dir="rtl"] .hero-action {
-    width: 100%;
-}
-
-/* ===== MAIN CONTENT ===== */
-.hub-content {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 3rem 2rem;
-    position: relative;
-    z-index: 1;
-}
-
-/* ===== FILTER SECTION ===== */
-.filter-section {
-    margin-bottom: 3rem;
-}
-
-.filter-tabs {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    backdrop-filter: blur(10px);
-}
-
-.filter-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: 50px;
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 0.95rem;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.filter-tab:hover {
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-    background: rgba(167, 139, 250, 0.1);
-    transform: translateY(-2px);
-}
-
-.filter-tab.active {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    color: var(--bg-dark);
-    border-color: transparent;
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-}
-
-.filter-tab-count {
-    font-size: 0.8rem;
-    opacity: 0.7;
-    font-weight: 700;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 0.2rem 0.6rem;
-    border-radius: 50px;
-    margin-left: 0.3rem;
-}
-
-.filter-tab.active .filter-tab-count {
-    background: rgba(255, 255, 255, 0.2);
-    opacity: 1;
-}
-
-/* ===== RESULTS HEADER ===== */
-.results-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.results-count {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-}
-
-/* ===== RESOURCE GRID ===== */
-.resource-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 2rem;
-    transition: all 0.3s ease;
-}
-
-@media (max-width: 1024px) {
-    .resource-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 640px) {
-    .resource-grid { grid-template-columns: 1fr; gap: 1.5rem; }
-}
-
-/* ===== RESOURCE CARD ===== */
-.resource-card {
-    position: relative;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease;
-    animation: cardFadeIn 0.5s ease-out forwards;
-    opacity: 0;
-}
-
-.resource-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--primary-color);
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
-    box-shadow: 0 16px 40px rgba(167, 139, 250, 0.2);
-}
-
-@keyframes cardFadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.resource-card:nth-child(1) { animation-delay: 0.03s; }
-.resource-card:nth-child(2) { animation-delay: 0.06s; }
-.resource-card:nth-child(3) { animation-delay: 0.09s; }
-.resource-card:nth-child(4) { animation-delay: 0.12s; }
-.resource-card:nth-child(5) { animation-delay: 0.15s; }
-.resource-card:nth-child(6) { animation-delay: 0.18s; }
-.resource-card:nth-child(7) { animation-delay: 0.21s; }
-.resource-card:nth-child(8) { animation-delay: 0.24s; }
-.resource-card:nth-child(9) { animation-delay: 0.27s; }
-
-.card-accent-line {
-    height: 3px;
-    width: 100%;
-    flex-shrink: 0;
-    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 50%, var(--accent-pink) 100%);
-}
-
-.card-content {
-    padding: 1.75rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.card-type-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-    width: fit-content;
-    background: rgba(167, 139, 250, 0.2);
-    color: var(--primary-color);
-    border: 1px solid rgba(167, 139, 250, 0.3);
-}
-
-.card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 0.75rem;
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.card-description {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    margin: 0;
-    flex: 1;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 1rem;
-}
-
-.card-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--border-light);
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.meta-item i {
-    font-size: 0.9rem;
-    opacity: 0.7;
-}
-
-.card-action {
-    padding: 1rem;
-    border-top: 1px solid var(--border-light);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.card-action .card-top-actions {
-    margin-inline-start: auto;
-}
-
-.btn-view-details {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.7rem 1.25rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
-    color: var(--primary-color);
-    font-weight: 600;
-    font-size: 0.875rem;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(167, 139, 250, 0.3);
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.btn-view-details:hover {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    color: var(--bg-dark);
-    border-color: transparent;
-    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
-    transform: translateY(-2px);
-}
-
-.btn-view-details i {
-    font-size: 1rem;
-    transition: transform 0.3s ease;
-}
-
-.btn-view-details:hover i { transform: translateX(3px); }
-html[dir="rtl"] .btn-view-details:hover i { transform: translateX(-3px); }
-
-/* ===== EMPTY STATE ===== */
-.empty-state {
-    text-align: center;
-    padding: 5rem 2rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
-    border: 2px dashed var(--border-color);
-    border-radius: 16px;
-}
-
-.empty-illustration {
-    width: 160px;
-    height: 160px;
-    margin: 0 auto 2rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--border-color);
-}
-
-.empty-illustration i {
-    font-size: 4rem;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.empty-state h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 0.75rem;
-}
-
-.empty-state p {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    margin: 0 0 2rem;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* ===== GUIDANCE SECTION ===== */
-.guidance-section {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 3rem 2rem;
-    position: relative;
-    z-index: 1;
-}
-
-.guidance-card {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2.5rem;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-}
-
-.guidance-card:hover {
-    border-color: var(--primary-color);
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-glow);
-}
-
-.guidance-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.guidance-title i {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.guidance-text {
-    color: var(--text-secondary);
-    font-size: 1.05rem;
-    line-height: 1.8;
-    margin: 0;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-    .hero-content-wrapper {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
-    .hero-text-content {
-        align-items: center;
-        text-align: center;
-    }
-
-    .hero-subtitle {
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .stats-container,
-    .hero-action {
-        justify-content: center;
-    }
-    
-    .hero-illustration {
-        width: 300px;
-        height: 200px;
-    }
-}
-
-@media (max-width: 768px) {
-    .hero-section { padding: 3rem 2rem; }
-    .hero-title { font-size: 2rem; }
-    .stats-container { gap: 1rem; }
-    .stat-card { padding: 1rem 1.5rem; }
-    .stat-number { font-size: 2rem; }
-    .filter-tabs { gap: 0.5rem; padding: 1rem; }
-    .filter-tab { padding: 0.625rem 1rem; font-size: 0.85rem; }
-    .results-header { flex-direction: column; gap: 1rem; align-items: flex-start; }
-    html[dir="rtl"] .results-header { align-items: flex-end; }
-    .hero-content-wrapper {
-        flex-direction: column;
-    }
-    .hero-text-content,
-    html[dir="rtl"] .hero-text-content {
-        align-items: center;
-        text-align: center;
-    }
-    .hero-title,
-    .hero-subtitle,
-    html[dir="rtl"] .hero-title,
-    html[dir="rtl"] .hero-subtitle {
-        text-align: center;
-    }
-    .hero-illustration {
-        width: 280px;
-        height: 180px;
-    }
-}
-
-@media (max-width: 480px) {
-    .hero-badge { font-size: 0.75rem; padding: 0.5rem 1rem; }
-    .hero-title { font-size: 1.5rem; margin-bottom: 0.75rem; }
-    .hero-subtitle { font-size: 1rem; }
-    .stats-container { gap: 0.75rem; }
-    .stat-card { padding: 0.75rem 1rem; }
-    .stat-number { font-size: 1.75rem; }
-    .hero-action { gap: 0.5rem; }
-    .btn-add-resource { padding: 0.85rem 1.25rem; font-size: 0.9rem; }
-    .filter-tabs { padding: 0.75rem 1rem; gap: 0.5rem; }
-    .filter-tab { padding: 0.5rem 0.75rem; font-size: 0.75rem; }
-    .resource-grid { gap: 1rem; }
-    .card-content { padding: 1.25rem; }
-    .hero-illustration {
-        width: 250px;
-        height: 160px;
-    }
-}
-
-/* ===== RTL SUPPORT ===== */
-html[dir="rtl"] .meta-item { flex-direction: row-reverse; }
-html[dir="rtl"] .card-type-badge { flex-direction: row-reverse; }
-html[dir="rtl"] .results-info { flex-direction: row-reverse; }
-html[dir="rtl"] .filter-tabs { direction: rtl; }
-</style>
-{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}أدوات معالجة اللغة الطبيعية{% else %}NLP Tools{% endif %}{% endblock %}
 
 {% block content %}
-<div class="tool-hub-page">
-    
-    <!-- ============ HERO SECTION ============ -->
-    <section class="hero-section">
-        <div class="hero-content-wrapper">
-            <div class="hero-text-content">
-                <div class="hero-badge">
-                    <i class="bi bi-lightning-charge"></i>
-                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات الذكاء الاصطناعي المتقدمة{% else %}{% translate "Advanced AI Tools" %}{% endif %}
-                </div>
-                <h1 class="hero-title">
-                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معالجة اللغة <span class="accent">أدوات</span>{% else %}{% translate "NLP" %} <span class="accent">{% translate "Tools" %}</span>{% endif %}
-                </h1>
-                <p class="hero-subtitle">
-                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف وادمج أدوات قوية لمعالجة اللغة الطبيعية<br> لتحليل النصوص العربية ومتعددة اللغات.{% else %}{% translate "Discover and integrate powerful Natural Language Processing tools <br> for Arabic and multilingual text analysis." %}{% endif %}
-                </p>
-                
-                <!-- Stats Section -->
-                <div class="stats-container">
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalCount">{{ total_count|default:"0" }}</div>
-                        <div class="stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي الأدوات{% else %}{% translate "Total Tools" %}{% endif %}</div>
-                    </div>
-                </div>
-                
-                <!-- Action Button -->
-                {% if user.is_authenticated %}
-                <div class="hero-action">
-                    <a href="{% url 'resources:tool-create' %}" class="btn-add-resource">
-                        <i class="bi bi-plus-lg"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء أداة جديدة{% else %}{% translate "Create New Tool" %}{% endif %}
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-            <div class="hero-illustration-wrapper">
-                <div class="hero-illustration">
-                    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" class="nlp-illustration">
-                        <defs>
-                            <linearGradient id="gradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
-                                <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.8" />
-                            </linearGradient>
-                            <linearGradient id="gradAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.6" />
-                                <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.6" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="100" cy="80" r="60" fill="url(#gradPrimary)" opacity="0.15" class="float-circle" />
-                        <circle cx="300" cy="120" r="80" fill="url(#gradAccent)" opacity="0.15" class="float-circle" style="animation-delay: -2s;" />
-                        <circle cx="200" cy="250" r="70" fill="url(#gradPrimary)" opacity="0.1" class="float-circle" style="animation-delay: -4s;" />
-                        <g class="rotate-element">
-                            <circle cx="200" cy="150" r="25" fill="url(#gradPrimary)" />
-                            <circle cx="200" cy="150" r="20" fill="rgba(167, 139, 250, 0.3)" />
-                            <circle cx="120" cy="80" r="15" fill="url(#gradAccent)" />
-                            <circle cx="280" cy="90" r="15" fill="url(#gradPrimary)" />
-                            <circle cx="100" cy="180" r="15" fill="url(#gradAccent)" />
-                            <circle cx="300" cy="200" r="15" fill="url(#gradPrimary)" />
-                            <circle cx="150" cy="240" r="15" fill="url(#gradAccent)" />
-                            <circle cx="250" cy="250" r="15" fill="url(#gradPrimary)" />
-                            <line x1="200" y1="150" x2="120" y2="80" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="200" y1="150" x2="280" y2="90" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="200" y1="150" x2="100" y2="180" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="200" y1="150" x2="300" y2="200" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="200" y1="150" x2="150" y2="240" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="200" y1="150" x2="250" y2="250" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <circle cx="200" cy="150" r="28" fill="none" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1" class="pulse-circle" />
-                        </g>
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <!-- ============ GUIDANCE SECTION ============ -->
-    <section class="guidance-section">
-        <div class="guidance-card">
-            <h2 class="guidance-title">
-                <i class="bi bi-lightbulb"></i>
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كيف أختار أداة معالجة اللغة المناسبة؟{% else %}{% translate "How do I choose the right NLP tool?" %}{% endif %}
-            </h2>
-            <p class="guidance-text">
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استخدم شريط البحث وعلامات التصنيف والفلاتر لتضييق القائمة. يمكنك التصفح حسب المهمة، ومقارنة عدة أدوات، ثم اختيار الأداة الأنسب لأهدافك البحثية واحتياجاتك اللغوية وسير عملك التقني.{% else %}{% translate "Use the search bar, category tabs, and filters to narrow the list. You can browse by task, compare multiple tools, and select the one that best matches your research goals, language needs, and technical workflow." %}{% endif %}
-            </p>
-        </div>
-    </section>
-    
-    <!-- ============ MAIN CONTENT ============ -->
-    <main class="hub-content">
-        
-        <!-- Filter Tabs with Counters -->
-        <div class="filter-section">
-            <div class="filter-tabs" role="tablist">
-                <button class="filter-tab active" data-type="" role="tab">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="all">{{ total_count|default:"0" }}</span>
-                </button>
-                <button class="filter-tab" data-type="tokenization" role="tab">
-                    <i class="bi bi-scissors"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تجزئة النص{% else %}{% translate "Tokenization" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="tokenization">0</span>
-                </button>
-                <button class="filter-tab" data-type="ner" role="tab">
-                    <i class="bi bi-tag"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التعرف على الكيانات{% else %}{% translate "NER" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="ner">0</span>
-                </button>
-                <button class="filter-tab" data-type="pos_tagging" role="tab">
-                    <i class="bi bi-tags"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}وسم أجزاء الكلام{% else %}{% translate "POS Tagging" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="pos_tagging">0</span>
-                </button>
-                <button class="filter-tab" data-type="sentiment_analysis" role="tab">
-                    <i class="bi bi-emoji-smile"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحليل المشاعر{% else %}{% translate "Sentiment" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="sentiment_analysis">0</span>
-                </button>
-                <button class="filter-tab" data-type="machine_translation" role="tab">
-                    <i class="bi bi-translate"></i>
-                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة{% else %}{% translate "Translation" %}{% endif %}</span>
-                    <span class="filter-tab-count" data-count="machine_translation">0</span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Results Section -->
-        <div id="resultsArea">
-            {% include "resources/_tool_grid_cards.html" %}
-        </div>
-        
-    </main>
-    
-</div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pub-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
+.pub-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.pub-wrap>*{position:relative;z-index:1}
+.pub-hero{position:relative;padding:3rem 2rem;margin:1.5rem auto 1.25rem;background:transparent;border:none;border-radius:24px;box-shadow:none;backdrop-filter:none;overflow:hidden;text-align:left;display:flex;align-items:center;gap:2.5rem;justify-content:space-between}
+.pub-hero-content{display:flex;align-items:center;gap:2.5rem;flex:0 1 auto}
+.pub-hero::before{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero::after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.pub-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-top:-3.5rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.pub-hero h1{margin:-3rem 0 0 0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.pub-hero p{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600;text-align:left}
+.pub-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pub-filter-grid{display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:1rem;align-items:center}
+.pub-input-wrapper{position:relative;display:flex;align-items:center}
+.pub-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.pub-input::placeholder{color:rgba(255,255,255,.6);font-weight:400}
+.pub-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.pub-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.pub-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.pub-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.pub-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.pub-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.pub-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.pub-btn:hover{transform:translateY(-3px);background:#a78bfa}
+.pub-grid{display:flex;flex-direction:row;gap:1rem;overflow-x:auto;padding-bottom:1rem;scroll-behavior:smooth}
+.pub-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px;min-width:250px;flex-shrink:0}
+.pub-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.pub-cover{height:104px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#a78bfa;font-size:2.4rem}
+.pub-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
+.pub-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.pub-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
+.pub-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.pub-link:hover{background:rgba(255,255,255,.04)}
+.pub-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pub-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.pub-empty-inner{position:relative;z-index:1}
+.pub-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem}
+.pub-empty h3{margin:1rem 0 .75rem;font-size:1.5rem;font-weight:800;color:#fff}
+.pub-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.pub-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.pub-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+.pub-stats{display:flex;gap:1.5rem;flex-direction:column;align-items:flex-start}
+.pub-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.pub-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.pub-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:auto 1fr 1fr auto}.pub-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.pub-hero-content{flex-direction:column;justify-content:center}}
+@media (max-width:768px){.pub-wrap{width:min(100%,calc(100% - 1rem))}.pub-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:2rem;text-align:center}.pub-hero p{font-size:1rem;text-align:center}.pub-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.pub-btn{padding:.85rem 1.2rem;font-size:.85rem}.pub-grid{padding-right:1rem}}
+@media (max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.pub-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:1.5rem}.pub-hero p{font-size:.9rem}.pub-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
+</style>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterTabs = document.querySelectorAll('.filter-tab');
-    const resultsArea = document.getElementById('resultsArea');
-    const totalCount = document.getElementById('totalCount');
+<div class="pub-shell">
+  <div class="pub-wrap">
+    <div class="pub-hero">
+      <div class="pub-hero-content">
+        <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-wrench"></i></span>
+        <div class="pub-hero-inner">
+          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أدوات معالجة اللغة الطبيعية{% else %}NLP Tools & Resources{% endif %}</h1>
+          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف أدوات قوية لمعالجة اللغة الطبيعية والتحليل الذكي.{% else %}Explore powerful tools for natural language processing <br>and intelligent analysis.{% endif %}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-filter-card">
+      <form method="get" class="pub-filter-grid">
+        <div class="pub-stat-badge">
+          <div class="pub-stat-number">{{ total_count|default:"0" }}</div>
+          <div class="pub-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}أدوات{% else %}Tools{% endif %}</div>
+        </div>
+        <div class="pub-input-wrapper">
+          <input class="pub-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث...{% else %}Search...{% endif %}">
+        </div>
+        <select class="pub-select" name="category" onchange="this.form.submit();">
+          <option value="" {% if not request.GET.category %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الفئات{% else %}All categories{% endif %}</option>
+          <option value="tokenization" {% if request.GET.category == 'tokenization' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تجزئة النص{% else %}Tokenization{% endif %}</option>
+          <option value="stemming" {% if request.GET.category == 'stemming' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الجذور{% else %}Stemming{% endif %}</option>
+          <option value="ner" {% if request.GET.category == 'ner' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التعرف على الكيانات{% else %}Named Entity Recognition{% endif %}</option>
+          <option value="pos_tagging" {% if request.GET.category == 'pos_tagging' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}وسم أجزاء الكلام{% else %}Part-of-Speech Tagging{% endif %}</option>
+          <option value="sentiment_analysis" {% if request.GET.category == 'sentiment_analysis' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تحليل المشاعر{% else %}Sentiment Analysis{% endif %}</option>
+          <option value="machine_translation" {% if request.GET.category == 'machine_translation' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة الآلية{% else %}Machine Translation{% endif %}</option>
+        </select>
+        <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+        <a href="{% url 'resources:tool-create' %}" class="pub-btn" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;padding:1rem 1.2rem;font-size:0.9rem">
+          <i class="fas fa-plus"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء أداة{% else %}create tool{% endif %}
+        </a>
+      </form>
+    </div>
+
+    {% if tools %}
+    <div class="pub-grid">
+      {% for tool in tools %}
+      <article class="pub-card">
+        <div class="pub-accent"></div>
+        <div class="pub-cover">
+          <i class="fas fa-toolbox"></i>
+        </div>
+        <div class="pub-body">
+          <span class="pub-type" style="background:#a78bfa">
+            <i class="fas fa-tag"></i>
+            {{ tool.category|default:"Tool" }}
+          </span>
+          <h2 class="pub-title">{{ tool.title }}</h2>
+          <div class="pub-meta">
+            <span>{{ tool.version|default:"v1.0" }}</span>
+          </div>
+          <p class="pub-excerpt">{{ tool.description|truncatechars:120 }}</p>
+          <div class="pub-tags">
+            <span class="pub-tag">{% if tool.is_open_source %}Open Source{% else %}Proprietary{% endif %}</span>
+          </div>
+        </div>
+        <a class="pub-link" href="{% url 'resources:resource-detail' 'tool' tool.id %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}Details{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
     
-    let currentType = '{{ current_type|escapejs }}';
-    
-    // Count tools by type
-    function updateCategoryCounts() {
-        const cards = document.querySelectorAll('.resource-card:not(.hidden-card)');
-        const counts = {
-            all: cards.length,
-            tokenization: 0,
-            ner: 0,
-            pos_tagging: 0,
-            sentiment_analysis: 0,
-            machine_translation: 0
-        };
-        
-        cards.forEach(card => {
-            const type = card.dataset.type || '';
-            if (type && counts[type] !== undefined) {
-                counts[type]++;
-            }
-        });
-        
-        // Update counter displays
-        filterTabs.forEach(tab => {
-            const tabType = tab.dataset.type || 'all';
-            const counter = tab.querySelector('.filter-tab-count');
-            if (counter) {
-                counter.textContent = counts[tabType];
-            }
-        });
-    }
-    
-    // Filter tab clicks
-    filterTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            filterTabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            currentType = this.dataset.type;
-            filterTools();
-        });
-    });
-    
-    function filterTools() {
-        const cards = document.querySelectorAll('.resource-card');
-        let visibleCount = 0;
-        
-        cards.forEach(card => {
-            const cardType = card.dataset.type || '';
-            const isVisible = currentType === '' || cardType === currentType;
-            
-            if (isVisible) {
-                card.classList.remove('hidden-card');
-                visibleCount++;
-            } else {
-                card.classList.add('hidden-card');
-            }
-        });
-        
-        // Show empty state if no results
-        if (visibleCount === 0) {
-            showEmptyState();
-        } else {
-            hideEmptyState();
-        }
-        
-        updateCategoryCounts();
-    }
-    
-    function showEmptyState() {
-        if (!document.querySelector('.empty-state')) {
-            const emptyHTML = `
-                <div class="empty-state">
-                    <div class="empty-illustration">
-                        <i class="bi bi-inbox"></i>
-                    </div>
-                    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على أدوات{% else %}{% translate "No tools found" %}{% endif %}</h3>
-                    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تعديل عوامل التصفية أو عبارة البحث{% else %}{% translate "Try adjusting your filters or search query" %}{% endif %}</p>
-                </div>
-            `;
-            resultsArea.innerHTML = emptyHTML;
-        }
-    }
-    
-    function hideEmptyState() {
-        const emptyState = resultsArea.querySelector('.empty-state');
-        if (emptyState) {
-            emptyState.remove();
-        }
-    }
-    
-    // Initial count update
-    updateCategoryCounts();
-});
-</script>
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:1rem;margin:2rem 0">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">← Prev</a>
+      {% endif %}
+      <span style="color:#9ca3af;padding:.5rem 1rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="pub-empty">
+      <div class="pub-empty-inner">
+        <i class="fas fa-inbox pub-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد أدوات{% else %}No tools found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرب تغيير البحث أو الفلاتر.{% else %}Try adjusting your search or filters.{% endif %}</p>
+        <a href="{% url 'resources:tool_list' %}" class="pub-empty-reset">
+          <i class="fas fa-redo-alt"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين{% else %}Reset{% endif %}</span>
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
