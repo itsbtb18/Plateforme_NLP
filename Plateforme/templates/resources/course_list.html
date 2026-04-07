@@ -1,1610 +1,177 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load i18n static %}
-
-{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات | منصة العربية للمعالجة اللغوية{% else %}{% translate "Arabic NLP Academy" %} | {% translate "Courses" %}{% endif %}{% endblock %}
+{% block title %}{% translate "Academic Courses" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-/* ===== COURSE HUB CSS ARCHITECTURE ===== */
-/* Scoped classes to prevent conflicts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.crs-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.crs-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.crs-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.crs-wrap>*{position:relative;z-index:1}
+.crs-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.crs-filter-grid{display:grid;grid-template-columns:2.2fr repeat(4,1fr) auto;gap:1rem;align-items:stretch}
+.crs-input-wrapper{position:relative;display:flex;align-items:center}
+.crs-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:linear-gradient(135deg,rgba(26,26,46,.8),rgba(26,26,46,.6));color:#fff;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.crs-input{background:#1a1a2e !important;color:#fff !important;box-shadow:none !important}
+.crs-input::placeholder{color:white;opacity:.6;font-weight:400}
+.crs-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.crs-input:-webkit-autofill,
+.crs-input:-webkit-autofill:hover,
+.crs-input:-webkit-autofill:focus,
+.crs-input:-webkit-autofill:active{
+  -webkit-text-fill-color:#fff !important;
+  -webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;
+  box-shadow:0 0 0 1000px #1a1a2e inset !important;
+  transition:background-color 9999s ease-in-out 0s;
+  caret-color:#a78bfa;
+}
+.crs-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.crs-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.crs-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.crs-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.crs-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.crs-select:active{background-color:#1a1a2e}
+.crs-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.crs-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.crs-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.crs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,280px));gap:1rem;justify-content:center}
+.crs-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px}
+.crs-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.crs-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.crs-level-header{display:flex;align-items:center;justify-content:space-between;padding:1rem .85rem;gap:.8rem;border-bottom:1px solid rgba(167,139,250,.15)}
+.crs-level-badge{width:60px;min-width:60px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.6rem .4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2)}
+.crs-level-text{font-size:1.4rem;font-weight:800;color:#0f1419;line-height:1}
+.crs-level-label{font-size:.65rem;font-weight:700;color:rgba(15,23,42,.7);text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
+.crs-card-header-info{flex:1;min-width:0}
+.crs-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
+.crs-level-label-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+.crs-level-bachelor{background:rgba(52,211,153,.15);color:#34d399}
+.crs-level-master{background:rgba(167,139,250,.15);color:#a78bfa}
+.crs-level-doctorate{background:rgba(244,114,182,.15);color:#f472b6}
+.crs-card-title{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.crs-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.crs-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
+.crs-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
+.crs-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
+.crs-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.crs-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.crs-link:hover{background:rgba(255,255,255,.04)}
+.crs-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.crs-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.crs-empty-inner{position:relative;z-index:1}
+.crs-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+.crs-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.crs-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.crs-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+.crs-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.crs-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
+.crs-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.crs-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.crs-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.crs-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.crs-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+.crs-hero-stats{display:flex;align-items:center;justify-content:flex-start;gap:2rem;flex-shrink:0;margin-left:0}
+.crs-stat-card{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;width:180px}
+.crs-hero-search{flex:1;max-width:400px}
+.crs-hero-search .crs-input{height:56px;padding:1rem !important;font-size:1rem !important;border-radius:20px !important}
+.crs-stat-number{font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.crs-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin:0;font-weight:700}
+.crs-stat-empty-message{font-size:.9rem;color:#9ca3af;font-weight:500;margin-top:.3rem;padding-top:.35rem;border-top:1.5px solid #9ca3af;width:100%}
+@media (max-width:1000px){.crs-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:768px){.crs-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.crs-hero h1{font-size:2rem;text-align:center}.crs-hero p{font-size:1rem;text-align:center}.crs-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.crs-stat-card{width:140px}}
+@media (max-width:480px){.crs-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.crs-hero h1{font-size:1.5rem}.crs-hero p{font-size:.9rem}.crs-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.crs-stat-card{width:130px;padding:1rem}.crs-stat-number{font-size:2.5rem}}
 
-:root {
-    /* Academy Theme Colors - Modern Dark Purple */
-    --academy-deep: #0f1419;
-    --academy-navy: #1a1a2e;
-    --academy-primary: #a78bfa;
-    --academy-primary-light: #c4b5fd;
-    --academy-primary-hover: #8b5cf6;
-    --academy-primary-glow: rgba(167, 139, 250, 0.2);
-    --academy-accent: #7c3aed;
-    
-    /* Level Colors */
-    --academy-beginner: #34d399;
-    --academy-beginner-bg: rgba(52, 211, 153, 0.1);
-    --academy-intermediate: #fbbf24;
-    --academy-intermediate-bg: rgba(251, 191, 36, 0.1);
-    --academy-advanced: #f472b6;
-    --academy-advanced-bg: rgba(244, 114, 182, 0.1);
-    
-    /* Surfaces */
-    --academy-white: #ffffff;
-    --academy-surface: rgba(167, 139, 250, 0.05);
-    --academy-bg: #0f1419;
-    --academy-muted: rgba(167, 139, 250, 0.08);
-    --academy-subtle: rgba(167, 139, 250, 0.12);
-    
-    /* Borders */
-    --academy-border: rgba(167, 139, 250, 0.2);
-    --academy-border-hover: rgba(167, 139, 250, 0.3);
-    
-    /* Typography */
-    --academy-text: #ffffff;
-    --academy-text-secondary: #d1d5db;
-    --academy-text-muted: #9ca3af;
-    
-    /* Effects */
-    --academy-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --academy-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
-    --academy-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
-    --academy-shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
-    --academy-shadow-hover: 0 16px 40px rgba(167, 139, 250, 0.2);
-    
-    /* Radii */
-    --academy-radius-sm: 6px;
-    --academy-radius-md: 10px;
-    --academy-radius-lg: 16px;
-    --academy-radius-xl: 20px;
-    --academy-radius-full: 9999px;
-}
-
-/* Typography */
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-html[dir="rtl"] body {
-    font-family: 'Tajawal', 'Inter', sans-serif;
-}
-
-/* ===== PAGE LAYOUT ===== */
-.course-hub-page {
-    min-height: 100vh;
-    background: linear-gradient(135deg, var(--academy-deep) 0%, var(--academy-navy) 100%);
-    background-attachment: fixed;
-    position: relative;
-    overflow-x: hidden;
-}
-
-.course-hub-page::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* ===== HERO HEADER ===== */
-.course-hub-hero {
-    position: relative;
-    z-index: 1;
-    padding: 3rem 2rem;
-    margin: 2rem auto;
-    max-width: 1400px;
-    width: calc(100% - 4rem);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.06) 0%, rgba(124, 58, 237, 0.03) 100%);
-    border: 1px solid var(--academy-border);
-    border-radius: 24px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
-}
-
-.course-hub-hero::before {
-    display: none;
-}
-
-.course-hub-hero-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0;
-    position: relative;
-    z-index: 1;
-}
-
-.course-hub-hero-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-direction: row;
-    gap: 3rem;
-    flex-wrap: nowrap;
-}
-
-.course-hub-hero-text {
-    flex: 1;
-    min-width: 280px;
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.course-hub-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
-    border: 1px solid rgba(167, 139, 250, 0.3);
-    border-radius: var(--academy-radius-full);
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--academy-primary);
-    margin-bottom: 1.25rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.course-hub-badge i {
-    color: #ec4899;
-}
-
-.course-hub-title {
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    font-weight: 800;
-    color: var(--academy-text);
-    margin: 0 0 1rem;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-}
-
-.course-hub-subtitle {
-    font-size: 1.125rem;
-    color: var(--academy-text-secondary);
-    margin: 0 0 2.5rem;
-    max-width: 700px;
-    line-height: 1.6;
-}
-
-.course-hub-stats {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2rem;
-    flex-wrap: wrap;
-    margin: 2rem 0;
-}
-
-.course-hub-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    text-align: center;
-}
-
-.course-hub-stat-value {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--academy-primary) 0%, var(--academy-accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin: 0;
-}
-
-.course-hub-stat-label {
-    font-size: 0.9rem;
-    color: var(--academy-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.5rem;
-}
-
-.course-hub-hero-action {
-    flex-shrink: 0;
-}
-
-.course-hub-add-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, var(--academy-primary), var(--academy-accent));
-    box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
-    color: var(--academy-deep);
-    font-weight: 700;
-    font-size: 1rem;
-    border: none;
-    border-radius: 12px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    margin-top: 0.75rem;
-}
-
-.course-hub-add-btn:hover {
-    transform: translateY(-3px);
-    color: #ffffff;
-}
-
-.course-hub-add-btn i {
-    font-size: 1.1rem;
-}
-
-/* ===== SEARCH & FILTERS ===== */
-.course-hub-filters {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 2rem 0;
-    position: relative;
-    z-index: 10;
-}
-
-.course-hub-filter-card {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%);
-    border: 1px solid var(--academy-border);
-    border-radius: var(--academy-radius-lg);
-    padding: 1.5rem;
-    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1);
-    backdrop-filter: blur(10px);
-}
-
-.course-hub-search-row {
-    display: flex;
-    gap: 1rem;
-    margin-block-end: 1.25rem;
-    flex-wrap: wrap;
-}
-
-.course-hub-search-box {
-    flex: 1;
-    min-width: 280px;
-    position: relative;
-}
-
-.course-hub-search-input {
-    width: 100%;
-    padding: 0.875rem 1.25rem 0.875rem 3rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(167, 139, 250, 0.1);
-    border-radius: 50px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    color: var(--academy-text);
-    transition: all 0.2s;
-    backdrop-filter: blur(8px);
-}
-
-.course-hub-search-input:focus {
-    outline: none;
-    background: rgba(167, 139, 250, 0.1);
-    border-color: var(--academy-primary);
-    box-shadow: 0 0 0 4px var(--academy-primary-glow);
-}
-
-.course-hub-search-input::placeholder {
-    color: var(--academy-text-muted);
-}
-
-.course-hub-search-icon {
-    position: absolute;
-    left: 1.125rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--academy-text-muted);
-    font-size: 1rem;
-    pointer-events: none;
-}
-
-html[dir="rtl"] .course-hub-search-icon {
-    left: auto;
-    right: 1.125rem;
-}
-
-html[dir="rtl"] .course-hub-search-input {
-    padding: 0.875rem 3rem 0.875rem 1.25rem;
-}
-
-html[dir="rtl"] .course-hub-hero-content {
-    direction: rtl;
-}
-
-html[dir="rtl"] .course-hub-hero-text {
-    text-align: right;
-    align-items: flex-end;
-}
-
-html[dir="rtl"] .course-hub-title,
-html[dir="rtl"] .course-hub-subtitle {
-    text-align: right;
-}
-
-html[dir="rtl"] .course-hub-stats {
-    justify-content: flex-start;
-}
-
-.course-hub-search-btn {
-    padding: 0.875rem 1.5rem;
-    background: linear-gradient(135deg, var(--academy-primary), var(--academy-accent));
-    color: var(--academy-deep);
-    border: none;
-    border-radius: var(--academy-radius-full);
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.course-hub-search-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-}
-
-/* Filter Pills */
-.course-hub-pill-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.625rem;
-    align-items: center;
-}
-
-.course-hub-pill-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--academy-text-secondary);
-    margin-right: 0.5rem;
-}
-
-html[dir="rtl"] .course-hub-pill-label {
-    margin-right: 0;
-    margin-left: 0.5rem;
-}
-
-.course-hub-pills {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.course-hub-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid rgba(167, 139, 250, 0.1);
-    border-radius: var(--academy-radius-full);
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--academy-text-secondary);
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.course-hub-pill:hover {
-    border-color: var(--academy-primary);
-    color: var(--academy-text);
-    background: rgba(167, 139, 250, 0.1);
-    transform: translateY(-2px);
-}
-
-.course-hub-pill.active {
-    background: linear-gradient(135deg, var(--academy-primary), var(--academy-accent));
-    border-color: transparent;
-    color: var(--academy-deep);
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-}
-
-.course-hub-pill i {
-    font-size: 0.9rem;
-}
-
-/* Level-specific pill colors */
-.course-hub-pill[data-level="beginner"].active {
-    background: linear-gradient(135deg, var(--academy-beginner), #10b981);
-    border-color: transparent;
-    color: white;
-}
-
-.course-hub-pill[data-level="intermediate"].active {
-    background: linear-gradient(135deg, var(--academy-intermediate), #f59e0b);
-    border-color: transparent;
-    color: #1f2937;
-}
-
-.course-hub-pill[data-level="advanced"].active {
-    background: linear-gradient(135deg, var(--academy-advanced), #ec4899);
-    border-color: transparent;
-    color: white;
-}
-
-/* ===== COURSE GRID ===== */
-.course-hub-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 3rem 2rem 4rem;
-    position: relative;
-    z-index: 1;
-}
-
-.course-hub-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 2rem;
-    transition: all 0.3s ease;
-}
-
-@media (max-width: 1024px) {
-    .course-hub-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 640px) {
-    .course-hub-grid { grid-template-columns: 1fr; gap: 1.5rem; }
-}
-
-/* ===== COURSE CARD ===== */
-.course-hub-card {
-    position: relative;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
-    border: 1px solid var(--academy-border);
-    border-radius: var(--academy-radius-lg);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    backdrop-filter: blur(10px);
-    animation: cardFadeIn 0.5s ease-out forwards;
-    opacity: 0;
-    transition: all 0.3s ease;
-}
-
-@keyframes cardFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.course-hub-card:nth-child(1) { animation-delay: 0ms; }
-.course-hub-card:nth-child(2) { animation-delay: 90ms; }
-.course-hub-card:nth-child(3) { animation-delay: 180ms; }
-.course-hub-card:nth-child(4) { animation-delay: 270ms; }
-.course-hub-card:nth-child(n+5) { animation-delay: 270ms; }
-
-.course-hub-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--academy-primary);
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
-    box-shadow: 0 16px 40px rgba(167, 139, 250, 0.2);
-}
-
-/* Card Header/Icon Area */
-.course-hub-card-header {
-    height: 140px;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.25rem;
-    position: relative;
-    overflow: hidden;
-    flex-wrap: wrap;
-}
-
-.course-hub-card-icon {
-    width: 72px;
-    height: 72px;
-    background: rgba(167, 139, 250, 0.2);
-    border: 2px dashed rgba(167, 139, 250, 0.3);
-    border-radius: var(--academy-radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: var(--academy-primary);
-    position: relative;
-    z-index: 1;
-}
-
-/* Level Badge */
-.course-hub-level-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.4rem 0.9rem;
-    border-radius: var(--academy-radius-full);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-    border: 1px solid currentColor;
-    border-opacity: 0.2;
-}
-
-.course-hub-level-badge.bachelor {
-    background: rgba(52, 211, 153, 0.15);
-    color: var(--academy-beginner);
-}
-
-.course-hub-level-badge.master {
-    background: rgba(251, 191, 36, 0.15);
-    color: var(--academy-intermediate);
-}
-
-.course-hub-level-badge.doctorate {
-    background: rgba(244, 114, 182, 0.15);
-    color: var(--academy-advanced);
-}
-
-/* Card Body */
-.course-hub-card-body {
-    padding: 1.5rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    text-align: start;
-}
-
-.course-hub-card-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--academy-text);
-    margin: 0 0 0.625rem;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.course-hub-card-desc {
-    font-size: 0.9rem;
-    color: var(--academy-text-secondary);
-    line-height: 1.6;
-    margin: 0 0 1rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    flex: 1;
-}
-
-/* Card Metadata */
-.course-hub-card-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.625rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--academy-border);
-    margin-top: auto;
-}
-
-.course-hub-meta-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--academy-text-muted);
-}
-
-.course-hub-meta-row i {
-    font-size: 0.9rem;
-    color: var(--academy-text-muted);
-}
-
-.course-hub-meta-row strong {
-    color: var(--academy-text-secondary);
-    font-weight: 600;
-}
-
-/* Card Footer/CTA */
-.course-hub-card-footer {
-    padding: 1rem 1.5rem 1.25rem;
-    border-top: 1px solid var(--academy-border);
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.75rem;
-}
-
-.card-actions-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 0.75rem;
-}
-
-.course-hub-primary-actions,
-.social-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-}
-
-.social-actions .comment-btn {
-    margin-inline-start: 0;
-}
-
-.course-hub-secondary-actions,
-.tool-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-inline-end: 0;
-}
-
-.course-hub-action-text {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    background: transparent;
-    border: none;
-    color: var(--academy-text-secondary);
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.2s ease;
-}
-
-.course-hub-action-text:hover {
-    color: var(--academy-primary);
-}
-
-.course-hub-action-text i {
-    font-size: 1.1rem;
-    transition: all 0.2s ease;
-}
-
-.course-hub-action-text.like-btn.is-liked {
-    color: #ec4899;
-}
-
-.course-hub-action-text.like-btn.is-liked i {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    color: #e11d48;
-}
-
-.course-hub-action-text.icon-only {
-    gap: 0;
-}
-
-.course-hub-action-text.view-only i {
-    font-size: 1.28rem;
-}
-
-.course-hub-action-text.view-only {
-    margin-inline-start: 0.6rem;
-}
-
-html[dir="rtl"] .card-actions-bar {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .course-hub-action-text.view-only {
-    margin-inline-start: 0;
-    margin-inline-end: 0.65rem;
-}
-
-html[dir="rtl"] .course-hub-card-footer {
-    padding-inline: 1rem;
-}
-
-html[dir="rtl"] .course-hub-secondary-actions,
-html[dir="rtl"] .tool-actions {
-    gap: 0.08rem;
-}
-
-html[dir="rtl"] .course-hub-compact-icon {
-    min-height: 34px;
-    padding: 0.32rem 0.38rem;
-    font-size: 0.82rem;
-    gap: 0.24rem;
-}
-
-html[dir="rtl"] .course-hub-compact-icon span {
-    max-width: 84px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span {
-    display: none;
-}
-
-.course-hub-compact-icon {
-    min-height: 36px;
-    padding: 0.35rem 0.55rem;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    color: #8f98a7;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    justify-content: center;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    font-weight: 600;
-    font-size: 0.95rem;
-    white-space: nowrap;
-}
-
-.course-hub-compact-icon:hover {
-    background: #f3f4f6;
-    color: #7b8492;
-}
-
-.course-hub-compact-icon i {
-    font-size: 0.9rem;
-}
-
-.course-hub-compact-icon span {
-    display: inline;
-    line-height: 1;
-}
-
-.course-hub-share-wrap {
-    position: relative;
-}
-
-.course-hub-share-popover {
-    position: absolute;
-    top: calc(100% + 8px);
-    inset-inline-end: 0;
-    min-width: 220px;
-    background: #fff;
-    border: 1px solid var(--academy-border);
-    border-radius: 12px;
-    box-shadow: var(--academy-shadow-lg);
-    padding: 0.35rem;
-    display: none;
-    z-index: 40;
-}
-
-.course-hub-share-popover.show {
-    display: block;
-}
-
-.course-hub-share-item {
-    width: 100%;
-    border: 0;
-    background: transparent;
-    text-align: start;
-    padding: 0.55rem 0.65rem;
-    border-radius: 8px;
-    color: var(--academy-text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.84rem;
-    cursor: pointer;
-}
-
-.course-hub-share-item:hover {
-    background: var(--academy-muted);
-    color: var(--academy-text);
-}
-
-@media (max-width: 768px) {
-    .course-hub-primary-actions {
-        gap: 0;
-    }
-    .social-actions .comment-btn {
-        margin-inline-start: 25px;
-    }
-    .course-hub-secondary-actions,
-    .tool-actions {
-        margin-inline-end: 8px;
-    }
-    html[dir="rtl"] .course-hub-secondary-actions .share-trigger-btn span,
-    html[dir="rtl"] .course-hub-secondary-actions .ask-chatbot-btn span {
-        display: none;
-    }
-=======
-    color: #ec4899;
->>>>>>> 98a310101d61c731410472855aff56398f807ca0
-=======
-    color: #ec4899;
->>>>>>> 63cfdfb982a12e44c4109a4f27d8e7ca60601c70
-}
-
-/* ===== EMPTY STATE ===== */
-.course-hub-empty {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 4rem 2rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
-    border: 1px solid var(--academy-border);
-    border-radius: var(--academy-radius-lg);
-    backdrop-filter: blur(10px);
-}
-
-.course-hub-empty-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(124, 58, 237, 0.1));
-    border: 1px solid var(--academy-border);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.5rem;
-    font-size: 2rem;
-    color: var(--academy-primary);
-}
-
-.course-hub-empty h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--academy-text);
-    margin: 0 0 0.5rem;
-}
-
-.course-hub-empty p {
-    font-size: 0.95rem;
-    color: var(--academy-text-secondary);
-    margin: 0 0 1.5rem;
-}
-
-.course-hub-empty-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: linear-gradient(135deg, var(--academy-primary), var(--academy-accent));
-    color: var(--academy-deep);
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: var(--academy-radius-lg);
-    text-decoration: none;
-    transition: all 0.2s;
-}
-
-.course-hub-empty-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-    color: #ffffff;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-    .course-hub-hero {
-        padding: 2.5rem 1.5rem;
-        margin: 1rem auto;
-        width: calc(100% - 3rem);
-        border-radius: 16px;
-    }
-    
-    .course-hub-hero-container {
-        padding: 0;
-    }
-    
-    .course-hub-hero-content {
-        flex-direction: column;
-        flex-wrap: wrap;
-        gap: 2rem;
-    }
-
-    .course-hub-hero-text {
-        align-items: center;
-        text-align: center;
-    }
-
-    .course-hub-stats {
-        justify-content: center;
-    }
-
-    html[dir="rtl"] .course-hub-hero-text,
-    html[dir="rtl"] .course-hub-title,
-    html[dir="rtl"] .course-hub-subtitle {
-        align-items: center;
-        text-align: center;
-    }
-    
-    .course-hub-title {
-        font-size: 1.75rem;
-    }
-    
-    .course-hub-filters {
-        padding: 1.5rem 1um 0;
-        margin: 0 1rem;
-    }
-    
-    .course-hub-filter-card {
-        padding: 1rem;
-        border-radius: 12px;
-    }
-    
-    .course-hub-container {
-        padding: 2rem 1rem 3rem;
-    }
-    
-    .course-hub-card-header {
-        height: 120px;
-    }
-    
-    .course-hub-card-icon {
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
-    }
-}
-
-/* ===== LOADING STATE ===== */
-#courses-grid-wrapper {
-    position: relative;
-    min-height: 200px;
-}
-
-#courses-grid-wrapper.loading .course-hub-grid {
-    opacity: 0.4;
-    pointer-events: none;
-    transition: opacity 0.2s ease-out;
-}
-
-#courses-grid-wrapper .course-hub-card {
-    transition: opacity 0.2s ease-out, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#courses-grid-wrapper.loading .course-hub-card {
-    opacity: 0.3;
-}
-
-.course-hub-loading-spinner {
-    display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-}
-
-#courses-grid-wrapper.loading .course-hub-loading-spinner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.5rem;
-    background: var(--academy-white);
-    border-radius: var(--academy-radius-lg);
-    box-shadow: var(--academy-shadow-lg);
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--academy-text-secondary);
-}
-
-.course-hub-loading-spinner i {
-    animation: spin 1s linear infinite;
-    color: var(--academy-primary);
-    font-size: 1.25rem;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
 </style>
+
 {% endblock %}
 
 {% block content %}
-<div class="course-hub-page">
-    
-    <!-- ============ HERO HEADER ============ -->
-    <header class="course-hub-hero">
-        <div class="course-hub-hero-container">
-            <div class="course-hub-hero-content">
-                
-                <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-width: 300px;">
-                    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto; max-width: 400px; filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.3));">
-                        <defs>
-                            <linearGradient id="gradBookPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
-                                <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.8" />
-                            </linearGradient>
-                            <linearGradient id="gradBookAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.6" />
-                                <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.6" />
-                            </linearGradient>
-                        </defs>
-                        <!-- Floating circles -->
-                        <circle cx="80" cy="60" r="50" fill="url(#gradBookPrimary)" opacity="0.15" style="animation: floatCircle 4s ease-in-out infinite;" />
-                        <circle cx="320" cy="100" r="70" fill="url(#gradBookAccent)" opacity="0.15" style="animation: floatCircle 4s ease-in-out infinite; animation-delay: -2s;" />
-                        <circle cx="200" cy="240" r="60" fill="url(#gradBookPrimary)" opacity="0.1" style="animation: floatCircle 4s ease-in-out infinite; animation-delay: -4s;" />
-                        
-                        <!-- Main book stack -->
-                        <g>
-                            <!-- Bottom book -->
-                            <rect x="100" y="140" width="200" height="120" rx="8" fill="url(#gradBookPrimary)" opacity="0.3" />
-                            <line x1="100" y1="155" x2="300" y2="155" stroke="url(#gradBookPrimary)" stroke-width="3" opacity="0.5" />
-                            
-                            <!-- Middle book -->
-                            <rect x="90" y="110" width="200" height="120" rx="8" fill="url(#gradBookAccent)" opacity="0.4" />
-                            <line x1="90" y1="125" x2="290" y2="125" stroke="url(#gradBookAccent)" stroke-width="3" opacity="0.5" />
-                            
-                            <!-- Top book -->
-                            <rect x="80" y="80" width="200" height="120" rx="8" fill="url(#gradBookPrimary)" opacity="0.5" />
-                            <line x1="80" y1="95" x2="280" y2="95" stroke="url(#gradBookPrimary)" stroke-width="3" opacity="0.6" />
-                            
-                            <!-- Pages detail on top book -->
-                            <line x1="95" y1="110" x2="265" y2="110" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" />
-                            <line x1="95" y1="125" x2="265" y2="125" stroke="rgba(167, 139, 250, 0.4)" stroke-width="2" />
-                            <line x1="95" y1="140" x2="265" y2="140" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2" />
-                        </g>
-                        
-                        <!-- Educational icons -->
-                        <g style="animation: floatLearnIcon 6s ease-in-out infinite;">
-                            <!-- Lightbulb (idea) -->
-                            <circle cx="320" cy="80" r="25" fill="rgba(251, 191, 36, 0.2)" />
-                            <path d="M 320 65 Q 315 55 320 50 Q 325 55 320 65 M 318 75 L 322 75 M 317 80 L 323 80" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round" />
-                        </g>
-                        
-                        <g style="animation: floatLearnIcon 6s ease-in-out infinite; animation-delay: -2s;">
-                            <!-- Target (learning goal) -->
-                            <circle cx="60" cy="200" r="25" fill="rgba(52, 211, 153, 0.2)" />
-                            <circle cx="60" cy="200" r="20" stroke="#34d399" stroke-width="2" fill="none" />
-                            <circle cx="60" cy="200" r="12" stroke="#34d399" stroke-width="2" fill="none" />
-                            <circle cx="60" cy="200" r="4" fill="#34d399" />
-                        </g>
-                    </svg>
-                    <style>
-                        @keyframes floatCircle {
-                            0%, 100% { transform: translateY(0px); }
-                            50% { transform: translateY(-15px); }
-                        }
-                        @keyframes floatLearnIcon {
-                            0%, 100% { transform: translateY(0px) scale(1); }
-                            50% { transform: translateY(-10px) scale(1.05); }
-                        }
-                    </style>
-                </div>
-                
-                <div class="course-hub-hero-text">
-                    <span class="course-hub-badge">
-                        <i class="bi bi-mortarboard-fill"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}منصة التعلم{% else %}{% translate "Learning Platform" %}{% endif %}
-                    </span>
-                    <h1 class="course-hub-title">
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                            المنصة الجزائرية لتكنولوجيات اللغة والذكاء الاصطناعي خدمة للغة العربية
-                        {% else %}
-                            {% translate "Arabic NLP" %} <span style="background: linear-gradient(135deg, var(--academy-primary) 0%, var(--academy-accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{% translate "Academy" %}</span>
-                        {% endif %}
-                    </h1>
-                    <p class="course-hub-subtitle">
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتقن معالجة اللغة الطبيعية من خلال دورات شاملة مصممة لبحوث اللغة العربية.{% else %}{% translate "Master Natural Language Processing with comprehensive courses designed for Arabic language research." %}{% endif %}
-                    </p>
-                    <div class="course-hub-stats">
-                        <div class="course-hub-stat">
-                            <span class="course-hub-stat-value">{{ total_count|default:"0" }}</span>
-                            <span class="course-hub-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}{% translate "Courses" %}{% endif %}</span>
-                        </div>
-                        <div class="course-hub-stat">
-                            <span class="course-hub-stat-value">3</span>
-                            <span class="course-hub-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستويات{% else %}{% translate "Levels" %}{% endif %}</span>
-                        </div>
-                    </div>
-                    <a href="{% url 'resources:course-create' %}" class="course-hub-add-btn">
-                        <i class="bi bi-plus-circle"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة دورة جديدة{% else %}{% translate "Add New Course" %}{% endif %}
-                    </a>
-                </div>
-                
-            </div>
+<div class="crs-shell">
+  <div class="crs-wrap">
+    <div class="crs-hero">
+      <span class="crs-hero-icon"><i class="bi bi-book"></i></span>
+      <div class="crs-hero-inner">
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الدورات الأكاديمية والتدريسية{% else %}Academic Courses <br>& Professional Training{% endif %}</h1>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف دورات شاملة متخصصة في معالجة اللغة الطبيعية والذكاء الاصطناعي.{% else %}Discover comprehensive courses specialized <br>in NLP and AI research.{% endif %}</p>
+      </div>
+      <div class="crs-hero-stats">
+        <div class="crs-stat-card">
+          <div class="crs-stat-number">{{ courses|length|default:"0" }}</div>
+          <div class="crs-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي الدورات{% else %}Total Courses{% endif %}</div>
         </div>
-    </header>
-    
-    <!-- ============ SEARCH & FILTERS ============ -->
-    <section class="course-hub-filters">
-        <div class="course-hub-filter-card">
-            <form method="get" action="" class="course-hub-search-row" id="courseSearchForm">
-                <div class="course-hub-search-box">
-                    
-                    <input 
-                        type="text" 
-                        name="q" 
-                        class="course-hub-search-input" 
-                        placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن الدورات حسب العنوان أو الموضوع أو المدرّس...{% else %}{% translate 'Search courses by title, topic, or instructor...' %}{% endif %}"
-                        value="{{ request.GET.q|default:'' }}"
-                    >
-                </div>
-                <button type="submit" class="course-hub-search-btn">
-                    <i class="bi bi-search"></i>
-                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}{% translate "Search" %}{% endif %}
-                </button>
-            </form>
-            
-            <div class="course-hub-pill-group">
-                <span class="course-hub-pill-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى:{% else %}{% translate "Level" %}:{% endif %}</span>
-                <div class="course-hub-pills">
-                    <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=" class="course-hub-pill {% if not request.GET.level %}active{% endif %}">
-                        <i class="bi bi-grid-3x3-gap"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}
-                    </a>
-                    <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=bachelor" class="course-hub-pill {% if request.GET.level == 'bachelor' %}active{% endif %}" data-level="beginner">
-                        <i class="bi bi-1-circle"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ليسانس{% else %}{% translate "Bachelor" %}{% endif %}
-                    </a>
-                    <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=master" class="course-hub-pill {% if request.GET.level == 'master' %}active{% endif %}" data-level="intermediate">
-                        <i class="bi bi-2-circle"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ماستر{% else %}{% translate "Master" %}{% endif %}
-                    </a>
-                    <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}level=doctorate" class="course-hub-pill {% if request.GET.level == 'doctorate' %}active{% endif %}" data-level="advanced">
-                        <i class="bi bi-3-circle"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}{% translate "Doctorate" %}{% endif %}
-                    </a>
-                </div>
-            </div>
+      </div>
+    </div>
+
+    <div class="crs-filter-card">
+      <form method="get" class="crs-filter-grid">
+        <div class="crs-input-wrapper">
+          <input class="crs-input" type="text" name="q" value="{{ request.GET.q }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث...{% else %}Search...{% endif %}">
         </div>
-    </section>
-    
-    <!-- ============ COURSE GRID ============ -->
-    <main class="course-hub-container">
-        <div id="courses-grid-wrapper">
-            <div class="course-hub-loading-spinner">
-                <i class="bi bi-arrow-repeat"></i>
-                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جارٍ التحميل...{% else %}{% translate "Loading..." %}{% endif %}</span>
+        <select class="crs-select" name="level">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}جميع المستويات{% else %}All levels{% endif %}</option>
+          <option value="bachelor">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ليسانس{% else %}Bachelor{% endif %}</option>
+          <option value="master">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ماستر{% else %}Master{% endif %}</option>
+          <option value="doctorate">{% if LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}Doctorate{% endif %}</option>
+        </select>
+        <button class="crs-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
+      </form>
+    </div>
+
+    {% if courses %}
+    <div class="crs-grid">
+      {% for course in courses %}
+      <article class="crs-card">
+        <div class="crs-accent"></div>
+        <div class="crs-level-header">
+          <div class="crs-level-badge">
+            <span class="crs-level-text">{% if course.academic_level == "bachelor" %}1{% elif course.academic_level == "master" %}2{% elif course.academic_level == "doctorate" %}3{% else %}0{% endif %}</span>
+            <span class="crs-level-label">{% if course.academic_level == "bachelor" %}BAC{% elif course.academic_level == "master" %}MSC{% elif course.academic_level == "doctorate" %}PhD{% else %}N/A{% endif %}</span>
+          </div>
+          <div class="crs-card-header-info">
+            <div class="crs-card-badges">
+              <span class="crs-level-label-badge crs-level-{{ course.academic_level }}">{{ course.get_academic_level_display }}</span>
             </div>
-            {% if courses %}
-            <div class="course-hub-grid" id="courses-grid">
-                {% for course in courses %}
-                <article class="course-hub-card">
-                    <div class="course-hub-card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                        <div class="course-hub-card-icon">
-                            <i class="bi bi-journal-bookmark"></i>
-                        </div>
-                        <span class="course-hub-level-badge {{ course.academic_level }}">
-                            {{ course.get_academic_level_display }}
-                        </span>
-                        </div>
-                    </div>
-                    
-                    <div class="course-hub-card-body">
-                        <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
-                        <p class="course-hub-card-desc">
-                            {% if course.get_localized_description %}
-                                {{ course.get_localized_description|truncatewords:18 }}
-                            {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                                محتوى دراسي شامل يغطي الموضوعات الأساسية في معالجة اللغة العربية.
-                            {% else %}
-                                {% translate "Comprehensive course content covering essential topics in Arabic NLP." %}
-                            {% endif %}
-                        </p>
-                        
-                        <div class="course-hub-card-meta">
-                            <div class="course-hub-meta-row">
-                                <i class="bi bi-person-workspace"></i>
-                                <strong>
-                                    {% if course.teacher.get_full_name_display %}
-                                        {{ course.teacher.get_full_name_display }}
-                                    {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                                        المدرّس
-                                    {% else %}
-                                        {% translate "Instructor" %}
-                                    {% endif %}
-                                </strong>
-                            </div>
-                            <div class="course-hub-meta-row">
-                                <i class="bi bi-building"></i>
-                                <span>{{ course.institution.get_localized_name|truncatechars:28 }}</span>
-                            </div>
-                            <div class="course-hub-meta-row">
-                                <i class="bi bi-calendar3"></i>
-                                <span>{{ course.academic_year }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="course-hub-card-footer">
-                        <div class="card-actions-bar">
-                            <div class="course-hub-primary-actions social-actions">
-                                <button type="button" class="course-hub-action-text like-btn" data-course-id="{{ course.id }}" aria-label="{% translate 'Like' %}">
-                                    <i class="bi bi-heart" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
-                                </button>
-                                <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn icon-only" aria-label="{% translate 'Comment' %}">
-                                    <i class="bi bi-chat"></i>
-                                </a>
-                                <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-action-text view-only icon-only" aria-label="{% translate 'View details' %}">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                            </div>
-                            <div class="course-hub-secondary-actions tool-actions">
-                                <button type="button"
-                                        class="course-hub-compact-icon ask-chatbot-btn"
-                                        title="{% trans 'Ask chatbot about this' %}"
-                                        data-ct="course"
-                                        data-oid="{{ course.id }}"
-                                        data-title="{{ course.get_localized_title|default:''|truncatechars:200 }}"
-                                        data-category="{{ course.get_course_field_display|default:'course' }}"
-                                        data-author="{{ course.author.get_full_name_display|default:''|truncatechars:120 }}"
-                                        data-description="{{ course.get_localized_description|default:''|truncatechars:400 }}"
-                                        data-url="{% url 'resources:course_detail' course.id %}"
-                                        data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.id %}","type":"course","id":"{{ course.id|escapejs }}"}'
-                                        aria-label="{% trans 'Ask chatbot' %}">
-                                    <i class="fas fa-robot"></i>
-                                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل الذكاء الاصطناعي{% else %}{% trans "Ask AI" %}{% endif %}</span>
-                                </button>
-                                <div class="course-hub-share-wrap">
-                                    <button type="button"
-                                            class="course-hub-compact-icon share-trigger-btn"
-                                            data-share-type="course"
-                                            data-share-id="{{ course.id }}"
-                                            data-share-title="{{ course.get_localized_title|default:'' }}"
-                                            data-share-url="{% url 'resources:course_detail' course.id %}"
-                                            aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مشاركة{% else %}{% trans 'Share' %}{% endif %}"
-                                            title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}مشاركة مع الأصدقاء{% else %}{% trans 'Share with friends' %}{% endif %}">
-                                        <i class="bi bi-send"></i>
-                                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال{% else %}{% trans "Send" %}{% endif %}</span>
-                                    </button>
-                                    <div class="course-hub-share-popover" role="menu">
-                                        <button type="button" class="course-hub-share-item" data-share-action="friends">
-                                            <i class="bi bi-people"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}{% trans "Send to friends" %}{% endif %}
-                                        </button>
-                                        <button type="button" class="course-hub-share-item" data-share-action="copy">
-                                            <i class="bi bi-link-45deg"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}{% trans "Copy link" %}{% endif %}
-                                        </button>
-                                        <button type="button" class="course-hub-share-item" data-share-action="social">
-                                            <i class="bi bi-globe2"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة على وسائل التواصل{% else %}{% trans "Share on social media" %}{% endif %}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-            {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
-            {% else %}
-            <div class="course-hub-grid" id="courses-grid">
-                <div class="course-hub-empty">
-                    <div class="course-hub-empty-icon">
-                        <i class="bi bi-journal-x"></i>
-                    </div>
-                    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على دورات{% else %}{% translate "No Courses Found" %}{% endif %}</h3>
-                    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كن أول من يساهم بإضافة دورة إلى المنصة.{% else %}{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}{% endif %}</p>
-                </div>
-            </div>
-            {% endif %}
+            <h2 class="crs-card-title">{{ course.get_localized_title }}</h2>
+          </div>
         </div>
-    </main>
-    
+        <div class="crs-body">
+          <p class="crs-excerpt">{{ course.get_localized_description|truncatechars:150 }}</p>
+          <div class="crs-info">
+            <div class="crs-info-row"><i class="bi bi-person"></i><span>{{ course.teacher.get_full_name_display }}</span></div>
+            <div class="crs-info-row"><i class="bi bi-building"></i><span>{{ course.institution.get_localized_name|truncatechars:30 }}</span></div>
+            <div class="crs-info-row"><i class="bi bi-calendar-range"></i><span>{{ course.academic_year }}</span></div>
+          </div>
+        </div>
+        <a class="crs-link" href="{% url 'resources:course_detail' course.pk %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}View details{% endif %}</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+    {% else %}
+    <div class="crs-empty">
+      <div class="crs-empty-inner">
+        <i class="bi bi-book-x crs-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دورات{% else %}No courses found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث للعثور على ما تبحث عنه.{% else %}Try adjusting your filters or search keywords to find what you're looking for.{% endif %}</p>
+        <div class="crs-empty-actions">
+          <a href="?" class="crs-empty-reset">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين الفلاتر{% else %}Reset filters{% endif %}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // ===== LIVE SEARCH CONFIGURATION =====
-    const DEBOUNCE_DELAY = 300; // milliseconds
-    
-    // DOM Elements
-    const searchInput = document.querySelector('.course-hub-search-input');
-    const searchForm = document.getElementById('courseSearchForm');
-    const gridWrapper = document.getElementById('courses-grid-wrapper');
-    const pills = document.querySelectorAll('.course-hub-pill');
-    
-    let currentLevel = '{{ current_level|default:"" }}';
-    let debounceTimer = null;
-    let currentRequest = null;
-
-    function getCsrfTokenFromCookie() {
-        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : '';
-    }
-
-    function buildStructuredCourseContext(card, btn) {
-        const getText = (selectors, fallback = '') => {
-            for (const selector of selectors) {
-                const el = card.querySelector(selector);
-                const txt = (el?.textContent || '').trim();
-                if (txt) return txt.replace(/\s+/g, ' ');
-            }
-            return fallback;
-        };
-
-        const title = getText(['.course-hub-card-title', '.card-title', 'h3']);
-        const category = getText(['.course-hub-level-badge', '.badge']);
-        const author = getText(['.course-hub-meta-row strong', '.author-name']);
-        const summary = getText(['.course-hub-card-desc', '.card-text', 'p']);
-        const detailUrl = btn.dataset.url || btn.getAttribute('data-url') || '';
-
-        const payload = {
-            title,
-            category,
-            author,
-            description: summary,
-            type: 'course',
-            id: btn.dataset.oid || '',
-            url: detailUrl,
-        };
-
-        const structuredText =
-            `[CARD_CONTEXT]\n` +
-            `Title: ${title || 'N/A'}\n` +
-            `Category: ${category || 'N/A'}\n` +
-            `Author: ${author || 'N/A'}\n` +
-            `Summary: ${summary || 'N/A'}\n` +
-            `Type: course\n` +
-            `ID: ${payload.id || 'N/A'}\n` +
-            `URL: ${payload.url || 'N/A'}`;
-
-        return { payload, structuredText };
-    }
-
-    async function sendCourseContextSilently(payload, structuredText) {
-        try {
-            if (window.chat && typeof window.chat.sendContext === 'function') {
-                window.chat.sendContext(structuredText);
-            }
-        } catch (err) {
-            console.warn('window.chat.sendContext failed:', err);
-        }
-
-        try {
-            sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
-                ...payload,
-                system_prompt: structuredText,
-            }));
-            sessionStorage.setItem('chatbot_last_context_title', payload.title || '');
-        } catch (err) {
-            console.warn('sessionStorage context failed:', err);
-        }
-
-        try {
-            await fetch("{% url 'chatbot:set_card_context' %}", {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfTokenFromCookie(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify(payload),
-            });
-        } catch (err) {
-            console.warn('set_card_context failed:', err);
-        }
-    }
-
-    function likeStorageKey(courseId) {
-        return `course_like_${courseId}`;
-    }
-
-    function applyLikeVisual(btn, liked) {
-        btn.classList.toggle('is-liked', liked);
-        const icon = btn.querySelector('i');
-        if (!icon) return;
-        const outline = icon.dataset.outlineIcon || 'bi-heart';
-        const solid = icon.dataset.solidIcon || 'bi-heart-fill';
-        icon.classList.remove(outline, solid);
-        icon.classList.add(liked ? solid : outline);
-    }
-
-    function hydrateCourseActions(scope) {
-        const root = scope || document;
-        root.querySelectorAll('.course-hub-action-text.like-btn').forEach(btn => {
-            const courseId = btn.dataset.courseId;
-            const liked = localStorage.getItem(likeStorageKey(courseId)) === '1';
-            applyLikeVisual(btn, liked);
-        });
-    }
-    
-    // ===== DEBOUNCE FUNCTION =====
-    function debounce(func, delay) {
-        return function(...args) {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => func.apply(this, args), delay);
-        };
-    }
-    
-    // ===== FETCH COURSES VIA AJAX =====
-    function fetchCourses(query, level) {
-        // Cancel any pending request
-        if (currentRequest) {
-            currentRequest.abort();
-        }
-        
-        // Show loading state
-        gridWrapper.classList.add('loading');
-        
-        // Build query params
-        const params = new URLSearchParams();
-        if (query) params.set('q', query);
-        if (level) params.set('level', level);
-        
-        const url = `${window.location.pathname}?${params.toString()}`;
-        
-        // Update browser URL without reload
-        history.replaceState(null, '', url);
-        
-        // Create AbortController for this request
-        const controller = new AbortController();
-        currentRequest = controller;
-        
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            signal: controller.signal
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.text();
-        })
-        .then(html => {
-            // Replace the grid content
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const newGrid = tempDiv.querySelector('#courses-grid') || tempDiv.firstElementChild;
-            
-            const existingGrid = document.getElementById('courses-grid');
-            if (existingGrid && newGrid) {
-                existingGrid.replaceWith(newGrid);
-                hydrateCourseActions(newGrid);
-            }
-            
-            // Remove loading state
-            gridWrapper.classList.remove('loading');
-            currentRequest = null;
-        })
-        .catch(error => {
-            if (error.name !== 'AbortError') {
-                console.error('Error fetching courses:', error);
-                gridWrapper.classList.remove('loading');
-            }
-            currentRequest = null;
-        });
-    }
-    
-    // ===== SEARCH INPUT HANDLER WITH DEBOUNCE =====
-    const debouncedSearch = debounce(function() {
-        const query = searchInput.value.trim();
-        fetchCourses(query, currentLevel);
-    }, DEBOUNCE_DELAY);
-    
-    searchInput.addEventListener('input', debouncedSearch);
-    
-    // ===== PREVENT FORM SUBMISSION (use AJAX instead) =====
-    searchForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        clearTimeout(debounceTimer);
-        const query = searchInput.value.trim();
-        fetchCourses(query, currentLevel);
-    });
-    
-    // ===== LEVEL FILTER PILLS =====
-    pills.forEach(pill => {
-        pill.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Update active state visually
-            pills.forEach(p => p.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Extract level from href
-            const href = this.getAttribute('href');
-            const urlParams = new URLSearchParams(href.split('?')[1] || '');
-            currentLevel = urlParams.get('level') || '';
-            
-            // Trigger AJAX fetch
-            const query = searchInput.value.trim();
-            fetchCourses(query, currentLevel);
-        });
-    });
-
-    document.addEventListener('click', async function(e) {
-        const robotBtn = e.target.closest('.ask-chatbot-btn');
-        if (robotBtn && robotBtn.closest('.course-hub-card')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof e.stopImmediatePropagation === 'function') {
-                e.stopImmediatePropagation();
-            }
-
-            const card = robotBtn.closest('.course-hub-card');
-            const { payload, structuredText } = buildStructuredCourseContext(card, robotBtn);
-            await sendCourseContextSilently(payload, structuredText);
-
-            const chatbotUrl = new URL("{% url 'chatbot:chatbot_interface' %}", window.location.origin);
-            chatbotUrl.searchParams.set('context', 'course');
-            if (payload.id) chatbotUrl.searchParams.set('id', payload.id);
-            chatbotUrl.searchParams.set('source', 'card');
-            window.location.assign(chatbotUrl.toString());
-            return;
-        }
-
-        const likeBtn = e.target.closest('.course-hub-action-text.like-btn');
-        if (likeBtn) {
-            e.preventDefault();
-            const courseId = likeBtn.dataset.courseId;
-            const wasLiked = localStorage.getItem(likeStorageKey(courseId)) === '1';
-            const nowLiked = !wasLiked;
-            localStorage.setItem(likeStorageKey(courseId), nowLiked ? '1' : '0');
-            applyLikeVisual(likeBtn, nowLiked);
-            return;
-        }
-
-        const shareBtn = e.target.closest('.share-trigger-btn');
-        if (shareBtn && shareBtn.closest('.course-hub-share-wrap')) {
-            e.preventDefault();
-            const wrap = shareBtn.closest('.course-hub-share-wrap');
-            const popover = wrap.querySelector('.course-hub-share-popover');
-            const isOpen = popover.classList.contains('show');
-            document.querySelectorAll('.course-hub-share-popover.show').forEach(p => p.classList.remove('show'));
-            if (!isOpen) popover.classList.add('show');
-            return;
-        }
-
-        const shareActionBtn = e.target.closest('.course-hub-share-item');
-        if (shareActionBtn) {
-            e.preventDefault();
-            const wrap = shareActionBtn.closest('.course-hub-share-wrap');
-            const trigger = wrap.querySelector('.share-trigger-btn');
-            const action = shareActionBtn.dataset.shareAction;
-            const contentType = trigger.dataset.shareType;
-            const objectId = trigger.dataset.shareId;
-            const title = trigger.dataset.shareTitle || '';
-            const rawUrl = trigger.dataset.shareUrl || window.location.href;
-            const url = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
-
-            if (action === 'friends') {
-                const event = new CustomEvent('openShareModal', {
-                    detail: { contentType, objectId, title },
-                });
-                document.dispatchEvent(event);
-            } else if (action === 'copy') {
-                try {
-                    await navigator.clipboard.writeText(url);
-                } catch (err) {
-                    console.warn('Copy failed', err);
-                }
-            } else if (action === 'social') {
-                const shareText = encodeURIComponent(title || document.title);
-                const shareUrl = encodeURIComponent(url);
-                window.open(`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`, '_blank', 'noopener,noreferrer,width=640,height=520');
-            }
-
-            const popover = wrap.querySelector('.course-hub-share-popover');
-            popover.classList.remove('show');
-            return;
-        }
-
-        if (!e.target.closest('.course-hub-share-wrap')) {
-            document.querySelectorAll('.course-hub-share-popover.show').forEach(p => p.classList.remove('show'));
-        }
-    });
-
-    hydrateCourseActions();
-});
-</script>
 {% endblock %}
