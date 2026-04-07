@@ -110,10 +110,10 @@
           <input class="crs-input" type="text" name="q" value="{{ request.GET.q }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث...{% else %}Search...{% endif %}">
         </div>
         <select class="crs-select" name="level">
-          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}جميع المستويات{% else %}All levels{% endif %}</option>
-          <option value="bachelor">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ليسانس{% else %}Bachelor{% endif %}</option>
-          <option value="master">{% if LANGUAGE_CODE|slice:":2" == "ar" %}ماستر{% else %}Master{% endif %}</option>
-          <option value="doctorate">{% if LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}Doctorate{% endif %}</option>
+          <option value="" {% if not request.GET.level %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جميع المستويات{% else %}All levels{% endif %}</option>
+          <option value="bachelor" {% if request.GET.level == "bachelor" %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ليسانس{% else %}Bachelor{% endif %}</option>
+          <option value="master" {% if request.GET.level == "master" %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}ماستر{% else %}Master{% endif %}</option>
+          <option value="doctorate" {% if request.GET.level == "doctorate" %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}Doctorate{% endif %}</option>
         </select>
         <button class="crs-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
         <a href="{% url 'resources:course-create' %}" class="crs-btn" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;padding:1rem 1.2rem;font-size:0.9rem">
@@ -172,4 +172,21 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+// Auto-submit the filter form when level changes
+document.addEventListener('DOMContentLoaded', function() {
+  const filterForm = document.querySelector('.crs-filter-grid');
+  if (!filterForm) return;
+  
+  const levelSelect = filterForm.querySelector('select[name="level"]');
+  
+  if (levelSelect) {
+    levelSelect.addEventListener('change', function(e) {
+      // Auto-submit form when level selection changes
+      filterForm.submit();
+    });
+  }
+});
+</script>
 {% endblock %}
