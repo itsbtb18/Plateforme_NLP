@@ -1,2169 +1,296 @@
-"""
-Tiered NLP/AI courses scraper.
+"""Tavily + Groq based courses scraper."""
 
-Priority policy:
-1) Algerian sources
-2) Arabic/MENA sources
-3) Global sources
+from __future__ import annotations
 
-Each scraped item is stored as resources.Course with approval_status='pending'.
-"""
-
-import contextlib
-import json
 import logging
-import os
-import re
+import time
 from decimal import Decimal, InvalidOperation
-from urllib.parse import quote_plus, urljoin, urlparse
 
-from bs4 import BeautifulSoup
+from asgiref.sync import async_to_sync
+from django.utils import timezone
 
-from scraping.enrichment_engine import enrich_scraped_item
-from scraping.field_mapping import calculate_completeness_score
-from scraping.file_downloader import (
-    attach_file_to_model,
-)
-from scraping.fixture_loader import sources_for_section
-from scraping.scraping_settings import scraping_settings as SS
+from scraping.extractors.courses.llm_course_extractor import LLMCourseExtractor
+from scraping.network.search_client import TavilySearchClient
 
-from .playwright_scraper import PlaywrightFallbackScraper
+from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
 
-def _load_curated_courses():
-    fixture_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "fixtures", "curated_courses.json"
-    )
-    try:
-        with open(fixture_path, encoding="utf-8") as handle:
-            return json.load(handle)
-    except Exception:
-        return {}
+class CourseScraper(BaseScraper):
+    """Discover NLP/AI courses from web search and LLM extraction."""
 
-
-_FIXTURE_DATA = _load_curated_courses()
-
-# Global curated fallbacks kept as additional coverage.
-CURATED_COURSES = _FIXTURE_DATA.get("university_courses", [])
-COURSERA_COURSES = _FIXTURE_DATA.get("coursera_courses", [])
-YOUTUBE_PLAYLISTS = _FIXTURE_DATA.get("youtube_playlists", [])
-
-FIELD_MAP = {
-    "nlp": "nlp",
-    "natural language": "nlp",
-    "machine learning": "ml",
-    "deep learning": "ml",
-    "intelligence artificielle": "ai",
-    "artificial intelligence": "ai",
-    "informatique": "computer_science",
-    "data science": "data_science",
-    "speech": "speech_processing",
-    "text mining": "text_mining",
-    "information retrieval": "ir",
-    "arabic": "arabic_linguistics",
-    "linguistics": "linguistics",
-    "translation": "translation",
-}
-
-LEVEL_HINTS = {
-    "beginner": "bachelor",
-    "intro": "bachelor",
-    "foundation": "bachelor",
-    "intermediate": "master",
-    "advanced": "master",
-    "expert": "doctorate",
-    "doctoral": "doctorate",
-}
-
-PRICE_PATTERN = re.compile(
-    r"(?:(?:USD|EUR|DZD|\$|€)\s?\d+(?:[\.,]\d{1,2})?|\d+(?:[\.,]\d{1,2})?\s?(?:USD|EUR|DZD|\$|€))",
-    re.I,
-)
-
-DURATION_PATTERN = re.compile(
-    r"(\d+\+?\s*(?:weeks?|week|hours?|hrs?|heures?|h|videos?|lectures?|ساعات?|ساعة|أسبوع(?:ين)?))",
-    re.I,
-)
-
-START_DATE_PATTERN = re.compile(
-    r"(?:starts?|begins?|start date|commence|debute|يبدأ|تبدأ|ينطلق)\s*[:\-]?\s*([A-Za-z0-9\-/,. ]{4,40})",
-    re.I,
-)
-
-
-def _course_fixture_rows() -> list[dict]:
-    return list(sources_for_section("courses"))
-
-
-def _course_source_rows(
-    *,
-    tier: int | None = None,
-    scraper_type: str | None = None,
-    country: str | None = None,
-) -> list[dict]:
-    rows = _course_fixture_rows()
-    if tier is not None:
-        rows = [r for r in rows if int(r.get("tier") or 0) == int(tier)]
-    if scraper_type is not None:
-        rows = [
-            r
-            for r in rows
-            if str(r.get("scraper_type", "")).strip().lower() == scraper_type.lower()
-        ]
-    if country is not None:
-        rows = [
-            r
-            for r in rows
-            if str(r.get("country", "")).strip().upper() == country.upper()
-        ]
-    return rows
-
-
-def _rows_to_rss_sources(
-    rows: list[dict], default_country: str = "global"
-) -> list[dict]:
-    result = []
-    for row in rows:
-        url = str(row.get("url", "")).strip()
-        if not url:
-            continue
-        country_code = (
-            str(row.get("country") or default_country).strip().upper() or "XX"
-        )
-        result.append(
-            {
-                "base_url": url,
-                "source_name": row.get("name") or "Course Source",
-                "institution_name": row.get("name") or "Course Source",
-                "country_name": country_code,
-                "country_code": country_code,
-                "inst_type": "Other",
-            }
-        )
-    return result
-
-
-class CourseScraper(PlaywrightFallbackScraper):
-    name = "NLP Courses"
+    name = "NLP/AI Courses (Tavily + Groq)"
     category = "courses"
-    SECTION = "courses"
+    API_CALL_DELAY_SECONDS = 2
 
-    @classmethod
-    def get_default_sources(cls):
-        from scraping.models import ScrapingSource
+    LEVEL_MAP = {
+        "beginner": "bachelor",
+        "intro": "bachelor",
+        "basic": "bachelor",
+        "intermediate": "master",
+        "advanced": "doctorate",
+        "expert": "doctorate",
+    }
 
-        return ScrapingSource.objects.filter(
-            category=cls.SECTION,
-            is_default=True,
-        ).order_by("name")
-
-    def run(self) -> dict:
-        """Run the courses scraper with checkpoint-aware resume support.
-
-        Returns:
-            dict: Standard scraper summary returned by BaseScraper.
-
-        Raises:
-            Exception: Re-raises interrupted scrape errors after logging checkpoint state.
-        """
-        from scraping.checkpoint import ScraperCheckpoint
-
-        run_id = getattr(self, "_current_run_id", "unknown")
-        cp = ScraperCheckpoint("courses", run_id)
-
-        if cp.is_resuming():
-            logger.info(
-                "scraper_resuming_from_checkpoint",
-                extra=cp.get_summary(),
-            )
-
-        self._checkpoint = cp
-
-        logger.info(
-            "scraper_run_config",
-            extra={
-                "category": self.category,
-                "source_name": self.name,
-                "media_download_enabled": self._is_download_enabled(),
-            },
-        )
-        try:
-            result = super().run()
-            cp.clear()
-            return result
-        except Exception as exc:
-            logger.error(
-                "scraper_interrupted_checkpoint_saved",
-                extra={
-                    "run_id": run_id,
-                    "error": str(exc),
-                    "summary": cp.get_summary(),
-                },
-            )
-            raise
-
-    YOUTUBE_SEARCH_TERMS_TIER_1 = [
-        "دروس البرمجة الجزائر",
-        "machine learning arabic Algeria",
-        "NLP arabic course",
-    ]
-
-    COURSERA_ARABIC_TERMS = [
-        "Arabic NLP",
-        "تعلم الآلة",
-        "معالجة اللغة الطبيعية",
-        "ذكاء اصطناعي",
-    ]
-
-    RWAQ_URL = next(
-        (
-            str(row.get("url", "")).strip()
-            for row in _course_fixture_rows()
-            if "rwaq" in str(row.get("name", "")).lower()
-        ),
-        "",
-    )
-    EDRAAK_URL = next(
-        (
-            str(row.get("url", "")).strip()
-            for row in _course_fixture_rows()
-            if "edraak" in str(row.get("name", "")).lower()
-        ),
-        "",
-    )
-
-    AI_NLP_KEYWORDS = (
-        "nlp",
-        "natural language",
-        "language model",
-        "machine learning",
-        "deep learning",
-        "artificial intelligence",
-        "apprentissage automatique",
-        "intelligence artificielle",
-        "informatique",
-        "data science",
-        "programm",
-        "arabic",
-        "معالجة اللغة",
-        "ذكاء",
-        "تعلم الآلة",
-        "برمجة",
-    )
-
-    TIER_1_RSS_SOURCES = _rows_to_rss_sources(
-        _course_source_rows(tier=1, scraper_type="rss")
-    )
-    TIER_2_RSS_SOURCES = _rows_to_rss_sources(
-        _course_source_rows(tier=2, scraper_type="rss")
-    )
-    TIER_3_RSS_SOURCES = _rows_to_rss_sources(
-        _course_source_rows(tier=3, scraper_type="rss")
-    )
+    PLATFORM_MAP = {
+        "coursera": "coursera",
+        "youtube": "youtube",
+        "mit": "mit",
+        "edx": "edx",
+        "university": "university",
+    }
 
     def scrape(self):
-        """Execute courses ingestion with checkpoint-aware tier orchestration."""
-        sources = list(self.get_active_sources())
-        if not sources:
-            sources = list(self.get_default_sources())
-
-        if not sources:
-            logger.warning(
-                "Aucune source active/default pour courses. Verifier la config admin."
-            )
-            return
-
-        sources_with_urls = [
-            source
-            for source in sources
-            if (getattr(source, "url", "") or source.base_url or "").strip()
-        ]
-        if not sources_with_urls:
-            logger.warning("Aucune source courses active/default avec URL valide.")
-            return
-
-        tiers = self._resolve_enabled_tiers(sources_with_urls)
-        tier_methods = {
-            1: self._scrape_tier_1_algerian_courses,
-            2: self._scrape_tier_2_arabic_courses,
-            3: self._scrape_tier_3_global_courses,
-        }
-
-        logger.info(
-            "courses_tier_orchestration",
-            extra={
-                "enabled_tiers": tiers,
-                "sources_count": len(sources_with_urls),
-            },
-        )
-
-        for tier in tiers:
-            method = tier_methods.get(tier)
-            if method:
-                method()
-
-    @staticmethod
-    def _resolve_enabled_tiers(sources):
-        tiers = set()
-        for source in sources:
-            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
-            tier_value = scrape_config.get("tier")
-            try:
-                tier = int(tier_value)
-            except (TypeError, ValueError):
-                continue
-            if tier in {1, 2, 3}:
-                tiers.add(tier)
-
-        if not tiers:
-            return [1, 2, 3]
-        return sorted(tiers)
-
-    @staticmethod
-    def _source_url(source) -> str:
-        return (
-            getattr(source, "url", "") or getattr(source, "base_url", "") or ""
-        ).strip()
-
-    def _get_tier_sources(self, tier: int):
-        from scraping.models import ScrapingSource
-
-        field_names = {field.name for field in ScrapingSource._meta.fields}
-        filters = {"is_active": True}
-        if "section" in field_names:
-            filters["section"] = self.SECTION
-        elif "category" in field_names:
-            filters["category"] = self.SECTION
-
-        if "tier" in field_names:
-            filters["tier"] = tier
-        else:
-            filters["scrape_config__tier"] = tier
-
-        return list(ScrapingSource.objects.filter(**filters))
-
-    def _select_tier_source_url(self, tier: int, *tokens: str) -> str:
-        candidates = self._select_tier_source_urls(tier, *tokens)
-        return candidates[0] if candidates else ""
-
-    def _select_tier_source_urls(self, tier: int, *tokens: str) -> list[str]:
-        normalized_tokens = [token.lower() for token in tokens if token]
-        urls: list[str] = []
-        for source in self._get_tier_sources(tier):
-            source_url = self._source_url(source)
-            if not source_url:
-                continue
-
-            source_name = (getattr(source, "name", "") or "").lower()
-            blob = f"{source_name} {source_url.lower()}"
-            if normalized_tokens and not any(
-                token in blob for token in normalized_tokens
-            ):
-                continue
-            urls.append(source_url)
-        return urls
-
-    # ------------------------------------------------------------------
-    # Tier 1 — Algerian
-    # ------------------------------------------------------------------
-
-    def _scrape_tier_1_algerian_courses(self):
-        cp = getattr(self, "_checkpoint", None)
-        methods = [
-            (
-                "tier1_rss",
-                lambda: self._scrape_rss_course_sources(self.TIER_1_RSS_SOURCES),
-            ),
-            ("algerian_university_ocw", self._scrape_algerian_university_ocw),
-            ("cerist_training", self._scrape_cerist_training_programs),
-            (
-                "youtube_algeria_arabic",
-                lambda: self._scrape_youtube_playlists(
-                    self.YOUTUBE_SEARCH_TERMS_TIER_1,
-                    source_name="YouTube Algeria/Arabic",
-                ),
-            ),
-            ("fun_mooc_fr", self._scrape_fun_mooc_fr),
-        ]
-        for source_name, method in methods:
-            if cp and cp.is_source_done(source_name):
-                logger.info(
-                    "source_skipped_already_done",
-                    extra={"source": source_name},
-                )
-                continue
-            try:
-                method()
-                if cp:
-                    cp.mark_source_done(source_name)
-            except Exception as exc:
-                logger.error(
-                    "source_scrape_failed",
-                    extra={"source": source_name, "error": str(exc)},
-                )
-
-    def _scrape_algerian_university_ocw(self):
-        for source in self._get_tier_sources(1):
-            base_url = self._source_url(source)
-            if not base_url:
-                continue
-
-            source_name = (getattr(source, "name", "") or "").strip()
-            source_name_lc = source_name.lower()
-            if "cerist" in source_name_lc:
-                continue
-
-            scrape_config = dict(getattr(source, "scrape_config", {}) or {})
-            configured_paths = scrape_config.get("paths") or scrape_config.get(
-                "discovery_paths"
-            )
-            if isinstance(configured_paths, str):
-                configured_paths = [
-                    segment.strip()
-                    for segment in configured_paths.split(",")
-                    if segment.strip()
-                ]
-            if not isinstance(configured_paths, list):
-                configured_paths = []
-
-            domain = urlparse(base_url).netloc
-            institution_name = domain.replace("elearning.", "").replace("www.", "")
-            institution = self._ensure_institution(
-                name=f"{institution_name} eLearning",
-                website=base_url,
-                country_name="Algeria",
-                country_code="DZ",
-                inst_type="University",
-            )
-            if institution is None:
-                continue
-
-            listing_urls = [base_url.rstrip("/")]
-            listing_urls.extend(
-                urljoin(base_url.rstrip("/") + "/", p.lstrip("/"))
-                for p in configured_paths
-            )
-
-            seen_urls: set[str] = set()
-            for listing_url in listing_urls:
-                soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
-                if soup is None:
-                    continue
-
-                cards = self._extract_catalog_cards(str(soup), listing_url)
-                for card in cards:
-                    url = (card.get("url") or "").strip()
-                    if not url:
-                        continue
-                    key = url.rstrip("/")
-                    if key in seen_urls:
-                        continue
-                    seen_urls.add(key)
-
-                    if not self._is_ai_nlp_related(
-                        f"{card.get('title', '')} {card.get('description', '')}"
-                    ):
-                        continue
-
-                    metadata = self._build_course_metadata(
-                        title=card.get("title", ""),
-                        description=card.get("description", ""),
-                        source_url=url,
-                        page_html=card.get("raw_html", ""),
-                    )
-                    self._create_course(
-                        title=card.get("title", ""),
-                        description=card.get("description", ""),
-                        institution=institution,
-                        website=url,
-                        field=metadata["field"],
-                        level=metadata["level"],
-                        instructor=metadata["instructor"],
-                        duration=metadata["duration"],
-                        platform="university",
-                        enrollment_url=metadata["enrollment_url"] or url,
-                        thumbnail_url=metadata["thumbnail_url"],
-                        is_free=metadata["is_free"],
-                        price=metadata["price"],
-                        certificate_available=metadata["certificate_available"],
-                        start_date=metadata["start_date"],
-                        source_url=url,
-                        source_name=source_name or domain,
-                    )
-
-    def _scrape_cerist_training_programs(self):
-        cerist_source = None
-        for source in self._get_tier_sources(1):
-            source_url = self._source_url(source)
-            source_name = (getattr(source, "name", "") or "").lower()
-            if "cerist" in source_name or "cerist" in source_url.lower():
-                cerist_source = source
-                break
-
-        if cerist_source is None:
-            return
-
-        cerist_url = self._source_url(cerist_source)
-        if not cerist_url:
-            return
-
-        institution = self._ensure_institution(
-            name="CERIST",
-            website=cerist_url,
-            country_name="Algeria",
-            country_code="DZ",
-            city="Algiers",
-            inst_type="Research Center",
-        )
-        if institution is None:
-            return
-
-        soup = self.fetch_listing_page(cerist_url, timeout=SS.TOTAL_TIMEOUT)
-        if soup is None:
-            return
-
-        html_text = str(soup)
-        cards = self._extract_catalog_cards(html_text, cerist_url)
-        if not cards:
-            cards = self._extract_list_items_as_courses(html_text, cerist_url)
-
-        for card in cards:
-            content = f"{card.get('title', '')} {card.get('description', '')}"
-            if not self._is_ai_nlp_related(content):
-                continue
-
-            metadata = self._build_course_metadata(
-                title=card.get("title", ""),
-                description=card.get("description", ""),
-                source_url=card.get("url") or cerist_url,
-                page_html=card.get("raw_html", ""),
-            )
-            self._create_course(
-                title=card.get("title", ""),
-                description=card.get("description", ""),
-                institution=institution,
-                website=card.get("url") or cerist_url,
-                field=metadata["field"],
-                level=metadata["level"],
-                instructor=metadata["instructor"],
-                duration=metadata["duration"],
-                platform="university",
-                enrollment_url=metadata["enrollment_url"]
-                or card.get("url")
-                or cerist_url,
-                thumbnail_url=metadata["thumbnail_url"],
-                is_free=metadata["is_free"],
-                price=metadata["price"],
-                certificate_available=metadata["certificate_available"],
-                start_date=metadata["start_date"],
-                source_url=card.get("url") or cerist_url,
-                source_name=(getattr(cerist_source, "name", "") or "CERIST"),
-            )
-
-    def _scrape_fun_mooc_fr(self):
-        fun_api_url = self._select_tier_source_url(2, "fun-mooc", "fun mooc", "fun")
-        if not fun_api_url:
-            return
-
-        resp = self.safe_request(
-            fun_api_url,
-            timeout=SS.TOTAL_TIMEOUT,
-            source_name="FUN MOOC",
-            headers={"Accept": "application/json"},
-        )
-        if resp is None:
-            return
-
-        try:
-            payload = resp.json()
-        except Exception:
-            return
-
-        courses = []
-        if isinstance(payload, dict):
-            for key in ("results", "objects", "courses"):
-                candidate = payload.get(key)
-                if isinstance(candidate, list):
-                    courses = candidate
-                    break
-        if not courses and isinstance(payload, list):
-            courses = payload
-
-        fun_inst = self._ensure_institution(
-            name="France Universite Numerique",
-            website="https://www.fun-mooc.fr",
-            country_name="France",
-            country_code="FR",
-            inst_type="Other",
-        )
-        if fun_inst is None:
-            return
-
-        subject_terms = (
-            "informatique",
-            "intelligence artificielle",
-            "apprentissage automatique",
-        )
-        for item in courses:
-            title = str(item.get("title") or item.get("name") or "").strip()
-            description = str(
-                item.get("description") or item.get("short_description") or ""
-            ).strip()
-            subject_blob = " ".join(
-                [
-                    str(item.get("subject") or ""),
-                    str(item.get("subjects") or ""),
-                    title,
-                    description,
-                ]
-            ).lower()
-
-            language = str(item.get("language") or item.get("lang") or "").lower()
-            if language and not language.startswith("fr"):
-                continue
-            if not any(term in subject_blob for term in subject_terms):
-                continue
-
-            course_url = (
-                item.get("url")
-                or item.get("absolute_url")
-                or item.get("course_url")
-                or ""
-            )
-            if course_url and not str(course_url).startswith("http"):
-                course_url = urljoin("https://www.fun-mooc.fr", str(course_url))
-
-            metadata = self._build_course_metadata(
-                title=title,
-                description=description,
-                source_url=course_url,
-                page_html="",
-            )
-            self._create_course(
-                title=title,
-                description=description,
-                institution=fun_inst,
-                website=course_url,
-                field=metadata["field"],
-                level=metadata["level"],
-                instructor=metadata["instructor"],
-                duration=metadata["duration"],
-                platform="other",
-                enrollment_url=metadata["enrollment_url"] or course_url,
-                thumbnail_url=item.get("image")
-                or item.get("thumbnail")
-                or metadata["thumbnail_url"],
-                is_free=metadata["is_free"],
-                price=metadata["price"],
-                certificate_available=metadata["certificate_available"],
-                start_date=metadata["start_date"],
-                source_url=course_url,
-                source_name="FUN MOOC",
-            )
-
-    # ------------------------------------------------------------------
-    # Tier 2 — Arabic
-    # ------------------------------------------------------------------
-
-    def _scrape_tier_2_arabic_courses(self):
-        if not self._get_tier_sources(2):
-            return
-
-        cp = getattr(self, "_checkpoint", None)
-        methods = [
-            (
-                "tier2_rss",
-                lambda: self._scrape_rss_course_sources(self.TIER_2_RSS_SOURCES),
-            ),
-            ("coursera_arabic", self._scrape_coursera_arabic_queries),
-            ("rwaq", self._scrape_rwaq_courses),
-            ("edraak", self._scrape_edraak_courses),
-        ]
-        for source_name, method in methods:
-            if cp and cp.is_source_done(source_name):
-                logger.info(
-                    "source_skipped_already_done",
-                    extra={"source": source_name},
-                )
-                continue
-            try:
-                method()
-                if cp:
-                    cp.mark_source_done(source_name)
-            except Exception as exc:
-                logger.error(
-                    "source_scrape_failed",
-                    extra={"source": source_name, "error": str(exc)},
-                )
-
-    def _scrape_coursera_arabic_queries(self):
-        institution = self._ensure_institution(
-            name="Coursera",
-            website="https://www.coursera.org",
-            country_name="International",
-            country_code="XX",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        seen_urls: set[str] = set()
-
-        # Curated fallback entries first
-        for item in COURSERA_COURSES:
-            url = str(item.get("link") or "").strip()
-            if not url or url in seen_urls:
-                continue
-            seen_urls.add(url)
-            blob = f"{item.get('title', '')} {item.get('description', '')}"
-            if not self._is_ai_nlp_related(blob):
-                continue
-
-            metadata = self._build_course_metadata(
-                title=item.get("title", ""),
-                description=item.get("description", ""),
-                source_url=url,
-                page_html="",
-                instructor_hint=item.get("instructor", ""),
-                duration_hint=item.get("duration", ""),
-            )
-            self._create_course(
-                title=item.get("title", ""),
-                description=item.get("description", ""),
-                institution=institution,
-                website=url,
-                field=metadata["field"],
-                level=item.get("level") or metadata["level"],
-                instructor=item.get("instructor") or metadata["instructor"],
-                duration=item.get("duration") or metadata["duration"],
-                platform="coursera",
-                enrollment_url=metadata["enrollment_url"] or url,
-                thumbnail_url=item.get("thumbnail_url") or metadata["thumbnail_url"],
-                is_free=bool(item.get("is_free", metadata["is_free"])),
-                price=self._parse_price(item.get("price")) or metadata["price"],
-                certificate_available=bool(
-                    item.get("certificate_available", metadata["certificate_available"])
-                ),
-                start_date=metadata["start_date"],
-                source_url=url,
-                source_name="Coursera",
-            )
-
-        # Targeted Arabic search pages
-        for term in self.COURSERA_ARABIC_TERMS:
-            search_url = f"https://www.coursera.org/search?query={quote_plus(term)}"
-            soup = self.fetch_listing_page(search_url, timeout=SS.TOTAL_TIMEOUT)
-            if soup is None:
-                continue
-
-            cards = self._extract_catalog_cards(str(soup), search_url)
-            for card in cards:
-                url = (card.get("url") or "").strip()
-                if not url:
-                    continue
-                if "coursera.org" not in url:
-                    continue
-                if (
-                    "/learn/" not in url
-                    and "/specializations/" not in url
-                    and "/professional-certificates/" not in url
-                ):
-                    continue
-                key = url.rstrip("/")
-                if key in seen_urls:
-                    continue
-                seen_urls.add(key)
-
-                metadata = self._build_course_metadata(
-                    title=card.get("title", ""),
-                    description=card.get("description", ""),
-                    source_url=url,
-                    page_html=card.get("raw_html", ""),
-                )
-                self._create_course(
-                    title=card.get("title", ""),
-                    description=card.get("description", ""),
-                    institution=institution,
-                    website=url,
-                    field=metadata["field"],
-                    level=metadata["level"],
-                    instructor=metadata["instructor"],
-                    duration=metadata["duration"],
-                    platform="coursera",
-                    enrollment_url=metadata["enrollment_url"] or url,
-                    thumbnail_url=metadata["thumbnail_url"],
-                    is_free=metadata["is_free"],
-                    price=metadata["price"],
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"],
-                    source_url=url,
-                    source_name=f"Coursera search: {term}",
-                )
-
-    def _scrape_rwaq_courses(self):
-        self._scrape_generic_mooc_site(
-            base_url=self.RWAQ_URL,
-            source_name="Rwaq",
-            country_name="Saudi Arabia",
-            country_code="SA",
-            source=self._resolve_source_for_site(self.RWAQ_URL, "Rwaq"),
-        )
-
-    def _scrape_edraak_courses(self):
-        self._scrape_generic_mooc_site(
-            base_url=self.EDRAAK_URL,
-            source_name="Edraak",
-            country_name="Jordan",
-            country_code="JO",
-            source=self._resolve_source_for_site(self.EDRAAK_URL, "Edraak"),
-        )
-
-    def _resolve_source_for_site(self, base_url: str, source_name: str):
-        try:
-            from scraping.models import ScrapingSource
-        except Exception:
-            return None
-
-        normalized_url = (base_url or "").strip().rstrip("/")
-        source_name_lc = (source_name or "").strip().lower()
-        try:
-            source_qs = ScrapingSource.objects.filter(
-                category=self.SECTION,
-                is_active=True,
-            )
-        except Exception:
-            return None
-
-        for source in source_qs:
-            candidate_url = (
-                (getattr(source, "url", "") or getattr(source, "base_url", "") or "")
-                .strip()
-                .rstrip("/")
-            )
-            if candidate_url and candidate_url == normalized_url:
-                return source
-
-        parsed_target = urlparse(normalized_url)
-        for source in source_qs:
-            candidate_url = (
-                (getattr(source, "url", "") or getattr(source, "base_url", "") or "")
-                .strip()
-                .rstrip("/")
-            )
-            candidate_name = (getattr(source, "name", "") or "").strip().lower()
-            if not candidate_url:
-                continue
-            parsed_candidate = urlparse(candidate_url)
-            if parsed_candidate.netloc.lower() == parsed_target.netloc.lower():
-                return source
-            if source_name_lc and source_name_lc in candidate_name:
-                return source
-        return None
-
-    def _scrape_generic_mooc_site(
-        self,
-        *,
-        base_url: str,
-        source_name: str,
-        country_name: str,
-        country_code: str,
-        source=None,
-    ):
-        institution = self._ensure_institution(
-            name=source_name,
-            website=base_url,
-            country_name=country_name,
-            country_code=country_code,
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        candidate_urls = [base_url, urljoin(base_url.rstrip("/") + "/", "courses")]
-        seen: set[str] = set()
-        selectors = dict(getattr(source, "css_selectors", {}) or {}) if source else {}
-        warned_selector_fallback = False
-        for listing_url in candidate_urls:
-            soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
-            if soup is None:
-                continue
-
-            cards = self._extract_catalog_cards(str(soup), listing_url)
-            for card in cards:
-                admin_result = None
-                if source is not None:
-                    card_soup = BeautifulSoup(card.get("raw_html") or "", "html.parser")
-                    card_container = card_soup.find(True) or card_soup
-                    admin_result = self._extract_with_admin_selectors(
-                        soup,
-                        source,
-                        container=card_container,
-                    )
-
-                if admin_result:
-                    selected_url = (admin_result.get("url") or "").strip()
-                    item_dict = {
-                        "title": self.clean_text(admin_result.get("title") or "")[:300],
-                        "description": self.clean_text(admin_result.get("body") or "")[
-                            :1500
-                        ],
-                        "url": (
-                            urljoin(listing_url, selected_url)
-                            if selected_url
-                            else (card.get("url") or "").strip()
-                        ),
-                        "raw_html": card.get("raw_html") or "",
-                    }
-                    if not item_dict.get("description"):
-                        item_dict["description"] = self.clean_text(
-                            card.get("description") or ""
-                        )[:1500]
-                else:
-                    if selectors.get("title_selector") and not warned_selector_fallback:
-                        logger.warning(
-                            "Admin selectors configured for %s but extraction returned nothing — check selectors in admin panel.",
-                            getattr(source, "url", "") or listing_url,
-                        )
-                        warned_selector_fallback = True
-                    item_dict = self._extract_course_fields(card)
-
-                combined = f"{item_dict.get('title', '')} {item_dict.get('description', '')}".lower()
-                if not self._is_ai_nlp_related(combined):
-                    continue
-
-                course_url = (item_dict.get("url") or "").strip()
-                if not course_url:
-                    continue
-                key = course_url.rstrip("/")
-                if key in seen:
-                    continue
-                seen.add(key)
-
-                metadata = self._build_course_metadata(
-                    title=item_dict.get("title", ""),
-                    description=item_dict.get("description", ""),
-                    source_url=course_url,
-                    page_html=item_dict.get("raw_html", ""),
-                )
-                self._create_course(
-                    title=item_dict.get("title", ""),
-                    description=item_dict.get("description", ""),
-                    institution=institution,
-                    website=course_url,
-                    field=metadata["field"],
-                    level=metadata["level"],
-                    instructor=metadata["instructor"],
-                    duration=metadata["duration"],
-                    platform="other",
-                    enrollment_url=metadata["enrollment_url"] or course_url,
-                    thumbnail_url=metadata["thumbnail_url"],
-                    is_free=metadata["is_free"],
-                    price=metadata["price"],
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"],
-                    source_url=course_url,
-                    source_name=source_name,
-                )
-
-    # ------------------------------------------------------------------
-    # Tier 3 — Global
-    # ------------------------------------------------------------------
-
-    def _scrape_tier_3_global_courses(self):
-        if not self._get_tier_sources(3):
-            return
-
-        cp = getattr(self, "_checkpoint", None)
-        methods = [
-            (
-                "tier3_rss",
-                lambda: self._scrape_rss_course_sources(self.TIER_3_RSS_SOURCES),
-            ),
-            ("mit_ocw", self._scrape_mit_ocw),
-            ("fast_ai", self._scrape_fast_ai),
-            ("huggingface_course", self._scrape_huggingface_course),
-            ("deeplearning_ai", self._scrape_deeplearning_ai),
-            ("youtube_fixture_playlists", self._import_youtube_fixture_playlists),
-            ("curated_courses", self._import_curated_courses),
-        ]
-        for source_name, method in methods:
-            if cp and cp.is_source_done(source_name):
-                logger.info(
-                    "source_skipped_already_done",
-                    extra={"source": source_name},
-                )
-                continue
-            try:
-                method()
-                if cp:
-                    cp.mark_source_done(source_name)
-            except Exception as exc:
-                logger.error(
-                    "source_scrape_failed",
-                    extra={"source": source_name, "error": str(exc)},
-                )
-
-    def _scrape_rss_course_sources(self, sources: list[dict]):
-        rss = self.get_rss_scraper()
-        for source in sources:
-            institution = self._ensure_institution(
-                name=source.get("institution_name") or source.get("source_name") or "",
-                website=source.get("base_url") or "",
-                country_name=source.get("country_name") or "International",
-                country_code=(source.get("country_code") or "XX")[:2].upper(),
-                inst_type=source.get("inst_type") or "Other",
-            )
-            if institution is None:
-                continue
-
-            base_url = source.get("base_url") or ""
-            source_name = source.get("source_name") or "RSS Courses"
-            feed_url_list = rss.auto_discover_feeds(base_url)
-            items = self.scrape_rss_sources(feed_url_list)
-            for item in items:
-                title = self.clean_text(item.get("title") or "")
-                description = self.clean_text(item.get("description") or "")
-                course_url = (item.get("url") or "").strip()
-                if not title or not course_url:
-                    continue
-                if not self._is_ai_nlp_related(f"{title} {description}"):
-                    continue
-
-                metadata = self._build_course_metadata(
-                    title=title,
-                    description=description,
-                    source_url=course_url,
-                    page_html="",
-                    instructor_hint=item.get("author") or "",
-                )
-                self._create_course(
-                    title=title,
-                    description=description,
-                    institution=institution,
-                    website=course_url,
-                    field=metadata["field"],
-                    level=metadata["level"],
-                    instructor=metadata["instructor"] or (item.get("author") or ""),
-                    duration=metadata["duration"],
-                    platform=self._infer_platform(course_url),
-                    enrollment_url=metadata["enrollment_url"] or course_url,
-                    thumbnail_url=item.get("image_url") or metadata["thumbnail_url"],
-                    is_free=metadata["is_free"],
-                    price=metadata["price"],
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"]
-                    or self.parse_date(str(item.get("published_date") or "")[:10]),
-                    source_url=base_url,
-                    source_name=f"RSS {source_name}",
-                )
-
-    def _scrape_mit_ocw(self):
-        mit_api_base = self._select_tier_source_url(3, "mit")
-        if not mit_api_base:
-            return
-
-        queries = [
-            {
-                "q": "natural language processing",
-                "topic": "AI",
-                "limit": SS.MIT_QUERY_LIMIT,
-            },
-            {"q": "machine learning", "topic": "AI", "limit": SS.MIT_QUERY_LIMIT},
-            {"q": "deep learning", "topic": "AI", "limit": SS.MIT_QUERY_LIMIT},
-        ]
-
-        institution = self._ensure_institution(
-            name="Massachusetts Institute of Technology",
-            website="https://ocw.mit.edu",
-            country_name="United States",
-            country_code="US",
-            city="Cambridge",
-            inst_type="University",
-        )
-        if institution is None:
-            return
-
-        seen_ids: set[str] = set()
-        for query in queries:
-            params = {"offered_by": "ocw", **query}
-            resp = self.safe_request(
-                mit_api_base,
-                params=params,
-                timeout=SS.TOTAL_TIMEOUT,
-                source_name="MIT OCW",
-                headers={"Accept": "application/json"},
-            )
-            if resp is None:
-                continue
-
-            try:
-                results = resp.json().get("results", [])
-            except (ValueError, AttributeError, KeyError, TypeError) as exc:
-                logger.warning(
-                    "course_items_parse_failed",
-                    extra={"error": str(exc), "context": str(query)},
-                    exc_info=False,
-                )
-                continue
-
-            for item in results:
-                course_id = str(item.get("id") or "")
-                if not course_id or course_id in seen_ids:
-                    continue
-                seen_ids.add(course_id)
-
-                title = str(item.get("title") or "").strip()
-                description = str(item.get("description") or "").strip()
-                if not title:
-                    continue
-
-                course_url = str(item.get("url") or "").strip()
-                if course_url and not course_url.startswith("http"):
-                    course_url = urljoin("https://ocw.mit.edu", course_url)
-
-                runs = item.get("runs") or []
-                level = "master"
-                if runs and isinstance(runs, list):
-                    first = runs[0] if isinstance(runs[0], dict) else {}
-                    levels = first.get("level") or []
-                    if (
-                        levels
-                        and isinstance(levels, list)
-                        and isinstance(levels[0], dict)
-                    ):
-                        code = str(levels[0].get("code") or "").lower()
-                        if code == "undergraduate":
-                            level = "bachelor"
-                        elif code == "graduate":
-                            level = "master"
-
-                metadata = self._build_course_metadata(
-                    title=title,
-                    description=description,
-                    source_url=course_url,
-                    page_html="",
-                )
-                self._create_course(
-                    title=title,
-                    description=description,
-                    institution=institution,
-                    website=course_url,
-                    field=metadata["field"],
-                    level=level,
-                    instructor=metadata["instructor"],
-                    duration=metadata["duration"],
-                    platform="mit",
-                    enrollment_url=metadata["enrollment_url"] or course_url,
-                    thumbnail_url=metadata["thumbnail_url"],
-                    is_free=True,
-                    price=None,
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"],
-                    source_url=course_url,
-                    source_name="MIT OpenCourseWare",
-                )
-
-    def _scrape_fast_ai(self):
-        listing_urls = self._select_tier_source_urls(3, "fast.ai", "fastai")
-        if not listing_urls:
-            return
-
-        institution = self._ensure_institution(
-            name="fast.ai",
-            website="https://course.fast.ai",
-            country_name="United States",
-            country_code="US",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        for listing_url in listing_urls:
-            soup = self.fetch_listing_page(listing_url, timeout=SS.TOTAL_TIMEOUT)
-            if soup is None:
-                continue
-
-            cards = self._extract_catalog_cards(str(soup), listing_url)
-            for card in cards:
-                title = card.get("title", "")
-                if not title:
-                    continue
-                if "fast" not in title.lower() and not self._is_ai_nlp_related(
-                    f"{title} {card.get('description', '')}"
-                ):
-                    continue
-
-                url = card.get("url") or listing_url
-                metadata = self._build_course_metadata(
-                    title=title,
-                    description=card.get("description", ""),
-                    source_url=url,
-                    page_html=card.get("raw_html", ""),
-                    instructor_hint="Jeremy Howard, Rachel Thomas",
-                    duration_hint=card.get("duration", ""),
-                )
-                self._create_course(
-                    title=title,
-                    description=card.get("description", ""),
-                    institution=institution,
-                    website=url,
-                    field=metadata["field"],
-                    level=metadata["level"],
-                    instructor=metadata["instructor"] or "Jeremy Howard, Rachel Thomas",
-                    duration=metadata["duration"],
-                    platform="other",
-                    enrollment_url=metadata["enrollment_url"] or url,
-                    thumbnail_url=metadata["thumbnail_url"],
-                    is_free=True,
-                    price=None,
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"],
-                    source_url=url,
-                    source_name="fast.ai",
-                )
-
-    def _scrape_huggingface_course(self):
-        hf_learn_url = self._select_tier_source_url(3, "huggingface")
-        if not hf_learn_url:
-            return
-
-        institution = self._ensure_institution(
-            name="Hugging Face",
-            website="https://huggingface.co/learn",
-            country_name="United States",
-            country_code="US",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        soup = self.fetch_listing_page(hf_learn_url, timeout=SS.TOTAL_TIMEOUT)
-        if soup is None:
-            return
-
-        html_text = str(soup)
-        cards = self._extract_catalog_cards(html_text, hf_learn_url)
-        if not cards:
-            cards = self._extract_list_items_as_courses(html_text, hf_learn_url)
-
-        for card in cards:
-            title = card.get("title", "")
-            if not title:
-                continue
-            if not self._is_ai_nlp_related(f"{title} {card.get('description', '')}"):
-                continue
-
-            url = card.get("url") or hf_learn_url
-            metadata = self._build_course_metadata(
-                title=title,
-                description=card.get("description", ""),
-                source_url=url,
-                page_html=card.get("raw_html", ""),
-            )
-            self._create_course(
-                title=title,
-                description=card.get("description", ""),
-                institution=institution,
-                website=url,
-                field=metadata["field"],
-                level=metadata["level"],
-                instructor=metadata["instructor"] or "Hugging Face Team",
-                duration=metadata["duration"],
-                platform="other",
-                enrollment_url=metadata["enrollment_url"] or url,
-                thumbnail_url=metadata["thumbnail_url"],
-                is_free=True,
-                price=None,
-                certificate_available=metadata["certificate_available"],
-                start_date=metadata["start_date"],
-                source_url=url,
-                source_name="Hugging Face Learn",
-            )
-
-    def _scrape_deeplearning_ai(self):
-        deeplearning_courses_url = self._select_tier_source_url(3, "deeplearning.ai")
-        if not deeplearning_courses_url:
-            return
-
-        institution = self._ensure_institution(
-            name="DeepLearning.AI",
-            website="https://www.deeplearning.ai",
-            country_name="United States",
-            country_code="US",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        soup = self.fetch_listing_page(
-            deeplearning_courses_url,
-            timeout=SS.TOTAL_TIMEOUT,
-        )
-        if soup is None:
-            return
-
-        cards = self._extract_catalog_cards(str(soup), deeplearning_courses_url)
-        for card in cards:
-            title = card.get("title", "")
-            if not title:
-                continue
-            if not self._is_ai_nlp_related(f"{title} {card.get('description', '')}"):
-                continue
-
-            url = card.get("url") or deeplearning_courses_url
-            metadata = self._build_course_metadata(
-                title=title,
-                description=card.get("description", ""),
-                source_url=url,
-                page_html=card.get("raw_html", ""),
-            )
-            self._create_course(
-                title=title,
-                description=card.get("description", ""),
-                institution=institution,
-                website=url,
-                field=metadata["field"],
-                level=metadata["level"],
-                instructor=metadata["instructor"],
-                duration=metadata["duration"],
-                platform="other",
-                enrollment_url=metadata["enrollment_url"] or url,
-                thumbnail_url=metadata["thumbnail_url"],
-                is_free=metadata["is_free"],
-                price=metadata["price"],
-                certificate_available=metadata["certificate_available"],
-                start_date=metadata["start_date"],
-                source_url=url,
-                source_name="DeepLearning.AI",
-            )
-
-    def _import_curated_courses(self):
-        for item in CURATED_COURSES:
-            title = str(item.get("title") or "").strip()
-            description = str(item.get("description") or "").strip()
-            website = str(item.get("website") or "").strip()
-            if not title:
-                continue
-
-            institution = self._ensure_institution(
-                name=item.get("institution_name") or "Unknown Institution",
-                website=website,
-                country_name=item.get("institution_country") or "International",
-                country_code=(item.get("institution_country") or "XX")[:2].upper(),
-                city=item.get("institution_city") or "",
-                inst_type="University",
-            )
-            if institution is None:
-                continue
-
-            metadata = self._build_course_metadata(
-                title=title,
-                description=description,
-                source_url=website,
-                page_html="",
-                instructor_hint=item.get("instructor", ""),
-                duration_hint=item.get("duration", ""),
-            )
-
-            self._create_course(
-                title=title,
-                description=description,
-                institution=institution,
-                website=website,
-                field=item.get("field") or metadata["field"],
-                level=item.get("level") or metadata["level"],
-                prerequisites=item.get("prerequisites") or "",
-                syllabus=item.get("syllabus") or "",
-                instructor=item.get("instructor") or metadata["instructor"],
-                duration=item.get("duration") or metadata["duration"],
-                platform=self._normalize_platform(
-                    item.get("platform") or self._infer_platform(website)
-                ),
-                enrollment_url=item.get("enrollment_url")
-                or metadata["enrollment_url"]
-                or website,
-                thumbnail_url=item.get("thumbnail_url") or metadata["thumbnail_url"],
-                is_free=bool(item.get("is_free", metadata["is_free"])),
-                price=self._parse_price(item.get("price")) or metadata["price"],
-                certificate_available=bool(
-                    item.get("certificate_available", metadata["certificate_available"])
-                ),
-                start_date=self.parse_date(item.get("start_date"))
-                if item.get("start_date")
-                else metadata["start_date"],
-                source_url=item.get("source_url") or website,
-                source_name=item.get("source_name") or "Curated Courses",
-            )
-
-    def _import_youtube_fixture_playlists(self):
-        institution = self._ensure_institution(
-            name="YouTube Educational Content",
-            website="https://www.youtube.com",
-            country_name="International",
-            country_code="XX",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        for item in YOUTUBE_PLAYLISTS:
-            title = str(item.get("title") or "").strip()
-            description = str(item.get("description") or "").strip()
-            link = str(item.get("link") or "").strip()
-            if not title or not link:
-                continue
-
-            metadata = self._build_course_metadata(
-                title=title,
-                description=description,
-                source_url=link,
-                page_html="",
-                instructor_hint=item.get("instructor", ""),
-                duration_hint=item.get("duration", ""),
-            )
-            self._create_course(
-                title=title,
-                description=description,
-                institution=institution,
-                website=link,
-                field=metadata["field"],
-                level=item.get("level") or metadata["level"],
-                instructor=item.get("instructor") or metadata["instructor"],
-                duration=item.get("duration") or metadata["duration"],
-                platform="youtube",
-                enrollment_url=link,
-                thumbnail_url=item.get("thumbnail_url") or metadata["thumbnail_url"],
-                is_free=True,
-                price=None,
-                certificate_available=bool(
-                    item.get("certificate_available", metadata["certificate_available"])
-                ),
-                start_date=metadata["start_date"],
-                source_url=link,
-                source_name="YouTube",
-            )
-
-    # ------------------------------------------------------------------
-    # YouTube playlist search (API if available, fallback scraping)
-    # ------------------------------------------------------------------
-
-    def _scrape_youtube_playlists(self, terms: list[str], source_name: str):
-        institution = self._ensure_institution(
-            name="YouTube Educational Content",
-            website="https://www.youtube.com",
-            country_name="International",
-            country_code="XX",
-            inst_type="Other",
-        )
-        if institution is None:
-            return
-
-        api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
-        seen_playlists: set[str] = set()
-
-        if api_key:
-            self._scrape_youtube_playlists_api(
-                terms, api_key, institution, source_name, seen_playlists
-            )
-        else:
-            self._scrape_youtube_playlists_html(
-                terms, institution, source_name, seen_playlists
-            )
-
-    def _scrape_youtube_playlists_api(
-        self, terms, api_key, institution, source_name, seen_playlists
-    ):
-        search_endpoint = "https://www.googleapis.com/youtube/v3/search"
-        playlist_endpoint = "https://www.googleapis.com/youtube/v3/playlists"
-
-        for term in terms:
-            params = {
-                "part": "snippet",
-                "q": term,
-                "type": "playlist",
-                "maxResults": SS.YOUTUBE_MAX_RESULTS,
-                "key": api_key,
-            }
-            resp = self.safe_request(
-                search_endpoint,
-                params=params,
-                timeout=SS.TOTAL_TIMEOUT,
-                source_name="YouTube API",
-            )
-            if resp is None:
-                continue
-
-            try:
-                items = resp.json().get("items", [])
-            except (ValueError, AttributeError, KeyError, TypeError) as exc:
-                logger.warning(
-                    "youtube_playlist_search_parse_failed",
-                    extra={"error": str(exc), "context": term},
-                    exc_info=False,
-                )
-                continue
-
-            for item in items:
-                snippet = item.get("snippet") or {}
-                playlist_id = str(
-                    (item.get("id") or {}).get("playlistId") or ""
-                ).strip()
-                if not playlist_id:
-                    continue
-
-                playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
-                key = playlist_url.rstrip("/")
-                if key in seen_playlists:
-                    continue
-                seen_playlists.add(key)
-
-                detail_resp = self.safe_request(
-                    playlist_endpoint,
-                    params={
-                        "part": "snippet,contentDetails",
-                        "id": playlist_id,
-                        "key": api_key,
-                    },
-                    timeout=SS.TOTAL_TIMEOUT,
-                    source_name="YouTube API",
-                )
-                item_count = None
-                thumbnail_url = ""
-                if detail_resp is not None:
-                    try:
-                        payload = detail_resp.json().get("items", [])
-                        if payload:
-                            detail = payload[0]
-                            item_count = (detail.get("contentDetails") or {}).get(
-                                "itemCount"
-                            )
-                            thumbs = (detail.get("snippet") or {}).get(
-                                "thumbnails"
-                            ) or {}
-                            thumbnail_url = (
-                                (thumbs.get("high") or {}).get("url")
-                                or (thumbs.get("medium") or {}).get("url")
-                                or (thumbs.get("default") or {}).get("url")
-                                or ""
-                            )
-                    except (ValueError, AttributeError, KeyError, TypeError) as exc:
-                        logger.warning(
-                            "youtube_playlist_details_parse_failed",
-                            extra={
-                                "error": str(exc),
-                                "context": playlist_id,
-                            },
-                            exc_info=False,
-                        )
-
-                title = str(snippet.get("title") or "").strip()
-                channel = str(snippet.get("channelTitle") or "").strip()
-                description = str(snippet.get("description") or "").strip()
-                if not self._is_ai_nlp_related(f"{title} {description} {term}"):
-                    continue
-
-                duration = f"{item_count} videos" if item_count else ""
-                metadata = self._build_course_metadata(
-                    title=title,
-                    description=description,
-                    source_url=playlist_url,
-                    page_html="",
-                    instructor_hint=channel,
-                    duration_hint=duration,
-                )
-                self._create_course(
-                    title=title,
-                    description=description,
-                    institution=institution,
-                    website=playlist_url,
-                    field=metadata["field"],
-                    level=metadata["level"],
-                    instructor=channel or metadata["instructor"],
-                    duration=duration or metadata["duration"],
-                    platform="youtube",
-                    enrollment_url=playlist_url,
-                    thumbnail_url=thumbnail_url or metadata["thumbnail_url"],
-                    is_free=True,
-                    price=None,
-                    certificate_available=metadata["certificate_available"],
-                    start_date=metadata["start_date"],
-                    source_url=playlist_url,
-                    source_name=f"{source_name} ({term})",
-                )
-
-    def _scrape_youtube_playlists_html(
-        self, terms, institution, source_name, seen_playlists
-    ):
-        for term in terms:
-            # "sp=EgIQAw%253D%253D" is playlist filter in YouTube search.
-            search_url = f"https://www.youtube.com/results?search_query={quote_plus(term)}&sp=EgIQAw%253D%253D"
-            resp = self.safe_request(
-                search_url,
-                timeout=SS.TOTAL_TIMEOUT,
-                source_name="YouTube",
-            )
-            if resp is None:
-                continue
-
-            html = resp.text or ""
-            playlist_ids = set(re.findall(r'"playlistId":"([^"]+)"', html))
-            if not playlist_ids:
-                playlist_ids = set(
-                    re.findall(r"/playlist\?list=([A-Za-z0-9_-]{10,})", html)
-                )
-
-            for playlist_id in list(playlist_ids)[: SS.YOUTUBE_PLAYLIST_CAP]:
-                playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
-                key = playlist_url.rstrip("/")
-                if key in seen_playlists:
-                    continue
-                seen_playlists.add(key)
-
-                title = self._extract_playlist_title_from_html(html, playlist_id)
-                channel = self._extract_playlist_channel_from_html(html, playlist_id)
-                if not title:
-                    title = f"YouTube Playlist {playlist_id}"
-
-                if not self._is_ai_nlp_related(f"{title} {term} {channel}"):
-                    continue
-
-                self._create_course(
-                    title=title,
-                    description=f"Playlist discovered for query: {term}",
-                    institution=institution,
-                    website=playlist_url,
-                    field=self._detect_field(f"{title} {term}"),
-                    level=self._detect_level(title),
-                    instructor=channel,
-                    duration="",
-                    platform="youtube",
-                    enrollment_url=playlist_url,
-                    thumbnail_url="",
-                    is_free=True,
-                    price=None,
-                    certificate_available=False,
-                    start_date=None,
-                    source_url=playlist_url,
-                    source_name=f"{source_name} ({term})",
-                )
-
-    @staticmethod
-    def _extract_playlist_title_from_html(html: str, playlist_id: str) -> str:
-        pattern = re.compile(
-            rf'"playlistId":"{re.escape(playlist_id)}".*?"title":\{{"simpleText":"([^"]+)"\}}',
-            re.S,
-        )
-        match = pattern.search(html)
-        if match:
-            return match.group(1).strip()
-        return ""
-
-    @staticmethod
-    def _extract_playlist_channel_from_html(html: str, playlist_id: str) -> str:
-        pattern = re.compile(
-            rf'"playlistId":"{re.escape(playlist_id)}".*?"longBylineText":\{{.*?"text":"([^"]+)"',
-            re.S,
-        )
-        match = pattern.search(html)
-        if match:
-            return match.group(1).strip()
-        return ""
-
-    # ------------------------------------------------------------------
-    # Shared parsing helpers
-    # ------------------------------------------------------------------
-
-    def _extract_course_fields(self, card: dict) -> dict:
-        return {
-            "title": self.clean_text(card.get("title") or "")[:300],
-            "description": self.clean_text(card.get("description") or "")[:1500],
-            "url": (card.get("url") or "").strip(),
-            "raw_html": str(card.get("raw_html") or "")[:6000],
-        }
-
-    def _extract_catalog_cards(self, html: str, page_url: str) -> list[dict]:
-        soup = BeautifulSoup(html or "", "html.parser")
-        cards = []
-        seen: set[str] = set()
-
-        selectors = [
-            "article",
-            ".course",
-            ".course-card",
-            ".card",
-            "li",
-            "a",
-        ]
-
-        for selector in selectors:
-            for node in soup.select(selector):
-                anchor = node if node.name == "a" else node.find("a", href=True)
-                if not anchor:
-                    continue
-
-                href = (anchor.get("href") or "").strip()
-                if not href or href.startswith("#"):
-                    continue
-                url = urljoin(page_url, href)
-                parsed = urlparse(url)
-                if parsed.scheme not in {"http", "https"}:
-                    continue
-
-                key = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}{parsed.path}".rstrip(
-                    "/"
-                )
-                if key in seen:
-                    continue
-                seen.add(key)
-
-                title = self.clean_text(
-                    anchor.get_text(" ", strip=True)
-                    or (
-                        node.find(["h1", "h2", "h3", "h4"]).get_text(" ", strip=True)
-                        if node.find(["h1", "h2", "h3", "h4"])
-                        else ""
-                    )
-                )
-                if not title or len(title) < 3:
-                    continue
-
-                description = ""
-                desc_node = node.find(["p", "small", "span"]) or node
-                if desc_node:
-                    description = self.clean_text(desc_node.get_text(" ", strip=True))
-                description = description[:1500]
-
-                cards.append(
-                    {
-                        "title": title[:300],
-                        "description": description,
-                        "url": url,
-                        "raw_html": str(node)[:6000],
-                    }
-                )
-
-            if len(cards) >= 50:
-                break
-
-        return cards[:100]
-
-    def _extract_list_items_as_courses(self, html: str, page_url: str) -> list[dict]:
-        soup = BeautifulSoup(html or "", "html.parser")
-        courses = []
-        for li in soup.select("li"):
-            text = self.clean_text(li.get_text(" ", strip=True))
-            if len(text) < 10:
-                continue
-            if not self._is_ai_nlp_related(text):
-                continue
-
-            anchor = li.find("a", href=True)
-            url = urljoin(page_url, anchor.get("href")) if anchor else page_url
-            courses.append(
-                {
-                    "title": text[:220],
-                    "description": text[:1200],
-                    "url": url,
-                    "raw_html": str(li)[:5000],
-                }
-            )
-        return courses[:40]
-
-    def _build_course_metadata(
-        self,
-        *,
-        title: str,
-        description: str,
-        source_url: str,
-        page_html: str,
-        instructor_hint: str = "",
-        duration_hint: str = "",
-    ) -> dict:
-        text_blob = self.clean_text(f"{title} {description} {page_html}")
-
-        instructor = instructor_hint or self._extract_instructor_text(text_blob)
-        duration = duration_hint or self._extract_duration_text(text_blob)
-        platform = self._normalize_platform(self._infer_platform(source_url))
-        enrollment_url = self._extract_enrollment_url(page_html, source_url)
-        thumbnail_url = self._extract_thumbnail_url(page_html, source_url)
-        is_free = self._detect_is_free(text_blob)
-        price = None if is_free else self._extract_price(text_blob)
-        certificate_available = self._detect_certificate(text_blob)
-        start_date = self._extract_start_date(text_blob)
-
-        return {
-            "field": self._detect_field(text_blob),
-            "level": self._detect_level(text_blob),
-            "instructor": instructor,
-            "duration": duration,
-            "platform": platform,
-            "enrollment_url": enrollment_url,
-            "thumbnail_url": thumbnail_url,
-            "is_free": is_free,
-            "price": price,
-            "certificate_available": certificate_available,
-            "start_date": start_date,
-        }
-
-    def _detect_field(self, text: str) -> str:
-        haystack = (text or "").lower()
-        for key, value in FIELD_MAP.items():
-            if key in haystack:
-                return value
-        return "nlp"
-
-    def _detect_level(self, text: str) -> str:
-        haystack = (text or "").lower()
-        for hint, level in LEVEL_HINTS.items():
-            if hint in haystack:
-                return level
-        return "bachelor"
-
-    def _extract_instructor_text(self, text: str) -> str:
-        patterns = [
-            r"(?:instructor|teacher|taught by|professor|lecturer)\s*[:\-]?\s*([^\n\r\|]{3,120})",
-            r"(?:formateur|anim(?:e|é) par|enseignant)\s*[:\-]?\s*([^\n\r\|]{3,120})",
-            r"(?:المدرس|المحاضر|يقدمه|تقديم)\s*[:\-]?\s*([^\n\r\|]{3,120})",
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, text or "", re.I)
-            if match:
-                return self.clean_text(match.group(1))[:255]
-        return ""
-
-    def _extract_duration_text(self, text: str) -> str:
-        match = DURATION_PATTERN.search(text or "")
-        if match:
-            return self.clean_text(match.group(1))[:100]
-        return ""
-
-    def _extract_enrollment_url(self, html: str, base_url: str) -> str:
-        if not html:
-            return ""
-        soup = BeautifulSoup(html, "html.parser")
-        for anchor in soup.select("a[href]"):
-            label = self.clean_text(anchor.get_text(" ", strip=True)).lower()
-            if any(
-                token in label
-                for token in (
-                    "enroll",
-                    "register",
-                    "join",
-                    "s'inscrire",
-                    "inscription",
-                    "سجل",
-                    "التحاق",
-                )
-            ):
-                return urljoin(base_url, anchor.get("href", ""))
-        return ""
-
-    def _extract_thumbnail_url(self, html: str, base_url: str) -> str:
-        if not html:
-            return ""
-        soup = BeautifulSoup(html, "html.parser")
-        og = soup.select_one("meta[property='og:image']")
-        if og and og.get("content"):
-            return urljoin(base_url, og.get("content"))
-
-        img = soup.select_one("img[src]")
-        if img and img.get("src"):
-            return urljoin(base_url, img.get("src"))
-        return ""
-
-    def _detect_is_free(self, text: str) -> bool:
-        haystack = (text or "").lower()
-        if any(
-            token in haystack
-            for token in (
-                "free",
-                "gratuit",
-                "مجاني",
-                "price: 0",
-                "0 usd",
-                "0 eur",
-                "0 dzd",
-            )
-        ):
-            return True
-        # If we explicitly detect a non-zero price, not free.
-        price = self._extract_price(haystack)
-        return price is None
-
-    def _extract_price(self, text: str):
-        match = PRICE_PATTERN.search(text or "")
-        if not match:
-            return None
-        return self._parse_price(match.group(0))
-
-    def _detect_certificate(self, text: str) -> bool:
-        haystack = (text or "").lower()
-        return any(
-            token in haystack
-            for token in ("certificate", "certification", "attestation", "شهادة")
-        )
-
-    def _extract_start_date(self, text: str):
-        match = START_DATE_PATTERN.search(text or "")
-        if not match:
-            return None
-        return self.parse_date(match.group(1))
-
-    def _infer_platform(self, url: str) -> str:
-        link = (url or "").lower()
-        if "coursera" in link:
-            return "coursera"
-        if "youtube" in link or "youtu.be" in link:
-            return "youtube"
-        if "mit.edu" in link:
-            return "mit"
-        if "edx" in link:
-            return "edx"
-        if any(key in link for key in ("univ-", "edu.dz", "elearning.")):
-            return "university"
-        return "other"
-
-    @staticmethod
-    def _normalize_platform(value: str) -> str:
-        value = (value or "other").lower().strip()
-        if value in {"coursera", "youtube", "mit", "edx", "university", "other"}:
-            return value
-        return "other"
-
-    @staticmethod
-    def _parse_price(raw_price):
-        if raw_price in (None, "", "free", "Free"):
-            return None
-        try:
-            cleaned = re.sub(r"[^0-9.]", "", str(raw_price))
-            if not cleaned:
-                return None
-            return Decimal(cleaned)
-        except (InvalidOperation, ValueError):
-            return None
-
-    def _is_ai_nlp_related(self, text: str) -> bool:
-        haystack = (text or "").lower()
-        return any(keyword in haystack for keyword in self.AI_NLP_KEYWORDS)
-
-    def _ensure_institution(
-        self,
-        *,
-        name: str,
-        website: str,
-        country_name: str,
-        country_code: str,
-        city: str = "",
-        inst_type: str = "University",
-    ):
-        country = self.get_or_create_country(country_name, country_code[:2].upper())
-        return self.get_or_create_institution(
-            name,
-            country=country,
-            city=city,
-            website=website,
-            inst_type=inst_type,
-        )
-
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
-
-    def _create_course(
-        self,
-        *,
-        title,
-        description,
-        institution,
-        website="",
-        field="nlp",
-        level="bachelor",
-        prerequisites="",
-        syllabus="",
-        end_date=None,
-        last_updated=None,
-        instructor="",
-        duration="",
-        platform="other",
-        enrollment_url="",
-        thumbnail_url="",
-        is_free=True,
-        price=None,
-        certificate_available=False,
-        start_date=None,
-        source_url="",
-        source_name="",
-    ):
         from resources.models import Course
 
-        if not title:
+        try:
+            search_client = TavilySearchClient()
+            extractor = LLMCourseExtractor()
+        except Exception as exc:
+            self._log_error("courses_init_failed", str(exc), source=self.name)
+            logger.warning("Course scraper initialization failed: %s", exc)
             return
 
-        if not self.is_course_still_available(
-            end_date=end_date,
-            last_updated=last_updated,
-            max_age_days=SS.FRESHNESS_COURSES,
-        ):
-            self.items_skipped += 1
+        search_queries = self.get_active_search_queries(self.category)
+        if not search_queries:
+            logger.warning(
+                "No active search queries configured for category '%s'.", self.category
+            )
             return
 
-        source_url = source_url or website
-        source_name = source_name or "unknown"
+        combined_results: list[dict] = []
+        for query in search_queries:
+            try:
+                time.sleep(self.API_CALL_DELAY_SECONDS)
+                results = async_to_sync(search_client.search_web)(query, max_results=12)
+            except Exception as exc:
+                self._log_error(
+                    "courses_tavily_search_failed",
+                    str(exc),
+                    source=self.name,
+                    url=query,
+                )
+                continue
 
-        media_seed = {
-            "title_en": title,
-            "source_url": source_url,
-            "course_url": website,
-            "thumbnail_url": thumbnail_url,
-            "syllabus_file_url": "",
-        }
-        media_seed = self._download_media(media_seed, "courses")
+            if results:
+                combined_results.extend(results)
 
-        is_duplicate, _ = self._check_duplicate_policy(
-            "courses",
-            {
-                "title_en": title,
-                "description_en": description,
-                "course_url": website,
-                "access_link": website,
-                "instructor": instructor,
-            },
-        )
-        if is_duplicate:
-            self.items_skipped += 1
+        if not combined_results:
+            logger.warning("No course search results returned by Tavily.")
             return
-
-        import datetime
-
-        current_year = datetime.datetime.now().year
-        academic_year = f"{current_year}-{current_year + 1}"
-
-        item_dict = {
-            "title_en": title,
-            "title_ar": title,
-            "description_en": description,
-            "description_ar": description,
-            "field_of_study": field,
-            "academic_level": level,
-            "teaching_language": "arabic"
-            if self.detect_language(description) == "ar"
-            else "english",
-            "course_url": website,
-            "keywords": ["nlp", "ai", "machine learning"],
-            "prerequisites": prerequisites,
-            "syllabus": syllabus,
-            "academic_year": academic_year,
-            "syllabus_file_url": "",
-            "instructor": instructor,
-            "duration": duration,
-            "platform": self._normalize_platform(platform),
-            "enrollment_url": enrollment_url,
-            "thumbnail_url": thumbnail_url,
-            "is_free": bool(is_free),
-            "price": self._parse_price(price) if isinstance(price, str) else price,
-            "certificate_available": bool(certificate_available),
-            "start_date": start_date,
-            "source_url": source_url,
-            "source_name": source_name,
-            "image_local_path": media_seed.get("image_local_path") or "",
-            "image_content_file": media_seed.get("image_content_file"),
-            "pdf_local_path": media_seed.get("pdf_local_path") or "",
-            "pdf_content_file": media_seed.get("pdf_content_file"),
-        }
-
-        item_dict = enrich_scraped_item(item_dict, "courses")
-        completeness = calculate_completeness_score(item_dict, "courses")
-        if completeness < SS.COURSES_COMPLETENESS_MIN:
-            self.items_skipped += 1
-            return
-
-        is_valid, item_dict, reason = self.validate_and_prepare(item_dict, "courses")
-        if not is_valid:
-            self.items_skipped += 1
-            logger.debug("Skipping course '%s' due to validation: %s", title, reason)
-            return
-
-        if not self.passes_llm_confidence_gate(item_dict, "courses"):
-            self.items_skipped += 1
-            return
-
-        language = (
-            "ar"
-            if str(item_dict.get("teaching_language", "english")).lower() == "arabic"
-            else "en"
-        )
 
         try:
-            course = Course.objects.create(
-                title=item_dict.get("title_en", "")[:300],
-                title_en=item_dict.get("title_en", "")[:300],
-                title_ar=item_dict.get("title_ar", "")[:300],
-                description=item_dict.get("description_en", ""),
-                description_en=item_dict.get("description_en", ""),
-                description_ar=item_dict.get("description_ar", ""),
-                field=item_dict.get("field_of_study", "nlp"),
-                academic_level=item_dict.get("academic_level", "bachelor"),
-                teacher=self.get_system_user(),
-                institution=institution,
-                academic_year=item_dict.get("academic_year", academic_year),
-                access_link=item_dict.get("course_url", ""),
-                language=language,
-                keywords=", ".join(item_dict.get("keywords", [])),
-                entities=item_dict.get("entities", {}),
-                prerequisites=item_dict.get("prerequisites", ""),
-                syllabus=item_dict.get("syllabus", ""),
-                instructor=item_dict.get("instructor") or None,
-                duration=item_dict.get("duration") or None,
-                platform=item_dict.get("platform", "other"),
-                enrollment_url=item_dict.get("enrollment_url") or None,
-                is_free=bool(item_dict.get("is_free", True)),
-                price=item_dict.get("price"),
-                certificate_available=bool(
-                    item_dict.get("certificate_available", False)
-                ),
-                start_date=item_dict.get("start_date"),
-                source_url=item_dict.get("source_url") or None,
-                source_name=item_dict.get("source_name") or None,
-                author=self.get_system_user(),
-                approval_status="pending",
-            )
-
-            pdf_local_path = item_dict.get("pdf_local_path") or ""
-            if pdf_local_path:
-                with contextlib.suppress(AttributeError, KeyError):
-                    attach_file_to_model(
-                        course,
-                        "uploaded_file",
-                        item_dict.get("pdf_content_file"),
-                        pdf_local_path,
-                    )
-
-            image_local_path = item_dict.get("image_local_path") or ""
-            if image_local_path:
-                with contextlib.suppress(AttributeError, KeyError):
-                    attach_file_to_model(
-                        course,
-                        "thumbnail",
-                        item_dict.get("image_content_file"),
-                        image_local_path,
-                    )
-
-            self.items_created += 1
-            self.results.append(
-                {
-                    "title": self.truncate(item_dict.get("title_en", title), 100),
-                    "institution": getattr(institution, "name_en", ""),
-                    "level": item_dict.get("academic_level", level),
-                    "url": item_dict.get("course_url", website),
-                    "source_name": item_dict.get("source_name", ""),
-                }
+            time.sleep(self.API_CALL_DELAY_SECONDS)
+            candidates = async_to_sync(extractor.extract_courses_from_search)(
+                combined_results
             )
         except Exception as exc:
-            self.errors.append(
-                f"Failed to create course '{self.truncate(title, 60)}': {exc}"
+            self._log_error("courses_llm_extraction_failed", str(exc), source=self.name)
+            return
+
+        if not candidates:
+            logger.warning("No course candidates extracted from Tavily results.")
+            return
+
+        author = self.get_system_user()
+        academic_year = self._default_academic_year()
+
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                self.items_skipped += 1
+                continue
+
+            normalized = self._normalize_candidate(candidate)
+            if normalized is None:
+                self.items_skipped += 1
+                continue
+
+            institution = self._resolve_institution(normalized["platform_name"])
+            if institution is None:
+                self.items_skipped += 1
+                continue
+
+            lookup = (
+                {"access_link": normalized["url"]}
+                if normalized["url"]
+                else {"title_en": normalized["title_en"]}
             )
-            logger.error(
-                "Failed to create course %s: %s", self.truncate(title, 60), exc
+
+            defaults = {
+                "title": normalized["title_en"],
+                "title_ar": normalized["title_ar"],
+                "description": normalized["description_en"],
+                "description_en": normalized["description_en"],
+                "description_ar": normalized["description_ar"],
+                "author": author,
+                "field": "nlp",
+                "academic_level": normalized["academic_level"],
+                "teacher": author,
+                "institution": institution,
+                "academic_year": academic_year,
+                "prerequisites": "",
+                "syllabus": "",
+                "instructor": normalized["platform_name"],
+                "duration": "",
+                "platform": normalized["platform"],
+                "enrollment_url": normalized["url"],
+                "is_free": normalized["is_free"],
+                "price": normalized["price_decimal"],
+                "source_url": normalized["url"],
+                "source_name": "Tavily Search + Groq",
+                "access_link": normalized["url"],
+                "keywords": normalized["keywords"],
+                "entities": {
+                    "platform": normalized["platform_name"],
+                    "level": normalized["raw_level"],
+                    "price": normalized["raw_price"],
+                },
+                "language": normalized["language"],
+                "approval_status": "pending",
+                "is_approved": False,
+                "update_date": timezone.now(),
+            }
+
+            try:
+                course, created = Course.objects.update_or_create(
+                    **lookup,
+                    defaults=defaults,
+                )
+            except Exception as exc:
+                self._log_error(
+                    "course_upsert_failed",
+                    str(exc),
+                    source=normalized["title_en"],
+                    url=normalized["url"],
+                )
+                self.items_skipped += 1
+                continue
+
+            forced_updates = {}
+            if course.approval_status != "pending":
+                forced_updates["approval_status"] = "pending"
+            if bool(course.is_approved):
+                forced_updates["is_approved"] = False
+            if forced_updates:
+                Course.objects.filter(pk=course.pk).update(**forced_updates)
+
+            if created:
+                self.items_created += 1
+            else:
+                self.items_updated += 1
+
+            self.results.append(
+                {
+                    "title": normalized["title_en"],
+                    "description": self.truncate(normalized["description_en"], 400),
+                    "type": "course",
+                    "url": normalized["url"],
+                    "source_name": "Tavily Search + Groq",
+                    "source_url": normalized["url"],
+                    "title_en": normalized["title_en"],
+                    "description_en": normalized["description_en"],
+                }
             )
+
+    def _normalize_candidate(self, item: dict):
+        title_en = self._safe_text(item.get("title_en"))
+        description_en = self._safe_text(item.get("description_en"))
+        if not title_en or not description_en:
+            return None
+
+        title_ar = self._safe_text(item.get("title_ar")) or title_en
+        description_ar = self._safe_text(item.get("description_ar")) or description_en
+        platform_name = self._safe_text(item.get("platform")) or "Other"
+        raw_level = self._safe_text(item.get("level")) or "intermediate"
+        raw_price = self._safe_text(item.get("price"))
+        url = self._safe_text(item.get("url"))
+        if not url:
+            return None
+
+        return {
+            "title_en": title_en[:200],
+            "title_ar": title_ar[:200],
+            "description_en": description_en,
+            "description_ar": description_ar,
+            "platform_name": platform_name,
+            "platform": self._map_platform(platform_name),
+            "raw_level": raw_level,
+            "academic_level": self._map_level(raw_level),
+            "raw_price": raw_price,
+            "is_free": self._is_free(raw_price),
+            "price_decimal": self._parse_price(raw_price),
+            "url": url,
+            "keywords": ", ".join(["nlp", "ai", platform_name.lower()]),
+            "language": "ar"
+            if self._contains_arabic(title_ar + " " + description_ar)
+            else "en",
+        }
+
+    def _resolve_institution(self, platform_name: str):
+        country = self.get_or_create_country("International", "XX", "دولي")
+        institution_name = platform_name.strip() or "Online Learning Platform"
+        return self.get_or_create_institution(
+            institution_name,
+            country=country,
+            city="Online",
+            website="",
+            inst_type="University",
+        )
+
+    def _default_academic_year(self) -> str:
+        today = timezone.now().date()
+        year = today.year
+        if today.month < 9:
+            year -= 1
+        return f"{year}-{year + 1}"
+
+    @staticmethod
+    def _safe_text(value):
+        if value is None:
+            return ""
+        text = str(value).strip()
+        if not text or text.lower() == "null":
+            return ""
+        return text
+
+    def _map_level(self, raw_level: str) -> str:
+        lowered = (raw_level or "").lower()
+        for token, mapped in self.LEVEL_MAP.items():
+            if token in lowered:
+                return mapped
+        return "master"
+
+    def _map_platform(self, platform_name: str) -> str:
+        lowered = (platform_name or "").lower()
+        for token, mapped in self.PLATFORM_MAP.items():
+            if token in lowered:
+                return mapped
+        return "other"
+
+    @staticmethod
+    def _contains_arabic(text: str) -> bool:
+        return any("\u0600" <= ch <= "\u06ff" for ch in (text or ""))
+
+    @staticmethod
+    def _is_free(raw_price: str) -> bool:
+        price_text = (raw_price or "").strip().lower()
+        if not price_text:
+            return True
+        return price_text in {"free", "0", "$0", "0$", "مجاني", "null"}
+
+    def _parse_price(self, raw_price: str):
+        if self._is_free(raw_price):
+            return None
+        if not raw_price:
+            return None
+
+        digits = "".join(ch for ch in raw_price if ch.isdigit() or ch in {".", ","})
+        if not digits:
+            return None
+
+        digits = digits.replace(",", ".")
+        try:
+            return Decimal(digits)
+        except (InvalidOperation, ValueError):
+            return None

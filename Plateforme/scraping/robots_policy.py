@@ -1,5 +1,7 @@
 import logging
+from urllib.error import URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
 from django.core.cache import cache
@@ -21,16 +23,27 @@ def can_fetch(url: str, user_agent: str = "*") -> bool:
 
         rp = cache.get(cache_key)
         if rp is None:
-            import requests
             rp = RobotFileParser()
             rp.set_url(robots_url)
             try:
-                resp = requests.get(robots_url, timeout=SS.ROBOTS_TIMEOUT)
-                if resp.status_code == 200:
-                    rp.parse(resp.text.splitlines())
+                request = Request(
+                    robots_url,
+                    method="GET",
+                    headers={"User-Agent": user_agent or "*"},
+                )
+                with urlopen(request, timeout=SS.ROBOTS_TIMEOUT) as response:
+                    if int(getattr(response, "status", 0)) == 200:
+                        payload = response.read().decode("utf-8", errors="replace")
+                        rp.parse(payload.splitlines())
+            except URLError as e:
+                logger.debug(
+                    "robots_download_failed", extra={"url": robots_url, "error": str(e)}
+                )
             except Exception as e:
-                logger.debug("robots_download_failed", extra={"url": robots_url, "error": str(e)})
-            
+                logger.debug(
+                    "robots_download_failed", extra={"url": robots_url, "error": str(e)}
+                )
+
             cache.set(cache_key, rp, SS.ROBOTS_CACHE_TTL)
 
         allowed = rp.can_fetch(user_agent, url)

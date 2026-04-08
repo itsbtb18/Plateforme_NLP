@@ -14,6 +14,7 @@ from collections import defaultdict
 from ipaddress import ip_address, ip_network
 
 from celery.result import AsyncResult
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
@@ -25,9 +26,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
-from institutions.models import Institution
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends
@@ -36,7 +35,13 @@ from scraping.validators import ContentValidator, NetworkValidator
 
 from .constants import SKIP_DEDUP_SIMILARITY, SOURCE_TIER_TOKEN_MAP
 from .metrics import update_scrape_queue_lag_metrics, update_source_health_metrics
-from .models import ScrapedItemMeta, ScrapingRun, ScrapingSource, ScrapingSourceHealth
+from .models import (
+    ScrapedItemMeta,
+    ScrapingRun,
+    ScrapingSource,
+    ScrapingSourceHealth,
+    SearchQuery,
+)
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .scraping_settings import scraping_settings as SS
 from .tasks import run_scraper_task
@@ -209,6 +214,17 @@ def _require_json_content_type(request):
     return None
 
 
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    lowered = str(value).strip().lower()
+    if lowered in {"1", "true", "on", "yes"}:
+        return True
+    if lowered in {"0", "false", "off", "no"}:
+        return False
+    return default
+
+
 def is_admin(user):
     """Check if user is an admin."""
     return user.is_staff or user.is_superuser
@@ -244,16 +260,32 @@ def _infer_source_tier(
 
 
 def _model_for_category(category: str):
-    if category == "events":
-        return Event
-    if category == "news":
-        return Post
-    if category == "courses":
-        return Course
-    if category == "tools":
-        return NLPTool
-    if category == "institutions":
-        return Institution
+    static_map = {
+        "events": Event,
+        "courses": Course,
+        "tools": NLPTool,
+    }
+    if category in static_map:
+        return static_map[category]
+
+    dynamic_candidates = {
+        "news": [("feed", "Post"), ("events", "News"), ("resources", "News")],
+        "opportunities": [
+            ("events", "Opportunity"),
+            ("resources", "Opportunity"),
+            ("opportunities", "Opportunity"),
+        ],
+        "corpus": [
+            ("events", "Corpus"),
+            ("resources", "Corpus"),
+            ("corpus", "Corpus"),
+        ],
+    }
+    for app_label, model_name in dynamic_candidates.get(category, []):
+        try:
+            return apps.get_model(app_label, model_name)
+        except LookupError:
+            continue
     return None
 
 
@@ -456,13 +488,73 @@ def dashboard(request):
         HttpResponse: Rendered dashboard template response.
     """
     _log_scraping_action(request)
-    try:
-        _ensure_default_scraping_sources()
-    except Exception:
-        logger.exception("Failed to seed default scraping sources")
+
+    dashboard_categories = (
+        "events",
+        "tools",
+        "courses",
+        "news",
+        "opportunities",
+        "corpus",
+    )
+
+    category_meta_map = {key: meta for key, meta in get_all_categories()}
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        allowed_categories = set(dashboard_categories)
+
+        if action == "add_search_query":
+            category = (request.POST.get("category") or "").strip().lower()
+            query_text = (request.POST.get("query_text") or "").strip()
+            is_active = _as_bool(request.POST.get("is_active"), default=False)
+
+            if category in allowed_categories and query_text:
+                try:
+                    query_obj, created = SearchQuery.objects.get_or_create(
+                        category=category,
+                        query_text=query_text,
+                        defaults={"is_active": is_active},
+                    )
+                    if not created and query_obj.is_active != is_active:
+                        query_obj.is_active = is_active
+                        query_obj.save(update_fields=["is_active"])
+                except DatabaseError as exc:
+                    logger.warning(
+                        "dashboard_add_search_query_failed",
+                        extra={"error": str(exc), "context": category},
+                        exc_info=False,
+                    )
+
+        elif action == "toggle_search_query":
+            query_id = (request.POST.get("query_id") or "").strip()
+            is_active = _as_bool(request.POST.get("is_active"), default=False)
+
+            if query_id:
+                try:
+                    SearchQuery.objects.filter(
+                        id=query_id,
+                        category__in=dashboard_categories,
+                    ).update(is_active=is_active)
+                except DatabaseError as exc:
+                    logger.warning(
+                        "dashboard_toggle_search_query_failed",
+                        extra={"error": str(exc), "context": query_id},
+                        exc_info=False,
+                    )
 
     categories = []
-    for key, meta in get_all_categories():
+    for key in dashboard_categories:
+        meta = (
+            category_meta_map.get(key)
+            or CATEGORY_META.get(key)
+            or {
+                "label": key.title(),
+                "description": "",
+                "icon": "fa-circle",
+                "color": "#2563eb",
+            }
+        )
         last_run = (
             ScrapingRun.objects.filter(category=key).order_by("-started_at").first()
         )
@@ -479,26 +571,47 @@ def dashboard(request):
         )
 
     # Aggregate stats
-    total_runs = ScrapingRun.objects.count()
+    total_runs = ScrapingRun.objects.filter(category__in=dashboard_categories).count()
 
     total_created = (
-        ScrapingRun.objects.aggregate(total=Sum("items_created"))["total"] or 0
+        ScrapingRun.objects.filter(category__in=dashboard_categories).aggregate(
+            total=Sum("items_created")
+        )["total"]
+        or 0
     )
 
-    # Per-category item counts from actual models
-    model_counts = {
-        "events": Event.objects.count(),
-        "tools": NLPTool.objects.count(),
-        "news": Post.objects.count(),
-        "courses": Course.objects.count(),
-        "institutions": Institution.objects.count(),
+    models_by_category = {
+        category_key: _model_for_category(category_key)
+        for category_key in dashboard_categories
     }
-    pending_counts = {
-        "events": Event.objects.filter(approval_status="pending").count(),
-        "tools": NLPTool.objects.filter(approval_status="pending").count(),
-        "news": Post.objects.filter(approval_status="pending").count(),
-        "courses": Course.objects.filter(approval_status="pending").count(),
-    }
+
+    def _model_field_names(model_cls):
+        return {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+
+    def _count_pending(model_cls):
+        if model_cls is None:
+            return 0
+        field_names = _model_field_names(model_cls)
+        if "approval_status" in field_names:
+            return model_cls.objects.filter(approval_status="pending").count()
+        if "is_approved" in field_names:
+            return model_cls.objects.filter(is_approved=False).count()
+        return 0
+
+    model_counts = {}
+    pending_counts = {}
+    for category_key in dashboard_categories:
+        model_cls = models_by_category.get(category_key)
+        if model_cls is None:
+            model_counts[category_key] = 0
+            pending_counts[category_key] = 0
+            continue
+        model_counts[category_key] = model_cls.objects.count()
+        pending_counts[category_key] = _count_pending(model_cls)
 
     def _media_stats(queryset, image_field=None, pdf_field=None):
         total = queryset.count()
@@ -548,33 +661,142 @@ def dashboard(request):
             "storage_bytes": storage_bytes,
         }
 
+    def _first_existing_field(field_names, *candidates):
+        for candidate in candidates:
+            if candidate in field_names:
+                return candidate
+        return None
+
+    def _category_media_stats(category_key):
+        model_cls = models_by_category.get(category_key)
+        if model_cls is None:
+            return {
+                "with_images": 0,
+                "without_images": 0,
+                "with_pdfs": 0,
+                "without_pdfs": 0,
+                "storage_bytes": 0,
+            }
+
+        field_names = _model_field_names(model_cls)
+        preferred_fields = {
+            "events": ("banner_image", "attachment"),
+            "tools": ("thumbnail", None),
+            "courses": ("thumbnail", "uploaded_file"),
+            "news": ("thumbnail", "file"),
+            "opportunities": (None, None),
+            "corpus": ("thumbnail", "uploaded_file"),
+        }
+        image_field, pdf_field = preferred_fields.get(category_key, (None, None))
+
+        if image_field not in field_names:
+            image_field = _first_existing_field(
+                field_names,
+                "thumbnail",
+                "image",
+                "banner_image",
+                "logo",
+                "icon",
+                "cover_image",
+            )
+        if pdf_field not in field_names:
+            pdf_field = _first_existing_field(
+                field_names,
+                "file",
+                "uploaded_file",
+                "attachment",
+                "pdf_file",
+                "document",
+                "document_file",
+            )
+
+        return _media_stats(
+            model_cls.objects.all(),
+            image_field=image_field,
+            pdf_field=pdf_field,
+        )
+
     media_stats = {
-        "events": _media_stats(
-            Event.objects.all(), image_field="banner_image", pdf_field="attachment"
-        ),
-        "tools": _media_stats(
-            NLPTool.objects.all(), image_field="thumbnail", pdf_field=None
-        ),
-        "news": _media_stats(
-            Post.objects.all(), image_field="thumbnail", pdf_field="file"
-        ),
-        "courses": _media_stats(
-            Course.objects.all(), image_field="thumbnail", pdf_field="uploaded_file"
-        ),
-        "institutions": _media_stats(
-            Institution.objects.all(), image_field="logo", pdf_field=None
-        ),
+        category_key: _category_media_stats(category_key)
+        for category_key in dashboard_categories
     }
 
-    skip_analytics = _build_skip_reason_payload()
-    source_health_rows = _build_source_health_rows()
+    skip_analytics_raw = _build_skip_reason_payload()
+    skip_analytics = {
+        "per_category": {
+            category_key: skip_analytics_raw.get("per_category", {}).get(
+                category_key, {}
+            )
+            for category_key in dashboard_categories
+            if skip_analytics_raw.get("per_category", {}).get(category_key)
+        },
+        "per_source": {
+            category_key: skip_analytics_raw.get("per_source", {}).get(category_key, {})
+            for category_key in dashboard_categories
+            if skip_analytics_raw.get("per_source", {}).get(category_key)
+        },
+    }
+
+    # Source URL inventory is intentionally ignored in the new query-first dashboard.
+    source_health_rows = []
     recent_runs_rows = {
         category_key: _build_recent_runs_rows(
             category_key,
             limit=SS.VIEW_RECENT_RUNS_LIMIT,
         )
-        for category_key in CATEGORY_META
+        for category_key in dashboard_categories
     }
+
+    search_query_category_choices = [
+        (
+            category_key,
+            str(
+                (
+                    category_meta_map.get(category_key)
+                    or CATEGORY_META.get(category_key)
+                    or {}
+                ).get("label", category_key.title())
+            ),
+        )
+        for category_key in dashboard_categories
+    ]
+
+    search_queries_by_category = {
+        category_key: [] for category_key in dashboard_categories
+    }
+    search_query_rows = []
+    try:
+        search_query_qs = SearchQuery.objects.filter(
+            category__in=dashboard_categories
+        ).order_by("category", "id")
+        for query in search_query_qs:
+            category_key = query.category
+            category_label = str(
+                (
+                    category_meta_map.get(category_key)
+                    or CATEGORY_META.get(category_key)
+                    or {}
+                ).get("label", category_key.title())
+            )
+            search_query_rows.append(
+                {
+                    "id": str(query.id),
+                    "category": category_key,
+                    "category_label": category_label,
+                    "query_text": query.query_text,
+                    "is_active": bool(query.is_active),
+                }
+            )
+            if query.is_active:
+                search_queries_by_category.setdefault(category_key, []).append(
+                    query.query_text
+                )
+    except DatabaseError as exc:
+        logger.warning(
+            "dashboard_search_queries_load_failed",
+            extra={"error": str(exc), "context": "search_queries"},
+            exc_info=False,
+        )
 
     return render(
         request,
@@ -589,9 +811,14 @@ def dashboard(request):
             "skip_analytics": skip_analytics,
             "source_health_rows": source_health_rows,
             "recent_runs_rows": recent_runs_rows,
+            "search_queries_by_category": search_queries_by_category,
+            "search_query_rows": search_query_rows,
+            "search_query_category_choices": search_query_category_choices,
             "skip_analytics_json": json.dumps(skip_analytics),
             "source_health_rows_json": json.dumps(source_health_rows),
             "recent_runs_rows_json": json.dumps(recent_runs_rows),
+            "search_queries_by_category_json": json.dumps(search_queries_by_category),
+            "search_query_rows_json": json.dumps(search_query_rows),
             "page": "scraping",
         },
     )
@@ -988,11 +1215,9 @@ def analytics(request):
             Event.objects.all(), image_field="banner_image", pdf_field="attachment"
         ),
         _file_counts(NLPTool.objects.all(), image_field="thumbnail", pdf_field=None),
-        _file_counts(Post.objects.all(), image_field="thumbnail", pdf_field="file"),
         _file_counts(
             Course.objects.all(), image_field="thumbnail", pdf_field="uploaded_file"
         ),
-        _file_counts(Institution.objects.all(), image_field="logo", pdf_field=None),
     ]
     total_images = sum(v[0] for v in media_sets)
     total_pdfs = sum(v[1] for v in media_sets)
@@ -1175,25 +1400,12 @@ def _map_item_for_duplicate_check(category: str, item: dict) -> dict:
             "access_link": item_url,
             "github_url": item.get("github_url") or "",
         }
-    if category == "news":
-        return {
-            "title_en": title,
-            "source_url": item_url,
-            "doi": item.get("doi") or "",
-            "arxiv_id": item.get("arxiv_id") or "",
-        }
     if category == "courses":
         return {
             "title_en": title,
             "description_en": description,
             "access_link": item_url,
             "instructor": item.get("instructor") or "",
-        }
-    if category == "institutions":
-        return {
-            "name_en": title,
-            "website_url": item_url,
-            "ror_id": item.get("ror_id") or "",
         }
     return {"title_en": title}
 
@@ -1226,13 +1438,11 @@ def _run_source_test_job(job_id: str, source_id: str):
             checker_map = {
                 "events": scraper._dedup_event,
                 "tools": scraper._dedup_tool,
-                "news": scraper._dedup_news,
                 "courses": scraper._dedup_course,
-                "institutions": scraper._dedup_institution,
             }
             checker = checker_map.get(category)
             if checker is not None:
-                duplicate, reason = checker(mapped)
+                duplicate, reason, _score = checker(mapped)
 
             stats["items_found"] += 1
             if duplicate:
@@ -1384,7 +1594,7 @@ def validate_source(request):
 
     if not url:
         return JsonResponse({"error": "URL is required"}, status=400)
-    if category not in {"events", "news", "courses", "tools", "institutions"}:
+    if category not in {"events", "courses", "tools"}:
         return JsonResponse({"error": "Invalid category"}, status=400)
 
     try:

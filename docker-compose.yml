@@ -1,20 +1,25 @@
 services:
   # PostgreSQL Database with pgvector extension
   db:
-    image: "pgvector/pgvector:pg15"
+    image: "pgvector/pgvector:pg16"
     container_name: nlp_postgres
+    command: ["postgres", "-c", "max_connections=250", "-c", "superuser_reserved_connections=10"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && PGPASSWORD=$$POSTGRES_PASSWORD psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc 'SELECT NOT pg_is_in_recovery();' | grep -q t",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +33,7 @@ services:
     container_name: nlp_redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?must be set}
     volumes:
-      - ./data/redis:/data
+      - redis_data:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -45,7 +50,7 @@ services:
     image: qdrant/qdrant:v1.12.4
     container_name: nlp_qdrant
     volumes:
-      - ./data/qdrant:/qdrant/storage
+      - qdrant_data:/qdrant/storage
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -76,7 +81,7 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - ./data/elasticsearch:/usr/share/elasticsearch/data
+      - elasticsearch_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
     healthcheck:
@@ -136,18 +141,33 @@ services:
 
       # Groq (scraping LLM validation)
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
 
       # Scraping/observability
       SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
       SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
+      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
+      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
+      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
+      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
+      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
+      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
+      HF_HOME: /tmp/hf_cache
+      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
 
       # Optional API keys for richer scraping
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
     volumes:
       - ./Plateforme:/app
+      - ./scraping:/scraping
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - scraping_media:/app/media/scraping
@@ -215,10 +235,6 @@ services:
       EXA_MAX_CALLS_PER_SESSION: ${EXA_MAX_CALLS_PER_SESSION:-10}
       EXA_MAX_CALLS_PER_HOUR: ${EXA_MAX_CALLS_PER_HOUR:-30}
       EXA_CACHE_TTL_HOURS: ${EXA_CACHE_TTL_HOURS:-24}
-      HOME: /app
-      HF_HOME: /tmp/hf
-      TRANSFORMERS_CACHE: /tmp/hf
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -230,7 +246,7 @@ services:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8001:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -258,8 +274,8 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_celery_worker
     cpus: 1.0
-    mem_limit: 4g
-    mem_reservation: 1g
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -276,10 +292,10 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
-      HOME: /app
-      HF_HOME: /tmp/hf
-      TRANSFORMERS_CACHE: /tmp/hf
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf
+      # HuggingFace cache — use the mounted volume
+      HF_HOME: /app/.cache
+      TRANSFORMERS_CACHE: /app/.cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -342,7 +358,7 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: nlp_django_celery_worker
-    user: "1000:1000"
+    user: "celery"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
@@ -357,14 +373,29 @@ services:
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
       SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
       SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
+      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
+      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
+      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
+      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
+      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
+      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      HF_HOME: /tmp/hf_cache
+      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
       - ./Plateforme:/app
+      - ./scraping:/scraping
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - scraping_media:/app/media/scraping
@@ -394,7 +425,7 @@ services:
       target: development
     container_name: nlp_celery_scraper
     shm_size: '2gb'
-    user: "1000:1000"
+    user: "celery"
     command: celery -A Plateforme worker -Q scraping -c 2 --loglevel=info --max-tasks-per-child=50
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
@@ -410,14 +441,29 @@ services:
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
       SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
       SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
+      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
+      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
+      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
+      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
+      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
+      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      HF_HOME: /tmp/hf_cache
+      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
       - ./Plateforme:/app
+      - ./scraping:/scraping
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - scraping_media:/app/media/scraping
@@ -448,7 +494,7 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: nlp_django_celery_beat
-    user: "1000:1000"
+    user: "celery"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
@@ -460,13 +506,27 @@ services:
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
       SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
       SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
+      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
+      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
+      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
+      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
+      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      HF_HOME: /tmp/hf_cache
+      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
+      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
       - ./Plateforme:/app
+      - ./scraping:/scraping
       - scraping_media:/app/media/scraping
     command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
     healthcheck:
@@ -491,7 +551,7 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - ./data/prometheus:/prometheus
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
     depends_on:
@@ -513,14 +573,16 @@ services:
     container_name: nlp_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_UPDATES_CHECK_ENABLED: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
       GF_PLUGINS_ENABLE_ALPHA: "false"
     dns:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - ./data/grafana:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
+      - grafana_plugins_bundled:/usr/share/grafana/plugins-bundled
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3000:3000"
@@ -566,6 +628,14 @@ networks:
         - subnet: 172.25.0.0/16
 
 volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
   static_volume:
     driver: local
   media_volume:
@@ -573,4 +643,10 @@ volumes:
   scraping_media:
     driver: local
   fastapi_cache:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  grafana_plugins_bundled:
     driver: local

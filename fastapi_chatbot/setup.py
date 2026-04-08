@@ -1,18 +1,20 @@
 """
 Setup script – initialise database and ingest all knowledge bases.
 """
+
 import asyncio
 import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent))
 
-from app.db import init_db
-from app.ingestion.ingest_platform_docs import ingest_platform_docs
-from app.ingestion.ingest_nlp_knowledge import ingest_nlp_knowledge
-from app.ingestion.ingest_resources import ingest_resources
-from app.ingestion.ingest_legal_docs import ingest_legal_documents
 import logging
+
+from app.db import init_db
+from app.ingestion.ingest_legal_docs import ingest_legal_documents
+from app.ingestion.ingest_nlp_knowledge import ingest_nlp_knowledge
+from app.ingestion.ingest_platform_docs import ingest_platform_docs
+from app.ingestion.ingest_resources import ingest_resources
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,8 +39,12 @@ async def setup():
     await ingest_legal_documents()
 
     logger.info("Setup completed successfully!")
-    logger.info("Start the service: uvicorn app.main:app --reload --host 0.0.0.0 --port 8001")
-    logger.info("Start the worker:  celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info")
+    logger.info(
+        "Start the service: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    )
+    logger.info(
+        "Start the worker:  celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info"
+    )
 
 
 if __name__ == "__main__":

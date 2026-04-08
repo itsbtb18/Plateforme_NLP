@@ -1,4 +1,4 @@
-from scraping.llm_validation import LLMValidator
+from scraping.extractors.core.llm_validation import LLMValidator
 
 from .eval_utils import (
     aggregate_metrics,

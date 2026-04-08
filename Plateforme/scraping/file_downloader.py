@@ -6,9 +6,10 @@ import os
 import socket
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import urlparse
 
-import requests
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -49,12 +50,8 @@ PDF_MIME_TYPES = {
     "application/pdf": ".pdf",
 }
 
-MAX_DOCUMENT_SIZE_MB = int(
-    os.environ.get("SCRAPING_MAX_DOCUMENT_MB", 50)
-)
-MAX_IMAGE_SIZE_MB = int(
-    os.environ.get("SCRAPING_MAX_IMAGE_MB", 10)
-)
+MAX_DOCUMENT_SIZE_MB = int(os.environ.get("SCRAPING_MAX_DOCUMENT_MB", 50))
+MAX_IMAGE_SIZE_MB = int(os.environ.get("SCRAPING_MAX_IMAGE_MB", 10))
 
 _BLOCKED_IPV4_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
@@ -69,6 +66,17 @@ _BLOCKED_IPV6_NETWORKS = [
     ipaddress.ip_network("fc00::/7"),  # unique local (private)
     ipaddress.ip_network("fe80::/10"),  # link-local
 ]
+
+
+class _DownloadTooLargeError(Exception):
+    """Raised when streamed GET response exceeds policy size limit."""
+
+
+class _NoRedirectHandler(urllib_request.HTTPRedirectHandler):
+    """Disable automatic redirect following for GET downloads."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802
+        return None
 
 
 def _host_allowed(hostname, allowed_domains):
@@ -213,6 +221,45 @@ def _get_headers():
     return {"User-Agent": "Mozilla/5.0 NLPPlatformBot/1.0"}
 
 
+def _normalize_content_type(raw_content_type):
+    return (raw_content_type or "").split(";")[0].strip().lower()
+
+
+def _parse_content_length(raw_content_length):
+    try:
+        return int(raw_content_length or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _head_preflight(url, timeout, headers):
+    req = urllib_request.Request(url, headers=headers, method="HEAD")
+    with urllib_request.urlopen(req, timeout=timeout) as response:
+        content_type = _normalize_content_type(response.headers.get("Content-Type"))
+        content_length = _parse_content_length(response.headers.get("Content-Length"))
+        return content_type, content_length
+
+
+def _download_via_get(url, timeout, headers, max_bytes):
+    req = urllib_request.Request(url, headers=headers, method="GET")
+    opener = urllib_request.build_opener(_NoRedirectHandler())
+    with opener.open(req, timeout=timeout) as response:
+        content_type = _normalize_content_type(response.headers.get("Content-Type"))
+
+        chunks = []
+        size = 0
+        while True:
+            chunk = response.read(8192)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+            if size > max_bytes:
+                raise _DownloadTooLargeError()
+
+        return content_type, b"".join(chunks), size
+
+
 def download_file(
     url,
     category,
@@ -255,51 +302,40 @@ def download_file(
     max_mb = MAX_IMAGE_SIZE_MB if file_type == "image" else MAX_DOCUMENT_SIZE_MB
     max_bytes = max_mb * 1024 * 1024
     allowed_mimes = _allowed_mime_map(file_type)
+    request_headers = _get_headers()
 
     # ── HEAD preflight ──────────────────────────────────────────────
     try:
-        head = requests.head(
+        content_type, content_length = _head_preflight(
             url,
             timeout=10,
-            allow_redirects=True,
-            headers=_get_headers(),
-        )
-        content_type = (
-            head.headers.get("Content-Type") or ""
-        ).split(";")[0].strip().lower()
-        content_length = int(
-            head.headers.get("Content-Length") or 0
+            headers=request_headers,
         )
     except Exception as e:
-        logger.warning("head_request_failed", extra={
-            "url": url, "error": str(e)
-        })
+        logger.warning("head_request_failed", extra={"url": url, "error": str(e)})
         return None, None, DownloadResult.FAIL_HEAD
 
     if content_type not in allowed_mimes:
-        logger.warning("mime_rejected_via_head", extra={
-            "url": url, "content_type": content_type
-        })
+        logger.warning(
+            "mime_rejected_via_head", extra={"url": url, "content_type": content_type}
+        )
         return None, None, DownloadResult.FAIL_MIME
 
     if content_length > max_bytes:
-        logger.warning("size_rejected_via_head", extra={
-            "url": url, "content_length": content_length
-        })
+        logger.warning(
+            "size_rejected_via_head",
+            extra={"url": url, "content_length": content_length},
+        )
         return None, None, DownloadResult.FAIL_SIZE
 
     # ── GET (only after HEAD passes) ────────────────────────────────
     try:
-        response = requests.get(
+        get_ct, content, size = _download_via_get(
             url,
             timeout=timeout,
-            stream=True,
-            allow_redirects=False,
-            headers=_get_headers(),
+            headers=request_headers,
+            max_bytes=max_bytes,
         )
-        response.raise_for_status()
-
-        get_ct = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
 
         if get_ct not in allowed_mimes:
             logger.warning(
@@ -312,26 +348,9 @@ def download_file(
 
         extension = allowed_mimes[get_ct]
 
-        content = b""
-        size = 0
-        for chunk in response.iter_content(8192):
-            if not chunk:
-                continue
-            content += chunk
-            size += len(chunk)
-            if size > max_bytes:
-                logger.warning(
-                    "Rejected file larger than policy max (%d MB) for url=%s",
-                    max_mb,
-                    url,
-                )
-                return None, None, DownloadResult.FAIL_SIZE
-
         base_name = _safe_slug(item_name)
         storage_dir = _build_storage_dir(category, file_type)
-        filename = f"{storage_dir}/{base_name}_{url_hash}{extension}".replace(
-            "\\", "/"
-        )
+        filename = f"{storage_dir}/{base_name}_{url_hash}{extension}".replace("\\", "/")
 
         # ── Compute SHA-256 ─────────────────────────────────────────
         sha256_hash = hashlib.sha256(content).hexdigest()
@@ -363,7 +382,24 @@ def download_file(
             )
 
         return ContentFile(content), filename, DownloadResult.SUCCESS
-
+    except _DownloadTooLargeError:
+        logger.warning(
+            "Rejected file larger than policy max (%d MB) for url=%s",
+            max_mb,
+            url,
+        )
+        return None, None, DownloadResult.FAIL_SIZE
+    except urllib_error.HTTPError as exc:
+        logger.warning(
+            "File download HTTP error for url=%s code=%s",
+            url,
+            getattr(exc, "code", "unknown"),
+            exc_info=False,
+        )
+        return None, None, DownloadResult.FAIL_NETWORK
+    except urllib_error.URLError:
+        logger.warning("File download failed for url=%s", url, exc_info=True)
+        return None, None, DownloadResult.FAIL_NETWORK
     except Exception:
         logger.warning("File download failed for url=%s", url, exc_info=True)
         return None, None, DownloadResult.FAIL_NETWORK

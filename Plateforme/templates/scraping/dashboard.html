@@ -1,7 +1,7 @@
 {% extends 'base_admin.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Web Scraping" %} — {% trans "Admin Panel" %}{% endblock %}
+{% block title %}AI Data Aggregator — {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -16,21 +16,53 @@
 @keyframes wsFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .ws-modal-open{overflow:hidden}
 
-/* Source tag chips */
-.ws-src-tag{display:inline-flex;align-items:center;gap:4px;background:var(--n-bg);color:var(--n-text-2);font-size:.7rem;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid var(--n-border-s)}
-.ws-src-tag i{font-size:.6rem;opacity:.5}
-.ws-src-del{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:none;border-radius:50%;background:rgba(0,0,0,.08);color:var(--n-text-2);cursor:pointer;font-size:.62rem;line-height:1;padding:0}
-.ws-src-del:hover{background:rgba(239,68,68,.18);color:var(--n-red)}
-.ws-add-src-row{display:flex;align-items:center;gap:.45rem;margin-top:.65rem}
-.ws-add-src-input{flex:1;min-width:180px;padding:.45rem .65rem;border:1px solid var(--n-border);border-radius:8px;background:#fff;color:var(--n-text);font-size:.8rem}
-.ws-add-src-input:focus{outline:none;border-color:var(--n-blue)}
+/* Modern KPI cards */
+.ws-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1rem;margin-bottom:1rem}
+.ws-kpi-card{background:#fff;border:1px solid var(--n-border-s);border-radius:16px;padding:1rem;box-shadow:0 10px 26px rgba(15,23,42,.06);transition:transform .18s ease,box-shadow .18s ease}
+.ws-kpi-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.1)}
+.ws-kpi-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.7rem}
+.ws-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;color:#fff;font-size:.95rem;box-shadow:0 6px 14px rgba(2,6,23,.18)}
+.ws-kpi-icon.events{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+.ws-kpi-icon.tools{background:linear-gradient(135deg,#10b981,#059669)}
+.ws-kpi-icon.courses{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+.ws-kpi-icon.news{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.ws-kpi-icon.opportunities{background:linear-gradient(135deg,#06b6d4,#0284c7)}
+.ws-kpi-icon.corpus{background:linear-gradient(135deg,#14b8a6,#0f766e)}
+.ws-kpi-ai{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;background:#eef6ff;border:1px solid #cfe3ff;color:#1d4ed8;font-size:.68rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+.ws-kpi-label{margin:0;font-size:.78rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.06em}
+.ws-kpi-num{margin:.3rem 0 .2rem;font-size:1.7rem;line-height:1;font-weight:800;color:var(--n-text)}
+.ws-kpi-meta{margin:0;font-size:.72rem;color:var(--n-text-3)}
+.ws-kpi-meta.pending{color:var(--n-amber);font-weight:700}
+
+/* Active search query pills */
+.ws-query-wrap{display:flex;flex-wrap:wrap;gap:.45rem}
+.ws-query-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.36rem .72rem;border-radius:999px;border:1px solid #dbeafe;background:linear-gradient(135deg,#f8fbff,#edf5ff);color:#1e3a8a;font-size:.74rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,.12)}
+.ws-query-tag i{font-size:.68rem;color:#2563eb}
+.ws-query-note{margin:.45rem 0 0;font-size:.74rem;color:var(--n-text-3)}
+
+/* AI Search Prompts manager */
+.ws-prompts-wrap{display:flex;flex-direction:column;gap:1rem}
+.ws-prompt-form{display:grid;grid-template-columns:180px minmax(260px,1fr) auto auto;gap:.65rem;align-items:end}
+.ws-prompt-form .ws-form-group{margin:0}
+.ws-prompt-inline{display:flex;align-items:center;gap:.45rem;white-space:nowrap}
+.ws-prompt-submit{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.62rem .95rem;border:1px solid var(--n-blue);border-radius:8px;background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer}
+.ws-prompt-submit:hover{opacity:.92}
+.ws-prompt-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.ws-prompt-status.active{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+.ws-prompt-status.inactive{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+.ws-prompt-toggle-form{margin:0}
+.ws-prompt-toggle-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:1px solid var(--n-green);border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
+.ws-prompt-toggle-btn.off{border-color:var(--n-blue);background:var(--n-blue)}
+.ws-prompt-toggle-btn:hover{opacity:.9}
 .ws-add-src-btn{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--n-border);background:#fff;color:var(--n-text-2);padding:.42rem .7rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer}
 .ws-add-src-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
 
-/* Run button */
-.ws-run-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1.2rem;border:none;border-radius:8px;background:var(--n-blue);color:#fff;font-weight:600;font-size:.82rem;cursor:pointer;transition:opacity .15s;white-space:nowrap}
-.ws-run-btn:hover{opacity:.85}
+/* Run AI Agent button */
+.ws-run-btn{display:inline-flex;align-items:center;gap:.48rem;padding:.54rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#2563eb,#7c3aed 58%,#0ea5e9);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.34)}
+.ws-run-btn:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(79,70,229,.42)}
 .ws-run-btn:disabled{opacity:.5;cursor:not-allowed}
+.ws-run-btn .ws-btn-ico{display:inline-flex;transition:transform .28s ease,filter .28s ease}
+.ws-run-btn:hover .ws-btn-ico{transform:translateY(-1px) rotate(-8deg) scale(1.1);filter:drop-shadow(0 2px 6px rgba(255,255,255,.4))}
 .ws-run-btn .ws-spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wsSpin .7s linear infinite}
 .ws-run-btn.loading .ws-spin{display:inline-block}
 .ws-run-btn.loading .ws-btn-label{display:none}
@@ -40,7 +72,16 @@
 .ws-loading{display:none;text-align:center;padding:2.5rem 1rem}
 .ws-loading.active{display:block}
 .ws-loading .ws-big-spin{width:36px;height:36px;border:3px solid var(--n-border);border-top-color:var(--n-blue);border-radius:50%;animation:wsSpin .8s linear infinite;margin:0 auto .7rem}
-.ws-loading p{color:var(--n-text-3);font-size:.82rem}
+.ws-loading-line{color:var(--n-text-2);font-size:.84rem;font-weight:600;margin:.2rem 0 .35rem}
+.ws-loading-progress{color:var(--n-text-3);font-size:.77rem;margin:0 0 .65rem}
+.ws-live-log{margin:0 auto;max-width:760px;text-align:left;border:1px solid var(--n-border-s);border-radius:10px;background:#fff;padding:.45rem .6rem;max-height:190px;overflow:auto}
+.ws-log-item{display:flex;align-items:flex-start;gap:.45rem;font-size:.78rem;color:var(--n-text-2);padding:.32rem .2rem;border-bottom:1px dashed var(--n-border-s)}
+.ws-log-item:last-child{border-bottom:none}
+.ws-log-item .dot{width:7px;height:7px;border-radius:50%;margin-top:.36rem;flex-shrink:0;background:var(--n-blue)}
+.ws-log-item.info .dot{background:var(--n-blue)}
+.ws-log-item.warn .dot{background:var(--n-amber)}
+.ws-log-item.error .dot{background:var(--n-red)}
+.ws-log-item.success .dot{background:var(--n-green)}
 
 /* Result summary grid */
 .ws-summary{display:grid;grid-template-columns:repeat(7,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
@@ -54,6 +95,15 @@
 .ws-run-summary-box .lbl{font-size:.7rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
 .ws-review-link{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-blue);background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:600;text-decoration:none}
 .ws-review-link:hover{opacity:.9}
+.ws-accept-all-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-green);background:var(--n-green);color:#fff;font-size:.78rem;font-weight:600;cursor:pointer}
+.ws-accept-all-btn:hover{opacity:.9}
+.ws-review-actions{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
+.ws-review-queue{padding:.85rem 1.1rem 1rem;background:#fff}
+.ws-review-queue-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.55rem}
+.ws-review-queue-title{font-size:.85rem;font-weight:700;color:var(--n-text);display:flex;align-items:center;gap:.45rem}
+.ws-review-queue-note{font-size:.74rem;color:var(--n-text-3)}
+.ws-row-accept{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
+.ws-row-accept:hover{opacity:.88}
 .ws-validation-summary{padding:.55rem 1.25rem .85rem;background:var(--n-bg);font-size:.78rem;color:var(--n-text-2);border-bottom:1px solid var(--n-border-s)}
 .ws-val-ok{color:var(--n-green);font-weight:600}
 .ws-val-date{color:var(--n-amber);font-weight:600}
@@ -65,19 +115,26 @@
 .ws-errors summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--n-red)}
 .ws-errors ul{margin:.35rem 0 0;padding-inline-start:1.2rem;font-size:.76rem;color:#991b1b}
 
-/* Run history row */
-.ws-run-row{display:flex;align-items:center;gap:.65rem;padding:.55rem 1.25rem;border-bottom:1px solid var(--n-border-s);font-size:.82rem}
-.ws-run-row:last-child{border-bottom:none}
-.ws-run-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.ws-run-dot.completed{background:var(--n-green)}.ws-run-dot.failed{background:var(--n-red)}
-.ws-run-dot.running{background:var(--n-amber);animation:wsPulse 1.5s ease infinite}
-@keyframes wsPulse{0%,100%{opacity:1}50%{opacity:.35}}
-.ws-run-meta{color:var(--n-text-3);font-size:.74rem;margin-inline-start:auto}
+/* AI activity logs */
+.ws-runs-wrap{padding:.9rem 1.05rem 1.05rem;background:linear-gradient(180deg,#f8fbff 0%,#f3f8ff 100%);border-top:1px solid var(--n-border-s)}
+.ws-runs-head{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;padding:.45rem .75rem .55rem;margin-bottom:.35rem;border-bottom:1px solid var(--n-border-s);font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--n-text-3)}
+.ws-run-row{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;align-items:center;padding:.62rem .75rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--n-border-s);border-radius:12px;box-shadow:0 6px 16px rgba(15,23,42,.04);font-size:.8rem}
+.ws-run-row:last-child{margin-bottom:0}
+.ws-run-badge{display:inline-flex;align-items:center;justify-content:center;padding:.26rem .62rem;border-radius:999px;font-size:.66rem;font-weight:800;letter-spacing:.05em;border:1px solid transparent}
+.ws-run-badge.success{color:#166534;background:#dcfce7;border-color:#bbf7d0}
+.ws-run-badge.failed{color:#9f1239;background:#ffe4e6;border-color:#fecdd3}
+.ws-run-badge.running{color:#92400e;background:#fef3c7;border-color:#fde68a}
+.ws-run-badge.info{color:#1e3a8a;background:#dbeafe;border-color:#bfdbfe}
+.ws-run-engine{display:inline-flex;align-items:center;gap:.35rem;color:var(--n-text-2);font-weight:600}
+.ws-run-engine i{color:#2563eb;font-size:.72rem}
+.ws-run-count{display:inline-flex;align-items:center;justify-content:center;padding:.22rem .55rem;border-radius:8px;background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #dbeafe;min-width:52px}
+.ws-run-meta{color:var(--n-text-3);font-size:.74rem;font-weight:600}
 
 /* Responsive tweaks */
-@media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}.ws-run-summary-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:768px){.n-st-grid{grid-template-columns:repeat(2,1fr)!important}}
-@media(max-width:576px){.ws-summary{grid-template-columns:1fr}.ws-run-summary-grid{grid-template-columns:1fr}.n-st-grid{grid-template-columns:1fr!important}}
+@media(max-width:1200px){.ws-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}.ws-run-summary-grid{grid-template-columns:1fr 1fr}.ws-runs-head{display:none}.ws-run-row{grid-template-columns:1fr;gap:.4rem;padding:.7rem}}
+@media(max-width:768px){.ws-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-prompt-form{grid-template-columns:1fr}}
+@media(max-width:576px){.ws-summary{grid-template-columns:1fr}.ws-run-summary-grid{grid-template-columns:1fr}.ws-kpi-grid{grid-template-columns:1fr}}
 
 /* ── Custom Sources: Modal ──────────────────────────────────── */
 .ws-modal-overlay{position:fixed;inset:0;padding:1rem;background:rgba(2,8,23,.66);backdrop-filter:blur(2px);z-index:5000;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease}
@@ -127,8 +184,8 @@
 <!-- ─── Page Header ───────────────────────────────────────────── -->
 <div class="pg-head">
   <div>
-    <h1><i class="fas fa-spider"></i> {% trans "Web Scraping" %}</h1>
-    <p class="pg-sub">{% trans "Automatically discover and import NLP resources from the web" %}</p>
+    <h1><i class="fas fa-robot"></i> AI Data Aggregator</h1>
+    <p class="pg-sub">Automated AI agent using search and LLM extraction to discover NLP resources.</p>
   </div>
   <div>
     <a class="ws-add-src-btn" href="{% url 'scraping:scraping_results' %}" style="text-decoration:none">
@@ -138,45 +195,89 @@
 </div>
 
 <!-- ─── Stats Grid ────────────────────────────────────────────── -->
-<div class="n-st-grid" style="grid-template-columns:repeat(5,1fr)">
-  <div class="n-st">
-    <div class="n-st-info">
-      <p class="n-st-label">{% trans "Events" %}</p>
-      <p class="n-st-num">{{ model_counts.events|default:"0" }}</p>
-      {% if pending_counts.events %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.events }} {% trans "pending" %}</span>{% endif %}
+<div class="ws-kpi-grid">
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon events"><i class="fas fa-calendar-check"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
     </div>
-    <div class="n-st-icon i1"><i class="fas fa-calendar-alt"></i></div>
+    <p class="ws-kpi-label">{% trans "Events" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.events|default:"0" }}</p>
+    {% if pending_counts.events %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.events }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
   </div>
-  <div class="n-st">
-    <div class="n-st-info">
-      <p class="n-st-label">{% trans "Tools" %}</p>
-      <p class="n-st-num">{{ model_counts.tools|default:"0" }}</p>
-      {% if pending_counts.tools %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.tools }} {% trans "pending" %}</span>{% endif %}
+
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon tools"><i class="fas fa-screwdriver-wrench"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
     </div>
-    <div class="n-st-icon i3"><i class="fas fa-tools"></i></div>
+    <p class="ws-kpi-label">{% trans "Tools" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.tools|default:"0" }}</p>
+    {% if pending_counts.tools %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.tools }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
   </div>
-  <div class="n-st">
-    <div class="n-st-info">
-      <p class="n-st-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</p>
-      <p class="n-st-num">{{ model_counts.news|default:"0" }}</p>
-      {% if pending_counts.news %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</span>{% endif %}
+
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon courses"><i class="fas fa-graduation-cap"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
     </div>
-    <div class="n-st-icon i4"><i class="fas fa-newspaper"></i></div>
+    <p class="ws-kpi-label">{% trans "Courses" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.courses|default:"0" }}</p>
+    {% if pending_counts.courses %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.courses }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
   </div>
-  <div class="n-st">
-    <div class="n-st-info">
-      <p class="n-st-label">{% trans "Courses" %}</p>
-      <p class="n-st-num">{{ model_counts.courses|default:"0" }}</p>
-      {% if pending_counts.courses %}<span class="n-st-grow" style="color:var(--n-amber)"><i class="fas fa-clock"></i> {{ pending_counts.courses }} {% trans "pending" %}</span>{% endif %}
+
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon news"><i class="fas fa-newspaper"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
     </div>
-    <div class="n-st-icon i2"><i class="fas fa-graduation-cap"></i></div>
+    <p class="ws-kpi-label">{% trans "News" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.news|default:"0" }}</p>
+    {% if pending_counts.news %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
   </div>
-  <div class="n-st">
-    <div class="n-st-info">
-      <p class="n-st-label">{% trans "Institutions" %}</p>
-      <p class="n-st-num">{{ model_counts.institutions|default:"0" }}</p>
+
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon opportunities"><i class="fas fa-briefcase"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
     </div>
-    <div class="n-st-icon i5"><i class="fas fa-university"></i></div>
+    <p class="ws-kpi-label">{% trans "Opportunities" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.opportunities|default:"0" }}</p>
+    {% if pending_counts.opportunities %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.opportunities }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
+  </div>
+
+  <div class="ws-kpi-card">
+    <div class="ws-kpi-top">
+      <span class="ws-kpi-icon corpus"><i class="fas fa-database"></i></span>
+      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
+    </div>
+    <p class="ws-kpi-label">{% trans "Corpus" %}</p>
+    <p class="ws-kpi-num">{{ model_counts.corpus|default:"0" }}</p>
+    {% if pending_counts.corpus %}
+      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.corpus }} {% trans "pending" %}</p>
+    {% else %}
+      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
+    {% endif %}
   </div>
 </div>
 
@@ -215,7 +316,7 @@
             <td>{{ media_stats.tools.without_pdfs|default:"0" }}</td>
           </tr>
           <tr>
-            <td>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</td>
+            <td>{% trans "News" %}</td>
             <td>{{ media_stats.news.storage_bytes|default:"0" }}</td>
             <td>{{ media_stats.news.with_images|default:"0" }}</td>
             <td>{{ media_stats.news.without_images|default:"0" }}</td>
@@ -231,12 +332,20 @@
             <td>{{ media_stats.courses.without_pdfs|default:"0" }}</td>
           </tr>
           <tr>
-            <td>{% trans "Institutions" %}</td>
-            <td>{{ media_stats.institutions.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.institutions.with_images|default:"0" }}</td>
-            <td>{{ media_stats.institutions.without_images|default:"0" }}</td>
-            <td>{{ media_stats.institutions.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.institutions.without_pdfs|default:"0" }}</td>
+            <td>{% trans "Opportunities" %}</td>
+            <td>{{ media_stats.opportunities.storage_bytes|default:"0" }}</td>
+            <td>{{ media_stats.opportunities.with_images|default:"0" }}</td>
+            <td>{{ media_stats.opportunities.without_images|default:"0" }}</td>
+            <td>{{ media_stats.opportunities.with_pdfs|default:"0" }}</td>
+            <td>{{ media_stats.opportunities.without_pdfs|default:"0" }}</td>
+          </tr>
+          <tr>
+            <td>{% trans "Corpus" %}</td>
+            <td>{{ media_stats.corpus.storage_bytes|default:"0" }}</td>
+            <td>{{ media_stats.corpus.with_images|default:"0" }}</td>
+            <td>{{ media_stats.corpus.without_images|default:"0" }}</td>
+            <td>{{ media_stats.corpus.with_pdfs|default:"0" }}</td>
+            <td>{{ media_stats.corpus.without_pdfs|default:"0" }}</td>
           </tr>
         </tbody>
       </table>
@@ -244,106 +353,193 @@
   </div>
 </div>
 
+  <div class="n-card" id="ai-search-prompts" style="margin-top:1rem">
+    <div class="n-card-head">
+      <h3 class="n-card-title"><i class="fas fa-magnifying-glass"></i> {% trans "AI Search Prompts" %}</h3>
+    </div>
+    <div class="n-card-body">
+      <div class="ws-prompts-wrap">
+        <form method="post" class="ws-prompt-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_search_query">
+
+          <div class="ws-form-group">
+            <label for="ws-prompt-category">{% trans "Category" %}</label>
+            <select id="ws-prompt-category" name="category" required>
+              {% for category_value, category_label in search_query_category_choices %}
+                <option value="{{ category_value }}">{{ category_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="ws-form-group">
+            <label for="ws-prompt-text">{% trans "Prompt" %}</label>
+            <input
+              id="ws-prompt-text"
+              name="query_text"
+              type="text"
+              maxlength="500"
+              required
+              placeholder="{% trans 'e.g. upcoming NLP conferences in MENA' %}"
+            >
+          </div>
+
+          <label class="ws-prompt-inline" for="ws-prompt-active">
+            <input id="ws-prompt-active" name="is_active" type="checkbox" value="1" checked>
+            <span>{% trans "Active" %}</span>
+          </label>
+
+          <button class="ws-prompt-submit" type="submit">
+            <i class="fas fa-plus"></i> {% trans "Add Prompt" %}
+          </button>
+        </form>
+
+        <div class="table-responsive">
+          <table class="n-tbl">
+            <thead>
+              <tr>
+                <th>{% trans "Category" %}</th>
+                <th>{% trans "Prompt" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Action" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for prompt in search_query_rows %}
+                <tr>
+                  <td>{{ prompt.category_label }}</td>
+                  <td>{{ prompt.query_text }}</td>
+                  <td>
+                    {% if prompt.is_active %}
+                      <span class="ws-prompt-status active">{% trans "Active" %}</span>
+                    {% else %}
+                      <span class="ws-prompt-status inactive">{% trans "Inactive" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <form method="post" class="ws-prompt-toggle-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_search_query">
+                      <input type="hidden" name="query_id" value="{{ prompt.id }}">
+                      {% if prompt.is_active %}
+                        <input type="hidden" name="is_active" value="0">
+                        <button class="ws-prompt-toggle-btn" type="submit">
+                          <i class="fas fa-pause"></i> {% trans "Deactivate" %}
+                        </button>
+                      {% else %}
+                        <input type="hidden" name="is_active" value="1">
+                        <button class="ws-prompt-toggle-btn off" type="submit">
+                          <i class="fas fa-play"></i> {% trans "Activate" %}
+                        </button>
+                      {% endif %}
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4">{% trans "No AI search prompts configured yet." %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <!-- ─── Category Tabs ─────────────────────────────────────────── -->
 <div class="n-tabs">
   {% for cat in categories %}
-  <button class="n-tab{% if forloop.first %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
+  {% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
+  <button class="n-tab{% if cat.key == 'events' %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
     <i class="fas {{ cat.meta.icon }}"></i>
-    {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+    {{ cat.meta.label }}
     {% if cat.last_run %}<span class="n-tab-badge">{{ cat.last_run.items_created }}</span>{% endif %}
   </button>
+  {% endif %}
   {% endfor %}
 </div>
 
 <!-- ─── Category Panels ───────────────────────────────────────── -->
 {% for cat in categories %}
-<div class="ws-panel{% if forloop.first %} active{% endif %}" id="panel-{{ cat.key }}">
+{% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
+<div class="ws-panel{% if cat.key == 'events' %} active{% endif %}" id="panel-{{ cat.key }}">
 
-  <!-- Source info card + run button -->
+  <!-- AI control card + run button -->
   <div class="n-card">
     <div class="n-card-head">
       <h3 class="n-card-title">
         <i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }}"></i>
-        {% if cat.key == "events" %}{% trans "Events" %}{% elif cat.key == "tools" %}{% trans "Tools" %}{% elif cat.key == "news" %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}{% elif cat.key == "courses" %}{% trans "Courses" %}{% elif cat.key == "institutions" %}{% trans "Institutions" %}{% else %}{{ cat.meta.label }}{% endif %}
+        {{ cat.meta.label }}
       </h3>
       <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
         <span class="ws-spin"></span>
-        <span class="ws-btn-label"><i class="fas fa-play"></i> {% trans "Run Scraper" %}</span>
+        <span class="ws-btn-label"><span class="ws-btn-ico"><i class="fas fa-robot"></i></span> {% trans "Run AI Agent" %}</span>
       </button>
     </div>
     <div class="n-card-body">
       <p style="margin:0 0 .5rem;font-size:.84rem;color:var(--n-text-2)">
-        {% if cat.key == "events" %}{% trans "NLP conferences, workshops, seminars, and calls for papers" %}{% elif cat.key == "tools" %}{% trans "Arabic NLP models, LLMs, speech models, and datasets from HuggingFace" %}{% elif cat.key == "news" %}{% trans "Recent NLP research papers and publications" %}{% elif cat.key == "courses" %}{% trans "NLP courses from top universities, Coursera, and YouTube" %}{% elif cat.key == "institutions" %}{% trans "Universities, research centres, and NLP labs worldwide" %}{% else %}{{ cat.meta.description }}{% endif %}
+        {{ cat.meta.description }}
       </p>
-      <div id="ws-sources-{{ cat.key }}" style="display:flex;flex-wrap:wrap;gap:.35rem"></div>
-      <div class="ws-add-src-row">
-        <button class="ws-add-src-btn" type="button" onclick="openAddSourceModal('{{ cat.key }}')">
-          <i class="fas fa-plus"></i> {% trans "Add Source" %}
-        </button>
-      </div>
+      <p style="margin:.25rem 0 .45rem;font-size:.76rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.05em">{% trans "Active Search Queries" %}</p>
+      <div id="ws-queries-{{ cat.key }}" class="ws-query-wrap"></div>
+      <p class="ws-query-note">{% trans "Manage prompts in AI Search Prompts section above." %}</p>
     </div>
   </div>
 
   <!-- Loading overlay -->
   <div class="ws-loading" id="loading-{{ cat.key }}">
     <div class="ws-big-spin"></div>
-    <p>{% trans "Scraping in progress… please wait." %}</p>
+    <p class="ws-loading-line" id="loading-line-{{ cat.key }}">{% trans "Please wait... preparing scraping job." %}</p>
+    <p class="ws-loading-progress" id="loading-progress-{{ cat.key }}"></p>
+    <div class="ws-live-log" id="log-{{ cat.key }}"></div>
   </div>
 
   <!-- Results container (populated by JS) -->
   <div id="results-{{ cat.key }}"></div>
 
-  <!-- Recent runs -->
+  <!-- AI agent activity logs -->
   {% if cat.recent_runs %}
   <div class="n-card" style="margin-top:1rem">
     <div class="n-card-head">
-      <h3 class="n-card-title"><i class="fas fa-history"></i> {% trans "Recent Runs" %}</h3>
+      <h3 class="n-card-title"><i class="fas fa-terminal"></i> {% trans "AI Agent Activity Logs" %}</h3>
     </div>
+    <div class="ws-runs-wrap">
+      <div class="ws-runs-head">
+        <span>{% trans "Status" %}</span>
+        <span>{% trans "Search Engine" %}</span>
+        <span>{% trans "LLM Engine" %}</span>
+        <span>{% trans "Extracted Items" %}</span>
+        <span>{% trans "Started At" %}</span>
+      </div>
     {% for run in cat.recent_runs %}
+    {% with created=run.items_created|default:0 skipped=run.items_skipped|default:0 %}
+    {% with extracted=created|add:skipped %}
     <div class="ws-run-row">
-      <span class="ws-run-dot {{ run.status }}"></span>
-      <span>
-        {% if run.status == "completed" %}{% trans "Completed" %}{% elif run.status == "failed" %}{% trans "Failed" %}{% elif run.status == "running" %}{% trans "Running" %}{% else %}{{ run.get_status_display }}{% endif %}
-      </span>
-      <span style="color:var(--n-text-2)">
-        — {{ run.items_created }} {% trans "created" %}, {{ run.items_skipped }} {% trans "skipped" %}
-      </span>
+      {% if run.status == "completed" %}
+      <span class="ws-run-badge success">SUCCESS</span>
+      {% elif run.status == "failed" %}
+      <span class="ws-run-badge failed">FAILED</span>
+      {% elif run.status == "running" %}
+      <span class="ws-run-badge running">RUNNING</span>
+      {% else %}
+      <span class="ws-run-badge info">{{ run.get_status_display|default:run.status|upper }}</span>
+      {% endif %}
+      <span class="ws-run-engine"><i class="fas fa-magnifying-glass"></i> {{ run.search_engine|default:"Tavily" }}</span>
+      <span class="ws-run-engine"><i class="fas fa-brain"></i> {{ run.llm_engine|default:"Groq Llama-3" }}</span>
+      <span class="ws-run-count">{% firstof run.items_scraped run.extracted_items extracted %}</span>
       <span class="ws-run-meta">{{ run.started_at|date:"d M Y, H:i" }}</span>
     </div>
+    {% endwith %}
+    {% endwith %}
     {% endfor %}
+    </div>
   </div>
   {% endif %}
 
 </div>
+{% endif %}
 {% endfor %}
-
-<div class="ws-modal-overlay" id="ws-add-source-modal" aria-hidden="true">
-  <div class="ws-modal" role="dialog" aria-modal="true" aria-labelledby="ws-modal-title">
-    <div class="ws-modal-head">
-      <h3 id="ws-modal-title"><i class="fas fa-plus-circle"></i> {% trans "Add New Source" %}</h3>
-      <button class="ws-modal-close" type="button" onclick="closeAddSourceModal()" aria-label="{% trans 'Close' %}">&times;</button>
-    </div>
-    <div class="ws-modal-body">
-      <form id="ws-add-source-form">
-        <div class="ws-form-group">
-          <label for="ws-modal-category">{% trans "Category" %}</label>
-          <input id="ws-modal-category" type="text" readonly>
-        </div>
-        <div class="ws-form-group">
-          <label for="ws-modal-url">{% trans "Source URL" %}</label>
-          <input id="ws-modal-url" type="url" required placeholder="https://example.com">
-        </div>
-        <div class="ws-form-group">
-          <label for="ws-modal-name">{% trans "Display Name (optional)" %}</label>
-          <input id="ws-modal-name" type="text" placeholder="{% trans 'Auto-detected from URL if empty' %}">
-        </div>
-        <button class="ws-form-submit" type="submit">
-          <i class="fas fa-check"></i> {% trans "Save Source" %}
-        </button>
-      </form>
-    </div>
-  </div>
-</div>
 
 {% csrf_token %}
 {% endblock %}
@@ -358,18 +554,27 @@
         found:      '{% trans "Found" %}',
         created:    '{% trans "Created" %}',
         skipped:    '{% trans "Skipped" %}',
-      passedLLM:  '{% trans "Passed LLM Validation" %}',
-      deadLettered:'{% trans "Dead-Lettered" %}',
-      reviewScrapedItems: '{% trans "Review Scraped Items" %}',
+        passedLLM:  '{% trans "Passed LLM Validation" %}',
+        deadLettered:'{% trans "Dead-Lettered" %}',
+        reviewScrapedItems: '{% trans "Review Scraped Items" %}',
         duration:   '{% trans "Duration" %}',
-      passedValidation: '{% trans "Passed Validation" %}',
-      rejectedDate: '{% trans "Rejected (Date)" %}',
-      rejectedFields: '{% trans "Rejected (Fields)" %}',
+        passedValidation: '{% trans "Passed Validation" %}',
+        rejectedDate: '{% trans "Rejected (Date)" %}',
+        rejectedFields: '{% trans "Rejected (Fields)" %}',
         warnings:   '{% trans "warning(s)" %}',
         noItems:    '{% trans "No new items found." %}',
         scraped:    '{% trans "Scraped Items" %}',
         networkErr: '{% trans "Network Error" %}',
         error:      '{% trans "Error" %}',
+        acceptOne:  '{% trans "Approve & Sync to AI/Qdrant" %}',
+        acceptAll:  '{% trans "Approve All & Sync to AI/Qdrant" %}',
+        noActivePrompt: '{% trans "No active prompt configured" %}',
+        pendingReview: '{% trans "Pending Validation Queue" %}',
+        queuedFromRun: '{% trans "Items queued from this run" %}',
+        liveNarrationStart: '{% trans "Please wait... preparing the scraping job." %}',
+        liveNarrationWork: '{% trans "Please wait... scraping websites now." %}',
+        liveNarrationCollect: '{% trans "Collecting and validating scraped candidates..." %}',
+        liveNarrationDone: '{% trans "Scraping completed. Preparing validation actions..." %}',
         title:      '{% trans "Title" %}',
         location:   '{% trans "Location" %}',
         dates:      '{% trans "Dates" %}',
@@ -380,6 +585,8 @@
         published:  '{% trans "Published" %}',
         institution:'{% trans "Institution" %}',
         level:      '{% trans "Level" %}',
+        description:'{% trans "Description" %}',
+        source:     '{% trans "Source" %}',
         name:       '{% trans "Name" %}',
         country:    '{% trans "Country" %}',
         city:       '{% trans "City" %}',
@@ -401,202 +608,55 @@
         || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
         || '';
 
-    /* ── Dynamic source lists state (loaded from DB) ──────────── */
-    var CATEGORY_KEYS = ['events', 'tools', 'news', 'courses', 'institutions'];
-    var CATEGORY_LABELS = {
-      events: '{% trans "Events" %}',
-      tools: '{% trans "Tools" %}',
-      news: '{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}',
-      courses: '{% trans "Courses" %}',
-      institutions: '{% trans "Institutions" %}'
-    };
-    var dynamicSourceLists = {
-      events: [],
-      tools: [],
-      news: [],
-      courses: [],
-      institutions: []
-    };
+    /* ── Active search queries state ───────────────────────────── */
+    var CATEGORY_KEYS = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
+    var SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
+    var activeSearchQueriesByCategory = CATEGORY_KEYS.reduce(function(acc, key) {
+      acc[key] = [];
+      return acc;
+    }, {});
+    var narrationTimers = {};
+    var pendingReviewByRun = {};
+    var MAX_DASHBOARD_REVIEW_ROWS = 20;
 
-    function resetDynamicSourceLists() {
+    function resetActiveSearchQueriesFromRows() {
       CATEGORY_KEYS.forEach(function(catKey) {
-        dynamicSourceLists[catKey] = [];
+        activeSearchQueriesByCategory[catKey] = [];
+      });
+
+      (SEARCH_QUERY_ROWS || []).forEach(function(row) {
+        if (!row || !row.is_active) return;
+        var cat = String(row.category || '').toLowerCase();
+        var text = String(row.query_text || '').trim();
+        if (!cat || !text) return;
+        if (!activeSearchQueriesByCategory[cat]) {
+          activeSearchQueriesByCategory[cat] = [];
+        }
+        activeSearchQueriesByCategory[cat].push(text);
       });
     }
 
-    function renderSourceChips(catKey) {
-      var container = document.getElementById('ws-sources-' + catKey);
+    function renderSearchQueryChips(catKey) {
+      var container = document.getElementById('ws-queries-' + catKey);
       if (!container) return;
-      var list = dynamicSourceLists[catKey] || [];
+      var list = activeSearchQueriesByCategory[catKey] || [];
       var h = '';
-      list.forEach(function(source) {
-        var sourceName = source.name || source.url || '';
-        h += '<span class="ws-src-tag">';
-        if (source.url) {
-          h += '<i class="fas fa-link"></i> <a href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">' + escapeHtml(sourceName) + '</a>';
-        } else {
-          h += '<i class="fas fa-link"></i> ' + escapeHtml(sourceName);
-        }
-        h += '<button type="button" class="ws-src-del" onclick="deleteSource(\'' + source.id + '\')" aria-label="Remove source">';
-        h += '<i class="fas fa-times"></i>';
-        h += '</button>';
+      list.forEach(function(query) {
+        h += '<span class="ws-query-tag">';
+        h += '<i class="fas fa-search"></i> ' + escapeHtml(query);
         h += '</span>';
       });
+      if (!list.length) {
+        h = '<span class="ws-query-tag"><i class="fas fa-robot"></i> ' + I18N.noActivePrompt + '</span>';
+      }
       container.innerHTML = h;
     }
 
-    function renderAllSourceChips() {
+    function renderAllSearchQueryChips() {
       CATEGORY_KEYS.forEach(function(catKey) {
-        renderSourceChips(catKey);
+        renderSearchQueryChips(catKey);
       });
     }
-
-    function deriveSourceNameFromUrl(url) {
-      try {
-        var parsed = new URL(url);
-        return parsed.hostname.replace(/^www\./, '');
-      } catch (_err) {
-        return url;
-      }
-    }
-
-    function loadCategorySources() {
-      fetch(dashboardBase + '/sources/list/', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        resetDynamicSourceLists();
-        var sources = data.sources || [];
-        sources.forEach(function(source) {
-          if (!dynamicSourceLists[source.category]) return;
-          dynamicSourceLists[source.category].push({
-            id: source.id,
-            name: source.name,
-            url: source.url || ''
-          });
-        });
-        renderAllSourceChips();
-      })
-      .catch(function() {
-        resetDynamicSourceLists();
-        renderAllSourceChips();
-      });
-    }
-
-    window.addSource = function(catKey, urlOverride, nameOverride) {
-      var input = document.getElementById('ws-add-input-' + catKey);
-      var url = (urlOverride || (input ? input.value : '') || '').trim();
-      if (!url) return;
-      if (!/^https?:\/\//i.test(url)) {
-        showToast('{% trans "Please enter a valid URL starting with http:// or https://" %}', 'error');
-        return;
-      }
-      var displayName = (nameOverride || '').trim() || deriveSourceNameFromUrl(url);
-
-      var payload = {
-        name: displayName,
-        url: url,
-        category: catKey,
-        use_rss: true,
-        use_llm_extraction: true
-      };
-
-      fetch(dashboardBase + '/sources/add/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
-      .then(function(res) {
-        if (!res.ok) {
-          showToast(res.data.error || '{% trans "Failed to add source" %}', 'error');
-          return;
-        }
-        if (input) input.value = '';
-        showToast('{% trans "Source added" %}', 'success');
-        closeAddSourceModal();
-        loadCategorySources();
-      })
-      .catch(function(err) {
-        showToast('{% trans "Network error" %}: ' + err, 'error');
-      });
-    };
-
-    window.deleteSource = function(sourceId) {
-      fetch(dashboardBase + '/sources/delete/' + sourceId + '/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' }
-      })
-      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
-      .then(function(res) {
-        if (!res.ok) {
-          showToast(res.data.error || '{% trans "Failed to delete source" %}', 'error');
-          return;
-        }
-        showToast('{% trans "Source deleted" %}', 'success');
-        loadCategorySources();
-      })
-      .catch(function(err) {
-        showToast('{% trans "Network error" %}: ' + err, 'error');
-      });
-    };
-
-    window.handleSourceInputKey = function(event, catKey) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        addSource(catKey);
-      }
-    };
-
-    var addSourceModal = document.getElementById('ws-add-source-modal');
-    var addSourceForm = document.getElementById('ws-add-source-form');
-    var addSourceUrlInput = document.getElementById('ws-modal-url');
-    var addSourceNameInput = document.getElementById('ws-modal-name');
-    var addSourceCategoryInput = document.getElementById('ws-modal-category');
-
-    window.openAddSourceModal = function(catKey) {
-      if (!addSourceModal) return;
-      addSourceModal.dataset.category = catKey;
-      addSourceCategoryInput.value = CATEGORY_LABELS[catKey] || catKey;
-      addSourceUrlInput.value = '';
-      addSourceNameInput.value = '';
-      addSourceModal.classList.add('active');
-      addSourceModal.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('ws-modal-open');
-      setTimeout(function() { addSourceUrlInput.focus(); }, 10);
-    };
-
-    window.closeAddSourceModal = function() {
-      if (!addSourceModal) return;
-      addSourceModal.classList.remove('active');
-      addSourceModal.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('ws-modal-open');
-    };
-
-    if (addSourceModal) {
-      addSourceModal.addEventListener('click', function(event) {
-        if (event.target === addSourceModal) {
-          closeAddSourceModal();
-        }
-      });
-    }
-
-    if (addSourceForm) {
-      addSourceForm.addEventListener('submit', function(event) {
-        event.preventDefault();
-        var catKey = addSourceModal ? addSourceModal.dataset.category : '';
-        if (!catKey) return;
-        addSource(catKey, addSourceUrlInput.value, addSourceNameInput.value);
-      });
-    }
-
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape' && addSourceModal && addSourceModal.classList.contains('active')) {
-        closeAddSourceModal();
-      }
-    });
-
     /* ── Tab switching ─────────────────────────────────────────── */
     window.switchTab = function(cat) {
         document.querySelectorAll('.n-tab').forEach(function(t){ t.classList.remove('on'); });
@@ -607,28 +667,120 @@
         if (panel) panel.classList.add('active');
     };
 
-    /* ── Run scraper ───────────────────────────────────────────── */
+    function getLoadingRefs(cat) {
+      return {
+        loading: document.getElementById('loading-' + cat),
+        line: document.getElementById('loading-line-' + cat),
+        progress: document.getElementById('loading-progress-' + cat),
+        log: document.getElementById('log-' + cat)
+      };
+    }
+
+    function resetLiveNarration(cat) {
+      var refs = getLoadingRefs(cat);
+      if (!refs.loading) return;
+      if (refs.line) refs.line.textContent = I18N.liveNarrationStart;
+      if (refs.progress) refs.progress.textContent = '';
+      if (refs.log) refs.log.innerHTML = '';
+    }
+
+    function setLoadingLine(cat, text) {
+      var refs = getLoadingRefs(cat);
+      if (refs.line) refs.line.textContent = text || '';
+    }
+
+    function setLoadingProgress(cat, text) {
+      var refs = getLoadingRefs(cat);
+      if (refs.progress) refs.progress.textContent = text || '';
+    }
+
+    function appendLog(cat, message, kind) {
+      var refs = getLoadingRefs(cat);
+      var log = refs.log;
+      if (!log) return;
+      var clean = String(message || '').trim();
+      if (!clean) return;
+
+      var last = log.lastElementChild;
+      if (last && last.getAttribute('data-raw-message') === clean) {
+        return;
+      }
+
+      var row = document.createElement('div');
+      row.className = 'ws-log-item ' + (kind || 'info');
+      row.setAttribute('data-raw-message', clean);
+      row.innerHTML = '<span class="dot"></span><span>' + escapeHtml(clean) + '</span>';
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function startNarrationHeartbeat(cat) {
+      stopNarrationHeartbeat(cat);
+      var lines = [
+        I18N.liveNarrationStart,
+        I18N.liveNarrationWork,
+        I18N.liveNarrationCollect
+      ];
+      var idx = 0;
+      setLoadingLine(cat, lines[0]);
+      appendLog(cat, lines[0], 'info');
+      narrationTimers[cat] = window.setInterval(function() {
+        idx = (idx + 1) % lines.length;
+        setLoadingLine(cat, lines[idx]);
+      }, 5000);
+    }
+
+    function stopNarrationHeartbeat(cat) {
+      if (!narrationTimers[cat]) return;
+      window.clearInterval(narrationTimers[cat]);
+      delete narrationTimers[cat];
+    }
+
+    function humanizeStatusUpdate(wsData) {
+      var message = String(wsData.message || '').trim();
+      var source = String(wsData.current_source || '').trim();
+      var lower = message.toLowerCase();
+
+      if (lower.indexOf('refused connection') !== -1 || lower.indexOf('connection') !== -1 || lower.indexOf('timeout') !== -1 || lower.indexOf('http ') !== -1) {
+        return { text: message || ('Website ' + source + ' refused connection, skipping...'), kind: 'error' };
+      }
+      if (lower.indexOf('completed') !== -1) {
+        return { text: I18N.liveNarrationDone, kind: 'success' };
+      }
+      if (source) {
+        return { text: 'Scraping website: ' + source, kind: 'info' };
+      }
+      if (message) {
+        return { text: message, kind: 'info' };
+      }
+      return { text: I18N.liveNarrationWork, kind: 'info' };
+    }
+
+    /* ── Run AI agent ──────────────────────────────────────────── */
     window.runScraper = function(cat) {
         var btn     = document.getElementById('btn-' + cat);
         var loading = document.getElementById('loading-' + cat);
         var results = document.getElementById('results-' + cat);
       var payload = {
         category: cat,
-        sources_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
-          acc[key] = (dynamicSourceLists[key] || []).map(function(src) {
-            return src.name || src.url || '';
-          });
+        queries_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
+          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
           return acc;
         }, {}),
-        sources_for_category: (dynamicSourceLists[cat] || []).map(function(src) {
-          return src.name || src.url || '';
-        })
+        queries_for_category: (activeSearchQueriesByCategory[cat] || []).slice(),
+        sources_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
+          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
+          return acc;
+        }, {}),
+        sources_for_category: (activeSearchQueriesByCategory[cat] || []).slice()
       };
 
         btn.classList.add('loading');
         btn.disabled = true;
         loading.classList.add('active');
         results.innerHTML = '';
+  resetLiveNarration(cat);
+  startNarrationHeartbeat(cat);
 
         var dashboardUrl = '{% url "scraping:dashboard" %}';
         var runUrl = dashboardUrl.replace(/\/?$/, '/run/') + cat + '/';
@@ -652,7 +804,10 @@
               updateStatusBadge(cat, wsData.status || 'running');
               updateItemsCounter(cat, Number(wsData.items_scraped || 0), Number(wsData.items_failed || 0));
               if (wsData.current_source) updateCurrentSource(cat, wsData.current_source);
-              if (wsData.message) appendLog(cat, wsData.message);
+
+              var narrative = humanizeStatusUpdate(wsData);
+              setLoadingLine(cat, narrative.text);
+              appendLog(cat, narrative.text, narrative.kind);
 
               if (wsData.status === 'completed' || wsData.status === 'failed') {
                 var dashboardUrl = '{% url "scraping:dashboard" %}';
@@ -673,6 +828,7 @@
             }
         })
         .catch(function(err) {
+            stopNarrationHeartbeat(cat);
             loading.classList.remove('active');
             btn.classList.remove('loading');
             btn.disabled = false;
@@ -735,14 +891,11 @@
     }
 
     function updateProgressBar(cat, progress, total) {
-      var loading = document.getElementById('loading-' + cat);
-      if (!loading) return;
       var safeTotal = total > 0 ? total : 0;
       if (safeTotal > 0) {
-        loading.innerHTML = '<span class="ws-spin"></span> ' +
-          escapeHtml(String(progress)) + ' / ' + escapeHtml(String(safeTotal));
+        setLoadingProgress(cat, 'Queries processed: ' + progress + ' / ' + safeTotal);
       } else {
-        loading.innerHTML = '<span class="ws-spin"></span> Running...';
+        setLoadingProgress(cat, 'Queries processed: running...');
       }
     }
 
@@ -760,31 +913,29 @@
     }
 
     function updateCurrentSource(cat, sourceName) {
-      var loading = document.getElementById('loading-' + cat);
-      if (!loading) return;
-      loading.innerHTML = '<span class="ws-spin"></span> ' + escapeHtml(sourceName);
-    }
-
-    function appendLog(cat, message) {
-      var results = document.getElementById('results-' + cat);
-      if (!results) return;
-      results.dataset.lastMessage = String(message || '');
+      if (!sourceName) return;
+      setLoadingLine(cat, 'Scraping website: ' + sourceName);
     }
 
     /* ── Finish ────────────────────────────────────────────────── */
     function finishScraper(cat, data) {
         var btn     = document.getElementById('btn-' + cat);
         var loading = document.getElementById('loading-' + cat);
+      stopNarrationHeartbeat(cat);
         loading.classList.remove('active');
         btn.classList.remove('loading');
         btn.disabled = false;
 
         if (data.status === 'error' || data.status === 'failed') {
             var msg = data.message || (data.errors && data.errors.join(', ')) || 'Unknown error';
+        setLoadingLine(cat, msg);
+        appendLog(cat, msg, 'error');
             document.getElementById('results-' + cat).innerHTML =
                 '<div class="ws-errors"><summary>'+I18N.error+'</summary><ul><li>'+escapeHtml(msg)+'</li></ul></div>';
             return;
         }
+      setLoadingLine(cat, I18N.liveNarrationDone);
+      appendLog(cat, I18N.liveNarrationDone, 'success');
         renderResults(cat, data);
     }
 
@@ -796,12 +947,17 @@
       var passedValidation = Number(validationStats.passed || data.items_created || 0);
       var deadLettered = Number(data.dead_lettered || data.items_skipped || 0);
       var runId = data.run_id || '';
+      var pendingReview = Array.isArray(data.pending_review) ? data.pending_review : [];
+      var pendingCount = Number(data.pending_review_count || pendingReview.length || 0);
       var reviewUrl = '{% url "scraping:scraping_results" %}' + (runId ? ('?run_id=' + encodeURIComponent(runId)) : '');
       var rejectedDate = Number(validationStats.failed_date || 0);
       var rejectedFreshness = Number(validationStats.failed_freshness || 0);
       var rejectedFields = Number(validationStats.failed_fields || 0);
       var autoFilledArabic = Number(validationStats.auto_filled || 0);
       container.dataset.failedFreshness = String(rejectedFreshness);
+      if (runId) {
+        pendingReviewByRun[runId] = pendingReview;
+      }
 
         /* Summary */
         h += '<div class="n-card" style="margin-top:1rem"><div class="ws-run-summary">';
@@ -810,7 +966,12 @@
         h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-green)">'+passedValidation+'</div><div class="lbl">'+I18N.passedLLM+'</div></div>';
         h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-red)">'+deadLettered+'</div><div class="lbl">'+I18N.deadLettered+'</div></div>';
         h += '</div>';
+        h += '<div class="ws-review-actions">';
         h += '<a class="ws-review-link" href="'+reviewUrl+'">'+I18N.reviewScrapedItems+' <i class="fas fa-arrow-right"></i></a>';
+        if (runId && pendingCount > 0) {
+          h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\''+escapeJs(runId)+'\')"><i class="fas fa-check-double"></i> '+I18N.acceptAll+' ('+pendingCount+')</button>';
+        }
+        h += '</div>';
         h += '</div>';
       h += '<div class="ws-validation-summary">';
       h += '<span class="ws-val-ok">'+passedValidation+' items passed validation</span> • ';
@@ -818,6 +979,10 @@
       h += '<span class="ws-val-fields">'+rejectedFields+' rejected (missing fields)</span> • ';
       h += '<span class="ws-val-autofill">'+autoFilledArabic+' auto-filled Arabic fields</span>';
       h += '</div>';
+
+      if (runId && pendingCount > 0) {
+        h += buildPendingReviewQueue(runId, pendingReview);
+      }
 
         /* Errors */
         if (data.errors && data.errors.length) {
@@ -838,21 +1003,60 @@
         container.innerHTML = h;
     }
 
+    function buildPendingReviewQueue(runId, pendingReview) {
+      var rows = pendingReview.slice(0, MAX_DASHBOARD_REVIEW_ROWS);
+      var h = '<div class="ws-review-queue">';
+      h += '<div class="ws-review-queue-head">';
+      h += '<div>';
+      h += '<div class="ws-review-queue-title"><i class="fas fa-user-check"></i> ' + I18N.pendingReview + ' <span class="n-tab-badge">' + pendingReview.length + '</span></div>';
+      h += '<div class="ws-review-queue-note">' + I18N.queuedFromRun + '</div>';
+      h += '</div>';
+      h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\'' + escapeJs(runId) + '\')"><i class="fas fa-check-double"></i> ' + I18N.acceptAll + '</button>';
+      h += '</div>';
+      h += '<div class="table-responsive"><table class="n-tbl"><thead><tr>';
+      h += '<th>#</th><th>' + I18N.title + '</th><th>{% trans "Category" %}</th><th>{% trans "Source" %}</th><th>{% trans "Action" %}</th>';
+      h += '</tr></thead><tbody>';
+
+      rows.forEach(function(item, idx) {
+        var sourceLink = item.source_url
+          ? '<a href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a>'
+          : '—';
+        h += '<tr>';
+        h += '<td>' + (idx + 1) + '</td>';
+        h += '<td>' + escapeHtml(item.title || '') + '</td>';
+        h += '<td>' + escapeHtml(item.category_label || item.category || '') + '</td>';
+        h += '<td>' + sourceLink + '</td>';
+        h += '<td><button type="button" class="ws-row-accept" onclick="acceptPendingItem(\'' + escapeJs(item.id) + '\',\'' + escapeJs(item.category || '') + '\',\'' + escapeJs(runId) + '\')"><i class="fas fa-check"></i> ' + I18N.acceptOne + '</button></td>';
+        h += '</tr>';
+      });
+
+      h += '</tbody></table></div>';
+      if (pendingReview.length > rows.length) {
+        h += '<div class="ws-review-queue-note" style="margin-top:.5rem">'
+          + '{% trans "Showing first" %} ' + rows.length + ' {% trans "items. Use Review Scraped Items to manage the full queue." %}'
+          + '</div>';
+      }
+      h += '</div>';
+      return h;
+    }
+
     /* ── Build results table ───────────────────────────────────── */
     function buildTable(cat, items) {
         var cols = {
-            events:       [I18N.title, I18N.location, I18N.dates, I18N.link],
-            tools:        [I18N.title, I18N.type, I18N.author, I18N.downloads, I18N.link],
-            news:         [I18N.title, I18N.published, I18N.link],
-            courses:      [I18N.title, I18N.institution, I18N.level, I18N.link],
-            institutions: [I18N.name, I18N.type, I18N.country, I18N.city, I18N.link],
+        events:        [I18N.title, I18N.location, I18N.type, I18N.link],
+        tools:         [I18N.title, I18N.type, I18N.description, I18N.link],
+        courses:       [I18N.title, I18N.type, I18N.description, I18N.link],
+        news:          [I18N.title, I18N.type, I18N.description, I18N.link],
+        opportunities: [I18N.title, I18N.type, I18N.description, I18N.link],
+        corpus:        [I18N.title, I18N.type, I18N.description, I18N.link],
         };
         var fields = {
-            events:       ['title','location','dates','url'],
-            tools:        ['title','type','author','downloads','url'],
-            news:         ['title','published','url'],
-            courses:      ['title','institution','level','url'],
-            institutions: ['title','type','country','city','url'],
+        events:        ['title','location','type','url'],
+        tools:         ['title','type','description','url'],
+        courses:       ['title','type','description','url'],
+        news:          ['title','type','description','url'],
+        opportunities: ['title','type','description','url'],
+        corpus:        ['title','type','description','url'],
         };
         var cArr = cols[cat] || [I18N.title];
         var fArr = fields[cat] || ['title'];
@@ -886,6 +1090,72 @@
         return d.innerHTML;
     }
 
+    function escapeJs(text) {
+        return String(text || '')
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\\'");
+    }
+
+    function submitPostForm(url, fields) {
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = url;
+      form.style.display = 'none';
+
+      function appendInput(name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = String(value == null ? '' : value);
+        form.appendChild(input);
+      }
+
+      appendInput('csrfmiddlewaretoken', csrfToken);
+      Object.keys(fields || {}).forEach(function(key) {
+        var value = fields[key];
+        if (Array.isArray(value)) {
+          value.forEach(function(item) {
+            appendInput(key, item);
+          });
+          return;
+        }
+        appendInput(key, value);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    window.acceptPendingItem = function(itemId, category, runId) {
+      if (!itemId) return;
+      submitPostForm(dashboardBase + '/results/validate/' + encodeURIComponent(itemId) + '/', {
+        category: category || '',
+        run_id: runId || ''
+      });
+    };
+
+    window.acceptAllPendingItems = function(runId) {
+      var pendingItems = pendingReviewByRun[runId] || [];
+      if (!pendingItems.length) {
+        showToast('No pending items for this run.', 'info');
+        return;
+      }
+
+      var categoryHint = (pendingItems[0] && pendingItems[0].category) || '';
+      var itemTokens = pendingItems.map(function(item) {
+        var cat = String(item.category || '').toLowerCase();
+        var id = String(item.id || '');
+        return cat ? (cat + ':' + id) : id;
+      });
+
+      submitPostForm(dashboardBase + '/results/bulk-action/', {
+        action: 'validate',
+        category: categoryHint,
+        run_id: runId || '',
+        item_ids: itemTokens
+      });
+    };
+
      /* ================================================================
        Utilities
        ================================================================ */
@@ -905,7 +1175,8 @@
     };
 
     /* ── Initial load ──────────────────────────────────────────── */
-    loadCategorySources();
+    resetActiveSearchQueriesFromRows();
+    renderAllSearchQueryChips();
 
 })();
 </script>

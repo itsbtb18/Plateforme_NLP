@@ -109,7 +109,6 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
                     "use_llm_extraction",
                     "verify_ssl",
                     "proxy_url",
-                    "force_playwright",
                     "scrape_config",
                 ),
             },
@@ -311,7 +310,9 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         if SelectorDiscoveryEngine is None:
             self.message_user(
                 request,
-                _("Selector discovery dependencies are not installed in this environment."),
+                _(
+                    "Selector discovery dependencies are not installed in this environment."
+                ),
                 level=messages.ERROR,
             )
             return

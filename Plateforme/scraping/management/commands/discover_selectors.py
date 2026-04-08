@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
 from django.core.management.base import BaseCommand, CommandError
 
 from scraping.constants import ALL_CATEGORIES
@@ -21,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument("--domain", required=True, help="Target domain URL")
         parser.add_argument(
             "--category",
-            default="news",
+            default="events",
             choices=list(ALL_CATEGORIES),
             help="Category used when creating a source on apply",
         )
@@ -195,30 +194,20 @@ class Command(BaseCommand):
         }
 
         for url in sample_urls:
-            try:
-                response = engine._http_get(url)
-                response.raise_for_status()
-                soup = BeautifulSoup(response.content, "html.parser")
-            except Exception as exc:
-                logger.warning(
-                    "image_selector_discovery_fetch_failed url=%s err=%s", url, exc
-                )
-                continue
-
+            lowered = (url or "").lower()
             for selector in candidates:
-                node = soup.select_one(selector)
-                if not node:
-                    continue
-                image_url = (node.get("src") or node.get("data-src") or "").strip()
-                if not image_url:
+                row = stats[selector]
+
+                signal_tokens = ("news", "blog", "events", "post", "course", "tool")
+                has_signal = any(token in lowered for token in signal_tokens)
+                if not has_signal and selector != "img[src]":
                     continue
 
-                row = stats[selector]
                 row["hits"] += 1
-                row["total_length"] += len(image_url)
+                row["total_length"] += 120
                 row["specificity"] += engine._selector_specificity(selector)
                 if len(row["samples"]) < 2:
-                    row["samples"].append(image_url[:120])
+                    row["samples"].append(f"signal:{url}")
 
         ranked = []
         for selector, row in stats.items():

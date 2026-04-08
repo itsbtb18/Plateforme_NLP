@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
+
 from scraping.scrapers.courses import CourseScraper
 from scraping.scrapers.events import EventScraper
-from scraping.scrapers.institutions import InstitutionScraper
 from scraping.scrapers.feed import NewsScraper
 from scraping.scrapers.tools import _extract_language_support, _resolve_tool_type
 
@@ -97,21 +97,6 @@ def run_scraper_on_html(category: str, html: str) -> list[dict]:
                 }
             )
         return merged
-
-    if category == "institutions":
-        scraper = InstitutionScraper.__new__(InstitutionScraper)
-        cards = scraper._extract_lab_cards(
-            html=html,
-            page_url="https://labs.example.org/index",
-        )
-        return [
-            {
-                "title": item.get("name", ""),
-                "url": item.get("url", ""),
-                "date": "",
-            }
-            for item in cards
-        ]
 
     if category == "tools":
         soup = BeautifulSoup(html, "html.parser")
