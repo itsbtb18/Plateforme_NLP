@@ -155,24 +155,14 @@ SKIP_HTTP_STATUSES: frozenset[int] = frozenset({403, 404, 422})
 
 CATEGORY_EVENTS: str = "events"
 CATEGORY_TOOLS: str = "tools"
-CATEGORY_NEWS: str = "news"
 CATEGORY_COURSES: str = "courses"
-CATEGORY_INSTITUTIONS: str = "institutions"
 
 ALL_CATEGORIES: tuple[str, ...] = (
     CATEGORY_EVENTS,
     CATEGORY_TOOLS,
-    CATEGORY_NEWS,
     CATEGORY_COURSES,
-    CATEGORY_INSTITUTIONS,
 )
 """Exhaustive tuple of valid scraping category keys."""
-
-NEWS_DEFAULT_LISTING_PATHS: list[str] = os.getenv(
-    "SCRAPING_NEWS_LISTING_PATHS",
-    "/news,/actualites,/publications,/research,/blog,/fr/news",
-).split(",")
-"""Default institutional listing paths used by the news scraper."""
 
 EVENT_PRIORITY_SCORES: dict[str, int] = {
     "global": int(os.getenv("SCRAPING_EVENT_PRIORITY_GLOBAL", "25")),
@@ -332,11 +322,9 @@ CUSTOM_SCRAPER_CLEANUP_SELECTORS: tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 
 LEGACY_FIXED_SCHEDULE_NAMES: tuple[str, ...] = (
-    "Auto-scrape News Daily",
     "Auto-scrape Events Weekly",
     "Auto-scrape Tools Weekly",
     "Auto-scrape Courses Monthly",
-    "Auto-scrape Institutions Monthly",
 )
 """Legacy periodic-task names disabled by sync_scraping_schedules command."""
 
@@ -395,10 +383,8 @@ PDF_URL_PATTERNS: list[str] = os.getenv(
 # ---------------------------------------------------------------------------
 
 SCRAPER_REGISTRY: dict[str, str] = {
-    "news": "scraping.scrapers.feed.NewsScraper",
     "events": "scraping.scrapers.events.EventScraper",
     "courses": "scraping.scrapers.courses.CourseScraper",
-    "institutions": "scraping.scrapers.institutions.InstitutionScraper",
     "tools": "scraping.scrapers.tools.ToolScraper",
 }
 """Map of category to scraper class path for dynamic loading."""

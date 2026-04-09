@@ -19,6 +19,8 @@ from app.schemas import (
 from app.config import get_settings
 from typing import Optional
 import logging
+import tempfile
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -62,6 +64,17 @@ class DocumentService:
         if fname.endswith(".pdf"):
             pages = processor.extract_pdf_text(file_bytes)
             raw_text = "\n\n".join(p["content"] for p in pages)
+            if not raw_text.strip():
+                # PyPDF2 could not extract text (scanned/complex PDF).
+                # Save the raw bytes path so the Celery worker can retry
+                # with Docling asynchronously — avoids blocking the
+                # FastAPI event loop and causing HTTP timeouts.
+                logger.info(
+                    "PyPDF2 extraction empty for '%s' — "
+                    "deferring to Celery/Docling",
+                    filename,
+                )
+                raw_text = ""  # Celery will re-extract via Docling
             file_type = "pdf"
         elif fname.endswith((".docx", ".doc")):
             pages = processor.extract_docx_text(file_bytes)
@@ -75,7 +88,9 @@ class DocumentService:
             raw_text = file_bytes.decode("utf-8", errors="replace")
             file_type = "txt"
 
-        if not raw_text.strip():
+        # For PDFs, allow empty text through — Celery will retry with Docling
+        needs_docling = (file_type == "pdf" and not raw_text.strip())
+        if not raw_text.strip() and not needs_docling:
             raise ValueError("No text content extracted from file")
 
         # Verify session exists
@@ -140,6 +155,9 @@ class DocumentService:
                     "Replaced %d existing copy/copies of '%s'", len(existing), filename
                 )
 
+        # Avoid Postgres Null byte error
+        safe_raw_text = raw_text.replace("\x00", "")[:200_000] if raw_text else ""
+
         # PostgreSQL: document metadata + ownership
         doc = UserDocument(
             user_id=effective_user,
@@ -147,8 +165,8 @@ class DocumentService:
             filename=filename,
             file_type=file_type,
             file_size_bytes=file_size,
-            raw_text=raw_text[:200_000],
-            status="pending",
+            raw_text=safe_raw_text,
+            status="pending_docling" if needs_docling else "pending",
             source=source,
             platform_document_id=platform_document_id,
         )

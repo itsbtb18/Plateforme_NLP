@@ -26,11 +26,20 @@ from .metrics import (
     update_scrape_queue_lag_metrics,
     update_source_health_metrics,
 )
-from .scraper_manager import EventScraperManager
 from .scrapers import CATEGORY_META, get_scraper
 from .validators import ContentValidator, NetworkValidator
 
 logger = logging.getLogger(__name__)
+
+SUPPORTED_SCRAPER_CATEGORIES = (
+    "events",
+    "tools",
+    "courses",
+    "news",
+    "opportunities",
+    "corpus",
+)
+SUPPORTED_SCRAPER_CATEGORY_SET = set(SUPPORTED_SCRAPER_CATEGORIES)
 
 
 @shared_task(name="scraping.tasks.update_adaptive_schedules")
@@ -305,7 +314,7 @@ def run_scraper_task(
     Execute a scraper in the background and update the ScrapingRun record.
 
     Args:
-        category: One of the CATEGORY_META keys (events, tools, news, courses, institutions).
+        category: One of: events, tools, courses, news, opportunities, corpus.
         run_id: UUID string of the ScrapingRun record to update. If ``None``, one is created.
         allow_run_recreate: Recreate a missing run when ``run_id`` does not exist.
         user_id: Optional user id that triggered the run.
@@ -319,8 +328,8 @@ def run_scraper_task(
     """
     from .models import ScrapingRun, ScrapingSource
 
+    category = str(category).strip().lower() if category is not None else None
     started_at = time.monotonic()
-    category_tier = str(CATEGORY_META.get(category, {}).get("tier", 4))
 
     # Resolve or create the ScrapingRun record
     triggered_by = None
@@ -337,7 +346,15 @@ def run_scraper_task(
         if source is None:
             raise ValueError(f"Active source {source_id} not found")
 
-        category = category or source.category
+        category = (
+            (category or str(source.category or "").strip().lower()).strip().lower()
+        )
+        if category not in SUPPORTED_SCRAPER_CATEGORY_SET:
+            raise ValueError(
+                "Unsupported category: "
+                f"{category}. Supported categories: "
+                f"{', '.join(SUPPORTED_SCRAPER_CATEGORIES)}"
+            )
 
         if run_id:
             run = ScrapingRun.objects.filter(id=run_id).first()
@@ -408,6 +425,20 @@ def run_scraper_task(
             "duration": run.duration,
         }
 
+    if not category:
+        raise ValueError(
+            "Category is required. Supported categories: "
+            f"{', '.join(SUPPORTED_SCRAPER_CATEGORIES)}"
+        )
+    if category not in SUPPORTED_SCRAPER_CATEGORY_SET:
+        raise ValueError(
+            "Unsupported category: "
+            f"{category}. Supported categories: "
+            f"{', '.join(SUPPORTED_SCRAPER_CATEGORIES)}"
+        )
+
+    category_tier = str(CATEGORY_META.get(category, {}).get("tier", 4))
+
     if run_id:
         try:
             run = ScrapingRun.objects.get(id=run_id)
@@ -466,7 +497,7 @@ def run_scraper_task(
         message="Scraping task started",
     )
 
-    if category not in CATEGORY_META:
+    if category not in SUPPORTED_SCRAPER_CATEGORY_SET:
         run.status = "failed"
         run.errors = f"Unknown category: {category}"
         run.completed_at = timezone.now()
@@ -499,6 +530,7 @@ def run_scraper_task(
 
         run.items_found = result.get("items_found", 0)
         run.items_created = result.get("items_created", 0)
+        run.items_updated = result.get("items_updated", 0)
         run.items_skipped = result.get("items_skipped", 0)
         run.errors = "\n".join(result.get("errors", []))
         run.status = "completed"
@@ -520,6 +552,10 @@ def run_scraper_task(
         scrape_items_total.labels(category=category, outcome="created").inc(
             run.items_created
         )
+        if run.items_updated:
+            scrape_items_total.labels(category=category, outcome="updated").inc(
+                run.items_updated
+            )
         scrape_items_total.labels(category=category, outcome="skipped").inc(
             run.items_skipped
         )
@@ -602,6 +638,7 @@ def run_scraper_task(
             "run_id": str(run.pk),
             "items_found": run.items_found,
             "items_created": run.items_created,
+            "items_updated": run.items_updated,
             "items_skipped": run.items_skipped,
             "errors": result.get("errors", []),
             "results": result.get("results", []),
@@ -671,7 +708,7 @@ def run_scraper_task(
     queue=SCRAPING_CELERY_QUEUE,
 )
 def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
-    """Example integration entrypoint for the production-ready events pipeline."""
+    """Run the events category using the active scraper registry."""
     from .models import ScrapingRun
 
     run = None
@@ -684,16 +721,16 @@ def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
     run.status = "running"
     run.save(update_fields=["task_id", "status"])
 
-    manager = EventScraperManager(run_id=str(run.id))
+    scraper = get_scraper("events")
     started_at = time.monotonic()
 
     try:
-        result = manager.run()
+        summary = scraper.run()
 
-        run.items_found = int(result.get("created", 0)) + int(result.get("skipped", 0))
-        run.items_created = int(result.get("created", 0))
-        run.items_skipped = int(result.get("skipped", 0))
-        run.errors = "\n".join(result.get("save_errors", []))
+        run.items_found = int(summary.get("items_found", 0))
+        run.items_created = int(summary.get("items_created", 0))
+        run.items_skipped = int(summary.get("items_skipped", 0))
+        run.errors = "\n".join(summary.get("errors", []))
         run.status = "completed"
         run.completed_at = timezone.now()
         run.save(
@@ -725,7 +762,7 @@ def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
             "items_found": run.items_found,
             "items_created": run.items_created,
             "items_skipped": run.items_skipped,
-            "errors": result.get("source_failures", {}),
+            "errors": summary.get("errors", []),
         }
     except Exception as exc:
         run.status = "failed"

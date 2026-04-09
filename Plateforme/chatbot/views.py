@@ -250,7 +250,10 @@ def chatbot_interface(request):
     # If entity context exists, pass it to the template so the JS can
     # auto-fire a platform_entity explain request on page load.
     entity_context_json = "{}"
-    session_ctx = request.session.get("chatbot_card_context")
+    session_ctx = request.session.pop("chatbot_card_context", None)
+    request.session.pop("chatbot_context_prompt", None)
+    request.session.modified = True
+    
     if isinstance(session_ctx, dict) and session_ctx.get("title"):
         import json as _json
         entity_context_json = _json.dumps(session_ctx)

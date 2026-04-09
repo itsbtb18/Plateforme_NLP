@@ -93,9 +93,6 @@ class ScrapingSettings:
     GLOBAL_FALLBACK_PROXY: str = _env("SCRAPING_GLOBAL_FALLBACK_PROXY", "")
     """Fallback proxy URL when a source has no proxy configured."""
 
-    PLAYWRIGHT_TIMEOUT_MS: int = _env_int("SCRAPING_PLAYWRIGHT_TIMEOUT_MS", 30_000)
-    """Playwright page-load timeout in milliseconds."""
-
     WAYBACK_MAX_AGE_DAYS: int = _env_int("SCRAPING_WAYBACK_MAX_AGE_DAYS", 90)
     """Maximum age in days for Wayback Machine snapshots."""
 
@@ -238,6 +235,18 @@ class ScrapingSettings:
     EVENTS_COMPLETENESS_MIN: int = _env_int("SCRAPING_EVENTS_COMPLETENESS_MIN", 20)
     """Minimum completeness score required before saving an event."""
 
+    EVENTS_MIN_ITEMS_PER_RUN: int = _env_int("SCRAPING_EVENTS_MIN_ITEMS_PER_RUN", 10)
+    """Target minimum number of event items to save per run when available."""
+
+    EVENTS_SEARCH_QUERY_LIMIT: int = _env_int("SCRAPING_EVENTS_SEARCH_QUERY_LIMIT", 14)
+    """Maximum number of Tavily queries executed in one events run."""
+
+    EVENTS_EXTRACTION_BATCH_SIZE: int = _env_int("SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE", 8)
+    """Number of Tavily rows sent per LLM extraction batch."""
+
+    EVENTS_EXTRACTION_MAX_BATCHES: int = _env_int("SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES", 4)
+    """Maximum extraction batches processed per events run."""
+
     COURSES_COMPLETENESS_MIN: int = _env_int("SCRAPING_COURSES_COMPLETENESS_MIN", 40)
     """Minimum completeness score required before saving a course."""
 
@@ -252,9 +261,6 @@ class ScrapingSettings:
 
     DISCOVERY_SAMPLE_COUNT: int = _env_int("SCRAPING_DISCOVERY_SAMPLE_COUNT", 5)
     """Number of sample pages used for selector discovery."""
-
-    PLAYWRIGHT_CONTENT_THRESHOLD: int = _env_int("SCRAPING_PLAYWRIGHT_THRESHOLD", 200)
-    """Minimum content length to accept Playwright-rendered page."""
 
     # ── CIRCUIT BREAKER ─────────────────────────────────────────────────
     CIRCUIT_THRESHOLD: float = _env_float("SCRAPING_CIRCUIT_THRESHOLD", 25.0)

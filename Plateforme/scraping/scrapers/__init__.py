@@ -2,18 +2,20 @@
 Scraper registry — maps category names to scraper classes.
 """
 
+from .corpus import CorpusScraper
 from .courses import CourseScraper
 from .events import EventScraper
-from .institutions import InstitutionScraper
-from .feed import NewsScraper
+from .news import NewsScraper
+from .opportunities import OpportunityScraper
 from .tools import ToolScraper
 
 SCRAPERS = {
     "events": EventScraper,
     "tools": ToolScraper,
-    "news": NewsScraper,
     "courses": CourseScraper,
-    "institutions": InstitutionScraper,
+    "news": NewsScraper,
+    "opportunities": OpportunityScraper,
+    "corpus": CorpusScraper,
 }
 
 CATEGORY_META = {
@@ -34,44 +36,46 @@ CATEGORY_META = {
         "label": "Tools",
         "icon": "fa-tools",
         "color": "#10b981",
-        "description": "Arabic NLP models, LLMs, speech models, and datasets from HuggingFace Hub",
+        "description": "Arabic NLP models, LLMs, speech models, and datasets",
         "sources": [
-            "HuggingFace Model Hub API",
             "Curated Arabic LLMs & Speech Models",
             "Curated HuggingFace Arabic Datasets",
+        ],
+    },
+    "courses": {
+        "label": "Courses",
+        "icon": "fa-graduation-cap",
+        "color": "#3b82f6",
+        "description": "NLP courses from universities and curated learning providers",
+        "sources": [
+            "Curated University Courses",
         ],
     },
     "news": {
         "label": "News",
         "icon": "fa-newspaper",
         "color": "#f59e0b",
-        "description": "Recent NLP research papers and publications",
-        "sources": ["arXiv API (cs.CL)", "Semantic Scholar API"],
-    },
-    "courses": {
-        "label": "Courses",
-        "icon": "fa-graduation-cap",
-        "color": "#3b82f6",
-        "description": "NLP courses from top universities, Coursera, and YouTube",
+        "description": "Arabic NLP and AI news and research highlights",
         "sources": [
-            "MIT OpenCourseWare",
-            "Coursera NLP Courses",
-            "YouTube NLP Playlists",
-            "Curated University Courses",
+            "Tavily Search + Groq",
         ],
     },
-    "institutions": {
-        "label": "Institutions",
-        "icon": "fa-university",
-        "color": "#8b5cf6",
-        "description": "Universities, research centres, and NLP labs worldwide",
+    "opportunities": {
+        "label": "Opportunities",
+        "icon": "fa-briefcase",
+        "color": "#0ea5e9",
+        "description": "PhD, PostDoc, jobs, and grants in NLP/AI",
         "sources": [
-            "ROR API",
-            "OpenAlex API",
-            "Algerian Universities",
-            "African & Arabic NLP Labs",
-            "North African Institutions",
-            "Arabic/Gulf Institutions",
+            "Tavily Search + Groq",
+        ],
+    },
+    "corpus": {
+        "label": "Corpus",
+        "icon": "fa-database",
+        "color": "#14b8a6",
+        "description": "Arabic NLP datasets and corpora",
+        "sources": [
+            "Tavily Search + Groq",
         ],
     },
 }

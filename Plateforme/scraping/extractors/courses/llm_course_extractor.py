@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from typing import Any
+
+from scraping.extractors.core.llm_validation import GroqLLMClient
+
+logger = logging.getLogger(__name__)
+
+
+class LLMCourseExtractor:
+    """Extract course candidates from Tavily search results using Groq."""
+
+    def __init__(self, client: GroqLLMClient | None = None):
+        self.client = client or GroqLLMClient()
+
+    async def extract_courses_from_search(
+        self, search_results: list[dict]
+    ) -> list[dict]:
+        normalized_search_results = self._normalize_search_results(search_results)
+        if not normalized_search_results:
+            return []
+
+        if not self.client.is_configured:
+            logger.warning("LLM course extraction skipped: GROQ key not configured")
+            return []
+
+        user_prompt = json.dumps(
+            {"search_results": normalized_search_results},
+            ensure_ascii=False,
+            default=str,
+        )
+
+        try:
+            raw_text = await asyncio.to_thread(
+                self.client._chat,
+                self._system_prompt(),
+                user_prompt,
+            )
+        except Exception as exc:
+            logger.warning("LLM course extraction call failed: %s", exc)
+            return []
+
+        parsed_items = self._parse_items(raw_text)
+        if not parsed_items:
+            return []
+
+        output: list[dict] = []
+        for item in parsed_items:
+            normalized = self._normalize_item(item)
+            if normalized is not None:
+                output.append(normalized)
+        return output
+
+    @staticmethod
+    def _system_prompt() -> str:
+        return """You are a strict extraction assistant for NLP/AI courses.
+You receive search_results as JSON array entries (title/url/content).
+Return ONLY a JSON array and no markdown.
+Each output item should include these keys:
+- title_en
+- title_ar
+- description_en
+- description_ar
+- platform
+- level
+- price
+- url
+Rules:
+- Keep only real course/training items relevant to NLP/AI.
+- level should be one of: beginner, intermediate, advanced when possible.
+- price can be textual (e.g. Free, $49, 0), null if unknown.
+- If a field is unknown, return null.
+"""
+
+    @staticmethod
+    def _normalize_search_results(search_results: list[dict]) -> list[dict[str, str]]:
+        output: list[dict[str, str]] = []
+        for result in search_results or []:
+            if not isinstance(result, dict):
+                continue
+            title = str(result.get("title") or "").strip()
+            url = str(result.get("url") or "").strip()
+            content = str(result.get("content") or "").strip()
+            if not (title or url or content):
+                continue
+            output.append({"title": title, "url": url, "content": content})
+        return output
+
+    def _parse_items(self, raw_text: str | None) -> list[dict]:
+        if not raw_text:
+            return []
+
+        cleaned = self._strip_code_fences(raw_text)
+        try:
+            parsed = json.loads(cleaned)
+        except json.JSONDecodeError:
+            return []
+
+        if isinstance(parsed, list):
+            return [item for item in parsed if isinstance(item, dict)]
+        if isinstance(parsed, dict):
+            items = parsed.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+            if parsed:
+                return [parsed]
+        return []
+
+    @staticmethod
+    def _strip_code_fences(text: str) -> str:
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.replace("```json", "", 1).replace("```", "")
+        return cleaned.strip()
+
+    def _normalize_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
+        title_en = self._pick_text(item, "title_en", "title", "name")
+        description_en = self._pick_text(
+            item,
+            "description_en",
+            "description",
+            "summary",
+            "content",
+        )
+        if not title_en or not description_en:
+            return None
+
+        title_ar = self._pick_text(item, "title_ar") or title_en
+        description_ar = self._pick_text(item, "description_ar") or description_en
+
+        platform = self._pick_text(item, "platform", "provider", "institution")
+        level = self._pick_text(item, "level", "course_level")
+        price = self._pick_text(item, "price", "cost")
+        url = self._pick_text(
+            item, "url", "course_url", "access_link", "enrollment_url"
+        )
+        if not url:
+            return None
+
+        return {
+            "title_en": title_en[:300],
+            "title_ar": title_ar[:300],
+            "description_en": description_en[:5000],
+            "description_ar": description_ar[:5000],
+            "platform": platform[:200],
+            "level": level[:80],
+            "price": price[:80],
+            "url": url[:500],
+        }
+
+    @staticmethod
+    def _pick_text(item: dict[str, Any], *keys: str) -> str:
+        for key in keys:
+            value = item.get(key)
+            if value is None:
+                continue
+            text = str(value).strip()
+            if text and text.lower() != "null":
+                return text
+        return ""

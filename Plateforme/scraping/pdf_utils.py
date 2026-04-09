@@ -12,8 +12,8 @@ Limits:
 """
 
 import logging
-
-import requests
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,6 @@ DOWNLOAD_TIMEOUT = 30  # seconds
 def download_pdf(
     url: str,
     *,
-    session: requests.Session | None = None,
     timeout: int = DOWNLOAD_TIMEOUT,
     max_bytes: int = MAX_PDF_BYTES,
 ) -> bytes | None:
@@ -47,46 +46,47 @@ def download_pdf(
         logger.warning("PDF URL rejected by SSRF safety validation: %s", exc)
         return None
 
-    http = session or requests.Session()
     try:
-        # Stream to check Content-Length before downloading fully
-        resp = http.get(url, timeout=timeout, stream=True)
-        resp.raise_for_status()
-
-        content_type = (
-            resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        request = Request(
+            url,
+            method="GET",
+            headers={"User-Agent": "ScrapingPDFDownloader/2.0"},
         )
-        if content_type != "application/pdf":
-            logger.debug("Skipping non-PDF content-type: %s", content_type)
-            resp.close()
-            return None
-
-        length = resp.headers.get("Content-Length")
-        if length and int(length) > max_bytes:
-            logger.info("PDF too large (%s bytes), skipping: %s", length, url)
-            resp.close()
-            return None
-
-        # Read up to max_bytes + 1 to detect oversized PDFs without Content-Length
-        chunks: list[bytes] = []
-        total = 0
-        for chunk in resp.iter_content(chunk_size=65_536):
-            total += len(chunk)
-            if total > max_bytes:
-                logger.info(
-                    "PDF exceeded %d bytes during download, aborting: %s",
-                    max_bytes,
-                    url,
-                )
-                resp.close()
+        with urlopen(request, timeout=timeout) as resp:
+            content_type = (
+                resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            )
+            if content_type != "application/pdf":
+                logger.debug("Skipping non-PDF content-type: %s", content_type)
                 return None
-            chunks.append(chunk)
 
-        return b"".join(chunks)
+            length = resp.headers.get("Content-Length")
+            if length and int(length) > max_bytes:
+                logger.info("PDF too large (%s bytes), skipping: %s", length, url)
+                return None
 
-    except requests.Timeout:
+            # Read up to max_bytes + 1 to detect oversized PDFs without Content-Length
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                chunk = resp.read(65_536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    logger.info(
+                        "PDF exceeded %d bytes during download, aborting: %s",
+                        max_bytes,
+                        url,
+                    )
+                    return None
+                chunks.append(chunk)
+
+            return b"".join(chunks)
+
+    except TimeoutError:
         logger.warning("PDF download timed out after %ds: %s", timeout, url)
-    except requests.RequestException as exc:
+    except (HTTPError, URLError, OSError) as exc:
         logger.warning("PDF download failed for %s: %s", url, exc)
     return None
 
@@ -257,7 +257,6 @@ def extract_text(pdf_bytes, max_chars=12000):
 def download_and_extract(
     url: str,
     *,
-    session: requests.Session | None = None,
     max_chars: int = MAX_CHARS,
 ) -> ExtractionResult | None:
     """
@@ -268,7 +267,7 @@ def download_and_extract(
     download failure.  Old callers that treat the return value as a plain
     string keep working unchanged.
     """
-    pdf_bytes = download_pdf(url, session=session)
+    pdf_bytes = download_pdf(url)
     if pdf_bytes is None:
         return None
     result = extract_text(pdf_bytes, max_chars=max_chars)

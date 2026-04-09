@@ -3005,7 +3005,24 @@ body.light-mode .code-block-header{
         /* ── Init ── */
         loadSessions({hydrateInitial:true})
             .then(function(){return autoExplainEntity();})
-            .then(function(){return autoAnalyseDocument();});
+            .then(function(){return autoAnalyseDocument();})
+            .then(function(){
+                // Clean URL parameters so manual refresh doesn't trigger the same query again
+                if (window.history && window.history.replaceState) {
+                    var url = new URL(window.location);
+                    if (url.searchParams.has('context') || url.searchParams.has('type') || url.searchParams.has('doc_action')) {
+                        url.searchParams.delete('context');
+                        url.searchParams.delete('type');
+                        url.searchParams.delete('id');
+                        url.searchParams.delete('object_id');
+                        url.searchParams.delete('doc_action');
+                        url.searchParams.delete('doc_id');
+                        url.searchParams.delete('doc_title');
+                        url.searchParams.delete('doc_file');
+                        window.history.replaceState({}, document.title, url.toString());
+                    }
+                }
+            });
     })();
     </script>
 </body>

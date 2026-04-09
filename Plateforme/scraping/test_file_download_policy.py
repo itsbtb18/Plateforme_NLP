@@ -20,35 +20,15 @@ from scraping.file_downloader import (
 # ── Fake HTTP helpers ───────────────────────────────────────────────
 
 
-class _FakeHeadResponse:
-    """Minimal stand-in for requests.head() responses."""
-
-    def __init__(self, content_type="application/pdf", content_length=100, status=200):
-        self.status_code = status
-        self.headers = {
-            "Content-Type": content_type,
-            "Content-Length": str(content_length),
-        }
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError("http error")
+def _fake_head_result(content_type="application/pdf", content_length=100):
+    """Minimal stand-in for downloader HEAD preflight helper."""
+    return content_type, content_length
 
 
-class _FakeGetResponse:
-    """Minimal stand-in for requests.get() responses."""
-
-    def __init__(self, content_type, chunks, status=200):
-        self.headers = {"Content-Type": content_type}
-        self._chunks = chunks
-        self.status_code = status
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError("http error")
-
-    def iter_content(self, chunk_size=8192):
-        yield from self._chunks
+def _fake_get_result(content_type, chunks):
+    """Minimal stand-in for downloader GET helper."""
+    payload = b"".join(chunks)
+    return content_type, payload, len(payload)
 
 
 @pytest.fixture
@@ -81,12 +61,12 @@ def test_image_policy_deterministic_filename_and_path(
 ):
     monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path), raising=False)
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("image/png", 3),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("image/png", 3),
     )
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.get",
-        lambda *a, **k: _FakeGetResponse("image/png", [b"abc"]),
+        "scraping.file_downloader._download_via_get",
+        lambda *a, **k: _fake_get_result("image/png", [b"abc"]),
     )
 
     content, filename, result = download_file(
@@ -122,14 +102,14 @@ def test_pdf_policy_skips_existing_url_hash_without_request(
 
     def _head_never_called(*args, **kwargs):
         calls["head"] += 1
-        return _FakeHeadResponse()
+        return _fake_head_result()
 
     def _get_never_called(*args, **kwargs):
         calls["get"] += 1
-        return _FakeGetResponse("application/pdf", [b"pdf"])
+        return _fake_get_result("application/pdf", [b"pdf"])
 
-    monkeypatch.setattr("scraping.file_downloader.requests.head", _head_never_called)
-    monkeypatch.setattr("scraping.file_downloader.requests.get", _get_never_called)
+    monkeypatch.setattr("scraping.file_downloader._head_preflight", _head_never_called)
+    monkeypatch.setattr("scraping.file_downloader._download_via_get", _get_never_called)
 
     content, filename = try_download_document(
         ["https://example.com/paper.pdf"],
@@ -149,12 +129,12 @@ def test_image_policy_rejects_disallowed_mime(
 ):
     monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path), raising=False)
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("image/svg+xml", 10),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("image/svg+xml", 10),
     )
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.get",
-        lambda *a, **k: _FakeGetResponse("image/svg+xml", [b"svg"]),
+        "scraping.file_downloader._download_via_get",
+        lambda *a, **k: _fake_get_result("image/svg+xml", [b"svg"]),
     )
 
     content, filename, result = download_file(
@@ -175,14 +155,14 @@ def test_pdf_policy_rejects_size_over_50mb(monkeypatch, tmp_path, _allow_externa
 
     huge_size = 50 * 1024 * 1024 + 1
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("application/pdf", huge_size),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("application/pdf", huge_size),
     )
 
     too_big = b"a" * huge_size
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.get",
-        lambda *a, **k: _FakeGetResponse("application/pdf", [too_big]),
+        "scraping.file_downloader._download_via_get",
+        lambda *a, **k: _fake_get_result("application/pdf", [too_big]),
     )
 
     content, filename, result = download_file(
@@ -228,17 +208,17 @@ def test_head_wrong_mime_blocks_get(monkeypatch, tmp_path, _allow_external_dns):
     monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path), raising=False)
 
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("text/html", 500),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("text/html", 500),
     )
 
     get_calls = {"count": 0}
 
     def _counting_get(*args, **kwargs):
         get_calls["count"] += 1
-        return _FakeGetResponse("text/html", [b"<html></html>"])
+        return _fake_get_result("text/html", [b"<html></html>"])
 
-    monkeypatch.setattr("scraping.file_downloader.requests.get", _counting_get)
+    monkeypatch.setattr("scraping.file_downloader._download_via_get", _counting_get)
 
     content, filename, result = download_file(
         "https://example.com/page.html",
@@ -258,20 +238,18 @@ def test_head_timeout_returns_fail_head(monkeypatch, tmp_path, _allow_external_d
     """HEAD timeout → FAIL_HEAD returned, GET never called."""
     monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path), raising=False)
 
-    import requests as _requests
-
     def _head_timeout(*args, **kwargs):
-        raise _requests.exceptions.Timeout("HEAD timed out")
+        raise TimeoutError("HEAD timed out")
 
-    monkeypatch.setattr("scraping.file_downloader.requests.head", _head_timeout)
+    monkeypatch.setattr("scraping.file_downloader._head_preflight", _head_timeout)
 
     get_calls = {"count": 0}
 
     def _counting_get(*args, **kwargs):
         get_calls["count"] += 1
-        return _FakeGetResponse("application/pdf", [b"pdf"])
+        return _fake_get_result("application/pdf", [b"pdf"])
 
-    monkeypatch.setattr("scraping.file_downloader.requests.get", _counting_get)
+    monkeypatch.setattr("scraping.file_downloader._download_via_get", _counting_get)
 
     content, filename, result = download_file(
         "https://example.com/doc.pdf",
@@ -295,17 +273,17 @@ def test_head_content_length_over_limit_returns_fail_size(
 
     over_limit = 11 * 1024 * 1024  # > 10 MB image limit
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("image/png", over_limit),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("image/png", over_limit),
     )
 
     get_calls = {"count": 0}
 
     def _counting_get(*args, **kwargs):
         get_calls["count"] += 1
-        return _FakeGetResponse("image/png", [b"\x89PNG"])
+        return _fake_get_result("image/png", [b"\x89PNG"])
 
-    monkeypatch.setattr("scraping.file_downloader.requests.get", _counting_get)
+    monkeypatch.setattr("scraping.file_downloader._download_via_get", _counting_get)
 
     content, filename, result = download_file(
         "https://example.com/huge.png",
@@ -328,12 +306,12 @@ def test_successful_download_writes_meta_json(
     monkeypatch.setattr(settings, "MEDIA_ROOT", str(tmp_path), raising=False)
 
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("application/pdf", 100),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("application/pdf", 100),
     )
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.get",
-        lambda *a, **k: _FakeGetResponse("application/pdf", [b"%PDF-1.4 content"]),
+        "scraping.file_downloader._download_via_get",
+        lambda *a, **k: _fake_get_result("application/pdf", [b"%PDF-1.4 content"]),
     )
 
     content, filename, result = download_file(
@@ -363,9 +341,9 @@ def test_successful_download_writes_meta_json(
         "category",
         "item_name",
     }
-    assert required_fields.issubset(
-        meta.keys()
-    ), f"Missing fields: {required_fields - meta.keys()}"
+    assert required_fields.issubset(meta.keys()), (
+        f"Missing fields: {required_fields - meta.keys()}"
+    )
     assert meta["original_url"] == "https://example.com/paper.pdf"
     assert meta["content_type"] == "application/pdf"
     assert meta["category"] == "news"
@@ -383,12 +361,12 @@ def test_sidecar_url_match_returns_skip_exists(
 
     # --- First call: normal download ---
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.head",
-        lambda *a, **k: _FakeHeadResponse("application/pdf", 50),
+        "scraping.file_downloader._head_preflight",
+        lambda *a, **k: _fake_head_result("application/pdf", 50),
     )
     monkeypatch.setattr(
-        "scraping.file_downloader.requests.get",
-        lambda *a, **k: _FakeGetResponse("application/pdf", [b"%PDF"]),
+        "scraping.file_downloader._download_via_get",
+        lambda *a, **k: _fake_get_result("application/pdf", [b"%PDF"]),
     )
 
     url = "https://example.com/unique-paper.pdf"
@@ -407,14 +385,14 @@ def test_sidecar_url_match_returns_skip_exists(
 
     def _no_head(*a, **k):
         http_calls["head"] += 1
-        return _FakeHeadResponse()
+        return _fake_head_result()
 
     def _no_get(*a, **k):
         http_calls["get"] += 1
-        return _FakeGetResponse("application/pdf", [b"x"])
+        return _fake_get_result("application/pdf", [b"x"])
 
-    monkeypatch.setattr("scraping.file_downloader.requests.head", _no_head)
-    monkeypatch.setattr("scraping.file_downloader.requests.get", _no_get)
+    monkeypatch.setattr("scraping.file_downloader._head_preflight", _no_head)
+    monkeypatch.setattr("scraping.file_downloader._download_via_get", _no_get)
 
     content2, filename2, result2 = download_file(
         url, "news", item_name="UniPaper", file_type="document"

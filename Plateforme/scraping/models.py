@@ -34,6 +34,16 @@ from scraping.scraping_settings import scraping_settings as SS
 logger = logging.getLogger(__name__)
 
 
+SCRAPER_CATEGORY_CHOICES = [
+    ("events", _("Events")),
+    ("news", _("News")),
+    ("tools", _("Tools")),
+    ("courses", _("Courses")),
+    ("opportunities", _("Opportunities")),
+    ("corpus", _("Corpus")),
+]
+
+
 def _vector_field_enabled() -> bool:
     if VectorField is None:
         return False
@@ -137,13 +147,6 @@ class ScrapingSource(models.Model):
             "Format: http://user:pass@host:port or socks5://host:port"
         ),
     )
-    force_playwright = models.BooleanField(
-        default=False,
-        help_text=(
-            "Force Playwright (headless browser) for this source. "
-            "Use for JavaScript-rendered pages or strict anti-bot sites."
-        ),
-    )
     selector_recommendations = models.JSONField(null=True, blank=True)
     selector_confidence = models.FloatField(null=True, blank=True)
     schedule_tier = models.CharField(
@@ -191,6 +194,58 @@ class ScrapingSource(models.Model):
         super().save(*args, **kwargs)
 
 
+class SearchQuery(models.Model):
+    """Configurable search query used by category scrapers."""
+
+    category = models.CharField(
+        _("Category"),
+        max_length=50,
+        choices=SCRAPER_CATEGORY_CHOICES,
+    )
+    query_text = models.CharField(_("Query Text"), max_length=500)
+    is_active = models.BooleanField(_("Active"), default=True)
+
+    class Meta:
+        ordering = ["category", "id"]
+        verbose_name = _("Search Query")
+        verbose_name_plural = _("Search Queries")
+        indexes = [
+            models.Index(
+                fields=["category", "is_active"], name="idx_searchquery_cat_active"
+            )
+        ]
+
+    def __str__(self):
+        status = "active" if self.is_active else "inactive"
+        return f"[{self.category}] {self.query_text[:80]} ({status})"
+
+
+class RejectedItem(models.Model):
+    """Feedback loop storage for rejected scraping candidates."""
+
+    category = models.CharField(
+        _("Category"),
+        max_length=50,
+        choices=SCRAPER_CATEGORY_CHOICES,
+    )
+    title = models.CharField(_("Title"), max_length=300)
+    reason_for_rejection = models.TextField(_("Reason For Rejection"))
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Rejected Item")
+        verbose_name_plural = _("Rejected Items")
+        indexes = [
+            models.Index(
+                fields=["category", "created_at"], name="idx_rejecteditem_cat_created"
+            )
+        ]
+
+    def __str__(self):
+        return f"[{self.category}] {self.title[:80]}"
+
+
 class ScrapingRun(models.Model):
     """Log of each scraping execution."""
 
@@ -214,6 +269,7 @@ class ScrapingRun(models.Model):
     )
     items_found = models.PositiveIntegerField(_("Items Found"), default=0)
     items_created = models.PositiveIntegerField(_("Items Created"), default=0)
+    items_updated = models.PositiveIntegerField(_("Items Updated"), default=0)
     items_skipped = models.PositiveIntegerField(_("Items Skipped"), default=0)
     errors = models.TextField(_("Errors"), blank=True)
     started_at = models.DateTimeField(_("Started At"), auto_now_add=True)

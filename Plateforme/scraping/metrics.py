@@ -34,12 +34,6 @@ scraping_render_method_total = Counter(
     ["method"],
 )
 
-scraping_playwright_fallback_total = Counter(
-    "scraping_playwright_fallback_total",
-    "Number of times Playwright was used as fallback",
-    ["domain", "reason"],
-)
-
 scraping_network_failures_total = Counter(
     "scraping_network_failures_total",
     "Network failures by type and domain",

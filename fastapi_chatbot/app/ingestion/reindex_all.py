@@ -26,6 +26,7 @@ from qdrant_client.models import PointStruct
 from app.db import AsyncSessionLocal
 from app.models import NLPKnowledge, PlatformDoc, Resource, LegalDocument, UserDocument
 from app.services.documents.embeddings import get_embedding_service
+from app.services.documents.entities import extract_entities
 from app.services.documents.processor import get_document_processor
 from app.services.qdrant import get_qdrant_service
 from app.services.qdrant.collections import (
@@ -57,10 +58,11 @@ async def reindex_nlp_knowledge(db, embedding_service, qdrant):
     points = []
     for i in range(0, len(records), EMBED_BATCH_SIZE):
         batch = records[i:i + EMBED_BATCH_SIZE]
-        texts = [f"{r.topic}\n{r.content}" for r in batch]
+        texts = [f"{(r.section_title or r.topic or '').strip()}\n{r.content}" for r in batch]
         embeddings = embedding_service.encode(texts, batch_size=EMBED_BATCH_SIZE)
         
         for record, emb in zip(batch, embeddings):
+            section_title = (record.section_title or record.topic or "").strip()
             points.append(
                 PointStruct(
                     id=record.id,
@@ -69,8 +71,14 @@ async def reindex_nlp_knowledge(db, embedding_service, qdrant):
                         "type": "nlp_knowledge",
                         "language": record.language or "en",
                         "difficulty": record.difficulty or "",
-                        "title": record.topic,
+                        "title": section_title,
                         "content": record.content[:800],
+                        "source_file": record.source_file,
+                        "document_type": record.document_type,
+                        "section_title": section_title,
+                        "chunk_index": record.chunk_index,
+                        "entities": extract_entities(record.content),
+                        "version": record.version or 2,
                     },
                 )
             )

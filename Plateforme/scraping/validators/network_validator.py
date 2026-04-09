@@ -1,16 +1,16 @@
-import logging
+﻿import logging
 import socket
 import time
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
-
-import requests
 
 logger = logging.getLogger(__name__)
 
 
 class NetworkValidator:
-    """Validate network health and scraping viability for a source URL."""
+    """Validate source reachability using stdlib networking only."""
 
     CONNECT_TIMEOUT = 3.0
     READ_TIMEOUT = 5.0
@@ -18,7 +18,6 @@ class NetworkValidator:
     def __init__(self, url: str | None = None, user_agent: str = "*"):
         self.url = url
         self.user_agent = user_agent
-        self.session = requests.Session()
 
     def run(self) -> dict:
         if not self.url:
@@ -67,8 +66,6 @@ class NetworkValidator:
         try:
             socket.getaddrinfo(domain, None)
             return "OK"
-        except socket.gaierror:
-            return "DNS_DEAD"
         except OSError:
             return "DNS_DEAD"
 
@@ -87,60 +84,85 @@ class NetworkValidator:
                 continue
         return "FIREWALL"
 
-    def _test_http_response(self, url: str) -> dict:
+    def _http_call(
+        self, url: str, method: str = "HEAD"
+    ) -> tuple[int | None, dict, float, str | None]:
         start = time.monotonic()
+        req = Request(
+            url, method=method, headers={"User-Agent": self.user_agent or "*"}
+        )
         try:
-            response = self.session.head(
-                url,
-                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT),
-                allow_redirects=True,
-            )
-            elapsed_ms = int((time.monotonic() - start) * 1000)
-            status_code = int(response.status_code)
-
-            if "cf-ray" in {k.lower(): v for k, v in response.headers.items()}:
-                return {
-                    "status": "BLOCKED",
-                    "code": status_code,
-                    "response_ms": elapsed_ms,
+            with urlopen(req, timeout=self.CONNECT_TIMEOUT + self.READ_TIMEOUT) as resp:
+                elapsed_ms = (time.monotonic() - start) * 1000
+                headers = {
+                    str(k).lower(): str(v) for k, v in dict(resp.headers).items()
                 }
+                return int(resp.status), headers, elapsed_ms, None
+        except HTTPError as exc:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            headers = {
+                str(k).lower(): str(v) for k, v in dict(exc.headers or {}).items()
+            }
+            return int(exc.code), headers, elapsed_ms, None
+        except URLError as exc:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            reason = str(getattr(exc, "reason", exc))
+            return None, {}, elapsed_ms, reason
+        except Exception as exc:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            return None, {}, elapsed_ms, str(exc)
 
-            if status_code in {403, 429}:
+    def _test_http_response(self, url: str) -> dict:
+        status_code, headers, elapsed_ms, error = self._http_call(url, method="HEAD")
+        if status_code is None and error:
+            if "ssl" in error.lower() or "certificate" in error.lower():
                 return {
-                    "status": "BLOCKED",
-                    "code": status_code,
-                    "response_ms": elapsed_ms,
+                    "status": "SSL_ERROR",
+                    "code": None,
+                    "response_ms": int(elapsed_ms),
                 }
-            if 200 <= status_code < 400:
+            if "timed out" in error.lower() or "timeout" in error.lower():
                 return {
-                    "status": "OK",
-                    "code": status_code,
-                    "response_ms": elapsed_ms,
+                    "status": "TIMEOUT",
+                    "code": None,
+                    "response_ms": int(elapsed_ms),
                 }
             return {
                 "status": "HTTP_ERROR",
+                "code": None,
+                "response_ms": int(elapsed_ms),
+            }
+
+        if status_code in {405, 501}:
+            status_code, headers, elapsed_ms, error = self._http_call(url, method="GET")
+            if status_code is None:
+                return {
+                    "status": "HTTP_ERROR",
+                    "code": None,
+                    "response_ms": int(elapsed_ms),
+                }
+
+        if "cf-ray" in headers:
+            return {
+                "status": "BLOCKED",
                 "code": status_code,
-                "response_ms": elapsed_ms,
+                "response_ms": int(elapsed_ms),
             }
 
-        except requests.exceptions.SSLError:
+        if status_code in {403, 429}:
             return {
-                "status": "SSL_ERROR",
-                "code": None,
-                "response_ms": int((time.monotonic() - start) * 1000),
+                "status": "BLOCKED",
+                "code": status_code,
+                "response_ms": int(elapsed_ms),
             }
-        except requests.exceptions.Timeout:
-            return {
-                "status": "TIMEOUT",
-                "code": None,
-                "response_ms": int((time.monotonic() - start) * 1000),
-            }
-        except requests.exceptions.RequestException:
-            return {
-                "status": "HTTP_ERROR",
-                "code": None,
-                "response_ms": int((time.monotonic() - start) * 1000),
-            }
+        if 200 <= int(status_code) < 400:
+            return {"status": "OK", "code": status_code, "response_ms": int(elapsed_ms)}
+
+        return {
+            "status": "HTTP_ERROR",
+            "code": status_code,
+            "response_ms": int(elapsed_ms),
+        }
 
     def _test_robots_compliance(
         self, scheme: str, netloc: str, target_path: str
@@ -149,70 +171,47 @@ class NetworkValidator:
             return {"status": "NO_ROBOTS_FILE", "crawl_delay": 0}
 
         robots_url = f"{scheme}://{netloc}/robots.txt"
-        try:
-            response = self.session.get(
-                robots_url,
-                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT),
-                allow_redirects=True,
-            )
-            if response.status_code >= 400:
-                return {"status": "NO_ROBOTS_FILE", "crawl_delay": 0}
+        rp = RobotFileParser()
+        rp.set_url(robots_url)
 
-            rp = RobotFileParser()
-            rp.parse((response.text or "").splitlines())
-            probe_url = f"{scheme}://{netloc}{target_path or '/'}"
+        try:
+            rp.read()
+        except Exception:
+            return {"status": "NO_ROBOTS_FILE", "crawl_delay": 0}
+
+        probe_url = f"{scheme}://{netloc}{target_path or '/'}"
+        try:
             allowed = rp.can_fetch(self.user_agent, probe_url)
             crawl_delay = rp.crawl_delay(self.user_agent)
             if crawl_delay is None:
                 crawl_delay = rp.crawl_delay("*")
-
-            if allowed:
-                return {
-                    "status": "ALLOWED",
-                    "crawl_delay": int(crawl_delay or 0),
-                }
-            return {
-                "status": "DISALLOWED",
-                "crawl_delay": int(crawl_delay or 0),
-            }
-        except requests.exceptions.RequestException:
-            return {"status": "NO_ROBOTS_FILE", "crawl_delay": 0}
         except Exception:
             logger.debug("robots_validation_failed", exc_info=True)
             return {"status": "NO_ROBOTS_FILE", "crawl_delay": 0}
+
+        if allowed:
+            return {"status": "ALLOWED", "crawl_delay": int(crawl_delay or 0)}
+        return {"status": "DISALLOWED", "crawl_delay": int(crawl_delay or 0)}
 
     def _test_rate_limit_detection(self, url: str) -> str:
         latencies = []
         cf_detected = False
 
         for _ in range(3):
-            start = time.monotonic()
-            try:
-                response = self.session.get(
-                    url,
-                    timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT),
-                    allow_redirects=True,
-                )
-                latency = time.monotonic() - start
-                latencies.append(latency)
+            status_code, headers, elapsed_ms, _error = self._http_call(
+                url, method="GET"
+            )
+            latencies.append(max(elapsed_ms / 1000.0, 0.001))
 
-                if response.status_code == 429:
-                    return "RATE_LIMITED"
-                if "cf-ray" in {k.lower(): v for k, v in response.headers.items()}:
-                    cf_detected = True
-            except requests.exceptions.Timeout:
-                latencies.append(self.CONNECT_TIMEOUT + self.READ_TIMEOUT)
-            except requests.exceptions.RequestException:
-                latencies.append(self.CONNECT_TIMEOUT + self.READ_TIMEOUT)
+            if status_code == 429:
+                return "RATE_LIMITED"
+            if "cf-ray" in headers:
+                cf_detected = True
 
         if cf_detected:
             return "ANTI_BOT"
 
-        if (
-            len(latencies) == 3
-            and latencies[0] > 0
-            and latencies[2] > (latencies[0] * 2)
-        ):
+        if len(latencies) == 3 and latencies[2] > (latencies[0] * 2):
             return "THROTTLING"
 
         return "OK"

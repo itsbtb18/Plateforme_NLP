@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
 from django.contrib.auth import get_user_model
 
@@ -34,19 +32,6 @@ def scraping_source(db):
     return ScrapingSource.objects.create(
         name="Test Source",
         base_url="https://example.com",
-        category="news",
+        category="events",
         is_active=True,
     )
-
-
-@pytest.fixture
-def mock_requests_get():
-    with patch("requests.Session.get") as mock:
-        mock.return_value = MagicMock(
-            status_code=200,
-            text="<html><body>Test</body></html>",
-            content=b"<html><body>Test</body></html>",
-            headers={"Content-Type": "text/html"},
-        )
-        mock.return_value.raise_for_status = MagicMock()
-        yield mock
