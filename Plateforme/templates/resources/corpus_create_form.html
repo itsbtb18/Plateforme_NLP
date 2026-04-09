@@ -7,60 +7,52 @@
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ===== CSS VARIABLES ===== */
 :root {
-    --primary-accent: #8B5CF6;
-    --primary-hover: #7C3AED;
-    --primary-purple: #7C3AED;
-    --surface-white: #18142b;
-    --surface-bg: #0A0B18;
-    --border-subtle: rgba(196,181,253,0.16);
-    --border-focus: #8B5CF6;
-    --text-primary: #F8FAFC;
-    --text-secondary: #CBD5E1;
-    --text-muted: #94A3B8;
+    --primary-accent: #4F46E5;
+    --primary-hover: #4338CA;
+    --surface-white: #ffffff;
+    --surface-bg: #F9FAFB;
+    --border-subtle: #E5E7EB;
+    --border-focus: #4F46E5;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
     --radius: 8px;
-    --success: #059669;
-    --success-light: #ECFDF5;
-    --danger: #DC2626;
-    --teal: #0D9488;
+    --success: #10B981;
+    --success-light: #D1FAE5;
+    --danger: #EF4444;
+    --card-violet-start: #1C0F3F;
+    --card-violet-end: #0F0624;
+    --card-violet-border: rgba(255, 255, 255, 0.08);
+    --card-text-strong: #F6F4FF;
+    --card-text-muted: rgba(243, 240, 255, 0.68);
+    --input-dark-bg: rgba(255, 255, 255, 0.06);
+    --input-dark-border: rgba(255, 255, 255, 0.18);
+    --input-dark-focus: rgba(168, 139, 255, 0.75);
+    --chip-dark-bg: rgba(255, 255, 255, 0.08);
+    --chip-dark-border: rgba(255, 255, 255, 0.18);
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 html[dir="rtl"] body {
     font-family: 'Tajawal', 'Inter', sans-serif;
 }
 
-/* ===== PAGE LAYOUT - SIDE-BY-SIDE DESIGN ===== */
-.corpus-form-page {
-    min-height: calc(100vh - 220px);
-    background: radial-gradient(circle at top left, rgba(139,92,246,0.14), transparent 24%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%);
-    padding: 2.5rem 1rem;
-}
-
-.form-container {
-    max-width: 860px;
-    margin: 0 auto;
-}
-
-/* ===== DARK BLUE HERO HEADER ===== */
+/* ===== DARK BLUE HERO HEADER (like projects page) ===== */
 .page-hero {
-    background: linear-gradient(135deg, #120f2a 0%, #21143f 52%, #32185d 100%);
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
     padding: 2.5rem 2rem 3rem;
     position: relative;
     overflow: hidden;
@@ -70,7 +62,7 @@ html[dir="rtl"] body {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at 70% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 60%);
+    background: radial-gradient(ellipse at 70% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
     pointer-events: none;
 }
 
@@ -93,7 +85,6 @@ html[dir="rtl"] body {
     color: rgba(255,255,255,0.6);
     list-style: none;
     padding: 0;
-    margin-left: 0;
 }
 
 .breadcrumb a {
@@ -102,23 +93,33 @@ html[dir="rtl"] body {
     transition: color 0.2s;
 }
 
-.breadcrumb a:hover { color: white; }
-.breadcrumb .separator { color: rgba(255,255,255,0.35); font-size: 0.75rem; }
-.breadcrumb .current { color: rgba(255,255,255,0.9); }
+.breadcrumb a:hover {
+    color: white;
+}
+
+.breadcrumb .separator {
+    color: rgba(255,255,255,0.35);
+    font-size: 0.75rem;
+}
+
+.breadcrumb .current {
+    color: rgba(255,255,255,0.9);
+}
 
 /* Hero Icon */
 .hero-icon-wrap {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-purple) 100%);
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 1.25rem;
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     color: white;
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+    backdrop-filter: blur(8px);
 }
 
 .page-hero h1 {
@@ -135,7 +136,7 @@ html[dir="rtl"] body {
     margin: 0;
 }
 
-/* Steps bar */
+/* Step indicator (matching projects) */
 .steps-bar {
     display: flex;
     align-items: center;
@@ -160,11 +161,12 @@ html[dir="rtl"] body {
     font-size: 0.875rem;
     font-weight: 500;
     color: rgba(255,255,255,0.5);
+    transition: all 0.2s;
     white-space: nowrap;
 }
 
 .step-item.active {
-    background: rgba(255,255,255,0.96);
+    background: white;
     color: var(--primary-accent);
     font-weight: 600;
 }
@@ -187,97 +189,59 @@ html[dir="rtl"] body {
     color: white;
 }
 
-/* ===== MINIMAL PAGE HEADER ===== */
-.page-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-subtle);
+/* ===== PAGE BODY ===== */
+.corpus-form-page {
+    min-height: calc(100vh - 200px);
+    background: var(--surface-bg);
+    padding: 2.5rem 1rem;
 }
 
-.page-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 0.25rem 0;
-    letter-spacing: -0.025em;
+.form-container {
+    max-width: 860px;
+    margin: 0 auto;
 }
 
-.page-header p {
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-/* ===== SINGLE SECTION LAYOUT ===== */
-.form-grid {
-    display: block;
-}
-
-/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+/* ===== WHITE CARD ===== */
 .card {
-    background: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+    background: var(--surface-white);
     border-radius: var(--radius);
-    /* Multi-level shadow for depth */
-    box-shadow: 
-        0 1px 2px 0 rgba(0, 0, 0, 0.03),
-        0 2px 4px 0 rgba(0, 0, 0, 0.04),
-        0 4px 8px 0 rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 1px 2px 0 rgba(0,0,0,0.03),
+        0 2px 4px 0 rgba(0,0,0,0.04),
+        0 4px 8px 0 rgba(0,0,0,0.05);
     border: 1px solid var(--border-subtle);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.card:hover {
-    box-shadow: 
-        0 2px 4px 0 rgba(0, 0, 0, 0.04),
-        0 4px 8px 0 rgba(0, 0, 0, 0.06),
-        0 8px 16px 0 rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
+    margin-bottom: 1.5rem;
 }
 
 .card-header {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-subtle);
-    background: linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    background: linear-gradient(180deg, #fff 0%, #FAFBFC 100%);
+    border-radius: var(--radius) var(--radius) 0 0;
 }
 
-.card-header-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
-}
-
-.card-header-icon.blue { background: rgba(96,165,250,.16); color: #bfdbfe; }
-.card-header-icon.purple { background: #F3E8FF; color: #6B21A8; }
-.card-header-icon.teal { background: #CCFBF1; color: #0D9488; }
-.card-header-icon.gray { background: #F1F5F9; color: #475569; }
-
-.card-header-text h2 {
+.card-header h2 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
-.card-header-text p {
-    margin: 0.2rem 0 0;
-    font-size: 0.8125rem;
+.card-header p {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
 .card-body {
     padding: 1.5rem;
 }
+
 /* ===== FORM FIELDS ===== */
-.form-group { margin-bottom: 1.25rem; }
+.form-group {
+    margin-bottom: 1.25rem;
+}
 
 .form-group label {
     display: block;
@@ -287,7 +251,10 @@ html[dir="rtl"] body {
     margin-bottom: 0.5rem;
 }
 
-.form-group label .required { color: var(--danger); margin-left: 0.125rem; }
+.form-group label .required {
+    color: var(--danger);
+    margin-left: 0.125rem;
+}
 
 .form-group input[type="text"],
 .form-group input[type="url"],
@@ -297,9 +264,9 @@ html[dir="rtl"] body {
     width: 100%;
     padding: 0.625rem 0.875rem;
     font-size: 0.9375rem;
-    border: 1px solid #E2E8F0;
+    border: 1px solid #E5E7EB;
     border-radius: var(--radius);
-    background: rgba(255,255,255,.05);
+    background: var(--surface-white);
     transition: all 0.2s ease;
     color: var(--text-primary);
     font-family: inherit;
@@ -310,15 +277,17 @@ html[dir="rtl"] body {
 .form-group select:focus {
     outline: none;
     border-color: var(--border-focus);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12), 0 1px 2px 0 rgba(0,0,0,0.05);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08), 0 1px 2px 0 rgba(0,0,0,0.05);
 }
 
 .form-group input:hover,
 .form-group textarea:hover,
-.form-group select:hover { border-color: #CBD5E1; }
+.form-group select:hover {
+    border-color: #D1D5DB;
+}
 
 .form-group textarea {
-    min-height: 110px;
+    min-height: 100px;
     resize: vertical;
     line-height: 1.5;
 }
@@ -330,69 +299,14 @@ html[dir="rtl"] body {
     color: var(--text-muted);
 }
 
-/* Input with leading icon */
-.input-with-icon {
-    position: relative;
-}
-
-.input-with-icon .input-icon {
-    position: absolute;
-    left: 0.875rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 1rem;
-    pointer-events: none;
-}
-
-.input-with-icon input {
-    padding-left: 2.5rem;
-}
-
-html[dir="rtl"] .input-with-icon .input-icon { left: auto; right: 0.875rem; }
-html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 2.5rem; }
-
-/* URL validation */
-.url-valid { border-color: var(--success) !important; }
-.url-invalid { border-color: var(--danger) !important; }
-
-.url-feedback {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-.url-feedback.valid { color: var(--success); }
-.url-feedback.invalid { color: var(--danger); }
-
-/* ===== CHAR COUNTER ===== */
-.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
-
-.char-counter {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    padding: 0.2rem 0.5rem;
-    background: #F1F5F9;
-    border-radius: 4px;
-}
-
-.char-counter.warn { color: #D97706; background: #FFFBEB; }
-.char-counter.danger { color: var(--danger); background: #FEF2F2; }
-
-/* Field Grid for Side-by-Side Inputs */
 .field-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
 }
 
-@media (max-width: 768px) {
-    .field-row {
-        grid-template-columns: 1fr;
-    }
+@media (max-width: 640px) {
+    .field-row { grid-template-columns: 1fr; }
 }
 
 /* ===== TRANSLATION TOGGLE ===== */
@@ -401,37 +315,22 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     align-items: center;
     justify-content: space-between;
     padding: 0.875rem 1rem;
-    background: linear-gradient(135deg, #CCFBF1 0%, #99F6E4 100%);
+    background: var(--surface-bg);
     border-radius: var(--radius);
     margin-bottom: 1.5rem;
-    border: 1px solid #5EEAD4;
+    border: 1px solid var(--border-subtle);
 }
 
-.translation-toggle-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.translation-toggle-content i { font-size: 1.5rem; color: var(--teal); }
-
-.translation-toggle-content h4 {
-    margin: 0 0 0.125rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
+.translation-toggle-label {
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--text-primary);
-}
-
-.translation-toggle-content p {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
 }
 
 .toggle-switch {
     position: relative;
-    width: 48px;
-    height: 26px;
+    width: 44px;
+    height: 24px;
     flex-shrink: 0;
 }
 
@@ -441,7 +340,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     position: absolute;
     cursor: pointer;
     inset: 0;
-    background: #CBD5E1;
+    background: #D1D5DB;
     border-radius: 999px;
     transition: all 0.2s ease;
 }
@@ -449,55 +348,33 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 .toggle-slider::before {
     position: absolute;
     content: "";
-    height: 20px;
-    width: 20px;
+    height: 18px;
+    width: 18px;
     left: 3px;
     bottom: 3px;
-    background: rgba(255,255,255,.08);
+    background: white;
     border-radius: 50%;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-.toggle-switch input:checked + .toggle-slider { background: var(--teal); }
-.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+.toggle-switch input:checked + .toggle-slider { background: var(--primary-accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
 
-/* Conditional fields */
-.translation-fields { display: none; }
-.translation-fields.visible {
-    display: block;
-    animation: fadeIn 0.3s ease;
+.translation-fields {
+    display: none;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
 }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.translation-fields.visible { display: block; }
 
-/* Arabic section divider */
-.lang-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 1.5rem 0 1.25rem;
-}
-
-.lang-divider-line { flex: 1; height: 1px; background: var(--border-subtle); }
-
-.lang-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.lang-badge.en { background: var(--primary-accent); color: white; }
-.lang-badge.ar { background: var(--teal); color: white; }
-
-/* ===== ICON UPLOAD ZONE ===== */
-.icon-upload-zone {
-    border: 1.5px dashed #CBD5E1;
+/* ===== UPLOAD ZONE ===== */
+.upload-zone {
+    border: 1.5px dashed #D1D5DB;
     border-radius: var(--radius);
-    padding: 1.75rem 1.5rem;
+    padding: 2rem 1.5rem;
     text-align: center;
     transition: all 0.25s ease;
     cursor: pointer;
@@ -505,126 +382,145 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     position: relative;
 }
 
-.icon-upload-zone:hover {
+.upload-zone:hover {
     border-color: var(--primary-accent);
-    background: rgba(139, 92, 246, 0.03);
+    background: rgba(79, 70, 229, 0.02);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
 }
 
-.icon-upload-zone.drag-over {
+.upload-zone.drag-over {
     border-color: var(--primary-accent);
     border-style: solid;
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(79, 70, 229, 0.05);
     transform: scale(1.01);
 }
 
-.icon-upload-zone.has-file {
+.upload-zone.has-file {
     border-color: var(--success);
     border-style: solid;
     background: var(--success-light);
 }
 
-.icon-upload-zone input[type="file"] {
+.upload-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-white);
+    border: 1px solid #E5E7EB;
+    color: var(--primary-accent);
+    font-size: 1.5rem;
+    transition: all 0.25s ease;
+}
+
+.upload-zone:hover .upload-icon {
+    border-color: var(--primary-accent);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+.upload-zone.has-file .upload-icon {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.upload-title {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.375rem;
+}
+
+.upload-subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.upload-formats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+
+.format-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.2rem 0.5rem;
+    background: rgba(79, 70, 229, 0.08);
+    color: var(--primary-accent);
+    border-radius: 4px;
+    border: 1px solid rgba(79, 70, 229, 0.15);
+}
+
+.upload-zone input[type="file"] {
     position: absolute;
     left: -9999px;
     width: 1px;
     height: 1px;
     opacity: 0;
-    pointer-events: none;
 }
 
-.icon-preview-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary-purple) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: white;
-    margin: 0 auto 1rem;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.icon-preview-circle img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: none;
-}
-
-.icon-upload-zone.has-file .icon-preview-circle {
-    box-shadow: 0 0 0 4px var(--success), 0 6px 20px rgba(5, 150, 105, 0.2);
-}
-
-.icon-upload-zone.has-file .icon-preview-circle i { display: none; }
-.icon-upload-zone.has-file .icon-preview-circle img { display: block; }
-
-.icon-upload-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-}
-
-.icon-upload-sub {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.875rem;
-}
-
-.icon-upload-formats {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 0.5rem;
-}
-
-.icon-file-preview {
+.file-preview {
     display: none;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: rgba(255,255,255,.05);
+    padding: 0.875rem 1rem;
+    background: var(--surface-white);
     border-radius: var(--radius);
     margin-top: 1rem;
-    border: 1px solid #E2E8F0;
-    text-align: left;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
 }
 
-.icon-file-preview.visible { display: flex; }
+.file-preview.visible { display: flex; }
 
-.icon-file-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: var(--success-light);
-    color: var(--success);
+.file-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    background: var(--success-light);
+    color: var(--success);
+    font-size: 1.125rem;
     flex-shrink: 0;
 }
 
-.icon-file-info { flex: 1; min-width: 0; }
-.icon-file-name { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.icon-file-size { font-size: 0.8125rem; color: var(--text-muted); }
+.file-info { flex: 1; min-width: 0; }
 
-.icon-file-remove {
+.file-name {
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    margin-bottom: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-size { font-size: 0.8125rem; color: var(--text-secondary); }
+
+.file-remove {
     padding: 0.375rem;
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.15s;
+    border-radius: var(--radius);
+    transition: all 0.15s ease;
 }
 
-.icon-file-remove:hover { background: #FEF2F2; color: var(--danger); }
+.file-remove:hover { background: var(--surface-bg); color: var(--danger); }
 
-/* ===== KEYWORDS INPUT - CLEAN TAGS ===== */
+/* ===== KEYWORDS ===== */
 .keywords-container {
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius);
@@ -634,7 +530,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
-    background: rgba(255,255,255,.05);
+    background: var(--surface-white);
     transition: all 0.15s ease;
 }
 
@@ -661,15 +557,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     justify-content: center;
     width: 16px;
     height: 16px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255,255,255,0.2);
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
-.keyword-pill .remove-keyword:hover {
-    background: rgba(255, 255, 255, 0.35);
-}
+.keyword-pill .remove-keyword:hover { background: rgba(255,255,255,0.35); }
 
 .keyword-input {
     flex: 1;
@@ -681,15 +575,14 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     background: transparent;
 }
 
-/* ===== SUBMIT BUTTONS ===== */
+/* ===== SUBMIT BUTTON ===== */
 .btn-submit-wrapper {
-    margin-top: 0;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    padding: 1.5rem;
-    background: #F8FAFC;
-    border-top: 1px solid var(--border-subtle);
 }
 
 .btn-submit {
@@ -699,7 +592,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     justify-content: center;
     gap: 0.5rem;
     padding: 0.875rem 1.5rem;
-    background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
     color: white;
     font-weight: 600;
     font-size: 0.9375rem;
@@ -707,17 +600,24 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.25s ease;
-    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.22), 0 4px 8px rgba(139, 92, 246, 0.14);
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.15), 0 4px 8px rgba(79, 70, 229, 0.1);
 }
 
 .btn-submit:hover {
-    background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
-    box-shadow: 0 4px 8px rgba(139, 92, 246, 0.26), 0 8px 16px rgba(139, 92, 246, 0.16);
+    background: linear-gradient(135deg, #4338CA 0%, #5B21B6 100%);
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2), 0 8px 16px rgba(79, 70, 229, 0.15);
     transform: translateY(-1px);
 }
 
-.btn-submit:active { transform: translateY(0) scale(0.98); }
-.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-submit:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
 
 .btn-submit .spinner {
     display: none;
@@ -731,7 +631,6 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
 .btn-submit.loading .spinner { display: block; }
 .btn-submit.loading .btn-text { display: none; }
-.btn-submit.loading .btn-icon { display: none; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -749,6 +648,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     border-radius: var(--radius);
     text-decoration: none;
     transition: all 0.2s ease;
+    cursor: pointer;
     width: 100%;
 }
 
@@ -761,7 +661,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 /* ===== ERROR ALERT ===== */
 .alert {
     padding: 1rem 1.25rem;
-    border-radius: var(--radius);
+    border-radius: 8px;
     margin-bottom: 1.5rem;
     display: flex;
     gap: 1rem;
@@ -783,7 +683,12 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     color: #DC2626;
 }
 
-.alert-content ul { margin: 0; padding-left: 1.25rem; font-size: 0.875rem; }
+.alert-content ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+}
+
 .alert-content li { margin-bottom: 0.25rem; }
 
 /* ===== RTL ===== */
@@ -792,14 +697,127 @@ html[dir="rtl"] .form-group input,
 html[dir="rtl"] .form-group textarea,
 html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
 html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
-html[dir="rtl"] .translation-toggle-content { flex-direction: row-reverse; }
+html[dir="rtl"] .file-preview { flex-direction: row-reverse; }
+html[dir="rtl"] .file-info { text-align: right; }
+html[dir="rtl"] .keywords-container { direction: rtl; }
 html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; }
-html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: right; }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 640px) {
-    .page-hero h1 { font-size: 1.625rem; }
-    .steps-bar { flex-wrap: wrap; border-radius: 12px; }
+/* ===== PLATFORM DARK CARD OVERRIDES ===== */
+.corpus-form-page .card {
+    background: linear-gradient(160deg, var(--card-violet-start) 0%, var(--card-violet-end) 100%);
+    border: 1px solid var(--card-violet-border);
+    box-shadow: 0 25px 60px rgba(6, 1, 18, 0.65);
+    color: var(--card-text-strong);
+    position: relative;
+    overflow: hidden;
+}
+
+.corpus-form-page .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(140, 82, 255, 0.25), transparent 55%);
+    pointer-events: none;
+}
+
+.corpus-form-page .card-header,
+.corpus-form-page .card-body {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08);
+    position: relative;
+    z-index: 1;
+}
+
+.corpus-form-page .card-header h2,
+.corpus-form-page .translation-toggle-label,
+.corpus-form-page .form-group label {
+    color: var(--card-text-strong);
+}
+
+.corpus-form-page .card-header p,
+.corpus-form-page .form-text,
+.corpus-form-page .upload-subtitle {
+    color: var(--card-text-muted);
+}
+
+.corpus-form-page .form-group input[type="text"],
+.corpus-form-page .form-group input[type="url"],
+.corpus-form-page .form-group input[type="number"],
+.corpus-form-page .form-group textarea,
+.corpus-form-page .form-group select {
+    background: var(--input-dark-bg);
+    border: 1px solid var(--input-dark-border);
+    color: var(--card-text-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.corpus-form-page .form-group input::placeholder,
+.corpus-form-page .form-group textarea::placeholder {
+    color: var(--card-text-muted);
+}
+
+.corpus-form-page .form-group input:focus,
+.corpus-form-page .form-group textarea:focus,
+.corpus-form-page .form-group select:focus {
+    border-color: var(--input-dark-focus);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.35);
+}
+
+.corpus-form-page .translation-toggle,
+.corpus-form-page .keywords-container,
+.corpus-form-page .upload-zone,
+.corpus-form-page .file-preview {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--card-text-strong);
+}
+
+.corpus-form-page .upload-zone:hover,
+.corpus-form-page .keywords-container:focus-within {
+    border-color: rgba(168, 139, 255, 0.9);
+    box-shadow: 0 10px 30px rgba(12, 5, 32, 0.35);
+}
+
+.corpus-form-page .upload-icon {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--card-text-strong);
+}
+
+.corpus-form-page .format-badge {
+    background: var(--chip-dark-bg);
+    border-color: var(--chip-dark-border);
+    color: var(--card-text-strong);
+}
+
+.corpus-form-page .keyword-pill {
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.corpus-form-page .file-preview {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.corpus-form-page .btn-submit {
+    background: linear-gradient(120deg, #A855F7 0%, #7C3AED 100%);
+    box-shadow: 0 18px 35px rgba(124, 58, 237, 0.45);
+}
+
+.corpus-form-page .btn-submit:hover {
+    background: linear-gradient(120deg, #C084FC 0%, #8B5CF6 100%);
+}
+
+.corpus-form-page .btn-cancel {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--card-text-muted);
+}
+
+.corpus-form-page .btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--card-text-strong);
+    border-color: rgba(255, 255, 255, 0.25);
 }
 </style>
 {% endblock %}
@@ -813,31 +831,31 @@ html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: ri
         <ol class="breadcrumb">
             <li><a href="{% url 'resources:corpus_list' %}">{% trans "Resources" %}</a></li>
             <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
-            <li class="current">{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "New Corpus" %}{% endif %}</li>
+            <li class="current">{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New" %}{% endif %}</li>
         </ol>
 
         <!-- Icon -->
         <div class="hero-icon-wrap">
-            <i class="bi bi-book"></i>
+            <i class="bi bi-folder-plus"></i>
         </div>
 
         <!-- Title -->
-        <h1>{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المدونة{% else %}{% trans "Edit Corpus" %}{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة مدونة جديدة{% else %}{% trans "Add New Corpus" %}{% endif %}{% endif %}</h1>
-        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}شارك مدونتك مع مجتمع البحث في المنصة{% else %}{% trans "Share your corpus with the research community" %}{% endif %}</p>
+        <h1>{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "إنشاء مدونة جديدة" %}{% endif %}</h1>
+        <p>{% trans "Upload your corpus file and provide key metadata" %}</p>
 
-        <!-- Steps bar (decorative) -->
+        <!-- Steps (decorative, single-step form) -->
         <div class="steps-bar">
             <div class="step-item active">
                 <span class="step-number">1</span>
-                {% trans "Basic Information" %}
+                {% trans "المعلومات الأساسية" %}
             </div>
             <div class="step-item">
                 <span class="step-number">2</span>
-                {% trans "Details" %}
+                {% trans "تفاصيل" %}
             </div>
             <div class="step-item">
                 <span class="step-number">3</span>
-                {% trans "Review" %}
+                {% trans "مراجعة" %}
             </div>
         </div>
     </div>
@@ -875,166 +893,152 @@ html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: ri
             </div>
             {% endif %}
 
-            <!-- ===== CARD 1: CORPUS IDENTITY ===== -->
+            <!-- ===== CARD 1: ACADEMIC METADATA ===== -->
             <div class="card">
                 <div class="card-header">
-                    <div class="card-header-icon blue"><i class="bi bi-book"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هوية المدونة{% else %}{% trans "Corpus Identity" %}{% endif %}</h2>
-                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الاسم، المجال، اللغة، والوصف{% else %}{% trans "Name, field of study, language and description" %}{% endif %}</p>
-                    </div>
+                    <h2>{% trans "Academic Metadata" %}</h2>
+                    <p>{% trans "Provide essential information about your corpus" %}</p>
                 </div>
                 <div class="card-body">
 
-                    <!-- Title English -->
+                    <!-- Translation Toggle -->
+                    <div class="translation-toggle">
+                        <span class="translation-toggle-label">
+                            <i class="bi bi-translate"></i> {% trans "Add Arabic Translation" %}
+                        </span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="translation-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Title (English) -->
                     <div class="form-group">
                         <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
                         {{ form.title_en }}
                     </div>
 
-                    <!-- Language & Field Row -->
+                    <!-- Title (Arabic) - Conditional -->
+                    <div class="translation-fields" id="title-arabic">
+                        <div class="form-group">
+                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
+                            {{ form.title_ar }}
+                        </div>
+                    </div>
+
+                    <!-- Language & Size Row -->
                     <div class="field-row">
                         <div class="form-group">
                             <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
                             {{ form.language }}
                         </div>
                         <div class="form-group">
-                            <label for="id_corpus_field">{% trans "Field of Study" %} <span class="required">*</span></label>
-                            {{ form.corpus_field }}
+                            <label for="id_corpus_size">{% trans "Size" %} <span class="required">*</span></label>
+                            {{ form.corpus_size }}
+                            <span class="form-text">{% trans "Words or documents" %}</span>
                         </div>
                     </div>
 
-                    <!-- Description English -->
+                    <!-- Field & Format Row -->
+                    <div class="field-row">
+                        <div class="form-group">
+                            <label for="id_corpus_field">{% trans "Field of Study" %} <span class="required">*</span></label>
+                            {{ form.corpus_field }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_corpus_format">{% trans "File Format" %} <span class="required">*</span></label>
+                            {{ form.corpus_format }}
+                            <span class="form-text">{% trans "e.g., TXT, CSV, JSON" %}</span>
+                        </div>
+                    </div>
+
+                    <!-- Description (English) -->
                     <div class="form-group">
                         <label for="id_description_en">{% trans "Description (English)" %}</label>
                         {{ form.description_en }}
-                        <div class="char-counter-wrap">
-                            <span class="char-counter" id="en-counter">0 / 2000</span>
+                    </div>
+
+                    <!-- Description (Arabic) - Conditional -->
+                    <div class="translation-fields" id="desc-arabic">
+                        <div class="form-group">
+                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                            {{ form.description_ar }}
                         </div>
                     </div>
 
                     <!-- Keywords -->
                     <div class="form-group">
                         <label for="id_keywords">{% trans "Keywords" %}</label>
+                        <div class="keywords-container" id="keywords-container">
+                            <input type="text" class="keyword-input" id="keyword-input" placeholder="{% trans 'Type and press Enter...' %}">
+                        </div>
                         {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your corpus" %}</span>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- ===== CARD 2: CORPUS FILE ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon purple"><i class="bi bi-cloud-arrow-up"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Corpus File" %}</h2>
-                        <p>{% trans "Upload your corpus data file (max 50MB)" %}</p>
-                    </div>
-                </div>
-                <div class="card-body">
-
-                    <!-- Upload File -->
-                    <div class="form-group">
-                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Document" %}{% endif %}</label>
-                        <div class="icon-upload-zone" id="icon-upload-zone">
-                            <div class="icon-preview-circle" id="icon-preview-circle">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                            </div>
-                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المدونة وأفلته هنا{% else %}{% trans "Drag & drop your corpus file" %}{% endif %}</div>
-                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
-                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل أنواع الملفات · الحد الأقصى 50MB{% else %}All file types · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
-                        </div>
-                        <div class="icon-file-preview" id="icon-file-preview">
-                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
-                            <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name">filename.txt</div>
-                                <div class="icon-file-size" id="icon-file-size">0 KB</div>
-                            </div>
-                            <button type="button" class="icon-file-remove" id="icon-file-remove">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
+                        <span class="form-text">{% trans "Press Enter or comma to add" %}</span>
                     </div>
 
                     <!-- Access Link -->
                     <div class="form-group">
                         <label for="id_access_link">{% trans "Access Link" %}</label>
-                        <div class="input-with-icon">
-                            <i class="bi bi-link-45deg input-icon"></i>
-                            {{ form.access_link }}
-                        </div>
-                        <div id="access-feedback"></div>
-                        <span class="form-text">{% trans "External URL where the corpus can be accessed (optional)" %}</span>
+                        {{ form.access_link }}
+                        <span class="form-text">{% trans "External URL (optional)" %}</span>
                     </div>
 
                 </div>
             </div>
 
-            <!-- ===== CARD 3: MULTILINGUAL CONTENT ===== -->
+            <!-- ===== CARD 2: FILE UPLOAD ===== -->
             <div class="card">
                 <div class="card-header">
-                    <div class="card-header-icon teal"><i class="bi bi-translate"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Multilingual Content" %}</h2>
-                        <p>{% trans "Add Arabic translations for your corpus information" %}</p>
-                    </div>
+                    <h2>{% trans "Upload Document" %}</h2>
+                    <p>{% trans "Attach your corpus file" %}</p>
                 </div>
                 <div class="card-body">
-
-                    <!-- Arabic Translation Toggle -->
-                    <div class="translation-toggle">
-                        <div class="translation-toggle-content">
-                            <i class="bi bi-globe2"></i>
-                            <div>
-                                <h4>{% trans "Arabic Translation" %}</h4>
-                                <p>{% trans "Enable to add Arabic title & description" %}</p>
-                            </div>
+                    <div class="upload-zone" id="upload-zone">
+                        <div class="upload-icon">
+                            <i class="bi bi-cloud-arrow-up"></i>
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="arabic-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
+                        <div class="upload-title">{% trans "Drop file here" %}</div>
+                        <div class="upload-subtitle">{% trans "or click to browse" %}</div>
+                        <div class="upload-formats">
+                            <span class="format-badge">TXT</span>
+                            <span class="format-badge">CSV</span>
+                            <span class="format-badge">JSON</span>
+                            <span class="format-badge">XML</span>
+                            <span class="format-badge">ZIP</span>
+                            <span class="format-badge">GZ</span>
+                            <span class="format-badge">CoNLL</span>
+                        </div>
+                        <input type="file" id="file-input" name="uploaded_file"
+                               aria-label="{% trans 'Choose File' %}"
+                               accept=".txt,.csv,.json,.xml,.zip,.gz,.conll">
                     </div>
 
-                    <!-- Arabic fields (conditional) -->
-                    <div class="arabic-fields" id="arabic-fields">
-                        <div class="lang-divider">
-                            <span class="lang-badge ar">AR</span>
-                            <div class="lang-divider-line"></div>
+                    <div class="file-preview" id="file-preview">
+                        <div class="file-icon"><i class="bi bi-file-earmark-check"></i></div>
+                        <div class="file-info">
+                            <div class="file-name" id="file-name">filename.txt</div>
+                            <div class="file-size" id="file-size">2.5 MB</div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
-                            {{ form.title_ar }}
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
-                            {{ form.description_ar }}
-                            <div class="char-counter-wrap">
-                                <span class="char-counter" id="ar-counter">0 / 2000</span>
-                            </div>
-                        </div>
+                        <button type="button" class="file-remove" id="file-remove">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
                     </div>
-
                 </div>
+            </div>
 
-                <!-- Submit inside card footer -->
-                <div class="btn-submit-wrapper">
-                    <button type="submit" class="btn-submit" id="submit-btn">
-                        <span class="spinner"></span>
-                        <i class="bi bi-check2 btn-icon"></i>
-                        <span class="btn-text">
-                            {% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Submit Corpus" %}{% endif %}
-                        </span>
-                    </button>
-                    <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
-                        <i class="bi bi-x"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
-                    </a>
-                </div>
+            <!-- ===== SUBMIT ===== -->
+            <div class="btn-submit-wrapper">
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="spinner"></span>
+                    <i class="bi bi-check2"></i>
+                    <span class="btn-text">
+                        {% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Create Corpus" %}{% endif %}
+                    </span>
+                </button>
+                <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
+                    <i class="bi bi-x"></i>
+                    {% trans "Cancel" %}
+                </a>
             </div>
 
         </form>
@@ -1044,164 +1048,131 @@ html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: ri
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ===== Arabic Toggle =====
-    const arabicToggle = document.getElementById('arabic-toggle');
-    const arabicFields = document.getElementById('arabic-fields');
-
-    if (arabicToggle && arabicFields) {
-        arabicToggle.addEventListener('change', function() {
-            arabicFields.classList.toggle('visible', this.checked);
+    // Translation Toggle
+    const translationToggle = document.getElementById('translation-toggle');
+    const translationFields = document.querySelectorAll('.translation-fields');
+    if (translationToggle) {
+        translationToggle.addEventListener('change', function() {
+            translationFields.forEach(f => f.classList.toggle('visible', this.checked));
         });
     }
 
-    // ===== FILE UPLOAD - VERSION CORRIGÉE =====
-    (function initIconUpload() {
-        const iconZone = document.getElementById('icon-upload-zone');
-        const iconInput = document.getElementById('icon-input');
-        const iconPreviewCircle = document.getElementById('icon-preview-circle');
-        const iconFilePreview = document.getElementById('icon-file-preview');
-        const iconFileName = document.getElementById('icon-file-name');
-        const iconFileSize = document.getElementById('icon-file-size');
-        const iconFileRemove = document.getElementById('icon-file-remove');
+    // Keywords
+    const keywordsContainer = document.getElementById('keywords-container');
+    const keywordInput = document.getElementById('keyword-input');
+    const hiddenKeywords = document.querySelector('[name="keywords"]');
+    let keywords = [];
 
-        if (!iconZone || !iconInput) return;
-        
-        // Évite la double initialisation
-        if (iconZone._iconUploadInitialized) return;
-        iconZone._iconUploadInitialized = true;
+    if (hiddenKeywords && hiddenKeywords.value) {
+        keywords = hiddenKeywords.value.split(',').map(k => k.trim()).filter(k => k);
+        renderKeywords();
+    }
+    if (hiddenKeywords) hiddenKeywords.style.display = 'none';
 
-        // Fonction pour formater la taille du fichier
-        function formatSize(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // Fonction pour afficher le fichier sélectionné
-        function showIcon(file) {
-            if (!file) return;
-            
-            iconFileName.textContent = file.name;
-            iconFileSize.textContent = formatSize(file.size);
-            iconZone.classList.add('has-file');
-            iconFilePreview.classList.add('visible');
-        }
-
-        // Fonction pour effacer le fichier
-        function clearIcon() {
-            iconInput.value = '';
-            iconZone.classList.remove('has-file', 'drag-over');
-            iconFilePreview.classList.remove('visible');
-        }
-
-        // ===== DRAG & DROP =====
-        iconZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.add('drag-over');
+    function renderKeywords() {
+        if (!keywordsContainer) return;
+        keywordsContainer.querySelectorAll('.keyword-pill').forEach(p => p.remove());
+        keywords.forEach((keyword, index) => {
+            const pill = document.createElement('span');
+            pill.className = 'keyword-pill';
+            pill.innerHTML = `${keyword}<span class="remove-keyword" data-index="${index}"><i class="bi bi-x"></i></span>`;
+            keywordsContainer.insertBefore(pill, keywordInput);
         });
+        if (hiddenKeywords) hiddenKeywords.value = keywords.join(', ');
+    }
 
-        iconZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-        });
-
-        iconZone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                iconInput.files = dataTransfer.files;
-                showIcon(file);
-            }
-        });
-
-        // Gérer le clic sur la zone d'upload
-        iconZone.addEventListener('click', function(e) {
-            if (e.target.closest('#icon-file-remove')) {
-                return;
-            }
-            
-            e.preventDefault();
-            e.stopPropagation();
-            iconInput.click();
-        });
-
-        iconInput.addEventListener('change', function() {
-            if (this.files.length) {
-                showIcon(this.files[0]);
-            }
-        });
-
-        // Gérer le bouton de suppression
-        if (iconFileRemove) {
-            iconFileRemove.addEventListener('click', function(e) {
+    if (keywordInput) {
+        keywordInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ',') {
                 e.preventDefault();
-                e.stopPropagation();
-                clearIcon();
-            });
-        }
-
-    })();
-
-    // ===== URL Validation =====
-    function validateUrl(inputEl, feedbackEl) {
-        const val = inputEl.value.trim();
-        const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
-
-        inputEl.classList.remove('url-valid', 'url-invalid');
-        if (feedbackEl) feedbackEl.innerHTML = '';
-
-        if (!val) return;
-
-        if (pattern.test(val)) {
-            inputEl.classList.add('url-valid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+                const value = this.value.trim().replace(',', '');
+                if (value && !keywords.includes(value)) { keywords.push(value); renderKeywords(); }
+                this.value = '';
             }
-        } else {
-            inputEl.classList.add('url-invalid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
+            if (e.key === 'Backspace' && !this.value && keywords.length) {
+                keywords.pop(); renderKeywords();
             }
-        }
+        });
     }
 
-    const accessInput = document.getElementById('id_access_link');
-    const accessFeedback = document.getElementById('access-feedback');
-
-    if (accessInput) accessInput.addEventListener('input', function() { validateUrl(accessInput, accessFeedback); });
-    if (accessInput && accessInput.value) validateUrl(accessInput, accessFeedback);
-
-    // ===== Character Counters =====
-    function setupCounter(textareaId, counterId, max) {
-        const ta = document.getElementById(textareaId);
-        const ct = document.getElementById(counterId);
-        if (!ta || !ct) return;
-
-        function update() {
-            const len = ta.value.length;
-            const pct = (len / max) * 100;
-            ct.textContent = len + ' / ' + max;
-            ct.classList.remove('warn', 'danger');
-            if (pct >= 90) ct.classList.add('danger');
-            else if (pct >= 75) ct.classList.add('warn');
-        }
-
-        ta.addEventListener('input', update);
-        update();
+    if (keywordsContainer) {
+        keywordsContainer.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-keyword');
+            if (btn) { keywords.splice(parseInt(btn.dataset.index), 1); renderKeywords(); }
+        });
     }
 
-    setupCounter('id_description_en', 'en-counter', 2000);
-    setupCounter('id_description_ar', 'ar-counter', 2000);
+    // File Upload
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const fileRemove = document.getElementById('file-remove');
 
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showFile(file) {
+        if (fileName) fileName.textContent = file.name;
+        if (fileSize) fileSize.textContent = formatFileSize(file.size);
+        if (uploadZone) uploadZone.classList.add('has-file');
+        if (filePreview) filePreview.classList.add('visible');
+    }
+
+    function clearFile() {
+        if (fileInput) fileInput.value = '';
+        if (uploadZone) uploadZone.classList.remove('has-file');
+        if (filePreview) filePreview.classList.remove('visible');
+    }
+
+    if (uploadZone && fileInput) {
+        ['dragenter','dragover','dragleave','drop'].forEach(ev =>
+            uploadZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
+        );
+        ['dragenter','dragover'].forEach(ev =>
+            uploadZone.addEventListener(ev, () => uploadZone.classList.add('drag-over'))
+        );
+        ['dragleave','drop'].forEach(ev =>
+            uploadZone.addEventListener(ev, () => uploadZone.classList.remove('drag-over'))
+        );
+        uploadZone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length) { fileInput.files = files; showFile(files[0]); }
+        });
+        uploadZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', function() {
+            if (this.files.length) showFile(this.files[0]);
+        });
+    }
+
+    if (fileRemove) {
+        fileRemove.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
+    }
+
+    // Submit loading
+    const form = document.getElementById('corpus-form');
+    const submitBtn = document.getElementById('submit-btn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
+
+    // Hide non-corpus fields
+    ['document_type','document_format','tool_type','tool_version','documentation',
+     'languages','course_field','academic_level','course_institution','academic_year',
+     'doi','journal','publication_date','supervisor','thesis_institution','defense_year',
+     'memoir_level','memoir_institution','memoir_defense_year','title','description'
+    ].forEach(field => {
+        const el = document.querySelector(`[name="${field}"]`);
+        if (el) { const fg = el.closest('.form-group'); if (fg) fg.style.display = 'none'; }
+    });
 });
 </script>
 {% endblock %}

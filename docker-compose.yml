@@ -1,13 +1,12 @@
 services:
   # PostgreSQL Database with pgvector extension
   db:
-    image: "pgvector/pgvector:pg16"
+    image: ankane/pgvector:latest
     container_name: nlp_postgres
-    command: ["postgres", "-c", "max_connections=250", "-c", "superuser_reserved_connections=10"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -15,11 +14,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && PGPASSWORD=$$POSTGRES_PASSWORD psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc 'SELECT NOT pg_is_in_recovery();' | grep -q t",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,13 +26,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: nlp_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?must be set}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
       - redis_data:/data
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD:?must be set}\" ping | grep -q PONG"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -98,85 +93,54 @@ services:
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
-      target: development
     container_name: nlp_django
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      
       # Django
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      
       # Redis
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
-
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      
       # Celery
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
-
-      # Email
-      EMAIL_HOST: ${EMAIL_HOST}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      
+      # Email (optional)
+      EMAIL_HOST: ${EMAIL_HOST:-}
       EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
-
+      
       # Elasticsearch
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-
+      
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
-
+      
       # Chatbot Settings
       CHATBOT_MAX_HISTORY: ${CHATBOT_MAX_HISTORY:-20}
       CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
       CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
       CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
-
+      
       # Groq (scraping LLM validation)
-      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-
-      # Scraping/observability
-      SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
-      SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
-      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
-      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
-      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
-      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
-      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
-      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
-      HF_HOME: /tmp/hf_cache
-      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-
-      # Optional API keys for richer scraping
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
     volumes:
       - ./Plateforme:/app
-      - ./scraping:/scraping
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
-      - scraping_media:/app/media/scraping
-    user: "0:0"
     ports:
       - "8888:8000"
     command: >
       sh -c "
-        chown -R 1000:1000 /app/staticfiles /app/media 2>/dev/null || true &&
         python manage.py collectstatic --noinput &&
         python manage.py migrate --noinput &&
         daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
@@ -189,11 +153,11 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 90s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -205,36 +169,23 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_fastapi
     cpus: 1.0
-    mem_limit: 4g
-    mem_reservation: 1g
+    mem_limit: 2g
+    mem_reservation: 512m
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
       QDRANT_HOST: qdrant
       QDRANT_PORT: "6333"
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-      # HuggingFace cache — use the mounted volume
-      HF_HOME: /app/.cache
-      TRANSFORMERS_CACHE: /app/.cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
-      EXA_API_KEY: ${EXA_API_KEY:-}
-      EXA_ENABLED: ${EXA_ENABLED:-true}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
-      EXA_MAX_CALLS_PER_SESSION: ${EXA_MAX_CALLS_PER_SESSION:-10}
-      EXA_MAX_CALLS_PER_HOUR: ${EXA_MAX_CALLS_PER_HOUR:-30}
-      EXA_CACHE_TTL_HOURS: ${EXA_CACHE_TTL_HOURS:-24}
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -256,13 +207,13 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -277,25 +228,19 @@ services:
     mem_limit: 2g
     mem_reservation: 512m
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
       QDRANT_HOST: qdrant
       QDRANT_PORT: "6333"
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
-      # HuggingFace cache — use the mounted volume
-      HF_HOME: /app/.cache
-      TRANSFORMERS_CACHE: /app/.cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -308,7 +253,7 @@ services:
       - fastapi_cache:/app/.cache
     command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=1
     healthcheck:
-      test: ["CMD", "celery", "-A", "app.celery_app:celery", "inspect", "ping"]
+      test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 3
@@ -331,16 +276,14 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - static_volume:/app/staticfiles:ro
-      - ./Plateforme/media:/app/media:ro
+      - static_volume:/static:ro
+      - ./Plateforme/media:/media:ro
     ports:
       - "80:80"
       - "443:443"
     depends_on:
-      django:
-        condition: service_healthy
-      fastapi:
-        condition: service_healthy
+      - django
+      - fastapi
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
       interval: 30s
@@ -351,61 +294,30 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # Django Celery Worker (scraping background tasks)
+  # ── Django Celery Worker (scraping background tasks) ──────────────
   django_celery_worker:
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
-      target: development
     container_name: nlp_django_celery_worker
-    user: "celery"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-      SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
-      SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
-      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
-      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
-      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
-      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
-      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
-      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
-      HF_HOME: /tmp/hf_cache
-      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
     volumes:
       - ./Plateforme:/app
-      - ./scraping:/scraping
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
-      - scraping_media:/app/media/scraping
-    command: celery -A Plateforme worker -Q celery,default -l info --concurrency=1
-    healthcheck:
-      test: ["CMD", "celery", "-A", "Plateforme", "inspect", "ping"]
-      interval: 30s
-      timeout: 15s
-      retries: 3
-      start_period: 30s
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
     depends_on:
       db:
         condition: service_healthy
@@ -417,205 +329,29 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # Django Celery Scraper Worker
-  celery-scraper:
-    build:
-      context: ./Plateforme
-      dockerfile: Dockerfile
-      target: development
-    container_name: nlp_celery_scraper
-    shm_size: '2gb'
-    user: "celery"
-    command: celery -A Plateforme worker -Q scraping -c 2 --loglevel=info --max-tasks-per-child=50
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
-      ELASTICSEARCH_HOST: http://elasticsearch:9200
-      FASTAPI_URL: http://fastapi:8000
-      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
-      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
-      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.1-8b-instant}
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-      SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
-      SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
-      SCRAPING_RESPECT_ROBOTS: ${SCRAPING_RESPECT_ROBOTS:-true}
-      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
-      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
-      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
-      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
-      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
-      HF_HOME: /tmp/hf_cache
-      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-    volumes:
-      - ./Plateforme:/app
-      - ./scraping:/scraping
-      - static_volume:/app/staticfiles
-      - ./Plateforme/media:/app/media
-      - scraping_media:/app/media/scraping
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "1.5"
-    healthcheck:
-      test: ["CMD", "celery", "-A", "Plateforme", "inspect", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - nlp_network
-    restart: unless-stopped
-
-  # Django Celery Beat (periodic task scheduler)
+  # ── Django Celery Beat (periodic task scheduler) ──────────────────
   django_celery_beat:
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
-      target: development
     container_name: nlp_django_celery_beat
-    user: "celery"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:?must be set}@db:5432/${POSTGRES_DB:-nlp_platform}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/0
-      CHANNEL_LAYER_BACKEND: ${CHANNEL_LAYER_BACKEND:-redis}
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/5
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?must be set}@redis:6379/4
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
-      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
-      SCRAPING_DOWNLOAD_ENABLED: ${SCRAPING_DOWNLOAD_ENABLED:-true}
-      SCRAPING_MAX_CONCURRENT_DOWNLOADS: ${SCRAPING_MAX_CONCURRENT_DOWNLOADS:-4}
-      SCRAPING_SPACY_MODEL_AR: ${SCRAPING_SPACY_MODEL_AR:-en_core_web_sm}
-      SCRAPING_EVENTS_MIN_ITEMS_PER_RUN: ${SCRAPING_EVENTS_MIN_ITEMS_PER_RUN:-10}
-      SCRAPING_EVENTS_SEARCH_QUERY_LIMIT: ${SCRAPING_EVENTS_SEARCH_QUERY_LIMIT:-16}
-      SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE: ${SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE:-8}
-      SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES: ${SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES:-4}
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
-      HF_HOME: /tmp/hf_cache
-      TRANSFORMERS_CACHE: /tmp/hf_cache/transformers
-      SENTENCE_TRANSFORMERS_HOME: /tmp/hf_cache/sentence_transformers
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
       - ./Plateforme:/app
-      - ./scraping:/scraping
-      - scraping_media:/app/media/scraping
     command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
-    healthcheck:
-      test: ["CMD-SHELL", "kill -0 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - nlp_network
-    restart: unless-stopped
-
-  # Prometheus metrics collector
-  prometheus:
-    image: prom/prometheus:v2.51.0
-    container_name: nlp_prometheus
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      django:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    networks:
-      - nlp_network
-    restart: unless-stopped
-
-  # Grafana dashboards
-  grafana:
-    image: grafana/grafana:10.4.0
-    container_name: nlp_grafana
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
-      GF_PLUGINS_ENABLE_ALPHA: "false"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - grafana_plugins_bundled:/usr/share/grafana/plugins-bundled
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - nlp_network
-    restart: unless-stopped
-
-  # Redis Exporter for Prometheus
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.66.0
-    container_name: nlp_redis_exporter
-    environment:
-      REDIS_ADDR: redis://redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
-    ports:
-      - "9121:9121"
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "/redis_exporter", "-version"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -640,13 +376,5 @@ volumes:
     driver: local
   media_volume:
     driver: local
-  scraping_media:
-    driver: local
   fastapi_cache:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  grafana_plugins_bundled:
     driver: local

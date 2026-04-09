@@ -2,22 +2,22 @@
 {% load i18n %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
-<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}rtl{% else %}ltr{% endif %}">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %} {% trans "Sanad Platform" %}  {% endblock %}</title>
+    <title>{% block title %} {% trans "Arabic NLP Platform" %}  {% endblock %}</title>
     <link rel="icon" href="{% static 'images/logo.png' %}" type="image/png">
     <script src="https://unpkg.com/hyperscript.org@0.9.14"></script>
     <script src="https://unpkg.com/htmx.org"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260313-footer-rtl">
-    <link rel="stylesheet" href="{% static 'css/dark-navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="{% static 'css/notifications.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/design-system.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- Tailwind CSS for modern components -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,271 +42,6 @@
     <script src="{% static 'js/custom-file-input.js' %}?v=3"></script>
     {% block extra_styles %}{% endblock %}
     <style>
-      .profile-photo-modal {
-        position: fixed;
-        inset: 0;
-        z-index: 5000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(10, 16, 26, 0.8);
-        backdrop-filter: blur(2px);
-        padding: 1rem;
-      }
-
-      .profile-photo-modal.is-open {
-        display: flex;
-      }
-
-      .profile-photo-dialog {
-        width: min(980px, 96vw);
-        max-height: 92vh;
-        overflow: auto;
-        background: linear-gradient(180deg, #111826 0%, #171f2b 100%);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-      }
-
-      .profile-photo-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.35rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      }
-
-      .profile-photo-title {
-        margin: 0;
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #f8fafc;
-      }
-
-      .profile-photo-close {
-        border: 0;
-        background: transparent;
-        color: #d1d5db;
-        font-size: 1.6rem;
-        line-height: 1;
-        cursor: pointer;
-      }
-
-      .profile-photo-close:hover {
-        color: #ffffff;
-      }
-
-      .profile-photo-body {
-        min-height: 420px;
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .profile-photo-image {
-        width: min(560px, 78vw);
-        height: min(560px, 78vw);
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid rgba(255, 255, 255, 0.15);
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
-        background: #111827;
-      }
-    </style>
-    <style>
-      :root {
-        --site-header-height: 80px;
-      }
-
-      html, body {
-        scroll-padding-top: var(--site-header-height);
-      }
-
-      .site-header {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        z-index: 2000 !important;
-      }
-
-      .main-container {
-        margin-top: var(--site-header-height) !important;
-      }
-
-      .header-primary-nav {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex: 1 1 auto;
-        min-width: 0;
-        margin: 0 1.25rem;
-      }
-
-      .nav-menu {
-        display: flex;
-        align-items: center;
-        gap: 0.2rem;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
-
-      .nav-item {
-        position: relative;
-        list-style: none;
-      }
-
-      .nav-link,
-      .nav-dropdown-trigger {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        min-height: 42px;
-        padding: 0.7rem 0.9rem;
-        border: none;
-        border-radius: 14px;
-        background: transparent;
-        color: rgba(255, 255, 255, 0.82);
-        font-size: 0.95rem;
-        font-weight: 400;
-        text-decoration: none;
-        transition: background-color 0.18s ease, color 0.18s ease;
-        cursor: pointer;
-      }
-
-      .nav-link:hover,
-      .nav-link:focus,
-      .nav-link.active,
-      .nav-dropdown-trigger:hover,
-      .nav-dropdown-trigger:focus,
-      .nav-item.open > .nav-dropdown-trigger {
-        color: #ffffff;
-        background: rgba(167, 139, 250, 0.14);
-        text-decoration: none;
-      }
-
-      .nav-dropdown-trigger i:last-child {
-        font-size: 0.78rem;
-      }
-
-      .nav-dropdown-menu {
-        position: absolute;
-        top: calc(100% + 0.55rem);
-        left: 0;
-        min-width: 170px;
-        margin: 0;
-        padding: 0.6rem;
-        list-style: none;
-        background: #252542;
-        border: 1px solid rgba(167, 139, 250, 0.2);
-        border-radius: 18px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-6px);
-        transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
-        z-index: 2100;
-      }
-
-      .nav-dropdown-menu::before {
-        content: "";
-        position: absolute;
-        top: -8px;
-        left: 30px;
-        width: 16px;
-        height: 16px;
-        background: #252542;
-        border-top: 1px solid rgba(167, 139, 250, 0.2);
-        border-left: 1px solid rgba(167, 139, 250, 0.2);
-        transform: rotate(45deg);
-      }
-
-      .nav-item.open > .nav-dropdown-menu {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
-      }
-
-      .nav-dropdown-menu.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
-      }
-
-      .nav-dropdown-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.55rem;
-        padding: 0.75rem 1.2rem;
-        border-radius: 0.75rem;
-        color: #d1d5db;
-        text-decoration: none;
-        font-weight: 700;
-        font-size: 0.9rem;
-        transition: all 0.3s ease;
-        border-left: 3px solid transparent;
-      }
-
-      .nav-dropdown-item:hover,
-      .nav-dropdown-item:focus {
-        color: #a78bfa;
-        background: rgba(167, 139, 250, 0.1);
-        text-decoration: none;
-        border-left-color: #a78bfa;
-        padding-left: 1.35rem;
-      }
-
-      .nav-dropdown-item.active {
-        color: #a78bfa;
-        background: rgba(167, 139, 250, 0.15);
-      }
-
-      html[dir="rtl"] .nav-dropdown-menu {
-        left: auto;
-        right: 0;
-      }
-
-      html[dir="rtl"] .nav-dropdown-menu::before {
-        left: auto;
-        right: 30px;
-      }
-
-      .guest-join-item {
-        margin-left: auto;
-        list-style: none;
-      }
-
-      .guest-join-item .nav-dropdown-trigger {
-        min-width: 132px;
-        justify-content: center;
-      }
-
-      .guest-join-item .nav-dropdown-menu {
-        left: auto;
-        right: 0;
-        min-width: 200px;
-      }
-
-      html[dir="rtl"] .guest-join-item {
-        margin-left: 0;
-        margin-right: auto;
-      }
-
-      html[dir="rtl"] .guest-join-item .nav-dropdown-menu {
-        right: auto;
-        left: 0;
-      }
-
-      @media (max-width: 1280px) {
-        .header-primary-nav {
-          display: none;
-        }
-      }
-
       /* Date input with calendar icon */
       input[type="text"][id*="date"],
       input[type="text"][id*="Date"],
@@ -353,183 +88,41 @@
         display: block;
       }
 
-      .profile-icon-btn {
-        position: relative;
-      }
-
-      #profileInvBadge {
-        top: -4px;
-        right: 14px;
-      }
-
-      html[dir="rtl"] #profileInvBadge {
-        right: auto;
-        left: 14px;
-      }
-
-      .sidebar-label-group {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .sidebar-chat-badge {
-        display: none !important;
-        width: 18px !important;
-        height: 18px !important;
-        min-width: 18px !important;
-        max-width: 18px !important;
-        min-height: 18px !important;
-        max-height: 18px !important;
-        aspect-ratio: 1 / 1;
-        padding: 0 !important;
-        border-radius: 50%;
-        background: #FF3B30;
+      /* Sidebar invitation badge */
+      .sidebar-inv-badge {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 10px;
+        background: #ef4444;
         color: #fff;
-        font-size: 0.64rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        line-height: 1;
-        text-align: center;
+        display: flex;
         align-items: center;
         justify-content: center;
-        vertical-align: middle;
-        flex-shrink: 0;
-        border: 2px solid #ffffff;
-        box-shadow: 0 2px 6px rgba(255, 59, 48, 0.28);
-        overflow: hidden;
-        white-space: nowrap;
+        line-height: 1;
+        box-shadow: 0 2px 4px rgba(239,68,68,0.3);
       }
-
-      .sidebar-chat-badge.is-visible {
-        display: inline-flex !important;
-      }
-
-      .header-discussions-btn {
-        position: relative;
-        text-decoration: none !important;
-        border-bottom: none !important;
-      }
-
-      .header-discussions-btn i {
-        color: #ffffffb3 !important;
-      }
-
-      .header-discussions-btn:hover i,
-      .header-discussions-btn:focus i,
-      .header-discussions-btn.active i {
-        color: #a78bfa !important;
-      }
-
-      .header-discussions-btn .sidebar-chat-badge {
-        position: absolute;
-        top: -4px;
-        right: -4px;
-      }
-
-      html[dir="rtl"] .header-discussions-btn .sidebar-chat-badge {
+      html[dir="rtl"] .sidebar-inv-badge {
         right: auto;
-        left: -4px;
+        left: 12px;
+      }
+      .sidebar-menu .active .sidebar-inv-badge {
+        background: rgba(255,255,255,0.25);
       }
 
-      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+      /* ══════════════════════════════════════════════════════════════════════ */
       /* MODERN NOTIFICATION DROPDOWN STYLES                                    */
-      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+      /* ══════════════════════════════════════════════════════════════════════ */
       
       /* Dropdown Container */
       .ntf-dropdown-container {
         position: relative;
-      }
-
-      /* ===== Shared Site Pagination (Non-Admin) ===== */
-      .site-pagination,
-      .sec-pagination {
-        display: flex;
-        justify-content: center;
-        padding: 1.2rem 0;
-      }
-      .site-pagination .pagination,
-      .sec-pagination .pagination {
-        margin: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.45rem;
-        flex-wrap: wrap;
-      }
-      .site-pagination .page-link,
-      .sec-pagination .page-link {
-        border-radius: 12px;
-        border: 1px solid rgba(196, 181, 253, 0.38);
-        padding: 0 0.72rem;
-        min-width: 40px;
-        height: 40px;
-        font-size: 0.86rem;
-        font-weight: 700;
-        color: #c4b5fd;
-        background: rgba(91, 33, 182, 0.12);
-        box-shadow: 0 8px 24px rgba(91, 33, 182, 0.12);
-        transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.35rem;
-        white-space: nowrap;
-      }
-      .site-pagination .page-link:hover,
-      .sec-pagination .page-link:hover {
-        color: #f5f3ff;
-        border-color: rgba(196, 181, 253, 0.7);
-        background: rgba(139, 92, 246, 0.24);
-        transform: translateY(-1px);
-      }
-      .site-pagination .page-item.disabled .page-link,
-      .sec-pagination .page-item.disabled .page-link {
-        opacity: 0.85;
-        cursor: not-allowed;
-      }
-      .site-pagination .page-link.current,
-      .sec-pagination .page-link.current {
-        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
-        color: #ffffff;
-        border-color: #bda7ff;
-        font-weight: 800;
-        box-shadow: 0 12px 28px rgba(139, 92, 246, 0.28);
-      }
-      .site-pagination .page-link.current:hover,
-      .sec-pagination .page-link.current:hover {
-        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
-        border-color: #bda7ff;
-        color: #fff;
-      }
-      .site-pagination .pg-arrow,
-      .sec-pagination .pg-arrow {
-        width: 14px;
-        height: 14px;
-        display: inline-block;
-      }
-      .sr-only {
-        position: absolute !important;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      }
-      html[dir="rtl"] .site-pagination .pg-arrow,
-      html[dir="rtl"] .sec-pagination .pg-arrow {
-        transform: scaleX(-1);
-      }
-      @media (max-width: 576px) {
-        .site-pagination .page-link,
-        .sec-pagination .page-link {
-          min-width: 38px;
-          height: 38px;
-          padding: 0 0.6rem;
-          font-size: 0.8rem;
-        }
       }
       
       /* Bell Button */
@@ -548,18 +141,18 @@
       }
       
       .ntf-bell-btn:hover {
-        background: rgba(167, 139, 250, 0.1);
+        background: #f3f4f6;
       }
       
       .ntf-bell-btn:focus {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.3);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
       }
       
       .ntf-bell-btn svg {
         width: 20px;
         height: 20px;
-        color: #ffffffb3;
+        color: #4b5563;
       }
       
       /* Badge */
@@ -594,10 +187,10 @@
         right: 0;
         width: 384px;
         max-width: calc(100vw - 2rem);
-        background: #1a1a2e;
+        background: white;
         border-radius: 12px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(167, 139, 250, 0.2);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e5e7eb;
         z-index: 9999;
         opacity: 0;
         visibility: hidden;
@@ -617,22 +210,20 @@
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        background: #252542;
-        border-bottom: 1px solid rgba(167, 139, 250, 0.2);
-        border-radius: 12px 12px 0 0;
+        border-bottom: 1px solid #f3f4f6;
       }
       
       .ntf-header h3 {
         font-size: 15px;
         font-weight: 600;
-        color: #ffffff;
+        color: #111827;
         margin: 0;
         font-family: 'Inter', sans-serif;
       }
       
       .ntf-subtitle {
         font-size: 12px;
-        color: #ffffffb3;
+        color: #6b7280;
         margin-top: 2px;
       }
       
@@ -643,8 +234,8 @@
         padding: 6px 12px;
         font-size: 12px;
         font-weight: 500;
-        color: #a78bfa;
-        background: rgba(167, 139, 250, 0.15);
+        color: #2563eb;
+        background: #eff6ff;
         border: none;
         border-radius: 8px;
         cursor: pointer;
@@ -652,7 +243,7 @@
       }
       
       .ntf-mark-all:hover {
-        background: rgba(167, 139, 250, 0.25);
+        background: #dbeafe;
       }
       
       /* Body */
@@ -671,12 +262,12 @@
       }
       
       .ntf-body::-webkit-scrollbar-thumb {
-        background: rgba(167, 139, 250, 0.3);
+        background: #d1d5db;
         border-radius: 3px;
       }
       
       .ntf-body::-webkit-scrollbar-thumb:hover {
-        background: rgba(167, 139, 250, 0.5);
+        background: #9ca3af;
       }
       
       /* Notification Items */
@@ -685,22 +276,21 @@
         align-items: flex-start;
         gap: 12px;
         padding: 12px 16px;
-        background: #252542;
-        border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+        border-bottom: 1px solid #f9fafb;
         text-decoration: none;
         transition: background 0.15s ease;
       }
       
       .ntf-item:hover {
-        background: rgba(167, 139, 250, 0.1);
+        background: #f9fafb;
       }
       
       .ntf-item.ntf-unread {
-        background: rgba(167, 139, 250, 0.12);
+        background: rgba(239, 246, 255, 0.5);
       }
       
       .ntf-item.ntf-unread:hover {
-        background: rgba(167, 139, 250, 0.18);
+        background: rgba(239, 246, 255, 0.8);
       }
       
       /* Icon */
@@ -727,7 +317,7 @@
       .ntf-title {
         font-size: 13px;
         font-weight: 500;
-        color: #ffffff;
+        color: #111827;
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -736,10 +326,10 @@
       
       .ntf-message {
         font-size: 12px;
-        color: #ffffffb3;
+        color: #6b7280;
         margin: 2px 0 0;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
@@ -763,7 +353,7 @@
         flex-shrink: 0;
         width: 8px;
         height: 8px;
-        background: #a78bfa;
+        background: #3b82f6;
         border-radius: 50%;
         margin-top: 6px;
       }
@@ -792,7 +382,7 @@
       .ntf-empty p:first-of-type {
         font-size: 14px;
         font-weight: 500;
-        color: #ffffffb3;
+        color: #374151;
       }
       
       .ntf-empty p:last-of-type {
@@ -804,8 +394,8 @@
       /* Footer */
       .ntf-footer {
         padding: 12px 16px;
-        border-top: 1px solid rgba(167, 139, 250, 0.2);
-        background: #252542;
+        border-top: 1px solid #f3f4f6;
+        background: rgba(249, 250, 251, 0.5);
         border-radius: 0 0 12px 12px;
       }
       
@@ -816,7 +406,7 @@
         gap: 8px;
         font-size: 13px;
         font-weight: 500;
-        color: #a78bfa;
+        color: #2563eb;
         text-decoration: none;
         transition: color 0.2s ease;
       }
@@ -850,9 +440,9 @@
         to { transform: rotate(360deg); }
       }
       
-      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+      /* ══════════════════════════════════════════════════════════════════════ */
       /* RTL SUPPORT FOR ARABIC                                                 */
-      /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+      /* ══════════════════════════════════════════════════════════════════════ */
       
       html[dir="rtl"] .ntf-dropdown {
         right: auto;
@@ -907,280 +497,48 @@
       }
 
       /* ══════════════════════════════════════════════════════════════════════ */
-      /* MODERN TOAST NOTIFICATIONS STYLING                                    */
+      /* RTL SUPPORT FOR TOAST NOTIFICATIONS                                   */
       /* ══════════════════════════════════════════════════════════════════════ */
       
-      .modern-toast-container {
-        position: fixed;
-        top: 90px;
-        right: 20px;
-        z-index: 2001;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        pointer-events: none;
+      html[dir="rtl"] .toast-container {
+        right: auto !important;
+        left: 1rem !important;
       }
       
-      .modern-toast {
-        pointer-events: auto;
-        display: flex;
-        align-items: flex-start;
-        gap: 14px;
-        padding: 16px 20px;
-        border-radius: 12px;
-        background: white;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.06);
-        border-left: 4px solid;
-        animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        max-width: 420px;
-        min-width: 340px;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .modern-toast::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, currentColor, transparent);
-        opacity: 0.3;
-      }
-      
-      .modern-toast.success {
-        border-left-color: #22c55e;
-        background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
-      }
-      
-      .modern-toast.error,
-      .modern-toast.danger {
-        border-left-color: #ef4444;
-        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
-      }
-      
-      .modern-toast.warning {
-        border-left-color: #f59e0b;
-        background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
-      }
-      
-      .modern-toast.info {
-        border-left-color: #3b82f6;
-        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
-      }
-      
-      .modern-toast-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        font-size: 20px;
-        flex-shrink: 0;
-      }
-      
-      .modern-toast.success .modern-toast-icon {
-        background: rgba(34, 197, 94, 0.15);
-        color: #22c55e;
-      }
-      
-      .modern-toast.error .modern-toast-icon,
-      .modern-toast.danger .modern-toast-icon {
-        background: rgba(239, 68, 68, 0.15);
-        color: #ef4444;
-      }
-      
-      .modern-toast.warning .modern-toast-icon {
-        background: rgba(245, 158, 11, 0.15);
-        color: #f59e0b;
-      }
-      
-      .modern-toast.info .modern-toast-icon {
-        background: rgba(59, 130, 246, 0.15);
-        color: #3b82f6;
-      }
-      
-      .modern-toast-content {
-        flex: 1;
-        min-width: 0;
-      }
-      
-      .modern-toast-title {
-        font-weight: 600;
-        font-size: 14px;
-        color: #1f2937;
-        margin: 0 0 4px 0;
-        line-height: 1.3;
-      }
-      
-      .modern-toast-message {
-        font-size: 13px;
-        color: #6b7280;
-        margin: 0;
-        line-height: 1.4;
-        word-break: break-word;
-      }
-      
-      .modern-toast-close {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        background: transparent;
-        border: none;
-        color: #9ca3af;
-        cursor: pointer;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-      }
-      
-      .modern-toast-close:hover {
-        background: rgba(0, 0, 0, 0.05);
-        color: #4b5563;
-      }
-      
-      .modern-toast-close:active {
-        background: rgba(0, 0, 0, 0.08);
-      }
-      
-      .modern-toast-progress {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        height: 2px;
-        background: currentColor;
-        opacity: 0.3;
-        animation: progressBar 5s linear forwards;
-      }
-      
-      .modern-toast.success .modern-toast-progress {
-        background: #22c55e;
-      }
-      
-      .modern-toast.error .modern-toast-progress,
-      .modern-toast.danger .modern-toast-progress {
-        background: #ef4444;
-      }
-      
-      .modern-toast.warning .modern-toast-progress {
-        background: #f59e0b;
-      }
-      
-      .modern-toast.info .modern-toast-progress {
-        background: #3b82f6;
-      }
-      
-      @keyframes slideInRight {
-        from {
-          transform: translateX(380px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-      
-      @keyframes slideOutRight {
-        from {
-          transform: translateX(0);
-          opacity: 1;
-        }
-        to {
-          transform: translateX(380px);
-          opacity: 0;
-        }
-      }
-      
-      @keyframes progressBar {
-        from {
-          width: 100%;
-        }
-        to {
-          width: 0%;
-        }
-      }
-      
-      .modern-toast.fade-out {
-        animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-      }
-      
-      /* RTL SUPPORT FOR MODERN TOAST NOTIFICATIONS */
-      html[dir="rtl"] .modern-toast-container {
-        right: auto;
-        left: 20px;
-      }
-      
-      html[dir="rtl"] .modern-toast {
-        flex-direction: row-reverse;
-        border-left: none;
-        border-right: 4px solid;
+      html[dir="rtl"] .toast {
         direction: rtl;
         text-align: right;
       }
       
-      html[dir="rtl"] .modern-toast.success {
-        border-right-color: #22c55e;
+      html[dir="rtl"] .toast-header {
+        direction: rtl;
+        text-align: right;
+        flex-direction: row-reverse;
       }
       
-      html[dir="rtl"] .modern-toast.error,
-      html[dir="rtl"] .modern-toast.danger {
-        border-right-color: #ef4444;
+      html[dir="rtl"] .toast-header i {
+        margin-right: 0;
+        margin-left: 0.5rem;
       }
       
-      html[dir="rtl"] .modern-toast.warning {
-        border-right-color: #f59e0b;
+      html[dir="rtl"] .toast-header .me-2 {
+        margin-right: 0 !important;
+        margin-left: 0.5rem !important;
       }
       
-      html[dir="rtl"] .modern-toast.info {
-        border-right-color: #3b82f6;
+      html[dir="rtl"] .toast-header .me-auto {
+        margin-right: auto !important;
+        margin-left: 0 !important;
       }
       
-      html[dir="rtl"] @keyframes slideInRight {
-        from {
-          transform: translateX(-380px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
+      html[dir="rtl"] .toast-body {
+        direction: rtl;
+        text-align: right;
       }
       
-      html[dir="rtl"] @keyframes slideOutRight {
-        from {
-          transform: translateX(0);
-          opacity: 1;
-        }
-        to {
-          transform: translateX(-380px);
-          opacity: 0;
-        }
-      }
-      
-      @media (max-width: 640px) {
-        .modern-toast-container {
-          top: 80px;
-          right: 10px;
-          left: auto;
-        }
-        
-        .modern-toast {
-          min-width: 300px;
-          max-width: calc(100vw - 20px);
-        }
-      }
-      
-      html[dir="rtl"] @media (max-width: 640px) {
-        .modern-toast-container {
-          left: 10px;
-          right: auto;
-        }
+      html[dir="rtl"] .btn-close {
+        margin-right: auto;
+        margin-left: 0;
       }
 
       /* Respect online visibility preference from the profile switch */
@@ -1197,76 +555,14 @@
     <header class="site-header">
         <div class="header-container">
             <div class="logo-container">
-                <a href="{% url 'pages:home' %}" class="logo-link">
-                    <img src="{% static 'images/navbarlogo.png' %}" alt="Sanad Platform" class="navbar-logo">
+                <a href="{% url 'pages:home' %}" class="logo-link d-flex align-items-center gap-2">
+                    <img src="{% static 'images/logo.png' %}" alt="Arabic NLP Platform" class="logo-img" style="height: 40px;">
+                    <span class="logo-text fw-bold fs-4 ">{% trans "Arabic NLP" %}  </span>
                 </a>
             </div>
-            <nav class="header-primary-nav" aria-label="{% trans 'Primary navigation' %}">
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="{% url 'pages:home' %}" class="nav-link {% if page == 'home' %}active{% endif %}">
-                            <i class="fas fa-home"></i>
-                            <span>{% trans "Home" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-dropdown-trigger" type="button" data-dropdown="resourcesDropdown">
-                            <span>{% trans "Resources" %}</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <ul class="nav-dropdown-menu" id="resourcesDropdown">
-                            <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item {% if page == 'corpus' %}active{% endif %}" role="menuitem">{% trans "Corpus" %}</a></li>
-                            <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item {% if page == 'tools' %}active{% endif %}" role="menuitem">{% trans "Tools" %}</a></li>
-                            <li><a href="{% url 'resources:course_list' %}" class="nav-dropdown-item {% if page == 'course' %}active{% endif %}" role="menuitem">{% trans "Courses" %}</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-dropdown-trigger" type="button" data-dropdown="communityDropdown">
-                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجتمع{% else %}{% trans "Community" %}{% endif %}</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <ul class="nav-dropdown-menu" id="communityDropdown">
-                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item {% if page == 'feed' %}active{% endif %}" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a></li>
-                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item {% if page == 'forum' or page == 'forums' %}active{% endif %}" role="menuitem">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pages:publications_list' %}" class="nav-link {% if page == 'news' %}active{% endif %}">
-                            <span>{% trans "News" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'projects:project_list' %}" class="nav-link {% if page == 'research_projects' %}active{% endif %}">
-                            <span>{% trans "Research Projects" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'events:event_list' %}" class="nav-link {% if page == 'events' %}active{% endif %}">
-                            <span>{% trans "Events" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'institutions:institution_list' %}" class="nav-link {% if page == 'institutions' %}active{% endif %}">
-                            <span>{% trans "Institutions" %}</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pages:opportunities' %}" class="nav-link {% if page == 'opportunities' %}active{% endif %}">
-                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
-                        </a>
-                    </li>
-                    {% if user.is_staff %}
-                    <li class="nav-item">
-                        <a href="{% url 'pages:admin_dashboard' %}" class="nav-link {% if page == 'Admin' %}active{% endif %}">
-                            <span>{% trans "Admin" %}</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
             <!-- PREMIUM COMMAND PALETTE SEARCH - Inspired by Notion, GitHub, Linear               -->
-            <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
             <div class="cmd-search" id="global-search-wrapper" style="flex: 1 1 auto; min-width: 200px; width: auto; margin: 0 12px;">
                 <form id="global-search-form" action="{% url 'search:global_search' %}" method="get" class="cmd-search-form">
                     <div class="cmd-search-bar" id="cmd-search-bar" style="width: 100%;">
@@ -1300,10 +596,10 @@
             </div>
             
             <style>
-            /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+            /* ════════════════════════════════════════════════════════════════════════════════════ */
             /* COMMAND PALETTE SEARCH - Premium SaaS Design System                                  */
             /* Inspired by: Notion, GitHub, Linear, Raycast                                         */
-            /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+            /* ════════════════════════════════════════════════════════════════════════════════════ */
             
             :root {
                 --cmd-bg: #FFFFFF;
@@ -1332,52 +628,22 @@
                 display: flex !important;
                 align-items: center !important;
                 gap: 0 !important;
-                padding-top: 10px;
-                padding-bottom: 10px;
             }
 
             .logo-container {
                 margin: 0 !important;
-                padding: 0 8px !important;
-                flex-shrink: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                height: auto !important;
-            }
-            
-            .logo-link {
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                text-decoration: none !important;
-                height: 100% !important;
-            }
-            
-            .navbar-logo {
-                display: block !important;
-                height: 35px !important;
-                width: auto !important;
-                max-width: 120px !important;
-                object-fit: contain !important;
-                transition: transform 0.3s ease !important;
+                padding: 0 !important;
             }
             
             /* Container - Responsive flex */
             .cmd-search {
                 position: relative;
-                flex: 1 1 420px;
+                flex: 1 1 auto;
                 min-width: 200px;
                 width: auto;
-                max-width: 560px;
                 margin: 0 !important;
                 padding: 0 !important;
                 z-index: 1000;
-            }
-
-            html[dir="ltr"] .cmd-search {
-                flex-basis: 780px;
-                max-width: 980px;
             }
             
             .cmd-search-form {
@@ -1482,9 +748,9 @@
                 display: none;
             }
             
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             /* DROPDOWN                                                                            */
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             
             .cmd-dropdown {
                 position: absolute;
@@ -1672,9 +938,9 @@
                 transform: translateX(2px);
             }
             
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             /* AUTOCOMPLETE ITEM STYLES                                                            */
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             
             .sr-autocomplete-item {
                 display: flex;
@@ -1860,9 +1126,9 @@
                 color: var(--cmd-accent);
             }
             
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             /* RTL SUPPORT                                                                         */
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             
             html[dir="rtl"] .cmd-search-bar {
                 padding: 0 20px 0 6px;
@@ -1892,9 +1158,9 @@
                 flex-direction: row-reverse;
             }
             
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             /* RESPONSIVE                                                                          */
-            /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ─────────────────────────────────────────────────────────────────────────────────── */
             
             @media (max-width: 768px) {
                 .cmd-search {
@@ -1938,34 +1204,9 @@
                 }
             }
             </style>
-            <div class="header-actions">
-                <div class="search-dropdown-container action-dropdown-container">
-                    <button class="action-btn icon-btn search-icon-btn"
-                            id="searchIconBtn"
-                            type="button"
-                            aria-haspopup="true"
-                            aria-expanded="false"
-                            title="{% trans 'Search' %}">
-                        <i class="fas fa-search"></i>
-                        <span class="btn-label">{% trans "Search" %}</span>
-                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
-                    </button>
-                    <div class="dropdown-panel search-dropdown" id="searchDropdown" role="menu" aria-labelledby="searchIconBtn">
-                        <form class="search-form" method="get" action="{% url 'search:global_search' %}" style="padding: 1rem;">
-                            <div class="search-input-wrapper">
-                                <input type="text" 
-                                       name="q" 
-                                       class="search-input" 
-                                       placeholder="{% trans 'Search...' %}"
-                                       autocomplete="off">
-                                <button type="submit" class="search-submit-btn">
-                                    <i class="fas fa-arrow-right"></i>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+            <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
 
+            <div class="header-actions">
                 <div class="language-dropdown-container action-dropdown-container">
                     <button class="action-btn icon-btn language-icon-btn"
                             id="languageIconBtn"
@@ -1974,14 +1215,14 @@
                             aria-expanded="false"
                             title="{% trans 'Language' %}">
                         <i class="fas fa-globe"></i>
-                        <span class="btn-label">{% if LANGUAGE_CODE == 'en' %}EN{% elif LANGUAGE_CODE == 'ar' %}AR{% endif %}</span>
+                        <span class="btn-label">{% trans "Language" %}</span>
                         <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
                     </button>
                     <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
                         <a href="{% url 'translate:switch_language' %}?language=en"
                            class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
                            role="menuitem">
-                            <span>{% trans "English" %}</span>
+                            <span>{% if LANGUAGE_CODE == 'ar' %}الإنجليزية{% else %}English{% endif %}</span>
                             {% if LANGUAGE_CODE == 'en' %}
                             <i class="fas fa-check"></i>
                             {% endif %}
@@ -1989,7 +1230,7 @@
                         <a href="{% url 'translate:switch_language' %}?language=ar"
                            class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
                            role="menuitem">
-                            <span>{% trans "Arabic" %}</span>
+                            <span>{% if LANGUAGE_CODE == 'ar' %}العربية{% else %}Arabic{% endif %}</span>
                             {% if LANGUAGE_CODE == 'ar' %}
                             <i class="fas fa-check"></i>
                             {% endif %}
@@ -1999,18 +1240,18 @@
 
                 {% if user.is_authenticated %}
                 <div class="authenticated-actions">
-                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
                     <!-- MODERN NOTIFICATION DROPDOWN - Premium Academic Portal Style           -->
-                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
                     <div class="ntf-dropdown-container tw-relative">
                         <!-- Notification Bell Button -->
-                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
+                        <button class="ntf-bell-btn tw-relative tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-transparent hover:tw-bg-gray-100 tw-transition-all tw-duration-200 tw-border-0 tw-cursor-pointer"
                                 id="ntfDropdownToggle"
                                 aria-haspopup="menu"
                                 aria-expanded="false"
                                 aria-label="{% trans 'View notifications' %}"
                                 title="{% trans 'Notifications' %}">
-                            <svg class="tw-w-5 tw-h-5 ntf-bell-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="tw-w-5 tw-h-5 tw-text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
                             <!-- Unread Badge -->
@@ -2019,16 +1260,16 @@
                         </button>
 
                         <!-- Notification Dropdown Panel -->
-                        <div class="ntf-dropdown tw-absolute tw-top-full tw-mt-2 tw-w-96 tw-max-w-[calc(100vw-2rem)] tw-bg-slate-900 tw-rounded-xl tw-shadow-2xl tw-border tw-border-purple-400/20 tw-z-50 tw-opacity-0 tw-invisible tw-transform tw-translate-y-2 tw-transition-all tw-duration-200"
+                        <div class="ntf-dropdown tw-absolute tw-top-full tw-mt-2 tw-w-96 tw-max-w-[calc(100vw-2rem)] tw-bg-white tw-rounded-xl tw-shadow-2xl tw-border tw-border-gray-100 tw-z-50 tw-opacity-0 tw-invisible tw-transform tw-translate-y-2 tw-transition-all tw-duration-200"
                              id="ntfDropdown"
                              role="menu"
                              aria-labelledby="ntfDropdownToggle">
                             
                             <!-- Dropdown Header -->
-                            <div class="ntf-header tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-3 tw-border-b tw-border-purple-400/20">
+                            <div class="ntf-header tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-3 tw-border-b tw-border-gray-100">
                                 <div class="tw-flex tw-flex-col">
-                                    <h3 class="tw-text-base tw-font-semibold tw-text-white tw-m-0 tw-font-inter">{% trans "Notifications" %}</h3>
-                                    <span class="ntf-subtitle tw-text-xs tw-text-gray-400 tw-mt-0.5" id="ntfSubtitle">
+                                    <h3 class="tw-text-base tw-font-semibold tw-text-gray-900 tw-m-0 tw-font-inter">{% trans "Notifications" %}</h3>
+                                    <span class="ntf-subtitle tw-text-xs tw-text-gray-500 tw-mt-0.5" id="ntfSubtitle">
                                         {% if unread_notifications_count > 0 %}
                                             <span id="ntfUnreadCount">{{ unread_notifications_count }}</span> {% trans "unread" %}
                                         {% else %}
@@ -2037,7 +1278,7 @@
                                     </span>
                                 </div>
                                 <button type="button" 
-                                        class="ntf-mark-all tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-purple-400 tw-bg-purple-500/15 tw-rounded-lg tw-border-0 tw-cursor-pointer hover:tw-bg-purple-500/25 tw-transition-colors {% if unread_notifications_count == 0 %}tw-hidden{% endif %}"
+                                        class="ntf-mark-all tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-blue-600 tw-bg-blue-50 tw-rounded-lg tw-border-0 tw-cursor-pointer hover:tw-bg-blue-100 tw-transition-colors {% if unread_notifications_count == 0 %}tw-hidden{% endif %}"
                                         id="ntfMarkAllBtn"
                                         onclick="ntfMarkAllRead(event)">
                                     <svg class="tw-w-3.5 tw-h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2062,10 +1303,29 @@
                                     {% if notifications %}
                                         {% for notification in notifications %}
                                         <a href="{% url 'notifications:go_to_notification' notification.id %}" 
-                                           class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-purple-500/10 tw-no-underline tw-transition-colors hover:tw-bg-purple-500/10 {% if not notification.read %}ntf-unread tw-bg-purple-500/15{% endif %}"
+                                           class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 {% if not notification.read %}ntf-unread tw-bg-blue-50/50{% endif %}"
                                            data-notification-id="{{ notification.id }}">
                                             <!-- Type Icon -->
-                                            <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-bg-purple-400/20 tw-text-purple-400">
+                                            <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center
+                                                {% if notification.type == 'PROJECT_INVITATION' or notification.type == 'MEMBERSHIP_REQUEST' %}
+                                                    tw-bg-purple-100 tw-text-purple-600
+                                                {% elif notification.type == 'PROJECT_UPDATE' or notification.type == 'TASK_ASSIGNED' %}
+                                                    tw-bg-blue-100 tw-text-blue-600
+                                                {% elif notification.type == 'COMMENT' or notification.type == 'QA_COMMENT' %}
+                                                    tw-bg-green-100 tw-text-green-600
+                                                {% elif notification.type == 'EVENT_CREATED' or notification.type == 'EVENT_APPROVED' %}
+                                                    tw-bg-pink-100 tw-text-pink-600
+                                                {% elif notification.type == 'RESOURCE_ADDED' or notification.type == 'CORPUS_UPDATE' %}
+                                                    tw-bg-cyan-100 tw-text-cyan-600
+                                                {% elif notification.type == 'TOOL_ADDED' %}
+                                                    tw-bg-amber-100 tw-text-amber-600
+                                                {% elif notification.type == 'FORUM_TOPIC' or notification.type == 'QA_ANSWER' %}
+                                                    tw-bg-violet-100 tw-text-violet-600
+                                                {% elif notification.type == 'POST_APPROVED' %}
+                                                    tw-bg-emerald-100 tw-text-emerald-600
+                                                {% else %}
+                                                    tw-bg-gray-100 tw-text-gray-600
+                                                {% endif %}">
                                                 {% if notification.type == 'PROJECT_INVITATION' %}
                                                     <i class="fas fa-user-plus tw-text-sm"></i>
                                                 {% elif notification.type == 'MEMBERSHIP_REQUEST' %}
@@ -2118,42 +1378,33 @@
                                     {% else %}
                                         <!-- Empty State -->
                                         <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
-                                            <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-purple-500/20 tw-flex tw-items-center tw-justify-center tw-mb-4">
-                                                <svg class="tw-w-8 tw-h-8 tw-text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                                                <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                                 </svg>
                                             </div>
-                                            <p class="tw-text-sm tw-font-medium tw-text-gray-300 tw-m-0">{% trans "No notifications yet" %}</p>
-                                            <p class="tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
+                                            <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                                            <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
                                         </div>
                                     {% endif %}
                                 </div>
                             </div>
 
                             <!-- Dropdown Footer -->
-                            <div class="ntf-footer tw-px-4 tw-py-3 tw-border-t tw-border-purple-500/20 tw-bg-purple-500/5 tw-rounded-b-xl">
+                            <div class="ntf-footer tw-px-4 tw-py-3 tw-border-t tw-border-gray-100 tw-bg-gray-50/50 tw-rounded-b-xl">
                                 <a href="{% url 'notifications:list' %}" 
-                                   class="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-sm tw-font-medium tw-text-purple-400 tw-no-underline tw-transition-colors hover:tw-text-white"
-                                   style="color: #a78bfa;"
-                                   onmouseover="this.style.color='white'; this.querySelectorAll('svg').forEach(s => s.style.stroke='white');"
-                                   onmouseout="this.style.color='#a78bfa'; this.querySelectorAll('svg').forEach(s => s.style.stroke='#a78bfa');">
+                                   class="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-sm tw-font-medium tw-text-blue-600 tw-no-underline hover:tw-text-blue-700 tw-transition-colors">
                                     {% trans "View all notifications" %}
-                                    <svg class="tw-w-4 tw-h-4 rtl:tw-rotate-180" fill="none" viewBox="0 0 24 24" style="stroke: #a78bfa;">
+                                    <svg class="tw-w-4 tw-h-4 rtl:tw-rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                                     </svg>
                                 </a>
                             </div>
                         </div>
                     </div>
-                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
                     <!-- END NOTIFICATION DROPDOWN                                              -->
-                    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-                    <a href="{% url 'direct_messages:inbox' %}"
-                       class="action-btn icon-btn header-discussions-btn {% if page == 'messages' or request.resolver_match.namespace == 'direct_messages' %}active{% endif %}"
-                       title="{% trans 'Discussions' %}">
-                        <i class="fas fa-comments"></i>
-                        <span id="sidebarDmBadge" class="sidebar-chat-badge" aria-label="{% trans 'Unread messages' %}"></span>
-                    </a>
+                    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
                     <div class="profile-icon-container action-dropdown-container">
                         <button class="action-btn icon-btn profile-icon-btn"
@@ -2168,50 +1419,38 @@
                         </button>
                         <div class="dropdown-panel profile-dropdown" id="profileDropdown" role="menu" aria-labelledby="profileIconBtn">
                             <a href="{% url 'accounts:profile' user.id %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-user"></i>
                                 <span>{% trans "Profile" %}</span>
                             </a>
                             <a href="{% url 'accounts:network_invitations' %}" class="profile-dropdown-item" role="menuitem">
+                                <i class="fas fa-user-friends"></i>
                                 <span>
                                     {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                                        إدارة المتابعين
+                                        طلبات الصداقة
                                     {% else %}
-                                        Follow management
+                                        Friend requests
                                     {% endif %}
                                 </span>
                                 <span class="profile-inv-count" id="profileInvCount" hidden>0</span>
                             </a>
-                            <a href="{% url 'projects:project_invitations' %}" class="profile-dropdown-item" role="menuitem">
-                                <span>
-                                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
-                                        دعوات المشاريع
-                                    {% else %}
-                                        Project invitations
-                                    {% endif %}
-                                </span>
-                                <span class="profile-inv-count" id="projectInvCount" hidden>0</span>
-                            </a>
                             <a href="{% url 'account_logout' %}" class="profile-dropdown-item logout-item" role="menuitem">
+                                <i class="fas fa-sign-out-alt"></i>
                                 <span>{% trans "Logout" %}</span>
                             </a>
                         </div>
                     </div>
                 </div>
                 {% else %}
-                <!-- JOIN US Dropdown - Same as Community Dropdown -->
-                <li class="nav-item guest-join-item">
-                    <button class="nav-dropdown-trigger" id="joinUsDropdownTrigger" data-dropdown="joinUsDropdown">
-                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}انضم إلينا{% else %}{% trans "Join Us" %}{% endif %}</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <ul class="nav-dropdown-menu" id="joinUsDropdown">
-                        <li><a href="{% url 'account_login' %}" class="nav-dropdown-item" role="menuitem">
-                            <span>{% trans "Log in" %}</span>
-                        </a></li>
-                        <li><a href="{% url 'account_signup' %}" class="nav-dropdown-item" role="menuitem">
-                            <span>{% trans "Sign up" %}</span>
-                        </a></li>
-                    </ul>
-                </li>
+                <div class="guest-actions">
+                    <a href="{% url 'account_login' %}" class="action-btn ghost-btn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>{% trans "Log in" %}</span>
+                    </a>
+                    <a href="{% url 'account_signup' %}" class="action-btn primary-btn">
+                        <i class="fas fa-user-plus"></i>
+                        <span>{% trans "Sign up" %}</span>
+                    </a>
+                </div>
                 {% endif %}
             </div>
 
@@ -2229,36 +1468,37 @@
                         <i class="fas fa-home"></i><span>{% trans "Home" %}</span>
                     </a></li>
                     <li><a href="{% url 'resources:corpus_list' %}" class="{% if page == 'corpus' %}active{% endif %}">
-                        <span>{% trans "Corpus" %}</span>
+                        <i class="fas fa-database"></i><span>{% trans "Corpus" %}</span>
                     </a></li>
                     <li><a href="{% url 'resources:tool_list' %}" class="{% if page == 'tools' %}active{% endif %}">
-                        <span>{% trans "Tools" %}</span>
+                        <i class="fas fa-tools"></i><span>{% trans "Tools" %}</span>
+                    </a></li>
+                    <li><a class="{% if page == 'resources' %}active{% endif %}" href="{% url 'resources:list' %}">
+                        <i class="fas fa-archive"></i><span>{% trans "Resources" %}</span>
                     </a></li>
                     <li><a href="{% url 'projects:project_list' %}" class="{% if page == 'research_projects' %}active{% endif %}">
                         <i class="fas fa-flask"></i><span>{% trans "Research Projects" %}</span>
                     </a></li>
-                    <li class="nav-item">
-                        <button class="nav-dropdown-trigger" type="button" data-dropdown="mobileCommunityDropdown">
-                            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجتمع{% else %}{% trans "Community" %}{% endif %}</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <ul class="nav-dropdown-menu" id="mobileCommunityDropdown">
-                            <li><a href="{% url 'feed:feed' %}" class="nav-dropdown-item {% if page == 'feed' %}active{% endif %}" role="menuitem">
-                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}
-                            </a></li>
-                            <li><a href="{% url 'forum:topic-list' %}" class="nav-dropdown-item" role="menuitem">
-                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنتديات{% else %}{% trans "Forums" %}{% endif %}
-                            </a></li>
-                        </ul>
-                    </li>
                     <li><a class="{% if page == 'opportunities' %}active{% endif %}" href="{% url 'pages:opportunities' %}">
-                        <i class="fas fa-briefcase"></i><span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
+                        <i class="fas fa-briefcase"></i><span>{% trans "Opportunities" %}</span>
+                    </a></li>
+                    {% if user.is_authenticated %}
+                    <li><a href="{% url 'projects:project_invitations' %}" class="{% if page == 'project_invitations' %}active{% endif %}" style="position: relative;">
+                        <i class="fas fa-briefcase"></i><span>{% trans "Project Invitations" %}</span>
+                        <span class="sidebar-inv-badge" id="sidebarProjectInvBadge" style="display:none;"></span>
+                    </a></li>
+                    {% endif %}
+                    <li><a class="{% if page == 'community' %}active{% endif %}" href="{% url 'forum:topic-list' %}">
+                        <i class="fas fa-users"></i><span>{% trans "Community" %}</span>
+                    </a></li>
+                    <li><a class="{% if page == 'feed' %}active{% endif %}" href="{% url 'QA:feed' %}">
+                        <i class="fas fa-newspaper"></i><span>{% trans "News" %}</span>
                     </a></li>
                     <li><a class="{% if page == 'events' %}active{% endif %}" href="{% url 'events:event_list' %}">
                         <i class="fas fa-calendar-alt"></i><span>{% trans "Events" %}</span>
                     </a></li>
                     <li><a href="{% url 'resources:course_list' %}" class="{% if page == 'course' %}active{% endif %}">
-                        <span>{% trans "Courses" %}</span>
+                        <i class="fas fa-graduation-cap"></i><span>{% trans "Courses" %}</span>
                     </a></li>
                     <li><a class="{% if page == 'institutions' %}active{% endif %}" href="{% url 'institutions:institution_list' %}">
                         <i class="fas fa-university"></i><span>{% trans "Institutions" %}</span>
@@ -2273,41 +1513,18 @@
         </aside>
 
         <main class="content">
-            <!-- Modern Toast Container for Flash Messages -->
+            <!-- Toast Container for Flash Messages (can be overridden per template) -->
             {% block messages_container %}
-            <div class="modern-toast-container" id="toastContainer">
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
                 {% if messages %}
                     {% for message in messages %}
-                    <div class="modern-toast {% if message.tags %}{{ message.tags }}{% else %}info{% endif %}" role="alert" aria-live="polite" aria-atomic="true">
-                        <div class="modern-toast-icon">
-                            {% if message.tags == 'success' %}
-                                <i class="bi bi-check-circle-fill"></i>
-                            {% elif message.tags == 'error' or message.tags == 'danger' %}
-                                <i class="bi bi-exclamation-circle-fill"></i>
-                            {% elif message.tags == 'warning' %}
-                                <i class="bi bi-exclamation-triangle-fill"></i>
-                            {% else %}
-                                <i class="bi bi-info-circle-fill"></i>
-                            {% endif %}
+                    <div class="toast align-items-center border-0 {% if message.tags %}bg-{{ message.tags }} text-white{% else %}bg-dark text-white{% endif %}" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
-                        <div class="modern-toast-content">
-                            <p class="modern-toast-title">
-                                {% if message.tags == 'success' %}
-                                    {% trans "Success" %}
-                                {% elif message.tags == 'error' or message.tags == 'danger' %}
-                                    {% trans "Error" %}
-                                {% elif message.tags == 'warning' %}
-                                    {% trans "Warning" %}
-                                {% else %}
-                                    {% trans "Information" %}
-                                {% endif %}
-                            </p>
-                            <p class="modern-toast-message">{{ message }}</p>
-                        </div>
-                        <button type="button" class="modern-toast-close" aria-label="Close notifiaction">
-                            <i class="bi bi-x"></i>
-                        </button>
-                        <div class="modern-toast-progress"></div>
                     </div>
                     {% endfor %}
                 {% endif %}
@@ -2315,31 +1532,52 @@
             {% endblock messages_container %}
             
             <script>
-            // Modern toast notification handler
+            // Auto-show Django message toasts
             document.addEventListener('DOMContentLoaded', function() {
-                const toasts = document.querySelectorAll('.modern-toast');
-                
-                toasts.forEach(toast => {
-                    const closeBtn = toast.querySelector('.modern-toast-close');
-                    let timeout;
-                    
-                    function removeToast() {
-                        toast.classList.add('fade-out');
-                        setTimeout(() => {
-                            toast.remove();
-                        }, 300);
-                    }
-                    
-                    closeBtn.addEventListener('click', removeToast);
-                    
-                    // Auto-hide after 5 seconds
-                    timeout = setTimeout(removeToast, 5000);
-                    
-                    // Reset timeout on hover
-                    toast.addEventListener('mouseenter', () => clearTimeout(timeout));
-                    toast.addEventListener('mouseleave', () => {
-                        timeout = setTimeout(removeToast, 5000);
+                var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+                var toastList = toastElList.map(function(toastEl) {
+                    var toast = new bootstrap.Toast(toastEl, {
+                        autohide: true,
+                        delay: 5000
                     });
+                    toast.show();
+                    return toast;
+                });
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var allProfileItems = document.querySelectorAll('a.profile-dropdown-item, .profile-dropdown-item a, .dropdown-item');
+
+                allProfileItems.forEach(function (node) {
+                    var href = (node.getAttribute('href') || '').toLowerCase();
+                    var text = (node.textContent || '').trim().toLowerCase();
+                    var hasTrashIcon = !!node.querySelector('.fa-trash, .fa-trash-alt, .bi-trash, .bi-trash3');
+                    var isTrashByHref = href.indexOf('/accounts/trash') !== -1 || href.indexOf('accounts:trash') !== -1;
+                    var isTrashByText = text.indexOf('recycle bin') !== -1 || text.indexOf('سلة المحذوفات') !== -1;
+
+                    if (hasTrashIcon || isTrashByHref || isTrashByText) {
+                        var removableContainer = node.closest('li, .profile-dropdown-item, .profile-settings-row, .dropdown-item, .nav-item, .list-group-item, .menu-item');
+                        if (removableContainer) {
+                            removableContainer.remove();
+                        } else {
+                            node.remove();
+                        }
+                    }
+                });
+
+                var arabicLangLinks = document.querySelectorAll(
+                    'a[href*="language=ar"], a[href*="/ar/"]'
+                );
+                arabicLangLinks.forEach(function (link) {
+                    var label = link.querySelector('span');
+                    if (!label) {
+                        return;
+                    }
+                    var current = (label.textContent || '').trim();
+                    var looksCorrupted = /[ØÙ]/.test(current);
+                    if (looksCorrupted || current.toLowerCase() === 'arabic' || current === '') {
+                        label.textContent = 'العربية';
+                    }
                 });
             });
             </script>
@@ -2348,21 +1586,53 @@
         </main>
     </div>
 
-    <div class="profile-photo-modal" id="profilePhotoModal" aria-hidden="true" role="dialog" aria-modal="true">
-      <div class="profile-photo-dialog">
-        <div class="profile-photo-head">
-          <h3 class="profile-photo-title">
-            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صورة الملف الشخصي{% else %}Profile Photo{% endif %}
-          </h3>
-          <button type="button" class="profile-photo-close" id="profilePhotoCloseBtn" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إغلاق{% else %}{% trans 'Close' %}{% endif %}">
-            <i class="bi bi-x-lg"></i>
-          </button>
+    <footer class="site-footer">
+        <div class="footer-top">
+            <div class="footer-container">
+                <div class="footer-grid">
+                    <div class="footer-column">
+                        <h4>{% trans "Arabic NLP Platform" %} </h4>
+                        <p>{% trans "platform dedicated to advancing Arabic natural language processing through shared resources, tools, and community collaboration." %}</p>
+                        <div class="social-links">
+                            <a href="https://www.facebook.com/AALADZ.DZ" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                            <a href="https://www.youtube.com/@aaladz" aria-label="Youtube"><i class="fab fa-youtube"></i></a>
+                        </div>
+                    </div>
+                    <div class="footer-column">
+                        <h4>{% trans "Resources" %}</h4>
+                        <ul class="footer-links">
+                            <li><a href="{% url 'resources:corpus_list' %}">{% trans "Corpus" %} </a></li>
+                            <li><a href="{% url 'resources:tool_list' %}">{% trans "Tools" %}</a></li>
+                            <li><a href="{% url 'resources:list' %}">{% trans "All Resources" %}</a></li>
+                            <li><a href="{% url 'resources:course_list' %}">{% trans "Courses" %}</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>{% trans "Community" %}</h4>
+                        <ul class="footer-links">
+                            <li><a href="{% url 'forum:topic-list' %}">{% trans "Forum" %}</a></li>
+                            <li><a href="{% url 'projects:project_list' %}">{% trans "Research Projects" %}</a></li>
+                            <li><a href="{% url 'pages:opportunities' %}">{% trans "Opportunities" %}</a></li>
+                            <li><a href="{% url 'events:event_list' %}">{% trans "Events" %}</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>{% trans "Contact Us" %}</h4>
+                        <ul class="contact-info">
+                            <li><i class="fas fa-envelope"></i> <span>contact@aala.dz</span></li>
+                            <li><i class="fas fa-phone"></i> <span dir="ltr">+213 (23) 48 72 49</span></li>
+                            <li><i class="fas fa-map-marker-alt"></i> <span>{% if LANGUAGE_CODE == 'ar' %}نهج العقيد أمحمد بوقرة، رقم 6، الأبيار، الجزائر{% else %}No. 6, Colonel Ahmed Bougara Boulevard, El Biar, Algiers, Algeria{% endif %}</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="profile-photo-body">
-          <img src="" alt="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}صورة الملف الشخصي{% else %}Profile photo{% endif %}" class="profile-photo-image" id="profilePhotoModalImage">
-        </div>
-      </div>
+        <div class="footer-bottom">
+    <div class="footer-container">
+        <p class="copyright">© {% now "Y" %}{% trans "Arabic NLP Platform. All rights reserved." %} </p>
     </div>
+</div>
+    </footer>
 
     {% if user.is_authenticated %}
     <a href="{% url 'chatbot:chatbot_interface' %}" class="chatbot-button" title="{% trans 'Intelligent Assistant' %}">
@@ -2375,18 +1645,19 @@
     .chatbot-button {
         position: fixed;
         bottom: 30px;
-        background-color: #A78BFA;
-        color: white; 
+        background-color: #007bff;
+        color: white;
         padding: 15px 18px;
         border-radius: 50%;
         text-decoration: none;
         font-size: 24px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
         z-index: 1000;
         transition: 0.3s;
     }
     .chatbot-button:hover {
         transform: scale(1.1);
-        background-color: white;
+        background-color: #0056b3;
     }
     html[dir="ltr"] .chatbot-button {
         right: 30px;
@@ -2664,7 +1935,6 @@
             const profileDropdown = document.getElementById('profileDropdown');
             const profileInvBadge = document.getElementById('profileInvBadge');
             const profileInvCount = document.getElementById('profileInvCount');
-            const projectInvCount = document.getElementById('projectInvCount');
             const profileSettingsGear = document.getElementById('profileSettingsGear');
             const profileSettingsBack = document.getElementById('profileSettingsBack');
             const profileMainPanel = profileDropdown ? profileDropdown.querySelector('[data-panel="main"]') : null;
@@ -2677,7 +1947,6 @@
             const blockedUsersEmpty = document.getElementById('blockedUsersEmpty');
             const messageInvitesBtn = document.getElementById('messageInvitesBtn');
             const profileMiniToast = document.getElementById('profileMiniToast');
-            const sidebarDmBadge = document.getElementById('sidebarDmBadge');
 
             function showProfileToast(message) {
                 if (!profileMiniToast) return;
@@ -2694,91 +1963,33 @@
 
             function currentLangPrefix() {
                 const seg = window.location.pathname.split('/').filter(Boolean)[0];
-                if (seg === 'ar' || seg === 'en') return `/${seg}`;
-                return '';
+                return seg ? `/${seg}` : '';
             }
 
-            function updateProfileInvBadge(friendCount, projectCount) {
-                const friendValue = Number(friendCount || 0);
-                const projectValue = Number(projectCount || 0);
-                const totalValue = friendValue + projectValue;
-                const totalText = totalValue > 99 ? '99+' : String(totalValue);
-                const friendText = friendValue > 99 ? '99+' : String(friendValue);
-                const projectText = projectValue > 99 ? '99+' : String(projectValue);
+            function updateProfileInvBadge(count) {
+                const value = Number(count || 0);
+                const text = value > 99 ? '99+' : String(value);
                 if (profileInvBadge) {
-                    profileInvBadge.textContent = totalValue > 0 ? totalText : '';
+                    profileInvBadge.textContent = value > 0 ? text : '';
                 }
                 if (profileInvCount) {
-                    profileInvCount.textContent = friendText;
-                    profileInvCount.hidden = friendValue <= 0;
-                }
-                if (projectInvCount) {
-                    projectInvCount.textContent = projectText;
-                    projectInvCount.hidden = projectValue <= 0;
+                    profileInvCount.textContent = text;
+                    profileInvCount.hidden = value <= 0;
                 }
             }
 
             async function loadProfileInvitationsCount() {
-                if (!profileInvBadge && !profileInvCount && !projectInvCount) return;
+                if (!profileInvBadge) return;
                 try {
-                    const [friendResult, projectResult] = await Promise.allSettled([
-                        fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            credentials: 'same-origin'
-                        }),
-                        fetch(`${currentLangPrefix()}/projects/invitations/count/`, {
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            credentials: 'same-origin'
-                        })
-                    ]);
-                    let friendCount = 0;
-                    let projectCount = 0;
-
-                    if (friendResult.status === 'fulfilled') {
-                        const friendRes = friendResult.value;
-                        const friendData = await friendRes.json().catch(() => ({}));
-                        if (friendRes.ok && friendData.ok) {
-                            friendCount = Number(friendData.count || 0);
-                        }
-                    }
-                    if (projectResult.status === 'fulfilled') {
-                        const projectRes = projectResult.value;
-                        const projectData = await projectRes.json().catch(() => ({}));
-                        if (projectRes.ok && projectData.ok) {
-                            projectCount = Number(projectData.count || 0);
-                        }
-                    }
-
-                    updateProfileInvBadge(friendCount, projectCount);
-                } catch (_) {
-                    // Keep silent to avoid noisy UI for transient network errors.
-                }
-            }
-
-            function updateSidebarDmBadge(count) {
-                if (!sidebarDmBadge) return;
-                const value = Number(count || 0);
-                if (value > 0) {
-                    sidebarDmBadge.textContent = value > 99 ? '99' : String(value);
-                    sidebarDmBadge.classList.add('is-visible');
-                } else {
-                    sidebarDmBadge.textContent = '';
-                    sidebarDmBadge.classList.remove('is-visible');
-                }
-            }
-
-            async function loadSidebarDmUnreadCount() {
-                if (!sidebarDmBadge) return;
-                try {
-                    const res = await fetch(`${currentLangPrefix()}/messages/unread-count/`, {
+                    const res = await fetch(`${currentLangPrefix()}/accounts/network/invitations/count/`, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' },
                         credentials: 'same-origin'
                     });
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed');
-                    updateSidebarDmBadge(data.count || 0);
+                    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+                    updateProfileInvBadge(data.count);
                 } catch (_) {
-                    // Keep silent for temporary network issues.
+                    // Keep silent to avoid noisy UI for transient network errors.
                 }
             }
 
@@ -2805,25 +2016,8 @@
                 document.documentElement.classList.toggle('user-online-visible', !!isOn);
             }
 
-            async function persistOnlineVisibility(isOn) {
-                try {
-                    await fetch(`${currentLangPrefix()}/accounts/network/online-visibility/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCsrfToken(),
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        credentials: 'same-origin',
-                        body: new URLSearchParams({ is_on: isOn ? '1' : '0' }).toString()
-                    });
-                } catch (_) {
-                    // keep silent; local UI state still updates
-                }
-            }
-
             function loadSwitches() {
-                const onlineVisible = {% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %};
+                const onlineVisible = localStorage.getItem('ui_online_status') !== '0';
                 setSwitchState(onlineStatusSwitch, onlineVisible, 'ui_online_status');
                 applyOnlineVisibilityPreference(onlineVisible);
                 setSwitchState(chatNotificationsSwitch, localStorage.getItem('ui_chat_notifications') !== '0', 'ui_chat_notifications');
@@ -2831,11 +2025,11 @@
 
             const isArabicUi = document.documentElement.lang && document.documentElement.lang.toLowerCase().startsWith('ar');
             const profileUiText = {
-                noBlockedUsers: isArabicUi ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ† Ù…Ø­Ø¸ÙˆØ±ÙˆÙ† Ø­Ø§Ù„ÙŠØ§Ù‹' : 'No blocked users currently',
-                unblock: isArabicUi ? 'Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblock',
-                blockedListLoadError: isArabicUi ? 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©' : 'Unable to load list',
-                unblockDone: isArabicUi ? 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblocked successfully',
-                unblockFailed: isArabicUi ? 'ØªØ¹Ø°Ø± Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø­Ø¸Ø±' : 'Unblock failed'
+                noBlockedUsers: isArabicUi ? 'لا يوجد مستخدمون محظورون حالياً' : 'No blocked users currently',
+                unblock: isArabicUi ? 'إلغاء الحظر' : 'Unblock',
+                blockedListLoadError: isArabicUi ? 'تعذر تحميل القائمة' : 'Unable to load list',
+                unblockDone: isArabicUi ? 'تم إلغاء الحظر' : 'Unblocked successfully',
+                unblockFailed: isArabicUi ? 'تعذر إلغاء الحظر' : 'Unblock failed'
             };
 
             async function loadBlockedUsers() {
@@ -2890,7 +2084,6 @@
                     const opened = profileDropdown.classList.toggle('show');
                     profileIconBtn.setAttribute('aria-expanded', String(opened));
                     if (opened) {
-                        loadProfileInvitationsCount();
                         resetProfileSubMenu();
                         loadSwitches();
                     }
@@ -2905,11 +2098,31 @@
                 });
             }
 
-            loadSidebarDmUnreadCount();
-            setInterval(loadSidebarDmUnreadCount, 10000);
-
             loadProfileInvitationsCount();
-            setInterval(loadProfileInvitationsCount, 15000);
+            setInterval(loadProfileInvitationsCount, 60000);
+
+            // ── Project Invitations Count (sidebar badge) ──
+            const sidebarProjectInvBadge = document.getElementById('sidebarProjectInvBadge');
+            async function loadProjectInvitationsCount() {
+                if (!sidebarProjectInvBadge) return;
+                try {
+                    const res = await fetch(`${currentLangPrefix()}/projects/invitations/count/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) return;
+                    const count = Number(data.count || 0);
+                    if (count > 0) {
+                        sidebarProjectInvBadge.textContent = count > 99 ? '99+' : String(count);
+                        sidebarProjectInvBadge.style.display = 'flex';
+                    } else {
+                        sidebarProjectInvBadge.style.display = 'none';
+                    }
+                } catch (_) {}
+            }
+            loadProjectInvitationsCount();
+            setInterval(loadProjectInvitationsCount, 60000);
 
             if (profileSettingsGear) {
                 profileSettingsGear.addEventListener('click', function(e) {
@@ -2929,21 +2142,18 @@
 
             [onlineStatusSwitch, chatNotificationsSwitch].forEach(function(sw, idx) {
                 if (!sw) return;
-                sw.addEventListener('click', async function(e) {
+                sw.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     const isOn = !sw.classList.contains('is-on');
                     const key = idx === 0 ? 'ui_online_status' : 'ui_chat_notifications';
                     setSwitchState(sw, isOn, key);
-                    if (key === 'ui_online_status') {
-                        applyOnlineVisibilityPreference(isOn);
-                        await persistOnlineVisibility(isOn);
-                    }
+                    if (key === 'ui_online_status') applyOnlineVisibilityPreference(isOn);
                 });
             });
 
-            // Apply server-backed preference even when the settings dropdown is not opened.
-            applyOnlineVisibilityPreference({% if request.user.is_authenticated %}{% if request.user.show_online_status %}true{% else %}false{% endif %}{% else %}true{% endif %});
+            // Apply preference even when the settings dropdown is not opened.
+            applyOnlineVisibilityPreference(localStorage.getItem('ui_online_status') !== '0');
 
             if (messageInvitesBtn) {
                 messageInvitesBtn.addEventListener('click', function(e) {
@@ -3005,10 +2215,6 @@
             // Language dropdown toggle
             const languageIconBtn = document.getElementById('languageIconBtn');
             const languageDropdown = document.getElementById('languageDropdown');
-            
-            // Search dropdown toggle
-            const searchIconBtn = document.getElementById('searchIconBtn');
-            const searchDropdown = document.getElementById('searchDropdown');
 
             if (languageIconBtn && languageDropdown) {
                 languageIconBtn.addEventListener('click', function(e) {
@@ -3025,11 +2231,6 @@
                         profileDropdown.classList.remove('show');
                     }
                     
-                    // Close search dropdown if open
-                    if (searchDropdown && searchDropdown.classList.contains('show')) {
-                        searchDropdown.classList.remove('show');
-                    }
-                    
                     // Toggle language dropdown
                     languageDropdown.classList.toggle('show');
                 });
@@ -3039,44 +2240,6 @@
                     if (e.target.tagName !== 'A' && !e.target.closest('a')) {
                         e.stopPropagation();
                     }
-                });
-            }
-
-            if (searchIconBtn && searchDropdown) {
-                searchIconBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Close notification dropdown if open
-                    if (notificationDropdown && notificationDropdown.classList.contains('show')) {
-                        notificationDropdown.classList.remove('show');
-                    }
-                    
-                    // Close profile dropdown if open
-                    if (profileDropdown && profileDropdown.classList.contains('show')) {
-                        profileDropdown.classList.remove('show');
-                    }
-                    
-                    // Close language dropdown if open
-                    if (languageDropdown && languageDropdown.classList.contains('show')) {
-                        languageDropdown.classList.remove('show');
-                    }
-                    
-                    // Toggle search dropdown
-                    searchDropdown.classList.toggle('show');
-                    
-                    // Focus on search input when opened
-                    if (searchDropdown.classList.contains('show')) {
-                        const searchInput = searchDropdown.querySelector('.search-input');
-                        if (searchInput) {
-                            searchInput.focus();
-                        }
-                    }
-                });
-
-                // Prevent dropdown from closing when clicking inside
-                searchDropdown.addEventListener('click', function(e) {
-                    e.stopPropagation();
                 });
             }
             
@@ -3107,15 +2270,6 @@
                     languageDropdown.classList.remove('show');
                     if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
                 }
-
-                // Add search dropdown closing
-                if (searchDropdown && 
-                    !searchDropdown.contains(e.target) && 
-                    searchIconBtn && 
-                    !searchIconBtn.contains(e.target)) {
-                    searchDropdown.classList.remove('show');
-                    if (searchIconBtn) searchIconBtn.setAttribute('aria-expanded', 'false');
-                }
             });
             
             // Initialize toasts
@@ -3130,10 +2284,10 @@
             });
         });
         
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════════════════
         // COMMAND PALETTE SEARCH - Premium Instant Search with Yellow Highlight
         // Uses /search/autocomplete/ endpoint with 300ms debounce
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════════════════
         (function() {
             'use strict';
             
@@ -3178,9 +2332,9 @@
                 'topic': '{% trans "Topic" %}'
             };
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // DROPDOWN VISIBILITY CONTROL
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function showDropdown() {
                 searchResults.style.display = 'block';
                 searchResults.classList.add('active');
@@ -3196,9 +2350,9 @@
                 selectedIndex = -1;
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // LOADING STATE
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function showLoading() {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-loading">
@@ -3211,9 +2365,9 @@
                 showDropdown();
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // EMPTY STATE
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function showEmpty(query) {
                 searchResultsContent.innerHTML = `
                     <div class="cmd-empty">
@@ -3236,19 +2390,19 @@
                 `;
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // HELPER: ESCAPE HTML
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function escapeHtml(text) {
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // HIGHLIGHT MATCH - Yellow background highlight
             // Uses <mark style="background:#fef08a;"> for yellow highlighting
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function highlightMatch(text, query) {
                 if (!text || !query) return escapeHtml(text || '');
                 
@@ -3260,9 +2414,9 @@
                 return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:500;">$1</mark>');
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // RENDER AUTOCOMPLETE RESULTS
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function renderResults(data, query) {
                 // Handle both 'suggestions' (autocomplete) and 'results' (global search) formats
                 const suggestions = data.suggestions || data.results || [];
@@ -3280,16 +2434,7 @@
                             <span>{% trans "Suggestions" %}</span>
                             <span class="cmd-section-count">${suggestions.length}</span>
                         </div>
-                        ${suggestions.map((item, index) => {
-                            // For users with avatar, display image; otherwise display icon
-                            let iconHtml = '';
-                            if (item.type === 'user' && item.avatar) {
-                                iconHtml = `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">`;
-                            } else {
-                                iconHtml = `<div class="cmd-item-icon ${item.type}">${typeIcons[item.type] || typeIcons['resource']}</div>`;
-                            }
-                            
-                            return `
+                        ${suggestions.map((item, index) => `
                             <div class="sr-autocomplete-item cmd-item" 
                                  data-index="${index}"
                                  data-title="${escapeHtml(item.title)}"
@@ -3297,12 +2442,13 @@
                                  data-type="${item.type}"
                                  role="option"
                                  tabindex="-1">
-                                ${iconHtml}
+                                <div class="cmd-item-icon ${item.type}">
+                                    ${typeIcons[item.type] || typeIcons['resource']}
+                                </div>
                                 <div class="cmd-item-content">
                                     <h5 class="cmd-item-title">${highlightMatch(item.title, query)}</h5>
                                     <div class="cmd-item-meta">
                                         <span class="cmd-item-badge cmd-item-type">${typeLabels[item.type] || item.type}</span>
-                                        ${item.subtitle ? `<span class="cmd-item-type" style="margin-left:6px;opacity:.8;">${escapeHtml(item.subtitle)}</span>` : ''}
                                     </div>
                                 </div>
                                 <div class="cmd-item-arrow">
@@ -3311,8 +2457,7 @@
                                     </svg>
                                 </div>
                             </div>
-                        `;
-                        }).join('')}
+                        `).join('')}
                     </div>
                     <a href="${searchForm.action}?q=${encodeURIComponent(query)}" class="cmd-view-all">
                         <span>{% trans "View all results" %}</span>
@@ -3324,9 +2469,9 @@
                 
                 searchResultsContent.innerHTML = html;
                 
-                // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                // ─────────────────────────────────────────────────────────────────
                 // CLICK HANDLER: Fill input and navigate or submit
-                // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                // ─────────────────────────────────────────────────────────────────
                 const items = searchResultsContent.querySelectorAll('.sr-autocomplete-item');
                 items.forEach(item => {
                     item.addEventListener('click', function(e) {
@@ -3353,10 +2498,10 @@
                 });
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // PERFORM AUTOCOMPLETE SEARCH
             // Fetches from /search/autocomplete/?q= with 300ms debounce
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function performSearch(query) {
                 if (query === currentQuery) return;
                 currentQuery = query;
@@ -3410,9 +2555,9 @@
                 }, 300); // 300ms debounce
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // KEYBOARD NAVIGATION (Arrow keys + Enter + Escape)
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             function handleKeydown(e) {
                 const items = searchResults.querySelectorAll('.sr-autocomplete-item, .cmd-item');
                 if (!items.length && e.key !== 'Escape') return;
@@ -3446,16 +2591,16 @@
                 });
             }
             
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             // EVENT LISTENERS
-            // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ─────────────────────────────────────────────────────────────────────
             searchInput.addEventListener('input', (e) => performSearch(e.target.value.trim()));
             
             searchInput.addEventListener('focus', () => {
                 if (currentQuery && currentQuery.length >= 2) {
                     showDropdown();
                 }
-            });
+       re   });
             
             searchInput.addEventListener('keydown', handleKeydown);
             
@@ -3663,9 +2808,9 @@
         });
     </script>
 
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
     <!-- MODERN NOTIFICATION DROPDOWN JAVASCRIPT                                -->
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
     <script>
     (function() {
         'use strict';
@@ -3715,15 +2860,13 @@
             ntfToggle.setAttribute('aria-expanded', 'false');
         }
         
-        // Close other dropdowns (profile, language, search)
+        // Close other dropdowns (profile, language)
         function closeOtherDropdowns() {
             const profileDropdown = document.getElementById('profileDropdown');
             const languageDropdown = document.getElementById('languageDropdown');
-            const searchDropdown = document.getElementById('searchDropdown');
             
             if (profileDropdown) profileDropdown.classList.remove('show');
             if (languageDropdown) languageDropdown.classList.remove('show');
-            if (searchDropdown) searchDropdown.classList.remove('show');
         }
         
         // Load notifications via AJAX
@@ -3765,36 +2908,36 @@
             if (!notifications || notifications.length === 0) {
                 ntfItems.innerHTML = `
                     <div class="ntf-empty tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-12 tw-px-4">
-                        <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-purple-500/20 tw-flex tw-items-center tw-justify-center tw-mb-4">
-                            <svg class="tw-w-8 tw-h-8 tw-text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="tw-w-16 tw-h-16 tw-rounded-full tw-bg-gray-100 tw-flex tw-items-center tw-justify-center tw-mb-4">
+                            <svg class="tw-w-8 tw-h-8 tw-text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
                         </div>
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-300 tw-m-0">{% trans "No notifications yet" %}</p>
-                        <p class="tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-m-0">{% trans "No notifications yet" %}</p>
+                        <p class="tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-1">{% trans "We'll notify you when something arrives" %}</p>
                     </div>
                 `;
                 return;
             }
             
             const html = notifications.map(n => {
-                const unreadClass = n.read ? '' : 'ntf-unread tw-bg-purple-500/15';
-                const dotHtml = n.read ? '' : '<span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-purple-400 tw-rounded-full tw-mt-1.5"></span>';
+                const unreadClass = n.read ? '' : 'ntf-unread tw-bg-blue-50/50';
+                const dotHtml = n.read ? '' : '<span class="ntf-dot tw-flex-shrink-0 tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full tw-mt-1.5"></span>';
                 
                 return `
                     <a href="${n.url}" 
-                       class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-purple-500/10 tw-no-underline tw-transition-colors hover:tw-bg-purple-500/10 ${unreadClass}"
+                       class="ntf-item tw-flex tw-items-start tw-gap-3 tw-px-4 tw-py-3 tw-border-b tw-border-gray-50 tw-no-underline tw-transition-colors hover:tw-bg-gray-50 ${unreadClass}"
                        data-notification-id="${n.id}">
-                        <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-bg-purple-400/20 tw-text-purple-400">
+                        <div class="ntf-icon tw-flex-shrink-0 tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center ${n.color_class}">
                             <i class="fas ${n.icon} tw-text-sm"></i>
                         </div>
                         <div class="ntf-content tw-flex-1 tw-min-w-0">
                             <div class="tw-flex tw-items-start tw-justify-between tw-gap-2">
-                                <p class="ntf-title tw-text-sm tw-font-medium tw-text-white tw-m-0 tw-line-clamp-1">${escapeHtml(n.title)}</p>
+                                <p class="ntf-title tw-text-sm tw-font-medium tw-text-gray-900 tw-m-0 tw-line-clamp-1">${escapeHtml(n.title)}</p>
                                 ${dotHtml}
                             </div>
-                            <p class="ntf-message tw-text-xs tw-text-gray-400 tw-m-0 tw-mt-0.5 tw-line-clamp-2">${escapeHtml(n.message)}</p>
-                            <span class="ntf-time tw-text-xs tw-text-gray-500 tw-mt-1 tw-flex tw-items-center tw-gap-1">
+                            <p class="ntf-message tw-text-xs tw-text-gray-500 tw-m-0 tw-mt-0.5 tw-line-clamp-2">${escapeHtml(n.message)}</p>
+                            <span class="ntf-time tw-text-xs tw-text-gray-400 tw-mt-1 tw-flex tw-items-center tw-gap-1">
                                 <svg class="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
@@ -3907,34 +3050,20 @@
         
         // Get CSRF token
         function getCsrfToken() {
-            // Use Django template tag (works even with CSRF_COOKIE_HTTPONLY=True)
-            const tmpl = "{{ csrf_token }}";
-            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
-            // Fallback: hidden input
+            // First try from a hidden input (works even with CSRF_COOKIE_HTTPONLY)
             const input = document.querySelector('[name=csrfmiddlewaretoken]');
             if (input) return input.value;
-            return '';
+            // Fallback to cookie
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            return cookieValue ? cookieValue.split('=')[1] : '';
         }
     })();
     </script>
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
     <!-- END NOTIFICATION DROPDOWN JAVASCRIPT                                   -->
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-
-    <script>
-    (function () {
-        function syncSiteHeaderHeight() {
-            const header = document.querySelector('.site-header');
-            if (!header) return;
-            const h = Math.max(1, Math.ceil(header.getBoundingClientRect().height || header.offsetHeight || 80));
-            document.documentElement.style.setProperty('--site-header-height', `${h}px`);
-        }
-
-        document.addEventListener('DOMContentLoaded', syncSiteHeaderHeight);
-        window.addEventListener('load', syncSiteHeaderHeight);
-        window.addEventListener('resize', syncSiteHeaderHeight);
-    })();
-    </script>
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
     <!-- Instagram-Style Share Modal -->
     {% include "includes/share_modal_modern.html" %}
@@ -3945,8 +3074,10 @@
         'use strict';
 
         function getCsrfToken() {
-            const tmpl = "{{ csrf_token }}";
-            if (tmpl && tmpl !== 'NOTPROVIDED') return tmpl;
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='));
+            if (cookieValue) return cookieValue.split('=')[1];
             const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
             if (csrfInput && csrfInput.value) return csrfInput.value;
             return '';
@@ -4018,8 +3149,8 @@
             const category = context.category || 'General';
             return {
                 title,
-                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. CatÃ©gorie : ${category}.`,
-                autoReply: `Je suis prÃªt Ã  vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
+                systemContextMessage: `Contexte : l'utilisateur demande de l'aide sur ${title} de ${author}. Catégorie : ${category}.`,
+                autoReply: `Je suis prêt à vous aider sur la ressource '${title}'. Que voulez-vous savoir ?`
             };
         }
 
@@ -4050,7 +3181,7 @@
                         bubbles: true
                     }));
                 }
-                console.log('DonnÃ©es transfÃ©rÃ©es au chatbot');
+                console.log('Données transférées au chatbot');
                 return true;
             } catch (e) {
                 return false;
@@ -4121,18 +3252,24 @@
                 bridged = forceInjectInChatUI(context, window);
             }
             if (bridged) {
-                console.log('DonnÃ©es transfÃ©rÃ©es au chatbot');
+                console.log('Données transférées au chatbot');
             }
             return bridged;
         }
 
         function handleAskChatbot(btn) {
             const context = extractContextFromDOM(btn, parseContext(btn));
-            const startNew = false;
+            const previousContextTitle = sessionStorage.getItem('chatbot_last_context_title') || '';
+            let startNew = false;
+
+            if (previousContextTitle && context.title && previousContextTitle !== context.title) {
+                const keepHistory = confirm("{% trans 'A previous chatbot context exists. Click OK to keep the same conversation and update context, or Cancel to start a new analysis.' %}");
+                startNew = !keepHistory;
+            }
 
             sessionStorage.setItem('chatbot_pending_context', JSON.stringify({
                 ...context,
-                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le Ã  comprendre ce contenu.`
+                system_prompt: `L'utilisateur consulte actuellement la ressource suivante : ${context.title}. Aide-le à comprendre ce contenu.`
             }));
             sessionStorage.setItem('chatbot_last_context_title', context.title || '');
 
@@ -4180,147 +3317,7 @@
         });
     })();
     </script>
-    <script>
-    (function() {
-      'use strict';
-
-      function isAvatarCandidate(img) {
-        if (!img || !img.src) return false;
-        if (img.dataset.profilePreview === 'off') return false;
-        if (img.closest('[data-profile-preview="on"]')) return true;
-
-        const ownClasses = (img.className || '').toString().toLowerCase();
-        const parentClasses = (img.parentElement?.className || '').toString().toLowerCase();
-        const merged = `${ownClasses} ${parentClasses}`;
-        return (
-          merged.includes('avatar') ||
-          merged.includes('profile-picture') ||
-          merged.includes('user-avatar') ||
-          merged.includes('author-avatar')
-        );
-      }
-
-      document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('profilePhotoModal');
-        const closeBtn = document.getElementById('profilePhotoCloseBtn');
-        const imgEl = document.getElementById('profilePhotoModalImage');
-        if (!modal || !closeBtn || !imgEl) return;
-
-        function openModal(src, altText) {
-          imgEl.src = src;
-          imgEl.alt = altText || "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}صورة الملف الشخصي{% else %}Profile photo{% endif %}";
-          modal.classList.add('is-open');
-          modal.setAttribute('aria-hidden', 'false');
-          document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal() {
-          modal.classList.remove('is-open');
-          modal.setAttribute('aria-hidden', 'true');
-          imgEl.src = '';
-          document.body.style.overflow = '';
-        }
-
-        document.addEventListener('click', function(e) {
-          const profilePicContainer = e.target.closest('.profile-picture-container');
-          if (profilePicContainer) {
-            const profileImg = profilePicContainer.querySelector('img');
-            const src = profileImg?.currentSrc || profileImg?.src || '';
-            if (src) {
-              e.preventDefault();
-              e.stopPropagation();
-              openModal(src, profileImg?.alt || '');
-              return;
-            }
-          }
-
-          const clickedImg = e.target.closest('img');
-          if (clickedImg && isAvatarCandidate(clickedImg)) {
-            const src = clickedImg.currentSrc || clickedImg.src;
-            if (!src) return;
-            e.preventDefault();
-            e.stopPropagation();
-            openModal(src, clickedImg.alt || '');
-            return;
-          }
-
-          if (e.target === modal || e.target.closest('#profilePhotoCloseBtn')) {
-            closeModal();
-          }
-        }, true);
-
-        document.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape' && modal.classList.contains('is-open')) {
-            closeModal();
-          }
-        });
-      });
-    })();
-    </script>
-
-    <!-- Navigation Dropdown Handler -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Handle nav dropdown triggers
-            const dropdownTriggers = document.querySelectorAll('.nav-dropdown-trigger');
-            
-            dropdownTriggers.forEach(trigger => {
-                trigger.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const dropdownId = this.getAttribute('data-dropdown');
-                    const dropdown = document.getElementById(dropdownId);
-                    
-                    if (dropdown) {
-                        // Toggle current dropdown
-                        dropdown.classList.toggle('show');
-                        this.classList.toggle('active');
-                        
-                        // Close other dropdowns
-                        dropdownTriggers.forEach(otherTrigger => {
-                            if (otherTrigger !== trigger) {
-                                const otherId = otherTrigger.getAttribute('data-dropdown');
-                                const otherDropdown = document.getElementById(otherId);
-                                if (otherDropdown) {
-                                    otherDropdown.classList.remove('show');
-                                    otherTrigger.classList.remove('active');
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-            
-            // Close dropdowns when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.nav-item')) {
-                    dropdownTriggers.forEach(trigger => {
-                        const dropdownId = trigger.getAttribute('data-dropdown');
-                        const dropdown = document.getElementById(dropdownId);
-                        if (dropdown) {
-                            dropdown.classList.remove('show');
-                            trigger.classList.remove('active');
-                        }
-                    });
-                }
-            });
-            
-            // Handle keyboard navigation
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    dropdownTriggers.forEach(trigger => {
-                        const dropdownId = trigger.getAttribute('data-dropdown');
-                        const dropdown = document.getElementById(dropdownId);
-                        if (dropdown) {
-                            dropdown.classList.remove('show');
-                            trigger.classList.remove('active');
-                        }
-                    });
-                }
-            });
-        });
-    </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
-
