@@ -1,372 +1,157 @@
 {% extends 'base.html' %}
-{% load i18n static %}
-
-{% block title %}{% translate "Research Projects" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
-
-{% block extra_styles %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
-.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%);color:#fff}
-.proj-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
-.proj-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
-.proj-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
-.proj-wrap>*{position:relative;z-index:1}
-.proj-hero{position:relative;padding:3rem 2rem;margin:1.5rem auto 1.25rem;background:transparent;border:none;border-radius:24px;box-shadow:none;backdrop-filter:none;overflow:hidden;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:space-between}
-.proj-hero::before{content:"";position:absolute;inset:0;background:none;pointer-events:none}
-.proj-hero::after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
-.proj-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
-.proj-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
-.proj-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
-.proj-hero p{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600;text-align:left}
-.proj-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:20px;padding:1rem 1.2rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);width:fit-content}
-.proj-filter-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:.8rem;align-items:stretch}
-.proj-input-wrapper{position:relative;display:flex;align-items:center}
-.proj-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(26,26,46,.8),rgba(26,26,46,.6));color:#fff;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
-.proj-input{background:#1a1a2e !important;color:#fff !important;box-shadow:none !important}
-.proj-input::placeholder{color: white;opacity:.6;font-weight:400}
-.proj-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
-.proj-input:-webkit-autofill,
-.proj-input:-webkit-autofill:hover,
-.proj-input:-webkit-autofill:focus,
-.proj-input:-webkit-autofill:active{
-  -webkit-text-fill-color:#fff !important;
-  -webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;
-  box-shadow:0 0 0 1000px #1a1a2e inset !important;
-  transition:background-color 9999s ease-in-out 0s;
-  caret-color:#a78bfa;
-}
-.proj-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.8rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
-.proj-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
-.proj-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
-.proj-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
-.proj-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
-.proj-select:active{background-color:#1a1a2e}
-.proj-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
-.proj-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
-.proj-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
-.proj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,280px));gap:1rem;justify-content:flex-start}
-.proj-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px}
-.proj-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
-.proj-accent{height:4px;width:100%;flex-shrink:0;background:linear-gradient(90deg,#a78bfa 0%,#7c3aed 50%,#ec4899 100%)}
-.proj-cover{height:60px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:space-between;overflow:hidden;flex-shrink:0;padding:0 1rem}
-.proj-cover img{width:100%;height:100%;object-fit:cover}
-.proj-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
-.proj-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
-.proj-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.proj-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
-.proj-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
-.proj-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
-.proj-team{display:flex;align-items:center;gap:.4rem;margin:.4rem 0;font-size:.75rem;color:#9ca3af;padding:.35rem 0}
-.proj-team-icon{color:#a78bfa}
-.proj-team-avatars{display:flex;gap:-.4rem;align-items:center}
-.proj-team-avatar{width:1.5rem;height:1.5rem;border-radius:50%;background:linear-gradient(135deg,rgba(167,139,250,.3),rgba(124,58,237,.2));border:1.5px solid rgba(167,139,250,.4);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#a78bfa;font-weight:700}
-.proj-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
-.proj-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
-.proj-link:hover{background:rgba(255,255,255,.04)}
-.proj-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.proj-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
-.proj-empty-inner{position:relative;z-index:1}
-.proj-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
-.proj-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
-.proj-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
-.proj-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
-.proj-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
-.proj-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
-@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
-.proj-stats{display:flex;align-items:flex-start;justify-content:center;gap:1.5rem;flex-direction:column}
-.proj-stat-badge{background:transparent;border:none;padding:0rem 2rem 1.5rem 2rem;text-align:center;margin-top:-0.8rem}
-.proj-stat-number{font-size:3.2rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
-.proj-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.8rem;font-weight:700}
-.proj-action-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#0f1419;font-weight:700;border:none;border-radius:12px;text-decoration:none;cursor:pointer;transition:all .3s ease;font-size:.9rem;margin-top:1.5rem}
-.proj-action-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(167,139,250,.3)}
-@media (max-width:1000px){.proj-filter-grid{grid-template-columns:1.5fr 1fr 1fr}.proj-btn{grid-column:span 2}.proj-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.proj-stats{justify-content:center}}
-@media (max-width:768px){.proj-filter-grid{grid-template-columns:1fr 1fr}.proj-wrap{width:min(100%,calc(100% - 1rem))}.proj-shell{padding-top:.5rem}.proj-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.proj-hero h1{font-size:2rem;text-align:center}.proj-hero p{font-size:1rem;text-align:center}.proj-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.proj-btn{grid-column:auto;padding:.85rem 1.2rem;font-size:.85rem}.proj-grid{grid-template-columns:1fr}.proj-card{max-width:none;min-height:unset}.proj-cover{height:130px}.proj-empty{padding:3rem 1.5rem;min-height:320px}.proj-empty-icon{font-size:2.5rem}.proj-empty h3{font-size:1.25rem}}
-@media (max-width:480px){.proj-filter-grid{grid-template-columns:1fr}.proj-input-wrapper{grid-column:1/-1}.proj-btn{grid-column:auto;width:100%;padding:.75rem 1rem;font-size:.8rem}.proj-filter-card{padding:1rem;margin-bottom:1rem}.proj-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.proj-hero h1{font-size:1.5rem}.proj-hero p{font-size:.9rem}.proj-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.proj-empty{padding:2rem 1rem;min-height:280px}.proj-empty-icon{font-size:2rem}.proj-empty h3{font-size:1.1rem}.proj-empty p{font-size:.9rem}}
-</style>
-{% endblock %}
+{% load i18n %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}Projects{% endif %}{% endblock %}
 
 {% block content %}
-<div class="proj-shell">
-  <div class="proj-wrap">
-    <div class="proj-hero">
-      <span class="proj-hero-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
-      <div class="proj-hero-inner">
-        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مشاريع البحث <br>الأكاديمية{% else %}Research Projects{% endif %}</h1>
-        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف واتعاون في مشاريع معالجة اللغة الطبيعية المتقدمة مع الباحثين من جميع أنحاء العالم.{% else %}Discover and collaborate on cutting-edge <br>Arabic NLP research projects worldwide.{% endif %}</p>
-      </div>
-      <div class="proj-stats">
-        {% if user.is_authenticated %}
-        <a href="{% url 'projects:project_new' %}" class="proj-action-btn">
-          <i class="bi bi-plus-lg"></i>
-          {% translate "Create Project" %}
-        </a>
-        {% endif %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pub-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
+.pub-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.pub-wrap>*{position:relative;z-index:1}
+.pub-hero{position:relative;padding:3rem 2rem;margin:5rem auto 1.25rem;background:transparent;border:none;border-radius:24px;box-shadow:none;backdrop-filter:none;overflow:visible;text-align:left;display:flex;align-items:center;gap:2.5rem;justify-content:space-between}
+.pub-hero-content{display:flex;align-items:center;gap:2.5rem;flex:0 1 auto}
+.pub-hero::before{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero::after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.pub-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-top:-3.5rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.pub-hero h1{margin:-3rem 0 0 0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.pub-hero p{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600;text-align:left}
+.pub-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pub-filter-grid{display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:1rem;align-items:center}
+.pub-input-wrapper{position:relative;display:flex;align-items:center}
+.pub-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.pub-input::placeholder{color:rgba(255,255,255,.6);font-weight:400}
+.pub-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.pub-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.pub-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.pub-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.pub-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.pub-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.pub-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.pub-btn:hover{transform:translateY(-3px);background:#a78bfa}
+.pub-grid{display:flex;flex-direction:row;gap:1rem;overflow-x:auto;padding-bottom:1rem;scroll-behavior:smooth}
+.pub-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px;min-width:250px;flex-shrink:0}
+.pub-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.pub-cover{height:104px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#a78bfa;font-size:2.4rem}
+.pub-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
+.pub-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.pub-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
+.pub-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.pub-link:hover{background:rgba(255,255,255,.04)}
+.pub-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pub-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.pub-empty-inner{position:relative;z-index:1}
+.pub-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem}
+.pub-empty h3{margin:1rem 0 .75rem;font-size:1.5rem;font-weight:800;color:#fff}
+.pub-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.pub-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.pub-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+.pub-stats{display:flex;gap:1.5rem;flex-direction:column;align-items:flex-start}
+.pub-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.pub-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.pub-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:auto 1fr 1fr auto}.pub-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.pub-hero-content{flex-direction:column;justify-content:center}}
+@media (max-width:768px){.pub-wrap{width:min(100%,calc(100% - 1rem))}.pub-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:2rem;text-align:center}.pub-hero p{font-size:1rem;text-align:center}.pub-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.pub-btn{padding:.85rem 1.2rem;font-size:.85rem}.pub-grid{padding-right:1rem}}
+@media (max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.pub-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:1.5rem}.pub-hero p{font-size:.9rem}.pub-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
+</style>
+
+<div class="pub-shell">
+  <div class="pub-wrap">
+    <div class="pub-hero">
+      <div class="pub-hero-content">
+        <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-wrench"></i></span>
+        <div class="pub-hero-inner">
+          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}Projects & Resources{% endif %}</h1>
+          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف المشاريع الرائعة والتعاون مع الفريق.{% else %}Explore amazing projects and collaborate <br>with teams worldwide.{% endif %}</p>
+        </div>
       </div>
     </div>
 
-    <div class="proj-filter-card">
-      <form method="get" id="project-search-form" style="display:contents;">
-        {% if request.GET.my_projects %}
-        <input type="hidden" name="my_projects" value="1">
-        {% endif %}
-        {% if request.GET.status %}
-        <input type="hidden" name="status" value="{{ request.GET.status }}">
-        {% endif %}
-        {% if request.GET.sort %}
-        <input type="hidden" name="sort" value="{{ request.GET.sort }}">
-        {% endif %}
-        
-        <div class="proj-filter-grid">
-          <div class="proj-input-wrapper">
-            <i class="bi bi-search" style="position:absolute;left:1rem;color:#9ca3af;pointer-events:none;z-index:1"></i>
-            <input type="text" 
-                   id="project-search"
-                   name="q" 
-                   class="proj-input" 
-                   placeholder="{% translate 'Search projects...' %}"
-                   value="{{ request.GET.q|default:'' }}"
-                   style="padding-left:2.75rem"
-                   autocomplete="off">
-          </div>
-
-          <select name="status" class="proj-select">
-            <option value="">{% translate "All Statuses" %} ({{ projects|length }})</option>
-            <option value="ongoing" {% if request.GET.status == "ongoing" %}selected{% endif %}>{% translate "Ongoing" %} ({{ status_counts.ongoing }})</option>
-            <option value="completed" {% if request.GET.status == "completed" %}selected{% endif %}>{% translate "Completed" %} ({{ status_counts.completed }})</option>
-            <option value="planned" {% if request.GET.status == "planned" %}selected{% endif %}>{% translate "Planned" %} ({{ status_counts.planned }})</option>
-          </select>
-
-          <select name="sort" class="proj-select">
-            <option value="">{% translate "Newest" %}</option>
-            <option value="oldest" {% if request.GET.sort == "oldest" %}selected{% endif %}>{% translate "Oldest" %}</option>
-            <option value="popular" {% if request.GET.sort == "popular" %}selected{% endif %}>{% translate "Most Active" %}</option>
-          </select>
+    <div class="pub-filter-card">
+      <form method="get" class="pub-filter-grid">
+        <div class="pub-stat-badge">
+          <div class="pub-stat-number">{{ total_count|default:"0" }}</div>
+          <div class="pub-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مشاريع{% else %}Projects{% endif %}</div>
         </div>
+        <div class="pub-input-wrapper">
+          <input class="pub-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث...{% else %}Search...{% endif %}">
+        </div>
+        <select class="pub-select" name="status" onchange="this.form.submit();" id="statusFilter">
+          <option value="" {% if not request.GET.status %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الحالات{% else %}All statuses{% endif %}</option>
+          <option value="ongoing" {% if request.GET.status == 'ongoing' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جار{% else %}Ongoing{% endif %}</option>
+          <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مكتمل{% else %}Completed{% endif %}</option>
+          <option value="planned" {% if request.GET.status == 'planned' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مخطط{% else %}Planned{% endif %}</option>
+        </select>
+        <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+        <a href="{% url 'projects:project_new' %}" class="pub-btn" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;padding:1rem 1.2rem;font-size:0.9rem">
+          <i class="fas fa-plus"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء مشروع{% else %}create project{% endif %}
+        </a>
       </form>
     </div>
 
-    <div class="proj-grid" id="projects-grid">
-      {% if projects %}
-        {% for project in projects %}
-          <div class="proj-card">
-            <div class="proj-accent"></div>
-            {% if project.image %}
-            <div class="proj-cover">
-              <img src="{{ project.image.url }}" alt="{{ project.title }}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
-            </div>
-            {% else %}
-            <div class="proj-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.08))">
-              <i class="bi bi-journal-text" style="font-size:1.5rem;color:#a78bfa"></i>
-              <span style="font-size:.75rem;color:#9ca3af;font-weight:600">{{ project.created_at|date:"M d, Y" }}</span>
-            </div>
-            {% endif %}
-            
-            <div class="proj-body">
-              {% if project.status %}
-              <div class="proj-type {% if project.status == 'ongoing' %}proj-ongoing{% elif project.status == 'completed' %}proj-completed{% else %}proj-planned{% endif %}" style="background:{% if project.status == 'ongoing' %}rgba(52,211,153,.15){% elif project.status == 'completed' %}rgba(129,140,248,.15){% else %}rgba(251,191,36,.15){% endif %};color:{% if project.status == 'ongoing' %}#34d399{% elif project.status == 'completed' %}#818cf8{% else %}#fbbf24{% endif %}">
-                {% if project.status == 'ongoing' %}<i class="bi bi-play-circle-fill"></i>{% elif project.status == 'completed' %}<i class="bi bi-check-circle-fill"></i>{% else %}<i class="bi bi-hourglass-split"></i>{% endif %}
-                {{ project.get_status_display }}
-              </div>
-              {% endif %}
-              
-              <h3 class="proj-title">
-                <a href="{% url 'projects:project_detail' project.id %}">{{ project.title }}</a>
-              </h3>
-              
-              {% if project.institution %}
-              <div class="proj-meta">
-                <span class="proj-meta-item">
-                  <i class="bi bi-building"></i>
-                  {{ project.institution }}
-                </span>
-              </div>
-              {% endif %}
-              
-              {% if project.description %}
-              <p class="proj-excerpt">{{ project.description|truncatewords:25 }}</p>
-              {% endif %}
-              
-              {% if project.visible_memberships or project.coordinator %}
-              <div class="proj-team">
-                <i class="bi bi-people-fill proj-team-icon"></i>
-                {% with team_size=project.visible_memberships|length|add:"1" %}
-                <span>{{ team_size }} team member{% if team_size > 1 %}s{% endif %}</span>
-                {% endwith %}
-              </div>
-              {% endif %}
-              
-              {% if project.keywords.all %}
-              <div class="proj-tags">
-                {% for keyword in project.keywords.all|slice:":3" %}
-                <span class="proj-tag">{{ keyword.name }}</span>
-                {% endfor %}
-                {% if project.keywords.count > 3 %}
-                <span class="proj-tag" style="opacity:.6">+{{ project.keywords.count|add:"-3" }}</span>
-                {% endif %}
-              </div>
-              {% endif %}
-            </div>
-            
-            <a href="{% url 'projects:project_detail' project.id %}" class="proj-link" style="text-decoration:none">
-              {% translate "View Details" %} <i class="bi bi-arrow-right"></i>
-            </a>
+    {% if projects %}
+    <div class="pub-grid">
+      {% for project in projects %}
+      <article class="pub-card">
+        <div class="pub-accent"></div>
+        <div class="pub-cover">
+          <i class="fas fa-project-diagram"></i>
+        </div>
+        <div class="pub-body">
+          <span class="pub-type" style="background:#a78bfa">
+            <i class="fas fa-tag"></i>
+            {{ project.get_status_display|default:"Project" }}
+          </span>
+          <h2 class="pub-title">{{ project.title }}</h2>
+          <div class="pub-meta">
+            <span>{{ project.created_at|date:"M d, Y" }}</span>
           </div>
-        {% endfor %}
-      {% else %}
-        <div class="proj-empty">
-          <div class="proj-empty-inner">
-            <span class="proj-empty-icon"><i class="bi bi-inbox"></i></span>
-            <h3 class="proj-empty h3">{% translate "No projects found" %}</h3>
-            <p class="proj-empty p">{% translate "There are currently no research projects matching your search. Try adjusting your filters or create a new project!" %}</p>
-            <div class="proj-empty-actions">
-              {% if user.is_authenticated %}
-              <a href="{% url 'projects:project_new' %}" class="proj-empty-reset">
-                <i class="bi bi-plus-lg"></i>
-                {% translate "Create First Project" %}
-              </a>
-              {% else %}
-              <a href="{% url 'account_login' %}" class="proj-empty-reset">
-                <i class="bi bi-box-arrow-in-right"></i>
-                {% translate "Sign In to Create" %}
-              </a>
-              {% endif %}
-              <a href="{% url 'projects:project_list' %}" class="proj-empty-reset" style="background:transparent;border:1px solid rgba(167,139,250,.3);color:#a78bfa">
-                <i class="bi bi-arrow-clockwise"></i>
-                {% translate "Reset Filters" %}
-              </a>
-            </div>
+          <p class="pub-excerpt">{{ project.description|truncatechars:120 }}</p>
+          <div class="pub-tags">
+            <span class="pub-tag">{% if project.coordinator %}{{ project.coordinator.get_full_name_display }}{% else %}Coordinator{% endif %}</span>
           </div>
         </div>
+        <a class="pub-link" href="{% url 'projects:project_detail' project.id %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}Details{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:1rem;margin:2rem 0">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">← Prev</a>
+      {% endif %}
+      <span style="color:#9ca3af;padding:.5rem 1rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">Next →</a>
       {% endif %}
     </div>
+    {% endif %}
+
+    {% else %}
+    <div class="pub-empty">
+      <div class="pub-empty-inner">
+        <i class="fas fa-inbox pub-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد مشاريع{% else %}No projects found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرب تغيير البحث أو الفلاتر.{% else %}Try adjusting your search or filters.{% endif %}</p>
+        <a href="{% url 'projects:project_list' %}" class="pub-empty-reset">
+          <i class="fas fa-redo-alt"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين{% else %}Reset{% endif %}</span>
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
-<script>
-// ==================== DEBOUNCE FUNCTION ====================
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// ==================== DOM ELEMENTS ====================
-const searchInput = document.getElementById('project-search');
-const searchForm = document.getElementById('project-search-form');
-const projectsGrid = document.getElementById('projects-grid');
-const statusSelect = searchForm ? searchForm.querySelector('select[name="status"]') : null;
-const sortSelect = searchForm ? searchForm.querySelector('select[name="sort"]') : null;
-
-// ==================== HELPER FUNCTIONS ====================
-function getFilterParams() {
-    const params = new URLSearchParams();
-    
-    const query = searchInput ? searchInput.value.trim() : '';
-    if (query) {
-        params.set('q', query);
-    }
-    
-    const myProjectsInput = searchForm ? searchForm.querySelector('input[name="my_projects"]') : null;
-    if (myProjectsInput && myProjectsInput.value) {
-        params.set('my_projects', '1');
-    }
-    
-    if (statusSelect && statusSelect.value) {
-        params.set('status', statusSelect.value);
-    }
-    
-    if (sortSelect && sortSelect.value) {
-        params.set('sort', sortSelect.value);
-    }
-    
-    return params;
-}
-
-function showLoading() {
-    if (projectsGrid) {
-        projectsGrid.style.opacity = '0.6';
-        projectsGrid.style.pointerEvents = 'none';
-    }
-}
-
-function hideLoading() {
-    if (projectsGrid) {
-        projectsGrid.style.opacity = '1';
-        projectsGrid.style.pointerEvents = 'auto';
-    }
-}
-
-function updateBrowserUrl(params) {
-    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-    window.history.replaceState(null, '', newUrl);
-}
-
-// ==================== AJAX SEARCH ====================
-function performSearch() {
-    const params = getFilterParams();
-    const url = window.location.pathname + '?' + params.toString();
-    
-    showLoading();
-    
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'text/html',
-        },
-    })
-    .then(response => response.ok ? response.text() : Promise.reject(response))
-    .then(html => {
-        if (projectsGrid) {
-            projectsGrid.innerHTML = html;
-        }
-        updateBrowserUrl(params);
-        hideLoading();
-    })
-    .catch(error => {
-        console.error('Search error:', error);
-        hideLoading();
-    });
-}
-
-// ==================== DEBOUNCED SEARCH ====================
-const debouncedSearch = debounce(performSearch, 300);
-
-// ==================== EVENT LISTENERS ====================
-// Disabled AJAX search - using regular form submission instead
-// if (searchInput) {
-//     searchInput.addEventListener('input', debouncedSearch);
-//     searchInput.addEventListener('keydown', function(e) {
-//         if (e.key === 'Enter') {
-//             e.preventDefault();
-//             performSearch();
-//         }
-//     });
-// }
-
-// if (searchForm) {
-//     searchForm.addEventListener('submit', function(e) {
-//         e.preventDefault();
-//         performSearch();
-//     });
-// }
-
-// if (statusSelect) {
-//     statusSelect.addEventListener('change', performSearch);
-// }
-
-// if (sortSelect) {
-//     sortSelect.addEventListener('change', performSearch);
-// }
-</script>
 {% endblock %}

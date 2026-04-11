@@ -402,6 +402,7 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
         
         # Count projects by status
         queryset = self.get_queryset()
+        context["total_count"] = queryset.count()
         context["status_counts"] = {
             "ongoing": queryset.filter(status="ongoing").count(),
             "completed": queryset.filter(status="completed").count(),
