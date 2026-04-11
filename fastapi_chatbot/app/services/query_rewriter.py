@@ -82,10 +82,10 @@ async def rewrite_query(
         return question
 
     try:
-        from app.services.llm import get_internal_groq_client
+        from app.services.llm import get_internal_llm_client
         from app.services.llm.prompts import QUERY_REWRITE_PROMPT
 
-        client = get_internal_groq_client()
+        client = get_internal_llm_client()
         formatted_history = _format_history(history)
         
         # Phase 8.1: Explicit language-lock in rewriter
