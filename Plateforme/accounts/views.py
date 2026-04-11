@@ -276,26 +276,10 @@ class LoginView(AllauthLoginView):
             user = getattr(form, "user", None) or getattr(form, "user_cache", None)
 
         if user is not None:
-            two_fa = TwoFactorAuth.objects.filter(user=user, is_enabled=True).first()
-            if two_fa is not None:
-                self.request.session["pending_2fa_user_id"] = str(user.pk)
-                self.request.session["pending_2fa_is_signup"] = False
-                self.request.session["pending_2fa_remember"] = remember
-                self.request.session.modified = True
+            # 2FA is disabled on login - users can log in directly with email and password
+            pass
 
-                if two_fa.method == TwoFactorAuth.METHOD_EMAIL_OTP:
-                    if not send_otp(user):
-                        messages.error(
-                            self.request,
-                            _("Failed to send OTP. Please try again."),
-                        )
-                        return self.render_to_response(
-                            self.get_context_data(form=self.get_form())
-                        )
-
-                return redirect("accounts:verify_2fa")
-
-        # 2FA disabled -> normal login flow
+        # Normal login flow - no 2FA challenge
         response = super().form_valid(form)
 
         if remember:

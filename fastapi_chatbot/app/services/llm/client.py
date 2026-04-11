@@ -507,13 +507,30 @@ class GroqClient:
         return any(m in text for m in _markers)
 
 
+# ---------------------------------------------------------------------------
+# Type alias for provider-agnostic usage
+# ---------------------------------------------------------------------------
+from typing import Union
+
+# Import here to allow type usage; actual instantiation is deferred.
+from app.services.llm.gemini_client import GeminiClient
+
+LLMClient = Union[GroqClient, GeminiClient]
+
+# ---------------------------------------------------------------------------
 # Singletons
+# ---------------------------------------------------------------------------
 _groq_client = None
 _internal_groq_client = None
+_gemini_client = None
+_internal_gemini_client = None
 
 
 def get_groq_client() -> GroqClient:
-    """Get the primary (user-facing chatbot) client."""
+    """Get the primary (user-facing chatbot) Groq client.
+
+    Kept for backward compatibility — always returns GroqClient.
+    """
     global _groq_client
     if _groq_client is None:
         _groq_client = GroqClient()
@@ -521,13 +538,48 @@ def get_groq_client() -> GroqClient:
 
 
 def get_internal_groq_client() -> GroqClient:
-    """Get the internal client (for classification, rewriting, etc.)."""
+    """Get the internal Groq client (for classification, rewriting, etc.).
+
+    Kept for backward compatibility — always returns GroqClient.
+    """
     global _internal_groq_client
     if _internal_groq_client is None:
-        # If internal key is missing, fallback to primary key
         key = settings.GROQ_INTERNAL_API_KEY or settings.GROQ_API_KEY
-        # If internal model is missing, fallback to primary model
         model = settings.GROQ_INTERNAL_MODEL or settings.GROQ_MODEL
-        
         _internal_groq_client = GroqClient(api_key=key, model_name=model)
     return _internal_groq_client
+
+
+def _get_gemini_client() -> GeminiClient:
+    """Singleton for user-facing Gemini client."""
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = GeminiClient()
+    return _gemini_client
+
+
+def _get_internal_gemini_client() -> GeminiClient:
+    """Singleton for internal Gemini client."""
+    global _internal_gemini_client
+    if _internal_gemini_client is None:
+        key = settings.GENAI_INTERNAL_API_KEY or settings.GENAI_API_KEY
+        model = settings.GENAI_INTERNAL_MODEL or settings.GENAI_MODEL
+        _internal_gemini_client = GeminiClient(api_key=key, model_name=model)
+    return _internal_gemini_client
+
+
+def get_llm_client() -> LLMClient:
+    """Provider-aware: returns GeminiClient or GroqClient based on LLM_PROVIDER_CHAT."""
+    provider = settings.LLM_PROVIDER_CHAT.strip().lower()
+    if provider == "gemini":
+        return _get_gemini_client()
+    return get_groq_client()
+
+
+def get_internal_llm_client() -> LLMClient:
+    """Provider-aware: returns GeminiClient or GroqClient based on LLM_PROVIDER_INTERNAL."""
+    provider = settings.LLM_PROVIDER_INTERNAL.strip().lower()
+    if provider == "gemini":
+        return _get_internal_gemini_client()
+    return get_internal_groq_client()
+

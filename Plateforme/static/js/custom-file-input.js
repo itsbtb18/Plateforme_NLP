@@ -48,9 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-file-input-wrapper';
         
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'custom-file-button btn btn-outline-secondary';
+    
         
         // Déterminer si c'est une image ou un fichier général
         const isImage = input.accept && input.accept.includes('image');

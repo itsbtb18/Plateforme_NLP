@@ -299,6 +299,13 @@ class TopicUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
     success_url = reverse_lazy("forum:topic-list")
     context_object_name = "topic"
 
+    def get_template_names(self):
+        review_mode = self.request.GET.get("review") == "1"
+        edit_only = self.request.GET.get("edit_only") == "1"
+        if review_mode or edit_only:
+            return [self.template_name]
+        return ["forum/topic_new.html"]
+
     def get_object(self, queryset: Optional[QuerySet[Any]] = None) -> Topic:
         topic = cast(Topic, super().get_object(queryset))
         if (
@@ -668,6 +675,9 @@ class ChatRoomUpdateView(
     template_name = "forum/chatroom_update.html"
     context_object_name = "chatroom"
 
+    def get_template_names(self):
+        return ["forum/chatroom_new.html"]
+
     def test_func(self) -> bool:
         chatroom: ChatRoom = cast(ChatRoom, self.get_object())
         return self.request.user.is_staff or chatroom.creator == self.request.user
@@ -679,6 +689,7 @@ class ChatRoomUpdateView(
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["page"] = "community"
+        context["topic"] = self.object.topic
         return context
 
 

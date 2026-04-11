@@ -6,14 +6,20 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
+from accounts.forms import CustomUserChangeForm
 from accounts.models import CustomUser
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.functions import TruncDate, TruncMonth
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import now
@@ -23,6 +29,7 @@ from django.views.generic import TemplateView
 from events.models import Event
 from feed.models import Post
 from forum.models import ChatRoom, Message, Topic
+from institutions.models import Institution
 from notifications.models import Notification
 from notifications.services import NotificationService
 from projects.models import Project
@@ -34,7 +41,18 @@ from pages.forms import (
     ContactForm,
     OpportunityForm,
 )
+from pages.models import (
+    AdminActivityLog,
+    ContactMessage,
+    NewsPublication,
+    Opportunity,
+    SecurityLog,
+    Stats,
+    UserStatusHistory,
+)
 from pages.moderation import approve_object, reject_object
+from pages.opportunities_service import apply_creation_policy, normalize_skills
+from pages.security import ROLE_ADMIN, get_user_role
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -141,8 +159,9 @@ class HomePageView(TemplateView):
         return context
 
 
-class OpportunitiesPageView(TemplateView):
+class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
     template_name = "opportunities.html"
+    login_url = "account_login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -323,30 +342,6 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
         else "OP",
         "contact": opportunity.contact,
     }
-
-
-from accounts.forms import CustomUserChangeForm
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Q
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from institutions.models import Institution
-
-from pages.security import ROLE_ADMIN, get_user_role
-
-from .models import (
-    AdminActivityLog,
-    ContactMessage,
-    NewsPublication,
-    Opportunity,
-    SecurityLog,
-    Stats,
-    UserStatusHistory,
-)
-from .opportunities_service import apply_creation_policy, normalize_skills
-
-User = get_user_model()
 
 
 def is_admin(user):
@@ -794,6 +789,7 @@ def admin_publications_detail_api(request, publication_id):
     return render(request, "admin/news_form.html", context, status=400)
 
 
+@login_required(login_url="account_login")
 def publications_list(request):
     search = request.GET.get("q", "").strip()
     content_type = request.GET.get("type", "").strip()
@@ -844,6 +840,7 @@ def publications_list(request):
             base_queryset.order_by("-year").values_list("year", flat=True).distinct()
         ),
         "type_meta": NEWS_TYPE_META,
+        "publications_count": base_queryset.count(),
     }
     return render(request, "news/publication_list.html", context)
 

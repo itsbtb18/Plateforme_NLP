@@ -3,371 +3,430 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% translate "Create Post" %} | {% translate "SANAD" %}{% endblock %}
+{% block title %}{% if post %}{% translate "Edit Post" %}{% else %}{% translate "Create Post" %}{% endif %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <style>
-/* ===== VARIABLES ===== */
+/* ===== CSS VARIABLES - Modern Dark Theme (Unified Corpus Design) ===== */
 :root {
-    --primary: #8B5CF6;
-    --primary-hover: #7C3AED;
-    --primary-light: #A78BFA;
-    --primary-glow: rgba(139, 92, 246, 0.12);
-    --primary-pale: #F5F3FF;
-
-    --white: #171327;
-    --bg: #0A0B18;
-    --muted: rgba(255,255,255,0.05);
-    --subtle: rgba(255,255,255,0.09);
-    --border: rgba(196,181,253,0.14);
-    --border-dark: rgba(196,181,253,0.24);
-
-    --text: #F8FAFC;
-    --text-secondary: #CBD5E1;
-    --text-muted: #94A3B8;
-    --text-light: #94A3B8;
-
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --radius: 8px;
     --success: #059669;
     --success-light: #ECFDF5;
-    --success-border: rgba(5, 150, 105, 0.2);
     --danger: #DC2626;
-
-    --radius: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
+    --teal: #0D9488;
 }
 
 * { box-sizing: border-box; }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
-.post-page { min-height: 100vh; background: radial-gradient(circle at top left, rgba(139,92,246,0.14), transparent 22%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%); }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
 
-/* ===== DARK HERO â€” identical to corpus/tools pages ===== */
-.page-hero {
-    background: linear-gradient(135deg, #120f2a 0%, #21143f 52%, #32185d 100%);
-    padding: 2.5rem 0 3.5rem;
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.post-form-page {
+    min-height: calc(100vh - 100px);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    padding: 3rem;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+}
+
+.post-form-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
+.page-hero {
+    margin-bottom: 2.5rem;
+    text-align: center;
 }
 
 .page-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 70% 40%, rgba(139,92,246,0.22) 0%, transparent 60%);
-    pointer-events: none;
-}
-
-.hero-inner {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 2.5rem;
-    position: relative;
-    z-index: 1;
+    display: none;
 }
 
 /* Breadcrumb */
 .breadcrumb {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.5);
     list-style: none;
     padding: 0;
+    margin-left: 0;
+    flex-wrap: wrap;
 }
-.breadcrumb a { color: rgba(255,255,255,0.65); text-decoration: none; transition: color 0.2s; }
-.breadcrumb a:hover { color: white; }
-.breadcrumb .sep { color: rgba(255,255,255,0.3); font-size: 0.75rem; }
-.breadcrumb .current { color: rgba(255,255,255,0.9); font-weight: 500; }
 
-/* Hero body */
-.hero-body { display: flex; align-items: center; gap: 1.5rem; }
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
 
+.breadcrumb a:hover { 
+    color: var(--accent-cyan);
+}
+
+.breadcrumb .sep { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 0.7rem;
+}
+
+.breadcrumb .current { 
+    color: rgba(255,255,255,0.8); 
+    font-weight: 600;
+}
+
+/* Hero Icon */
 .hero-icon {
-    width: 64px;
-    height: 64px;
-    background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
-    border-radius: var(--radius-lg);
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
-}
-.hero-icon i { font-size: 1.875rem; color: white; }
-
-.hero-text h1 {
-    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
-    font-weight: 800;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
     color: white;
-    margin: 0 0 0.375rem;
-    letter-spacing: -0.025em;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    transition: all 0.3s ease;
 }
-.hero-text p { font-size: 0.9375rem; color: rgba(255,255,255,0.65); margin: 0; }
+
+.hero-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+}
+
+.page-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.page-hero p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 400;
+}
 
 /* Steps bar */
 .steps-bar {
-    display: flex;
-    align-items: center;
-    margin-top: 2rem;
-    background: rgba(255,255,255,0.07);
-    border-radius: 999px;
-    padding: 0.375rem;
-    width: fit-content;
-    border: 1px solid rgba(255,255,255,0.12);
-}
-.step-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgba(255,255,255,0.5);
-    white-space: nowrap;
-    line-height: 1;
-    min-height: 38px;
-}
-.step-item.active { background: white; color: var(--primary); font-weight: 600; }
-.step-number {
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem; font-weight: 700;
-    background: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.7);
-}
-.step-item.active .step-number { background: var(--primary); color: white; }
-
-/* ===== PAGE BODY ===== */
-.page-body {
-    width: 100%;
-    max-width: 1100px;
-    margin: -2rem auto 0;
-    padding: 0 2.5rem 4rem;
-    position: relative;
-    z-index: 10;
+    display: none;
 }
 
-/* ===== AUTHOR BAR ===== */
-.author-bar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.125rem 1.5rem;
-    background: linear-gradient(180deg, rgba(26,21,45,.98) 0%, rgba(18,15,33,.98) 100%);
-    border: 1px solid var(--border);
-    border-bottom: 1px solid rgba(255,255,255,.05);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
+/* RTL Support */
+html[dir="rtl"] .form-group label { text-align: right; }
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .page-hero { text-align: right; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
+html[dir="rtl"] .upload-btns { flex-direction: row-reverse; }
+html[dir="rtl"] .file-chip { flex-direction: row-reverse; }
+html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
+html[dir="rtl"] .btn { flex-direction: row-reverse; }
 
-.author-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #8B5CF6 0%, #4F46E5 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 1.125rem;
-    flex-shrink: 0;
+/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+.card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(139,92,246,0.24);
-}
-.author-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.author-name { font-size: 0.9375rem; font-weight: 600; color: var(--text); margin: 0 0 0.125rem; }
-.author-role { font-size: 0.8125rem; color: var(--text-muted); margin: 0; }
-
-/* ===== FORM CARD ===== */
-.form-card {
-    background: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-    overflow: hidden;
-    box-shadow:
-        0 4px 6px -1px rgba(0,0,0,0.05),
-        0 10px 20px -5px rgba(0,0,0,0.06),
-        0 20px 40px -10px rgba(0,0,0,0.07);
-}
-
-.form-body { padding: 2rem 2.5rem; }
-
-/* ===== SECTION LABEL ===== */
-.section-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-}
-.section-label-text { font-size: 0.9375rem; font-weight: 600; color: var(--text); }
-.badge-required {
-    font-size: 0.75rem; font-weight: 600;
-    padding: 0.2rem 0.6rem; border-radius: 999px;
-    background: rgba(220,38,38,.14); color: #fecaca;
-}
-.badge-optional {
-    font-size: 0.75rem; font-weight: 500;
-    padding: 0.2rem 0.6rem; border-radius: 999px;
-    background: rgba(255,255,255,.06); color: var(--text-light);
-}
-
-/* ===== CONTENT TEXTAREA ===== */
-.content-field { margin-bottom: 2rem; }
-
-.content-textarea {
-    width: 100%;
-    min-height: 200px;
-    padding: 1rem 1.125rem;
-    background: rgba(255,255,255,0.05);
-    border: 1.5px solid transparent;
-    border-radius: var(--radius-lg);
-    font-family: inherit;
-    font-size: 1rem;
-    color: var(--text);
-    line-height: 1.75;
-    resize: vertical;
-    transition: all 0.2s ease;
-}
-.content-textarea:focus {
-    outline: none;
-    background: rgba(255,255,255,0.08);
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-glow), 0 1px 2px rgba(0,0,0,0.05);
-}
-.content-textarea:hover { border-color: var(--border-dark); background: rgba(255,255,255,0.08); }
-.content-textarea::placeholder { color: var(--text-light); }
-
-.char-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
-.char-count {
-    font-size: 0.8125rem; color: var(--text-light);
-    padding: 0.2rem 0.5rem; background: rgba(255,255,255,.06); border-radius: 4px;
-}
-.char-count.warn { color: #D97706; background: #FFFBEB; }
-.char-count.over { color: var(--danger); background: #FEF2F2; }
-
-/* ===== UPLOAD SECTION â€” corpus style ===== */
-.upload-section { margin-bottom: 1rem; }
-
-/* Drop zone */
-.upload-zone {
-    border: 2px dashed var(--subtle);
-    border-radius: var(--radius-lg);
-    padding: 2.5rem 2rem;
-    text-align: center;
-    background: var(--muted);
-    transition: all 0.25s ease;
-    cursor: pointer;
-    position: relative;
-}
-.upload-zone:hover,
-.upload-zone.drag-over {
-    border-color: var(--primary);
-    background: #EEF2FF;
-}
-.upload-zone.has-files {
-    border-color: var(--success);
-    border-style: solid;
-    background: var(--success-light);
-}
-
-/* Big gradient icon */
-.upload-zone-icon {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.125rem;
-    font-size: 1.625rem;
-    color: white;
-    box-shadow: 0 8px 24px rgba(37,99,235,0.3);
-    transition: all 0.25s ease;
-}
-.upload-zone:hover .upload-zone-icon,
-.upload-zone.drag-over .upload-zone-icon {
-    transform: scale(1.08);
-    box-shadow: 0 10px 30px rgba(37,99,235,0.4);
-}
-.upload-zone.has-files .upload-zone-icon {
-    background: linear-gradient(135deg, var(--success) 0%, #10B981 100%);
-    box-shadow: 0 8px 24px rgba(5,150,105,0.3);
-}
-
-.upload-zone-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 0.375rem;
-}
-.upload-zone-hint {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
     margin-bottom: 1.5rem;
 }
 
-/* Two pick buttons inside the zone */
+.card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
+
+.card-header-text h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group { margin-bottom: 1.5rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-family: inherit;
+    min-height: 150px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
+    background: rgba(255,255,255,.08);
+}
+
+.form-group textarea:hover { 
+    border-color: rgba(167, 139, 250, 0.18);
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* ===== CHAR COUNTER ===== */
+.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
+
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.25rem 0.5rem;
+    background: rgba(167, 139, 250, 0.1);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+}
+
+.char-counter.warn { 
+    color: #f97316; 
+    background: rgba(249, 115, 22, 0.1);
+    border-color: #f97316;
+}
+
+.char-counter.danger { 
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #DC2626;
+}
+
+/* ===== UPLOAD ZONE ===== */
+.upload-zone {
+    border: 1.5px dashed rgba(167, 139, 250, 0.15);
+    border-radius: 8px;
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    background: rgba(167, 139, 250, 0.02);
+    position: relative;
+}
+
+.upload-zone:hover {
+    border-color: rgba(167, 139, 250, 0.25);
+    background: rgba(167, 139, 250, 0.05);
+}
+
+.upload-zone.drag-over {
+    border-color: #a78bfa;
+    border-style: solid;
+    background: rgba(167, 139, 250, 0.08);
+    transform: scale(1.01);
+}
+
+.upload-zone.has-files {
+    border-color: #10b981;
+    border-style: solid;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.upload-zone input[type="file"] {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.upload-zone-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    margin: 0 auto 1rem;
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover .upload-zone-icon,
+.upload-zone.drag-over .upload-zone-icon {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(167, 139, 250, 0.4);
+}
+
+.upload-zone.has-files .upload-zone-icon {
+    background: linear-gradient(135deg, var(--success) 0%, #10b981 100%);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.3);
+}
+
+.upload-zone-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.upload-zone-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
 .upload-btns {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.875rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
 }
 
 .upload-pick-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    font-weight: 500;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--primary);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.25s ease;
     cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
+    font-family: inherit;
     position: relative;
-    min-width: 140px;
-    justify-content: center;
 }
+
 .upload-pick-btn:hover {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
 }
-.upload-pick-btn input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-}
+
 .upload-pick-btn.selected {
     border-color: var(--success);
     color: var(--success);
-    background: var(--success-light);
+    background: rgba(5, 150, 105, 0.1);
 }
-.upload-pick-btn.selected:hover {
-    background: var(--success);
-    color: white;
-    border-color: var(--success);
+
+.upload-pick-btn input[type="file"] {
+    position: absolute;
+    left: -9999px;
 }
 
 /* File chips list */
@@ -375,7 +434,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
-    margin-top: 1.25rem;
+    margin-top: 1rem;
 }
 
 .file-chip {
@@ -383,377 +442,144 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    background: var(--success-light);
-    border: 1px solid var(--success-border);
-    border-radius: var(--radius);
-}
-.file-chip-icon {
-    width: 36px; height: 36px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(5, 150, 105, 0.2);
     border-radius: 8px;
-    background: rgba(5,150,105,0.1);
-    border: 1px solid var(--success-border);
-    display: flex; align-items: center; justify-content: center;
+}
+
+.file-chip-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(5, 150, 105, 0.15);
     color: var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1rem;
     flex-shrink: 0;
 }
-.file-chip-info { flex: 1; min-width: 0; }
-.file-chip-name { font-size: 0.875rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.file-chip-size { font-size: 0.8125rem; color: var(--text-muted); }
-.file-chip-remove {
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    background: none; border: none;
-    color: var(--text-light);
-    cursor: pointer; border-radius: 6px;
-    transition: all 0.15s; flex-shrink: 0; font-size: 1rem;
-}
-.file-chip-remove:hover { background: #FEF2F2; color: var(--danger); }
 
-/* ===== FORM FOOTER ===== */
+.file-chip-info { flex: 1; min-width: 0; }
+
+.file-chip-name { 
+    font-size: 0.875rem; 
+    font-weight: 500; 
+    color: var(--text-primary); 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.file-chip-size { 
+    font-size: 0.8125rem; 
+    color: var(--text-muted); 
+}
+
+.file-chip-remove {
+    padding: 0.375rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.file-chip-remove:hover { 
+    background: rgba(239, 68, 68, 0.1); 
+    color: var(--danger); 
+}
+
+/* ===== SUBMIT BUTTONS ===== */
 .form-footer {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1.5rem 2.5rem;
-    background: var(--muted);
-    border-top: 1px solid var(--border);
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
 }
-html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
 
 .btn {
+    width: 100%;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.75rem;
+    padding: 0.75rem 1.5rem;
     font-weight: 600;
-    font-size: 0.9375rem;
-    border-radius: var(--radius);
+    font-size: 0.9rem;
+    border-radius: 8px;
     text-decoration: none;
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
+    transition: all 0.25s ease;
     font-family: inherit;
 }
 
 .btn-publish {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
     color: white;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
 }
+
 .btn-publish:hover {
-    background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
     color: white;
-    box-shadow: 0 6px 18px rgba(37,99,235,0.4);
-    transform: translateY(-1px);
 }
-.btn-publish:active { transform: translateY(0) scale(0.98); }
-.btn-publish:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-publish:active { 
+    transform: translateY(0) scale(0.98); 
+}
+
+.btn-publish:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    transform: none; 
+}
 
 .btn-publish .spinner {
     display: none;
-    width: 16px; height: 16px;
+    width: 16px;
+    height: 16px;
     border: 2px solid rgba(255,255,255,0.3);
     border-top-color: white;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
+
 .btn-publish.loading .spinner { display: block; }
 .btn-publish.loading .btn-label { display: none; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .btn-cancel {
-    background: var(--white);
-    color: var(--text-secondary);
-    border: 1.5px solid var(--border);
-}
-.btn-cancel:hover { background: var(--subtle); color: var(--text); border-color: var(--border-dark); }
-
-/* ===== GUIDELINES ===== */
-.guidelines-card {
-    margin-top: 1.5rem;
-    background: var(--primary-pale);
-    border: 1px solid #BFDBFE;
-    border-radius: var(--radius-xl);
-    padding: 1.25rem 1.5rem;
-}
-.guidelines-title {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: var(--primary-hover);
-    margin: 0 0 0.875rem;
-}
-.guidelines-list {
-    margin: 0;
-    padding: 0 0 0 1.25rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.9;
-}
-html[dir="rtl"] .guidelines-list { padding: 0 1.25rem 0 0; }
-
-/* ===== RTL ===== */
-html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; }
-html[dir="rtl"] .breadcrumb .sep i { transform: scaleX(-1); }
-html[dir="rtl"] .hero-body { flex-direction: row-reverse; }
-html[dir="rtl"] .hero-text { text-align: right; }
-html[dir="rtl"] .steps-bar { flex-direction: row-reverse; }
-html[dir="rtl"] .step-item { flex-direction: row-reverse; }
-html[dir="rtl"] .author-bar { flex-direction: row-reverse; }
-html[dir="rtl"] .section-label { flex-direction: row-reverse; }
-html[dir="rtl"] .file-chip { flex-direction: row-reverse; }
-html[dir="rtl"] .upload-pick-btn { flex-direction: row-reverse; }
-html[dir="rtl"] .btn { flex-direction: row-reverse; }
-html[dir="rtl"] .guidelines-title { flex-direction: row-reverse; }
-html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
-
-/* Fallback RTL when `dir="rtl"` is set on body or another ancestor */
-[dir="rtl"] .breadcrumb { flex-direction: row-reverse; }
-[dir="rtl"] .breadcrumb .sep i { transform: scaleX(-1); }
-[dir="rtl"] .hero-body { flex-direction: row-reverse; }
-[dir="rtl"] .hero-text { text-align: right; }
-[dir="rtl"] .steps-bar { flex-direction: row-reverse; margin-left: 0; margin-right: auto; }
-[dir="rtl"] .step-item { flex-direction: row-reverse; }
-[dir="rtl"] .author-bar { flex-direction: row-reverse; }
-[dir="rtl"] .author-name,
-[dir="rtl"] .author-role,
-[dir="rtl"] .section-label-text,
-[dir="rtl"] .upload-zone-title,
-[dir="rtl"] .upload-zone-hint { text-align: right; }
-[dir="rtl"] .section-label { flex-direction: row-reverse; }
-[dir="rtl"] .file-chip { flex-direction: row-reverse; }
-[dir="rtl"] .upload-pick-btn { flex-direction: row-reverse; }
-[dir="rtl"] .btn { flex-direction: row-reverse; }
-[dir="rtl"] .guidelines-title { flex-direction: row-reverse; }
-[dir="rtl"] .guidelines-list { padding: 0 1.25rem 0 0; }
-[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
-
-/* Generic RTL enforcement for News post form */
-[dir="rtl"] .post-page {
-    direction: rtl;
-    text-align: right;
-}
-
-[dir="rtl"] .post-page input,
-[dir="rtl"] .post-page textarea,
-[dir="rtl"] .post-page select,
-[dir="rtl"] .post-page label,
-[dir="rtl"] .post-page button,
-[dir="rtl"] .post-page .btn {
-    direction: rtl;
-    text-align: right;
-}
-
-[dir="rtl"] .post-page .btn,
-[dir="rtl"] .post-page .upload-pick-btn,
-[dir="rtl"] .post-page .step-item,
-[dir="rtl"] .post-page .section-label {
-    flex-direction: row-reverse;
-}
-
-[dir="rtl"] .post-page input,
-[dir="rtl"] .post-page textarea {
-    padding-right: 1.125rem;
-    padding-left: 1rem;
-}
-
-/* Strong Arabic fallback (Bootstrap/custom overrides) */
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page input,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page select,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page label,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page button {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page input:not([type="file"]),
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page select {
-    margin-right: 0 !important;
-    margin-left: auto !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page input::placeholder,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea::placeholder {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .content-textarea {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .hero-body,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .author-bar,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .section-label,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .upload-pick-btn,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .btn {
-    flex-direction: row-reverse;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea::placeholder {
-    text-align: right !important;
-}
-
-/* Full right-side alignment for Arabic form layout */
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .hero-inner,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .page-body,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .form-body {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .breadcrumb {
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-}
-
-/* Inverted position in Arabic hero (near opposite frame side) */
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .hero-body {
-    flex-direction: row-reverse;
-    justify-content: flex-start;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .steps-bar {
-    direction: rtl;
-    flex-direction: row-reverse;
-    margin-right: 0 !important;
-    margin-left: auto !important;
-    justify-content: flex-end;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .step-item {
     justify-content: center;
-    text-align: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.12);
 }
 
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .step-number {
-    flex: 0 0 22px;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .author-bar {
-    justify-content: flex-start;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .author-bar > div {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .guidelines-card {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .guidelines-list {
-    direction: rtl !important;
-    text-align: right !important;
-    padding-right: 1.25rem !important;
-    padding-left: 0 !important;
-    margin-right: 0 !important;
-    margin-left: auto !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .guidelines-list li {
-    text-align: right !important;
-}
-
-/* Full RTL inversion for Arabic create-news page */
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page input:not([type="file"]),
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page select {
-    margin-right: 0 !important;
-    margin-left: auto !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page input::placeholder,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page textarea::placeholder {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .upload-btns,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .file-chip,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .guidelines-title,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .form-footer {
-    flex-direction: row-reverse !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .file-chip-info,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .hero-text,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .section-label-text,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .upload-zone-title,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .upload-zone-hint {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page .char-row {
-    justify-content: flex-start;
-}
-
-/* Final RTL alignment fix: keep same layout but mirrored to the opposite side */
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .hero-body,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .author-bar,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .section-label,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .upload-pick-btn,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .btn,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .form-footer {
-    flex-direction: row !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .steps-bar {
-    direction: rtl !important;
-    flex-direction: row !important;
-    margin-left: auto !important;
-    margin-right: 0 !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .hero-text,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .section-label-text,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .author-name,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .author-role,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .upload-zone-title,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .upload-zone-hint,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .guidelines-card,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .guidelines-list,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .guidelines-list li {
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] .guidelines-title {
-    flex-direction: row-reverse !important;
-    justify-content: flex-end !important;
-    text-align: right !important;
-}
-
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] input:not([type="file"]),
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] textarea,
-:is(html[dir="rtl"], html[lang^="ar"], [dir="rtl"]) .post-page[dir="rtl"] select {
-    direction: rtl !important;
-    text-align: right !important;
+.btn-cancel:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-    .hero-inner, .page-body { max-width: 100%; padding-left: 1.5rem; padding-right: 1.5rem; }
+@media (max-width: 640px) {
+    .page-hero h1 { font-size: 1.875rem; }
+    .page-hero { padding: 2rem 0; }
+    .form-container { padding: 0 1rem; }
 }
+
 @media (max-width: 768px) {
     .page-hero { padding: 1.5rem 0 3rem; }
-    .form-body { padding: 1.5rem; }
+    .card-body { padding: 1.5rem; }
     .form-footer { flex-direction: column-reverse; padding: 1.25rem 1.5rem; }
     .btn { width: 100%; justify-content: center; }
     .upload-btns { flex-direction: column; }
@@ -763,110 +589,119 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
 {% endblock %}
 
 {% block content %}
-<div class="post-page" dir="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}rtl{% else %}ltr{% endif %}">
+<!-- ===== DARK HERO HEADER ===== -->
+<!-- ===== FORM BODY ===== -->
+<div class="post-form-page">
+    <div class="page-hero">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+            <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a>
+            <span class="sep"><i class="bi bi-chevron-right"></i></span>
+            <span class="current">{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</span>
+        </nav>
 
-    <!-- ===== DARK HERO ===== -->
-    <header class="page-hero">
-        <div class="hero-inner">
-            <nav class="breadcrumb">
-                <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ø§Ù„Ù…Ù†Ø´ÙˆØ±Ø§Øª{% else %}Feed{% endif %}</a>
-                <span class="sep"><i class="bi bi-chevron-right"></i></span>
-                <span class="current">{% translate "Create Post" %}</span>
-            </nav>
-
-            <div class="hero-body">
-                <div class="hero-icon">
-                    <i class="bi bi-pencil-square"></i>
-                </div>
-                <div class="hero-text">
-                    <h1>{% translate "Create Post" %}</h1>
-                    <p>{% translate "Share your research, datasets, or updates with the Arabic NLP community" %}</p>
-                </div>
-            </div>
-
-            <div class="steps-bar">
-                <div class="step-item active">
-                    <span class="step-number">1</span>
-                    {% translate "Content" %}
-                </div>
-                <div class="step-item">
-                    <span class="step-number">2</span>
-                    {% translate "Attachments" %}
-                </div>
-                <div class="step-item">
-                    <span class="step-number">3</span>
-                    {% translate "Publish" %}
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- ===== MAIN ===== -->
-    <main class="page-body">
-
-        <!-- Author bar -->
-        <div class="author-bar">
-            <div class="author-avatar">
-                {% if user.avatar %}
-                    <img src="{{ user.avatar.url }}" alt="{{ user.full_name }}">
-                {% else %}
-                    {{ user.full_name|slice:":1"|upper }}
-                {% endif %}
-            </div>
-            <div>
-                <p class="author-name">{{ user.full_name }}</p>
-                <p class="author-role">{% translate "Posting to Research Feed" %}</p>
-            </div>
+        <!-- Icon -->
+        <div class="hero-icon">
+            <i class="bi bi-pencil-square"></i>
         </div>
 
+        <!-- Title -->
+        <h1>{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</h1>
+        <p>{% if post %}{% trans "Update your research note, file, or community update" %}{% else %}{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}{% endif %}</p>
+
+        <!-- Steps bar (decorative) -->
+        <div class="steps-bar">
+            <div class="step-item active">
+                <span class="step-number">1</span>
+                {% trans "Content" %}
+            </div>
+            <div class="step-item">
+                <span class="step-number">2</span>
+                {% trans "Attachments" %}
+            </div>
+            <div class="step-item">
+                <span class="step-number">3</span>
+                {% trans "Publish" %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-container">
         <!-- Form card -->
-        <div class="form-card">
-            <form method="POST" action="{% url 'feed:create_post' %}" enctype="multipart/form-data" id="createPostForm">
+        <div class="card">
+            <form method="POST" action="{% if post %}{% url 'feed:edit_post' post.id %}{% else %}{% url 'feed:create_post' %}{% endif %}" enctype="multipart/form-data" id="createPostForm">
                 {% csrf_token %}
 
-                <div class="form-body">
-
-                    <!-- Content -->
-                    <div class="content-field">
-                        <div class="section-label">
-                            <span class="section-label-text">{% translate "Post Content" %}</span>
-                            <span class="badge-required">{% translate "Required" %}</span>
-                        </div>
+                <!-- Content field -->
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="postContent">{% trans "Post Content" %} <span class="required">*</span></label>
                         <textarea
                             name="content"
-                            class="content-textarea"
                             id="postContent"
-                            placeholder="{% translate 'Share your research findings, announce a new dataset, ask for collaboration, or discuss the latest in Arabic NLP...' %}"
+                            class="content-textarea"
+                            placeholder="{% trans 'Share your research findings, announce a new dataset, ask for collaboration, or discuss the latest in Arabic NLP...' %}"
                             required>{{ form.content.value|default:'' }}</textarea>
-                        <div class="char-row">
-                            <span class="char-count" id="charCount">0</span>
+                        <div class="char-counter-wrap">
+                            <span class="char-counter" id="charCount">0</span>
                         </div>
                     </div>
 
-                    <!-- Upload -->
-                    <div class="upload-section">
-                        <div class="section-label">
-                            <span class="section-label-text">{% translate "Attachments" %}</span>
-                            <span class="badge-optional">{% translate "Optional" %}</span>
+                    <!-- Upload section -->
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label style="margin-bottom: 1rem;">{% trans "Attachments" %}</label>
+                        {% if post and post.image or post and post.file %}
+                        <div class="card" style="margin-bottom:1rem;">
+                            <div class="card-body" style="padding:1rem 1.25rem;">
+                                <div style="font-weight:600;margin-bottom:.75rem;">{% trans "Current Attachments" %}</div>
+                                {% if post.image %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:{% if post.file %}.85rem{% else %}0{% endif %};">
+                                    <div style="display:flex;align-items:center;gap:.9rem;">
+                                        <img src="{{ post.image.url }}" alt="{% trans 'Current image' %}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid rgba(167,139,250,.18);">
+                                        <div>
+                                            <div style="font-weight:600;">{% trans "Current image" %}</div>
+                                            <div style="color:var(--text-muted);font-size:.85rem;">{{ post.image.name|slice:"-40:" }}</div>
+                                        </div>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_image }}
+                                        <span>{% trans "Remove image" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                                {% if post.file %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                                    <div>
+                                        <div style="font-weight:600;">{% trans "Current file" %}</div>
+                                        <a href="{{ post.file.url }}" download style="color:var(--primary-color);text-decoration:none;font-size:.9rem;">{{ post.file.name|slice:"-60:" }}</a>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_file }}
+                                        <span>{% trans "Remove file" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
+                        {% endif %}
 
                         <div class="upload-zone" id="uploadZone">
                             <div class="upload-zone-icon">
                                 <i class="bi bi-cloud-arrow-up" id="zoneIcon"></i>
                             </div>
-                            <div class="upload-zone-title">{% translate "Drop files here or click to upload" %}</div>
-                            <div class="upload-zone-hint">{% translate "Supports images (PNG, JPG, GIF) and documents (PDF, CSV, JSON)" %}</div>
+                            <div class="upload-zone-title">{% trans "Drop files here or click to upload" %}</div>
+                            <div class="upload-zone-hint">{% trans "Supports images (PNG, JPG, GIF) and documents (PDF, CSV, JSON)" %}</div>
 
-                            <!-- Single image button + single file button -->
+                            <!-- File buttons -->
                             <div class="upload-btns">
                                 <label class="upload-pick-btn" id="imgPickBtn">
                                     <i class="bi bi-image"></i>
-                                    <span id="imgBtnLabel">{% translate "Add Image" %}</span>
+                                    <span id="imgBtnLabel">{% trans "Add Image" %}</span>
                                     <input type="file" name="image" id="imageInput" accept="image/*">
                                 </label>
                                 <label class="upload-pick-btn" id="filePickBtn">
                                     <i class="bi bi-paperclip"></i>
-                                    <span id="fileBtnLabel">{% translate "Attach File" %}</span>
+                                    <span id="fileBtnLabel">{% trans "Attach File" %}</span>
                                     <input type="file" name="file" id="fileInput">
                                 </label>
                             </div>
@@ -875,42 +710,25 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
                         <!-- Chips preview -->
                         <div class="file-chips" id="fileChips"></div>
                     </div>
-
                 </div>
 
-                <!-- Footer -->
+                <!-- Submit buttons -->
                 <div class="form-footer">
-                    <a href="{% url 'feed:feed' %}" class="btn btn-cancel">
-                        <i class="bi bi-x-lg"></i>
-                        {% translate "Cancel" %}
-                    </a>
                     <button type="submit" class="btn btn-publish" id="submitBtn">
                         <span class="spinner"></span>
                         <span class="btn-label">
                             <i class="bi bi-send-fill"></i>
-                            {% translate "Publish Post" %}
+                            {% if post %}{% trans "Save Changes" %}{% else %}{% trans "Publish Post" %}{% endif %}
                         </span>
                     </button>
+                    <a href="{% if post %}{% url 'feed:post_detail' post.slug %}{% else %}{% url 'feed:feed' %}{% endif %}" class="btn btn-cancel">
+                        <i class="bi bi-x"></i>
+                        {% trans "Cancel" %}
+                    </a>
                 </div>
-
             </form>
         </div>
-
-        <!-- Guidelines -->
-        <div class="guidelines-card">
-            <h4 class="guidelines-title">
-                <i class="bi bi-info-circle-fill"></i>
-                {% translate "Posting Guidelines" %}
-            </h4>
-            <ul class="guidelines-list">
-                <li>{% translate "Share content relevant to Arabic NLP research and development" %}</li>
-                <li>{% translate "Include proper citations when referencing other work" %}</li>
-                <li>{% translate "Be respectful and constructive in your discussions" %}</li>
-                <li>{% translate "Posts are reviewed before publication to maintain quality" %}</li>
-            </ul>
-        </div>
-
-    </main>
+    </div>
 </div>
 
 <script>
