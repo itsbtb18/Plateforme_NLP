@@ -1,8 +1,6 @@
 import pytest
-
 from scraping.enrichment_engine import enrich_scraped_item
-from scraping.llm_validation import validate_item
-
+from scraping.extractors.core.llm_validation import validate_item
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -86,7 +84,8 @@ def test_llm_timeout_path_returns_safe_fallback(monkeypatch):
             return None
 
     monkeypatch.setattr(
-        "scraping.llm_validation.get_validator", lambda: _DummyValidator()
+        "scraping.extractors.core.llm_validation.get_validator",
+        lambda: _DummyValidator(),
     )
 
     assert validate_item({"title": "hello"}, "events") is None

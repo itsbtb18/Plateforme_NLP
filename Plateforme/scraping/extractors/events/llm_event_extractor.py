@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +118,7 @@ class LLMEventExtractor:
                 except Exception as exc:
                     if self._is_rate_limited_exception(exc):
                         raise RuntimeError("GROQ_RATE_LIMIT_EXCEEDED") from exc
-                    logger.warning(
-                        "LLM event extraction compact retry failed: %s", exc
-                    )
+                    logger.warning("LLM event extraction compact retry failed: %s", exc)
                     return []
 
                 if not response_text:
@@ -132,7 +131,9 @@ class LLMEventExtractor:
         try:
             parsed = json.loads(self._strip_code_fences(response_text))
         except json.JSONDecodeError:
-            logger.info("LLM event extraction returned invalid JSON; using fallback extraction path")
+            logger.info(
+                "LLM event extraction returned invalid JSON; using fallback extraction path"
+            )
             return []
 
         event_items = parsed if isinstance(parsed, list) else []
@@ -190,57 +191,64 @@ class LLMEventExtractor:
         return candidates[0]
 
     def _build_system_prompt(self) -> str:
-        return """You are a strict event extraction system for an Arabic NLP platform.
-You will receive a JSON object with a single key named search_results.
-search_results is a list of Tavily search result dictionaries.
-Each search result contains title, url, and content.
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured event information from web content.
 
-Your task:
-- Read the entire search_results list.
-- Extract upcoming real events related to NLP, computational linguistics, speech, and AI.
-- Prioritize Arabic/MENA relevance, but include major global events when relevant.
-- Do not invent facts.
-- Prefer concrete event pages over generic listing pages.
-- If many relevant events exist, return up to 25 events.
-- Return ONLY a valid JSON array.
-- No markdown.
-- No explanation.
-- No surrounding object.
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanations, no markdown).
+2. Return a JSON array of event objects.
+3. If a field cannot be found with confidence, use null.
+4. Do NOT invent or guess dates, locations, or URLs.
+5. title_en and description_en must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
 
-For every event, output these required keys:
-- title_en
-- title_ar
-- description_en
-- description_ar
-- domain
-- event_type
-- start_date
-- end_date
-- location
-- source_url
-- source_name
+CRITICAL ARABIC RULES:
+- title_ar: translate title_en to Modern Standard Arabic.
+- description_ar: translate description_en to Arabic.
+- Use established Arabic NLP terminology.
+- Keep technical terms in English when needed:
+    transformer, BERT, tokenizer, NLP, embedding, fine-tuning,
+    pre-training, corpus, annotation.
+- Arabic fields MUST contain Arabic Unicode characters (U+0600-U+06FF).
+- NEVER copy English text into Arabic fields.
+- If you cannot translate, return null.
 
-Optional keys (include when confidently available):
-- website
-- registration_link
-- attachment_url
-- banner_image_url
-- organizer_name
-- tags
+OUTPUT FORMAT:
+- Return ONLY a JSON array.
+- Each object should use this structure:
+{
+    "title_en": "string or null",
+    "title_ar": "Arabic translation or null",
+    "description_en": "string, max 500 chars or null",
+    "description_ar": "Arabic translation or null",
+    "start_date": "YYYY-MM-DD or null",
+    "end_date": "YYYY-MM-DD or null",
+    "location": "City, Country or Online or null",
+    "url": "https://... or null",
+    "organizer": "string or null",
+    "event_type": "conference|workshop|webinar|other or null",
+    "language": "arabic|english|multilingual or null",
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0,
+    "source_url": "must match one input url or null",
+    "source_name": "Tavily Search",
+    "website": "https://... or null",
+    "registration_link": "https://... or null",
+    "attachment_url": "https://... or null",
+    "banner_image_url": "https://... or null",
+    "organizer_name": "string or null",
+    "domain": "nlp|speech|computer_vision|ai or null",
+    "tags": ["string", "..."] or null
+}
 
-Hard rules:
-- title_en must be a clean English title.
-- title_ar must be an Arabic translation.
-- description_en must be a short factual summary.
-- description_ar must be an Arabic translation of the summary.
-- domain must be one of: nlp, speech, computer_vision, ai.
-- event_type must be one of: conference, workshop, seminar, hackathon.
-- start_date and end_date must be YYYY-MM-DD or null.
-- location must be a real location string or Online.
-- source_url must be copied exactly from one of the provided search_results.url values.
-- source_name must be exactly "Tavily Search".
-- If a value is unknown, use null.
-- Return an empty JSON array if there are no relevant events.
+RELEVANCE CRITERIA (is_arabic_nlp_relevant=true if):
+- Event is about Arabic language processing.
+- Event is about NLP/computational linguistics (any language).
+- Event is about AI/ML applied to Arabic.
+- Event is held in the Arab world.
+
+If no relevant events are found, return an empty JSON array: [].
 """
 
     def _normalize_search_results(
@@ -254,7 +262,9 @@ Hard rules:
             if not isinstance(result, dict):
                 continue
 
-            title = (self._normalize_text(result.get("title")) or "")[: self.MAX_TITLE_CHARS]
+            title = (self._normalize_text(result.get("title")) or "")[
+                : self.MAX_TITLE_CHARS
+            ]
             url = (self._normalize_text(result.get("url")) or "")[: self.MAX_URL_CHARS]
 
             if url and url in seen_urls:
@@ -316,6 +326,11 @@ Hard rules:
         )
         event["description_ar"] = self._normalize_description(
             event_item.get("description_ar")
+        )
+        event["translation_status"] = infer_translation_status(
+            raw_status=event_item.get("translation_status"),
+            english_values=[event["title_en"], event["description_en"]],
+            arabic_values=[event["title_ar"], event["description_ar"]],
         )
         event["domain"] = self._normalize_domain(event_item.get("domain"))
         raw_type = self._normalize_text(event_item.get("type"))

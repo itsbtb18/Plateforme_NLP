@@ -638,6 +638,7 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
         "primary_domain",
         "score_badge",
         "match_score",
+        "translation_status",
         "enrichment_status",
         "completeness_badge",
         "created_at",
@@ -646,6 +647,7 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
         "category",
         "primary_domain",
         "source_name",
+        "translation_status",
         "enrichment_status",
         "was_skipped",
     )
@@ -725,7 +727,7 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
     def _get_model_instance_for_meta(self, meta_obj):
         category_map = {
             "events": ("events.models", "Event"),
-            "news": ("QA.models", "Post"),
+            "news": ("feed.models", "Post"),
             "courses": ("resources.models", "Course"),
             "tools": ("resources.models", "NLPTool"),
             "institutions": ("institutions.models", "Institution"),

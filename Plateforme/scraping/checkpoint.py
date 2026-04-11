@@ -2,17 +2,33 @@ import hashlib
 import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 from django.core.cache import cache
 
 from scraping.scraping_settings import scraping_settings as SS
-from scraping.constants import CHECKPOINT_PREFIX
 
 logger = logging.getLogger(__name__)
 
 CHECKPOINT_DIR = SS.CHECKPOINT_DIR
 CHECKPOINT_TTL = SS.CHECKPOINT_TTL
+
+
+def _validate_checkpoint_dir() -> bool:
+    try:
+        CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+        test_file = CHECKPOINT_DIR / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+        logger.info("Checkpoint directory ready: %s", CHECKPOINT_DIR)
+        return True
+    except Exception as exc:
+        logger.error("CRITICAL: Checkpoint directory not writable: %s", exc)
+        logger.error("Resume safety is DISABLED - runs cannot be resumed")
+        return False
+
+
+CHECKPOINT_DIR_READY = _validate_checkpoint_dir()
+
 
 class ScraperCheckpoint:
     """
@@ -44,15 +60,19 @@ class ScraperCheckpoint:
         self.run_id = str(run_id)
         self.cache_key = f"checkpoint:{category}:{self.run_id}"
         self._data: dict = {}
-        self._load()
+        self.load()
 
     @property
-    def _file_path(self) -> Path:
+    def _file_path(self):
         token = hashlib.sha256(self.cache_key.encode("utf-8")).hexdigest()[:16]
-        CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
         return CHECKPOINT_DIR / f"{self.category}_{token}.json"
 
-    def _load(self) -> None:
+    def load(self):
+        if not CHECKPOINT_DIR_READY:
+            logger.warning("Checkpoint load skipped - directory not ready")
+            self._data = {}
+            return None
+
         try:
             raw = cache.get(self.cache_key)
             if raw:
@@ -65,22 +85,19 @@ class ScraperCheckpoint:
                         "keys": list(self._data.keys()),
                     },
                 )
-                return
+                return self._data
         except Exception as exc:
             logger.warning(
                 "checkpoint_load_failed",
                 extra={"error": str(exc), "run_id": self.run_id},
             )
 
-        self._load_from_file()
-
-    def _load_from_file(self) -> None:
         try:
             path = self._file_path
             if not path.exists():
                 self._data = {}
-                return
-            self._data = json.loads(path.read_text(encoding="utf-8"))
+                return None
+            self._data = json.loads(path.read_text(encoding="utf-8") or "{}")
             logger.info(
                 "checkpoint_loaded_from_file",
                 extra={
@@ -89,12 +106,38 @@ class ScraperCheckpoint:
                     "path": str(path),
                 },
             )
+            return self._data
         except Exception as exc:
-            logger.warning(
-                "checkpoint_file_load_failed",
-                extra={"error": str(exc), "run_id": self.run_id},
-            )
+            logger.error("checkpoint_file_load_failed: %s", exc)
             self._data = {}
+            return None
+
+    def save(self, data: dict) -> bool:
+        if not CHECKPOINT_DIR_READY:
+            logger.warning("Checkpoint save skipped - directory not ready")
+            return False
+
+        try:
+            payload_data = dict(data)
+            payload_data["_updated_at"] = datetime.now(UTC).isoformat()
+            payload = json.dumps(payload_data, default=str)
+
+            try:
+                cache.set(self.cache_key, payload, timeout=CHECKPOINT_TTL)
+            except Exception as cache_exc:
+                logger.warning(
+                    "checkpoint_save_failed",
+                    extra={"error": str(cache_exc), "run_id": self.run_id},
+                )
+
+            checkpoint_file = self._file_path
+            checkpoint_file.write_text(payload, encoding="utf-8")
+            logger.debug("Checkpoint saved: %s", checkpoint_file)
+            self._data = payload_data
+            return True
+        except Exception as exc:
+            logger.error("checkpoint_file_save_failed: %s", exc)
+            return False
 
     def get(self, key: str, default: object | None = None) -> object | None:
         """Read a checkpoint value.
@@ -147,31 +190,7 @@ class ScraperCheckpoint:
         return bool(self._data)
 
     def _save(self) -> None:
-        self._data["_updated_at"] = datetime.now(UTC).isoformat()
-        payload = json.dumps(self._data)
-
-        try:
-            cache.set(
-                self.cache_key,
-                payload,
-                timeout=CHECKPOINT_TTL,
-            )
-        except Exception as exc:
-            logger.warning(
-                "checkpoint_save_failed",
-                extra={"error": str(exc), "run_id": self.run_id},
-            )
-
-        self._save_to_file(payload)
-
-    def _save_to_file(self, payload: str) -> None:
-        try:
-            self._file_path.write_text(payload, encoding="utf-8")
-        except Exception as exc:
-            logger.warning(
-                "checkpoint_file_save_failed",
-                extra={"error": str(exc), "run_id": self.run_id},
-            )
+        self.save(self._data)
 
     def clear(self) -> None:
         """Delete cache/file checkpoint state for this run.

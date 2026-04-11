@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% translate "Create Post" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% translate "Create Post" %} | {% translate "SANAD" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,7 +48,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 .post-page { min-height: 100vh; background: radial-gradient(circle at top left, rgba(139,92,246,0.14), transparent 22%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%); }
 
-/* ===== DARK HERO — identical to corpus/tools pages ===== */
+/* ===== DARK HERO â€” identical to corpus/tools pages ===== */
 .page-hero {
     background: linear-gradient(135deg, #120f2a 0%, #21143f 52%, #32185d 100%);
     padding: 2.5rem 0 3.5rem;
@@ -257,7 +257,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 .char-count.warn { color: #D97706; background: #FFFBEB; }
 .char-count.over { color: var(--danger); background: #FEF2F2; }
 
-/* ===== UPLOAD SECTION — corpus style ===== */
+/* ===== UPLOAD SECTION â€” corpus style ===== */
 .upload-section { margin-bottom: 1rem; }
 
 /* Drop zone */
@@ -769,7 +769,7 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
     <header class="page-hero">
         <div class="hero-inner">
             <nav class="breadcrumb">
-                <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</a>
+                <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}Ø§Ù„Ù…Ù†Ø´ÙˆØ±Ø§Øª{% else %}Feed{% endif %}</a>
                 <span class="sep"><i class="bi bi-chevron-right"></i></span>
                 <span class="current">{% translate "Create Post" %}</span>
             </nav>
@@ -937,7 +937,7 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
         return;
     }
 
-    /* ── Char counter + auto-expand ── */
+    /* â”€â”€ Char counter + auto-expand â”€â”€ */
     function updateCounter() {
         const n = textarea.value.length;
         charCount.textContent = n;
@@ -948,14 +948,14 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
     textarea.addEventListener('input', updateCounter);
     updateCounter();
 
-    /* ── File size formatter ── */
+    /* â”€â”€ File size formatter â”€â”€ */
     function fmt(b) {
         if (!b) return '';
         const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b) / Math.log(1024));
         return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
     }
 
-    /* ── Add a chip ── */
+    /* â”€â”€ Add a chip â”€â”€ */
     function addChip(file, type, inputId) {
         chips.querySelectorAll(`[data-type="${type}"]`).forEach(el => el.remove());
         const chip = document.createElement('div');
@@ -976,7 +976,7 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
         refreshZoneState();
     }
 
-    /* ── Remove chip ── */
+    /* â”€â”€ Remove chip â”€â”€ */
     chips.addEventListener('click', function (e) {
         const btn = e.target.closest('.file-chip-remove');
         if (!btn) return;
@@ -994,32 +994,32 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
         refreshZoneState();
     });
 
-    /* ── Zone state based on selections ── */
+    /* â”€â”€ Zone state based on selections â”€â”€ */
     function refreshZoneState() {
         const hasAny = chips.children.length > 0;
         zone.classList.toggle('has-files', hasAny);
         zoneIcon.className = hasAny ? 'bi bi-check2-circle' : 'bi bi-cloud-arrow-up';
     }
 
-    /* ── Image selected ── */
+    /* â”€â”€ Image selected â”€â”€ */
     imgInput.addEventListener('change', function () {
         const f = this.files[0];
         if (!f) return;
-        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + 'â€¦' : f.name;
         imgBtn.classList.add('selected');
         addChip(f, 'image', 'imageInput');
     });
 
-    /* ── File selected ── */
+    /* â”€â”€ File selected â”€â”€ */
     fileInput.addEventListener('change', function () {
         const f = this.files[0];
         if (!f) return;
-        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + 'â€¦' : f.name;
         fileBtn.classList.add('selected');
         addChip(f, 'file', 'fileInput');
     });
 
-    /* ── Drag & drop ── */
+    /* â”€â”€ Drag & drop â”€â”€ */
     ['dragenter','dragover','dragleave','drop'].forEach(ev =>
         zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
     );
@@ -1043,7 +1043,7 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
         }
     });
 
-    /* ── Submit loading ── */
+    /* â”€â”€ Submit loading â”€â”€ */
     createPostForm.addEventListener('submit', function () {
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
@@ -1052,3 +1052,4 @@ html[dir="rtl"] .content-textarea { direction: rtl; text-align: right; }
 }());
 </script>
 {% endblock %}
+

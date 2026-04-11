@@ -34,55 +34,220 @@ class TavilySearchClient:
             return configured.strip()
         return os.environ.get("TAVILY_API_KEY", "").strip()
 
-    async def _search(self, query: str, max_results: int = 15) -> list[dict]:
-        """Search Tavily and return normalized items."""
+    async def _search(
+        self,
+        query: str,
+        config: dict[str, Any],
+        *,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        """Search Tavily with per-category configuration and return normalized items."""
         query_text = (query or "").strip()
         if not query_text:
             return []
 
-        bounded_max_results = max(1, min(int(max_results), 50))
+        request_config = dict(config or {})
+        configured_max_results = request_config.get("max_results", 10)
+        effective_max_results = max_results
+        if effective_max_results is None:
+            effective_max_results = configured_max_results
+
+        try:
+            request_config["max_results"] = max(1, min(int(effective_max_results), 50))
+        except (TypeError, ValueError):
+            request_config["max_results"] = 10
 
         try:
             response = await asyncio.to_thread(
                 self.client.search,
                 query=query_text,
-                search_depth="advanced",
-                max_results=bounded_max_results,
+                **request_config,
             )
         except Exception as exc:
-            logger.warning(
-                "Tavily search failed for query=%s error=%s",
-                query_text,
-                exc,
-            )
+            logger.error("Tavily search failed: %s", exc)
             return []
 
         if not isinstance(response, dict):
             return []
 
-        results = response.get("results") or []
-        normalized_results: list[dict] = []
+        results = response.get("results", [])
+        if not isinstance(results, list):
+            return []
 
-        for result in results:
-            if not isinstance(result, dict):
+        filtered: list[dict] = []
+        for raw_item in results:
+            if not isinstance(raw_item, dict):
                 continue
-
-            normalized_results.append(
+            content = str(raw_item.get("content") or "").strip()
+            if not content:
+                continue
+            filtered.append(
                 {
-                    "title": result.get("title", ""),
-                    "url": result.get("url", ""),
-                    "content": result.get("content", ""),
+                    "title": str(raw_item.get("title") or "").strip(),
+                    "url": str(raw_item.get("url") or "").strip(),
+                    "content": content,
+                    "score": raw_item.get("score"),
+                    "raw_content": raw_item.get("raw_content"),
                 }
             )
 
-        return normalized_results
+        answer = response.get("answer")
+        if isinstance(answer, str) and answer.strip():
+            filtered.insert(
+                0,
+                {
+                    "title": f"AI Summary: {query_text}",
+                    "url": "tavily://answer",
+                    "content": answer.strip(),
+                    "score": 1.0,
+                    "is_tavily_answer": True,
+                },
+            )
 
-    async def search_events(self, query: str, max_results: int = 15) -> list[dict]:
-        """Compatibility API for event scrapers."""
-        return await self._search(query=query, max_results=max_results)
+        return filtered
+
+    async def search_events(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_answer": True,
+                "include_raw_content": True,
+                "include_domains": [
+                    "aclanthology.org",
+                    "aclweb.org",
+                    "arxiv.org",
+                    "semanticscholar.org",
+                    "eventbrite.com",
+                    "confcal.net",
+                    "wikicfp.com",
+                    "researchgate.net",
+                ],
+                "topic": "general",
+            },
+            max_results=max_results,
+        )
+
+    async def search_tools(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 8,
+                "include_answer": True,
+                "include_raw_content": True,
+                "include_domains": [
+                    "github.com",
+                    "huggingface.co",
+                    "pypi.org",
+                    "npmjs.com",
+                    "paperswithcode.com",
+                    "camel-lab.github.io",
+                    "farasa.qcri.org",
+                ],
+            },
+            max_results=max_results,
+        )
+
+    async def search_courses(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 8,
+                "include_domains": [
+                    "coursera.org",
+                    "edx.org",
+                    "udemy.com",
+                    "youtube.com",
+                    "mooc.org",
+                    "futurelearn.com",
+                    "datacamp.com",
+                ],
+            },
+            max_results=max_results,
+        )
+
+    async def search_news(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "basic",
+                "max_results": 15,
+                "include_answer": True,
+                "topic": "news",
+                "days": 30,
+            },
+            max_results=max_results,
+        )
+
+    async def search_opportunities(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_domains": [
+                    "academicpositions.eu",
+                    "scholarshipdb.net",
+                    "euraxess.ec.europa.eu",
+                    "jobs.ac.uk",
+                    "mbzuai.ac.ae",
+                    "qcri.org",
+                    "kaust.edu.sa",
+                    "aub.edu.lb",
+                ],
+            },
+            max_results=max_results,
+        )
+
+    async def search_corpus(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_domains": [
+                    "huggingface.co",
+                    "github.com",
+                    "oscar-corpus.com",
+                    "ldc.upenn.edu",
+                    "elra.info",
+                    "clarin.eu",
+                    "dumps.wikimedia.org",
+                    "paperswithcode.com/datasets",
+                ],
+            },
+            max_results=max_results,
+        )
 
     async def search_web(self, query: str, max_results: int = 15) -> list[dict]:
-        """Compatibility API used by tools/news/courses/corpus scrapers."""
+        """Compatibility API used by legacy callers."""
         throttle_seconds = getattr(settings, "SCRAPING_API_CALL_DELAY_SECONDS", 0)
         try:
             delay_seconds = max(0.0, float(throttle_seconds))
@@ -90,7 +255,17 @@ class TavilySearchClient:
             delay_seconds = 0.0
         if delay_seconds > 0:
             await asyncio.sleep(delay_seconds)
-        return await self._search(query=query, max_results=max_results)
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": max_results,
+                "include_answer": True,
+                "include_raw_content": True,
+                "topic": "general",
+            },
+            max_results=max_results,
+        )
 
 
 __all__ = ["TavilySearchClient"]

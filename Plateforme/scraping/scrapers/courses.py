@@ -10,7 +10,10 @@ from asgiref.sync import async_to_sync
 from django.utils import timezone
 
 from scraping.extractors.courses.llm_course_extractor import LLMCourseExtractor
+from scraping.field_mapping import get_auto_translate_fields
 from scraping.network.search_client import TavilySearchClient
+from scraping.translation.arabic_translator import ArabicTranslator
+from scraping.utils import infer_translation_status
 
 from .base import BaseScraper
 
@@ -60,10 +63,26 @@ class CourseScraper(BaseScraper):
             return
 
         combined_results: list[dict] = []
-        for query in search_queries:
+        total_queries = len(search_queries)
+        self.emit_progress(
+            "discovery",
+            0,
+            total_queries,
+            "🔍 Starting discovery...",
+            current_source=self.name,
+        )
+        for query_index, query in enumerate(search_queries, start=1):
+            self.emit_progress(
+                "discovery",
+                query_index,
+                total_queries,
+                f"🔍 Searching: {query}",
+                current_source=query,
+                current_item=query,
+            )
             try:
                 time.sleep(self.API_CALL_DELAY_SECONDS)
-                results = async_to_sync(search_client.search_web)(query, max_results=12)
+                results = async_to_sync(search_client.search_courses)(query)
             except Exception as exc:
                 self._log_error(
                     "courses_tavily_search_failed",
@@ -82,6 +101,21 @@ class CourseScraper(BaseScraper):
 
         try:
             time.sleep(self.API_CALL_DELAY_SECONDS)
+            total_batches = 1
+            self.emit_progress(
+                "extraction",
+                0,
+                total_batches,
+                "🤖 Starting extraction...",
+                current_item="Batch 0/1",
+            )
+            self.emit_progress(
+                "extraction",
+                1,
+                total_batches,
+                "🤖 Extracting batch 1/1",
+                current_item="Batch 1/1",
+            )
             candidates = async_to_sync(extractor.extract_courses_from_search)(
                 combined_results
             )
@@ -93,16 +127,49 @@ class CourseScraper(BaseScraper):
             logger.warning("No course candidates extracted from Tavily results.")
             return
 
+        translator = ArabicTranslator()
+        fields_to_translate = [
+            "title_ar",
+            "description_ar",
+            "short_description_ar",
+            *get_auto_translate_fields(self.category),
+        ]
+        candidates = translator.batch_translate(candidates, fields=fields_to_translate)
+
         author = self.get_system_user()
         academic_year = self._default_academic_year()
 
-        for candidate in candidates:
+        total_candidates = len(candidates)
+        self.emit_progress(
+            "validation",
+            0,
+            total_candidates,
+            "✅ Starting validation...",
+        )
+        for candidate_index, candidate in enumerate(candidates, start=1):
+            self.emit_progress(
+                "saving",
+                candidate_index,
+                total_candidates,
+                f"💾 Saving item {candidate_index}/{total_candidates}",
+                current_item=(
+                    str(
+                        candidate.get("title_en") or candidate.get("title") or ""
+                    ).strip()
+                    if isinstance(candidate, dict)
+                    else ""
+                ),
+            )
             if not isinstance(candidate, dict):
                 self.items_skipped += 1
                 continue
 
             normalized = self._normalize_candidate(candidate)
             if normalized is None:
+                self.items_skipped += 1
+                continue
+
+            if not self.passes_min_confidence_to_save(normalized):
                 self.items_skipped += 1
                 continue
 
@@ -119,10 +186,10 @@ class CourseScraper(BaseScraper):
 
             defaults = {
                 "title": normalized["title_en"],
-                "title_ar": normalized["title_ar"],
+                "title_ar": normalized["title_ar"] or "",
                 "description": normalized["description_en"],
                 "description_en": normalized["description_en"],
-                "description_ar": normalized["description_ar"],
+                "description_ar": normalized["description_ar"] or "",
                 "author": author,
                 "field": "nlp",
                 "academic_level": normalized["academic_level"],
@@ -189,7 +256,16 @@ class CourseScraper(BaseScraper):
                     "source_name": "Tavily Search + Groq",
                     "source_url": normalized["url"],
                     "title_en": normalized["title_en"],
+                    "title_ar": normalized["title_ar"],
                     "description_en": normalized["description_en"],
+                    "description_ar": normalized["description_ar"],
+                    "course_url": normalized["url"],
+                    "platform": normalized["platform"],
+                    "level": normalized["raw_level"],
+                    "price": normalized["raw_price"],
+                    "translation_status": normalized.get(
+                        "translation_status", "pending"
+                    ),
                 }
             )
 
@@ -199,8 +275,8 @@ class CourseScraper(BaseScraper):
         if not title_en or not description_en:
             return None
 
-        title_ar = self._safe_text(item.get("title_ar")) or title_en
-        description_ar = self._safe_text(item.get("description_ar")) or description_en
+        title_ar = self._safe_text(item.get("title_ar")) or None
+        description_ar = self._safe_text(item.get("description_ar")) or None
         platform_name = self._safe_text(item.get("platform")) or "Other"
         raw_level = self._safe_text(item.get("level")) or "intermediate"
         raw_price = self._safe_text(item.get("price"))
@@ -208,11 +284,17 @@ class CourseScraper(BaseScraper):
         if not url:
             return None
 
+        translation_status = infer_translation_status(
+            raw_status=self._safe_text(item.get("translation_status")) or "pending",
+            english_values=[title_en, description_en],
+            arabic_values=[title_ar, description_ar],
+        )
+
         return {
             "title_en": title_en[:200],
-            "title_ar": title_ar[:200],
+            "title_ar": title_ar[:200] if title_ar else None,
             "description_en": description_en,
-            "description_ar": description_ar,
+            "description_ar": description_ar if description_ar else None,
             "platform_name": platform_name,
             "platform": self._map_platform(platform_name),
             "raw_level": raw_level,
@@ -223,8 +305,9 @@ class CourseScraper(BaseScraper):
             "url": url,
             "keywords": ", ".join(["nlp", "ai", platform_name.lower()]),
             "language": "ar"
-            if self._contains_arabic(title_ar + " " + description_ar)
+            if self._contains_arabic((title_ar or "") + " " + (description_ar or ""))
             else "en",
+            "translation_status": translation_status,
         }
 
     def _resolve_institution(self, platform_name: str):

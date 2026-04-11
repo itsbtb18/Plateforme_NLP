@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from scraping.constants import SPACY_DEFAULT_MODEL, SPACY_DEFAULT_MODEL_AR
 
@@ -58,6 +59,26 @@ def _env_bool(key: str, default: bool) -> bool:
     if not raw:
         return default
     return raw in {"1", "true", "yes", "on"}
+
+
+def _django_int_setting(key: str, default: int) -> int:
+    """Read an int from Django settings with a safe fallback."""
+    try:
+        from django.conf import settings as django_settings
+
+        return int(getattr(django_settings, key, default))
+    except Exception:
+        return default
+
+
+def _django_path_setting(key: str, default: str) -> Path:
+    """Read a filesystem path from Django settings with a safe fallback."""
+    try:
+        from django.conf import settings as django_settings
+
+        return Path(str(getattr(django_settings, key, default)))
+    except Exception:
+        return Path(str(default))
 
 
 # ---------------------------------------------------------------------------
@@ -235,16 +256,23 @@ class ScrapingSettings:
     EVENTS_COMPLETENESS_MIN: int = _env_int("SCRAPING_EVENTS_COMPLETENESS_MIN", 20)
     """Minimum completeness score required before saving an event."""
 
+    MIN_CONFIDENCE_TO_SAVE: float = _env_float("SCRAPING_MIN_CONFIDENCE_TO_SAVE", 0.35)
+    """Minimum normalized confidence (0-1) required to save a scraped item."""
+
     EVENTS_MIN_ITEMS_PER_RUN: int = _env_int("SCRAPING_EVENTS_MIN_ITEMS_PER_RUN", 10)
     """Target minimum number of event items to save per run when available."""
 
     EVENTS_SEARCH_QUERY_LIMIT: int = _env_int("SCRAPING_EVENTS_SEARCH_QUERY_LIMIT", 14)
     """Maximum number of Tavily queries executed in one events run."""
 
-    EVENTS_EXTRACTION_BATCH_SIZE: int = _env_int("SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE", 8)
+    EVENTS_EXTRACTION_BATCH_SIZE: int = _env_int(
+        "SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE", 8
+    )
     """Number of Tavily rows sent per LLM extraction batch."""
 
-    EVENTS_EXTRACTION_MAX_BATCHES: int = _env_int("SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES", 4)
+    EVENTS_EXTRACTION_MAX_BATCHES: int = _env_int(
+        "SCRAPING_EVENTS_EXTRACTION_MAX_BATCHES", 4
+    )
     """Maximum extraction batches processed per events run."""
 
     COURSES_COMPLETENESS_MIN: int = _env_int("SCRAPING_COURSES_COMPLETENESS_MIN", 40)
@@ -279,12 +307,16 @@ class ScrapingSettings:
     """Health‑score points recovered per success."""
 
     # ── PERSISTENCE ─────────────────────────────────────────────────────
-    DEAD_LETTER_DIR: str = _env(
-        "SCRAPING_DEAD_LETTER_DIR", "logs/scraping_dead_letters"
+    DEAD_LETTER_DIR: Path = _django_path_setting(
+        "SCRAPING_DEAD_LETTER_DIR",
+        _env("SCRAPING_DEAD_LETTER_DIR", "logs/scraping_dead_letters"),
     )
     """Directory for dead‑letter log files."""
 
-    CHECKPOINT_DIR: str = _env("SCRAPING_CHECKPOINT_DIR", "logs/scraping_checkpoints")
+    CHECKPOINT_DIR: Path = _django_path_setting(
+        "SCRAPING_CHECKPOINT_DIR",
+        _env("SCRAPING_CHECKPOINT_DIR", "logs/scraping_checkpoints"),
+    )
     """Directory for checkpoint state files."""
 
     CHECKPOINT_TTL: int = _env_int("SCRAPING_CHECKPOINT_TTL", 86400 * 3)
@@ -294,6 +326,12 @@ class ScrapingSettings:
     """Length of the hash token used in checkpoint filenames."""
 
     # ── ROBOTS POLICY ───────────────────────────────────────────────────
+    ROBOTS_TIMEOUT: int = _env_int(
+        "SCRAPING_ROBOTS_TIMEOUT",
+        _django_int_setting("SCRAPING_ROBOTS_TIMEOUT", 10),
+    )
+    """Timeout in seconds for robots.txt fetch operations."""
+
     ROBOTS_CACHE_TTL: int = _env_int("SCRAPING_ROBOTS_CACHE_TTL", 3600)
     """Cache TTL in seconds for parsed robots.txt results."""
 

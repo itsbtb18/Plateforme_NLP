@@ -123,6 +123,16 @@ class Event(models.Model):
         verbose_name=_("Approved By"),
     )
     rejection_reason = models.TextField(_("Rejection Reason"), blank=True, default="")
+    rejection_note = models.TextField(_("Rejection Note"), blank=True, default="")
+    rejected_at = models.DateTimeField(_("Rejected At"), null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        get_user_model(),
+        related_name="rejected_events",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Rejected By"),
+    )
     view_count = models.IntegerField(
         _("View Count"), default=0, validators=[MinValueValidator(0)]
     )

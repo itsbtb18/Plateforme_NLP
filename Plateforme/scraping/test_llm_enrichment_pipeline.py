@@ -199,7 +199,7 @@ def test_custom_scraper_llm_failure_logs_and_returns_empty(monkeypatch):
         def _chat(self, system, user):
             raise RuntimeError("broken llm")
 
-    import scraping.llm_validation as llm_validation
+    import scraping.extractors.core.llm_validation as llm_validation
 
     monkeypatch.setattr(llm_validation, "GroqLLMClient", FailingClient)
 

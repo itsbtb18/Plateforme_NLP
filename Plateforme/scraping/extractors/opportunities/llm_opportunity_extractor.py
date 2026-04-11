@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -58,23 +59,41 @@ class LLMOpportunityExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are a strict extraction assistant for NLP opportunities.
-You receive search_results as JSON array entries (title/url/content).
-Return ONLY a JSON array and no markdown.
-Each output item should include these keys:
-- job_title
-- institution_name
-- opportunity_type
-- deadline
-- location
-- url
-- description
-Rules:
-- Keep only opportunities relevant to NLP/AI (job, PhD, postdoc, grant).
-- opportunity_type should be one of: Job, Phd, PostDoc, Grant.
-- deadline should be YYYY-MM-DD when possible, else null.
-- If a field is unknown, return null.
-"""
+        return """You are an expert data extractor for an Arabic NLP research platform.
+    Extract structured information about opportunities (jobs, PhD, postdoc, grants).
+
+    EXTRACTION RULES:
+    1. Return ONLY valid JSON (no explanation, no markdown).
+    2. Return a JSON array of opportunity objects.
+    3. If unknown, return null.
+    4. Do NOT invent deadlines, institutions, or URLs.
+    5. job_title and description must be in English.
+    6. title_ar and description_ar MUST be real Arabic translations.
+
+    CRITICAL ARABIC RULES:
+    - Use Modern Standard Arabic.
+    - NEVER copy English text into Arabic fields.
+    - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+    - Keep technical terms in English when needed.
+
+    OUTPUT FORMAT:
+    {
+      "job_title": "string or null",
+      "title_ar": "Arabic translation or null",
+      "institution_name": "string or null",
+      "opportunity_type": "Job|Phd|PostDoc|Grant or null",
+      "deadline": "YYYY-MM-DD or null",
+      "location": "City, Country or Online or null",
+      "url": "https://... or null",
+      "description": "string or null",
+      "description_ar": "Arabic translation or null",
+      "is_arabic_nlp_relevant": true or false,
+      "relevance_score": 0.0 to 1.0,
+      "extraction_confidence": 0.0 to 1.0
+    }
+
+    Return [] if no relevant opportunities are found.
+    """
 
     @staticmethod
     def _normalize_search_results(search_results: list[dict]) -> list[dict[str, str]]:
@@ -135,14 +154,25 @@ Rules:
         if not job_title or not institution_name or not description:
             return None
 
+        title_ar = self._pick_text(item, "title_ar", "job_title_ar") or None
+        description_ar = self._pick_text(item, "description_ar") or None
+        translation_status = infer_translation_status(
+            raw_status=item.get("translation_status"),
+            english_values=[job_title, description],
+            arabic_values=[title_ar, description_ar],
+        )
+
         return {
             "job_title": job_title[:300],
+            "title_ar": title_ar[:300] if title_ar else None,
             "institution_name": institution_name[:255],
             "opportunity_type": self._normalize_type(item.get("opportunity_type")),
             "deadline": self._normalize_date(item.get("deadline")),
             "location": self._pick_text(item, "location")[:255] or "Online",
             "url": self._pick_text(item, "url", "source_url", "link")[:500],
             "description": description[:5000],
+            "description_ar": description_ar[:5000] if description_ar else None,
+            "translation_status": translation_status,
         }
 
     @staticmethod

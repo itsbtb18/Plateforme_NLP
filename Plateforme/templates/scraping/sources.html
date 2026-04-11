@@ -1,0 +1,2340 @@
+{% extends 'scraping/base_scraping.html' %}
+{% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+
+{% block title %}{% trans "Source Management" %} - {% trans "Admin Panel" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .src-shell {
+    --src-bg: #f5f7fb;
+    --src-surface: #ffffff;
+    --src-border: #d9e2ef;
+    --src-border-strong: #c8d5e8;
+    --src-text: #0f172a;
+    --src-muted: #475569;
+    --src-indigo: #1d4ed8;
+    --src-indigo-soft: #eff6ff;
+    --src-green: #047857;
+    --src-green-soft: #ecfdf5;
+    --src-amber: #b45309;
+    --src-amber-soft: #fffbeb;
+    --src-red: #b91c1c;
+    --src-red-soft: #fef2f2;
+    --src-gray-soft: #f8fafc;
+    margin: 0 auto;
+    max-width: 1680px;
+    display: grid;
+    gap: 1rem;
+    color: var(--src-text);
+  }
+
+  .src-card {
+    background: var(--src-surface);
+    border: 1px solid var(--src-border);
+    border-radius: 16px;
+    box-shadow: 0 16px 28px -30px rgba(15, 23, 42, 0.75);
+  }
+
+  .src-header {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.14), transparent 42%),
+      radial-gradient(circle at 82% 70%, rgba(14, 165, 233, 0.12), transparent 40%),
+      linear-gradient(145deg, #ffffff, #f8fbff);
+    border: 1px solid rgba(37, 99, 235, 0.22);
+  }
+
+  .src-header::after {
+    content: "";
+    position: absolute;
+    inset: auto -65px -70px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(29, 78, 216, 0.19), transparent 72%);
+    pointer-events: none;
+  }
+
+  .src-header-body {
+    position: relative;
+    z-index: 1;
+    padding: 1.1rem 1.15rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.85rem;
+  }
+
+  .src-title {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.34rem;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+  }
+
+  .src-subtitle {
+    margin: 0.42rem 0 0;
+    color: var(--src-muted);
+    max-width: 78ch;
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .src-stats {
+    margin-top: 0.72rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.44rem;
+  }
+
+  .src-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.24);
+    background: #ffffff;
+    color: #1e293b;
+    padding: 0.32rem 0.64rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .src-stat strong {
+    font-size: 0.8rem;
+  }
+
+  .src-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.48rem;
+  }
+
+  .src-btn {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.46rem;
+    padding: 0.55rem 0.86rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .src-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .src-btn:disabled {
+    opacity: 0.56;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .src-btn.primary {
+    background: linear-gradient(120deg, #2563eb, #1d4ed8);
+    border-color: #1e40af;
+    color: #ffffff;
+    box-shadow: 0 12px 18px -16px rgba(30, 64, 175, 0.9);
+  }
+
+  .src-btn.ghost {
+    background: #ffffff;
+    border-color: var(--src-border);
+    color: #1e293b;
+  }
+
+  .src-btn.ghost:hover {
+    border-color: #94a3b8;
+  }
+
+  .src-btn.warn {
+    background: var(--src-amber-soft);
+    border-color: rgba(180, 83, 9, 0.34);
+    color: #92400e;
+  }
+
+  .src-btn.danger {
+    background: linear-gradient(120deg, #dc2626, #b91c1c);
+    border-color: #991b1b;
+    color: #ffffff;
+  }
+
+  .src-alert {
+    border: 1px solid rgba(185, 28, 28, 0.24);
+    background: linear-gradient(120deg, rgba(254, 242, 242, 0.9), rgba(255, 255, 255, 0.92));
+    border-radius: 14px;
+    padding: 0.85rem 0.95rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .src-alert p {
+    margin: 0;
+    color: #991b1b;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .src-toolbar {
+    border: 1px solid var(--src-border);
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.88rem 0.95rem;
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .src-toolbar-grid {
+    display: grid;
+    gap: 0.62rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .src-field {
+    display: grid;
+    gap: 0.28rem;
+  }
+
+  .src-field label {
+    margin: 0;
+    font-size: 0.67rem;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 800;
+  }
+
+  .src-input,
+  .src-select,
+  .src-textarea {
+    width: 100%;
+    border: 1px solid var(--src-border);
+    border-radius: 9px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 0.46rem 0.58rem;
+    font-size: 0.79rem;
+  }
+
+  .src-textarea {
+    min-height: 90px;
+    resize: vertical;
+  }
+
+  .src-input:focus,
+  .src-select:focus,
+  .src-textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+  }
+
+  .src-col-span-5 { grid-column: span 5; }
+  .src-col-span-3 { grid-column: span 3; }
+  .src-col-span-2 { grid-column: span 2; }
+
+  .src-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.46rem;
+  }
+
+  .src-chip {
+    border: 1px solid var(--src-border);
+    border-radius: 999px;
+    background: var(--src-gray-soft);
+    color: #334155;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.22rem 0.58rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+  }
+
+  .src-chip.active {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .src-chip-count {
+    min-width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .src-chip.active .src-chip-count {
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  .src-toolbar-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .src-toolbar-meta p {
+    margin: 0;
+    font-size: 0.74rem;
+    color: #475569;
+    font-weight: 700;
+  }
+
+  .src-bulk {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .src-bulk.is-visible {
+    display: inline-flex;
+  }
+
+  .src-table-card {
+    overflow: hidden;
+    border: 1px solid var(--src-border);
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .src-table-wrap {
+    overflow: auto;
+  }
+
+  .src-table {
+    width: 100%;
+    min-width: 1260px;
+    border-collapse: collapse;
+  }
+
+  .src-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8fbff;
+    border-bottom: 1px solid var(--src-border);
+    color: #334155;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.62rem 0.58rem;
+    white-space: nowrap;
+  }
+
+  .src-table tbody td {
+    border-bottom: 1px solid #edf2f8;
+    padding: 0.58rem;
+    vertical-align: top;
+    font-size: 0.77rem;
+    color: #0f172a;
+  }
+
+  .src-row {
+    transition: background 0.14s ease;
+  }
+
+  .src-row:hover {
+    background: #f8fbff;
+  }
+
+  .src-row[data-active="0"] {
+    opacity: 0.72;
+  }
+
+  .src-row.is-hidden {
+    display: none;
+  }
+
+  .src-source-title {
+    display: grid;
+    gap: 0.24rem;
+  }
+
+  .src-source-name {
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .src-source-url {
+    color: #475569;
+    font-size: 0.69rem;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .src-source-url:hover {
+    color: #1d4ed8;
+  }
+
+  .src-queries {
+    margin-top: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .src-query {
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.12rem 0.44rem;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  .src-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.16rem 0.5rem;
+    border: 1px solid transparent;
+    font-size: 0.65rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .src-badge.active {
+    background: #ecfdf5;
+    border-color: rgba(5, 150, 105, 0.28);
+    color: #047857;
+  }
+
+  .src-badge.disabled {
+    background: #f1f5f9;
+    border-color: #dbe2ec;
+    color: #475569;
+  }
+
+  .src-badge.failing {
+    background: #fef2f2;
+    border-color: rgba(185, 28, 28, 0.25);
+    color: #991b1b;
+  }
+
+  .src-health {
+    display: grid;
+    gap: 0.28rem;
+    min-width: 160px;
+  }
+
+  .src-health-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    font-size: 0.7rem;
+    color: #334155;
+    font-weight: 700;
+  }
+
+  .src-health-track {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+  }
+
+  .src-health-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    border-radius: inherit;
+  }
+
+  .src-health-fill.green {
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+  }
+
+  .src-health-fill.yellow {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+  }
+
+  .src-health-fill.red {
+    background: linear-gradient(90deg, #dc2626, #f97316);
+  }
+
+  .src-spark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .src-dot {
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    display: inline-flex;
+  }
+
+  .src-dot-ok {
+    background: #16a34a;
+  }
+
+  .src-dot-warn {
+    background: #f59e0b;
+  }
+
+  .src-dot-fail {
+    background: #dc2626;
+  }
+
+  .src-dot-none {
+    background: #cbd5e1;
+  }
+
+  .src-actions-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.34rem;
+    justify-content: flex-start;
+  }
+
+  .src-mini-btn {
+    border: 1px solid var(--src-border);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 0.67rem;
+    font-weight: 800;
+    padding: 0.28rem 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    cursor: pointer;
+  }
+
+  .src-mini-btn:hover {
+    border-color: #94a3b8;
+  }
+
+  .src-mini-btn.warn {
+    border-color: rgba(217, 119, 6, 0.32);
+    background: #fffbeb;
+    color: #92400e;
+  }
+
+  .src-mini-btn.danger {
+    border-color: rgba(220, 38, 38, 0.32);
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  .src-empty {
+    padding: 1.25rem;
+    text-align: center;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+
+  .src-suggested {
+    border: 1px solid var(--src-border);
+    border-radius: 14px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .src-suggested-head {
+    padding: 0.82rem 0.95rem;
+    border-bottom: 1px solid var(--src-border);
+    background: #f8fbff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+  }
+
+  .src-suggested-head h3 {
+    margin: 0;
+    font-size: 0.93rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .src-suggested-body {
+    padding: 0.88rem 0.95rem;
+    display: grid;
+    gap: 0.82rem;
+  }
+
+  .src-suggested-grid {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+
+  .src-suggested-item {
+    border: 1px solid var(--src-border);
+    border-radius: 12px;
+    padding: 0.64rem 0.7rem;
+    background: #ffffff;
+    display: grid;
+    gap: 0.34rem;
+  }
+
+  .src-suggested-item h4 {
+    margin: 0;
+    font-size: 0.79rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .src-suggested-url {
+    color: #475569;
+    font-size: 0.67rem;
+    word-break: break-word;
+  }
+
+  .src-suggested-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .src-drawer-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    pointer-events: none;
+  }
+
+  .src-drawer-root.is-open {
+    pointer-events: auto;
+  }
+
+  .src-drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .src-drawer-panel {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(560px, 100vw);
+    background: #ffffff;
+    border-left: 1px solid var(--src-border-strong);
+    box-shadow: -18px 0 34px -32px rgba(15, 23, 42, 0.95);
+    transform: translateX(100%);
+    transition: transform 0.24s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh;
+  }
+
+  .src-drawer-root.is-open .src-drawer-backdrop {
+    opacity: 1;
+  }
+
+  .src-drawer-root.is-open .src-drawer-panel {
+    transform: translateX(0);
+  }
+
+  .src-drawer-head {
+    padding: 0.95rem;
+    border-bottom: 1px solid var(--src-border);
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    align-items: flex-start;
+  }
+
+  .src-drawer-title {
+    margin: 0;
+    font-size: 1rem;
+    color: #0f172a;
+    font-weight: 900;
+  }
+
+  .src-drawer-help {
+    margin: 0.26rem 0 0;
+    color: #475569;
+    font-size: 0.74rem;
+    line-height: 1.35;
+  }
+
+  .src-close-btn {
+    border: 1px solid var(--src-border);
+    border-radius: 9px;
+    background: #ffffff;
+    color: #334155;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+  }
+
+  .src-drawer-body {
+    overflow: auto;
+    padding: 0.9rem 0.95rem 1.05rem;
+    display: grid;
+    gap: 0.86rem;
+  }
+
+  .src-drawer-grid {
+    display: grid;
+    gap: 0.62rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .src-col-12 { grid-column: span 12; }
+  .src-col-6 { grid-column: span 6; }
+  .src-col-4 { grid-column: span 4; }
+
+  .src-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--src-border);
+    border-radius: 9px;
+    padding: 0.4rem 0.56rem;
+    font-size: 0.72rem;
+    color: #334155;
+    font-weight: 700;
+    background: #ffffff;
+  }
+
+  .src-check input {
+    width: 14px;
+    height: 14px;
+    accent-color: #2563eb;
+  }
+
+  .src-query-list {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .src-query-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.45rem;
+  }
+
+  .src-suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.36rem;
+  }
+
+  .src-suggestion-chip {
+    border: 1px dashed #94a3b8;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.67rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+  }
+
+  .src-test-box {
+    border: 1px solid var(--src-border);
+    border-radius: 11px;
+    background: #f8fbff;
+    padding: 0.62rem 0.66rem;
+    display: grid;
+    gap: 0.34rem;
+  }
+
+  .src-test-box.success {
+    border-color: rgba(4, 120, 87, 0.27);
+    background: #ecfdf5;
+  }
+
+  .src-test-box.warning {
+    border-color: rgba(180, 83, 9, 0.27);
+    background: #fffbeb;
+  }
+
+  .src-test-box.failed {
+    border-color: rgba(185, 28, 28, 0.27);
+    background: #fef2f2;
+  }
+
+  .src-test-title {
+    margin: 0;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .src-test-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.2rem;
+    color: #334155;
+    font-size: 0.7rem;
+  }
+
+  .src-drawer-foot {
+    border-top: 1px solid var(--src-border);
+    padding: 0.72rem 0.95rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    background: #ffffff;
+  }
+
+  .src-toast {
+    position: fixed;
+    inset: auto 1rem 1rem auto;
+    z-index: 1550;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 0.76rem;
+    font-weight: 800;
+    padding: 0.62rem 0.78rem;
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 20px 40px -30px rgba(15, 23, 42, 0.9);
+    transform: translateY(10px);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .src-toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .src-toast.ok {
+    border-color: rgba(5, 150, 105, 0.34);
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .src-toast.warn {
+    border-color: rgba(180, 83, 9, 0.34);
+    background: #fffbeb;
+    color: #92400e;
+  }
+
+  .src-toast.err {
+    border-color: rgba(185, 28, 28, 0.34);
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    border: 0;
+    padding: 0;
+    white-space: nowrap;
+    clip-path: inset(100%);
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+  }
+
+  [dir="rtl"] .src-actions {
+    justify-content: flex-start;
+  }
+
+  @media (max-width: 1199px) {
+    .src-col-span-5,
+    .src-col-span-3,
+    .src-col-span-2 {
+      grid-column: span 12;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .src-drawer-panel {
+      width: 100vw;
+    }
+
+    .src-col-6,
+    .src-col-4 {
+      grid-column: span 12;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block scraping_page_content %}
+<div class="src-shell" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+  <section class="src-card src-header">
+    <div class="src-header-body">
+      <div>
+        <h1 class="src-title">
+          <i class="fas fa-network-wired" aria-hidden="true"></i>
+          <span>{% trans "Source Management" %}</span>
+        </h1>
+        <p class="src-subtitle">
+          {% trans "Manage trusted scraping domains, monitor source health, and trigger actions without leaving the moderation workflow." %}
+        </p>
+        <div class="src-stats">
+          <span class="src-stat">
+            {% trans "Active" %}
+            <strong id="activeSourcesCount">{{ active_sources_count }}</strong>
+          </span>
+          <span class="src-stat">
+            {% trans "Failing" %}
+            <strong id="failingSourcesCount">{{ failing_sources_count }}</strong>
+          </span>
+          <span class="src-stat">
+            {% trans "Disabled" %}
+            <strong id="disabledSourcesCount">{{ disabled_sources_count }}</strong>
+          </span>
+          <span class="src-stat">
+            {% trans "Last check" %}
+            <strong>
+              {% if latest_check %}
+              <time datetime="{{ latest_check|date:'c' }}" class="js-local-datetime">{{ latest_check|date:"Y-m-d H:i" }}</time>
+              {% else %}
+              {% trans "Not available" %}
+              {% endif %}
+            </strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="src-actions">
+        <a href="{% url 'scraping:dashboard' %}" class="src-btn ghost">
+          <i class="fas fa-arrow-left"></i>
+          <span>{% trans "Back to dashboard" %}</span>
+        </a>
+        <button type="button" class="src-btn ghost" id="reloadSourcesBtn">
+          <i class="fas fa-rotate"></i>
+          <span>{% trans "Refresh" %}</span>
+        </button>
+        <button type="button" class="src-btn primary" id="openSourceDrawerBtn">
+          <i class="fas fa-plus"></i>
+          <span>{% trans "Add Source" %}</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  {% if failing_sources_count > 0 %}
+  <section class="src-alert" id="failingAlertBox">
+    <p>
+      <i class="fas fa-triangle-exclamation"></i>
+      {% blocktrans with count=failing_sources_count %}{{ count }} sources are currently failing and may need quarantine.{% endblocktrans %}
+    </p>
+    <button type="button" class="src-btn warn" id="disableFailingSourcesBtn">
+      <i class="fas fa-shield"></i>
+      <span>{% trans "Disable failing sources" %}</span>
+    </button>
+  </section>
+  {% endif %}
+
+  <section class="src-toolbar" aria-label="{% trans 'Source filters' %}">
+    <div class="src-chips" id="categoryFilterChips">
+      <button type="button" class="src-chip active" data-category="all">
+        <span>{% trans "All categories" %}</span>
+        <span class="src-chip-count" id="allCategoryCount">{{ sources_rows|length }}</span>
+      </button>
+      {% for option in category_options %}
+      <button type="button" class="src-chip" data-category="{{ option.key }}">
+        <span>
+          {% if option.key == 'events' %}{% trans "Events" %}
+          {% elif option.key == 'tools' %}{% trans "Tools" %}
+          {% elif option.key == 'courses' %}{% trans "Courses" %}
+          {% elif option.key == 'news' %}{% trans "News" %}
+          {% elif option.key == 'opportunities' %}{% trans "Opportunities" %}
+          {% elif option.key == 'corpus' %}{% trans "Corpus" %}
+          {% else %}{{ option.label }}{% endif %}
+        </span>
+        <span class="src-chip-count" id="count-{{ option.key }}">0</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="src-toolbar-grid">
+      <div class="src-field src-col-span-5">
+        <label for="sourceSearchInput">{% trans "Search" %}</label>
+        <input
+          id="sourceSearchInput"
+          type="search"
+          class="src-input"
+          placeholder="{% trans 'Search by name, URL, or query' %}"
+          autocomplete="off"
+        />
+      </div>
+      <div class="src-field src-col-span-3">
+        <label for="statusFilterSelect">{% trans "Status" %}</label>
+        <select id="statusFilterSelect" class="src-select">
+          <option value="all">{% trans "All statuses" %}</option>
+          <option value="active">{% trans "Active" %}</option>
+          <option value="disabled">{% trans "Disabled" %}</option>
+          <option value="failing">{% trans "Failing" %}</option>
+        </select>
+      </div>
+      <div class="src-field src-col-span-2">
+        <label for="sortFilterSelect">{% trans "Sort" %}</label>
+        <select id="sortFilterSelect" class="src-select">
+          <option value="name">{% trans "Name" %}</option>
+          <option value="health">{% trans "Health" %}</option>
+          <option value="yield">{% trans "Average yield" %}</option>
+        </select>
+      </div>
+      <div class="src-field src-col-span-2">
+        <label for="rowsPerPageSelect">{% trans "Rows" %}</label>
+        <select id="rowsPerPageSelect" class="src-select">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="src-toolbar-meta">
+      <p id="visibleRowsCounter">{% trans "Showing all sources." %}</p>
+
+      <div class="src-bulk" id="bulkActionsBar">
+        <span id="selectedRowsCounter">0 {% trans "selected" %}</span>
+        <button type="button" class="src-btn ghost" data-bulk-action="run">
+          <i class="fas fa-play"></i>
+          <span>{% trans "Run now" %}</span>
+        </button>
+        <button type="button" class="src-btn ghost" data-bulk-action="enable">
+          <i class="fas fa-toggle-on"></i>
+          <span>{% trans "Enable" %}</span>
+        </button>
+        <button type="button" class="src-btn ghost" data-bulk-action="disable">
+          <i class="fas fa-toggle-off"></i>
+          <span>{% trans "Disable" %}</span>
+        </button>
+        <button type="button" class="src-btn danger" data-bulk-action="delete">
+          <i class="fas fa-trash"></i>
+          <span>{% trans "Delete" %}</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="src-table-card" aria-label="{% trans 'Source table' %}">
+    <div class="src-table-wrap">
+      <table class="src-table" id="sourcesTable">
+        <thead>
+          <tr>
+            <th>
+              <label class="sr-only" for="selectAllSources">{% trans "Select all sources" %}</label>
+              <input id="selectAllSources" type="checkbox" />
+            </th>
+            <th>{% trans "Source" %}</th>
+            <th>{% trans "Category" %}</th>
+            <th>{% trans "Health" %}</th>
+            <th>{% trans "Average Yield" %}</th>
+            <th>{% trans "Trust" %}</th>
+            <th>{% trans "Last Run" %}</th>
+            <th>{% trans "Last Check" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody id="sourcesTableBody">
+          {% for row in sources_rows %}
+          <tr
+            class="src-row{% if row.failing %} src-row-failing{% endif %}"
+            data-source-id="{{ row.id }}"
+            data-category="{{ row.category }}"
+            data-active="{% if row.is_active %}1{% else %}0{% endif %}"
+            data-failing="{% if row.failing %}1{% else %}0{% endif %}"
+            data-health="{{ row.success_rate }}"
+            data-yield="{{ row.avg_yield }}"
+            data-name="{{ row.name|lower }}"
+            data-url="{{ row.url|lower }}"
+            data-queries="{{ row.queries|join:' '|lower }}"
+          >
+            <td>
+              <label class="sr-only" for="source-check-{{ row.id }}">{% trans "Select source" %}</label>
+              <input id="source-check-{{ row.id }}" class="js-source-check" type="checkbox" data-source-id="{{ row.id }}" />
+            </td>
+            <td>
+              <div class="src-source-title">
+                <span class="src-source-name">{{ row.name }}</span>
+                <a class="src-source-url" href="{{ row.url }}" target="_blank" rel="noopener noreferrer">{{ row.url }}</a>
+                <div>
+                  {% if row.is_active %}
+                  <span class="src-badge active">{% trans "Active" %}</span>
+                  {% else %}
+                  <span class="src-badge disabled">{% trans "Disabled" %}</span>
+                  {% endif %}
+                  {% if row.failing %}
+                  <span class="src-badge failing">{% trans "Failing" %}</span>
+                  {% endif %}
+                </div>
+                {% if row.queries %}
+                <div class="src-queries">
+                  {% for query in row.queries|slice:":3" %}
+                  <span class="src-query">{{ query }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <span class="src-badge" style="border-color: {{ row.category_color }}55; background: {{ row.category_color }}1a; color: {{ row.category_color }};">
+                {% if row.category == 'events' %}{% trans "Events" %}
+                {% elif row.category == 'tools' %}{% trans "Tools" %}
+                {% elif row.category == 'courses' %}{% trans "Courses" %}
+                {% elif row.category == 'news' %}{% trans "News" %}
+                {% elif row.category == 'opportunities' %}{% trans "Opportunities" %}
+                {% elif row.category == 'corpus' %}{% trans "Corpus" %}
+                {% else %}{{ row.category_label }}{% endif %}
+              </span>
+            </td>
+            <td>
+              <div class="src-health">
+                <div class="src-health-top">
+                  <span>{{ row.success_rate }}%</span>
+                  <span>{% blocktrans with failures=row.consecutive_failures %}{{ failures }} failures{% endblocktrans %}</span>
+                </div>
+                <div class="src-health-track">
+                  <span class="src-health-fill {{ row.health_band }}" style="width: {{ row.success_rate }}%;"></span>
+                </div>
+                <div class="src-spark" aria-label="{% trans 'Recent run health' %}">
+                  {% for point in row.health_points|slice:":10" %}
+                  <span class="src-dot src-dot-{{ point.state }}" title="{{ point.label }}"></span>
+                  {% empty %}
+                  <span class="src-dot src-dot-none"></span>
+                  {% endfor %}
+                </div>
+              </div>
+            </td>
+            <td>
+              <strong>{{ row.avg_yield }}</strong>
+              <div class="text-muted">{% trans "items/run" %}</div>
+            </td>
+            <td>
+              <strong>{{ row.trust_score }}</strong>
+              <div class="text-muted">
+                {% if row.priority_label == 'high' %}{% trans "High priority" %}
+                {% elif row.priority_label == 'medium' %}{% trans "Medium priority" %}
+                {% else %}{% trans "Low priority" %}{% endif %}
+              </div>
+            </td>
+            <td>
+              {% if row.last_run_at %}
+              <time datetime="{{ row.last_run_iso }}" class="js-local-datetime">{{ row.last_run_at|date:"Y-m-d H:i" }}</time>
+              {% else %}
+              <span class="text-muted">{% trans "Never" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.last_checked_at %}
+              <time datetime="{{ row.last_checked_iso }}" class="js-local-datetime">{{ row.last_checked_at|date:"Y-m-d H:i" }}</time>
+              {% else %}
+              <span class="text-muted">{% trans "Never" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="src-actions-col">
+                <button type="button" class="src-mini-btn" data-row-action="test" data-source-id="{{ row.id }}">
+                  <i class="fas fa-vial"></i>
+                  <span>{% trans "Test" %}</span>
+                </button>
+                <button type="button" class="src-mini-btn" data-row-action="run" data-source-id="{{ row.id }}">
+                  <i class="fas fa-play"></i>
+                  <span>{% trans "Run" %}</span>
+                </button>
+                <button type="button" class="src-mini-btn" data-row-action="toggle" data-source-id="{{ row.id }}">
+                  <i class="fas fa-power-off"></i>
+                  <span>{% if row.is_active %}{% trans "Disable" %}{% else %}{% trans "Enable" %}{% endif %}</span>
+                </button>
+                <button type="button" class="src-mini-btn" data-row-action="edit" data-source-id="{{ row.id }}">
+                  <i class="fas fa-pen"></i>
+                  <span>{% trans "Edit" %}</span>
+                </button>
+                <button type="button" class="src-mini-btn danger" data-row-action="delete" data-source-id="{{ row.id }}">
+                  <i class="fas fa-trash"></i>
+                  <span>{% trans "Delete" %}</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="src-empty">{% trans "No sources available yet." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="src-suggested">
+    <div class="src-suggested-head">
+      <h3>
+        <i class="fas fa-lightbulb"></i>
+        <span>{% trans "Suggested Sources" %}</span>
+      </h3>
+      <button type="button" class="src-btn ghost" id="toggleSuggestedBtn" aria-expanded="true">
+        <i class="fas fa-chevron-up"></i>
+        <span>{% trans "Collapse" %}</span>
+      </button>
+    </div>
+
+    <div class="src-suggested-body" id="suggestedSourcesBody">
+      {% if suggested_sources_by_category %}
+        {% for category, entries in suggested_sources_by_category.items %}
+        <section>
+          <h4 class="m-0 mb-2 text-sm font-bold text-slate-800">
+            {% if category == 'events' %}{% trans "Events" %}
+            {% elif category == 'tools' %}{% trans "Tools" %}
+            {% elif category == 'courses' %}{% trans "Courses" %}
+            {% elif category == 'news' %}{% trans "News" %}
+            {% elif category == 'opportunities' %}{% trans "Opportunities" %}
+            {% elif category == 'corpus' %}{% trans "Corpus" %}
+            {% else %}{{ category }}{% endif %}
+          </h4>
+          <div class="src-suggested-grid">
+            {% for item in entries %}
+            <article class="src-suggested-item">
+              <h4>{{ item.name }}</h4>
+              <p class="src-suggested-url">{{ item.url }}</p>
+              {% if item.queries %}
+              <div class="src-queries">
+                {% for query in item.queries|slice:":2" %}
+                <span class="src-query">{{ query }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+              <div class="src-suggested-actions">
+                <button
+                  type="button"
+                  class="src-mini-btn"
+                  data-use-suggested="1"
+                  data-category="{{ category }}"
+                  data-index="{{ forloop.counter0 }}"
+                >
+                  <i class="fas fa-plus"></i>
+                  <span>{% trans "Use source" %}</span>
+                </button>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+      {% else %}
+      <p class="src-empty">{% trans "No fixture suggestions available." %}</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<div class="src-drawer-root" id="sourceDrawerRoot" aria-hidden="true">
+  <div class="src-drawer-backdrop" id="sourceDrawerBackdrop"></div>
+  <aside class="src-drawer-panel" aria-label="{% trans 'Source editor' %}">
+    <div class="src-drawer-head">
+      <div>
+        <h2 class="src-drawer-title" id="sourceDrawerTitle">{% trans "Add Source" %}</h2>
+        <p class="src-drawer-help">{% trans "Configure category, trust, queries, and run a quick connection test before saving." %}</p>
+      </div>
+      <button type="button" class="src-close-btn" id="closeSourceDrawerBtn" aria-label="{% trans 'Close drawer' %}">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <form id="sourceForm" class="src-drawer-body">
+      <input type="hidden" id="sourceIdInput" name="source_id" />
+
+      <div class="src-drawer-grid">
+        <div class="src-field src-col-12">
+          <label for="sourceNameInput">{% trans "Source name" %}</label>
+          <input id="sourceNameInput" name="name" class="src-input" type="text" maxlength="220" required />
+        </div>
+
+        <div class="src-field src-col-12">
+          <label for="sourceUrlInput">{% trans "Source URL" %}</label>
+          <input id="sourceUrlInput" name="url" class="src-input" type="url" required placeholder="https://" />
+        </div>
+
+        <div class="src-field src-col-6">
+          <label for="sourceCategoryInput">{% trans "Category" %}</label>
+          <select id="sourceCategoryInput" name="category" class="src-select" required>
+            {% for option in category_options %}
+            <option value="{{ option.key }}">
+              {% if option.key == 'events' %}{% trans "Events" %}
+              {% elif option.key == 'tools' %}{% trans "Tools" %}
+              {% elif option.key == 'courses' %}{% trans "Courses" %}
+              {% elif option.key == 'news' %}{% trans "News" %}
+              {% elif option.key == 'opportunities' %}{% trans "Opportunities" %}
+              {% elif option.key == 'corpus' %}{% trans "Corpus" %}
+              {% else %}{{ option.label }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="src-field src-col-6">
+          <label for="sourceTrustInput">{% trans "Trust score" %}</label>
+          <input id="sourceTrustInput" name="trust_score" class="src-input" type="number" min="0" max="1" step="0.05" value="0.8" required />
+        </div>
+
+        <div class="src-field src-col-6">
+          <label for="sourcePriorityInput">{% trans "Priority" %}</label>
+          <select id="sourcePriorityInput" name="priority" class="src-select">
+            <option value="1">{% trans "High" %}</option>
+            <option value="3" selected>{% trans "Medium" %}</option>
+            <option value="5">{% trans "Low" %}</option>
+          </select>
+        </div>
+
+        <div class="src-col-6" style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:flex-end;">
+          <label class="src-check" for="sourceActiveInput">
+            <input id="sourceActiveInput" name="is_active" type="checkbox" checked />
+            <span>{% trans "Enabled" %}</span>
+          </label>
+          <label class="src-check" for="sourceRssInput">
+            <input id="sourceRssInput" name="use_rss" type="checkbox" />
+            <span>{% trans "Use RSS" %}</span>
+          </label>
+          <label class="src-check" for="sourceLlmInput">
+            <input id="sourceLlmInput" name="use_llm_extraction" type="checkbox" checked />
+            <span>{% trans "Use LLM extraction" %}</span>
+          </label>
+        </div>
+
+        <div class="src-field src-col-12">
+          <label>{% trans "Search queries" %}</label>
+          <div class="src-query-list" id="sourceQueryList"></div>
+          <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.35rem;">
+            <button type="button" class="src-btn ghost" id="addQueryLineBtn">
+              <i class="fas fa-plus"></i>
+              <span>{% trans "Add query" %}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="src-field src-col-12">
+          <label>{% trans "Suggested queries" %}</label>
+          <div class="src-suggestion-chips" id="querySuggestionChips"></div>
+        </div>
+      </div>
+
+      <section class="src-test-box" id="connectionTestBox">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+          <h3 class="src-test-title">{% trans "Connection test" %}</h3>
+          <button type="button" class="src-btn ghost" id="testConnectionBtn">
+            <i class="fas fa-plug"></i>
+            <span>{% trans "Test URL" %}</span>
+          </button>
+        </div>
+        <ul class="src-test-list" id="connectionTestList">
+          <li>{% trans "Run a test to validate network reachability and content relevance." %}</li>
+        </ul>
+      </section>
+    </form>
+
+    <div class="src-drawer-foot">
+      <button type="button" class="src-btn ghost" id="cancelSourceBtn">{% trans "Cancel" %}</button>
+      <button type="submit" form="sourceForm" class="src-btn primary" id="saveSourceBtn">
+        <i class="fas fa-save"></i>
+        <span>{% trans "Save source" %}</span>
+      </button>
+    </div>
+  </aside>
+</div>
+
+<div class="src-toast" id="sourcesToast" role="status" aria-live="polite"></div>
+
+{{ sources_rows|json_script:"sourcesRowsData" }}
+{{ category_options|json_script:"sourceCategoryOptionsData" }}
+{{ suggested_sources_by_category|json_script:"suggestedSourcesData" }}
+{{ query_suggestions|json_script:"querySuggestionsData" }}
+
+<script>
+(function () {
+  const i18n = {
+    editSource: "{% trans 'Edit Source' %}",
+    addSource: "{% trans 'Add Source' %}",
+    sourceSaved: "{% trans 'Source saved successfully.' %}",
+    sourceDeleted: "{% trans 'Source deleted.' %}",
+    sourceEnabled: "{% trans 'Source enabled.' %}",
+    sourceDisabled: "{% trans 'Source disabled.' %}",
+    runStarted: "{% trans 'Source run started.' %}",
+    testStarted: "{% trans 'Source test started.' %}",
+    testCompleted: "{% trans 'Test completed.' %}",
+    testFailed: "{% trans 'Test failed.' %}",
+    bulkDone: "{% trans 'Bulk action completed.' %}",
+    requestFailed: "{% trans 'Request failed.' %}",
+    invalidResponse: "{% trans 'Unexpected response from server.' %}",
+    confirmDelete: "{% trans 'Delete this source permanently?' %}",
+    confirmBulkDelete: "{% trans 'Delete selected sources permanently?' %}",
+    confirmDisableFailing: "{% trans 'Disable all failing sources?' %}",
+    noSelection: "{% trans 'Select at least one source first.' %}",
+    selectedLabel: "{% trans 'selected' %}",
+    showingAll: "{% trans 'Showing all sources.' %}",
+    showingFiltered: "{% trans 'Showing' %}",
+    rowsWord: "{% trans 'rows' %}",
+    activeLabel: "{% trans 'Active' %}",
+    disabledLabel: "{% trans 'Disabled' %}",
+    enableLabel: "{% trans 'Enable' %}",
+    disableLabel: "{% trans 'Disable' %}",
+    collapse: "{% trans 'Collapse' %}",
+    expand: "{% trans 'Expand' %}",
+    testHint: "{% trans 'Run a test to validate network reachability and content relevance.' %}",
+    networkStatus: "{% trans 'Network status' %}",
+    robotsStatus: "{% trans 'Robots status' %}",
+    contentVerdict: "{% trans 'Content verdict' %}",
+    estimatedYield: "{% trans 'Estimated yield per run' %}",
+    testRunning: "{% trans 'Running test...' %}",
+    newItems: "{% trans 'new items' %}",
+    duplicateItems: "{% trans 'duplicates' %}",
+    queryPlaceholder: "{% trans 'Query phrase' %}",
+    noRows: "{% trans 'No sources match current filters.' %}"
+  };
+
+  const EMPTY_UUID = "00000000-0000-0000-0000-000000000000";
+  const JOB_PLACEHOLDER = "JOB_PLACEHOLDER";
+
+  const urls = {
+    save: "{% url 'scraping:scraping_sources' %}",
+    testConnection: "{% url 'scraping:test_source_connection' %}",
+    testSource: "{% url 'scraping:test_source' source_id='00000000-0000-0000-0000-000000000000' %}",
+    testStatus: "{% url 'scraping:test_source_status' job_id='JOB_PLACEHOLDER' %}",
+    runNow: "{% url 'scraping:run_custom_source' source_id='00000000-0000-0000-0000-000000000000' %}",
+    toggle: "{% url 'scraping:toggle_custom_source' source_id='00000000-0000-0000-0000-000000000000' %}",
+    deleteSource: "{% url 'scraping:delete_custom_source' source_id='00000000-0000-0000-0000-000000000000' %}",
+    health: "{% url 'scraping:source_health_detail' source_id='00000000-0000-0000-0000-000000000000' %}"
+  };
+
+  const sourcesRows = parseJsonScript("sourcesRowsData", []);
+  const suggestedSourcesByCategory = parseJsonScript("suggestedSourcesData", {});
+  const querySuggestionsByCategory = parseJsonScript("querySuggestionsData", {});
+
+  const root = document.querySelector(".src-shell");
+  if (!root) {
+    return;
+  }
+
+  const toastEl = document.getElementById("sourcesToast");
+  const tableBody = document.getElementById("sourcesTableBody");
+  const tableRows = Array.from(tableBody ? tableBody.querySelectorAll(".src-row") : []);
+  const selectAllCheckbox = document.getElementById("selectAllSources");
+  const sourceChecks = () => Array.from(document.querySelectorAll(".js-source-check"));
+  const visibleRowsCounter = document.getElementById("visibleRowsCounter");
+  const selectedRowsCounter = document.getElementById("selectedRowsCounter");
+  const bulkActionsBar = document.getElementById("bulkActionsBar");
+
+  const searchInput = document.getElementById("sourceSearchInput");
+  const statusFilterSelect = document.getElementById("statusFilterSelect");
+  const sortFilterSelect = document.getElementById("sortFilterSelect");
+  const rowsPerPageSelect = document.getElementById("rowsPerPageSelect");
+  const categoryFilterChips = document.getElementById("categoryFilterChips");
+
+  const reloadBtn = document.getElementById("reloadSourcesBtn");
+  const openDrawerBtn = document.getElementById("openSourceDrawerBtn");
+  const disableFailingBtn = document.getElementById("disableFailingSourcesBtn");
+
+  const drawerRoot = document.getElementById("sourceDrawerRoot");
+  const drawerBackdrop = document.getElementById("sourceDrawerBackdrop");
+  const closeDrawerBtn = document.getElementById("closeSourceDrawerBtn");
+  const cancelSourceBtn = document.getElementById("cancelSourceBtn");
+  const sourceDrawerTitle = document.getElementById("sourceDrawerTitle");
+
+  const sourceForm = document.getElementById("sourceForm");
+  const sourceIdInput = document.getElementById("sourceIdInput");
+  const sourceNameInput = document.getElementById("sourceNameInput");
+  const sourceUrlInput = document.getElementById("sourceUrlInput");
+  const sourceCategoryInput = document.getElementById("sourceCategoryInput");
+  const sourceTrustInput = document.getElementById("sourceTrustInput");
+  const sourcePriorityInput = document.getElementById("sourcePriorityInput");
+  const sourceActiveInput = document.getElementById("sourceActiveInput");
+  const sourceRssInput = document.getElementById("sourceRssInput");
+  const sourceLlmInput = document.getElementById("sourceLlmInput");
+  const sourceQueryList = document.getElementById("sourceQueryList");
+  const addQueryLineBtn = document.getElementById("addQueryLineBtn");
+  const querySuggestionChips = document.getElementById("querySuggestionChips");
+  const testConnectionBtn = document.getElementById("testConnectionBtn");
+  const connectionTestBox = document.getElementById("connectionTestBox");
+  const connectionTestList = document.getElementById("connectionTestList");
+
+  const toggleSuggestedBtn = document.getElementById("toggleSuggestedBtn");
+  const suggestedBody = document.getElementById("suggestedSourcesBody");
+
+  const sourceMap = new Map();
+  sourcesRows.forEach((row) => sourceMap.set(String(row.id), row));
+
+  let activeCategory = "all";
+
+  init();
+
+  function init() {
+    localizeDateTimes();
+    bindEvents();
+    updateCategoryCounts();
+    applyFilters();
+    renderQuerySuggestions();
+  }
+
+  function bindEvents() {
+    if (reloadBtn) {
+      reloadBtn.addEventListener("click", () => window.location.reload());
+    }
+
+    if (openDrawerBtn) {
+      openDrawerBtn.addEventListener("click", () => openDrawer(null));
+    }
+
+    if (drawerBackdrop) {
+      drawerBackdrop.addEventListener("click", closeDrawer);
+    }
+
+    if (closeDrawerBtn) {
+      closeDrawerBtn.addEventListener("click", closeDrawer);
+    }
+
+    if (cancelSourceBtn) {
+      cancelSourceBtn.addEventListener("click", closeDrawer);
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener("input", applyFilters);
+    }
+
+    if (statusFilterSelect) {
+      statusFilterSelect.addEventListener("change", applyFilters);
+    }
+
+    if (sortFilterSelect) {
+      sortFilterSelect.addEventListener("change", applyFilters);
+    }
+
+    if (rowsPerPageSelect) {
+      rowsPerPageSelect.addEventListener("change", applyFilters);
+    }
+
+    if (categoryFilterChips) {
+      categoryFilterChips.addEventListener("click", (event) => {
+        const button = event.target.closest(".src-chip");
+        if (!button) {
+          return;
+        }
+        activeCategory = button.dataset.category || "all";
+        categoryFilterChips.querySelectorAll(".src-chip").forEach((chip) => {
+          chip.classList.toggle("active", chip === button);
+        });
+        applyFilters();
+      });
+    }
+
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener("change", () => {
+        const checked = selectAllCheckbox.checked;
+        sourceChecks().forEach((checkbox) => {
+          if (checkbox.closest("tr") && !checkbox.closest("tr").classList.contains("is-hidden")) {
+            checkbox.checked = checked;
+          }
+        });
+        updateBulkSelectionUI();
+      });
+    }
+
+    document.addEventListener("change", (event) => {
+      if (event.target && event.target.classList.contains("js-source-check")) {
+        updateBulkSelectionUI();
+      }
+    });
+
+    document.querySelectorAll("[data-bulk-action]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const action = button.dataset.bulkAction;
+        await runBulkAction(action);
+      });
+    });
+
+    if (tableBody) {
+      tableBody.addEventListener("click", async (event) => {
+        const actionButton = event.target.closest("[data-row-action]");
+        if (!actionButton) {
+          return;
+        }
+        const action = actionButton.dataset.rowAction;
+        const sourceId = actionButton.dataset.sourceId;
+        if (!sourceId) {
+          return;
+        }
+
+        if (action === "edit") {
+          openDrawer(sourceMap.get(sourceId) || null);
+          return;
+        }
+
+        if (action === "toggle") {
+          await toggleSource(sourceId);
+          return;
+        }
+
+        if (action === "delete") {
+          await deleteSource(sourceId);
+          return;
+        }
+
+        if (action === "run") {
+          await runSourceNow(sourceId);
+          return;
+        }
+
+        if (action === "test") {
+          await runSourceTest(sourceId, actionButton);
+          return;
+        }
+      });
+    }
+
+    if (disableFailingBtn) {
+      disableFailingBtn.addEventListener("click", async () => {
+        if (!window.confirm(i18n.confirmDisableFailing)) {
+          return;
+        }
+        const failingIds = tableRows
+          .filter((row) => row.dataset.failing === "1")
+          .map((row) => row.dataset.sourceId)
+          .filter(Boolean);
+        await toggleManySources(failingIds, false);
+        showToast(i18n.bulkDone, "ok");
+        setTimeout(() => window.location.reload(), 450);
+      });
+    }
+
+    if (sourceCategoryInput) {
+      sourceCategoryInput.addEventListener("change", renderQuerySuggestions);
+    }
+
+    if (addQueryLineBtn) {
+      addQueryLineBtn.addEventListener("click", () => addQueryLine(""));
+    }
+
+    if (sourceQueryList) {
+      sourceQueryList.addEventListener("click", (event) => {
+        const removeBtn = event.target.closest("[data-remove-query]");
+        if (!removeBtn) {
+          return;
+        }
+        const row = removeBtn.closest(".src-query-row");
+        if (row) {
+          row.remove();
+        }
+      });
+    }
+
+    if (querySuggestionChips) {
+      querySuggestionChips.addEventListener("click", (event) => {
+        const chip = event.target.closest("[data-query-value]");
+        if (!chip) {
+          return;
+        }
+        addQueryIfMissing(chip.dataset.queryValue || "");
+      });
+    }
+
+    if (testConnectionBtn) {
+      testConnectionBtn.addEventListener("click", testConnection);
+    }
+
+    if (sourceForm) {
+      sourceForm.addEventListener("submit", saveSource);
+    }
+
+    document.addEventListener("click", (event) => {
+      const suggestionBtn = event.target.closest("[data-use-suggested='1']");
+      if (!suggestionBtn) {
+        return;
+      }
+      const category = suggestionBtn.dataset.category;
+      const index = Number(suggestionBtn.dataset.index || "-1");
+      if (!category || Number.isNaN(index) || index < 0) {
+        return;
+      }
+      const list = Array.isArray(suggestedSourcesByCategory[category])
+        ? suggestedSourcesByCategory[category]
+        : [];
+      const suggestion = list[index];
+      if (!suggestion) {
+        return;
+      }
+      openDrawer({
+        source_id: "",
+        id: "",
+        name: suggestion.name || "",
+        url: suggestion.url || "",
+        category: suggestion.category || category,
+        is_active: true,
+        trust_score: suggestion.trust_score || 0.8,
+        priority_value: suggestion.priority || 3,
+        queries: Array.isArray(suggestion.queries) ? suggestion.queries : [],
+        use_rss: false,
+        use_llm_extraction: true
+      });
+    });
+
+    if (toggleSuggestedBtn) {
+      toggleSuggestedBtn.addEventListener("click", () => {
+        const hidden = suggestedBody.style.display === "none";
+        suggestedBody.style.display = hidden ? "grid" : "none";
+        toggleSuggestedBtn.setAttribute("aria-expanded", hidden ? "true" : "false");
+        const icon = toggleSuggestedBtn.querySelector("i");
+        const label = toggleSuggestedBtn.querySelector("span");
+        if (icon) {
+          icon.className = hidden ? "fas fa-chevron-up" : "fas fa-chevron-down";
+        }
+        if (label) {
+          label.textContent = hidden ? i18n.collapse : i18n.expand;
+        }
+      });
+    }
+  }
+
+  function parseJsonScript(id, fallback) {
+    const element = document.getElementById(id);
+    if (!element) {
+      return fallback;
+    }
+    try {
+      return JSON.parse(element.textContent);
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function localizeDateTimes() {
+    document.querySelectorAll(".js-local-datetime").forEach((node) => {
+      const iso = node.getAttribute("datetime");
+      if (!iso) {
+        return;
+      }
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) {
+        return;
+      }
+      node.textContent = date.toLocaleString();
+    });
+  }
+
+  function updateCategoryCounts() {
+    const countMap = {};
+    tableRows.forEach((row) => {
+      const category = row.dataset.category || "";
+      countMap[category] = (countMap[category] || 0) + 1;
+    });
+
+    Object.keys(countMap).forEach((category) => {
+      const target = document.getElementById("count-" + category);
+      if (target) {
+        target.textContent = String(countMap[category]);
+      }
+    });
+  }
+
+  function applyFilters() {
+    const searchTerm = (searchInput && searchInput.value ? searchInput.value : "").trim().toLowerCase();
+    const statusFilter = statusFilterSelect ? statusFilterSelect.value : "all";
+    const sortFilter = sortFilterSelect ? sortFilterSelect.value : "name";
+    const rowsPerPage = Number(rowsPerPageSelect ? rowsPerPageSelect.value : "25");
+
+    const sortedRows = tableRows.slice().sort((a, b) => {
+      if (sortFilter === "health") {
+        return Number(b.dataset.health || 0) - Number(a.dataset.health || 0);
+      }
+      if (sortFilter === "yield") {
+        return Number(b.dataset.yield || 0) - Number(a.dataset.yield || 0);
+      }
+      return String(a.dataset.name || "").localeCompare(String(b.dataset.name || ""));
+    });
+
+    sortedRows.forEach((row) => {
+      tableBody.appendChild(row);
+    });
+
+    let visibleCount = 0;
+
+    sortedRows.forEach((row) => {
+      const active = row.dataset.active === "1";
+      const failing = row.dataset.failing === "1";
+      const category = row.dataset.category || "";
+      const haystack = [
+        row.dataset.name || "",
+        row.dataset.url || "",
+        row.dataset.queries || ""
+      ].join(" ");
+
+      const matchSearch = !searchTerm || haystack.includes(searchTerm);
+      const matchCategory = activeCategory === "all" || category === activeCategory;
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && active) ||
+        (statusFilter === "disabled" && !active) ||
+        (statusFilter === "failing" && failing);
+
+      const show = matchSearch && matchCategory && matchStatus && visibleCount < rowsPerPage;
+      row.classList.toggle("is-hidden", !show);
+
+      if (show) {
+        visibleCount += 1;
+      }
+    });
+
+    if (visibleRowsCounter) {
+      if (visibleCount === tableRows.length && activeCategory === "all" && statusFilter === "all" && !searchTerm) {
+        visibleRowsCounter.textContent = i18n.showingAll;
+      } else {
+        visibleRowsCounter.textContent = i18n.showingFiltered + " " + visibleCount + " " + i18n.rowsWord + ".";
+      }
+    }
+
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false;
+    }
+    sourceChecks().forEach((checkbox) => {
+      if (checkbox.closest("tr") && checkbox.closest("tr").classList.contains("is-hidden")) {
+        checkbox.checked = false;
+      }
+    });
+    updateBulkSelectionUI();
+    ensureEmptyRow(visibleCount);
+  }
+
+  function ensureEmptyRow(visibleCount) {
+    const existing = tableBody.querySelector(".js-empty-row");
+    if (visibleCount > 0) {
+      if (existing) {
+        existing.remove();
+      }
+      return;
+    }
+
+    if (existing) {
+      return;
+    }
+
+    const row = document.createElement("tr");
+    row.className = "js-empty-row";
+    row.innerHTML = '<td colspan="9" class="src-empty">' + i18n.noRows + "</td>";
+    tableBody.appendChild(row);
+  }
+
+  function selectedSourceIds() {
+    return sourceChecks()
+      .filter((checkbox) => checkbox.checked)
+      .map((checkbox) => checkbox.dataset.sourceId)
+      .filter(Boolean);
+  }
+
+  function updateBulkSelectionUI() {
+    const ids = selectedSourceIds();
+    if (selectedRowsCounter) {
+      selectedRowsCounter.textContent = ids.length + " " + i18n.selectedLabel;
+    }
+    if (bulkActionsBar) {
+      bulkActionsBar.classList.toggle("is-visible", ids.length > 0);
+    }
+  }
+
+  async function runBulkAction(action) {
+    const ids = selectedSourceIds();
+    if (!ids.length) {
+      showToast(i18n.noSelection, "warn");
+      return;
+    }
+
+    if (action === "delete" && !window.confirm(i18n.confirmBulkDelete)) {
+      return;
+    }
+
+    if (action === "run") {
+      await runManySources(ids);
+      showToast(i18n.bulkDone, "ok");
+      return;
+    }
+
+    if (action === "enable") {
+      await toggleManySources(ids, true);
+      showToast(i18n.bulkDone, "ok");
+      setTimeout(() => window.location.reload(), 450);
+      return;
+    }
+
+    if (action === "disable") {
+      await toggleManySources(ids, false);
+      showToast(i18n.bulkDone, "ok");
+      setTimeout(() => window.location.reload(), 450);
+      return;
+    }
+
+    if (action === "delete") {
+      await deleteManySources(ids);
+      showToast(i18n.bulkDone, "ok");
+      setTimeout(() => window.location.reload(), 450);
+    }
+  }
+
+  async function runManySources(ids) {
+    for (const sourceId of ids) {
+      await runSourceNow(sourceId, true);
+    }
+  }
+
+  async function toggleManySources(ids, active) {
+    for (const sourceId of ids) {
+      await apiRequest(replaceUuid(urls.toggle, sourceId), {
+        method: "POST",
+        body: {
+          is_active: active
+        }
+      });
+    }
+  }
+
+  async function deleteManySources(ids) {
+    for (const sourceId of ids) {
+      await apiRequest(replaceUuid(urls.deleteSource, sourceId), {
+        method: "DELETE"
+      });
+    }
+  }
+
+  async function toggleSource(sourceId) {
+    const row = tableRows.find((entry) => entry.dataset.sourceId === sourceId);
+    const currentlyActive = row ? row.dataset.active === "1" : true;
+    const response = await apiRequest(replaceUuid(urls.toggle, sourceId), {
+      method: "POST",
+      body: {
+        is_active: !currentlyActive
+      }
+    });
+
+    const nextActive = Boolean(response && response.is_active);
+    if (row) {
+      row.dataset.active = nextActive ? "1" : "0";
+      const statusBadge = row.querySelector(".src-badge.active, .src-badge.disabled");
+      if (statusBadge) {
+        statusBadge.className = "src-badge " + (nextActive ? "active" : "disabled");
+        statusBadge.textContent = nextActive ? i18n.activeLabel : i18n.disabledLabel;
+      }
+      const toggleLabel = row.querySelector("[data-row-action='toggle'] span");
+      if (toggleLabel) {
+        toggleLabel.textContent = nextActive ? i18n.disableLabel : i18n.enableLabel;
+      }
+    }
+
+    showToast(nextActive ? i18n.sourceEnabled : i18n.sourceDisabled, "ok");
+    applyFilters();
+  }
+
+  async function deleteSource(sourceId) {
+    if (!window.confirm(i18n.confirmDelete)) {
+      return;
+    }
+
+    await apiRequest(replaceUuid(urls.deleteSource, sourceId), {
+      method: "DELETE"
+    });
+
+    const row = tableRows.find((entry) => entry.dataset.sourceId === sourceId);
+    if (row) {
+      row.remove();
+      const index = tableRows.indexOf(row);
+      if (index >= 0) {
+        tableRows.splice(index, 1);
+      }
+    }
+
+    showToast(i18n.sourceDeleted, "ok");
+    applyFilters();
+  }
+
+  async function runSourceNow(sourceId, silent) {
+    await apiRequest(replaceUuid(urls.runNow, sourceId), {
+      method: "POST"
+    });
+
+    if (!silent) {
+      showToast(i18n.runStarted, "ok");
+    }
+  }
+
+  async function runSourceTest(sourceId, button) {
+    if (button) {
+      button.disabled = true;
+    }
+
+    try {
+      const startPayload = await apiRequest(replaceUuid(urls.testSource, sourceId), {
+        method: "POST"
+      });
+      showToast(i18n.testStarted, "ok");
+
+      const jobId = startPayload && startPayload.job_id ? String(startPayload.job_id) : "";
+      if (!jobId) {
+        throw new Error(i18n.invalidResponse);
+      }
+
+      await pollSourceTest(jobId);
+    } finally {
+      if (button) {
+        button.disabled = false;
+      }
+    }
+  }
+
+  async function pollSourceTest(jobId) {
+    const maxAttempts = 45;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const payload = await apiRequest(urls.testStatus.replace(JOB_PLACEHOLDER, encodeURIComponent(jobId)), {
+        method: "GET"
+      });
+
+      if (!payload || typeof payload !== "object") {
+        throw new Error(i18n.invalidResponse);
+      }
+
+      if (payload.status === "completed") {
+        showToast(
+          i18n.testCompleted + " - " +
+          String(payload.would_be_new || 0) + " " + i18n.newItems + ", " +
+          String(payload.would_be_duplicate || 0) + " " + i18n.duplicateItems,
+          "ok"
+        );
+        return;
+      }
+
+      if (payload.status === "failed") {
+        showToast(i18n.testFailed + " " + String(payload.error || ""), "err");
+        return;
+      }
+
+      await wait(1400);
+    }
+
+    showToast(i18n.testRunning, "warn");
+  }
+
+  function openDrawer(source) {
+    if (!drawerRoot) {
+      return;
+    }
+
+    const isEdit = Boolean(source && (source.id || source.source_id));
+
+    sourceDrawerTitle.textContent = isEdit ? i18n.editSource : i18n.addSource;
+    sourceIdInput.value = source && (source.id || source.source_id) ? String(source.id || source.source_id) : "";
+    sourceNameInput.value = source && source.name ? String(source.name) : "";
+    sourceUrlInput.value = source && source.url ? String(source.url) : "";
+    sourceCategoryInput.value = source && source.category ? String(source.category) : "events";
+
+    const trust = source && typeof source.trust_score !== "undefined" ? Number(source.trust_score) : 0.8;
+    sourceTrustInput.value = Number.isFinite(trust) ? String(trust) : "0.8";
+
+    const priority = source && source.priority_value ? Number(source.priority_value) : 3;
+    sourcePriorityInput.value = String(Number.isFinite(priority) ? priority : 3);
+
+    sourceActiveInput.checked = !(source && source.is_active === false);
+    sourceRssInput.checked = Boolean(source && source.use_rss);
+    sourceLlmInput.checked = !(source && source.use_llm_extraction === false);
+
+    sourceQueryList.innerHTML = "";
+    const queries = source && Array.isArray(source.queries) ? source.queries : [];
+    if (queries.length) {
+      queries.forEach((query) => addQueryLine(String(query)));
+    } else {
+      addQueryLine("");
+    }
+
+    resetConnectionTestBox();
+    renderQuerySuggestions();
+
+    drawerRoot.classList.add("is-open");
+    drawerRoot.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeDrawer() {
+    if (!drawerRoot) {
+      return;
+    }
+    drawerRoot.classList.remove("is-open");
+    drawerRoot.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  function addQueryLine(initialValue) {
+    const row = document.createElement("div");
+    row.className = "src-query-row";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "src-input";
+    input.placeholder = i18n.queryPlaceholder;
+    input.value = initialValue || "";
+    input.setAttribute("data-query-input", "1");
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "src-btn ghost";
+    removeBtn.setAttribute("data-remove-query", "1");
+    removeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    sourceQueryList.appendChild(row);
+  }
+
+  function addQueryIfMissing(value) {
+    const query = String(value || "").trim();
+    if (!query) {
+      return;
+    }
+
+    const values = currentQueryValues();
+    if (values.includes(query.toLowerCase())) {
+      return;
+    }
+
+    addQueryLine(query);
+  }
+
+  function currentQueryValues() {
+    return Array.from(sourceQueryList.querySelectorAll("[data-query-input]"))
+      .map((input) => String(input.value || "").trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  function renderQuerySuggestions() {
+    if (!querySuggestionChips || !sourceCategoryInput) {
+      return;
+    }
+
+    const category = sourceCategoryInput.value || "events";
+    const list = Array.isArray(querySuggestionsByCategory[category])
+      ? querySuggestionsByCategory[category]
+      : [];
+
+    querySuggestionChips.innerHTML = "";
+
+    if (!list.length) {
+      return;
+    }
+
+    list.forEach((value) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "src-suggestion-chip";
+      chip.setAttribute("data-query-value", String(value));
+      chip.textContent = String(value);
+      querySuggestionChips.appendChild(chip);
+    });
+  }
+
+  async function testConnection() {
+    const url = String(sourceUrlInput.value || "").trim();
+    const category = String(sourceCategoryInput.value || "events").trim();
+
+    if (!url) {
+      showToast(i18n.requestFailed, "err");
+      return;
+    }
+
+    connectionTestBox.className = "src-test-box";
+    connectionTestList.innerHTML = "<li>" + i18n.testRunning + "</li>";
+
+    try {
+      const payload = await apiRequest(urls.testConnection, {
+        method: "POST",
+        body: {
+          url: url,
+          category: category
+        }
+      });
+
+      const status = String(payload.status || "failed");
+      connectionTestBox.classList.add(status);
+
+      const lines = [];
+      lines.push(i18n.networkStatus + ": " + String(payload.network && payload.network.overall ? payload.network.overall : "-"));
+      lines.push(i18n.robotsStatus + ": " + String(payload.robots_status || "-"));
+      lines.push(i18n.contentVerdict + ": " + String(payload.content && payload.content.verdict ? payload.content.verdict : "-"));
+      lines.push(i18n.estimatedYield + ": " + String(payload.estimated_yield || 0));
+
+      connectionTestList.innerHTML = lines.map((line) => "<li>" + escapeHtml(line) + "</li>").join("");
+
+      if (status === "success") {
+        showToast(i18n.testCompleted, "ok");
+      } else if (status === "warning") {
+        showToast(i18n.testCompleted, "warn");
+      } else {
+        showToast(i18n.testFailed, "err");
+      }
+    } catch (error) {
+      connectionTestBox.className = "src-test-box failed";
+      connectionTestList.innerHTML = "<li>" + escapeHtml(String(error && error.message ? error.message : i18n.requestFailed)) + "</li>";
+      showToast(i18n.requestFailed, "err");
+    }
+  }
+
+  function resetConnectionTestBox() {
+    if (!connectionTestBox || !connectionTestList) {
+      return;
+    }
+    connectionTestBox.className = "src-test-box";
+    connectionTestList.innerHTML = "<li>" + i18n.testHint + "</li>";
+  }
+
+  async function saveSource(event) {
+    event.preventDefault();
+
+    const queries = Array.from(sourceQueryList.querySelectorAll("[data-query-input]"))
+      .map((input) => String(input.value || "").trim())
+      .filter(Boolean);
+
+    const payload = {
+      source_id: String(sourceIdInput.value || "").trim(),
+      name: String(sourceNameInput.value || "").trim(),
+      url: String(sourceUrlInput.value || "").trim(),
+      category: String(sourceCategoryInput.value || "events").trim(),
+      trust_score: Number(sourceTrustInput.value || "0.8"),
+      priority: Number(sourcePriorityInput.value || "3"),
+      is_active: Boolean(sourceActiveInput.checked),
+      use_rss: Boolean(sourceRssInput.checked),
+      use_llm_extraction: Boolean(sourceLlmInput.checked),
+      search_queries: queries
+    };
+
+    try {
+      await apiRequest(urls.save, {
+        method: "POST",
+        body: payload
+      });
+      showToast(i18n.sourceSaved, "ok");
+      closeDrawer();
+      setTimeout(() => window.location.reload(), 420);
+    } catch (error) {
+      showToast(String(error && error.message ? error.message : i18n.requestFailed), "err");
+    }
+  }
+
+  function replaceUuid(templateUrl, sourceId) {
+    return String(templateUrl || "").replace(EMPTY_UUID, encodeURIComponent(String(sourceId)));
+  }
+
+  function getCookie(name) {
+    const cookieValue = document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(name + "="));
+    if (!cookieValue) {
+      return "";
+    }
+    return decodeURIComponent(cookieValue.split("=").slice(1).join("="));
+  }
+
+  async function apiRequest(url, options) {
+    const opts = options || {};
+    const method = opts.method || "GET";
+    const headers = new Headers(opts.headers || {});
+
+    if (method !== "GET" && method !== "HEAD") {
+      headers.set("X-CSRFToken", getCookie("csrftoken"));
+    }
+
+    if (opts.body && typeof opts.body === "object") {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const response = await fetch(url, {
+      method: method,
+      headers: headers,
+      body: opts.body && typeof opts.body === "object" ? JSON.stringify(opts.body) : undefined,
+      credentials: "same-origin"
+    });
+
+    let payload = null;
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      payload = await response.json();
+    }
+
+    if (!response.ok) {
+      const message = payload && payload.error ? String(payload.error) : i18n.requestFailed;
+      throw new Error(message);
+    }
+
+    return payload;
+  }
+
+  function showToast(message, tone) {
+    if (!toastEl) {
+      return;
+    }
+
+    toastEl.textContent = String(message || "");
+    toastEl.className = "src-toast " + (tone || "ok");
+    toastEl.hidden = false;
+
+    window.requestAnimationFrame(() => {
+      toastEl.classList.add("visible");
+    });
+
+    window.clearTimeout(showToast._timer);
+    showToast._timer = window.setTimeout(() => {
+      toastEl.classList.remove("visible");
+      window.setTimeout(() => {
+        toastEl.hidden = true;
+      }, 180);
+    }, 2600);
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -297,7 +297,13 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- AUTO-TRANSLATE SCRIPT: Translate English content to Arabic in real-time -->
 <script>
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('[Auto-Translate] Initializing...');
+  const debugAutoTranslate = (...args) => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log(...args);
+    }
+  };
+
+  debugAutoTranslate('[Auto-Translate] Initializing...');
   
   // Get form inputs
   const titleEnInput = document.querySelector('input[name="title_en"]');
@@ -310,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     return;
   }
   
-  console.log('[Auto-Translate] ✓ Form inputs ready');
+  debugAutoTranslate('[Auto-Translate] ✓ Form inputs ready');
 
   // Translate using MyMemory API
   async function translateToArabic(text) {
@@ -338,11 +344,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Don't overwrite if already filled
     if (arabicFieldInput.value?.trim()) {
-      console.log('[Auto-Translate] Arabic field already filled');
+      debugAutoTranslate('[Auto-Translate] Arabic field already filled');
       return;
     }
 
-    console.log('[Auto-Translate] Translating ' + (isTitle ? 'title' : 'content') + '...');
+    debugAutoTranslate('[Auto-Translate] Translating ' + (isTitle ? 'title' : 'content') + '...');
     const translated = await translateToArabic(text);
     
     if (translated) {
@@ -360,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           el.textContent = translated.substring(0, 300);
         });
       }
-      console.log('[Auto-Translate] ✓ Updated ' + (isTitle ? 'title' : 'content'));
+      debugAutoTranslate('[Auto-Translate] ✓ Updated ' + (isTitle ? 'title' : 'content'));
     }
   }
 
@@ -387,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   // On page load: Fill English fields from preview if empty
-  console.log('[Auto-Translate] Checking preview content...');
+  debugAutoTranslate('[Auto-Translate] Checking preview content...');
   
   const enTitle = document.querySelector('.scraped-section-en .scraped-preview-title')?.textContent;
   const enAbstract = document.querySelector('.scraped-section-en .scraped-preview-abstract p')?.textContent;
@@ -395,26 +401,26 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Fill English form fields from preview (if they're empty)
   if (enTitle && !titleEnInput.value) {
     titleEnInput.value = enTitle.trim();
-    console.log('[Auto-Translate] ✓ Filled English title from preview');
+    debugAutoTranslate('[Auto-Translate] ✓ Filled English title from preview');
   }
   
   if (enAbstract && !contentEnInput.value) {
     contentEnInput.value = enAbstract.trim();
-    console.log('[Auto-Translate] ✓ Filled English content from preview');
+    debugAutoTranslate('[Auto-Translate] ✓ Filled English content from preview');
   }
 
   // Auto-translate on page load
   if (titleEnInput.value && !titleArInput.value) {
-    console.log('[Auto-Translate] Translating title...');
+    debugAutoTranslate('[Auto-Translate] Translating title...');
     await updateArabic(titleEnInput.value, titleArInput, true);
   }
   
   if (contentEnInput.value && !contentArInput.value) {
-    console.log('[Auto-Translate] Translating content...');
+    debugAutoTranslate('[Auto-Translate] Translating content...');
     await updateArabic(contentEnInput.value, contentArInput, false);
   }
 
-  console.log('[Auto-Translate] ✓ Ready');
+  debugAutoTranslate('[Auto-Translate] ✓ Ready');
 });
 </script>
 <style>

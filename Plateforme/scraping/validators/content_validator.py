@@ -47,6 +47,64 @@ _CATEGORY_KEYWORDS = {
 }
 
 
+class ExtractionQualityValidator:
+    MIN_CONFIDENCE_TO_SAVE = 0.40
+    MIN_TITLE_LENGTH = 5
+    MAX_TITLE_LENGTH = 300
+
+    def validate(self, item: dict, category: str) -> tuple[bool, list[str]]:
+        del category
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        title_en = str(item.get("title_en") or "").strip()
+        if not title_en or len(title_en) < self.MIN_TITLE_LENGTH:
+            errors.append("title_en too short or missing")
+        if len(title_en) > self.MAX_TITLE_LENGTH:
+            warnings.append(
+                f"title_en too long: {len(title_en)} > {self.MAX_TITLE_LENGTH}"
+            )
+
+        url = str(
+            item.get("url") or item.get("download_url") or item.get("source_url") or ""
+        ).strip()
+        if not url or not url.startswith(("http://", "https://")):
+            errors.append(f"Invalid URL: {url}")
+
+        title_ar = str(item.get("title_ar") or "").strip()
+        if title_ar and title_ar == title_en:
+            warnings.append("title_ar is copy of title_en - translation needed")
+            item["translation_status"] = "copied"
+        elif title_ar:
+            arabic_chars = sum(1 for c in title_ar if "\u0600" <= c <= "\u06ff")
+            if arabic_chars > len(title_ar) * 0.3:
+                item["translation_status"] = "translated"
+            else:
+                item["translation_status"] = "copied"
+        else:
+            item["translation_status"] = "missing"
+
+        if not item.get("is_arabic_nlp_relevant", True):
+            try:
+                relevance_score = float(item.get("relevance_score", 1.0))
+            except (TypeError, ValueError):
+                relevance_score = 1.0
+            if relevance_score < 0.3:
+                errors.append("Item not relevant to Arabic NLP")
+
+        try:
+            confidence = float(item.get("extraction_confidence", 0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        if confidence < self.MIN_CONFIDENCE_TO_SAVE:
+            errors.append(
+                f"Confidence too low: {confidence} < {self.MIN_CONFIDENCE_TO_SAVE}"
+            )
+
+        is_valid = len(errors) == 0
+        return is_valid, errors + warnings
+
+
 class _HTMLTextExtractor(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)

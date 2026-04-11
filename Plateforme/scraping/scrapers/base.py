@@ -20,9 +20,90 @@ from scraping.scrapers.base_dedup import DedupMixin
 from scraping.scrapers.base_media import BaseMediaCompat, MediaMixin
 from scraping.scrapers.base_text import TextMixin
 from scraping.scraping_settings import scraping_settings as SS
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def emit_progress(
+    run,
+    step,
+    current,
+    total,
+    message,
+    current_source="",
+    current_item="",
+    *,
+    items_created=0,
+    items_skipped=0,
+    items_failed=None,
+):
+    """Emit run progress to websocket and persist progress fields atomically."""
+    if run is None:
+        return
+
+    run_id = str(getattr(run, "id", run) or "").strip()
+    if not run_id:
+        return
+
+    step_value = str(step or "discovery")[:100]
+    current_value = max(0, int(current or 0))
+    total_value = max(0, int(total or 0))
+    message_value = str(message or "")[:255]
+    source_value = str(current_source or "")[:255]
+    item_value = str(current_item or current_source or message or "")[:255]
+    failed_value = max(
+        0,
+        int(items_skipped if items_failed is None else items_failed or 0),
+    )
+    percent_value = int((current_value / total_value) * 100) if total_value > 0 else 0
+
+    try:
+        from scraping.models import ScrapingRun
+
+        ScrapingRun.objects.filter(id=run_id).update(
+            progress_current=current_value,
+            progress_total=total_value,
+            current_step=step_value,
+            current_message=message_value,
+            current_source=source_value,
+            current_item=item_value,
+            items_created=max(0, int(items_created or 0)),
+            items_skipped=max(0, int(items_skipped or 0)),
+            items_failed=failed_value,
+        )
+    except Exception:
+        logger.debug("scraper_progress_db_update_failed", exc_info=True)
+
+    try:
+        from scraping.tasks import push_scraping_progress
+
+        push_scraping_progress(
+            run_id,
+            {
+                "type": "scraping_event",
+                "event_type": "progress",
+                "status": "running",
+                "step": step_value,
+                "current": current_value,
+                "total": total_value,
+                "percent": percent_value,
+                "progress": current_value,
+                "progress_current": current_value,
+                "progress_total": total_value,
+                "items_created": max(0, int(items_created or 0)),
+                "items_scraped": max(0, int(items_created or 0)),
+                "items_failed": failed_value,
+                "current_source": source_value,
+                "current_item": item_value,
+                "current_step": step_value,
+                "current_message": message_value,
+                "message": message_value,
+            },
+        )
+    except Exception:
+        logger.debug("scraper_progress_ws_emit_failed", exc_info=True)
 
 
 class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
@@ -30,6 +111,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
     name: str = "Base Scraper"
     category: str = "unknown"
+    MIN_CONFIDENCE_TO_SAVE: float = 0.35
 
     def __init__(self):
         self.results: list[dict] = []
@@ -38,6 +120,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         self.items_created: int = 0
         self.items_updated: int = 0
         self.items_skipped: int = 0
+        self._progress_run = None
         self.validation_stats = {
             "passed": 0,
             "failed_date": 0,
@@ -47,6 +130,150 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         }
         self._system_user = None
         self._last_duplicate_match_id = ""
+
+    def bind_progress_run(self, run):
+        """Bind a ScrapingRun instance used for progress updates."""
+        self._progress_run = run
+
+    def emit_progress(
+        self,
+        step: str = "discovery",
+        current: int = 0,
+        total: int = 0,
+        message: str = "",
+        *,
+        current_source: str = "",
+        current_item: str = "",
+    ) -> None:
+        """Emit progress for the currently bound run."""
+        emit_progress(
+            self._progress_run,
+            step,
+            current,
+            total,
+            message,
+            current_source=current_source,
+            current_item=current_item,
+            items_created=self.items_created,
+            items_skipped=self.items_skipped,
+            items_failed=self.items_skipped,
+        )
+
+    def _confidence_payload(self, item_data: dict) -> dict:
+        payload = dict(item_data or {})
+
+        payload.setdefault(
+            "title_en",
+            payload.get("title_en")
+            or payload.get("title")
+            or payload.get("job_title")
+            or payload.get("dataset_name")
+            or "",
+        )
+        payload.setdefault(
+            "description_en",
+            payload.get("description_en")
+            or payload.get("description")
+            or payload.get("summary_en")
+            or payload.get("content_en")
+            or "",
+        )
+        payload.setdefault(
+            "description_ar",
+            payload.get("description_ar")
+            or payload.get("summary_ar")
+            or payload.get("content_ar")
+            or "",
+        )
+        payload.setdefault(
+            "url",
+            payload.get("url")
+            or payload.get("source_url")
+            or payload.get("website")
+            or payload.get("access_link")
+            or payload.get("download_url")
+            or payload.get("registration_link")
+            or "",
+        )
+
+        if self.category == "news":
+            payload.setdefault("published_date", payload.get("date") or "")
+
+        if self.category == "courses":
+            payload.setdefault("course_url", payload.get("url") or "")
+
+        if self.category == "tools":
+            payload.setdefault("keywords", payload.get("capabilities") or [])
+            payload.setdefault(
+                "supported_languages",
+                payload.get("language_support")
+                or ([payload.get("language")] if payload.get("language") else []),
+            )
+            payload.setdefault("language_support", payload.get("supported_languages"))
+
+        if self.category == "opportunities":
+            payload.setdefault(
+                "institution",
+                payload.get("institution") or payload.get("institution_name") or "",
+            )
+
+        if self.category == "corpus":
+            payload.setdefault(
+                "download_url", payload.get("download_url") or payload.get("url") or ""
+            )
+            payload.setdefault(
+                "size", payload.get("size") or payload.get("size_estimate") or ""
+            )
+
+        return payload
+
+    def passes_min_confidence_to_save(self, item_data: dict) -> bool:
+        try:
+            from scraping.intelligence import calculate_item_confidence
+            from scraping.validators.content_validator import ExtractionQualityValidator
+
+            payload = self._confidence_payload(item_data)
+
+            confidence_report = calculate_item_confidence(self.category, payload)
+            confidence = max(0.0, min(1.0, float(confidence_report.get("score", 0.0))))
+
+            if isinstance(item_data, dict):
+                item_data.setdefault("extraction_confidence", round(confidence, 3))
+
+            validator = ExtractionQualityValidator()
+            is_valid, quality_messages = validator.validate(payload, self.category)
+            if not is_valid:
+                logger.info(
+                    "candidate_rejected_quality_validation",
+                    extra={
+                        "category": self.category,
+                        "source_name": self.name,
+                        "item_title": self._item_display_name(item_data),
+                        "messages": quality_messages,
+                    },
+                )
+                return False
+        except Exception:
+            logger.debug("candidate_confidence_compute_failed", exc_info=True)
+            return True
+
+        min_confidence = float(
+            getattr(SS, "MIN_CONFIDENCE_TO_SAVE", self.MIN_CONFIDENCE_TO_SAVE)
+        )
+        if confidence >= min_confidence:
+            return True
+
+        logger.info(
+            "candidate_rejected_low_confidence",
+            extra={
+                "category": self.category,
+                "source_name": self.name,
+                "confidence": round(confidence, 3),
+                "min_confidence": round(min_confidence, 3),
+                "item_title": self._item_display_name(item_data),
+            },
+        )
+        return False
 
     @abstractmethod
     def scrape(self):
@@ -61,16 +288,55 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             },
         )
 
+        self.emit_progress(
+            "discovery",
+            0,
+            4,
+            "Initializing scraper run",
+            current_source=self.name,
+            current_item=self.name,
+        )
         self._disable_es_indexing()
         try:
+            self.emit_progress(
+                "extraction",
+                1,
+                4,
+                "Running extraction pipeline",
+                current_source=self.name,
+                current_item=self.name,
+            )
             self.scrape()
         except Exception as exc:
             self._log_error("scraper_crash", str(exc), source=self.name)
+            self.emit_progress(
+                "saving",
+                4,
+                4,
+                f"Scraper failed: {str(exc)[:80]}",
+                current_source=self.name,
+                current_item=self.name,
+            )
             logger.exception("Scraper %s failed", self.name)
         finally:
             self._enable_es_indexing()
 
+        self.emit_progress(
+            "validation",
+            3,
+            4,
+            "Computing intelligence scores",
+            current_source=self.name,
+            current_item=self.name,
+        )
         intelligence_summary = self._run_intelligence()
+        self.emit_progress(
+            "saving",
+            4,
+            4,
+            "Scraping run completed",
+            current_item="",
+        )
 
         return {
             "scraper": self.name,
@@ -180,14 +446,23 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             "category": self.category,
             "source_name": self.name,
         }
+        run = getattr(self, "_progress_run", None) or getattr(self, "run", None)
+        run_id = str(getattr(run, "id", "") or "")
+        if not run_id:
+            return
+
         channel_layer = get_channel_layer()
         if channel_layer is None:
             return
         try:
             async_to_sync(channel_layer.group_send)(
-                "scraping_status",
+                f"scraping_{run_id}",
                 {
-                    "type": "item_skipped",
+                    "type": "scraping_event",
+                    "event_type": "item_skipped",
+                    "run_id": run_id,
+                    "task_uuid": run_id,
+                    "timestamp": datetime.utcnow().isoformat(),
                     **payload,
                 },
             )
@@ -417,6 +692,10 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                     "match_score": match_score,
                     "matched_item_id": matched_id or None,
                     "was_skipped": True,
+                    "translation_status": (
+                        str(item_data.get("translation_status") or "").strip()
+                        or "pending"
+                    ),
                 },
             )
         except Exception as exc:
@@ -662,16 +941,61 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             if not title:
                 continue
 
-            text = f"{title} {item.get('description', '')} {item.get('type', '')}"
+            description_text = (
+                item.get("description")
+                or item.get("description_en")
+                or item.get("summary_en")
+                or item.get("content_en")
+                or ""
+            )
+            arabic_text = " ".join(
+                str(item.get(key) or "")
+                for key in (
+                    "title_ar",
+                    "description_ar",
+                    "summary_ar",
+                    "content_ar",
+                )
+            ).strip()
+            text = " ".join(
+                part
+                for part in (
+                    str(title or "").strip(),
+                    str(description_text or "").strip(),
+                    str(item.get("type") or "").strip(),
+                    arabic_text,
+                )
+                if part
+            )
+
+            translation_status = infer_translation_status(
+                raw_status=str(item.get("translation_status") or ""),
+                english_values=[
+                    item.get("title_en") or item.get("title"),
+                    item.get("description_en")
+                    or item.get("summary_en")
+                    or item.get("content_en")
+                    or item.get("description"),
+                ],
+                arabic_values=[
+                    item.get("title_ar"),
+                    item.get("description_ar")
+                    or item.get("summary_ar")
+                    or item.get("content_ar"),
+                ],
+            )
+
             domain_scores = classify_domain(text)
             primary_domain = classify_domain_primary(text)
+            confidence_payload = self._confidence_payload(item)
             score = compute_relevance_score(
-                text=text,
-                has_description=bool(item.get("description") or item.get("type")),
-                has_website=bool(item.get("url")),
-                has_arabic=any("\u0600" <= c <= "\u06ff" for c in text),
-                domain_scores=domain_scores,
+                category=self.category,
+                item_data=confidence_payload,
+                translation_status=translation_status,
             )
+
+            if isinstance(item, dict):
+                item.setdefault("extraction_confidence", round(float(score) / 100.0, 3))
 
             completeness = calculate_completeness_score(item, self.category)
             defaults = {
@@ -683,6 +1007,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 "source_url": item.get("source_url") or item.get("url") or "",
                 "was_skipped": False,
                 "enrichment_status": "not_enriched",
+                "translation_status": translation_status,
             }
 
             try:

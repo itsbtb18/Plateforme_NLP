@@ -3,6 +3,7 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.db import DatabaseError, models, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Greatest, Least
@@ -15,6 +16,8 @@ except Exception:  # pragma: no cover - optional dependency at runtime
     VectorField = None
 
 from scraping.constants import (
+    CANONICAL_CATEGORIES,
+    CATEGORY_META,
     DEDUP_EMBEDDING_DIM,
     DEDUP_EMBEDDING_MODEL,
     SKIP_CIRCUIT_OPEN,
@@ -35,13 +38,14 @@ logger = logging.getLogger(__name__)
 
 
 SCRAPER_CATEGORY_CHOICES = [
-    ("events", _("Events")),
-    ("news", _("News")),
-    ("tools", _("Tools")),
-    ("courses", _("Courses")),
-    ("opportunities", _("Opportunities")),
-    ("corpus", _("Corpus")),
+    (
+        category,
+        _(CATEGORY_META.get(category, {}).get("label", category.title())),
+    )
+    for category in CANONICAL_CATEGORIES
 ]
+
+SCRAPER_CATEGORY_LABELS = dict(SCRAPER_CATEGORY_CHOICES)
 
 
 def _vector_field_enabled() -> bool:
@@ -65,11 +69,13 @@ class ScrapingSource(models.Model):
     }
 
     CATEGORY_CHOICES = [
-        ("events", _("Events")),
-        ("tools", _("Tools")),
-        ("news", _("News")),
-        ("courses", _("Courses")),
-        ("institutions", _("Institutions")),
+        (
+            category,
+            SCRAPER_CATEGORY_LABELS.get(
+                category, _(category.replace("_", " ").title())
+            ),
+        )
+        for category in CANONICAL_CATEGORIES
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -103,6 +109,10 @@ class ScrapingSource(models.Model):
     )
     fail_count = models.IntegerField(_("Fail Count"), default=0)
     consecutive_failures = models.IntegerField(default=0)
+    last_failure_reason = models.CharField(max_length=200, blank=True, default="")
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    quarantine_reason = models.TextField(blank=True, default="")
+    is_admin_disabled = models.BooleanField(default=False)
     fallback_url = models.URLField(_("Fallback URL"), blank=True, default="")
     last_scraped = models.DateTimeField(_("Last Scraped"), null=True, blank=True)
     scrape_config = models.JSONField(
@@ -223,6 +233,16 @@ class SearchQuery(models.Model):
 class RejectedItem(models.Model):
     """Feedback loop storage for rejected scraping candidates."""
 
+    REASON_CHOICES = [
+        ("irrelevant", _("Irrelevant to Arabic NLP")),
+        ("poor_arabic", _("Poor Arabic translation")),
+        ("duplicate", _("Duplicate content")),
+        ("unreliable_source", _("Unreliable source")),
+        ("outdated", _("Outdated information")),
+        ("low_quality", _("Low quality content")),
+        ("other", _("Other")),
+    ]
+
     category = models.CharField(
         _("Category"),
         max_length=50,
@@ -230,20 +250,41 @@ class RejectedItem(models.Model):
     )
     title = models.CharField(_("Title"), max_length=300)
     reason_for_rejection = models.TextField(_("Reason For Rejection"))
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="scraping_rejected_items",
+    )
+    object_id = models.CharField(max_length=64, null=True, blank=True)
+    reason = models.CharField(max_length=50, choices=REASON_CHOICES, default="other")
+    notes = models.TextField(blank=True, default="")
+    rejected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="scraping_rejections",
+    )
+    rejected_at = models.DateTimeField(_("Rejected At"), null=True, blank=True)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-rejected_at", "-created_at"]
         verbose_name = _("Rejected Item")
         verbose_name_plural = _("Rejected Items")
         indexes = [
             models.Index(
                 fields=["category", "created_at"], name="idx_rejecteditem_cat_created"
-            )
+            ),
+            models.Index(
+                fields=["category", "rejected_at"], name="idx_rejecteditem_cat_rejected"
+            ),
         ]
 
     def __str__(self):
-        return f"[{self.category}] {self.title[:80]}"
+        return f"[{self.category}] {self.title[:80]} ({self.reason})"
 
 
 class ScrapingRun(models.Model):
@@ -267,10 +308,17 @@ class ScrapingRun(models.Model):
     status = models.CharField(
         _("Status"), max_length=20, choices=STATUS_CHOICES, default="running"
     )
+    progress_current = models.IntegerField(_("Progress Current"), default=0)
+    progress_total = models.IntegerField(_("Progress Total"), default=0)
+    current_step = models.CharField(_("Current Step"), max_length=100, blank=True)
+    current_message = models.CharField(_("Current Message"), max_length=255, blank=True)
+    current_source = models.CharField(_("Current Source"), max_length=255, blank=True)
+    current_item = models.CharField(_("Current Item"), max_length=255, blank=True)
     items_found = models.PositiveIntegerField(_("Items Found"), default=0)
-    items_created = models.PositiveIntegerField(_("Items Created"), default=0)
+    items_created = models.IntegerField(_("Items Created"), default=0)
     items_updated = models.PositiveIntegerField(_("Items Updated"), default=0)
-    items_skipped = models.PositiveIntegerField(_("Items Skipped"), default=0)
+    items_skipped = models.IntegerField(_("Items Skipped"), default=0)
+    items_failed = models.IntegerField(_("Items Failed"), default=0)
     errors = models.TextField(_("Errors"), blank=True)
     started_at = models.DateTimeField(_("Started At"), auto_now_add=True)
     completed_at = models.DateTimeField(_("Completed At"), null=True, blank=True)
@@ -309,6 +357,56 @@ class ScrapingRun(models.Model):
         if self.completed_at and self.started_at:
             return (self.completed_at - self.started_at).total_seconds()
         return None
+
+
+class ScrapingNotification(models.Model):
+    """UI notifications for scraping admin shell (topbar dropdown)."""
+
+    TYPE_CHOICES = [
+        ("run_complete", _("Run Complete")),
+        ("run_failed", _("Run Failed")),
+        ("source_failing", _("Source Failing")),
+        ("info", _("Info")),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    notification_type = models.CharField(max_length=32, choices=TYPE_CHOICES)
+    category = models.CharField(max_length=50, blank=True, default="")
+    message = models.CharField(max_length=500)
+    run = models.ForeignKey(
+        "scraping.ScrapingRun",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    source = models.ForeignKey(
+        "scraping.ScrapingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Scraping Notification")
+        verbose_name_plural = _("Scraping Notifications")
+        indexes = [
+            models.Index(
+                fields=["is_read", "created_at"], name="idx_scrapenotif_read_created"
+            ),
+            models.Index(
+                fields=["notification_type", "created_at"],
+                name="idx_scrapenotif_type_created",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.notification_type}: {self.message[:72]}"
 
 
 class ScrapingSourceHealth(models.Model):
@@ -546,6 +644,15 @@ class ScrapedItemMeta(models.Model):
         (SKIP_CIRCUIT_OPEN, "Circuit Open"),
     ]
 
+    TRANSLATION_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("missing", "Missing"),
+        ("translated", "Translated"),
+        ("copied", "Copied"),
+        ("failed", "Failed"),
+        ("partial", "Partial"),
+    ]
+
     source_name = models.CharField(
         max_length=255,
         null=True,
@@ -643,6 +750,14 @@ class ScrapedItemMeta(models.Model):
         ],
         default="not_enriched",
         help_text=_("Whether deep enrichment fully succeeded for this item."),
+    )
+    translation_status = models.CharField(
+        _("Translation Status"),
+        max_length=12,
+        choices=TRANSLATION_STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+        help_text=_("Arabic translation pipeline status for this item."),
     )
     completeness_score = models.FloatField(
         default=0.0,

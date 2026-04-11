@@ -5,6 +5,7 @@ import logging
 from datetime import timedelta
 from uuid import UUID
 
+from django.conf import settings
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -13,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 class AdaptiveScheduler:
     """Compute and apply per-source adaptive scraping schedules."""
+
+    ADAPTIVE_SCHEDULING_ENABLED = False  # Disabled: manual-only mode
 
     TIERS = {
         "very_high": 6 * 3600,
@@ -68,6 +71,15 @@ class AdaptiveScheduler:
 
     def update_source_schedule(self, source_id: str | UUID) -> dict:
         """Update or create django-celery-beat schedule entry for a source."""
+        if not self.ADAPTIVE_SCHEDULING_ENABLED:
+            logger.info("Adaptive scheduling disabled - manual mode only")
+            return {
+                "source": str(source_id),
+                "previous_tier": None,
+                "new_tier": "manual_only",
+                "new_interval_hours": 0,
+            }
+
         from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
         from .models import ScrapingSource
@@ -91,7 +103,8 @@ class AdaptiveScheduler:
                 "interval": schedule,
                 "task": "scraping.tasks.run_scraper_task",
                 "kwargs": json.dumps({"source_id": str(source_id)}),
-                "enabled": source.is_active,
+                "enabled": source.is_active
+                and not getattr(settings, "SCRAPING_MANUAL_ONLY", False),
             },
         )
 
@@ -123,9 +136,25 @@ class AdaptiveScheduler:
 
     def update_all_sources(self) -> list[dict]:
         """Recompute schedules for all active sources."""
+        if not self.ADAPTIVE_SCHEDULING_ENABLED:
+            logger.info("Adaptive scheduling disabled - manual mode only")
+            return []
+
         from django_celery_beat.models import PeriodicTask
 
         from .models import ScrapingSource
+
+        if getattr(settings, "SCRAPING_MANUAL_ONLY", False):
+            PeriodicTask.objects.filter(
+                task__in=[
+                    "scraping.tasks.run_scraper_task",
+                    "scraping.tasks.update_adaptive_schedules",
+                ]
+            ).update(enabled=False)
+            PeriodicTask.objects.filter(name__startswith="scraping_").update(
+                enabled=False
+            )
+            return []
 
         # Replace legacy fixed category schedules with adaptive per-source schedules.
         PeriodicTask.objects.filter(

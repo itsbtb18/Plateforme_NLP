@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument("--domain", required=True, help="Target domain URL")
         parser.add_argument(
             "--category",
-            default="events",
+            default=ALL_CATEGORIES[0],
             choices=list(ALL_CATEGORIES),
             help="Category used when creating a source on apply",
         )

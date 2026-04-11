@@ -20,30 +20,48 @@ except Exception:
     def crontab(*args, **kwargs):
         return None
 
+
 # Load environment variables for local, non-Docker runs.
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
 # Base Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security & Debug
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+SECRET_KEY = (
+    os.environ.get("DJANGO_SECRET_KEY")
+    or os.environ.get("SECRET_KEY")
+    or "django-insecure-your-default-key"
+)
+DEBUG = _env_bool("DJANGO_DEBUG", default=_env_bool("DEBUG", default=False))
+_allowed_hosts_raw = os.environ.get("DJANGO_ALLOWED_HOSTS") or os.environ.get(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,django"
+)
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_raw.split(",") if host.strip()]
+_csrf_trusted_origins_raw = os.environ.get(
+    "DJANGO_CSRF_TRUSTED_ORIGINS"
+) or os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in _csrf_trusted_origins_raw.split(",") if origin.strip()
+]
 INTERNAL_IPS = [
     "127.0.0.1",
     "172.25.0.5",
     "172.25.0.0/16",
 ]
-PROMETHEUS_ALLOWED_IPS = [
-    "172.25.0.0/16",
-]
-PROMETHEUS_ALLOWED_NETWORKS = os.environ.get(
-    "PROMETHEUS_ALLOWED_NETWORKS",
-    "172.25.0.0/16,172.16.0.0/12,127.0.0.1/32",
-).split(",")
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY must be configured.")
 
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
@@ -166,21 +184,41 @@ else:
     }
 
 # Redis Cache Configuration
+CACHE_URL = os.environ.get("DJANGO_CACHE_URL") or os.environ.get(
+    "REDIS_URL", "redis://redis:6379/2"
+)
+CACHE_TIMEOUT = int(os.environ.get("DJANGO_CACHE_TIMEOUT", "300"))
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/2"),
+        "LOCATION": CACHE_URL,
+        "TIMEOUT": CACHE_TIMEOUT,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": int(
+                os.environ.get("DJANGO_CACHE_SOCKET_CONNECT_TIMEOUT", "5")
+            ),
+            "SOCKET_TIMEOUT": int(os.environ.get("DJANGO_CACHE_SOCKET_TIMEOUT", "5")),
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": int(
+                    os.environ.get("DJANGO_CACHE_MAX_CONNECTIONS", "100")
+                ),
+                "retry_on_timeout": True,
+            },
         },
         "KEY_PREFIX": "nlp_cache",
     }
 }
 
+SESSION_ENGINE = os.environ.get(
+    "DJANGO_SESSION_ENGINE", "django.contrib.sessions.backends.cache"
+)
+SESSION_CACHE_ALIAS = "default"
+
 # Parse REDIS_URL for 2FA utilities
 from urllib.parse import urlparse
 
-redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/2")
+redis_url = CACHE_URL
 parsed_redis = urlparse(redis_url)
 REDIS_HOST = parsed_redis.hostname or "127.0.0.1"
 REDIS_PORT = parsed_redis.port or 6379
@@ -192,27 +230,68 @@ REDIS_DB = (
 REDIS_PASSWORD = parsed_redis.password or None
 
 # Database
-DATABASE_URL = config("DATABASE_URL", default="", cast=str)
+DATABASE_URL = config("DATABASE_URL", default="", cast=str).strip()
 
-# Only parse DATABASE_URL if it's provided (allows Docker build to succeed)
+# Priority:
+# 1) DATABASE_URL (used by docker-compose services)
+# 2) POSTGRES_*/DB_* discrete variables (local/dev friendly)
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(
-            str(DATABASE_URL), conn_max_age=600, conn_health_checks=True
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
         )
     }
 else:
-    # Fallback for Docker build (will be overridden by env vars at runtime)
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": "nlp_platform",
-            "USER": "nlp_admin",
-            "PASSWORD": "1008",
-            "HOST": "db",
-            "PORT": "5432",
+    # For local Windows runs, default to SQLite unless explicitly disabled.
+    use_sqlite_local = config(
+        "USE_SQLITE_LOCAL",
+        default=(os.name == "nt"),
+        cast=bool,
+    )
+
+    if use_sqlite_local:
+        sqlite_default_path = BASE_DIR / "test_db.sqlite3"
+        sqlite_path = config("SQLITE_PATH", default=str(sqlite_default_path), cast=str)
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": sqlite_path,
+            }
         }
-    }
+    else:
+        db_name = config(
+            "POSTGRES_DB",
+            default=config("DB_NAME", default="nlp_platform"),
+        )
+        db_user = config(
+            "POSTGRES_USER",
+            default=config("DB_USER", default="nlp_admin"),
+        )
+        db_password = config(
+            "POSTGRES_PASSWORD",
+            default=config("DB_PASSWORD", default=""),
+        )
+        # Default to localhost for non-docker local runs.
+        db_host = config(
+            "POSTGRES_HOST",
+            default=config("DB_HOST", default="127.0.0.1"),
+        )
+        db_port = config("POSTGRES_PORT", default=config("DB_PORT", default="5432"))
+
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": db_name,
+                "USER": db_user,
+                "PASSWORD": db_password,
+                "HOST": db_host,
+                "PORT": db_port,
+                "CONN_MAX_AGE": 600,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
 
 # Auth & Allauth
 AUTH_USER_MODEL = "accounts.CustomUser"
@@ -275,6 +354,14 @@ CSRF_COOKIE_SAMESITE = "Lax"
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = _env_bool("DJANGO_USE_X_FORWARDED_HOST", default=True)
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
+    )
+    SECURE_HSTS_PRELOAD = _env_bool("DJANGO_SECURE_HSTS_PRELOAD", default=True)
 
 X_FRAME_OPTIONS = "DENY"
 
@@ -313,6 +400,14 @@ STATIC_ROOT = str(BASE_DIR / "staticfiles")
 # Media files configuration - Local storage
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Scraping persistence directories
+SCRAPING_CHECKPOINT_DIR = os.path.join(BASE_DIR, "scraping_data", "checkpoints")
+SCRAPING_DEAD_LETTER_DIR = os.path.join(BASE_DIR, "scraping_data", "dead_letter")
+
+# Create scraping persistence directories at startup
+os.makedirs(SCRAPING_CHECKPOINT_DIR, exist_ok=True)
+os.makedirs(SCRAPING_DEAD_LETTER_DIR, exist_ok=True)
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
@@ -382,7 +477,39 @@ CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 2
 
 # Logging
 LOG_DIR = BASE_DIR / "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
+SCRAPING_LOG_FILE = LOG_DIR / "scraping.log"
+SCRAPING_FILE_LOGGING_ENABLED = _env_bool("SCRAPING_FILE_LOGGING_ENABLED", default=True)
+APP_LOG_LEVEL = os.environ.get("APP_LOG_LEVEL", "DEBUG" if DEBUG else "INFO").upper()
+ROOT_LOG_LEVEL = os.environ.get("ROOT_LOG_LEVEL", "INFO").upper()
+SCRAPING_LOG_LEVEL = os.environ.get("SCRAPING_LOG_LEVEL", "INFO").upper()
+
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    # Probe file writeability early to avoid startup crashes in container mounts.
+    with open(SCRAPING_LOG_FILE, "a", encoding="utf-8"):
+        pass
+except OSError:
+    SCRAPING_FILE_LOGGING_ENABLED = False
+
+LOGGING_HANDLERS = {
+    "console": {
+        "class": "logging.StreamHandler",
+        "formatter": "verbose",
+    },
+}
+
+if SCRAPING_FILE_LOGGING_ENABLED:
+    LOGGING_HANDLERS["scraping_file"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(SCRAPING_LOG_FILE),
+        "maxBytes": 50 * 1024 * 1024,
+        "backupCount": 5,
+        "formatter": "scraping_json",
+    }
+
+SCRAPING_LOGGER_HANDLERS = ["console"]
+if SCRAPING_FILE_LOGGING_ENABLED:
+    SCRAPING_LOGGER_HANDLERS.insert(0, "scraping_file")
 
 LOGGING = {
     "version": 1,
@@ -396,47 +523,35 @@ LOGGING = {
             "style": "{",
         },
     },
-    "handlers": {
-        "scraping_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOG_DIR / "scraping.log"),
-            "maxBytes": 50 * 1024 * 1024,
-            "backupCount": 5,
-            "formatter": "scraping_json",
-        },
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
+    "handlers": LOGGING_HANDLERS,
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": ROOT_LOG_LEVEL,
     },
     "loggers": {
         "chatbot": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": APP_LOG_LEVEL,
             "propagate": True,
         },
         "resources": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": APP_LOG_LEVEL,
             "propagate": True,
         },
         "projects": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": APP_LOG_LEVEL,
             "propagate": True,
         },
         "forum": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": APP_LOG_LEVEL,
             "propagate": True,
         },
         "scraping": {
-            "handlers": ["scraping_file", "console"],
-            "level": "INFO",
+            "handlers": SCRAPING_LOGGER_HANDLERS,
+            "level": SCRAPING_LOG_LEVEL,
             "propagate": False,
         },
     },
@@ -454,6 +569,17 @@ PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
 # ============================================
 # CELERY CONFIGURATION
 # ============================================
+# -- Scraping Mode ----------------------------------------
+# True = scraping only runs when admin manually clicks Run
+# False = adaptive scheduler can create periodic tasks
+SCRAPING_MANUAL_ONLY = _env_bool("SCRAPING_MANUAL_ONLY", default=True)
+
+# Disable Celery Beat for scraping entirely
+# (django_celery_beat container should also be stopped)
+SCRAPING_BEAT_ENABLED = _env_bool("SCRAPING_BEAT_ENABLED", default=False)
+
+SCRAPING_AUTO_VALIDATE_ON_SAVE = False
+
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://:redis123@redis:6379/3")
 CELERY_RESULT_BACKEND = os.getenv(
     "CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4"
@@ -478,6 +604,6 @@ CELERY_BEAT_SCHEDULE = (
             "schedule": crontab(hour=3, minute=0),
         }
     }
-    if CELERY_AVAILABLE
+    if CELERY_AVAILABLE and SCRAPING_BEAT_ENABLED and not SCRAPING_MANUAL_ONLY
     else {}
 )
