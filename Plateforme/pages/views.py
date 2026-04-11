@@ -3,6 +3,8 @@ from django.db import transaction
 from django.urls import reverse
 from django.core.mail import send_mail
 from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
@@ -121,8 +123,9 @@ class HomePageView(TemplateView):
         return context
 
 
-class OpportunitiesPageView(TemplateView):
+class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
     template_name = "opportunities.html"
+    login_url = "account_login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -721,6 +724,7 @@ def admin_publications_detail_api(request, publication_id):
     return render(request, "admin/news_form.html", context, status=400)
 
 
+@login_required(login_url='account_login')
 def publications_list(request):
     search = request.GET.get("q", "").strip()
     content_type = request.GET.get("type", "").strip()
@@ -765,6 +769,7 @@ def publications_list(request):
         "language_choices": _tag_options_for_queryset(base_queryset, "languages"),
         "year_choices": list(base_queryset.order_by("-year").values_list("year", flat=True).distinct()),
         "type_meta": NEWS_TYPE_META,
+        "publications_count": base_queryset.count(),
     }
     return render(request, "news/publication_list.html", context)
 
