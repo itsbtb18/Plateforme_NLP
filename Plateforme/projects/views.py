@@ -399,6 +399,16 @@ class ProjectListView(LoginAndVerifiedRequiredMixin, ListView):
             invited_user=self.request.user,
             status=ProjectInvitation.Status.PENDING,
         ).count()
+        
+        # Count projects by status
+        queryset = self.get_queryset()
+        context["total_count"] = queryset.count()
+        context["status_counts"] = {
+            "ongoing": queryset.filter(status="ongoing").count(),
+            "completed": queryset.filter(status="completed").count(),
+            "planned": queryset.filter(status="planned").count(),
+        }
+        
         return context
 
 
@@ -531,10 +541,12 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
     template_name = "project_update.html"
     success_url = reverse_lazy("projects:project_list")
 
-    def get_form_kwargs(self) -> dict[str, Any]:
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
+    def get_template_names(self):
+        review_mode = self.request.GET.get("review") == "1"
+        edit_only = self.request.GET.get("edit_only") == "1"
+        if review_mode or edit_only:
+            return [self.template_name]
+        return ["project_new.html"]
 
     def get_object(self, queryset: QuerySet[Project] | None = None) -> Project:
         project: Project = super().get_object(queryset)  # type: ignore[assignment]
@@ -555,6 +567,11 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
 
     def form_valid(self, form: "BaseModelForm") -> HttpResponse:  # type: ignore[override]
         project = form.instance
+        auto_publish_from_admin = (
+            self.request.user.is_staff
+            and self.request.GET.get("edit_only") == "1"
+            and getattr(project, "approval_status", None) == "pending"
+        )
 
         try:
             response = super().form_valid(form)
@@ -590,6 +607,53 @@ class ProjectUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Upda
                     logger.warning(
                         "ES indexing error during bilingual update (saved OK): %s", e
                     )
+
+        if auto_publish_from_admin:
+            project.refresh_from_db()
+            missing = []
+            if not (project.title_ar or "").strip():
+                missing.append(str(_("Title (Arabic)")))
+            if not (project.title_en or "").strip():
+                missing.append(str(_("Title (English)")))
+            if not (project.description_ar or "").strip():
+                missing.append(str(_("Description (Arabic)")))
+            if not (project.description_en or "").strip():
+                missing.append(str(_("Description (English)")))
+
+            if missing:
+                messages.error(
+                    self.request,
+                    _("Cannot publish directly: Missing translations for %(fields)s.")
+                    % {"fields": ", ".join(missing)},
+                )
+                return redirect(self.request.get_full_path())
+
+            try:
+                approve_object(project, moderator=self.request.user, save=True)
+            except Exception as e:
+                logger.warning(
+                    "ES indexing error during direct admin project publish (saved OK): %s",
+                    e,
+                )
+
+            coordinator = project.coordinator
+            if coordinator:
+                NotificationService.create_notification(
+                    recipient=coordinator,
+                    notification_type="POST_APPROVED",
+                    title=_("Your project has been approved"),
+                    message=_(
+                        "Your project '%(title)s' has been approved and is now visible to the public."
+                    ),
+                    message_kwargs={"title": project.title},
+                )
+
+            messages.success(
+                self.request,
+                _("'%(title)s' has been saved and published directly.")
+                % {"title": project.title},
+            )
+            return redirect(f"{reverse('pages:admin_projects')}?tab=pending")
 
         # Handle "Approve & Publish" button
         if self.request.POST.get("approve_and_publish") and self.request.user.is_staff:
