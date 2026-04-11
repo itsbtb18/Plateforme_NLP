@@ -4,16 +4,176 @@
 {% endblock %}
 {% block extra_styles %}
 <style>
+.feed-edit-page{
+  min-height:100vh;
+  background:radial-gradient(circle at top left, rgba(139,92,246,.14), transparent 24%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%);
+  padding:2rem 0 4rem;
+}
+.feed-edit-shell{max-width:1100px;margin:0 auto;padding:0 1.5rem}
+.feed-edit-header{
+  background:linear-gradient(145deg,#120f2a 0%,#21143f 52%,#32185d 100%);
+  border:1px solid rgba(167,139,250,.18);
+  border-radius:24px;
+  box-shadow:0 20px 60px rgba(4,8,20,.28);
+  padding:1.4rem 1.5rem;
+  margin-bottom:1rem;
+}
+.feed-edit-header h1{
+  margin:0 0 .35rem;
+  font-size:clamp(1.6rem,2.8vw,2.25rem);
+  font-weight:800;
+  color:#f8fafc;
+}
+.feed-edit-header p{
+  margin:0;
+  color:#cbd5e1;
+  line-height:1.6;
+}
+.feed-edit-card{
+  background:linear-gradient(180deg,rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+  border:1px solid rgba(167,139,250,.18);
+  border-radius:24px;
+  box-shadow:0 20px 60px rgba(4,8,20,.28);
+  overflow:hidden;
+}
+.feed-edit-card .card-header{
+  background:linear-gradient(180deg,rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%);
+  border-bottom:1px solid rgba(167,139,250,.18);
+  padding:1rem 1.2rem;
+}
+.feed-edit-card .card-header h3{
+  margin:0;
+  color:#f8fafc;
+  font-size:1.1rem;
+  font-weight:800;
+}
+.feed-edit-card .card-body{
+  padding:1.25rem;
+  color:#e5e7eb;
+}
+.feed-edit-card .form-label,
+.feed-edit-card label{
+  color:#f8fafc;
+  font-weight:700;
+}
+.feed-edit-card .form-control,
+.feed-edit-card input[type="text"],
+.feed-edit-card input[type="url"],
+.feed-edit-card input[type="file"],
+.feed-edit-card textarea,
+.feed-edit-card select{
+  background:rgba(255,255,255,.05);
+  color:#f8fafc;
+  border:1px solid rgba(167,139,250,.24);
+  border-radius:16px;
+  min-height:3rem;
+  padding:.88rem 1rem;
+}
+.feed-edit-card textarea{min-height:10rem}
+.feed-edit-card .form-control:focus,
+.feed-edit-card input:focus,
+.feed-edit-card textarea:focus,
+.feed-edit-card select:focus{
+  outline:none;
+  border-color:rgba(139,92,246,.75);
+  box-shadow:0 0 0 4px rgba(139,92,246,.12);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+}
+.feed-edit-card .form-text,
+.feed-edit-card .small,
+.feed-edit-card .text-muted{
+  color:#cbd5e1 !important;
+}
+.feed-edit-card .alert{
+  border-radius:18px;
+  border-width:1px;
+}
+.feed-edit-card .alert-info{
+  background:rgba(96,165,250,.14);
+  border-color:rgba(96,165,250,.24);
+  color:#dbeafe;
+}
+.feed-edit-card .alert-success{
+  background:rgba(16,185,129,.12);
+  border-color:rgba(16,185,129,.24);
+  color:#d1fae5;
+}
+.feed-edit-card .alert-danger{
+  background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.24);
+  color:#fee2e2;
+}
+.feed-edit-card .btn{
+  border-radius:16px;
+  font-weight:800;
+  min-height:3rem;
+  padding:.85rem 1.1rem;
+}
+.feed-edit-card .btn-primary,
+.feed-edit-card .n-edit-save-btn,
+.feed-edit-card .n-edit-approve-btn{
+  background:linear-gradient(135deg,#a78bfa 0%, #8b5cf6 100%);
+  border-color:#8b5cf6;
+  color:#fff;
+}
+.feed-edit-card .btn-secondary,
+.feed-edit-card .btn-outline-secondary,
+.feed-edit-card .btn-outline-primary{
+  background:rgba(255,255,255,.05);
+  border-color:rgba(167,139,250,.24);
+  color:#f8fafc;
+}
+.feed-edit-card .n-edit-reject-btn{
+  background:linear-gradient(135deg,#ef4444 0%, #dc2626 100%);
+  border-color:#dc2626;
+  color:#fff;
+}
+.feed-edit-card .img-thumbnail{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(167,139,250,.18);
+  border-radius:16px;
+}
+.news-preview-card,
+.scraped-section{
+  background:rgba(255,255,255,.04) !important;
+  border:1px solid rgba(167,139,250,.18) !important;
+  border-radius:20px !important;
+}
 .qa-admin-actions {
   direction: ltr;
 }
 </style>
 {% endblock %}
  {% block content %}
-<div class="container mt-4">
-  <div class="row">
-    <div class="col-md-10 mx-auto">
-      <div class="card">
+<div class="feed-edit-page">
+  <div class="feed-edit-shell">
+    <div class="feed-edit-header">
+      <h1>{% trans "Edit Post" %}</h1>
+      <p>{% trans "Update the publication content and keep the pending review workflow aligned with the platform design." %}</p>
+    </div>
+      <div class="site-status-panel">
+        <div class="site-status-panel-meta">
+          <span class="site-approval-badge site-approval-pending">
+            <i class="fas fa-newspaper"></i>
+            {% trans "Feed Post" %}
+          </span>
+          <span class="site-approval-badge {% if post.approval_status == 'approved' %}site-approval-approved{% elif post.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+            <i class="fas {% if post.approval_status == 'approved' %}fa-check-circle{% elif post.approval_status == 'pending' %}fa-hourglass-half{% else %}fa-times-circle{% endif %}"></i>
+            {{ post.get_approval_status_display }}
+          </span>
+        </div>
+        <p class="site-status-panel-note">
+          {% if post.approval_status == 'approved' %}
+          {% trans "This post is approved and already aligned with the platform workflow." %}
+          {% elif post.approval_status == 'pending' %}
+          {% trans "This post is still pending moderation review before publication." %}
+          {% else %}
+          {% trans "This post is not currently approved for public display." %}
+          {% endif %}
+        </p>
+      </div>
+      <div class="card feed-edit-card">
         {% if review_mode and is_pending %}
         <!-- Admin Review Mode Banner -->
         <div class="alert alert-info mb-0 rounded-0 rounded-top">
@@ -277,7 +437,6 @@
           </form>
         </div>
       </div>
-    </div>
   </div>
 </div>
 {% if read_only_review %}
@@ -480,9 +639,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     border-left: none;
     border-right: 3px solid #3b82f6;
   }
-  /* Admin edit buttons: Save (blue), Reject (red), Approve (green) */
-  .n-edit-save-btn { background: #2563eb !important; color: #fff !important; border: none; font-weight: 600; }
-  .n-edit-save-btn:hover { background: #1d4ed8 !important; color: #fff !important; }
+  /* Admin edit buttons: Save (purple), Reject (red), Approve (green) */
+  .n-edit-save-btn { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important; color: #fff !important; border: none; font-weight: 600; }
+  .n-edit-save-btn:hover { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; color: #fff !important; }
   .n-edit-reject-btn { background: #ef4444 !important; color: #fff !important; border: none; font-weight: 600; }
   .n-edit-reject-btn:hover { background: #dc2626 !important; color: #fff !important; }
   .n-edit-approve-btn { background: #10b981 !important; color: #fff !important; border: none; font-weight: 600; }

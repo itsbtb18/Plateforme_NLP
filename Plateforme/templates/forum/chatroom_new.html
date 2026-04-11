@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load i18n static %}
 
-{% block title %}{% translate "Create Chat Room" %}{% endblock %}
+{% block title %}{% if chatroom %}{% translate "Edit Chat Room" %}{% else %}{% translate "Create Chat Room" %}{% endif %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -253,12 +253,12 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
     <div class="cn-container">
         
         <header class="cn-header">
-            <a href="{% url 'forum:chatroom-list' topic.pk %}" class="cn-back">
+            <a href="{% if chatroom %}{% url 'forum:chatroom-detail' chatroom.pk %}{% else %}{% url 'forum:chatroom-list' topic.pk %}{% endif %}" class="cn-back">
                 <i class="bi bi-arrow-left"></i>
-                {% translate "Back to Chat Rooms" %}
+                {% if chatroom %}{% translate "Back to Chat Room" %}{% else %}{% translate "Back to Chat Rooms" %}{% endif %}
             </a>
-            <h1 class="cn-title">{% translate "Create Chat Room" %}</h1>
-            <p class="cn-subtitle">{% translate "Start a new conversation space for your community" %}</p>
+            <h1 class="cn-title">{% if chatroom %}{% translate "Edit Chat Room" %}{% else %}{% translate "Create Chat Room" %}{% endif %}</h1>
+            <p class="cn-subtitle">{% if chatroom %}{% translate "Adjust the room name and description for your community" %}{% else %}{% translate "Start a new conversation space for your community" %}{% endif %}</p>
         </header>
         
         <div class="cn-card">
@@ -269,7 +269,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                 </div>
                 <div class="cn-topic-details">
                     <h3>{{ topic.get_localized_title }}</h3>
-                    <span>{% translate "Creating room under this topic" %}</span>
+                    <span>{% if chatroom %}{% translate "Editing room under this topic" %}{% else %}{% translate "Creating room under this topic" %}{% endif %}</span>
                 </div>
             </div>
             
@@ -328,12 +328,12 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
                 </div>
                 
                 <div class="cn-actions">
-                    <a href="{% url 'forum:chatroom-list' topic.pk %}" class="cn-btn cn-btn-secondary">
+                    <a href="{% if chatroom %}{% url 'forum:chatroom-detail' chatroom.pk %}{% else %}{% url 'forum:chatroom-list' topic.pk %}{% endif %}" class="cn-btn cn-btn-secondary">
                         {% translate "Cancel" %}
                     </a>
                     <button type="submit" class="cn-btn cn-btn-primary">
-                        <i class="bi bi-plus-lg"></i>
-                        {% translate "Create Room" %}
+                        <i class="bi {% if chatroom %}bi-check-lg{% else %}bi-plus-lg{% endif %}"></i>
+                        {% if chatroom %}{% translate "Save Changes" %}{% else %}{% translate "Create Room" %}{% endif %}
                     </button>
                 </div>
             </form>

@@ -941,6 +941,12 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         edit_only = (
             self.request.GET.get("edit_only") == "1" and self.request.user.is_staff
         )
+        auto_publish_from_admin = (
+            self.request.user.is_staff
+            and edit_only
+            and getattr(resource, "approval_status", None) == "pending"
+            and resource_type in ["tool", "nlp_tool"]
+        )
 
         # In review view mode, form must be read-only. Only approve/reject actions are allowed.
         if review_mode and not edit_only:
@@ -958,6 +964,55 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         except Exception as e:
             logger.warning("Error during resource save (may be ES indexing): %s", e)
             resource.refresh_from_db()
+
+        if auto_publish_from_admin:
+            missing = []
+            if not resource.title_ar:
+                missing.append(_("Title (Arabic)"))
+            if not resource.title_en:
+                missing.append(_("Title (English)"))
+            if not resource.description_ar:
+                missing.append(_("Description (Arabic)"))
+            if not resource.description_en:
+                missing.append(_("Description (English)"))
+
+            if missing:
+                messages.error(
+                    self.request,
+                    _("Cannot publish directly: Missing %(fields)s")
+                    % {"fields": ", ".join(str(f) for f in missing)},
+                )
+                return redirect(self.request.get_full_path())
+
+            resource.approval_status = "approved"
+            try:
+                resource.save(update_fields=["approval_status"])
+            except Exception as e:
+                logger.warning(
+                    "ES indexing error during direct admin tool publish (saved OK): %s",
+                    e,
+                )
+
+            from notifications.services import NotificationService
+
+            author = resource.author
+            if author:
+                NotificationService.create_notification(
+                    recipient=author,
+                    notification_type="POST_APPROVED",
+                    title=_("Your submission has been approved"),
+                    message=_(
+                        "Your submission '%(title)s' has been approved and is now visible to the public."
+                    ),
+                    message_kwargs={"title": resource.title},
+                )
+
+            messages.success(
+                self.request,
+                _("'%(title)s' has been saved and published directly!")
+                % {"title": resource.title},
+            )
+            return redirect(self.get_admin_redirect_url(resource_type))
 
         # Handle "Approve & Publish" button
         if self.request.POST.get("approve_and_publish") and self.request.user.is_staff:
@@ -1067,7 +1122,23 @@ class ResourceUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         resource = self.get_object()
         context["is_pending"] = getattr(resource, "approval_status", None) == "pending"
         context["resource"] = resource
+        context["object"] = resource
         return context
+
+    def get_template_names(self):
+        review_mode = self.request.GET.get("review") == "1"
+        edit_only = self.request.GET.get("edit_only") == "1"
+        if review_mode or edit_only:
+            return [self.template_name]
+
+        resource_type = self.kwargs.get("type")
+        create_templates = {
+            "tool": "resources/tool_create_form.html",
+            "nlp_tool": "resources/tool_create_form.html",
+            "course": "resources/course_create_form.html",
+            "corpus": "resources/corpus_create_form.html",
+        }
+        return [create_templates.get(resource_type, self.template_name)]
 
 
 class ResourceDeleteView(

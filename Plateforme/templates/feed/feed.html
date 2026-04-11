@@ -40,7 +40,7 @@
 .feed-card-avatar{width:60px;min-width:60px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.6rem .4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2);overflow:hidden;color:#0f1419;font-weight:700;font-size:1.4rem;line-height:1}
 .feed-card-header-info{flex:1;min-width:0}
 .feed-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
-.feed-card-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;background:rgba(52,211,153,.15);color:#34d399}
+.feed-card-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
 .feed-card-title{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .feed-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
 .feed-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
@@ -128,7 +128,10 @@
           </div>
           <div class="feed-card-header-info">
             <div class="feed-card-badges">
-              <span class="feed-card-badge">{{ post.get_approval_status_display }}</span>
+              <span class="feed-card-badge site-approval-badge {% if post.approval_status == 'approved' %}site-approval-approved{% elif post.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+                <i class="bi {% if post.approval_status == 'approved' %}bi-check-circle-fill{% elif post.approval_status == 'pending' %}bi-hourglass-split{% else %}bi-x-circle-fill{% endif %}"></i>
+                {{ post.get_approval_status_display }}
+              </span>
             </div>
             <h2 class="feed-card-title">{{ post.title|default:post.content|truncatechars:100 }}</h2>
           </div>

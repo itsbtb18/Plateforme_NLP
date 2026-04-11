@@ -3,7 +3,7 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% translate "Create Post" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% if post %}{% translate "Edit Post" %}{% else %}{% translate "Create Post" %}{% endif %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -597,7 +597,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         <nav class="breadcrumb">
             <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a>
             <span class="sep"><i class="bi bi-chevron-right"></i></span>
-            <span class="current">{% trans "Create Post" %}</span>
+            <span class="current">{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</span>
         </nav>
 
         <!-- Icon -->
@@ -606,8 +606,8 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         </div>
 
         <!-- Title -->
-        <h1>{% trans "Create Post" %}</h1>
-        <p>{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}</p>
+        <h1>{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</h1>
+        <p>{% if post %}{% trans "Update your research note, file, or community update" %}{% else %}{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}{% endif %}</p>
 
         <!-- Steps bar (decorative) -->
         <div class="steps-bar">
@@ -629,7 +629,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
     <div class="form-container">
         <!-- Form card -->
         <div class="card">
-            <form method="POST" action="{% url 'feed:create_post' %}" enctype="multipart/form-data" id="createPostForm">
+            <form method="POST" action="{% if post %}{% url 'feed:edit_post' post.id %}{% else %}{% url 'feed:create_post' %}{% endif %}" enctype="multipart/form-data" id="createPostForm">
                 {% csrf_token %}
 
                 <!-- Content field -->
@@ -650,6 +650,40 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
                     <!-- Upload section -->
                     <div class="form-group" style="margin-top: 2rem;">
                         <label style="margin-bottom: 1rem;">{% trans "Attachments" %}</label>
+                        {% if post and post.image or post and post.file %}
+                        <div class="card" style="margin-bottom:1rem;">
+                            <div class="card-body" style="padding:1rem 1.25rem;">
+                                <div style="font-weight:600;margin-bottom:.75rem;">{% trans "Current Attachments" %}</div>
+                                {% if post.image %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:{% if post.file %}.85rem{% else %}0{% endif %};">
+                                    <div style="display:flex;align-items:center;gap:.9rem;">
+                                        <img src="{{ post.image.url }}" alt="{% trans 'Current image' %}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid rgba(167,139,250,.18);">
+                                        <div>
+                                            <div style="font-weight:600;">{% trans "Current image" %}</div>
+                                            <div style="color:var(--text-muted);font-size:.85rem;">{{ post.image.name|slice:"-40:" }}</div>
+                                        </div>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_image }}
+                                        <span>{% trans "Remove image" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                                {% if post.file %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                                    <div>
+                                        <div style="font-weight:600;">{% trans "Current file" %}</div>
+                                        <a href="{{ post.file.url }}" download style="color:var(--primary-color);text-decoration:none;font-size:.9rem;">{{ post.file.name|slice:"-60:" }}</a>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_file }}
+                                        <span>{% trans "Remove file" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <div class="upload-zone" id="uploadZone">
                             <div class="upload-zone-icon">
@@ -684,10 +718,10 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
                         <span class="spinner"></span>
                         <span class="btn-label">
                             <i class="bi bi-send-fill"></i>
-                            {% trans "Publish Post" %}
+                            {% if post %}{% trans "Save Changes" %}{% else %}{% trans "Publish Post" %}{% endif %}
                         </span>
                     </button>
-                    <a href="{% url 'feed:feed' %}" class="btn btn-cancel">
+                    <a href="{% if post %}{% url 'feed:post_detail' post.slug %}{% else %}{% url 'feed:feed' %}{% endif %}" class="btn btn-cancel">
                         <i class="bi bi-x"></i>
                         {% trans "Cancel" %}
                     </a>

@@ -473,7 +473,22 @@
   function appendOpportunity(item){if(!item)return;opportunities.unshift(item);renderCards()}
   function populatePostingControls(){fillSelect(typeSelect,typeKeys,dict.type);fillSelect(modeSelect,modeKeys,dict.mode);fillSelect(levelSelect,levelKeys,dict.level);populateInstitutions();typeSelect.value="job";modeSelect.value="remote";levelSelect.value="student"}
   form.querySelectorAll("input, textarea, select").forEach(field=>{field.addEventListener("blur",()=>{validateField(field.name);updateSummary()});field.addEventListener("input",()=>{if(field.name)validateField(field.name);updateSummary()})});
-  byId("opSearch").addEventListener("input",e=>{state.search=e.target.value||"";renderCards()});byId("opSort").addEventListener("change",e=>{state.sort=e.target.value;renderCards()});topTypeFilter.addEventListener("change",e=>{state.type=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});topModeFilter.addEventListener("change",e=>{state.mode=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});topLevelFilter.addEventListener("change",e=>{state.level=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});institutionSelect.addEventListener("change",syncInstitutionSelection);byId("opOpenPost").addEventListener("click",openPost);byId("opPostBtn").addEventListener("click",openPost);byId("opClosePost").addEventListener("click",closePost);byId("opCancelPost").addEventListener("click",closePost);byId("opCloseDetail").addEventListener("click",closeDetail);dBack.addEventListener("click",e=>{if(e.target===dBack)closeDetail()});pBack.addEventListener("click",e=>{if(e.target===pBack)closePost()});byId("opAddCustomSkill").addEventListener("click",addCustomSkill);customSkillInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustomSkill()}});
+  const bind=(id,eventName,handler)=>{const el=byId(id);if(el)el.addEventListener(eventName,handler)};
+  bind("opSearch","input",e=>{state.search=e.target.value||"";renderCards()});
+  bind("opSort","change",e=>{state.sort=e.target.value;renderCards()});
+  topTypeFilter.addEventListener("change",e=>{state.type=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  topModeFilter.addEventListener("change",e=>{state.mode=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  topLevelFilter.addEventListener("change",e=>{state.level=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  institutionSelect.addEventListener("change",syncInstitutionSelection);
+  bind("opOpenPost","click",openPost);
+  bind("opPostBtn","click",openPost);
+  bind("opClosePost","click",closePost);
+  bind("opCancelPost","click",closePost);
+  bind("opCloseDetail","click",closeDetail);
+  dBack.addEventListener("click",e=>{if(e.target===dBack)closeDetail()});
+  pBack.addEventListener("click",e=>{if(e.target===pBack)closePost()});
+  bind("opAddCustomSkill","click",addCustomSkill);
+  customSkillInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustomSkill()}});
   form.addEventListener("submit",async e=>{e.preventDefault();const errors=[];["title_en","title_ar","institution","location","deadline","description","contact","organization_en","organization_ar"].forEach(name=>{const result=validateField(name);if(result)errors.push(result)});const skillError=validateSkills();if(skillError)errors.push(skillError);updateErrorSummary([...new Set(errors)]);if(errors.length)return;const formData=new FormData(form);formData.set("institution_ref",form.institution.value);formData.set("skills_payload",JSON.stringify(selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills)));try{const response=await fetch("{% url 'pages:create_opportunity' %}",{method:"POST",body:formData,headers:{"X-Requested-With":"XMLHttpRequest"}});const data=await response.json().catch(()=>({ok:false}));if(!response.ok||!data.ok){const serverErrors=[];Object.values(data.errors||{}).forEach(items=>(items||[]).forEach(msg=>serverErrors.push(String(msg))));updateErrorSummary(serverErrors.length?serverErrors:[data.error||"Submission failed."]);return}closePost();form.reset();formState.customSkills=[];renderCustomSkills();renderSkillChoices();populatePostingControls();syncInstitutionSelection();updateSummary();updateErrorSummary([]);appendOpportunity(data.opportunity);showToast(data.message||t("submitted"))}catch(error){updateErrorSummary(["Submission failed."])}})
   setTexts();populatePostingControls();renderFilters();renderCards();renderSkillChoices();syncInstitutionSelection();updateSummary();
 })();

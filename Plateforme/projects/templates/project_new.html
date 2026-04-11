@@ -2,7 +2,7 @@
 {% load i18n static %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% translate "Create Project" %} | {% translate "Research Projects" %}{% endblock %}
+{% block title %}{% if project %}{% translate "Edit Project" %}{% else %}{% translate "Create Project" %}{% endif %} | {% translate "Research Projects" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -398,7 +398,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         <nav class="breadcrumb">
             <a href="{% url 'projects:project_list' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}{% trans "Projects" %}{% endif %}</a>
             <span class="sep"><i class="bi bi-chevron-right"></i></span>
-            <span class="current">{% trans "Create New" %}</span>
+            <span class="current">{% if project %}{% trans "Edit Project" %}{% else %}{% trans "Create New" %}{% endif %}</span>
         </nav>
 
         <!-- Icon -->
@@ -407,8 +407,8 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         </div>
 
         <!-- Title -->
-        <h1>{% trans "Create Research Project" %}</h1>
-        <p>{% trans "Start a new research project and invite collaborators to join" %}</p>
+        <h1>{% if project %}{% trans "Edit Research Project" %}{% else %}{% trans "Create Research Project" %}{% endif %}</h1>
+        <p>{% if project %}{% trans "Update your project details before sharing the next revision" %}{% else %}{% trans "Start a new research project and invite collaborators to join" %}{% endif %}</p>
     </div>
 
     <div class="form-container">
@@ -521,9 +521,9 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
                 <div class="form-footer">
                     <button type="submit" class="btn btn-submit" id="submitBtn">
                         <i class="bi bi-send-fill"></i>
-                        {% trans "Create Project" %}
+                        {% if project %}{% trans "Save Changes" %}{% else %}{% trans "Create Project" %}{% endif %}
                     </button>
-                    <a href="{% url 'projects:project_list' %}" class="btn btn-cancel">
+                    <a href="{% if project %}{% url 'projects:project_detail' project.pk %}{% else %}{% url 'projects:project_list' %}{% endif %}" class="btn btn-cancel">
                         <i class="bi bi-x"></i>
                         {% trans "Cancel" %}
                     </a>

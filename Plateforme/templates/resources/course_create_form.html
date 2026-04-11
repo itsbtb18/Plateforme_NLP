@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static i18n %}
 
-{% block title %}{% trans "Create Course" %} - {% trans "Academic Platform" %}{% endblock %}
+{% block title %}{% if object %}{% trans "Edit Course" %}{% else %}{% trans "Create Course" %}{% endif %} - {% trans "Academic Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -867,6 +867,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
     
     if (form && submitBtn) {
+        {% if object %}
+        submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> {% trans "Update Course" %}';
+        {% endif %}
         form.addEventListener('submit', function() {
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;

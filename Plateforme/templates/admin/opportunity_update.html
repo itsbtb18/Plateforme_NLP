@@ -1,83 +1,125 @@
 {% extends "base_admin.html" %}
 {% load i18n %}
 
-{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل الفرصة{% else %}{% trans "Edit Opportunity" %}{% endif %}{% endblock %}
+{% block title %}{% trans "Edit Opportunity" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+.opp-edit-shell{max-width:1100px;margin:1rem auto 2rem;padding:0 1rem}
+.opp-edit-hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#312e81 100%);border-radius:28px;padding:2rem;color:#fff;box-shadow:0 18px 50px rgba(15,23,42,.22);position:relative;overflow:hidden}
+.opp-edit-hero::after{content:"";position:absolute;inset:auto -10% -40% auto;width:320px;height:320px;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 62%);pointer-events:none}
+.opp-edit-kicker{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .8rem;border-radius:999px;background:rgba(255,255,255,.12);font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.opp-edit-hero h1{margin:.9rem 0 .45rem;font-size:clamp(1.8rem,3vw,2.4rem);font-weight:800}
+.opp-edit-hero p{margin:0;max-width:760px;color:rgba(255,255,255,.82);font-size:1rem}
+.opp-edit-card{margin-top:-1.5rem;background:#fff;border:1px solid rgba(148,163,184,.22);border-radius:28px;box-shadow:0 22px 60px rgba(15,23,42,.12);overflow:hidden;position:relative}
+.opp-edit-banner{display:flex;align-items:flex-start;gap:.85rem;padding:1rem 1.25rem;border-bottom:1px solid rgba(226,232,240,.9);background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(99,102,241,.06))}
+.opp-edit-banner.pending{background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(249,115,22,.08))}
+.opp-edit-banner i{font-size:1.25rem;color:#4f46e5;margin-top:.1rem}
+.opp-edit-banner.pending i{color:#d97706}
+.opp-edit-body{padding:1.5rem}
+.opp-edit-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem}
+.opp-edit-col-12{grid-column:span 12}
+.opp-edit-col-6{grid-column:span 6}
+.opp-edit-col-4{grid-column:span 4}
+.opp-edit-field label{display:block;margin-bottom:.45rem;font-size:.88rem;font-weight:700;color:#0f172a}
+.opp-edit-field input,.opp-edit-field select,.opp-edit-field textarea{width:100%;border:1.5px solid #dbe2f0;border-radius:16px;padding:.9rem 1rem;background:#f8fafc;color:#0f172a;transition:border-color .2s,box-shadow .2s,background .2s}
+.opp-edit-field textarea{min-height:170px;resize:vertical}
+.opp-edit-field input:focus,.opp-edit-field select:focus,.opp-edit-field textarea:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.12);background:#fff}
+.opp-edit-errors{margin-top:1rem;padding:.95rem 1rem;border-radius:18px;background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}
+.opp-edit-actions{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:1.5rem}
+.opp-edit-actions .btn{border-radius:14px;padding:.85rem 1.15rem;font-weight:700}
+@media (max-width:900px){.opp-edit-col-6,.opp-edit-col-4{grid-column:span 12}.opp-edit-card{margin-top:1rem}.opp-edit-hero{padding:1.5rem}}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding-top:.5rem;max-width:1100px;">
-  <div class="n-card">
-    <div class="n-card-head">
-      <h6 class="n-card-title">
-        <i class="fas fa-briefcase"></i>
-        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحرير الفرصة{% else %}{% trans "Opportunity Review" %}{% endif %}
-      </h6>
-    </div>
-    <div style="padding:1rem 1.25rem 1.25rem;">
-      <div style="margin-bottom:1rem;color:var(--n-text-2);">
-        <strong style="color:var(--n-text);">{{ opportunity.title }}</strong><br>
-        {% if read_only_review %}
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض فقط للمراجعة{% else %}{% trans "Read-only review mode" %}{% endif %}
-        {% elif review_mode or edit_only %}
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع وعدّل ثم اقبل أو ارفض{% else %}{% trans "Review, edit, then accept or reject" %}{% endif %}
-        {% else %}
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل بيانات الفرصة{% else %}{% trans "Edit opportunity details" %}{% endif %}
-        {% endif %}
-      </div>
+<div class="opp-edit-shell">
+  <section class="opp-edit-hero">
+    <span class="opp-edit-kicker"><i class="fas fa-briefcase"></i> {% trans "Opportunity editor" %}</span>
+    <h1>{% if review_mode or edit_only or read_only_review %}{% trans "Review Opportunity" %}{% else %}{% trans "Edit Opportunity" %}{% endif %}</h1>
+    <p>
+      {% if read_only_review %}
+        {% trans "This entry is currently locked for read-only review. Switch to edit mode to make changes before moderating it." %}
+      {% elif review_mode or edit_only %}
+        {% trans "Use the same polished opportunity workflow while reviewing, refining, and approving pending submissions." %}
+      {% else %}
+        {% trans "Update the opportunity details using the same editorial structure as the publication flow." %}
+      {% endif %}
+    </p>
+  </section>
 
+  <div class="opp-edit-card">
+    <div class="opp-edit-banner{% if is_pending %} pending{% endif %}">
+      <i class="fas {% if is_pending %}fa-hourglass-half{% else %}fa-circle-check{% endif %}"></i>
+      <div>
+        <strong style="display:block;color:#0f172a;">{{ opportunity.title }}</strong>
+        <span style="color:#475569;font-size:.92rem;">
+          {% if read_only_review %}
+            {% trans "Read-only review mode" %}
+          {% elif review_mode or edit_only %}
+            {% trans "Review, edit, then accept or reject" %}
+          {% else %}
+            {% trans "Edit opportunity details" %}
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="opp-edit-body">
       <form method="post" id="opportunityAdminForm">
         {% csrf_token %}
         {{ form.institution_ref }}
         {{ form.skills_payload }}
 
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان بالإنجليزية{% else %}{% trans "Title (English)" %}{% endif %}</label>
+        <div class="opp-edit-grid">
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Title (English)" %}</label>
             {{ form.title_en }}
           </div>
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان بالعربية{% else %}{% trans "Title (Arabic)" %}{% endif %}</label>
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Title (Arabic)" %}</label>
             {{ form.title_ar }}
           </div>
-          <div class="col-md-4">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}النوع{% else %}{% trans "Type" %}{% endif %}</label>
+          <div class="opp-edit-col-4 opp-edit-field">
+            <label>{% trans "Type" %}</label>
             {{ form.opportunity_type }}
           </div>
-          <div class="col-md-4">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نمط العمل{% else %}{% trans "Mode" %}{% endif %}</label>
+          <div class="opp-edit-col-4 opp-edit-field">
+            <label>{% trans "Mode" %}</label>
             {{ form.mode }}
           </div>
-          <div class="col-md-4">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى{% else %}{% trans "Level" %}{% endif %}</label>
+          <div class="opp-edit-col-4 opp-edit-field">
+            <label>{% trans "Level" %}</label>
             {{ form.level }}
           </div>
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة بالإنجليزية{% else %}{% trans "Organization name (English)" %}{% endif %}</label>
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Organization name (English)" %}</label>
             {{ form.organization_en }}
           </div>
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المؤسسة بالعربية{% else %}{% trans "Organization name (Arabic)" %}{% endif %}</label>
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Organization name (Arabic)" %}</label>
             {{ form.organization_ar }}
           </div>
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموقع{% else %}{% trans "Location" %}{% endif %}</label>
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Location" %}</label>
             {{ form.location }}
           </div>
-          <div class="col-md-6">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}آخر أجل{% else %}{% trans "Deadline" %}{% endif %}</label>
+          <div class="opp-edit-col-6 opp-edit-field">
+            <label>{% trans "Deadline" %}</label>
             {{ form.deadline }}
           </div>
-          <div class="col-md-12">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف{% else %}{% trans "Description" %}{% endif %}</label>
+          <div class="opp-edit-col-12 opp-edit-field">
+            <label>{% trans "Description" %}</label>
             {{ form.description }}
           </div>
-          <div class="col-md-12">
-            <label class="form-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط أو بريد التواصل{% else %}{% trans "Contact link or email" %}{% endif %}</label>
+          <div class="opp-edit-col-12 opp-edit-field">
+            <label>{% trans "Contact link or email" %}</label>
             {{ form.contact }}
           </div>
         </div>
 
         {% if form.errors %}
-        <div class="alert alert-danger mt-3 mb-0">
+        <div class="opp-edit-errors">
           {% for field, errors in form.errors.items %}
             {% for error in errors %}
               <div>{{ error }}</div>
@@ -86,32 +128,32 @@
         </div>
         {% endif %}
 
-        <div class="d-flex justify-content-between flex-wrap gap-2 mt-4">
+        <div class="opp-edit-actions">
           <a href="{% url 'pages:admin_opportunities' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى الإدارة{% else %}{% trans "Back to Admin" %}{% endif %}
+            <i class="fas fa-arrow-left me-1"></i>{% trans "Back to Admin" %}
           </a>
           <div class="d-flex gap-2 flex-wrap">
             {% if read_only_review and request.GET.review_model and request.GET.review_pk %}
             <a href="?edit_only=1&review=1&review_model={{ request.GET.review_model }}&review_pk={{ request.GET.review_pk }}" class="btn btn-outline-primary">
-              <i class="fas fa-edit me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل{% else %}{% trans "Edit" %}{% endif %}
+              <i class="fas fa-edit me-1"></i>{% trans "Edit" %}
             </a>
             {% endif %}
             {% if not read_only_review %}
             <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حفظ التغييرات{% else %}{% trans "Save Changes" %}{% endif %}
+              <i class="fas fa-save me-1"></i>{% trans "Save Changes" %}
             </button>
             {% endif %}
             {% if (review_mode or edit_only) and is_pending %}
             <button type="submit"
                     class="btn btn-outline-danger"
                     formaction="{% url 'pages:admin_reject_item' model_type='opportunity' pk=opportunity.pk %}"
-                    onclick="return confirm('{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هل تريد رفض هذا الطلب؟{% else %}{% trans "Are you sure you want to reject this request?" %}{% endif %}');">
-              <i class="fas fa-times-circle me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}{% trans "Reject" %}{% endif %}
+                    onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+              <i class="fas fa-times-circle me-1"></i>{% trans "Reject" %}
             </button>
             <button type="submit"
                     class="btn btn-success"
                     formaction="{% url 'pages:admin_approve_item' model_type='opportunity' pk=opportunity.pk %}">
-              <i class="fas fa-check-circle me-1"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}{% trans "Accept" %}{% endif %}
+              <i class="fas fa-check-circle me-1"></i>{% trans "Accept" %}
             </button>
             {% endif %}
           </div>

@@ -19,7 +19,7 @@
     
     --ef-deep: #120f2a;
     --ef-navy: #32185d;
-    --ef-white: #18142b;
+    --ef-white: #ffffff;
     --ef-bg: #0a0b18;
     --ef-muted: rgba(255,255,255,0.05);
     --ef-subtle: rgba(255,255,255,0.1);
@@ -130,7 +130,7 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
 .ef-page-subtitle {
     font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.82);
     margin: 0;
 }
 
@@ -318,6 +318,65 @@ html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 .ef-textarea {
     min-height: 140px;
     resize: vertical;
+}
+
+/* Speaker formset fields may come without the shared classes, so style them explicitly */
+.ef-section[data-section="4"] .ef-form-group {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ef-section[data-section="4"] input:not([type="checkbox"]):not([type="file"]),
+.ef-section[data-section="4"] textarea,
+.ef-section[data-section="4"] select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ef-text);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(196, 181, 253, 0.24);
+    border-radius: var(--ef-radius-md);
+    transition: all 0.2s;
+}
+
+.ef-section[data-section="4"] input:not([type="checkbox"]):not([type="file"]):focus,
+.ef-section[data-section="4"] textarea:focus,
+.ef-section[data-section="4"] select:focus {
+    outline: none;
+    border-color: var(--ef-primary);
+    box-shadow: var(--ef-shadow-focus);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ef-section[data-section="4"] input::placeholder,
+.ef-section[data-section="4"] textarea::placeholder {
+    color: var(--ef-text-muted);
+}
+
+.ef-section[data-section="4"] input[type="file"] {
+    width: 100%;
+    color: var(--ef-text-secondary);
+    background: transparent;
+}
+
+.ef-section[data-section="4"] input[type="file"]::file-selector-button {
+    margin-right: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    border-radius: var(--ef-radius-md);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--ef-text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ef-section[data-section="4"] input[type="file"]::file-selector-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(167, 139, 250, 0.45);
+}
+
+.ef-section[data-section="4"] input[type="checkbox"] {
+    accent-color: var(--ef-primary);
 }
 
 .ef-select {
@@ -847,6 +906,32 @@ html[dir="rtl"] .ef-date-container input {
         <form method="post" enctype="multipart/form-data" class="ef-form-card">
             {% csrf_token %}
             {{ speaker_formset.management_form }}
+
+            {% if form.instance.pk %}
+            <div class="site-status-panel" style="margin:1.25rem 1.25rem 0;">
+                <div class="site-status-panel-meta">
+                    <span class="site-approval-badge site-approval-pending">
+                        <i class="bi bi-calendar-event-fill"></i>
+                        {% translate "Event" %}
+                    </span>
+                    <span class="site-approval-badge {% if form.instance.approval_status == 'approved' %}site-approval-approved{% elif form.instance.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+                        <i class="bi {% if form.instance.approval_status == 'approved' %}bi-check-circle-fill{% elif form.instance.approval_status == 'pending' %}bi-hourglass-split{% else %}bi-x-circle-fill{% endif %}"></i>
+                        {% if form.instance.approval_status == 'approved' %}{% translate "Approved" %}
+                        {% elif form.instance.approval_status == 'pending' %}{% translate "Pending Review" %}
+                        {% else %}{% translate "Rejected" %}{% endif %}
+                    </span>
+                </div>
+                <p class="site-status-panel-note">
+                    {% if form.instance.approval_status == 'approved' %}
+                    {% translate "This event is approved and shown with the platform design." %}
+                    {% elif form.instance.approval_status == 'pending' %}
+                    {% translate "This event is still pending moderation before publication." %}
+                    {% else %}
+                    {% translate "This event is not currently approved for public display." %}
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
             
             <!-- Progress Indicator -->
             <div class="ef-progress">
