@@ -336,10 +336,10 @@ class QueryClassifier:
 
         # LLM zero-shot classification
         try:
-            from app.services.llm import get_internal_llm_client
+            from app.services.llm import get_internal_groq_client
             from app.services.llm.prompts import CLASSIFICATION_PROMPT, VALID_INTENTS
 
-            client = get_internal_llm_client()
+            client = get_internal_groq_client()
             prompt = CLASSIFICATION_PROMPT.format(query=q)
 
             messages = [
@@ -416,9 +416,9 @@ class QueryClassifier:
         Called from chat_logic only when classification.confidence <= 0.60.
         """
         try:
-            from app.services.llm import get_llm_client
+            from app.services.llm import get_groq_client
 
-            client = get_llm_client()
+            client = get_groq_client()
             intents_str = ", ".join(top_intents)
             system = (
                 "You are an intent classifier. Given a user question and a set "

@@ -2,11 +2,242 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}SANAD{% endblock %}
-
 {% block extra_styles %}
 <link rel="stylesheet" href="{% static 'css/home.css' %}" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+
+  .home-news-section {
+    width: 100vw;
+    min-height: 100vh;
+    height: 100vh;
+    margin-inline: calc(50% - 50vw);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+  }
+  .home-news-section .section-content {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0;
+  }
+  .home-news-wrap {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: clamp(2rem, 4vw, 3.2rem) clamp(1.5rem, 4vw, 4rem);
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.78);
+    border: none;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .home-news-wrap::before,
+  .home-news-wrap::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  .home-news-wrap::before {
+    inset-inline-start: 3%;
+    top: 38%;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.2), transparent 70%);
+  }
+  .home-news-wrap::after {
+    inset-inline-end: 6%;
+    top: 20%;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.18), transparent 72%);
+  }
+  .home-news-inner {
+    position: relative;
+    z-index: 1;
+  }
+  .home-news-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.9rem;
+    margin-bottom: 2.5rem;
+    padding-top: 0.3rem;
+  }
+  .home-news-badge {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.24), rgba(167, 139, 250, 0.14));
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    color: #5b3aa8;
+    box-shadow: 0 12px 28px rgba(167, 139, 250, 0.24);
+  }
+  .home-news-badge i {
+    font-size: 1.65rem;
+  }
+  .home-news-title {
+    margin: 0;
+    color: #a78bfa;
+    max-width: 760px;
+    font-size: clamp(2.2rem, 4.8vw, 4rem);
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .home-news-subtitle {
+    margin: 0;
+    color: #000000;
+    font-size: clamp(1rem, 1.3vw, 1.08rem);
+    line-height: 1.9;
+    max-width: 760px;
+  }
+  .home-news-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.05fr) minmax(220px, 1fr);
+    gap: 1.4rem;
+    align-items: center;
+  }
+  .home-news-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .home-news-col.center {
+    align-items: center;
+  }
+  .home-news-card {
+    position: relative;
+    padding: 1.35rem 1.2rem;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(167, 139, 250, 0.34);
+    box-shadow:
+      0 12px 28px rgba(167, 139, 250, 0.16),
+      0 0 0 2px rgba(167, 139, 250, 0.05);
+    text-align: center;
+  }
+  .home-news-card.large {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 320px;
+    width: 100%;
+  }
+  .home-news-card-icon {
+    width: 3.7rem;
+    height: 3.7rem;
+    margin: 0 auto 0.95rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.24), rgba(167, 139, 250, 0.12));
+    border: 1px solid rgba(167, 139, 250, 0.26);
+    color: #6d48c7;
+    box-shadow: 0 10px 24px rgba(167, 139, 250, 0.18);
+  }
+  .home-news-card-icon i {
+    font-size: 1.2rem;
+  }
+  .home-news-card-title {
+    margin: 0 0 0.55rem;
+    color: #2d1f50;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+  .home-news-card-text {
+    margin: 0;
+    color: #56497d;
+    font-size: 0.95rem;
+    line-height: 1.8;
+  }
+  .home-news-decor {
+    position: absolute;
+    color: rgba(167, 139, 250, 0.35);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .home-news-decor.left {
+    inset-inline-start: 2%;
+    top: 48%;
+    font-size: 4rem;
+  }
+  .home-news-decor.right {
+    inset-inline-end: 7%;
+    top: 22%;
+    font-size: 3.3rem;
+  }
+  .home-news-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.4rem;
+  }
+  .home-news-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 56px;
+    padding: 0.95rem 1.7rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 14px 30px rgba(167, 139, 250, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .home-news-btn:hover {
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px rgba(167, 139, 250, 0.34);
+  }
+  html[dir="rtl"] .home-news-card,
+  html[dir="rtl"] .home-news-header {
+    direction: rtl;
+  }
+  @media (max-width: 1100px) {
+    .home-news-grid {
+      grid-template-columns: 1fr;
+    }
+    .home-news-col,
+    .home-news-col.center {
+      align-items: center;
+    }
+  }
+  @media (max-width: 768px) {
+    .home-news-section {
+      height: auto;
+      min-height: 100vh;
+    }
+    .home-news-wrap {
+      min-height: auto;
+      padding: 1.4rem;
+    }
+    .home-news-badge {
+      width: 4rem;
+      height: 4rem;
+    }
+    .home-news-decor {
+      display: none;
+    }
+    .home-news-card.large {
+      min-height: auto;
+    }
+    .home-news-btn {
+      width: 100%;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -18,26 +249,26 @@
       <!-- Left Column - Text Content -->
       <div class="hero-left">
         <div class="section-content hero-content">
-          <span class="hero-badge">{% trans "Advancing Arabic NLP" %}</span>
-          <h1 class="hero-title">{% trans "Advancing Arabic language processing technologies" %}</h1>
+          <span class="hero-badge">{% if LANGUAGE_CODE == 'ar' %}الارتقاء بمعالجة اللغة العربية{% else %}{% trans "Advancing Arabic NLP" %}{% endif %}</span>
+          <h1 class="hero-title">{% if LANGUAGE_CODE == 'ar' %}الارتقاء بتقنيات معالجة اللغة العربية{% else %}{% trans "Advancing Arabic language processing technologies" %}{% endif %}</h1>
           <div class="hero-subtitle">
-            <span class="hero-subtitle-white">{% trans "A collaborative platform to share and enrich" %}</span>
-            <span class="hero-subtitle-accent">{% trans "Arabic language resources and technologies" %}</span>
+            <span class="hero-subtitle-white">{% if LANGUAGE_CODE == 'ar' %}منصة تعاونية لمشاركة وإثراء{% else %}{% trans "A collaborative platform to share and enrich" %}{% endif %}</span>
+            <span class="hero-subtitle-accent">{% if LANGUAGE_CODE == 'ar' %}موارد وتقنيات اللغة العربية{% else %}{% trans "Arabic language resources and technologies" %}{% endif %}</span>
           </div>
           <p class="hero-description">
-            {% trans "Join a community of researchers, developers, and linguists working together to advance natural language processing for Arabic" %}
+            {% if LANGUAGE_CODE == 'ar' %}انضم إلى مجتمع من الباحثين والمطورين واللغويين يعملون معًا للنهوض بمعالجة اللغة الطبيعية للعربية{% else %}{% trans "Join a community of researchers, developers, and linguists working together to advance natural language processing for Arabic" %}{% endif %}
           </p>
           <p class="hero-meta">
             <i class="fas fa-users"></i>
-            <span>{% trans "Join" %} {{ members_count|default:"1" }}+ {% trans "community members" %}</span>
+            <span>{% if LANGUAGE_CODE == 'ar' %}انضم إلى {{ members_count|default:"1" }}+ من أعضاء المجتمع{% else %}{% trans "Join" %} {{ members_count|default:"1" }}+ {% trans "community members" %}{% endif %}</span>
           </p>
           <div class="hero-actions">
             <a href="{% url 'resources:list' %}" class="btn-primary">
-              <span>{% trans "Explore Resources" %}</span>
+              <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الموارد{% else %}{% trans "Explore Resources" %}{% endif %}</span>
               <i class="fas fa-arrow-right"></i>
             </a>
             <a href="{% url 'projects:project_new' %}" class="btn-secondary">
-              <span>{% trans "Start a Project" %}</span>
+              <span>{% if LANGUAGE_CODE == 'ar' %}ابدأ مشروعًا{% else %}{% trans "Start a Project" %}{% endif %}</span>
               <i class="fas fa-sparkles"></i>
             </a>
           </div>
@@ -46,7 +277,7 @@
 
       <!-- Right Column - Image -->
       <div class="hero-right">
-        <img src="{% static 'images/A89E6755-4CBC-4C08-AF11-F94F68BCFB51.png' %}" alt="SANAD Logo" class="hero-image" />
+        <img src="{% static 'images/A89E6755-4CBC-4C08-AF11-F94F68BCFB51.png' %}" alt="Arabic NLP Platform Logo" class="hero-image" />
       </div>
 
   </section>
@@ -54,37 +285,43 @@
   <!-- Section 2: Tools -->
   <section class="fullscreen-section section-2">
     <div class="section-content tools-section-content">
-      <h2 class="section-title tools-title"><span class="highlight-word">{% trans "Developer" %}</span> {% trans "Tools" %} <span class="highlight-word">{% trans "Landing" %}</span> {% trans "Page" %}</h2>
+      <h2 class="section-title tools-title">
+        {% if LANGUAGE_CODE == 'ar' %}
+        <span class="highlight-word">أدوات</span> معالجة اللغة العربية
+        {% else %}
+        <span class="highlight-word">{% trans "Developer" %}</span> {% trans "Tools" %} <span class="highlight-word">{% trans "Landing" %}</span> {% trans "Page" %}
+        {% endif %}
+      </h2>
       
       <div class="tools-layout">
         <!-- Left Column -->
         <div class="tools-left">
           <div class="tools-why-matters">
-            <h3 class="why-matters-title">{% trans "Why It Matters" %}</h3>
-            <p class="why-matters-text">{% trans "Smart tools lead to smarter decisions — and better outcomes." %}</p>
+            <h3 class="why-matters-title">{% if LANGUAGE_CODE == 'ar' %}لماذا هذا مهم{% else %}{% trans "Why It Matters" %}{% endif %}</h3>
+            <p class="why-matters-text">{% if LANGUAGE_CODE == 'ar' %}الأدوات الذكية تقود إلى قرارات أذكى ونتائج أفضل.{% else %}{% trans "Smart tools lead to smarter decisions — and better outcomes." %}{% endif %}</p>
           </div>
           
           <ul class="tools-checklist">
             <li>
               <span class="check-icon">✓</span>
-              <span class="check-text">{% trans "Advanced text tokenization for Arabic language processing" %}</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تجزئة نصية متقدمة لمعالجة اللغة العربية{% else %}{% trans "Advanced text tokenization for Arabic language processing" %}{% endif %}</span>
             </li>
             <li>
               <span class="check-icon">✓</span>
-              <span class="check-text">{% trans "Deep linguistic analysis of word structures and patterns" %}</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تحليل لغوي عميق لبنية الكلمات وأنماطها{% else %}{% trans "Deep linguistic analysis of word structures and patterns" %}{% endif %}</span>
             </li>
             <li>
               <span class="check-icon">✓</span>
-              <span class="check-text">{% trans "State-of-the-art machine translation between Arabic and multiple languages" %}</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}ترجمة آلية متقدمة بين العربية وعدة لغات{% else %}{% trans "State-of-the-art machine translation between Arabic and multiple languages" %}{% endif %}</span>
             </li>
             <li>
               <span class="check-icon">✓</span>
-              <span class="check-text">{% trans "Accurate sentiment analysis to detect emotions and opinions in Arabic text" %}</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تحليل دقيق للمشاعر لاكتشاف الآراء والانفعالات في النص العربي{% else %}{% trans "Accurate sentiment analysis to detect emotions and opinions in Arabic text" %}{% endif %}</span>
             </li>
           </ul>
           
           <a href="{% url 'resources:tool_list' %}" class="btn-tools-explore">
-            <span>{% trans "Explore All Tools" %}</span>
+            <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف جميع الأدوات{% else %}{% trans "Explore All Tools" %}{% endif %}</span>
             <i class="fas fa-arrow-right"></i>
           </a>
         </div>
@@ -167,10 +404,10 @@
       <div class="corpus-icon">
         <i class="fas fa-database"></i>
       </div>
-      <h2 class="corpus-label">{% trans "Corpus" %}</h2>
+      <h2 class="corpus-label">{% if LANGUAGE_CODE == 'ar' %}المدونات{% else %}{% trans "Corpus" %}{% endif %}</h2>
       
       <div class="corpus-header">
-        <h3 class="corpus-title">500+ {% trans "Curated Arabic Language Datasets" %}</h3>
+        <h3 class="corpus-title">{% if LANGUAGE_CODE == 'ar' %}+500 مجموعة بيانات عربية منسقة{% else %}500+ {% trans "Curated Arabic Language Datasets" %}{% endif %}</h3>
       </div>
       
       <div class="corpus-grid">
@@ -178,37 +415,37 @@
           <div class="corpus-card-icon">
             <i class="fas fa-language"></i>
           </div>
-          <h3 class="corpus-card-title">{% trans "Multi-Dialect Coverage" %}</h3>
-          <p class="corpus-card-description">{% trans "Comprehensive datasets spanning Modern Standard Arabic, Egyptian, Levantine, Gulf, and North African dialects" %}</p>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}تغطية متعددة اللهجات{% else %}{% trans "Multi-Dialect Coverage" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}مجموعات بيانات شاملة تغطي العربية الفصحى ولهجات مصر وبلاد الشام والخليج وشمال أفريقيا{% else %}{% trans "Comprehensive datasets spanning Modern Standard Arabic, Egyptian, Levantine, Gulf, and North African dialects" %}{% endif %}</p>
         </div>
         
         <div class="corpus-card">
           <div class="corpus-card-icon">
             <i class="fas fa-tags"></i>
           </div>
-          <h3 class="corpus-card-title">{% trans "Diverse Domains" %}</h3>
-          <p class="corpus-card-description">{% trans "News, social media, literature, academic texts, and domain-specific corpora for specialized NLP tasks" %}</p>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}مجالات متنوعة{% else %}{% trans "Diverse Domains" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}الأخبار ووسائل التواصل الاجتماعي والأدب والنصوص الأكاديمية ومدونات متخصصة لمهام معالجة اللغة{% else %}{% trans "News, social media, literature, academic texts, and domain-specific corpora for specialized NLP tasks" %}{% endif %}</p>
         </div>
         
         <div class="corpus-card">
           <div class="corpus-card-icon">
             <i class="fas fa-tag"></i>
           </div>
-          <h3 class="corpus-card-title">{% trans "Annotated & Labeled" %}</h3>
-          <p class="corpus-card-description">{% trans "Part-of-speech tags, sentiment labels, named entities, and linguistic annotations for training" %}</p>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}موسومة ومُعنونة{% else %}{% trans "Annotated & Labeled" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}وسوم نحوية وعلامات للمشاعر وكيانات اسمية وتعليقات لغوية مهيأة للتدريب{% else %}{% trans "Part-of-speech tags, sentiment labels, named entities, and linguistic annotations for training" %}{% endif %}</p>
         </div>
         
         <div class="corpus-card">
           <div class="corpus-card-icon">
             <i class="fas fa-download"></i>
           </div>
-          <h3 class="corpus-card-title">{% trans "Ready to Use" %}</h3>
-          <p class="corpus-card-description">{% trans "Download in multiple formats - raw text, JSON, XML - compatible with popular NLP frameworks" %}</p>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}جاهزة للاستخدام{% else %}{% trans "Ready to Use" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}تنزيل بعدة صيغ مثل النص الخام وJSON وXML وبما يتوافق مع أشهر أطر معالجة اللغة{% else %}{% trans "Download in multiple formats - raw text, JSON, XML - compatible with popular NLP frameworks" %}{% endif %}</p>
         </div>
       </div>
       
       <a href="{% url 'resources:corpus_list' %}" class="btn-corpus-explore">
-        <span>{% trans "Browse All Corpus" %}</span>
+            <span>{% if LANGUAGE_CODE == 'ar' %}تصفح جميع المدونات{% else %}{% trans "Browse All Corpus" %}{% endif %}</span>
         <i class="fas fa-arrow-right"></i>
       </a>
     </div>
@@ -217,26 +454,26 @@
   <!-- Section 4: Research Projects -->
   <section class="fullscreen-section section-4">
     <div class="section-content research-projects-content">
-      <h2 class="research-title">{% trans "Research Projects & Exploring" %} <span class="highlight-idea">{% trans "Ideas" %}</span></h2>
-      <p class="research-subtitle">{{ projects_count|default:"80" }} {% trans "active research initiatives" %}</p>
+      <h2 class="research-title">{% if LANGUAGE_CODE == 'ar' %}المشاريع البحثية واستكشاف <span class="highlight-idea">الأفكار</span>{% else %}{% trans "Research Projects & Exploring" %} <span class="highlight-idea">{% trans "Ideas" %}</span>{% endif %}</h2>
+      <p class="research-subtitle">{% if LANGUAGE_CODE == 'ar' %}{{ projects_count|default:"80" }} مبادرة بحثية نشطة{% else %}{{ projects_count|default:"80" }} {% trans "active research initiatives" %}{% endif %}</p>
       
       <div class="research-bubbles">
         <div class="research-bubble">
-          <p class="research-bubble-text">{% trans "Collaborate on cutting-edge research and innovation projects in Arabic NLP" %}</p>
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}تعاون في مشاريع بحث وابتكار متقدمة في معالجة اللغة العربية{% else %}{% trans "Collaborate on cutting-edge research and innovation projects in Arabic NLP" %}{% endif %}</p>
         </div>
         <div class="research-bubble">
-          <p class="research-bubble-text">{% trans "Discover ongoing initiatives that advance the Arabic language processing field" %}</p>
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}اكتشف المبادرات الجارية التي تدفع مجال معالجة اللغة العربية إلى الأمام{% else %}{% trans "Discover ongoing initiatives that advance the Arabic language processing field" %}{% endif %}</p>
         </div>
         <div class="research-bubble">
-          <p class="research-bubble-text">{% trans "Contribute your expertise and knowledge to groundbreaking projects" %}</p>
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}ساهم بخبرتك ومعرفتك في مشاريع رائدة ومؤثرة{% else %}{% trans "Contribute your expertise and knowledge to groundbreaking projects" %}{% endif %}</p>
         </div>
         <div class="research-bubble">
-          <p class="research-bubble-text">{% trans "Advance the field together with researchers and developers worldwide" %}</p>
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}طوّر المجال مع الباحثين والمطورين حول العالم{% else %}{% trans "Advance the field together with researchers and developers worldwide" %}{% endif %}</p>
         </div>
       </div>
       
       <a href="{% url 'projects:project_list' %}" class="btn-primary" style="margin-top: 3rem;">
-        <span>{% trans "View Projects" %}</span>
+        <span>{% if LANGUAGE_CODE == 'ar' %}عرض المشاريع{% else %}{% trans "View Projects" %}{% endif %}</span>
         <i class="fas fa-arrow-right"></i>
       </a>
     </div>
@@ -266,7 +503,8 @@
               </defs>
 
               <!-- Background glow circles -->
-
+              <circle cx="100" cy="80" r="70" fill="url(#glowGrad)"/>
+              <circle cx="400" cy="150" r="80" fill="url(#glowGrad)"/>
               <circle cx="250" cy="450" r="90" fill="url(#glowGrad)"/>
 
               <!-- Learning Path - curved line -->
@@ -327,7 +565,7 @@
                           stroke-linecap="round" 
                           stroke-linejoin="round"/>
                 <line x1="370" y1="395" x2="470" y2="395" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5"/>
-                <text x="420" y="410" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="12" font-weight="bold">Progress</text>
+                <text x="420" y="410" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="12" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}التقدم{% else %}Progress{% endif %}</text>
                 <text x="420" y="430" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="22">📈</text>
               </g>
 
@@ -376,7 +614,7 @@
                         stroke="rgba(167, 139, 250, 0.4)" 
                         stroke-width="2"/>
                 <text x="180" y="215" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="32">ع</text>
-                <text x="180" y="240" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="14" font-weight="bold">Arabic</text>
+                <text x="180" y="240" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="14" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}العربية{% else %}Arabic{% endif %}</text>
               </g>
 
               <!-- Sparkle effects -->
@@ -401,18 +639,18 @@
               <i class="fas fa-book-open"></i>
             </div>
             <div class="courses-title-wrapper">
-              <h2 class="courses-title">{% trans "Courses" %}</h2>
+              <h2 class="courses-title">{% if LANGUAGE_CODE == 'ar' %}الدورات{% else %}{% trans "Courses" %}{% endif %}</h2>
             </div>
           </div>
 
-          <p class="courses-subtitle courses-subtitle-small">{% trans "Comprehensive learning paths for Arabic NLP" %}</p>
+          <p class="courses-subtitle courses-subtitle-small">{% if LANGUAGE_CODE == 'ar' %}مسارات تعلم شاملة لمعالجة اللغة العربية{% else %}{% trans "Comprehensive learning paths for Arabic NLP" %}{% endif %}</p>
           
           <p class="courses-description">
-            {% trans "Learn from beginner to advanced levels with structured courses covering fundamental NLP concepts, Arabic-specific techniques, and hands-on projects. Develop your skills with expert-led materials and practical exercises." %}
+            {% if LANGUAGE_CODE == 'ar' %}تعلّم من المستوى المبتدئ إلى المتقدم عبر دورات منظمة تغطي مفاهيم معالجة اللغة الأساسية والتقنيات الخاصة بالعربية والمشاريع التطبيقية. طوّر مهاراتك من خلال محتوى يقوده خبراء وتمارين عملية.{% else %}{% trans "Learn from beginner to advanced levels with structured courses covering fundamental NLP concepts, Arabic-specific techniques, and hands-on projects. Develop your skills with expert-led materials and practical exercises." %}{% endif %}
           </p>
           
           <a href="{% url 'resources:course_list' %}" class="btn-primary" style="margin-top: 3rem;">
-            <span>{% trans "Start Learning" %}</span>
+            <span>{% if LANGUAGE_CODE == 'ar' %}ابدأ التعلّم{% else %}{% trans "Start Learning" %}{% endif %}</span>
             <i class="fas fa-arrow-right"></i>
           </a>
         </div>
@@ -427,31 +665,31 @@
         <div class="institutions-icon">
           <i class="fas fa-university"></i>
         </div>
-        <h2 class="institutions-title">{% trans "Institutions" %}</h2>
+        <h2 class="institutions-title">{% if LANGUAGE_CODE == 'ar' %}المؤسسات{% else %}{% trans "Institutions" %}{% endif %}</h2>
       </div>
       
-      <p class="institutions-subtitle">{% trans "Partner organizations and research institutions" %}</p>
+      <p class="institutions-subtitle">{% if LANGUAGE_CODE == 'ar' %}المؤسسات الشريكة والهيئات البحثية{% else %}{% trans "Partner organizations and research institutions" %}{% endif %}</p>
       
       <div class="institutions-grid">
         <div class="institution-card">
           <div class="institution-card-icon">
             <i class="fas fa-graduation-cap"></i>
           </div>
-          <h3 class="institution-card-title">{% trans "Leading Universities" %}</h3>
-          <p class="institution-card-text">{% trans "Connect with leading universities, research centers, and organizations dedicated to advancing Arabic language technology." %}</p>
+          <h3 class="institution-card-title">{% if LANGUAGE_CODE == 'ar' %}جامعات رائدة{% else %}{% trans "Leading Universities" %}{% endif %}</h3>
+          <p class="institution-card-text">{% if LANGUAGE_CODE == 'ar' %}تواصل مع الجامعات الرائدة ومراكز البحث والمؤسسات المكرسة لتطوير تقنيات اللغة العربية{% else %}{% trans "Connect with leading universities, research centers, and organizations dedicated to advancing Arabic language technology." %}{% endif %}</p>
         </div>
         
         <div class="institution-card">
           <div class="institution-card-icon">
             <i class="fas fa-handshake"></i>
           </div>
-          <h3 class="institution-card-title">{% trans "Partnerships" %}</h3>
-          <p class="institution-card-text">{% trans "Explore partnerships, institutional resources, and collaborative opportunities with experts around the world." %}</p>
+          <h3 class="institution-card-title">{% if LANGUAGE_CODE == 'ar' %}شراكات{% else %}{% trans "Partnerships" %}{% endif %}</h3>
+          <p class="institution-card-text">{% if LANGUAGE_CODE == 'ar' %}استكشف الشراكات والموارد المؤسسية وفرص التعاون مع الخبراء حول العالم{% else %}{% trans "Explore partnerships, institutional resources, and collaborative opportunities with experts around the world." %}{% endif %}</p>
         </div>
       </div>
       
       <a href="{% url 'institutions:institution_list' %}" class="btn-primary" style="margin-top: 3rem;">
-        <span>{% trans "Explore Institutions" %}</span>
+        <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف المؤسسات{% else %}{% trans "Explore Institutions" %}{% endif %}</span>
         <i class="fas fa-arrow-right"></i>
       </a>
     </div>
@@ -465,8 +703,8 @@
         <div class="events-icon">
           <i class="fas fa-calendar-alt"></i>
         </div>
-        <h2 class="events-title">{% trans "Events" %}</h2>
-        <p class="events-subtitle">{% trans "Workshops, conferences, and community meetups" %}</p>
+        <h2 class="events-title">{% if LANGUAGE_CODE == 'ar' %}الفعاليات{% else %}{% trans "Events" %}{% endif %}</h2>
+        <p class="events-subtitle">{% if LANGUAGE_CODE == 'ar' %}ورش العمل والمؤتمرات ولقاءات المجتمع{% else %}{% trans "Workshops, conferences, and community meetups" %}{% endif %}</p>
       </div>
 
       <!-- Three-Column Layout: Card | Illustration | Two Cards -->
@@ -475,7 +713,7 @@
         <div class="events-left-card">
           <div class="event-card">
             <div class="event-card-icon">📅</div>
-            <p class="event-card-text">{% trans "Stay updated with upcoming events" %}</p>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}ابقَ على اطلاع بالفعاليات القادمة{% else %}{% trans "Stay updated with upcoming events" %}{% endif %}</p>
           </div>
         </div>
 
@@ -513,17 +751,17 @@
                 <rect x="120" y="80" width="260" height="40" rx="12" 
                       fill="url(#eventGrad)" 
                       opacity="0.3"/>
-                <text x="250" y="110" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="18" font-weight="bold">March 2026</text>
+                <text x="250" y="110" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="18" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}مارس 2026{% else %}March 2026{% endif %}</text>
                 <!-- Calendar Days -->
                 <line x1="130" y1="130" x2="370" y2="130" stroke="rgba(167, 139, 250, 0.2)" stroke-width="1"/>
                 <!-- Week numbers -->
-                <text x="140" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">S</text>
-                <text x="170" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">M</text>
-                <text x="200" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">T</text>
-                <text x="230" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">W</text>
-                <text x="260" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">T</text>
-                <text x="290" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">F</text>
-                <text x="320" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">S</text>
+                <text x="140" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ح{% else %}S{% endif %}</text>
+                <text x="170" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ن{% else %}M{% endif %}</text>
+                <text x="200" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ث{% else %}T{% endif %}</text>
+                <text x="230" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ر{% else %}W{% endif %}</text>
+                <text x="260" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}خ{% else %}T{% endif %}</text>
+                <text x="290" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ج{% else %}F{% endif %}</text>
+                <text x="320" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}س{% else %}S{% endif %}</text>
                 <!-- Sample dates -->
                 <circle cx="145" cy="180" r="8" fill="rgba(167, 139, 250, 0.3)"/>
                 <text x="145" y="184" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="10">15</text>
@@ -538,21 +776,21 @@
               <g class="event-badge-1">
                 <circle cx="80" cy="320" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
                 <text x="80" y="330" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">🎓</text>
-                <text x="80" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">Workshop</text>
+                <text x="80" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}ورشة{% else %}Workshop{% endif %}</text>
               </g>
 
               <!-- Conference Badge -->
               <g class="event-badge-2">
                 <circle cx="420" cy="320" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
                 <text x="420" y="330" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">🎤</text>
-                <text x="420" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">Conference</text>
+                <text x="420" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}مؤتمر{% else %}Conference{% endif %}</text>
               </g>
 
               <!-- Webinar Badge -->
               <g class="event-badge-3">
                 <circle cx="250" cy="410" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
                 <text x="250" y="420" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">💻</text>
-                <text x="250" y="445" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">Webinar</text>
+                <text x="250" y="445" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}ندوة عبر الويب{% else %}Webinar{% endif %}</text>
               </g>
 
               <!-- Connection lines -->
@@ -573,12 +811,12 @@
         <div class="events-right-cards">
           <div class="event-card">
             <div class="event-card-icon">🎯</div>
-            <p class="event-card-text">{% trans "Including technical workshops, international conferences, webinars, and community gatherings" %}</p>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}تشمل ورشًا تقنية ومؤتمرات دولية وندوات عبر الويب ولقاءات مجتمعية{% else %}{% trans "Including technical workshops, international conferences, webinars, and community gatherings" %}{% endif %}</p>
           </div>
           
           <div class="event-card">
             <div class="event-card-icon">🤝</div>
-            <p class="event-card-text">{% trans "Network with experts and learn about the latest developments in Arabic NLP" %}</p>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}تواصل مع الخبراء وتعرّف على أحدث التطورات في معالجة اللغة العربية{% else %}{% trans "Network with experts and learn about the latest developments in Arabic NLP" %}{% endif %}</p>
           </div>
         </div>
       </div>
@@ -586,7 +824,7 @@
       <!-- Centered Button -->
       <div class="events-button-center">
         <a href="{% url 'events:event_list' %}" class="btn-primary">
-          <span>{% trans "View Events" %}</span>
+          <span>{% if LANGUAGE_CODE == 'ar' %}عرض الفعاليات{% else %}{% trans "View Events" %}{% endif %}</span>
           <i class="fas fa-arrow-right"></i>
         </a>
       </div>
@@ -594,15 +832,15 @@
   </section>
 
   <!-- Section 8: Community -->
-  <section class="fullscreen-section section-8" style="background: var(--section-7-bg, #0f172a);">
+  <section class="fullscreen-section section-8">
     <div class="section-content events-content">
       <!-- Centered Header -->
       <div class="events-header-section">
         <div class="events-icon">
           <i class="fas fa-comments"></i>
         </div>
-        <h2 class="events-title">{% trans "Community" %}</h2>
-        <p class="events-subtitle">{% trans "Discussions, forums, and peer support" %}</p>
+        <h2 class="events-title">{% if LANGUAGE_CODE == 'ar' %}المجتمع{% else %}{% trans "Community" %}{% endif %}</h2>
+        <p class="events-subtitle">{% if LANGUAGE_CODE == 'ar' %}نقاشات ومنتديات ودعم بين الأقران{% else %}{% trans "Discussions, forums, and peer support" %}{% endif %}</p>
       </div>
 
       <!-- Three-Column Layout: Text | Illustration | Text -->
@@ -612,12 +850,20 @@
           <div style="text-align: left;">
             <div class="community-benefit" style="margin-bottom: 1.5rem;">
               <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">💬 شارك الأفكار</span> واطرح الأسئلة في بيئة مرحبة
+                {% else %}
                 <span style="color: #a78bfa; font-weight: 600;">💬 Share ideas</span> and ask questions in a welcoming environment
+                {% endif %}
               </p>
             </div>
             <div class="community-benefit">
               <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🤓 تعلّموا معًا</span> من خلال النقاشات وتبادل المعرفة
+                {% else %}
                 <span style="color: #a78bfa; font-weight: 600;">🤓 Learn together</span> through peer discussions and knowledge exchange
+                {% endif %}
               </p>
             </div>
           </div>
@@ -723,12 +969,20 @@
           <div style="text-align: left;">
             <div class="community-benefit" style="margin-bottom: 1.5rem;">
               <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🌟 أفضل الممارسات</span> يشاركها الخبراء والأعضاء ذوو الخبرة
+                {% else %}
                 <span style="color: #a78bfa; font-weight: 600;">🌟 Best practices</span> shared by experts and experienced members
+                {% endif %}
               </p>
             </div>
             <div class="community-benefit">
               <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🚀 ساهم في تشكيل المستقبل</span> لمعالجة اللغة العربية عبر التعاون
+                {% else %}
                 <span style="color: #a78bfa; font-weight: 600;">🚀 Shape the future</span> of Arabic NLP through collaboration
+                {% endif %}
               </p>
             </div>
           </div>
@@ -738,7 +992,7 @@
       <!-- Centered Button -->
       <div class="events-button-center">
         <a href="{% url 'forum:topic-list' %}" class="btn-primary">
-          <span>{% trans "Join Community" %}</span>
+          <span>{% if LANGUAGE_CODE == 'ar' %}انضم إلى المجتمع{% else %}{% trans "Join Community" %}{% endif %}</span>
           <i class="fas fa-arrow-right"></i>
         </a>
       </div>
@@ -746,45 +1000,224 @@
   </section>
 
   <!-- Section 9: News -->
-  <section class="fullscreen-section section-9" style="background: #ffffff;">
-    <div class="section-content events-content">
-      <!-- Centered Header -->
-      <div class="events-header-section">
-        <div class="events-icon" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(124, 58, 237, 0.1)); color: #a78bfa;">
-          <i class="fas fa-newspaper"></i>
-        </div>
-        <h2 class="events-title" style="color: #a78bfa;">{% trans "News & Latest Headlines" %}</h2>
-        <p class="events-subtitle" style="color: black;">{% trans "Latest updates and announcements" %}</p>
+  <section class="fullscreen-section section-9">
+    <div class="section-content news-content">
+      <div class="news-icon">
+        <i class="fas fa-newspaper"></i>
       </div>
-
-      <!-- News Content Sections -->
-      <div class="community-main-content" style="max-width: 900px; margin: 3rem auto; text-align: center;">
-        <div class="community-section" style="margin-bottom: 2rem;">
-          <p style="font-size: 1.1em; line-height: 1.8; color: #333333; margin-bottom: 1.5rem;">
-            {% trans "Keep up with the <span style='color: #a78bfa; font-weight: 500;'>latest research breakthroughs</span> and technological advances shaping the future of Arabic NLP." %}
-          </p>
+      <h2 class="news-label">{% if LANGUAGE_CODE == 'ar' %}الأخبار وآخر العناوين{% else %}{% trans "News and Latest Headlines" %}{% endif %}</h2>
+      
+      <div class="news-header">
+        <h3 class="news-title">{% if LANGUAGE_CODE == 'ar' %}منشورات المجتمع، الأخبار الأكاديمية، وآخر التحديثات اليومية في مكان واحد.{% else %}{% trans "Community posts, academic updates, and the latest daily platform news in one place." %}{% endif %}</h3>
+      </div>
+      
+      <div class="news-bubbles">
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-star"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}مستجدات علمية عربية{% else %}{% trans "Arabic NLP scientific updates" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}تابع منشورات الباحثين والمطورين وتفاعل مع الأفكار والرؤى اليومية داخل المجتمع.{% else %}{% trans "Follow posts from researchers and developers, and engage with daily ideas and insights from the community." %}{% endif %}</p>
         </div>
-
-        <div class="community-section" style="margin-bottom: 2rem;">
-          <p style="font-size: 1.1em; line-height: 1.8; color: #333333; margin-bottom: 1.5rem;">
-            {% trans "Discover <span style='color: #a78bfa; font-weight: 500;'>insights and perspectives</span> shared by community members and industry experts around the world." %}
-          </p>
+        
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}أخبار ومنشورات أكاديمية{% else %}{% trans "Academic news and publications" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}استكشف مقالات وأخبارًا ومنشورات حديثة تربط بين المجتمع والموارد والأعمال الجديدة في معالجة اللغة العربية.{% else %}{% trans "Explore fresh articles, announcements, and publications that connect the community with new resources and work in Arabic NLP." %}{% endif %}</p>
         </div>
-
-        <div class="community-section" style="margin-bottom: 2rem;">
-          <p style="font-size: 1.1em; line-height: 1.8; color: #333333;">
-            {% trans "Stay <span style='color: #a78bfa; font-weight: 500;'>informed about platform updates</span> and important announcements that keep you connected with the Arabic NLP ecosystem." %}
-          </p>
+        
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}اختراقات بحثية{% else %}{% trans "Research breakthroughs" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}اكتشف الأخبار البحثية والأفكار الجديدة من الباحثين والخبراء في المجال.{% else %}{% trans "Discover research news and fresh ideas shared by researchers and field experts." %}{% endif %}</p>
         </div>
       </div>
       
-      <a href="{% url 'feed:feed' %}" class="btn-primary" style="margin-top: 3rem;">
-        <span>{% trans "Read News" %}</span>
+      <a href="{% url 'pages:publications_list' %}" class="btn-news-read">
+        <span>{% if LANGUAGE_CODE == 'ar' %}اقرأ الأخبار{% else %}{% trans "Read News" %}{% endif %}</span>
         <i class="fas fa-arrow-right"></i>
       </a>
     </div>
   </section>
 
+  <!-- Section 10: Feed -->
+  <section class="fullscreen-section section-10">
+    <div class="feed-container">
+      <!-- Header Section -->
+      <div class="feed-header">
+        <h2 class="feed-main-title">{% if LANGUAGE_CODE == 'ar' %}الخلاصة{% else %}{% trans "Feed" %}{% endif %}</h2>
+        <p class="feed-subtitle">
+          {% if LANGUAGE_CODE == 'ar' %}
+          تابع أحدث الأفكار والمحتوى من مجتمع المطورين.
+          اكتشف منشورات جديدة، شارك أفكارك، وتفاعل مع محتوى غني يعكس خبرات وتجارب المجتمع.
+          {% else %}
+          {% trans "Follow the latest ideas and content from the developer community. Discover new posts, share your ideas, and engage with rich content that reflects the community's experience." %}
+          {% endif %}
+        </p>
+      </div>
+
+      <!-- Discussion Quote Section -->
+      <div class="feed-discussion-quote">
+        <div class="quote-inner">
+          <h3 class="quote-title">
+            {% if LANGUAGE_CODE == 'ar' %}
+            كيف نحول الأفكار الصغيرة إلى منشورات تصنع نقاشاً حقيقياً داخل المجتمع؟
+            {% else %}
+            {% trans "How do we turn small ideas into posts that spark real community discussion?" %}
+            {% endif %}
+          </h3>
+          <p class="quote-description">
+            {% if LANGUAGE_CODE == 'ar' %}
+            شارك تجربتك، أضف منظورك، واستكشف كيف يشارك الآخرون المعرفة والخبرات العملية في مساحة واحدة نابضة بالحياة. محتوى متجدد باستمرار
+            {% else %}
+            {% trans "Share your experience, add your perspective, and see how others exchange practical knowledge in one lively space. Always fresh content" %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Posts Grid -->
+      <div class="feed-posts-grid">
+        <!-- Post Card 1: Trending -->
+        <div class="feed-post-card feed-post-featured">
+          <div class="post-badge post-badge-trending">
+            <i class="fas fa-fire"></i> 
+            {% if LANGUAGE_CODE == 'ar' %}ترند{% else %}{% trans "Trending" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'ND'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}سارة أحمد{% else %}{% trans "Sarah Ahmed" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مطورة Full-Stack{% else %}{% trans "Full-Stack Developer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">{% if LANGUAGE_CODE == 'ar' %}الآن{% else %}{% trans "Just now" %}{% endif %}</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              أفضل طرق تحسين أداء التطبيقات بالذكاء الاصطناعي
+              {% else %}
+              {% trans "Optimizing App Performance with AI" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شاركت نصائح عملية حول كيفية استخدام machine learning لتحسين سرعة التطبيق...
+              {% else %}
+              {% trans "Practical tips on using machine learning to boost app performance and user experience..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#AI</span>
+            <span class="post-tag">#Performance</span>
+            <span class="post-tag">#Development</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 2.4k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 486</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 312</span>
+          </div>
+        </div>
+
+        <!-- Post Card 2 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-hot">
+            <i class="fas fa-bolt"></i>
+            {% if LANGUAGE_CODE == 'ar' %}ساخن{% else %}{% trans "Hot" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'MK'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}محمود خليل{% else %}{% trans "Mahmoud Khalil" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مهندس بيانات{% else %}{% trans "Data Engineer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">2h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              معالجة اللغة الطبيعية: من النظرية إلى التطبيق
+              {% else %}
+              {% trans "NLP: From Theory to Production" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              مناقشة شاملة حول التحديات والحلول العملية في مشاريع NLP الحقيقية...
+              {% else %}
+              {% trans "Comprehensive guide on challenges and real-world solutions in NLP projects..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#ML</span>
+            <span class="post-tag">#Tutorial</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 1.8k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 342</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 198</span>
+          </div>
+        </div>
+
+        <!-- Post Card 3 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-new">
+            <i class="fas fa-star"></i>
+            {% if LANGUAGE_CODE == 'ar' %}جديد{% else %}{% trans "New" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'FN'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}فاطمة النجار{% else %}{% trans "Fatima Elnajar" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}متخصصة في العربية{% else %}{% trans "Arabic NLP Specialist" %}{% endif %}</div>
+            </div>
+            <div class="post-time">4h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              تحديات معالجة النصوص العربية وكيفية تجاوزها
+              {% else %}
+              {% trans "Overcoming Arabic Text Processing Challenges" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شرح مفصل عن المشاكل الفريدة في معالجة اللغة العربية والحلول المبتكرة...
+              {% else %}
+              {% trans "Detailed explanation of unique Arabic NLP challenges and innovative solutions..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#Arabic</span>
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#Guide</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 956</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 218</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 142</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="feed-cta">
+        <a href="{% url 'feed:feed' %}" class="feed-explore-btn">
+          <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الخلاصة{% else %}{% trans "Explore Feed" %}{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
 </div>
 {% endblock %}
-

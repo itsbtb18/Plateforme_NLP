@@ -24,10 +24,6 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/2"
 
-    # ---- LLM Provider Selection (gemini | groq) ----
-    LLM_PROVIDER_CHAT: str = "gemini"       # User-facing answer generation
-    LLM_PROVIDER_INTERNAL: str = "gemini"   # Classifier, rewriter, faithfulness, memory
-
     # Groq API — Chatbot (User-facing)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
@@ -39,14 +35,6 @@ class Settings(BaseSettings):
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
-    # Gemini API — Chatbot (User-facing)
-    GENAI_API_KEY: str = ""
-    GENAI_MODEL: str = "gemini-2.0-flash"
-
-    # Gemini API — Internal (Classification, Rewriting, Faithfulness)
-    GENAI_INTERNAL_API_KEY: str = ""
-    GENAI_INTERNAL_MODEL: str = "gemini-2.0-flash"
-
     # Embeddings
     EMBEDDING_MODEL: str = "BAAI/bge-m3"
     EMBEDDING_DIMENSION: int = 1024
@@ -55,7 +43,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
+    API_PORT: int = 8001
 
     # Vector Search
     TOP_K_RESULTS: int = 5

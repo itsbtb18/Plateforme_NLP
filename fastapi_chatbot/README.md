@@ -157,10 +157,10 @@ If this service is run via docker-compose, use service names instead of containe
 Examples:
 
 1. Open API docs
-- `http://localhost:8000/docs` (or mapped FastAPI port in your compose file)
+- `http://localhost:8001/docs` (or mapped FastAPI port in your compose file)
 
 2. Health check
-- `curl http://localhost:8000/health`
+- `curl http://localhost:8001/health`
 
 ## Reindexing and Ingestion
 

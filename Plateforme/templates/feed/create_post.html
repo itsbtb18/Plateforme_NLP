@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
@@ -755,7 +755,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         return;
     }
 
-    /* â”€â”€ Char counter + auto-expand â”€â”€ */
+    /* ── Char counter + auto-expand ── */
     function updateCounter() {
         const n = textarea.value.length;
         charCount.textContent = n;
@@ -766,14 +766,14 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
     textarea.addEventListener('input', updateCounter);
     updateCounter();
 
-    /* â”€â”€ File size formatter â”€â”€ */
+    /* ── File size formatter ── */
     function fmt(b) {
         if (!b) return '';
         const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b) / Math.log(1024));
         return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
     }
 
-    /* â”€â”€ Add a chip â”€â”€ */
+    /* ── Add a chip ── */
     function addChip(file, type, inputId) {
         chips.querySelectorAll(`[data-type="${type}"]`).forEach(el => el.remove());
         const chip = document.createElement('div');
@@ -794,7 +794,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         refreshZoneState();
     }
 
-    /* â”€â”€ Remove chip â”€â”€ */
+    /* ── Remove chip ── */
     chips.addEventListener('click', function (e) {
         const btn = e.target.closest('.file-chip-remove');
         if (!btn) return;
@@ -812,32 +812,32 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         refreshZoneState();
     });
 
-    /* â”€â”€ Zone state based on selections â”€â”€ */
+    /* ── Zone state based on selections ── */
     function refreshZoneState() {
         const hasAny = chips.children.length > 0;
         zone.classList.toggle('has-files', hasAny);
         zoneIcon.className = hasAny ? 'bi bi-check2-circle' : 'bi bi-cloud-arrow-up';
     }
 
-    /* â”€â”€ Image selected â”€â”€ */
+    /* ── Image selected ── */
     imgInput.addEventListener('change', function () {
         const f = this.files[0];
         if (!f) return;
-        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + 'â€¦' : f.name;
+        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
         imgBtn.classList.add('selected');
         addChip(f, 'image', 'imageInput');
     });
 
-    /* â”€â”€ File selected â”€â”€ */
+    /* ── File selected ── */
     fileInput.addEventListener('change', function () {
         const f = this.files[0];
         if (!f) return;
-        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + 'â€¦' : f.name;
+        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
         fileBtn.classList.add('selected');
         addChip(f, 'file', 'fileInput');
     });
 
-    /* â”€â”€ Drag & drop â”€â”€ */
+    /* ── Drag & drop ── */
     ['dragenter','dragover','dragleave','drop'].forEach(ev =>
         zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
     );
@@ -861,7 +861,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         }
     });
 
-    /* â”€â”€ Submit loading â”€â”€ */
+    /* ── Submit loading ── */
     createPostForm.addEventListener('submit', function () {
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
@@ -870,4 +870,3 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
 }());
 </script>
 {% endblock %}
-

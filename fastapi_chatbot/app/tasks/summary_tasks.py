@@ -17,12 +17,12 @@ def summarise_chat_history(self, session_id: str):
 async def _summarise_chat_async(session_id: str):
     from app.db import AsyncSessionLocal
     from app.models import ChatSession, ChatMessage
-    from app.services.llm.client import get_llm_client
+    from app.services.llm.client import get_groq_client
     from sqlalchemy import select, delete
     from app.config import get_settings
 
     settings = get_settings()
-    llm = get_llm_client()
+    groq = get_groq_client()
 
     async with AsyncSessionLocal() as db:
         msg_stmt = (
@@ -68,7 +68,7 @@ async def _summarise_chat_async(session_id: str):
             ),
         }
         prompt = _SUMMARY_PROMPTS.get(session_lang, _SUMMARY_PROMPTS["en"])
-        summary = await llm.quick_answer(prompt + conversation_text, session_lang)
+        summary = await groq.quick_answer(prompt + conversation_text, session_lang)
 
         sess_stmt = select(ChatSession).where(ChatSession.session_id == session_id)
         sess_result = await db.execute(sess_stmt)
@@ -93,11 +93,11 @@ def summarise_text(self, text: str, language: str = "en") -> str:
 
 
 async def _summarise_text_async(text: str, language: str) -> str:
-    from app.services.llm.client import get_llm_client
+    from app.services.llm.client import get_groq_client
 
     prompt = (
         "Summarise the following text concisely, preserving key facts. "
         f"Respond in {'Arabic' if language == 'ar' else 'French' if language == 'fr' else 'English'}.\n\n"
         f"{text[:12000]}"
     )
-    return await get_llm_client().quick_answer(prompt, language)
+    return await get_groq_client().quick_answer(prompt, language)

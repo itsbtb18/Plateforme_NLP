@@ -1200,11 +1200,6 @@ window.sharePostDetailSocial = function(platform) {
 
 // Initialize event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    const debugLike = (...args) => {
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log(...args);
-        }
-    };
     
     // Like Post
     const likePostBtn = document.getElementById('likePostBtn');
@@ -1217,12 +1212,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const likeUrl = this.dataset.likeUrl;
             const btn = this;
             
-            debugLike('[LIKE] Starting like request for post:', postId);
-            debugLike('[LIKE] URL:', likeUrl);
+            console.log('[LIKE] Starting like request for post:', postId);
+            console.log('[LIKE] URL:', likeUrl);
             
             try {
                 const csrfToken = getCsrfToken();
-                debugLike('[LIKE] CSRF token obtained:', csrfToken ? '✓' : '✗');
+                console.log('[LIKE] CSRF token obtained:', csrfToken ? '✓' : '✗');
                 
                 const response = await fetch(likeUrl, {
                     method: 'POST',
@@ -1232,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                debugLike('[LIKE] Response status:', response.status);
+                console.log('[LIKE] Response status:', response.status);
                 
                 // Handle specific error status codes
                 if (response.status === 403) {
@@ -1254,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 const data = await response.json();
-                debugLike('[LIKE] Response data:', data);
+                console.log('[LIKE] Response data:', data);
                 
                 // Verify response data
                 if (data.hasOwnProperty('liked') && data.hasOwnProperty('total_likes')) {
@@ -1263,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (icon) {
                         btn.classList.toggle('liked', data.liked);
                         icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
-                        debugLike('[LIKE] Button updated - liked:', data.liked);
+                        console.log('[LIKE] Button updated - liked:', data.liked);
                     } else {
                         console.warn('[LIKE] Icon element not found');
                     }
@@ -1272,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const likesSpans = document.querySelectorAll('.pd-stats .pd-stat span');
                     if (likesSpans.length > 0) {
                         likesSpans[0].textContent = `${data.total_likes} {% trans "likes" %}`;
-                        debugLike('[LIKE] Likes count updated:', data.total_likes);
+                        console.log('[LIKE] Likes count updated:', data.total_likes);
                     } else {
                         console.warn('[LIKE] Likes count element not found');
                     }

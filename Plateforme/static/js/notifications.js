@@ -7,19 +7,10 @@ let notificationSocket = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000;
-const DEBUG_NOTIFICATIONS =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
-
-function debugLog(...args) {
-  if (DEBUG_NOTIFICATIONS) {
-    console.log(...args);
-  }
-}
 
 // Initialize the notification system
 document.addEventListener("DOMContentLoaded", function () {
-  debugLog("Initializing notification system...");
+  console.log("Initializing notification system...");
 
   // Check if user is authenticated (has notification elements on page)
   const hasNotificationElements =
@@ -27,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("notificationList") !== null;
 
   if (hasNotificationElements) {
-    debugLog("Notification elements found, initializing...");
+    console.log("Notification elements found, initializing...");
 
     // Connect to the WebSocket
     connectNotificationSocket();
@@ -39,18 +30,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Set up the dropdown if it exists
       if (document.querySelector(".notification-dropdown")) {
-        debugLog("Setting up notification dropdown...");
+        console.log("Setting up notification dropdown...");
         updateNotificationDropdown();
       }
     }, 100); // Délai de 100ms
 
     // Set up the full notification list if it exists
     if (document.getElementById("notificationList")) {
-      debugLog("Setting up notification list...");
+      console.log("Setting up notification list...");
       setupNotificationList();
     }
   } else {
-    debugLog("No notification elements found on page");
+    console.log("No notification elements found on page");
   }
 
   initNotificationCenterPage();
@@ -58,18 +49,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Connect to the WebSocket for real-time notifications
 function connectNotificationSocket() {
-  debugLog("Attempting to connect to notification WebSocket...");
+  console.log("Attempting to connect to notification WebSocket...");
 
   // Close existing connection if any
   if (notificationSocket) {
-    debugLog("Closing existing WebSocket connection...");
+    console.log("Closing existing WebSocket connection...");
     notificationSocket.close();
   }
 
   // Determine the WebSocket protocol
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${wsProtocol}//${window.location.host}/ws/notifications/`;
-  debugLog("WebSocket URL:", wsUrl);
+  console.log("WebSocket URL:", wsUrl);
 
   try {
     // Create the WebSocket connection
@@ -77,7 +68,7 @@ function connectNotificationSocket() {
 
     // Handle the connection opening
     notificationSocket.onopen = function (e) {
-      debugLog("Notification WebSocket connected successfully");
+      console.log("Notification WebSocket connected successfully");
       reconnectAttempts = 0; // Reset reconnect attempts on successful connection
     };
 
@@ -85,23 +76,23 @@ function connectNotificationSocket() {
     notificationSocket.onmessage = function (e) {
       try {
         const data = JSON.parse(e.data);
-        debugLog("WebSocket message received:", data);
+        console.log("WebSocket message received:", data);
 
         // Handle different message types
         if (data.type === "notification_list") {
-          debugLog("Received notification list:", data.notifications);
+          console.log("Received notification list:", data.notifications);
           if (document.getElementById("notificationList")) {
             displayNotifications(data.notifications);
           }
         } else if (data.type === "new_notification") {
-          debugLog("Received new notification:", data.notification);
+          console.log("Received new notification:", data.notification);
           showNotificationToast(data.notification);
           loadNotifications();
         } else if (data.type === "notification_marked_read") {
-          debugLog("Notification marked as read:", data.notification_id);
+          console.log("Notification marked as read:", data.notification_id);
           handleNotificationRead(data.notification_id);
         } else if (data.type === "all_notifications_marked_read") {
-          debugLog("All notifications marked as read");
+          console.log("All notifications marked as read");
           handleAllNotificationsRead();
         }
       } catch (error) {
@@ -112,7 +103,7 @@ function connectNotificationSocket() {
 
     // Handle connection closing
     notificationSocket.onclose = function (e) {
-      debugLog(
+      console.log(
         "Notification WebSocket disconnected. Code:",
         e.code,
         "Reason:",
@@ -122,7 +113,7 @@ function connectNotificationSocket() {
       // Try to reconnect if we haven't exceeded max attempts
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts++;
-        debugLog(
+        console.log(
           `Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`
         );
         setTimeout(connectNotificationSocket, RECONNECT_DELAY);
@@ -202,10 +193,10 @@ function updateNotificationBadge() {
       return response.json();
     })
     .then((data) => {
-      debugLog("API /notifications/ajax/count/ response data:", data);
+      console.log("API /notifications/ajax/count/ response data:", data);
       const badge = document.querySelector(".notification-badge");
       if (badge) {
-        debugLog("Notification badge element found:", badge);
+        console.log("Notification badge element found:", badge);
         if (data.count > 0) {
           badge.textContent = data.count;
           badge.style.display = "inline-block";
@@ -213,7 +204,7 @@ function updateNotificationBadge() {
           badge.style.display = "none";
         }
       } else {
-        debugLog("Notification badge element not found.");
+        console.log("Notification badge element not found.");
       }
     })
     .catch((error) => {
@@ -448,7 +439,7 @@ function handleNewNotification(notification) {
   const notificationSound = document.getElementById("notification-sound");
   if (notificationSound) {
     notificationSound.play().catch((error) => {
-      debugLog(
+      console.log(
         "Could not play notification sound due to browser restrictions"
       );
     });

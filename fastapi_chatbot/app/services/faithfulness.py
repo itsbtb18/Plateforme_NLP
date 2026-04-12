@@ -53,10 +53,10 @@ async def verify_faithfulness(
         return True
 
     try:
-        from app.services.llm import get_internal_llm_client
+        from app.services.llm import get_internal_groq_client
         from app.services.llm.prompts import FAITHFULNESS_PROMPT
 
-        client = get_internal_llm_client()
+        client = get_internal_groq_client()
 
         # Keep verifier context short to limit latency under load.
         truncated_context = context[:1800] if len(context) > 1800 else context
