@@ -1,25 +1,24 @@
-import logging
-
-from accounts.blocking import exclude_hidden_users
-from django.conf import settings
-from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Question, Post, Comment
+from .forms import QuestionForm, AnswerForm, PostForm, CommentForm
+from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.paginator import Paginator
-from django.db import models
-from django.db.models import Count, Q
-from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.translation import gettext_lazy as _
+from notifications.models import Notification
+from notifications.services import NotificationService, LocalizedValue
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
+from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
-from notifications.services import LocalizedValue, NotificationService
+from django.db import models
+from django.urls import reverse
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
+from accounts.blocking import exclude_hidden_users
+from django.core.paginator import Paginator
 from pages.moderation import approve_object
 
-from .forms import AnswerForm, CommentForm, PostForm, QuestionForm
-from .models import Comment, Post, Question
-
 User = get_user_model()
-logger = logging.getLogger(__name__)
 
 
 def is_admin(user):
@@ -185,24 +184,14 @@ def feed(request):
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
     for post in page_obj.object_list:
-        localized_content = (
-            post.get_localized_content()
-            if hasattr(post, "get_localized_content")
-            else post.content
-        )
+        localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
         # Full abstract (no truncation) for news list
-        post.news_meta = extract_paper_metadata(
-            localized_content or "", max_abstract_length=None
-        )
+        post.news_meta = extract_paper_metadata(localized_content or '', max_abstract_length=None)
         # Fallback: use model title/content when parser returns empty (e.g. plain Arabic text)
-        if not post.news_meta.get("title"):
-            post.news_meta["title"] = (
-                post.get_localized_title()
-                if hasattr(post, "get_localized_title")
-                else (post.title_en or post.title_ar or post.title)
-            )
-        if not post.news_meta.get("abstract") and localized_content:
-            post.news_meta["abstract"] = localized_content
+        if not post.news_meta.get('title'):
+            post.news_meta['title'] = post.get_localized_title() if hasattr(post, 'get_localized_title') else (post.title_en or post.title_ar or post.title)
+        if not post.news_meta.get('abstract') and localized_content:
+            post.news_meta['abstract'] = localized_content
 
     post_form = PostForm()
     comment_form = CommentForm()
@@ -226,6 +215,10 @@ def feed(request):
 @login_and_verified_required
 def create_post(request):
     """Dedicated page for creating a new post."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     if request.method == "POST":
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -263,9 +256,7 @@ def create_post(request):
                 else:
                     messages.info(
                         request,
-                        _(
-                            "Your post has been submitted and is pending admin approval."
-                        ),
+                        _("Your post has been submitted and is pending admin approval."),
                     )
                 return redirect("feed:feed")
 
@@ -316,7 +307,6 @@ def create_post(request):
 @login_and_verified_required
 def post_detail(request, slug):
     from pages.content_parser import extract_paper_metadata
-
     # Staff/admin can view any post status. Regular users only approved posts.
     base_qs = exclude_hidden_users(Post.objects.all(), request.user, ("author",))
     if request.user.is_staff or request.user.is_superuser:
@@ -332,21 +322,19 @@ def post_detail(request, slug):
     # Extract metadata for News posts (full abstract on detail page)
     localized_content = post.get_localized_content()
     if localized_content:
-        post.news_meta = extract_paper_metadata(
-            localized_content, max_abstract_length=None
-        )
-        if not post.news_meta.get("title"):
-            post.news_meta["title"] = post.get_localized_title() or post.title
-        if not post.news_meta.get("abstract") and localized_content:
-            post.news_meta["abstract"] = localized_content
+        post.news_meta = extract_paper_metadata(localized_content, max_abstract_length=None)
+        if not post.news_meta.get('title'):
+            post.news_meta['title'] = post.get_localized_title() or post.title
+        if not post.news_meta.get('abstract') and localized_content:
+            post.news_meta['abstract'] = localized_content
     else:
         post.news_meta = {
-            "title": post.get_localized_title() or post.title,
-            "all_authors": "",
-            "first_author": "",
-            "year": "",
-            "abstract": "",
-            "link": "",
+            'title': post.get_localized_title() or post.title,
+            'all_authors': '',
+            'first_author': '',
+            'year': '',
+            'abstract': '',
+            'link': ''
         }
     comment_form = CommentForm()
     return render(
@@ -428,30 +416,28 @@ def like_post(request, post_id):
     POST request only.
     Returns JSON with liked status and total likes count.
     """
-    logger.debug("[LIKE] request started post_id=%s user=%s", post_id, request.user)
-
+    print(f"[LIKE] Called with post_id: {post_id}, User: {request.user}")
+    
     # Verify it's a POST request
     if request.method != "POST":
-        logger.warning("[LIKE] invalid method=%s", request.method)
+        print(f"[LIKE] Invalid method: {request.method}")
         return JsonResponse({"error": "Invalid request method"}, status=405)
-
+    
     try:
         # Fetch the post by UUID
         post = get_object_or_404(Post, id=post_id)
-        logger.debug("[LIKE] post found id=%s", post_id)
-
+        print(f"[LIKE] Post found: {post.title}")
+        
         # Check if user already likes the post
         if request.user in post.likes.all():
-            logger.debug(
-                "[LIKE] removing like user=%s post_id=%s", request.user, post_id
-            )
+            print(f"[LIKE] User {request.user} is removing their like")
             post.likes.remove(request.user)
             liked = False
         else:
-            logger.debug("[LIKE] adding like user=%s post_id=%s", request.user, post_id)
+            print(f"[LIKE] User {request.user} is adding a like")
             post.likes.add(request.user)
             liked = True
-
+            
             # Send notification to post author
             if post.author != request.user:
                 NotificationService.create_notification(
@@ -462,22 +448,20 @@ def like_post(request, post_id):
                     related_object=post,
                     message_kwargs={"name": LocalizedValue.from_user(request.user)},
                 )
-
+        
         # Build response
-        response_data = {"liked": liked, "total_likes": post.likes.count()}
-        logger.debug(
-            "[LIKE] response post_id=%s liked=%s total_likes=%s",
-            post_id,
-            liked,
-            response_data["total_likes"],
-        )
+        response_data = {
+            "liked": liked,
+            "total_likes": post.likes.count()
+        }
+        print(f"[LIKE] Sending response: {response_data}")
         return JsonResponse(response_data)
-
-    except Http404:
-        logger.warning("[LIKE] post not found post_id=%s", post_id)
+        
+    except Post.DoesNotExist:
+        print(f"[LIKE] Post NOT found with id: {post_id}")
         return JsonResponse({"error": "Post not found"}, status=404)
     except Exception as e:
-        logger.exception("[LIKE] unexpected error post_id=%s", post_id)
+        print(f"[LIKE] ERROR: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -616,17 +600,12 @@ def edit_post(request, post_id):
     else:
         form = PostForm(instance=post)
 
-    localized_content = (
-        post.get_localized_content()
-        if hasattr(post, "get_localized_content")
-        else post.content
-    )
-    preview_meta = extract_paper_metadata(localized_content or "")
+    localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+    preview_meta = extract_paper_metadata(localized_content or '')
 
     from pages.content_parser import extract_structured_content
-
-    parsed_en = extract_structured_content(post.content_en or post.content or "")
-    parsed_ar = extract_structured_content(post.content_ar or "")
+    parsed_en = extract_structured_content(post.content_en or post.content or '')
+    parsed_ar = extract_structured_content(post.content_ar or '')
 
     return render(
         request,
@@ -645,7 +624,6 @@ def edit_post(request, post_id):
             "parsed_ar": parsed_ar,
         },
     )
-
 
 @login_required
 @require_POST

@@ -135,24 +135,6 @@ class ResourceBase(models.Model):
         default="",
         help_text=_("Reason for rejection (only filled when status is rejected)"),
     )
-    rejection_note = models.TextField(
-        verbose_name=_("Rejection Note"),
-        blank=True,
-        default="",
-        help_text=_("Additional moderator notes for rejection"),
-    )
-    rejected_at = models.DateTimeField(
-        verbose_name=_("Rejected At"),
-        null=True,
-        blank=True,
-    )
-    rejected_by = models.ForeignKey(
-        get_user_model(),
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="rejected_%(app_label)s_%(class)s_set",
-    )
 
     description_ar = models.TextField(
         verbose_name=_("Description (Arabic)"),

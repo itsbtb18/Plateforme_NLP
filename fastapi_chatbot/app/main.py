@@ -76,12 +76,12 @@ async def lifespan(app: FastAPI):
 
     async def _warmup_llm_client():
         try:
-            from app.services.llm.client import get_llm_client
+            from app.services.llm.client import get_groq_client
 
-            get_llm_client()
-            logger.info("LLM client warmup complete")
+            get_groq_client()
+            logger.info("Groq client warmup complete")
         except Exception as e:
-            logger.warning("LLM warmup failed (non-fatal): %s", e)
+            logger.warning("Groq warmup failed (non-fatal): %s", e)
 
     async def _populate_bm25():
         try:
@@ -442,7 +442,7 @@ async def web_search(request: WebSearchRequest):
 async def _stream_web_search(request: WebSearchRequest):
     """SSE generator: Tavily search → Groq LLM streaming answer."""
     from app.services.web.tavily_client import search_tavily
-    from app.services.llm.client import get_llm_client
+    from app.services.llm.client import get_groq_client
 
     try:
         # 1. Tavily search
@@ -476,8 +476,8 @@ async def _stream_web_search(request: WebSearchRequest):
         # 3. Stream LLM-generated detailed answer
         answer = ""
         if web_context:
-            llm = get_llm_client()
-            async for chunk in llm.generate_answer_with_context_stream(
+            groq = get_groq_client()
+            async for chunk in groq.generate_answer_with_context_stream(
                 question=request.question,
                 context=web_context,
                 language="en",

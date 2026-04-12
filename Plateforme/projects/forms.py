@@ -1,10 +1,6 @@
 from django import forms
-from django.core.exceptions import ValidationError
-from django.utils.translation import get_language, gettext_lazy as _
-
-from institutions.models import Country, Institution
-
 from .models import Project, ProjectChatMessage, PROJECT_CHAT_URL_RE, validate_project_chat_file
+from django.utils.translation import get_language, gettext_lazy as _
 
 
 def get_active_language():
@@ -28,26 +24,6 @@ class ProjectForm(forms.ModelForm):
         'title': ('title_ar', 'title_en'),
         'description': ('description_ar', 'description_en'),
     }
-
-    institution = forms.ChoiceField(required=True, label=_("Institution"))
-    institution_name_ar_custom = forms.CharField(
-        required=False,
-        label=_("Institution Name (Arabic)"),
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": _("Type the institution name in Arabic"),
-            }
-        ),
-    )
-    institution_name_en_custom = forms.CharField(
-        required=False,
-        label=_("Institution Name (English)"),
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": _("Type the institution name in English"),
-            }
-        ),
-    )
     
     class Meta:
         model = Project
@@ -61,7 +37,6 @@ class ProjectForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        self.current_user = kwargs.pop("user", None)
         instance = kwargs.get('instance', None)
         
         # Pre-populate from bilingual fields based on current language
@@ -76,26 +51,7 @@ class ProjectForm(forms.ModelForm):
                     kwargs['initial'][generic_field] = value
         
         super().__init__(*args, **kwargs)
-        self._setup_institution_choices(instance)
         self._setup_bilingual_labels()
-
-    def _setup_institution_choices(self, instance):
-        current_lang = get_active_language()
-        institution_choices = [("", _("Select institution"))]
-        institutions = Institution.objects.all().order_by("name_ar", "name_en", "name")
-
-        for institution in institutions:
-            if current_lang == "ar":
-                label = institution.name_ar or institution.name_en or institution.name
-            else:
-                label = institution.name_en or institution.name_ar or institution.name
-            institution_choices.append((str(institution.pk), label))
-
-        institution_choices.append(("other", _("Other")))
-        self.fields["institution"].choices = institution_choices
-
-        if instance and instance.pk and instance.institution_id and not self.is_bound:
-            self.initial["institution"] = str(instance.institution_id)
     
     def _setup_bilingual_labels(self):
         """Set context-aware labels for bilingual fields."""
@@ -111,60 +67,7 @@ class ProjectForm(forms.ModelForm):
             self.fields['title'].help_text = _("Enter the project title in English")
             self.fields['description'].label = _("Description (English)")
             self.fields['description'].help_text = _("Enter the description in English")
-
-    def clean(self):
-        cleaned_data = super().clean()
-        institution_value = (cleaned_data.get("institution") or "").strip()
-        name_ar = (cleaned_data.get("institution_name_ar_custom") or "").strip()
-        name_en = (cleaned_data.get("institution_name_en_custom") or "").strip()
-
-        if institution_value == "other":
-            if not name_ar:
-                self.add_error(
-                    "institution_name_ar_custom",
-                    _("Enter the institution name in Arabic."),
-                )
-            if not name_en:
-                self.add_error(
-                    "institution_name_en_custom",
-                    _("Enter the institution name in English."),
-                )
-        elif institution_value:
-            if not Institution.objects.filter(pk=institution_value).exists():
-                self.add_error("institution", _("Select a valid institution."))
-
-        return cleaned_data
-
-    def _get_or_create_custom_institution(self):
-        name_ar = (self.cleaned_data.get("institution_name_ar_custom") or "").strip()
-        name_en = (self.cleaned_data.get("institution_name_en_custom") or "").strip()
-
-        institution = Institution.objects.filter(
-            name_ar__iexact=name_ar,
-            name_en__iexact=name_en,
-        ).first()
-        if institution:
-            return institution
-
-        country = (
-            Country.objects.filter(code__iexact="DZ").first()
-            or Country.objects.order_by("name_en").first()
-        )
-        if not country:
-            raise ValidationError(_("No country is available to create a custom institution."))
-
-        return Institution.objects.create(
-            name=name_en or name_ar,
-            name_ar=name_ar,
-            name_en=name_en,
-            type="Other",
-            country=country,
-            city="Unknown",
-            city_ar="غير محدد",
-            city_en="Unknown",
-            created_by=self.current_user if getattr(self.current_user, "is_authenticated", False) else None,
-        )
-
+    
     def save(self, commit=True):
         instance = super().save(commit=False)
         
@@ -176,12 +79,6 @@ class ProjectForm(forms.ModelForm):
             # Set both the language-specific field AND the main field
             setattr(instance, target_field, value)
             setattr(instance, generic_field, value)
-
-        institution_value = (self.cleaned_data.get("institution") or "").strip()
-        if institution_value == "other":
-            instance.institution = self._get_or_create_custom_institution()
-        else:
-            instance.institution = Institution.objects.get(pk=institution_value)
         
         if commit:
             instance.save()

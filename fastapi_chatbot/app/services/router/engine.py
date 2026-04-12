@@ -106,7 +106,6 @@ class QueryRouter:
         document_id: Optional[int] = None,
         user_email: Optional[str] = None,
         on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
-        mode: Optional[str] = None,
     ) -> RoutingResult:
         """Execute the retrieval strategy dictated by *classification*."""
 
@@ -142,12 +141,11 @@ class QueryRouter:
                 exa_docs = await self._maybe_exa_fallback(
                     question,
                     docs,
-                    "general_knowledge",
+                    "conceptual_question",
                     lang,
                     session_id=session_id,
                     user_id=user_id,
                     on_exa_fallback=on_exa_fallback,
-                    mode=mode,
                 )
                 if exa_docs:
                     if should_use_web_only_context(docs, question, "conceptual_question"):
@@ -229,7 +227,6 @@ class QueryRouter:
                 question, docs, intent, lang,
                 session_id=session_id, user_id=user_id,
                 on_exa_fallback=on_exa_fallback,
-                mode=mode,
             )
             if exa_docs:
                 if should_use_web_only_context(docs, question, intent):
@@ -371,7 +368,6 @@ class QueryRouter:
                 question, docs, intent, lang,
                 session_id=session_id, user_id=user_id,
                 on_exa_fallback=on_exa_fallback,
-                mode=mode,
             )
             if exa_docs:
                 if should_use_web_only_context(docs, question, intent):
@@ -572,11 +568,11 @@ class QueryRouter:
     # Avoids weak / irrelevant matches from polluting the LLM context.
     _COLLECTION_THRESHOLDS: Dict[str, float] = {
         "document_chunks": 0.65,
-        "legal_documents": 0.45,  # Lowered from 0.60 to improve Legal Advisor coverage
+        "legal_documents": 0.60,
         # NLP queries with typos/noisy wording often score around 0.47-0.52.
         # Some valid conceptual queries score around 0.40-0.44 in this corpus.
-        # 0.35 reduces unnecessary non-RAG fallbacks while keeping weak noise out.
-        "nlp_knowledge": 0.35,   # Lowered from 0.40
+        # 0.40 reduces unnecessary non-RAG fallbacks while keeping weak noise out.
+        "nlp_knowledge": 0.40,
         "platform_docs": 0.50,
         "resources": 0.50,
     }
@@ -647,7 +643,6 @@ class QueryRouter:
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
         on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
-        mode: Optional[str] = None,
     ) -> List[Dict]:
         """Check retrieval confidence and call Exa if below threshold.
 
@@ -657,7 +652,7 @@ class QueryRouter:
             return []
 
         confidence = compute_retrieval_confidence(retrieved_docs)
-        if not should_trigger_exa(confidence, intent, retrieved_docs, question, mode=mode):
+        if not should_trigger_exa(confidence, intent, retrieved_docs, question):
             logger.info(
                 "Exa fallback NOT triggered: confidence=%.3f intent=%s",
                 confidence, intent,

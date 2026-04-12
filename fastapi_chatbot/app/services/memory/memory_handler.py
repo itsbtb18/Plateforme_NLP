@@ -50,9 +50,9 @@ async def translate_text(text: str, target_lang: str) -> str:
     target_name = lang_names.get(target_lang, "English")
 
     try:
-        from app.services.llm import get_internal_llm_client
+        from app.services.llm import get_internal_groq_client
 
-        client = get_internal_llm_client()
+        client = get_internal_groq_client()
         messages = [
             {
                 "role": "system",
@@ -155,9 +155,9 @@ async def handle_memory_intent(
 
         # Use LLM to summarise
         try:
-            from app.services.llm import get_internal_llm_client
+            from app.services.llm import get_internal_groq_client
 
-            client = get_internal_llm_client()
+            client = get_internal_groq_client()
             messages = [
                 {
                     "role": "system",
@@ -184,9 +184,9 @@ async def handle_memory_intent(
             return _no_two_queries(language)
 
         try:
-            from app.services.llm import get_internal_llm_client
+            from app.services.llm import get_internal_groq_client
 
-            client = get_internal_llm_client()
+            client = get_internal_groq_client()
             messages = [
                 {
                     "role": "system",

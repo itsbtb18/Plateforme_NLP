@@ -172,7 +172,6 @@ def should_trigger_exa(
     intent: str,
     retrieved_docs: List[Dict] | None = None,
     question: str | None = None,
-    mode: str | None = None,
 ) -> bool:
     """Determine whether Exa fallback should be triggered.
 
@@ -193,12 +192,6 @@ def should_trigger_exa(
         threshold = CONFIDENCE_MEDIUM_CONCEPTUAL
     else:
         threshold = CONFIDENCE_MEDIUM
-
-    # Mode-aware boost: if the user explicitly selected a domain-expert mode,
-    # we are more willing to search the web to ensure they get a "full" answer.
-    if mode in ("legal", "nlp_ai"):
-        logger.info("Boosting Exa fallback sensitivity for mode: %s", mode)
-        threshold += 0.10  # Search web even with borderline confidence
 
     # Legal precision override: if the user asks for a specific article number,
     # and local docs don't contain that article while overlap is weak, allow Exa
