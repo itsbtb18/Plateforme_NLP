@@ -76,15 +76,41 @@
             </span>
             {% endif %}
         </div>
+
+        <div class="pub-card-actions" style="display:flex;justify-content:flex-end;padding:0 .85rem .75rem;">
+            <div class="card-top-actions" style="display:flex;gap:.5rem;align-items:center;">
+                <button type="button"
+                        class="card-action-icon share-trigger-btn"
+                        title="{% trans 'Share with friends' %}"
+                        data-share-type="corpus"
+                        data-share-id="{{ corpus.id }}"
+                        data-share-title="{{ corpus.get_localized_title|default:'' }}"
+                        aria-label="{% trans 'Send' %}">
+                    <i class="bi bi-send"></i>
+                    <span>{% trans "Send" %}</span>
+                </button>
+                <button type="button"
+                        class="card-action-icon ask-chatbot-btn"
+                        title="{% trans 'Ask chatbot about this' %}"
+                        data-ct="corpus"
+                        data-oid="{{ corpus.id }}"
+                        data-title="{{ corpus.get_localized_title|default:''|truncatechars:200 }}"
+                        data-category="{{ corpus.get_field_display|default:'corpus' }}"
+                        data-author="{{ corpus.author.get_full_name_display|default:''|truncatechars:120 }}"
+                        data-description="{{ corpus.get_localized_description|default:''|truncatechars:400 }}"
+                        data-url="{{ corpus.get_absolute_url|default:'' }}"
+                        aria-label="{% trans 'Ask chatbot' %}">
+                    <i class="fas fa-robot"></i>
+                    <span>{% trans "Ask AI" %}</span>
+                </button>
+            </div>
+        </div>
         
         <div class="card-footer">
             <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
                 <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% trans "View Details" %}{% endif %}</span>
                 <i class="bi bi-arrow-right"></i>
             </a>
-            <div class="card-footer-actions">
-                {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 category=corpus.get_field_display author=corpus.author.get_full_name_display url=request.build_absolute_uri %}
-            </div>
         </div>
     </article>
     {% endfor %}

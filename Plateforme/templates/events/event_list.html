@@ -76,6 +76,9 @@
 .evt-deadline-days{padding:.3rem .6rem;background:#fbbf24;color:#0f1419;font-size:.7rem;font-weight:700;border-radius:999px;white-space:nowrap;flex-shrink:0}
 .evt-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
 .evt-link:hover{background:rgba(255,255,255,.04)}
+.evt-card-tools{display:flex;justify-content:flex-end;padding:.85rem .85rem 0}
+.evt-card-tools .card-action-icon{border-color:rgba(167,139,250,.2);color:#9ca3af}
+.evt-card-tools .card-action-icon:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;box-shadow:0 4px 12px rgba(167,139,250,.18)}
 .evt-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .evt-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
 .evt-empty-inner{position:relative;z-index:1}
@@ -208,6 +211,9 @@
           <span class="evt-deadline-days">{{ event.days_until_deadline }}d</span>
         </div>
         {% endif %}
+        <div class="evt-card-tools">
+          {% include "includes/card_top_actions.html" with content_type="event" object_id=event.pk title=event.get_localized_title description=event.get_localized_description|truncatewords:40 category=event.get_event_type_display author=event.organizer url=event.get_absolute_url|default:'' %}
+        </div>
         <a class="evt-link" href="{% url 'events:event_detail' event.pk %}">
           <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}View details{% endif %}</span>
           <i class="bi bi-arrow-right"></i>

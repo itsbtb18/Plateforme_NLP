@@ -1025,7 +1025,7 @@ html[dir="rtl"] .ai-badge-inline {
     position: relative;
     overflow: hidden;
     margin-bottom: 0.3rem;
-}}}
+}
 
 .corpus-action-btn::before {
     content: '';
@@ -1569,12 +1569,10 @@ html[dir="rtl"] .ai-badge-inline {
                             <i class="bi bi-printer"></i>
                             {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طباعة المعلومات{% else %}{% trans "Print Info" %}{% endif %}
                         </button>
-                        
-                        <a href="{% url 'chatbot:chatbot_interface' %}?context=corpus&id={{ object.id }}" class="corpus-action-btn ai-chatbot">
-                            <i class="bi bi-robot"></i>
-                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% trans "Ask AI Robot" %}{% endif %}
-                            <span class="ai-badge-inline">AI</span>
-                        </a>
+
+                        <div style="display:flex;justify-content:flex-end;margin-top:.5rem;">
+                            {% include "includes/card_top_actions.html" with content_type="corpus" object_id=object.id title=object.get_localized_title description=object.get_localized_description|truncatewords:40 category=object.get_field_display author=object.author.get_full_name_display|default:'' url=object.get_absolute_url|default:'' %}
+                        </div>
                     </div>
                 </div>
                 

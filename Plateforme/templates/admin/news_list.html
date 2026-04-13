@@ -24,6 +24,7 @@
 .news-card-abstract{color:#334155;line-height:1.52;margin-bottom:.72rem;font-size:.9rem}
 .news-chip-row{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.72rem}
 .news-chip{background:#e6fffa;color:#116149;border-radius:999px;padding:.24rem .56rem;font-size:.74rem;font-weight:700}
+.news-card-tools{display:flex;justify-content:flex-end;margin-bottom:.72rem}
 .news-card-actions{display:flex;gap:.48rem}
 .news-card-actions a,.news-card-actions button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.38rem;border-radius:11px;padding:.65rem .7rem;text-decoration:none;font-weight:700;border:1px solid #dbe4ff;background:#fff;color:#1e293b;font-size:.88rem}
 .news-card-actions .edit{border-color:#534AB7;color:#534AB7}
@@ -86,6 +87,9 @@
         {% for task in item.nlp_tasks|slice:":4" %}
         <span class="news-chip">{{ task }}</span>
         {% endfor %}
+      </div>
+      <div class="news-card-tools">
+        {% include "includes/card_top_actions.html" with content_type="post" object_id=item.id title=item.title description=item.abstract|truncatewords:40 category=item.get_type_display author=item.authors_display url=item.get_absolute_url|default:'' %}
       </div>
       <div class="news-card-actions">
         <a href="{% url 'pages:publication_detail' item.id %}" target="_blank">

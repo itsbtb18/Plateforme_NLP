@@ -68,8 +68,21 @@
 
           <!-- User Info Section -->
           <div class="profile-user-info">
+<<<<<<< HEAD
             <h1 class="profile-user-name">{{ profile_user.get_full_name_display }}</h1>
             <p class="profile-user-title">{{ profile_user.get_speciality_display|default:_("Member") }}</p>
+=======
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
+            <p class="profile-user-title">
+              {% if user.speciality %}
+                {{ user.get_speciality_display }}
+              {% else %}
+                {% trans "Member" %}
+              {% endif %}
+            </p>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
             
             {% if user.institution %}
             <p class="profile-user-location">
@@ -473,6 +486,7 @@
         </h3>
         <div class="contrib-list">
           {% for post in user_posts %}
+<<<<<<< HEAD
           <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
             <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
             <div class="contrib-info">
@@ -485,8 +499,48 @@
               </span>
               <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
               <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
+              <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">
+                  {% if post.get_localized_title %}
+                    {{ post.get_localized_title|truncatechars:60 }}
+                  {% else %}
+                    {{ post.get_localized_content|striptags|truncatechars:60 }}
+                  {% endif %}
+                </span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if post.approval_status %}
+                  <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
+                <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+              </div>
+            </a>
+            <div class="contrib-actions">
+              <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                      data-ct="post" data-oid="{{ post.id }}"
+                      data-title="{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200 }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200 }}{% endif %}"
+                      data-category="post"
+                      data-author="{{ post.author.get_full_name_display|default:''|truncatechars:120 }}"
+                      data-description="{{ post.get_localized_content|striptags|default:''|truncatechars:400 }}"
+                      data-url="{% url 'feed:post_detail' post.slug %}"
+                      data-context='{"title":"{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200|escapejs }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200|escapejs }}{% endif %}","category":"post","author":"{{ post.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ post.get_localized_content|striptags|default:""|truncatechars:400|escapejs }}","url":"{% url 'feed:post_detail' post.slug %}","type":"post","id":"{{ post.id|escapejs }}"}'>
+                <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+              </button>
+              <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                      data-share-type="post" data-share-id="{{ post.id }}"
+                      data-share-title="{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200 }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200 }}{% endif %}">
+                <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+              </button>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
             </div>
-          </a>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -503,13 +557,46 @@
         </h3>
         <div class="contrib-list">
           {% for course in user_courses %}
+<<<<<<< HEAD
           <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
             <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
               <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
+              <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if course.approval_status %}
+                  <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+              </div>
+            </a>
+            <div class="contrib-actions">
+              <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                      data-ct="course" data-oid="{{ course.id }}"
+                      data-title="{{ course.get_localized_title|default:''|truncatechars:200 }}"
+                      data-category="{{ course.get_course_field_display|default:'course' }}"
+                      data-author="{{ course.author.get_full_name_display|default:''|truncatechars:120 }}"
+                      data-description="{{ course.get_localized_description|default:''|truncatechars:400 }}"
+                      data-url="{% url 'resources:course_detail' course.pk %}"
+                      data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.pk %}","type":"course","id":"{{ course.id|escapejs }}"}'>
+                <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+              </button>
+              <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                      data-share-type="course" data-share-id="{{ course.id }}" data-share-title="{{ course.get_localized_title|default:'' }}">
+                <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+              </button>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
             </div>
-          </a>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -525,6 +612,7 @@
         </h3>
         <div class="contrib-list">
           {% for resource in user_resources %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
             <div class="contrib-info">
@@ -532,6 +620,23 @@
               <span class="contrib-date">{{ resource.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="{{ resource.document_type }}" data-oid="{{ resource.id }}"
+                    data-title="{{ resource.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="{{ resource.document_type|default:'resource' }}"
+                    data-author="{{ resource.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ resource.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}"
+                    data-context='{"title":"{{ resource.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ resource.document_type|default:"resource"|escapejs }}","author":"{{ resource.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ resource.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}","type":"{{ resource.document_type|escapejs }}","id":"{{ resource.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="{{ resource.document_type }}" data-share-id="{{ resource.id }}" data-share-title="{{ resource.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -546,6 +651,7 @@
         </h3>
         <div class="contrib-list">
           {% for tool in user_tools %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type='tool' pk=tool.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-screwdriver-wrench"></i></div>
             <div class="contrib-info">
@@ -553,6 +659,23 @@
               <span class="contrib-date">{{ tool.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="tool" data-oid="{{ tool.id }}"
+                    data-title="{{ tool.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="tool"
+                    data-author="{{ tool.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ tool.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type='tool' pk=tool.pk %}"
+                    data-context='{"title":"{{ tool.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"tool","author":"{{ tool.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ tool.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type='tool' pk=tool.pk %}","type":"tool","id":"{{ tool.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="tool" data-share-id="{{ tool.id }}" data-share-title="{{ tool.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -567,6 +690,7 @@
         </h3>
         <div class="contrib-list">
           {% for corpus in user_corpora %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-database"></i></div>
             <div class="contrib-info">
@@ -574,6 +698,23 @@
               <span class="contrib-date">{{ corpus.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="corpus" data-oid="{{ corpus.id }}"
+                    data-title="{{ corpus.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="corpus"
+                    data-author="{{ corpus.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ corpus.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}"
+                    data-context='{"title":"{{ corpus.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"corpus","author":"{{ corpus.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ corpus.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}","type":"corpus","id":"{{ corpus.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="corpus" data-share-id="{{ corpus.id }}" data-share-title="{{ corpus.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -589,6 +730,7 @@
         </h3>
         <div class="contrib-list">
           {% for project in user_projects %}
+          <div class="contrib-entry">
           <a href="{% url 'projects:project_detail' project.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-diagram-project"></i></div>
             <div class="contrib-info">
@@ -596,6 +738,23 @@
               <span class="contrib-date">{{ project.created_at|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="project" data-oid="{{ project.id }}"
+                    data-title="{{ project.title|default:''|truncatechars:200 }}"
+                    data-category="project"
+                    data-author="{{ project.coordinator.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ project.description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'projects:project_detail' project.pk %}"
+                    data-context='{"title":"{{ project.title|default:""|truncatechars:200|escapejs }}","category":"project","author":"{{ project.coordinator.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ project.description|default:""|truncatechars:400|escapejs }}","url":"{% url 'projects:project_detail' project.pk %}","type":"project","id":"{{ project.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="project" data-share-id="{{ project.id }}" data-share-title="{{ project.title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -624,6 +783,7 @@
         </h3>
         <div class="contrib-list">
           {% for topic in user_topics %}
+          <div class="contrib-entry">
           <a href="{% url 'forum:chatroom-list' topic.id %}" class="contrib-item">
             <div class="contrib-icon topic-icon"><i class="fas fa-comment-dots"></i></div>
             <div class="contrib-info">
@@ -631,6 +791,23 @@
               <span class="contrib-date">{{ topic.created_at|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="topic" data-oid="{{ topic.id }}"
+                    data-title="{{ topic.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="topic"
+                    data-author="{{ topic.creator.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ topic.description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'forum:chatroom-list' topic.id %}"
+                    data-context='{"title":"{{ topic.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"topic","author":"{{ topic.creator.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ topic.description|default:""|truncatechars:400|escapejs }}","url":"{% url 'forum:chatroom-list' topic.id %}","type":"topic","id":"{{ topic.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="topic" data-share-id="{{ topic.id }}" data-share-title="{{ topic.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -645,6 +822,7 @@
         </h3>
         <div class="contrib-list">
           {% for reg in upcoming_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="contrib-info">
@@ -652,6 +830,23 @@
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ reg.event.id }}"
+                    data-title="{{ reg.event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ reg.event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ reg.event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' reg.event.pk %}"
+                    data-context='{"title":"{{ reg.event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ reg.event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ reg.event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' reg.event.pk %}","type":"event","id":"{{ reg.event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ reg.event.id }}" data-share-title="{{ reg.event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -665,6 +860,7 @@
         </h3>
         <div class="contrib-list">
           {% for reg in past_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
             <div class="contrib-icon topic-icon"><i class="fas fa-check-circle"></i></div>
             <div class="contrib-info">
@@ -672,6 +868,23 @@
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ reg.event.id }}"
+                    data-title="{{ reg.event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ reg.event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ reg.event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' reg.event.pk %}"
+                    data-context='{"title":"{{ reg.event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ reg.event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ reg.event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' reg.event.pk %}","type":"event","id":"{{ reg.event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ reg.event.id }}" data-share-title="{{ reg.event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -686,6 +899,7 @@
         </h3>
         <div class="contrib-list">
           {% for event in user_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' event.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-plus"></i></div>
             <div class="contrib-info">
@@ -693,6 +907,23 @@
               <span class="contrib-date">{{ event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ event.id }}"
+                    data-title="{{ event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' event.pk %}"
+                    data-context='{"title":"{{ event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' event.pk %}","type":"event","id":"{{ event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ event.id }}" data-share-title="{{ event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -3328,7 +3559,107 @@
     color: #ffffff !important;
   }
 
+<<<<<<< HEAD
   /* Contribution Items */
+=======
+  /* KPI Cards */
+  .kpi-glass-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .kpi-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .kpi-chart-box {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .kpi-chart-box h4 {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 8px !important;
+  }
+
+  .kpi-chart-box canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* Contribution Cards */
+  .contrib-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .contrib-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
   .contrib-item {
     background: var(--notion-bg-secondary) !important;
     border: 1px solid var(--notion-border-light) !important;
@@ -3341,6 +3672,51 @@
     background: rgba(37, 99, 235, 0.05) !important;
     border-color: var(--notion-blue) !important;
     transform: translateX(2px);
+  }
+
+  .contrib-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .contrib-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.14);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .contrib-action-btn i {
+    font-size: 0.9rem;
+  }
+
+  .contrib-action-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.1);
+  }
+
+  .contrib-action-btn.ask-chatbot-btn:hover {
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--notion-blue);
+  }
+
+  .contrib-action-btn.share-trigger-btn:hover {
+    background: rgba(14, 165, 233, 0.08);
+    color: #0369a1;
   }
 
   .contrib-icon {
@@ -3371,7 +3747,32 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
   }
 
+<<<<<<< HEAD
   .kpi-chart-box h4 {
+=======
+  .experience-item {
+    align-items: flex-start;
+  }
+
+  @media (max-width: 640px) {
+    .contrib-actions {
+      justify-content: stretch;
+    }
+
+    .contrib-action-btn {
+      flex: 1 1 calc(50% - 8px);
+    }
+  }
+
+  .experience-role-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .experience-role {
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
     color: var(--notion-text-primary) !important;
     font-weight: 700 !important;
   }
@@ -4254,11 +4655,55 @@
       });
     });
 
+<<<<<<< HEAD
     const experienceToggleBtn = document.getElementById('experienceToggleBtn');
     const experienceInlineForm = document.getElementById('experienceInlineForm');
     if (experienceToggleBtn && experienceInlineForm) {
       experienceToggleBtn.addEventListener('click', function () {
         experienceInlineForm.hidden = !experienceInlineForm.hidden;
+=======
+    contribLists.forEach((list) => {
+      const items = Array.from(list.children);
+      if (items.length <= PAGE_SIZE) return;
+
+      let page = 0;
+      const totalPages = Math.ceil(items.length / PAGE_SIZE);
+
+      const pager = document.createElement("div");
+      pager.className = "contrib-pager";
+
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "contrib-pager-btn";
+      prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prevBtn.setAttribute("aria-label", "Previous page");
+
+      const info = document.createElement("span");
+      info.className = "contrib-pager-info";
+
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "contrib-pager-btn";
+      nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      nextBtn.setAttribute("aria-label", "Next page");
+
+      function renderPage() {
+        const start = page * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        items.forEach((item, idx) => {
+          item.style.display = idx >= start && idx < end ? "" : "none";
+        });
+        info.textContent = (page + 1) + " / " + totalPages;
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = page === totalPages - 1;
+      }
+
+      prevBtn.addEventListener("click", function () {
+        if (page > 0) {
+          page -= 1;
+          renderPage();
+        }
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
       });
     }
   });

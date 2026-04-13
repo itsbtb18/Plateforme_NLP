@@ -137,6 +137,7 @@ class GlobalSearchView(TemplateView):
             'url_field': 'pk',
             'fields': {
                 'full_name': ['full_name', 'full_name.arabic', 'full_name.english', 'full_name.phonetic'],
+                'email': ['email'],
             },
             'extra_fields': ['bio'],
             'date_field': None,
@@ -482,9 +483,21 @@ class SearchAutocompleteView(View):
             'document': UserDocument,
             'url_name': 'accounts:profile',
             'title_field': 'full_name',
-            'fields': ['full_name', 'full_name.arabic', 'full_name.english', 'full_name.phonetic'],
+            'fields': ['full_name', 'full_name.arabic', 'full_name.english', 'full_name.phonetic', 'email'],
         },
     }
+
+    @staticmethod
+    def _visible_user_ids(user_ids, hidden_user_ids: set[str]) -> set[str]:
+        if not user_ids:
+            return set()
+        return {
+            str(pk)
+            for pk in User.objects.filter(id__in=user_ids, is_active=True)
+            .exclude(status="blocked")
+            .exclude(id__in=hidden_user_ids)
+            .values_list("id", flat=True)
+        }
     
     def get(self, request, *args, **kwargs):
         q = request.GET.get('q', '').strip()
@@ -514,7 +527,18 @@ class SearchAutocompleteView(View):
                 )
                 
                 # Boost by language match
-                if detected_lang == 'arabic':
+                if doc_type == 'user':
+                    boost_query = Q(
+                        'bool',
+                        should=[
+                            Q('match', **{'full_name.arabic': {'query': q, 'boost': 2.5}}),
+                            Q('match', **{'full_name.english': {'query': q, 'boost': 2.5}}),
+                            Q('match', **{'full_name': {'query': q, 'boost': 2.0}}),
+                            Q('match', **{'email': {'query': q, 'boost': 2.2}}),
+                        ],
+                        minimum_should_match=1,
+                    )
+                elif detected_lang == 'arabic':
                     boost_query = Q('match', **{'title.arabic': {'query': q, 'boost': 2.0}})
                 else:
                     boost_query = Q('match', **{'title.english': {'query': q, 'boost': 2.0}})
@@ -525,18 +549,24 @@ class SearchAutocompleteView(View):
                 )
                 
                 # Only get top 3 per type for quick suggestions
-                search = search[:3]
+                search = search[:5] if doc_type == 'user' else search[:3]
                 
                 # For user type, also fetch avatar
                 if doc_type == 'user':
-                    search = search.source([config['title_field'], 'avatar'])
+                    search = search.source([config['title_field'], 'avatar', 'email'])
                 else:
                     search = search.source([config['title_field']])
                 
                 response = search.execute()
+                visible_user_ids = set()
+                if doc_type == "user":
+                    visible_user_ids = self._visible_user_ids(
+                        [str(hit.meta.id) for hit in response],
+                        hidden_user_ids,
+                    )
                 
                 for hit in response:
-                    if doc_type == "user" and str(hit.meta.id) in hidden_user_ids:
+                    if doc_type == "user" and str(hit.meta.id) not in visible_user_ids:
                         continue
                     title = getattr(hit, config['title_field'], '')
                     if title:
@@ -579,6 +609,8 @@ class SearchAutocompleteView(View):
                     | DJQ(full_name__icontains=q)
                     | DJQ(email__icontains=q)
                 )
+                .filter(is_active=True)
+                .exclude(status="blocked")
                 .exclude(id__in=hidden_user_ids)
                 .only("id", "email", "full_name_en", "full_name_ar", "full_name", "avatar")
                 [:8]
@@ -609,7 +641,13 @@ class SearchAutocompleteView(View):
             logger.warning(f"Autocomplete DB user fallback error: {e}")
         
         # Sort by score and limit to top 8
-        suggestions.sort(key=lambda x: x.get('score', 0), reverse=True)
+        suggestions.sort(
+            key=lambda x: (
+                0 if x.get('type') == 'user' else 1,
+                -(x.get('score', 0) or 0),
+                x.get('title', '').lower(),
+            )
+        )
         suggestions = suggestions[:8]
         
         # Remove score from response

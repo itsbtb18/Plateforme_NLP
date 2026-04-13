@@ -250,8 +250,6 @@ class OpportunityForm(forms.ModelForm):
         if not isinstance(values, list):
             raise forms.ValidationError(_("Invalid skills payload."))
         values = normalize_skills(values)
-        if not values:
-            raise forms.ValidationError(_("Select at least one skill."))
         return values
 
     def clean(self):
