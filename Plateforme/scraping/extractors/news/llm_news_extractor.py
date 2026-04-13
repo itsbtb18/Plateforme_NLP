@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +55,38 @@ class LLMNewsExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are a strict extraction assistant for Arabic NLP news and papers.
-You receive search_results as JSON array entries (title/url/content).
-Return ONLY a JSON array and no markdown.
-Each output item should include these keys:
-- title_en
-- title_ar
-- summary_en
-- summary_ar
-- source_url
-- published_date
-- tags
-Rules:
-- Keep only NLP/AI research news and publication items.
-- published_date should be YYYY-MM-DD when possible, else null.
-- tags must be an array of short strings.
-- If a field is unknown, return null.
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information for research news and paper announcements.
+
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanation, no markdown).
+2. Return a JSON array of news objects.
+3. If unknown, return null.
+4. Do NOT invent publication dates or URLs.
+5. title_en and summary_en must be in English.
+6. title_ar and summary_ar MUST be real Arabic translations.
+
+CRITICAL ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms in English when needed.
+
+OUTPUT FORMAT:
+{
+  "title_en": "string or null",
+  "title_ar": "Arabic translation or null",
+  "summary_en": "string or null",
+  "summary_ar": "Arabic translation or null",
+  "source_url": "https://... or null",
+  "published_date": "YYYY-MM-DD or null",
+  "tags": ["string", "..."] or [],
+  "is_arabic_nlp_relevant": true or false,
+  "relevance_score": 0.0 to 1.0,
+  "extraction_confidence": 0.0 to 1.0
+}
+
+Return [] if no relevant news items are found.
 """
 
     @staticmethod
@@ -125,8 +142,8 @@ Rules:
         if not title_en or not summary_en:
             return None
 
-        title_ar = self._pick_text(item, "title_ar") or title_en
-        summary_ar = self._pick_text(item, "summary_ar", "description_ar") or summary_en
+        title_ar = self._pick_text(item, "title_ar") or None
+        summary_ar = self._pick_text(item, "summary_ar", "description_ar") or None
 
         source_url = self._pick_text(item, "source_url", "url", "link")
         published_date = self._pick_text(
@@ -143,14 +160,21 @@ Rules:
             item.get("tags") or item.get("keywords") or item.get("topics")
         )
 
+        translation_status = infer_translation_status(
+            raw_status=item.get("translation_status"),
+            english_values=[title_en, summary_en],
+            arabic_values=[title_ar, summary_ar],
+        )
+
         return {
             "title_en": title_en[:300],
-            "title_ar": title_ar[:300],
+            "title_ar": title_ar[:300] if title_ar else None,
             "summary_en": summary_en[:5000],
-            "summary_ar": summary_ar[:5000],
+            "summary_ar": summary_ar[:5000] if summary_ar else None,
             "source_url": source_url[:500],
             "published_date": published_date or None,
             "tags": tags,
+            "translation_status": translation_status,
         }
 
     @staticmethod

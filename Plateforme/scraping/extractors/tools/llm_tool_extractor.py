@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +55,42 @@ class LLMToolExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are a strict extraction assistant for Arabic NLP tools.
-You receive search_results as JSON array entries (title/url/content).
-Return ONLY a JSON array and no markdown.
-Each output item should include these keys:
-- title_en
-- title_ar
-- description_en
-- description_ar
-- github_url
-- paper_url
-- license
-- capabilities
-Rules:
-- Keep only real NLP/AI tools.
-- If a field is unknown, return null.
-- capabilities must be an array of short strings.
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information about NLP tools and models from web content.
+
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanation, no markdown).
+2. Return a JSON array of tool objects.
+3. If a field is unknown, return null.
+4. Do NOT invent capabilities, licenses, or URLs.
+5. title_en and description_en must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
+
+CRITICAL ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms in English when needed:
+    transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training.
+
+OUTPUT FORMAT:
+{
+    "title_en": "string or null",
+    "title_ar": "Arabic translation or null",
+    "description_en": "string or null",
+    "description_ar": "Arabic translation or null",
+    "github_url": "https://... or null",
+    "paper_url": "https://... or null",
+    "url": "https://... or null",
+    "license": "string or null",
+    "capabilities": ["string", "..."] or [],
+    "language_support": ["arabic", "english", "multilingual"] or [],
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0
+}
+
+Return [] if no relevant tools are found.
 """
 
     @staticmethod
@@ -125,8 +146,8 @@ Rules:
         if not title_en or not description_en:
             return None
 
-        title_ar = self._pick_text(item, "title_ar") or title_en
-        description_ar = self._pick_text(item, "description_ar") or description_en
+        title_ar = self._pick_text(item, "title_ar") or None
+        description_ar = self._pick_text(item, "description_ar") or None
 
         github_url = self._pick_text(item, "github_url", "github_link")
         paper_url = self._pick_text(
@@ -138,15 +159,22 @@ Rules:
 
         capabilities = self._to_list(item.get("capabilities") or item.get("keywords"))
 
+        translation_status = infer_translation_status(
+            raw_status=item.get("translation_status"),
+            english_values=[title_en, description_en],
+            arabic_values=[title_ar, description_ar],
+        )
+
         return {
             "title_en": title_en[:300],
-            "title_ar": title_ar[:300],
+            "title_ar": title_ar[:300] if title_ar else None,
             "description_en": description_en[:5000],
-            "description_ar": description_ar[:5000],
+            "description_ar": description_ar[:5000] if description_ar else None,
             "github_url": github_url[:500],
             "paper_url": paper_url[:500],
             "license": self._pick_text(item, "license")[:120],
             "capabilities": capabilities,
+            "translation_status": translation_status,
         }
 
     @staticmethod

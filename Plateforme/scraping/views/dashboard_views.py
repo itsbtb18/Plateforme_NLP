@@ -1,9 +1,7 @@
-"""Dashboard-related view exports."""
+"""Compatibility shim for deprecated scraping.views.dashboard_views."""
 
-from scraping.views_root import _infer_source_tier, _model_for_category, dashboard
+# DEPRECATED: import from scraping.views_root instead.
+from scraping.views_root import *  # noqa: F401,F403
 
-# _media_stats is a nested helper inside dashboard in the legacy module.
-# Exported as optional symbol for split structure completeness.
+# Historical placeholder from the split package.
 _media_stats = None
-
-__all__ = ["dashboard", "_media_stats", "_infer_source_tier", "_model_for_category"]

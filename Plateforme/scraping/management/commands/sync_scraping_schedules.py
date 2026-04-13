@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from scraping.constants import LEGACY_FIXED_SCHEDULE_NAMES
@@ -8,6 +9,16 @@ class Command(BaseCommand):
     help = "Sync scraping periodic schedules into django-celery-beat tables."
 
     def handle(self, *args, **options):
+        if getattr(settings, "SCRAPING_MANUAL_ONLY", True):
+            self.stdout.write(
+                self.style.WARNING(
+                    "Scraping is in manual-only mode. "
+                    "Automatic schedule sync is disabled. "
+                    "Set SCRAPING_MANUAL_ONLY=False to re-enable."
+                )
+            )
+            return
+
         try:
             from django_celery_beat.models import CrontabSchedule, PeriodicTask
         except Exception as exc:

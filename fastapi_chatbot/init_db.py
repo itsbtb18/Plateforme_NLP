@@ -10,11 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-import logging
-
+from app.db import init_db, engine
 from app.config import get_settings
-from app.db import engine, init_db
 from sqlalchemy import text
+import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,9 +31,7 @@ async def initialize_database():
     logger.info("=" * 60)
     logger.info(
         "Database URL: %s",
-        settings.DATABASE_URL.split("@")[1]
-        if "@" in settings.DATABASE_URL
-        else "configured",
+        settings.DATABASE_URL.split("@")[1] if "@" in settings.DATABASE_URL else "configured",
     )
     logger.info("")
 
@@ -91,7 +88,7 @@ async def initialize_database():
         logger.info("   python -m app.ingestion.ingest_legal_docs")
         logger.info("")
         logger.info("2. Start the FastAPI server:")
-        logger.info("   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload")
+        logger.info("   uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload")
         logger.info("")
 
     except Exception as e:

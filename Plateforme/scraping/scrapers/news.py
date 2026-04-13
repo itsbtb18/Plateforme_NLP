@@ -11,7 +11,10 @@ from django.apps import apps as django_apps
 from django.utils import timezone
 
 from scraping.extractors.news.llm_news_extractor import LLMNewsExtractor
+from scraping.field_mapping import get_auto_translate_fields
 from scraping.network.search_client import TavilySearchClient
+from scraping.translation.arabic_translator import ArabicTranslator
+from scraping.utils import infer_translation_status
 
 from .base import BaseScraper
 
@@ -26,6 +29,7 @@ class NewsScraper(BaseScraper):
     API_CALL_DELAY_SECONDS = 2
 
     MODEL_CANDIDATES = (
+        ("QA", "Post"),
         ("events", "News"),
         ("resources", "News"),
         ("feed", "Post"),
@@ -49,6 +53,14 @@ class NewsScraper(BaseScraper):
             logger.warning("News scraper initialization failed: %s", exc)
             return
 
+        if not search_client.is_enabled:
+            self._log_error(
+                "news_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
+            return
+
         search_queries = self.get_active_search_queries(self.category)
         if not search_queries:
             logger.warning(
@@ -57,10 +69,26 @@ class NewsScraper(BaseScraper):
             return
 
         combined_results: list[dict] = []
-        for query in search_queries:
+        total_queries = len(search_queries)
+        self.emit_progress(
+            "discovery",
+            0,
+            total_queries,
+            "🔍 Starting discovery...",
+            current_source=self.name,
+        )
+        for query_index, query in enumerate(search_queries, start=1):
+            self.emit_progress(
+                "discovery",
+                query_index,
+                total_queries,
+                f"🔍 Searching: {query}",
+                current_source=query,
+                current_item=query,
+            )
             try:
                 time.sleep(self.API_CALL_DELAY_SECONDS)
-                results = async_to_sync(search_client.search_web)(query, max_results=12)
+                results = async_to_sync(search_client.search_news)(query)
             except Exception as exc:
                 self._log_error(
                     "news_tavily_search_failed",
@@ -79,6 +107,21 @@ class NewsScraper(BaseScraper):
 
         try:
             time.sleep(self.API_CALL_DELAY_SECONDS)
+            total_batches = 1
+            self.emit_progress(
+                "extraction",
+                0,
+                total_batches,
+                "🤖 Starting extraction...",
+                current_item="Batch 0/1",
+            )
+            self.emit_progress(
+                "extraction",
+                1,
+                total_batches,
+                "🤖 Extracting batch 1/1",
+                current_item="Batch 1/1",
+            )
             candidates = async_to_sync(extractor.extract_news_from_search)(
                 combined_results
             )
@@ -90,16 +133,50 @@ class NewsScraper(BaseScraper):
             logger.warning("No news candidates extracted from Tavily results.")
             return
 
+        translator = ArabicTranslator()
+        fields_to_translate = [
+            "title_ar",
+            "description_ar",
+            "short_description_ar",
+            "summary_ar",
+            *get_auto_translate_fields(self.category),
+        ]
+        candidates = translator.batch_translate(candidates, fields=fields_to_translate)
+
         fields = self._model_fields(model)
         author = self._resolve_system_user_if_needed(fields)
 
-        for candidate in candidates:
+        total_candidates = len(candidates)
+        self.emit_progress(
+            "validation",
+            0,
+            total_candidates,
+            "✅ Starting validation...",
+        )
+        for candidate_index, candidate in enumerate(candidates, start=1):
+            self.emit_progress(
+                "saving",
+                candidate_index,
+                total_candidates,
+                f"💾 Saving item {candidate_index}/{total_candidates}",
+                current_item=(
+                    str(
+                        candidate.get("title_en") or candidate.get("title") or ""
+                    ).strip()
+                    if isinstance(candidate, dict)
+                    else ""
+                ),
+            )
             if not isinstance(candidate, dict):
                 self.items_skipped += 1
                 continue
 
             normalized = self._normalize_candidate(candidate)
             if normalized is None:
+                self.items_skipped += 1
+                continue
+
+            if not self.passes_min_confidence_to_save(normalized):
                 self.items_skipped += 1
                 continue
 
@@ -146,7 +223,13 @@ class NewsScraper(BaseScraper):
                     "source_name": "Tavily Search + Groq",
                     "source_url": normalized.get("source_url") or "",
                     "title_en": normalized["title_en"],
+                    "title_ar": normalized["title_ar"],
                     "description_en": normalized["summary_en"],
+                    "description_ar": normalized["summary_ar"],
+                    "published_date": normalized.get("published_date"),
+                    "translation_status": normalized.get(
+                        "translation_status", "pending"
+                    ),
                 }
             )
 
@@ -236,7 +319,9 @@ class NewsScraper(BaseScraper):
         if "language" in fields:
             defaults["language"] = (
                 "ar"
-                if self._contains_arabic(item["title_ar"] + " " + item["summary_ar"])
+                if self._contains_arabic(
+                    (item.get("title_ar") or "") + " " + (item.get("summary_ar") or "")
+                )
                 else "en"
             )
         if "update_date" in fields:
@@ -282,8 +367,8 @@ class NewsScraper(BaseScraper):
         if not title_en or not summary_en:
             return None
 
-        title_ar = self._safe_text(item.get("title_ar")) or title_en
-        summary_ar = self._safe_text(item.get("summary_ar")) or summary_en
+        title_ar = self._safe_text(item.get("title_ar")) or None
+        summary_ar = self._safe_text(item.get("summary_ar")) or None
 
         tags_raw = item.get("tags")
         tags: list[str] = []
@@ -298,14 +383,21 @@ class NewsScraper(BaseScraper):
                 if chunk.strip()
             ]
 
+        translation_status = infer_translation_status(
+            raw_status=self._safe_text(item.get("translation_status")) or "pending",
+            english_values=[title_en, summary_en],
+            arabic_values=[title_ar, summary_ar],
+        )
+
         return {
             "title_en": title_en[:300],
-            "title_ar": title_ar[:300],
+            "title_ar": title_ar[:300] if title_ar else None,
             "summary_en": summary_en[:5000],
-            "summary_ar": summary_ar[:5000],
+            "summary_ar": summary_ar[:5000] if summary_ar else None,
             "source_url": self._safe_text(item.get("source_url"))[:500],
             "published_date": self._safe_text(item.get("published_date"))[:10] or None,
             "tags": tags,
+            "translation_status": translation_status,
         }
 
     @staticmethod

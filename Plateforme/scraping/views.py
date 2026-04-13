@@ -16,17 +16,17 @@ from ipaddress import ip_address, ip_network
 from celery.result import AsyncResult
 from django.apps import apps
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db.models import Count, Max, Sum
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_POST
 from events.models import Event
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends
@@ -45,6 +45,12 @@ from .models import (
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .scraping_settings import scraping_settings as SS
 from .tasks import run_scraper_task
+
+try:
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+except ImportError:
+    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+    generate_latest = None
 
 
 def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
@@ -928,6 +934,7 @@ def run_scraper(request, category):
 
 
 @login_required
+@staff_member_required
 @user_passes_test(is_admin)
 @require_GET
 @rate_limit(
@@ -958,9 +965,17 @@ def run_scraper_status(request, run_id):
     data = {
         "status": run.status,
         "run_id": str(run.pk),
+        "progress": int(run.progress_current or 0),
+        "total": int(run.progress_total or 0),
+        "progress_current": int(run.progress_current or 0),
+        "progress_total": int(run.progress_total or 0),
+        "current_step": run.current_step or "",
+        "current_source": run.current_source or "",
+        "current_item": getattr(run, "current_item", run.current_source) or "",
         "items_found": run.items_found,
         "items_created": run.items_created,
         "items_skipped": run.items_skipped,
+        "items_failed": int(getattr(run, "items_failed", run.items_skipped) or 0),
         "duration": run.duration,
     }
 
@@ -1060,6 +1075,7 @@ def run_custom_source(request, source_id):
 
 
 @login_required
+@staff_member_required
 @user_passes_test(is_admin)
 @require_GET
 @rate_limit(
@@ -1092,6 +1108,7 @@ def trends(request):
 
 
 @login_required
+@staff_member_required
 @user_passes_test(is_admin)
 @require_GET
 @rate_limit(
@@ -1785,6 +1802,12 @@ def is_prometheus_request(request) -> bool:
 
 
 def generate_latest_metrics_response():
+    if generate_latest is None:
+        return JsonResponse(
+            {"error": "Metrics endpoint disabled: prometheus_client not installed."},
+            status=503,
+        )
+
     try:
         # Keep source health gauges fresh when scraped.
         update_source_health_metrics()
@@ -1796,20 +1819,11 @@ def generate_latest_metrics_response():
 
 
 @csrf_exempt
+@staff_member_required
 @require_GET
 def scraping_metrics_view(request):
-    """Prometheus metrics endpoint.
-
-    - Allows unauthenticated access from Docker/internal allowlisted networks.
-    - Requires authenticated staff access for all other source IPs.
-    """
+    """Prometheus metrics endpoint restricted to authenticated staff users."""
     _log_scraping_action(request)
-
-    if is_prometheus_request(request):
-        return generate_latest_metrics_response()
-
-    if not request.user.is_authenticated or not request.user.is_staff:
-        return HttpResponseForbidden("Authentication required for metrics access")
 
     ip = _client_ip(request)
     metrics_key = f"scraping:metrics:ip:{ip}"

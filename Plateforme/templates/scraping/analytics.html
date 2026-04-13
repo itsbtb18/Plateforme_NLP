@@ -1,0 +1,1547 @@
+{% extends 'scraping/base_scraping.html' %}
+{% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+
+{% block title %}{% trans "Scraping Analytics" %} - {% trans "Admin Panel" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .analytics-shell {
+    --ana-bg: #f4f7fb;
+    --ana-surface: #ffffff;
+    --ana-border: #d9e2ee;
+    --ana-border-strong: #c7d4e5;
+    --ana-title: #0f172a;
+    --ana-text: #1e293b;
+    --ana-muted: #4b5563;
+    --ana-blue: #1d4ed8;
+    --ana-blue-soft: #eff6ff;
+    --ana-green: #047857;
+    --ana-green-soft: #ecfdf5;
+    --ana-red: #b91c1c;
+    --ana-red-soft: #fef2f2;
+    --ana-amber: #b45309;
+    --ana-amber-soft: #fffbeb;
+    --ana-shadow: 0 24px 40px -34px rgba(15, 23, 42, 0.75);
+    margin: 0 auto;
+    max-width: 1680px;
+    display: grid;
+    gap: 1rem;
+    color: var(--ana-text);
+  }
+
+  .ana-card {
+    border: 1px solid var(--ana-border);
+    border-radius: 16px;
+    background: var(--ana-surface);
+    box-shadow: var(--ana-shadow);
+  }
+
+  .ana-header {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 16% 20%, rgba(37, 99, 235, 0.15), transparent 42%),
+      radial-gradient(circle at 86% 30%, rgba(14, 116, 144, 0.15), transparent 45%),
+      linear-gradient(145deg, #ffffff, #f6fafe);
+    border-color: rgba(37, 99, 235, 0.28);
+    padding: 1rem 1.05rem;
+  }
+
+  .ana-header::after {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    border-radius: 999px;
+    right: -70px;
+    bottom: -75px;
+    background: radial-gradient(circle, rgba(30, 64, 175, 0.2), transparent 72%);
+    pointer-events: none;
+  }
+
+  .ana-header-grid {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .ana-title {
+    margin: 0;
+    font-size: 1.34rem;
+    font-weight: 900;
+    color: var(--ana-title);
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.46rem;
+  }
+
+  .ana-subtitle {
+    margin: 0.45rem 0 0;
+    color: var(--ana-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+    max-width: 76ch;
+  }
+
+  .ana-header-meta {
+    margin-top: 0.66rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.44rem;
+  }
+
+  .ana-meta-pill {
+    border: 1px solid rgba(37, 99, 235, 0.23);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.27rem 0.62rem;
+    display: inline-flex;
+    gap: 0.36rem;
+    align-items: center;
+  }
+
+  .ana-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .ana-btn {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.44rem;
+    padding: 0.52rem 0.84rem;
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .ana-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .ana-btn:disabled {
+    opacity: 0.6;
+    transform: none;
+    cursor: not-allowed;
+  }
+
+  .ana-btn.primary {
+    background: linear-gradient(125deg, #1d4ed8, #1e40af);
+    border-color: #1e3a8a;
+    color: #ffffff;
+  }
+
+  .ana-btn.ghost {
+    background: #ffffff;
+    border-color: var(--ana-border);
+    color: #1f2937;
+  }
+
+  .ana-btn.ghost:hover {
+    border-color: #9fb1c7;
+  }
+
+  .ana-btn.soft {
+    background: var(--ana-blue-soft);
+    border-color: rgba(37, 99, 235, 0.25);
+    color: #1d4ed8;
+  }
+
+  .ana-controls {
+    padding: 0.84rem 0.95rem;
+    display: grid;
+    gap: 0.76rem;
+    border-color: var(--ana-border-strong);
+    background: linear-gradient(145deg, #ffffff, #f8fbff);
+  }
+
+  .ana-controls-grid {
+    display: grid;
+    gap: 0.58rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .ana-field {
+    display: grid;
+    gap: 0.26rem;
+  }
+
+  .ana-field label {
+    margin: 0;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.66rem;
+    font-weight: 800;
+  }
+
+  .ana-input,
+  .ana-select {
+    width: 100%;
+    border: 1px solid var(--ana-border);
+    border-radius: 9px;
+    font-size: 0.78rem;
+    color: #0f172a;
+    background: #ffffff;
+    padding: 0.46rem 0.54rem;
+  }
+
+  .ana-input:focus,
+  .ana-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  }
+
+  .ana-col-span-3 { grid-column: span 3; }
+  .ana-col-span-2 { grid-column: span 2; }
+
+  .ana-window-summary {
+    margin: 0;
+    font-size: 0.76rem;
+    color: #475569;
+    font-weight: 700;
+  }
+
+  .ana-main {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .ana-main.is-hidden {
+    display: none;
+  }
+
+  .ana-empty {
+    border: 1px dashed #94a3b8;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #f8fbff, #ffffff);
+    padding: 1.2rem 1.1rem;
+    display: grid;
+    gap: 0.62rem;
+    justify-items: start;
+  }
+
+  .ana-empty h2 {
+    margin: 0;
+    color: #1e3a8a;
+    font-size: 1.1rem;
+    font-weight: 900;
+  }
+
+  .ana-empty p {
+    margin: 0;
+    color: #475569;
+    font-size: 0.82rem;
+    max-width: 70ch;
+  }
+
+  .ana-kpis {
+    display: grid;
+    gap: 0.68rem;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .ana-kpi {
+    width: 100%;
+    border: 1px solid var(--ana-border);
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.74rem 0.76rem;
+    text-align: start;
+    display: grid;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .ana-kpi:hover {
+    transform: translateY(-1px);
+    border-color: #93c5fd;
+    box-shadow: 0 10px 18px -18px rgba(29, 78, 216, 0.8);
+  }
+
+  .ana-kpi-title {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+  }
+
+  .ana-kpi-value {
+    font-size: 1.24rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1;
+  }
+
+  .ana-kpi-trend {
+    font-size: 0.72rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .ana-kpi-trend.good { color: var(--ana-green); }
+  .ana-kpi-trend.bad { color: var(--ana-red); }
+  .ana-kpi-trend.flat { color: #475569; }
+
+  .ana-kpi-hint {
+    font-size: 0.69rem;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .ana-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.88rem;
+  }
+
+  .ana-panel {
+    padding: 0.8rem 0.86rem;
+    display: grid;
+    gap: 0.66rem;
+  }
+
+  .ana-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.48rem;
+  }
+
+  .ana-panel-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.93rem;
+    font-weight: 900;
+  }
+
+  .ana-panel-note {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .ana-chart-wrap {
+    min-height: 280px;
+  }
+
+  .ana-chart-wrap.tall {
+    min-height: 330px;
+  }
+
+  .ana-table-wrap {
+    overflow-x: auto;
+  }
+
+  .ana-table {
+    width: 100%;
+    min-width: 820px;
+    border-collapse: collapse;
+    border: 1px solid #edf2f8;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ana-table th,
+  .ana-table td {
+    border-bottom: 1px solid #edf2f8;
+    padding: 0.55rem 0.52rem;
+    text-align: start;
+    font-size: 0.73rem;
+  }
+
+  .ana-table th {
+    background: #f8fbff;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 800;
+    font-size: 0.67rem;
+    white-space: nowrap;
+  }
+
+  .ana-table tbody tr:hover {
+    background: #f8fbff;
+  }
+
+  .ana-chip {
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 0.18rem 0.52rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+  }
+
+  .ana-health {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.26rem;
+    border-radius: 999px;
+    border: 1px solid;
+    padding: 0.14rem 0.46rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+  }
+
+  .ana-health.good {
+    border-color: rgba(4, 120, 87, 0.34);
+    color: #047857;
+    background: var(--ana-green-soft);
+  }
+
+  .ana-health.warn {
+    border-color: rgba(180, 83, 9, 0.34);
+    color: #b45309;
+    background: var(--ana-amber-soft);
+  }
+
+  .ana-health.bad {
+    border-color: rgba(185, 28, 28, 0.34);
+    color: #b91c1c;
+    background: var(--ana-red-soft);
+  }
+
+  .ana-muted {
+    color: #64748b;
+  }
+
+  .ana-duplicates-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 0.74rem;
+  }
+
+  .ana-duplicate-kpi {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 0.62rem 0.66rem;
+    display: grid;
+    gap: 0.22rem;
+  }
+
+  .ana-duplicate-kpi .label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    font-weight: 800;
+  }
+
+  .ana-duplicate-kpi .value {
+    font-size: 1.08rem;
+    color: #0f172a;
+    font-weight: 900;
+  }
+
+  .ana-category-list {
+    display: grid;
+    gap: 0.34rem;
+  }
+
+  .ana-category-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.46rem;
+    border: 1px solid #edf2f8;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 0.44rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .ana-category-item button {
+    border: 0;
+    background: transparent;
+    color: #1d4ed8;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .ana-loading-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.16);
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .ana-loading-layer.visible {
+    display: flex;
+  }
+
+  .ana-loading-pill {
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    box-shadow: 0 16px 24px -22px rgba(30, 64, 175, 0.8);
+  }
+
+  .ana-loading-dot {
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 999px;
+    background: #1d4ed8;
+    animation: anaPulse 1s infinite ease-in-out;
+  }
+
+  @keyframes anaPulse {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(0.8); opacity: 0.5; }
+  }
+
+  @media (max-width: 1360px) {
+    .ana-kpis {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 1080px) {
+    .ana-grid-2,
+    .ana-duplicates-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ana-kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ana-col-span-3,
+    .ana-col-span-2 {
+      grid-column: span 6;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .analytics-shell {
+      gap: 0.75rem;
+    }
+
+    .ana-title {
+      font-size: 1.16rem;
+    }
+
+    .ana-subtitle {
+      font-size: 0.78rem;
+    }
+
+    .ana-kpis {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ana-col-span-3,
+    .ana-col-span-2 {
+      grid-column: span 12;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block scraping_page_content %}
+<div class="analytics-shell" id="analyticsShell" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+  <section class="ana-card ana-header">
+    <div class="ana-header-grid">
+      <div>
+        <h1 class="ana-title">
+          <i class="fas fa-chart-line" aria-hidden="true"></i>
+          <span>{% trans "Scraping Analytics" %}</span>
+        </h1>
+        <p class="ana-subtitle">
+          {% trans "Monitor scraping quality, approval outcomes, translation health, and duplicate pressure across sources." %}
+        </p>
+        <div class="ana-header-meta">
+          <span class="ana-meta-pill">
+            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            <span>{% trans "Range" %}: <strong id="windowLabelText">{% trans "Last 30 days" %}</strong></span>
+          </span>
+          <span class="ana-meta-pill">
+            <i class="fas fa-sync" aria-hidden="true"></i>
+            <span>{% trans "Runs loaded" %}: <strong id="runsLoadedValue">0</strong></span>
+          </span>
+          <span class="ana-meta-pill">
+            <i class="fas fa-clock" aria-hidden="true"></i>
+            <span>{% trans "Updated" %}: <strong id="updatedAtValue">--</strong></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="ana-actions">
+        <a class="ana-btn ghost" href="{% url 'scraping:dashboard' %}">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          <span>{% trans "Back to Dashboard" %}</span>
+        </a>
+        <button type="button" class="ana-btn soft" id="analyticsRefreshButton">
+          <i class="fas fa-rotate" aria-hidden="true"></i>
+          <span>{% trans "Refresh" %}</span>
+        </button>
+        <button type="button" class="ana-btn primary" id="analyticsExportButton">
+          <i class="fas fa-file-csv" aria-hidden="true"></i>
+          <span>{% trans "Export CSV" %}</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ana-card ana-controls">
+    <div class="ana-controls-grid">
+      <div class="ana-field ana-col-span-3">
+        <label for="rangeSelect">{% trans "Date range" %}</label>
+        <select id="rangeSelect" class="ana-select">
+          <option value="7">{% trans "Last 7 days" %}</option>
+          <option value="30" selected>{% trans "Last 30 days" %}</option>
+          <option value="90">{% trans "Last 90 days" %}</option>
+          <option value="custom">{% trans "Custom" %}</option>
+        </select>
+      </div>
+      <div class="ana-field ana-col-span-2" id="customFromWrap" hidden>
+        <label for="customFromInput">{% trans "From" %}</label>
+        <input id="customFromInput" class="ana-input" type="date" value="{{ default_date_from }}">
+      </div>
+      <div class="ana-field ana-col-span-2" id="customToWrap" hidden>
+        <label for="customToInput">{% trans "To" %}</label>
+        <input id="customToInput" class="ana-input" type="date" value="{{ default_date_to }}">
+      </div>
+      <div class="ana-field ana-col-span-2">
+        <label>&nbsp;</label>
+        <button type="button" class="ana-btn ghost" id="applyRangeButton">
+          <i class="fas fa-filter" aria-hidden="true"></i>
+          <span>{% trans "Apply Range" %}</span>
+        </button>
+      </div>
+    </div>
+    <p class="ana-window-summary" id="windowSummaryText">
+      {% trans "Use the date controls to refresh all KPIs and charts in sync." %}
+    </p>
+  </section>
+
+  <section class="ana-empty {% if has_enough_data %}is-hidden{% endif %}" id="analyticsEmptyState" {% if has_enough_data %}hidden{% endif %}>
+    <h2>{% trans "Not enough run history yet" %}</h2>
+    <p>{% trans "At least 3 completed runs are recommended for stable trends and quality diagnostics." %}</p>
+    <p>{% trans "Run more categories, then refresh this page to unlock detailed analytics and drilldowns." %}</p>
+    <a class="ana-btn primary" href="{% url 'scraping:dashboard' %}">
+      <i class="fas fa-play" aria-hidden="true"></i>
+      <span>{% trans "Run Scrapers" %}</span>
+    </a>
+  </section>
+
+  <div class="ana-main {% if not has_enough_data %}is-hidden{% endif %}" id="analyticsMain">
+    <section class="ana-kpis" id="sectionKpis">
+      <button type="button" class="ana-kpi" data-scroll-target="sectionTimeseries" data-kpi-key="total_scraped">
+        <span class="ana-kpi-title">{% trans "Total Scraped" %}</span>
+        <span class="ana-kpi-value" id="kpiTotalScraped">0</span>
+        <span class="ana-kpi-trend" id="kpiTotalScrapedTrend">-</span>
+        <span class="ana-kpi-hint">{% trans "Open volume trend" %}</span>
+      </button>
+
+      <button type="button" class="ana-kpi" data-scroll-target="sectionApproval" data-kpi-key="approval_rate">
+        <span class="ana-kpi-title">{% trans "Approval Rate" %}</span>
+        <span class="ana-kpi-value" id="kpiApprovalRate">0%</span>
+        <span class="ana-kpi-trend" id="kpiApprovalRateTrend">-</span>
+        <span class="ana-kpi-hint">{% trans "Open approval chart" %}</span>
+      </button>
+
+      <button type="button" class="ana-kpi" data-scroll-target="sectionTranslation" data-kpi-key="avg_confidence">
+        <span class="ana-kpi-title">{% trans "Average Confidence" %}</span>
+        <span class="ana-kpi-value" id="kpiAvgConfidence">0%</span>
+        <span class="ana-kpi-trend" id="kpiAvgConfidenceTrend">-</span>
+        <span class="ana-kpi-hint">{% trans "Open translation quality" %}</span>
+      </button>
+
+      <button type="button" class="ana-kpi" data-scroll-target="sectionDuplicates" data-kpi-key="duplicate_rate">
+        <span class="ana-kpi-title">{% trans "Duplicate Rate" %}</span>
+        <span class="ana-kpi-value" id="kpiDuplicateRate">0%</span>
+        <span class="ana-kpi-trend" id="kpiDuplicateRateTrend">-</span>
+        <span class="ana-kpi-hint">{% trans "Open duplicates panel" %}</span>
+      </button>
+
+      <button type="button" class="ana-kpi" data-scroll-target="sectionSources" data-kpi-key="avg_run_duration_seconds">
+        <span class="ana-kpi-title">{% trans "Average Runtime" %}</span>
+        <span class="ana-kpi-value" id="kpiRuntime">0s</span>
+        <span class="ana-kpi-trend" id="kpiRuntimeTrend">-</span>
+        <span class="ana-kpi-hint">{% trans "Open source table" %}</span>
+      </button>
+    </section>
+
+    <section class="ana-grid-2" id="sectionTimeseries">
+      <article class="ana-card ana-panel">
+        <header class="ana-panel-head">
+          <div>
+            <h2 class="ana-panel-title">{% trans "Scraped Items Over Time" %}</h2>
+            <p class="ana-panel-note">{% trans "Click a category line to open filtered review results." %}</p>
+          </div>
+          <button type="button" class="ana-btn ghost" data-scroll-target="sectionKpis">
+            <i class="fas fa-arrow-up" aria-hidden="true"></i>
+            <span>{% trans "KPIs" %}</span>
+          </button>
+        </header>
+        <div class="ana-chart-wrap tall">
+          <canvas id="timeseriesChart" aria-label="{% trans 'Timeseries chart' %}"></canvas>
+        </div>
+      </article>
+
+      <article class="ana-card ana-panel" id="sectionApproval">
+        <header class="ana-panel-head">
+          <div>
+            <h2 class="ana-panel-title">{% trans "Approval Rate by Category" %}</h2>
+            <p class="ana-panel-note">{% trans "Bar click opens review queue for the selected category." %}</p>
+          </div>
+        </header>
+        <div class="ana-chart-wrap tall">
+          <canvas id="approvalChart" aria-label="{% trans 'Approval chart' %}"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="ana-grid-2" id="sectionTranslation">
+      <article class="ana-card ana-panel">
+        <header class="ana-panel-head">
+          <div>
+            <h2 class="ana-panel-title">{% trans "Translation Quality Split" %}</h2>
+            <p class="ana-panel-note">{% trans "Displays translated, copied, and missing translation coverage." %}</p>
+          </div>
+          <a class="ana-btn ghost" href="{% url 'scraping:scraping_results' %}">
+            <i class="fas fa-list-check" aria-hidden="true"></i>
+            <span>{% trans "Review Queue" %}</span>
+          </a>
+        </header>
+        <div class="ana-chart-wrap">
+          <canvas id="translationChart" aria-label="{% trans 'Translation quality chart' %}"></canvas>
+        </div>
+      </article>
+
+      <article class="ana-card ana-panel" id="sectionRejection">
+        <header class="ana-panel-head">
+          <div>
+            <h2 class="ana-panel-title">{% trans "Rejection Reasons by Category" %}</h2>
+            <p class="ana-panel-note">{% trans "Stacked bars expose dominant validation issues by category." %}</p>
+          </div>
+        </header>
+        <div class="ana-chart-wrap">
+          <canvas id="rejectionChart" aria-label="{% trans 'Rejection reasons chart' %}"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="ana-card ana-panel" id="sectionSources">
+      <header class="ana-panel-head">
+        <div>
+          <h2 class="ana-panel-title">{% trans "Source Performance Table" %}</h2>
+          <p class="ana-panel-note">{% trans "Top active sources ranked by runs, approval, and average yield." %}</p>
+        </div>
+        <a class="ana-btn ghost" href="{% url 'scraping:scraping_sources' %}">
+          <i class="fas fa-database" aria-hidden="true"></i>
+          <span>{% trans "Manage Sources" %}</span>
+        </a>
+      </header>
+
+      <div class="ana-table-wrap">
+        <table class="ana-table" aria-label="{% trans 'Source performance table' %}">
+          <thead>
+            <tr>
+              <th>{% trans "Source" %}</th>
+              <th>{% trans "Category" %}</th>
+              <th>{% trans "Runs" %}</th>
+              <th>{% trans "Avg Yield" %}</th>
+              <th>{% trans "Approval" %}</th>
+              <th>{% trans "Health" %}</th>
+              <th>{% trans "Action" %}</th>
+            </tr>
+          </thead>
+          <tbody id="sourceTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="ana-card ana-panel" id="sectionDuplicates">
+      <header class="ana-panel-head">
+        <div>
+          <h2 class="ana-panel-title">{% trans "Duplicate Analysis" %}</h2>
+          <p class="ana-panel-note">{% trans "Review duplicate pressure by category and source to tune query quality." %}</p>
+        </div>
+        <button type="button" class="ana-btn ghost" id="openDuplicatesReviewButton">
+          <i class="fas fa-clone" aria-hidden="true"></i>
+          <span>{% trans "Open Duplicate Queue" %}</span>
+        </button>
+      </header>
+
+      <div class="ana-duplicates-grid">
+        <div class="ana-duplicate-kpi">
+          <span class="label">{% trans "Total duplicates" %}</span>
+          <span class="value" id="duplicatesTotalValue">0</span>
+          <span class="ana-muted" id="duplicatesSummaryText">{% trans "Across selected date range" %}</span>
+        </div>
+
+        <div class="ana-table-wrap">
+          <table class="ana-table" aria-label="{% trans 'Duplicate top sources table' %}">
+            <thead>
+              <tr>
+                <th>{% trans "Source" %}</th>
+                <th>{% trans "Duplicates" %}</th>
+              </tr>
+            </thead>
+            <tbody id="duplicatesSourceBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ana-category-list" id="duplicatesByCategoryList"></div>
+    </section>
+  </div>
+</div>
+
+<div class="ana-loading-layer" id="analyticsLoadingLayer" aria-hidden="true">
+  <div class="ana-loading-pill">
+    <span class="ana-loading-dot" aria-hidden="true"></span>
+    <span>{% trans "Refreshing analytics" %}</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const endpoints = {
+    analytics: "{% url 'scraping:analytics' %}",
+    trends: "{% url 'scraping:trends' %}",
+    duplicates: "{% url 'scraping:duplicates_preview' %}",
+    reviewQueue: "{% url 'scraping:scraping_results' %}",
+    sources: "{% url 'scraping:scraping_sources' %}"
+  };
+
+  const categoryMeta = JSON.parse("{{ category_meta_json|escapejs }}");
+
+  const i18n = {
+    up: "{% trans 'up' %}",
+    down: "{% trans 'down' %}",
+    flat: "{% trans 'flat' %}",
+    better: "{% trans 'better' %}",
+    worse: "{% trans 'worse' %}",
+    unchanged: "{% trans 'unchanged' %}",
+    unknown: "{% trans 'Unknown' %}",
+    noData: "{% trans 'No data in selected range' %}",
+    rangeInvalid: "{% trans 'Please select a valid custom date range.' %}",
+    loadError: "{% trans 'Unable to load analytics data at the moment.' %}",
+    healthGood: "{% trans 'Good' %}",
+    healthWarn: "{% trans 'Warning' %}",
+    healthBad: "{% trans 'Critical' %}",
+    openReview: "{% trans 'Open review' %}",
+    noDuplicates: "{% trans 'No duplicate records in this period.' %}",
+    noSources: "{% trans 'No source activity in this period.' %}",
+    runsLabel: "{% trans 'runs' %}",
+    approvalLabel: "{% trans 'Approval' %}",
+    avgYieldLabel: "{% trans 'Avg Yield' %}",
+    categoryLabel: "{% trans 'Category' %}",
+    sourceLabel: "{% trans 'Source' %}",
+    duplicatesLabel: "{% trans 'Duplicates' %}",
+    runHistoryHint: "{% trans 'At least 3 completed runs are required for a stable analytics view.' %}",
+    rangeSummaryTemplate: "{% trans 'Window' %}",
+    totalRunsTemplate: "{% trans 'Total runs in selected range' %}"
+  };
+
+  const state = {
+    range: "{{ default_range|escapejs }}",
+    dateFrom: "{{ default_date_from|escapejs }}",
+    dateTo: "{{ default_date_to|escapejs }}",
+    charts: {
+      timeseries: null,
+      approval: null,
+      translation: null,
+      rejection: null
+    }
+  };
+
+  const dom = {
+    rangeSelect: document.getElementById("rangeSelect"),
+    customFromWrap: document.getElementById("customFromWrap"),
+    customToWrap: document.getElementById("customToWrap"),
+    customFromInput: document.getElementById("customFromInput"),
+    customToInput: document.getElementById("customToInput"),
+    applyRangeButton: document.getElementById("applyRangeButton"),
+    refreshButton: document.getElementById("analyticsRefreshButton"),
+    exportButton: document.getElementById("analyticsExportButton"),
+    openDuplicatesReviewButton: document.getElementById("openDuplicatesReviewButton"),
+    loadingLayer: document.getElementById("analyticsLoadingLayer"),
+    emptyState: document.getElementById("analyticsEmptyState"),
+    main: document.getElementById("analyticsMain"),
+    windowLabelText: document.getElementById("windowLabelText"),
+    windowSummaryText: document.getElementById("windowSummaryText"),
+    runsLoadedValue: document.getElementById("runsLoadedValue"),
+    updatedAtValue: document.getElementById("updatedAtValue"),
+    sourceTableBody: document.getElementById("sourceTableBody"),
+    duplicatesTotalValue: document.getElementById("duplicatesTotalValue"),
+    duplicatesSummaryText: document.getElementById("duplicatesSummaryText"),
+    duplicatesByCategoryList: document.getElementById("duplicatesByCategoryList"),
+    duplicatesSourceBody: document.getElementById("duplicatesSourceBody"),
+    kpiTotalScraped: document.getElementById("kpiTotalScraped"),
+    kpiTotalScrapedTrend: document.getElementById("kpiTotalScrapedTrend"),
+    kpiApprovalRate: document.getElementById("kpiApprovalRate"),
+    kpiApprovalRateTrend: document.getElementById("kpiApprovalRateTrend"),
+    kpiAvgConfidence: document.getElementById("kpiAvgConfidence"),
+    kpiAvgConfidenceTrend: document.getElementById("kpiAvgConfidenceTrend"),
+    kpiDuplicateRate: document.getElementById("kpiDuplicateRate"),
+    kpiDuplicateRateTrend: document.getElementById("kpiDuplicateRateTrend"),
+    kpiRuntime: document.getElementById("kpiRuntime"),
+    kpiRuntimeTrend: document.getElementById("kpiRuntimeTrend")
+  };
+
+  function getCategoryColor(categoryKey) {
+    if (categoryMeta[categoryKey] && categoryMeta[categoryKey].color) {
+      return categoryMeta[categoryKey].color;
+    }
+    return "#2563eb";
+  }
+
+  function getCategoryLabel(categoryKey) {
+    if (categoryMeta[categoryKey] && categoryMeta[categoryKey].label) {
+      return categoryMeta[categoryKey].label;
+    }
+    return categoryKey || i18n.unknown;
+  }
+
+  function numberFormat(value) {
+    return new Intl.NumberFormat().format(Math.round(Number(value || 0)));
+  }
+
+  function percentFormat(value) {
+    const num = Number(value || 0);
+    return `${num.toFixed(1)}%`;
+  }
+
+  function durationFormat(secondsValue) {
+    const totalSeconds = Math.max(0, Math.round(Number(secondsValue || 0)));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) {
+      return `${seconds}s`;
+    }
+    return `${minutes}m ${seconds}s`;
+  }
+
+  function setLoading(value) {
+    dom.loadingLayer.classList.toggle("visible", value);
+    dom.refreshButton.disabled = value;
+    dom.applyRangeButton.disabled = value;
+    dom.exportButton.disabled = value;
+  }
+
+  function updateDateInputVisibility() {
+    const showCustom = dom.rangeSelect.value === "custom";
+    dom.customFromWrap.hidden = !showCustom;
+    dom.customToWrap.hidden = !showCustom;
+  }
+
+  function currentQueryParams(extra) {
+    const params = new URLSearchParams();
+    params.set("range", state.range);
+    if (state.range === "custom") {
+      params.set("date_from", state.dateFrom || "");
+      params.set("date_to", state.dateTo || "");
+    }
+
+    if (extra) {
+      Object.keys(extra).forEach((key) => {
+        const value = extra[key];
+        if (value === null || value === undefined) {
+          return;
+        }
+        params.set(key, value);
+      });
+    }
+    return params;
+  }
+
+  async function fetchJson(url, params) {
+    const response = await fetch(`${url}?${params.toString()}`, {
+      credentials: "same-origin",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  function kpiTrendText(metric) {
+    if (!metric) {
+      return "-";
+    }
+
+    const direction = metric.direction || "flat";
+    const isImproving = Boolean(metric.improving);
+    const changePct = Number(metric.change_pct || 0).toFixed(1);
+
+    let arrow = "→";
+    if (direction === "up") {
+      arrow = "↑";
+    } else if (direction === "down") {
+      arrow = "↓";
+    }
+
+    let toneClass = "flat";
+    if (direction === "flat") {
+      toneClass = "flat";
+    } else if (isImproving) {
+      toneClass = "good";
+    } else {
+      toneClass = "bad";
+    }
+
+    let statusText = i18n.unchanged;
+    if (direction !== "flat") {
+      statusText = isImproving ? i18n.better : i18n.worse;
+    }
+
+    return {
+      className: `ana-kpi-trend ${toneClass}`,
+      text: `${arrow} ${changePct}% ${statusText}`
+    };
+  }
+
+  function setKpiValue(valueNode, trendNode, valueText, metric) {
+    valueNode.textContent = valueText;
+    const trend = kpiTrendText(metric);
+    trendNode.className = trend.className;
+    trendNode.textContent = trend.text;
+  }
+
+  function renderKpis(payload) {
+    const kpis = payload.kpis || {};
+
+    setKpiValue(
+      dom.kpiTotalScraped,
+      dom.kpiTotalScrapedTrend,
+      numberFormat(kpis.total_scraped ? kpis.total_scraped.value : 0),
+      kpis.total_scraped
+    );
+
+    setKpiValue(
+      dom.kpiApprovalRate,
+      dom.kpiApprovalRateTrend,
+      percentFormat(kpis.approval_rate ? kpis.approval_rate.value : 0),
+      kpis.approval_rate
+    );
+
+    setKpiValue(
+      dom.kpiAvgConfidence,
+      dom.kpiAvgConfidenceTrend,
+      percentFormat(kpis.avg_confidence ? kpis.avg_confidence.value : 0),
+      kpis.avg_confidence
+    );
+
+    setKpiValue(
+      dom.kpiDuplicateRate,
+      dom.kpiDuplicateRateTrend,
+      percentFormat(kpis.duplicate_rate ? kpis.duplicate_rate.value : 0),
+      kpis.duplicate_rate
+    );
+
+    setKpiValue(
+      dom.kpiRuntime,
+      dom.kpiRuntimeTrend,
+      durationFormat(kpis.avg_run_duration_seconds ? kpis.avg_run_duration_seconds.value : 0),
+      kpis.avg_run_duration_seconds
+    );
+  }
+
+  function openReviewQueue(category) {
+    const url = new URL(endpoints.reviewQueue, window.location.origin);
+    if (category) {
+      url.searchParams.set("category", category);
+    }
+    window.location.href = url.toString();
+  }
+
+  function ensureChart(chartName, canvasId, config) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+      return null;
+    }
+    if (state.charts[chartName]) {
+      state.charts[chartName].data = config.data;
+      state.charts[chartName].options = config.options;
+      state.charts[chartName].update();
+      return state.charts[chartName];
+    }
+
+    const context = canvas.getContext("2d");
+    state.charts[chartName] = new Chart(context, config);
+    return state.charts[chartName];
+  }
+
+  function renderTimeseriesChart(payload) {
+    const timeseries = payload.timeseries || {};
+    const labels = timeseries.dates || [];
+    const categories = timeseries.categories || {};
+
+    const datasets = Object.keys(categories).map((categoryKey) => ({
+      label: getCategoryLabel(categoryKey),
+      data: categories[categoryKey],
+      borderColor: getCategoryColor(categoryKey),
+      backgroundColor: `${getCategoryColor(categoryKey)}22`,
+      tension: 0.3,
+      fill: true,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      categoryKey
+    }));
+
+    ensureChart("timeseries", "timeseriesChart", {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        interaction: { mode: "nearest", intersect: false },
+        plugins: {
+          legend: { position: "bottom" }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        },
+        onClick: function (_event, activeElements, chart) {
+          if (!activeElements || !activeElements.length) {
+            return;
+          }
+          const first = activeElements[0];
+          const dataset = chart.data.datasets[first.datasetIndex];
+          if (dataset && dataset.categoryKey) {
+            openReviewQueue(dataset.categoryKey);
+          }
+        }
+      }
+    });
+  }
+
+  function renderApprovalChart(payload) {
+    const rows = payload.approval_by_category || [];
+
+    const labels = rows.map((row) => row.label || row.category);
+    const values = rows.map((row) => Number(row.approval_rate || 0));
+    const colors = rows.map((row) => row.color || getCategoryColor(row.category));
+
+    ensureChart("approval", "approvalChart", {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "{% trans 'Approval rate' %}",
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 8,
+            categoryKeys: rows.map((row) => row.category)
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.raw.toFixed(1)}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function (value) {
+                return `${value}%`;
+              }
+            }
+          }
+        },
+        onClick: function (_event, activeElements, chart) {
+          if (!activeElements || !activeElements.length) {
+            return;
+          }
+          const first = activeElements[0];
+          const dataset = chart.data.datasets[first.datasetIndex];
+          const key = (dataset.categoryKeys || [])[first.index];
+          if (key) {
+            openReviewQueue(key);
+          }
+        }
+      }
+    });
+  }
+
+  function renderTranslationChart(payload) {
+    const stats = payload.translation_quality || {};
+
+    const labels = [
+      "{% trans 'Translated' %}",
+      "{% trans 'Copied' %}",
+      "{% trans 'Missing' %}"
+    ];
+    const values = [
+      Number(stats.translated || 0),
+      Number(stats.copied || 0),
+      Number(stats.missing || 0)
+    ];
+
+    ensureChart("translation", "translationChart", {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: values,
+            backgroundColor: ["#047857", "#1d4ed8", "#b91c1c"]
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" }
+        },
+        onClick: function () {
+          openReviewQueue();
+        }
+      }
+    });
+  }
+
+  function renderRejectionChart(payload) {
+    const rejection = payload.rejection_reasons || {};
+    const categoryKeys = rejection.categories || [];
+    const labels = categoryKeys.map((key) => getCategoryLabel(key));
+    const datasets = (rejection.datasets || []).map((dataset, index) => {
+      const palette = ["#b91c1c", "#ea580c", "#1d4ed8", "#0f766e", "#475569"];
+      return {
+        label: dataset.label,
+        data: dataset.values || [],
+        backgroundColor: palette[index % palette.length],
+        borderRadius: 4,
+        stack: "rejections"
+      };
+    });
+
+    ensureChart("rejection", "rejectionChart", {
+      type: "bar",
+      data: { labels, datasets },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" }
+        },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+        },
+        onClick: function (_event, activeElements) {
+          if (!activeElements || !activeElements.length) {
+            return;
+          }
+          const index = activeElements[0].index;
+          const categoryKey = categoryKeys[index];
+          if (categoryKey) {
+            openReviewQueue(categoryKey);
+          }
+        }
+      }
+    });
+  }
+
+  function renderSourceTable(rows) {
+    dom.sourceTableBody.innerHTML = "";
+
+    if (!rows || !rows.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="7" class="ana-muted">${i18n.noSources}</td>`;
+      dom.sourceTableBody.appendChild(tr);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      const healthText = row.health_state === "good"
+        ? i18n.healthGood
+        : (row.health_state === "warn" ? i18n.healthWarn : i18n.healthBad);
+
+      tr.innerHTML = `
+        <td>
+          <div><strong>${row.name || i18n.unknown}</strong></div>
+          <div class="ana-muted">${row.domain || "-"}</div>
+        </td>
+        <td><span class="ana-chip">${getCategoryLabel(row.category)}</span></td>
+        <td>${numberFormat(row.runs)}</td>
+        <td>${Number(row.avg_yield || 0).toFixed(1)}</td>
+        <td>${percentFormat(row.approval_rate)}</td>
+        <td><span class="ana-health ${row.health_state || "warn"}">${healthText} (${numberFormat(row.health_score)})</span></td>
+        <td>
+          <button type="button" class="ana-btn ghost" data-source-category="${row.category}">
+            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            <span>${i18n.openReview}</span>
+          </button>
+        </td>
+      `;
+
+      tr.querySelector("button[data-source-category]").addEventListener("click", () => {
+        openReviewQueue(row.category || "");
+      });
+
+      dom.sourceTableBody.appendChild(tr);
+    });
+  }
+
+  function renderDuplicatesPanel(payload, fallbackSummary) {
+    const total = Number(payload.total_duplicates || 0);
+    const byCategory = payload.by_category || (fallbackSummary ? fallbackSummary.by_category : {}) || {};
+    const topSources = payload.top_sources || [];
+
+    dom.duplicatesTotalValue.textContent = numberFormat(total);
+    dom.duplicatesSummaryText.textContent = i18n.totalRunsTemplate;
+
+    dom.duplicatesByCategoryList.innerHTML = "";
+    Object.keys(byCategory).forEach((categoryKey) => {
+      const count = Number(byCategory[categoryKey] || 0);
+      const row = document.createElement("div");
+      row.className = "ana-category-item";
+      row.innerHTML = `
+        <span>${getCategoryLabel(categoryKey)}: <strong>${numberFormat(count)}</strong></span>
+        <button type="button" data-category="${categoryKey}">{% trans 'Review' %}</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => openReviewQueue(categoryKey));
+      dom.duplicatesByCategoryList.appendChild(row);
+    });
+
+    if (Object.keys(byCategory).length === 0) {
+      const row = document.createElement("div");
+      row.className = "ana-category-item";
+      row.innerHTML = `<span>${i18n.noData}</span>`;
+      dom.duplicatesByCategoryList.appendChild(row);
+    }
+
+    dom.duplicatesSourceBody.innerHTML = "";
+    if (!topSources.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="2" class="ana-muted">${i18n.noDuplicates}</td>`;
+      dom.duplicatesSourceBody.appendChild(tr);
+      return;
+    }
+
+    topSources.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${row.source || i18n.unknown}</td><td>${numberFormat(row.count)}</td>`;
+      dom.duplicatesSourceBody.appendChild(tr);
+    });
+  }
+
+  function totalRunsFromPayload(payload) {
+    const byCategory = payload.by_category || {};
+    return Object.keys(byCategory).reduce((sum, key) => {
+      return sum + Number((byCategory[key] && byCategory[key].total_runs) || 0);
+    }, 0);
+  }
+
+  function setEmptyState(showEmpty) {
+    dom.emptyState.hidden = !showEmpty;
+    dom.main.classList.toggle("is-hidden", showEmpty);
+  }
+
+  function getLastUpdatedLabel() {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function refreshAnalytics() {
+    setLoading(true);
+    try {
+      const query = currentQueryParams();
+      const analyticsQuery = currentQueryParams({ format: "json" });
+
+      const [analyticsPayload, trendsPayload, duplicatesPayload] = await Promise.all([
+        fetchJson(endpoints.analytics, analyticsQuery),
+        fetchJson(endpoints.trends, query),
+        fetchJson(endpoints.duplicates, query)
+      ]);
+
+      const totalRuns = totalRunsFromPayload(analyticsPayload);
+      dom.runsLoadedValue.textContent = numberFormat(totalRuns);
+      dom.updatedAtValue.textContent = getLastUpdatedLabel();
+
+      if (analyticsPayload.window && analyticsPayload.window.label) {
+        dom.windowLabelText.textContent = analyticsPayload.window.label;
+      }
+
+      const summaryText = analyticsPayload.window
+        ? `${i18n.rangeSummaryTemplate}: ${analyticsPayload.window.start_date} - ${analyticsPayload.window.end_date}`
+        : i18n.runHistoryHint;
+      dom.windowSummaryText.textContent = summaryText;
+
+      setEmptyState(totalRuns < 3);
+      if (totalRuns < 3) {
+        return;
+      }
+
+      renderKpis(analyticsPayload);
+      renderTimeseriesChart(trendsPayload.status === "ok" ? trendsPayload : analyticsPayload);
+      renderApprovalChart(trendsPayload.status === "ok" ? trendsPayload : analyticsPayload);
+      renderTranslationChart(trendsPayload.status === "ok" ? trendsPayload : analyticsPayload);
+      renderRejectionChart(trendsPayload.status === "ok" ? trendsPayload : analyticsPayload);
+      renderSourceTable(analyticsPayload.source_performance || []);
+      renderDuplicatesPanel(duplicatesPayload, analyticsPayload.duplicates_summary || {});
+    } catch (error) {
+      console.error(error);
+      alert(i18n.loadError);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function syncStateFromInputs() {
+    state.range = dom.rangeSelect.value;
+    state.dateFrom = dom.customFromInput.value;
+    state.dateTo = dom.customToInput.value;
+  }
+
+  function validateDateInputs() {
+    if (state.range !== "custom") {
+      return true;
+    }
+
+    if (!state.dateFrom || !state.dateTo) {
+      alert(i18n.rangeInvalid);
+      return false;
+    }
+
+    if (state.dateFrom > state.dateTo) {
+      alert(i18n.rangeInvalid);
+      return false;
+    }
+
+    return true;
+  }
+
+  function exportCsv() {
+    const params = currentQueryParams({ export: "csv" });
+    window.location.href = `${endpoints.analytics}?${params.toString()}`;
+  }
+
+  function bindScrollTargets() {
+    const nodes = document.querySelectorAll("[data-scroll-target]");
+    nodes.forEach((node) => {
+      node.addEventListener("click", () => {
+        const targetId = node.getAttribute("data-scroll-target");
+        if (!targetId) {
+          return;
+        }
+        const target = document.getElementById(targetId);
+        if (!target) {
+          return;
+        }
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  function bindEvents() {
+    dom.rangeSelect.value = state.range || "30";
+    updateDateInputVisibility();
+
+    dom.rangeSelect.addEventListener("change", () => {
+      updateDateInputVisibility();
+      syncStateFromInputs();
+      if (state.range !== "custom") {
+        refreshAnalytics();
+      }
+    });
+
+    dom.applyRangeButton.addEventListener("click", () => {
+      syncStateFromInputs();
+      if (!validateDateInputs()) {
+        return;
+      }
+      refreshAnalytics();
+    });
+
+    dom.refreshButton.addEventListener("click", () => {
+      syncStateFromInputs();
+      if (!validateDateInputs()) {
+        return;
+      }
+      refreshAnalytics();
+    });
+
+    dom.exportButton.addEventListener("click", () => {
+      syncStateFromInputs();
+      if (!validateDateInputs()) {
+        return;
+      }
+      exportCsv();
+    });
+
+    dom.openDuplicatesReviewButton.addEventListener("click", () => {
+      openReviewQueue();
+    });
+  }
+
+  bindScrollTargets();
+  bindEvents();
+  refreshAnalytics();
+})();
+</script>
+{% endblock %}

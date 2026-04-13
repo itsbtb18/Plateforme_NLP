@@ -21,12 +21,12 @@ def add_missing_post_fields(apps, schema_editor):
         "approval_date": models.DateTimeField(
             blank=True, null=True, verbose_name="Approval Date"
         ),
-        # Add the raw FK column during the database step. Using a swappable
-        # ForeignKey object inside RunPython can fail against the historical
-        # app registry even though the final state operation is correct.
-        "approved_by_id": models.UUIDField(
+        "approved_by": models.ForeignKey(
+            settings.AUTH_USER_MODEL,
             blank=True,
             null=True,
+            on_delete=django.db.models.deletion.SET_NULL,
+            related_name="approved_posts",
             verbose_name="Approved By",
         ),
         "rejection_reason": models.TextField(

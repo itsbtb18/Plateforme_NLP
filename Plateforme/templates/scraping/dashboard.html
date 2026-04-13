@@ -1,1183 +1,1744 @@
-{% extends 'base_admin.html' %}
+{% extends 'scraping/base_scraping.html' %}
 {% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 
-{% block title %}AI Data Aggregator — {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Scraping Control Center" %} — {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ───────────────────────────────────────────────────────────
-   Scraping Dashboard — Notion-Blue design tokens override
-   Uses the same n-* design system as every other admin page
-   ─────────────────────────────────────────────────────────── */
+  .scrape-shell {
+    --scrape-surface: #ffffff;
+    --scrape-border: #dbe3ef;
+    --scrape-border-strong: #c9d6ea;
+    --scrape-bg: #f5f8fd;
+    --scrape-text: #0f172a;
+    --scrape-muted: #475569;
+  }
 
-/* Scraping-specific layout helpers */
-.ws-panel{display:none}
-.ws-panel.active{display:block;animation:wsFade .25s ease}
-@keyframes wsFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.ws-modal-open{overflow:hidden}
+  .scrape-card {
+    background: var(--scrape-surface);
+    border: 1px solid var(--scrape-border);
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(2, 8, 23, 0.06);
+  }
 
-/* Modern KPI cards */
-.ws-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1rem;margin-bottom:1rem}
-.ws-kpi-card{background:#fff;border:1px solid var(--n-border-s);border-radius:16px;padding:1rem;box-shadow:0 10px 26px rgba(15,23,42,.06);transition:transform .18s ease,box-shadow .18s ease}
-.ws-kpi-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.1)}
-.ws-kpi-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.7rem}
-.ws-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;color:#fff;font-size:.95rem;box-shadow:0 6px 14px rgba(2,6,23,.18)}
-.ws-kpi-icon.events{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
-.ws-kpi-icon.tools{background:linear-gradient(135deg,#10b981,#059669)}
-.ws-kpi-icon.courses{background:linear-gradient(135deg,#3b82f6,#2563eb)}
-.ws-kpi-icon.news{background:linear-gradient(135deg,#f59e0b,#d97706)}
-.ws-kpi-icon.opportunities{background:linear-gradient(135deg,#06b6d4,#0284c7)}
-.ws-kpi-icon.corpus{background:linear-gradient(135deg,#14b8a6,#0f766e)}
-.ws-kpi-ai{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;background:#eef6ff;border:1px solid #cfe3ff;color:#1d4ed8;font-size:.68rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
-.ws-kpi-label{margin:0;font-size:.78rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.06em}
-.ws-kpi-num{margin:.3rem 0 .2rem;font-size:1.7rem;line-height:1;font-weight:800;color:var(--n-text)}
-.ws-kpi-meta{margin:0;font-size:.72rem;color:var(--n-text-3)}
-.ws-kpi-meta.pending{color:var(--n-amber);font-weight:700}
+  .scrape-grid-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
 
-/* Active search query pills */
-.ws-query-wrap{display:flex;flex-wrap:wrap;gap:.45rem}
-.ws-query-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.36rem .72rem;border-radius:999px;border:1px solid #dbeafe;background:linear-gradient(135deg,#f8fbff,#edf5ff);color:#1e3a8a;font-size:.74rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,.12)}
-.ws-query-tag i{font-size:.68rem;color:#2563eb}
-.ws-query-note{margin:.45rem 0 0;font-size:.74rem;color:var(--n-text-3)}
+  .scrape-grid-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  }
 
-/* AI Search Prompts manager */
-.ws-prompts-wrap{display:flex;flex-direction:column;gap:1rem}
-.ws-prompt-form{display:grid;grid-template-columns:180px minmax(260px,1fr) auto auto;gap:.65rem;align-items:end}
-.ws-prompt-form .ws-form-group{margin:0}
-.ws-prompt-inline{display:flex;align-items:center;gap:.45rem;white-space:nowrap}
-.ws-prompt-submit{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.62rem .95rem;border:1px solid var(--n-blue);border-radius:8px;background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer}
-.ws-prompt-submit:hover{opacity:.92}
-.ws-prompt-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-.ws-prompt-status.active{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
-.ws-prompt-status.inactive{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
-.ws-prompt-toggle-form{margin:0}
-.ws-prompt-toggle-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:1px solid var(--n-green);border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
-.ws-prompt-toggle-btn.off{border-color:var(--n-blue);background:var(--n-blue)}
-.ws-prompt-toggle-btn:hover{opacity:.9}
-.ws-add-src-btn{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--n-border);background:#fff;color:var(--n-text-2);padding:.42rem .7rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer}
-.ws-add-src-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
+  .run-complete-flash {
+    animation: runCompleteFlash 1.1s ease;
+  }
 
-/* Run AI Agent button */
-.ws-run-btn{display:inline-flex;align-items:center;gap:.48rem;padding:.54rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#2563eb,#7c3aed 58%,#0ea5e9);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.34)}
-.ws-run-btn:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(79,70,229,.42)}
-.ws-run-btn:disabled{opacity:.5;cursor:not-allowed}
-.ws-run-btn .ws-btn-ico{display:inline-flex;transition:transform .28s ease,filter .28s ease}
-.ws-run-btn:hover .ws-btn-ico{transform:translateY(-1px) rotate(-8deg) scale(1.1);filter:drop-shadow(0 2px 6px rgba(255,255,255,.4))}
-.ws-run-btn .ws-spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wsSpin .7s linear infinite}
-.ws-run-btn.loading .ws-spin{display:inline-block}
-.ws-run-btn.loading .ws-btn-label{display:none}
-@keyframes wsSpin{to{transform:rotate(360deg)}}
+  @keyframes runCompleteFlash {
+    0% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45);
+      transform: translateY(0);
+    }
+    60% {
+      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+      transform: translateY(-1px);
+    }
+    100% {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+  }
 
-/* Loading overlay */
-.ws-loading{display:none;text-align:center;padding:2.5rem 1rem}
-.ws-loading.active{display:block}
-.ws-loading .ws-big-spin{width:36px;height:36px;border:3px solid var(--n-border);border-top-color:var(--n-blue);border-radius:50%;animation:wsSpin .8s linear infinite;margin:0 auto .7rem}
-.ws-loading-line{color:var(--n-text-2);font-size:.84rem;font-weight:600;margin:.2rem 0 .35rem}
-.ws-loading-progress{color:var(--n-text-3);font-size:.77rem;margin:0 0 .65rem}
-.ws-live-log{margin:0 auto;max-width:760px;text-align:left;border:1px solid var(--n-border-s);border-radius:10px;background:#fff;padding:.45rem .6rem;max-height:190px;overflow:auto}
-.ws-log-item{display:flex;align-items:flex-start;gap:.45rem;font-size:.78rem;color:var(--n-text-2);padding:.32rem .2rem;border-bottom:1px dashed var(--n-border-s)}
-.ws-log-item:last-child{border-bottom:none}
-.ws-log-item .dot{width:7px;height:7px;border-radius:50%;margin-top:.36rem;flex-shrink:0;background:var(--n-blue)}
-.ws-log-item.info .dot{background:var(--n-blue)}
-.ws-log-item.warn .dot{background:var(--n-amber)}
-.ws-log-item.error .dot{background:var(--n-red)}
-.ws-log-item.success .dot{background:var(--n-green)}
+  .active-run-progress {
+    transition: width 0.35s ease;
+  }
 
-/* Result summary grid */
-.ws-summary{display:grid;grid-template-columns:repeat(7,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
-.ws-summary-item{text-align:center}
-.ws-summary-item .ws-num{font-size:1.35rem;font-weight:700;line-height:1}
-.ws-summary-item .ws-lbl{font-size:.68rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
-.ws-run-summary{padding:1rem 1.1rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
-.ws-run-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:.8rem}
-.ws-run-summary-box{background:#fff;border:1px solid var(--n-border-s);border-radius:10px;padding:.65rem .7rem;text-align:center}
-.ws-run-summary-box .num{font-size:1.2rem;font-weight:700;line-height:1}
-.ws-run-summary-box .lbl{font-size:.7rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
-.ws-review-link{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-blue);background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:600;text-decoration:none}
-.ws-review-link:hover{opacity:.9}
-.ws-accept-all-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-green);background:var(--n-green);color:#fff;font-size:.78rem;font-weight:600;cursor:pointer}
-.ws-accept-all-btn:hover{opacity:.9}
-.ws-review-actions{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
-.ws-review-queue{padding:.85rem 1.1rem 1rem;background:#fff}
-.ws-review-queue-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.55rem}
-.ws-review-queue-title{font-size:.85rem;font-weight:700;color:var(--n-text);display:flex;align-items:center;gap:.45rem}
-.ws-review-queue-note{font-size:.74rem;color:var(--n-text-3)}
-.ws-row-accept{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
-.ws-row-accept:hover{opacity:.88}
-.ws-validation-summary{padding:.55rem 1.25rem .85rem;background:var(--n-bg);font-size:.78rem;color:var(--n-text-2);border-bottom:1px solid var(--n-border-s)}
-.ws-val-ok{color:var(--n-green);font-weight:600}
-.ws-val-date{color:var(--n-amber);font-weight:600}
-.ws-val-fields{color:var(--n-red);font-weight:600}
-.ws-val-autofill{color:var(--n-blue);font-weight:600}
+  .source-alerts-container {
+    display: grid;
+    gap: 0.5rem;
+  }
 
-/* Errors callout */
-.ws-errors{background:var(--n-red-bg);border-inline-start:3px solid var(--n-red);border-radius:0 var(--n-radius-sm) var(--n-radius-sm) 0;padding:.75rem 1.15rem;margin:1rem 1.25rem}
-.ws-errors summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--n-red)}
-.ws-errors ul{margin:.35rem 0 0;padding-inline-start:1.2rem;font-size:.76rem;color:#991b1b}
+  .source-alert {
+    border: 1px solid #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+    border-radius: 0.65rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
 
-/* AI activity logs */
-.ws-runs-wrap{padding:.9rem 1.05rem 1.05rem;background:linear-gradient(180deg,#f8fbff 0%,#f3f8ff 100%);border-top:1px solid var(--n-border-s)}
-.ws-runs-head{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;padding:.45rem .75rem .55rem;margin-bottom:.35rem;border-bottom:1px solid var(--n-border-s);font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--n-text-3)}
-.ws-run-row{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;align-items:center;padding:.62rem .75rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--n-border-s);border-radius:12px;box-shadow:0 6px 16px rgba(15,23,42,.04);font-size:.8rem}
-.ws-run-row:last-child{margin-bottom:0}
-.ws-run-badge{display:inline-flex;align-items:center;justify-content:center;padding:.26rem .62rem;border-radius:999px;font-size:.66rem;font-weight:800;letter-spacing:.05em;border:1px solid transparent}
-.ws-run-badge.success{color:#166534;background:#dcfce7;border-color:#bbf7d0}
-.ws-run-badge.failed{color:#9f1239;background:#ffe4e6;border-color:#fecdd3}
-.ws-run-badge.running{color:#92400e;background:#fef3c7;border-color:#fde68a}
-.ws-run-badge.info{color:#1e3a8a;background:#dbeafe;border-color:#bfdbfe}
-.ws-run-engine{display:inline-flex;align-items:center;gap:.35rem;color:var(--n-text-2);font-weight:600}
-.ws-run-engine i{color:#2563eb;font-size:.72rem}
-.ws-run-count{display:inline-flex;align-items:center;justify-content:center;padding:.22rem .55rem;border-radius:8px;background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #dbeafe;min-width:52px}
-.ws-run-meta{color:var(--n-text-3);font-size:.74rem;font-weight:600}
+  .source-alert .reason {
+    display: block;
+    margin-top: 0.2rem;
+    color: #b45309;
+    font-weight: 600;
+  }
 
-/* Responsive tweaks */
-@media(max-width:1200px){.ws-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}.ws-run-summary-grid{grid-template-columns:1fr 1fr}.ws-runs-head{display:none}.ws-run-row{grid-template-columns:1fr;gap:.4rem;padding:.7rem}}
-@media(max-width:768px){.ws-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-prompt-form{grid-template-columns:1fr}}
-@media(max-width:576px){.ws-summary{grid-template-columns:1fr}.ws-run-summary-grid{grid-template-columns:1fr}.ws-kpi-grid{grid-template-columns:1fr}}
+  .status-dot {
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 999px;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
 
-/* ── Custom Sources: Modal ──────────────────────────────────── */
-.ws-modal-overlay{position:fixed;inset:0;padding:1rem;background:rgba(2,8,23,.66);backdrop-filter:blur(2px);z-index:5000;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease}
-.ws-modal-overlay.active{opacity:1;visibility:visible;pointer-events:auto}
-.ws-modal{background:#fff;color:var(--n-text,#0f172a);border:1px solid var(--n-border,#dbe3ef);border-radius:var(--n-radius,12px);box-shadow:0 24px 70px rgba(2,8,23,.34);width:min(100%,560px);max-height:min(90vh,680px);overflow-y:auto;transform:translateY(8px);transition:transform .18s ease}
-.ws-modal-overlay.active .ws-modal{transform:translateY(0)}
-.ws-modal-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--n-border-s,#e6edf5);background:#f8fbff}
-.ws-modal-head h3{margin:0;font-size:1rem;font-weight:700;color:var(--n-text,#0f172a);display:flex;align-items:center;gap:.5rem}
-.ws-modal-close{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--n-border,#dbe3ef);border-radius:999px;background:#fff;font-size:1.2rem;cursor:pointer;color:var(--n-text-2,#334155);line-height:1;padding:0}
-.ws-modal-close:hover{background:#f1f5f9;color:var(--n-text,#0f172a)}
-.ws-modal-body{padding:1.25rem 1.5rem}
+  .soft-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #bfd0e9 #eff4fb;
+  }
 
-/* ── Custom Sources: Form ───────────────────────────────────── */
-.ws-form-group{margin-bottom:1rem}
-.ws-form-group label{display:block;font-size:.82rem;font-weight:700;color:var(--n-text,#0f172a);margin-bottom:.4rem}
-.ws-form-group input,.ws-form-group select,.ws-form-group textarea{width:100%;padding:.62rem .78rem;border:1px solid var(--n-border,#dbe3ef);border-radius:var(--n-radius-sm,8px);font-size:.84rem;background:#fff;color:var(--n-text,#0f172a);transition:border-color .15s,box-shadow .15s;box-sizing:border-box}
-.ws-form-group input::placeholder,.ws-form-group textarea::placeholder{color:#64748b}
-.ws-form-group input[readonly]{background:#f8fafc;color:#334155}
-.ws-form-group input:focus,.ws-form-group select:focus,.ws-form-group textarea:focus{outline:none;border-color:var(--n-blue,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.16)}
-.ws-form-check{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
-.ws-form-check input[type="checkbox"]{width:auto;accent-color:var(--n-blue)}
-.ws-form-check label{margin:0;font-size:.82rem;font-weight:500;color:var(--n-text-2)}
-.ws-adv-toggle{background:none;border:none;color:var(--n-blue);font-size:.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:.35rem;margin-bottom:.5rem}
-.ws-adv-toggle:hover{text-decoration:underline}
-.ws-form-submit{width:100%;padding:.65rem;border:none;border-radius:8px;background:var(--n-blue,#2563eb);color:#fff;font-weight:700;font-size:.88rem;cursor:pointer;transition:opacity .15s,transform .08s;display:flex;align-items:center;justify-content:center;gap:.5rem}
-.ws-form-submit:hover{opacity:.92}
-.ws-form-submit:active{transform:translateY(1px)}
-.ws-form-submit:disabled{opacity:.5;cursor:not-allowed}
+  .soft-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-/* ── Custom Sources: Status badges & action buttons ─────────── */
-.ws-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;color:#fff}
-.ws-status.success{background:#10b981}.ws-status.failed{background:#ef4444}.ws-status.pending{background:#f59e0b}
-.ws-act-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;transition:opacity .15s;color:#fff}
-.ws-act-btn:hover{opacity:.8}
-.ws-act-btn.run{background:var(--n-blue)}.ws-act-btn.del{background:#ef4444}
-.ws-act-btn:disabled{opacity:.5;cursor:not-allowed}
+  .soft-scrollbar::-webkit-scrollbar-track {
+    background: #eff4fb;
+    border-radius: 999px;
+  }
 
-/* ── Toast notification ─────────────────────────────────────── */
-.ws-toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:8px;color:#fff;font-size:.84rem;font-weight:500;z-index:2000;animation:wsToastIn .3s ease;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15)}
-.ws-toast.success{background:#10b981}.ws-toast.error{background:#ef4444}.ws-toast.info{background:var(--n-blue)}
-@keyframes wsToastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .soft-scrollbar::-webkit-scrollbar-thumb {
+    background: #bfd0e9;
+    border-radius: 999px;
+  }
+
+  [dir="rtl"] .ltr-only {
+    direction: ltr;
+    unicode-bidi: plaintext;
+  }
 </style>
 {% endblock %}
 
-{% block content %}
+{% block scraping_page_content %}
+<div
+  class="scrape-shell mx-auto max-w-[1600px] space-y-6"
+  x-data="scrapingDashboard()"
+  x-init="init()"
+  dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}"
+>
+  <section class="scrape-card px-5 py-4 md:px-7 md:py-5">
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
+          {% trans "Scraping Control Center" %}
+        </h1>
+        <p class="mt-2 text-sm font-medium text-slate-600 md:text-base" x-show="globalLastRunText || globalPendingReview >= 0">
+          <span class="text-slate-500">{% trans "Last global run" %}:</span>
+          <span class="font-semibold text-slate-900" x-text="globalLastRunText || '—'"></span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span class="font-semibold text-slate-900" x-text="globalPendingReview"></span>
+          <span class="text-slate-500">{% trans "items pending review" %}</span>
+        </p>
+      </div>
 
-<!-- ─── Page Header ───────────────────────────────────────────── -->
-<div class="pg-head">
-  <div>
-    <h1><i class="fas fa-robot"></i> AI Data Aggregator</h1>
-    <p class="pg-sub">Automated AI agent using search and LLM extraction to discover NLP resources.</p>
-  </div>
-  <div>
-    <a class="ws-add-src-btn" href="{% url 'scraping:scraping_results' %}" style="text-decoration:none">
-      <i class="fas fa-clipboard-check"></i> {% trans "Review Pending Results" %}
-    </a>
-  </div>
-</div>
-
-<!-- ─── Stats Grid ────────────────────────────────────────────── -->
-<div class="ws-kpi-grid">
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon events"><i class="fas fa-calendar-check"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
+      <div class="flex items-center gap-2">
+        <a
+          href="{% url 'scraping:scraping_results' %}"
+          class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
+        >
+          <i class="fas fa-clipboard-check"></i>
+          <span>{% trans "Review Queue" %}</span>
+        </a>
+        <button
+          id="run-all-btn"
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          @click="runAllCategories"
+          :disabled="runAllLoading"
+          aria-label="{% trans 'Run all categories' %}"
+        >
+          <i class="fas fa-circle-notch fa-spin" x-show="runAllLoading"></i>
+          <i class="fas fa-play" x-show="!runAllLoading"></i>
+          <span x-text="runAllButtonText"></span>
+        </button>
+      </div>
     </div>
-    <p class="ws-kpi-label">{% trans "Events" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.events|default:"0" }}</p>
-    {% if pending_counts.events %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.events }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
+  </section>
 
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon tools"><i class="fas fa-screwdriver-wrench"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Tools" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.tools|default:"0" }}</p>
-    {% if pending_counts.tools %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.tools }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon courses"><i class="fas fa-graduation-cap"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Courses" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.courses|default:"0" }}</p>
-    {% if pending_counts.courses %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.courses }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon news"><i class="fas fa-newspaper"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "News" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.news|default:"0" }}</p>
-    {% if pending_counts.news %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon opportunities"><i class="fas fa-briefcase"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Opportunities" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.opportunities|default:"0" }}</p>
-    {% if pending_counts.opportunities %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.opportunities }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon corpus"><i class="fas fa-database"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Corpus" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.corpus|default:"0" }}</p>
-    {% if pending_counts.corpus %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.corpus }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="n-card" style="margin-top:1rem">
-  <div class="n-card-head">
-    <h3 class="n-card-title"><i class="fas fa-hdd"></i> {% trans "Media Storage Overview" %}</h3>
-  </div>
-  <div class="n-card-body" style="padding:0">
-    <div class="table-responsive">
-      <table class="n-tbl">
-        <thead>
-          <tr>
-            <th>{% trans "Category" %}</th>
-            <th>{% trans "Storage (bytes)" %}</th>
-            <th>{% trans "With Images" %}</th>
-            <th>{% trans "Without Images" %}</th>
-            <th>{% trans "With PDFs" %}</th>
-            <th>{% trans "Without PDFs" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{% trans "Events" %}</td>
-            <td>{{ media_stats.events.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.events.with_images|default:"0" }}</td>
-            <td>{{ media_stats.events.without_images|default:"0" }}</td>
-            <td>{{ media_stats.events.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.events.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Tools" %}</td>
-            <td>{{ media_stats.tools.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.tools.with_images|default:"0" }}</td>
-            <td>{{ media_stats.tools.without_images|default:"0" }}</td>
-            <td>{{ media_stats.tools.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.tools.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "News" %}</td>
-            <td>{{ media_stats.news.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.news.with_images|default:"0" }}</td>
-            <td>{{ media_stats.news.without_images|default:"0" }}</td>
-            <td>{{ media_stats.news.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.news.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Courses" %}</td>
-            <td>{{ media_stats.courses.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.courses.with_images|default:"0" }}</td>
-            <td>{{ media_stats.courses.without_images|default:"0" }}</td>
-            <td>{{ media_stats.courses.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.courses.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Opportunities" %}</td>
-            <td>{{ media_stats.opportunities.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.with_images|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.without_images|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Corpus" %}</td>
-            <td>{{ media_stats.corpus.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.corpus.with_images|default:"0" }}</td>
-            <td>{{ media_stats.corpus.without_images|default:"0" }}</td>
-            <td>{{ media_stats.corpus.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.corpus.without_pdfs|default:"0" }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-  <div class="n-card" id="ai-search-prompts" style="margin-top:1rem">
-    <div class="n-card-head">
-      <h3 class="n-card-title"><i class="fas fa-magnifying-glass"></i> {% trans "AI Search Prompts" %}</h3>
-    </div>
-    <div class="n-card-body">
-      <div class="ws-prompts-wrap">
-        <form method="post" class="ws-prompt-form">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_search_query">
-
-          <div class="ws-form-group">
-            <label for="ws-prompt-category">{% trans "Category" %}</label>
-            <select id="ws-prompt-category" name="category" required>
-              {% for category_value, category_label in search_query_category_choices %}
-                <option value="{{ category_value }}">{{ category_label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="ws-form-group">
-            <label for="ws-prompt-text">{% trans "Prompt" %}</label>
-            <input
-              id="ws-prompt-text"
-              name="query_text"
-              type="text"
-              maxlength="500"
-              required
-              placeholder="{% trans 'e.g. upcoming NLP conferences in MENA' %}"
-            >
-          </div>
-
-          <label class="ws-prompt-inline" for="ws-prompt-active">
-            <input id="ws-prompt-active" name="is_active" type="checkbox" value="1" checked>
-            <span>{% trans "Active" %}</span>
-          </label>
-
-          <button class="ws-prompt-submit" type="submit">
-            <i class="fas fa-plus"></i> {% trans "Add Prompt" %}
-          </button>
-        </form>
-
-        <div class="table-responsive">
-          <table class="n-tbl">
-            <thead>
-              <tr>
-                <th>{% trans "Category" %}</th>
-                <th>{% trans "Prompt" %}</th>
-                <th>{% trans "Status" %}</th>
-                <th>{% trans "Action" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for prompt in search_query_rows %}
-                <tr>
-                  <td>{{ prompt.category_label }}</td>
-                  <td>{{ prompt.query_text }}</td>
-                  <td>
-                    {% if prompt.is_active %}
-                      <span class="ws-prompt-status active">{% trans "Active" %}</span>
-                    {% else %}
-                      <span class="ws-prompt-status inactive">{% trans "Inactive" %}</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <form method="post" class="ws-prompt-toggle-form">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="toggle_search_query">
-                      <input type="hidden" name="query_id" value="{{ prompt.id }}">
-                      {% if prompt.is_active %}
-                        <input type="hidden" name="is_active" value="0">
-                        <button class="ws-prompt-toggle-btn" type="submit">
-                          <i class="fas fa-pause"></i> {% trans "Deactivate" %}
-                        </button>
-                      {% else %}
-                        <input type="hidden" name="is_active" value="1">
-                        <button class="ws-prompt-toggle-btn off" type="submit">
-                          <i class="fas fa-play"></i> {% trans "Activate" %}
-                        </button>
-                      {% endif %}
-                    </form>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="4">{% trans "No AI search prompts configured yet." %}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+  <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="{% trans 'Category cards' %}">
+    {% for cat in categories %}
+    <article
+      class="scrape-card scrape-grid-card p-4"
+      x-data="categoryCard('{{ cat.key }}')"
+      x-init="init()"
+      :class="{ 'run-complete-flash': flashComplete }"
+      style="border-inline-start: 4px solid {{ cat.meta.color|default:'#2563eb' }}"
+      aria-live="polite"
+    >
+      <header class="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-extrabold uppercase tracking-[0.13em] text-slate-800">{{ cat.meta.label }}</h2>
+          <p class="mt-1 text-xs text-slate-500" x-text="metaColorEmoji"></p>
         </div>
+        <span
+          class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
+          :style="iconBadgeStyle"
+          aria-hidden="true"
+        >
+          <i class="fas {{ cat.meta.icon|default:'fa-circle' }}"></i>
+        </span>
+      </header>
+
+      <div class="mb-3">
+        <p class="text-3xl font-black leading-none text-slate-900" x-text="pendingCountDisplay"></p>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{% trans "pending review" %}</p>
       </div>
-    </div>
-  </div>
 
-<!-- ─── Category Tabs ─────────────────────────────────────────── -->
-<div class="n-tabs">
-  {% for cat in categories %}
-  {% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
-  <button class="n-tab{% if cat.key == 'events' %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
-    <i class="fas {{ cat.meta.icon }}"></i>
-    {{ cat.meta.label }}
-    {% if cat.last_run %}<span class="n-tab-badge">{{ cat.last_run.items_created }}</span>{% endif %}
-  </button>
-  {% endif %}
-  {% endfor %}
-</div>
-
-<!-- ─── Category Panels ───────────────────────────────────────── -->
-{% for cat in categories %}
-{% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
-<div class="ws-panel{% if cat.key == 'events' %} active{% endif %}" id="panel-{{ cat.key }}">
-
-  <!-- AI control card + run button -->
-  <div class="n-card">
-    <div class="n-card-head">
-      <h3 class="n-card-title">
-        <i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }}"></i>
-        {{ cat.meta.label }}
-      </h3>
-      <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
-        <span class="ws-spin"></span>
-        <span class="ws-btn-label"><span class="ws-btn-ico"><i class="fas fa-robot"></i></span> {% trans "Run AI Agent" %}</span>
-      </button>
-    </div>
-    <div class="n-card-body">
-      <p style="margin:0 0 .5rem;font-size:.84rem;color:var(--n-text-2)">
-        {{ cat.meta.description }}
-      </p>
-      <p style="margin:.25rem 0 .45rem;font-size:.76rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.05em">{% trans "Active Search Queries" %}</p>
-      <div id="ws-queries-{{ cat.key }}" class="ws-query-wrap"></div>
-      <p class="ws-query-note">{% trans "Manage prompts in AI Search Prompts section above." %}</p>
-    </div>
-  </div>
-
-  <!-- Loading overlay -->
-  <div class="ws-loading" id="loading-{{ cat.key }}">
-    <div class="ws-big-spin"></div>
-    <p class="ws-loading-line" id="loading-line-{{ cat.key }}">{% trans "Please wait... preparing scraping job." %}</p>
-    <p class="ws-loading-progress" id="loading-progress-{{ cat.key }}"></p>
-    <div class="ws-live-log" id="log-{{ cat.key }}"></div>
-  </div>
-
-  <!-- Results container (populated by JS) -->
-  <div id="results-{{ cat.key }}"></div>
-
-  <!-- AI agent activity logs -->
-  {% if cat.recent_runs %}
-  <div class="n-card" style="margin-top:1rem">
-    <div class="n-card-head">
-      <h3 class="n-card-title"><i class="fas fa-terminal"></i> {% trans "AI Agent Activity Logs" %}</h3>
-    </div>
-    <div class="ws-runs-wrap">
-      <div class="ws-runs-head">
-        <span>{% trans "Status" %}</span>
-        <span>{% trans "Search Engine" %}</span>
-        <span>{% trans "LLM Engine" %}</span>
-        <span>{% trans "Extracted Items" %}</span>
-        <span>{% trans "Started At" %}</span>
+      <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-600">
+        <p class="font-semibold text-slate-700">{% trans "Last run" %}</p>
+        <p class="mt-1 flex items-center gap-2">
+          <span x-text="lastRunIcon"></span>
+          <span x-text="lastRunLabel"></span>
+        </p>
       </div>
-    {% for run in cat.recent_runs %}
-    {% with created=run.items_created|default:0 skipped=run.items_skipped|default:0 %}
-    {% with extracted=created|add:skipped %}
-    <div class="ws-run-row">
-      {% if run.status == "completed" %}
-      <span class="ws-run-badge success">SUCCESS</span>
-      {% elif run.status == "failed" %}
-      <span class="ws-run-badge failed">FAILED</span>
-      {% elif run.status == "running" %}
-      <span class="ws-run-badge running">RUNNING</span>
-      {% else %}
-      <span class="ws-run-badge info">{{ run.get_status_display|default:run.status|upper }}</span>
-      {% endif %}
-      <span class="ws-run-engine"><i class="fas fa-magnifying-glass"></i> {{ run.search_engine|default:"Tavily" }}</span>
-      <span class="ws-run-engine"><i class="fas fa-brain"></i> {{ run.llm_engine|default:"Groq Llama-3" }}</span>
-      <span class="ws-run-count">{% firstof run.items_scraped run.extracted_items extracted %}</span>
-      <span class="ws-run-meta">{{ run.started_at|date:"d M Y, H:i" }}</span>
-    </div>
-    {% endwith %}
-    {% endwith %}
+
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-600 px-2 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          @click="run"
+          :disabled="runState === 'running'"
+          aria-label="{% trans 'Run category' %}"
+        >
+          <i class="fas fa-circle-notch fa-spin" x-show="runState === 'running'"></i>
+          <i class="fas fa-play" x-show="runState !== 'running'"></i>
+          <span x-text="runButtonLabel"></span>
+        </button>
+
+        <a
+          class="inline-flex items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-bold transition"
+          :class="canReview ? 'border-slate-300 bg-white text-slate-700 hover:border-slate-400' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'"
+          :href="canReview ? reviewUrl : '#'"
+          :title="canReview ? '' : i18n.reviewUnavailable"
+          @click.prevent="handleReviewClick"
+          :aria-disabled="!canReview"
+        >
+          <i class="fas fa-check-double"></i>
+          <span>{% trans "Review" %}</span>
+        </a>
+      </div>
+    </article>
     {% endfor %}
+  </section>
+
+  <section
+    class="scrape-card overflow-hidden"
+    x-show="activeRun.visible"
+    x-transition:enter="transition ease-out duration-250"
+    x-transition:enter-start="opacity-0 -translate-y-2"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    aria-live="polite"
+  >
+    <div class="bg-slate-900 px-5 py-3 text-white md:px-7" :class="activeRun.status === 'completed' ? 'bg-emerald-700' : (activeRun.status === 'failed' ? 'bg-rose-700' : 'bg-slate-900')">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm font-semibold md:text-base">
+          <span x-text="activeRunStatusIcon"></span>
+          <span x-text="activeRunStatusText"></span>
+        </p>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-md border border-white/40 bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+          @click="stopActiveRun"
+          :disabled="activeRun.status !== 'running' || stopBusy"
+          x-show="activeRun.status === 'running'"
+        >
+          <i class="fas fa-stop"></i>
+          <span>{% trans "Stop Run" %}</span>
+        </button>
+      </div>
     </div>
-  </div>
-  {% endif %}
 
+    <div class="space-y-4 px-5 py-4 md:px-7 md:py-5">
+      <div class="h-3 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(activeRun.progressPercent)">
+        <div id="progress-bar" class="active-run-progress h-full rounded-full bg-blue-600" :class="activeRun.status === 'completed' ? 'bg-emerald-600' : (activeRun.status === 'failed' ? 'bg-rose-600' : 'bg-blue-600')" :style="`width: ${activeRun.progressPercent}%`"></div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm font-semibold text-slate-800">
+          <span id="current-step-label" x-text="activeRun.currentStepLabel"></span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span id="progress-counter" x-text="activeRun.current + '/' + activeRun.total"></span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span id="progress-percent" x-text="Math.round(activeRun.progressPercent) + '%' "></span>
+        </p>
+        <p class="text-sm text-slate-600">
+          <span class="font-semibold">🧾</span>
+          <span>{% trans "Created" %}:</span>
+          <span id="items-created-count" x-text="activeRun.itemsCreated"></span>
+          <span class="mx-2 text-slate-300">•</span>
+          <span>{% trans "Skipped" %}:</span>
+          <span id="items-skipped-count" x-text="activeRun.itemsSkipped"></span>
+        </p>
+      </div>
+
+      <p id="progress-message" class="text-sm font-semibold text-slate-800" x-text="activeRun.currentMessage || activeRun.stepSummary"></p>
+      <p class="text-sm text-slate-600">
+        <span class="font-semibold">🔍</span>
+        <span x-text="activeRun.currentItem || '—'"></span>
+      </p>
+
+      <div id="source-alerts" class="source-alerts-container"></div>
+
+      <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" x-show="activeRun.status === 'completed'">
+        <p class="font-semibold text-emerald-700">
+          <i class="fas fa-check-circle"></i>
+          {% trans "Run completed successfully" %}
+        </p>
+        <p class="mt-1">
+          <span x-text="activeRun.itemsCreated"></span>
+          {% trans "items created" %}
+          <span class="mx-2 text-slate-300">•</span>
+          <span x-text="activeRun.itemsSkipped"></span>
+          {% trans "items skipped" %}
+        </p>
+        <a
+          class="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+          :href="activeRun.reviewUrl"
+        >
+          <i class="fas fa-arrow-right"></i>
+          <span>{% trans "Review Queue" %}</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <div class="scrape-card p-4 xl:col-span-2" aria-label="{% trans 'AI prompts' %}">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900 md:text-lg">
+          <i class="fas fa-brain text-blue-600"></i>
+          {% trans "AI Prompts" %}
+        </h3>
+      </div>
+
+      <div class="space-y-3">
+        <template x-for="category in categoryOrder" :key="`prompt-${category}`">
+          <section class="rounded-xl border border-slate-200 bg-slate-50/70">
+            <button
+              type="button"
+              class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-start"
+              @click="togglePromptAccordion(category)"
+              :aria-expanded="promptAccordionOpen === category"
+            >
+              <span class="text-sm font-bold text-slate-800" x-text="categoryLabel(category)"></span>
+              <i class="fas fa-chevron-down text-xs text-slate-500 transition" :class="promptAccordionOpen === category ? 'rotate-180' : ''"></i>
+            </button>
+
+            <div x-show="promptAccordionOpen === category" x-transition class="border-t border-slate-200 px-3 py-3">
+              <div class="flex flex-wrap gap-2">
+                <template x-for="prompt in visiblePrompts(category)" :key="`prompt-item-${category}-${prompt.id}`">
+                  <div class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs">
+                    <span class="max-w-[320px] truncate font-medium text-slate-700" :title="prompt.query_text" x-text="prompt.query_text"></span>
+                    <button
+                      type="button"
+                      class="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                      :class="prompt.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'"
+                      @click="togglePrompt(prompt)"
+                    >
+                      <span x-text="prompt.is_active ? i18n.active : i18n.inactive"></span>
+                    </button>
+                  </div>
+                </template>
+
+                <template x-if="!promptsByCategory[category] || promptsByCategory[category].length === 0">
+                  <p class="text-xs text-slate-500">{% trans "No prompts configured yet." %}</p>
+                </template>
+              </div>
+
+              <button
+                type="button"
+                class="mt-2 text-xs font-semibold text-blue-700 hover:text-blue-800"
+                x-show="(promptsByCategory[category] || []).length > 5"
+                @click="togglePromptList(category)"
+                x-text="showAllPrompts[category] ? i18n.showLess : i18n.showAll"
+              ></button>
+
+              <form class="mt-3 flex flex-col gap-2 md:flex-row" @submit.prevent="addPrompt(category)">
+                <input
+                  type="text"
+                  class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  :placeholder="i18n.promptPlaceholder"
+                  x-model="newPromptText[category]"
+                  maxlength="500"
+                />
+                <button
+                  type="submit"
+                  class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+                  :disabled="promptSubmitting[category]"
+                >
+                  <i class="fas fa-circle-notch fa-spin" x-show="promptSubmitting[category]"></i>
+                  <i class="fas fa-plus" x-show="!promptSubmitting[category]"></i>
+                  <span>{% trans "Add prompt" %}</span>
+                </button>
+              </form>
+            </div>
+          </section>
+        </template>
+      </div>
+    </div>
+
+    <aside class="scrape-card p-4" aria-label="{% trans 'Quick stats' %}">
+      <h3 class="text-base font-bold text-slate-900 md:text-lg">
+        <i class="fas fa-chart-line text-indigo-600"></i>
+        {% trans "Quick Stats" %}
+      </h3>
+
+      <dl class="mt-4 space-y-3 text-sm">
+        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <dt class="font-medium text-slate-600">{% trans "Today approved" %}</dt>
+          <dd class="font-black text-emerald-700" x-text="quickStats.todayApproved"></dd>
+        </div>
+        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <dt class="font-medium text-slate-600">{% trans "Today rejected" %}</dt>
+          <dd class="font-black text-rose-700" x-text="quickStats.todayRejected"></dd>
+        </div>
+        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <dt class="font-medium text-slate-600">{% trans "Avg confidence" %}</dt>
+          <dd class="font-black text-slate-900"><span x-text="quickStats.avgConfidence"></span>%</dd>
+        </div>
+        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <dt class="font-medium text-slate-600">{% trans "Translation OK" %}</dt>
+          <dd class="font-black text-blue-700"><span x-text="quickStats.translationOkPct"></span>%</dd>
+        </div>
+      </dl>
+
+      <a
+        href="{% url 'scraping:analytics' %}"
+        class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+      >
+        <span>→</span>
+        <span>{% trans "Analytics" %}</span>
+      </a>
+    </aside>
+  </section>
+
+  <section class="scrape-card p-4" aria-label="{% trans 'Recent run snapshots' %}">
+    <div class="mb-3 flex items-center justify-between">
+      <h3 class="text-base font-bold text-slate-900 md:text-lg">
+        <i class="fas fa-bolt text-indigo-600"></i>
+        {% trans "Recent Run Snapshots" %}
+      </h3>
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {% for cat in categories %}
+        {% if cat.recent_runs %}
+        <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+          <h4 class="text-xs font-extrabold uppercase tracking-[0.09em] text-slate-700">
+            {{ cat.meta.label }}
+          </h4>
+          <div class="mt-2 grid gap-2">
+            {% for run in cat.recent_runs|slice:":2" %}
+              {% include "scraping/components/run_status_card.html" with run=run %}
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+      {% empty %}
+      <p class="text-sm font-semibold text-slate-500">{% trans "No run snapshots yet." %}</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="scrape-card p-4" aria-label="{% trans 'Run history' %}">
+    <button
+      type="button"
+      class="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-start"
+      @click="historyOpen = !historyOpen"
+      :aria-expanded="historyOpen"
+    >
+      <span class="text-base font-bold text-slate-900 md:text-lg">
+        <i class="fas fa-history text-slate-700"></i>
+        {% trans "Run History" %}
+      </span>
+      <i class="fas fa-chevron-down text-sm text-slate-500 transition" :class="historyOpen ? 'rotate-180' : ''"></i>
+    </button>
+
+    <div x-show="historyOpen" x-transition class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div class="soft-scrollbar overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-[0.08em] text-slate-500">
+            <tr>
+              <th class="px-3 py-2 text-start">{% trans "Category" %}</th>
+              <th class="px-3 py-2 text-start">{% trans "Started" %}</th>
+              <th class="px-3 py-2 text-start">{% trans "Duration" %}</th>
+              <th class="px-3 py-2 text-start">{% trans "Items" %}</th>
+              <th class="px-3 py-2 text-start">{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in runHistoryRows" :key="row.run_id">
+              <tr class="border-t border-slate-100">
+                <td class="px-3 py-2">
+                  <span class="inline-flex items-center gap-2">
+                    <span x-text="runStatusIcon(row)" :title="row.status"></span>
+                    <span class="status-dot" :style="`background:${categoryColor(row.category)}`"></span>
+                    <span class="font-semibold text-slate-800" x-text="categoryLabel(row.category)"></span>
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-slate-600" x-text="relativeTime(row.started_at)"></td>
+                <td class="px-3 py-2 text-slate-700" x-text="historyDuration(row)"></td>
+                <td class="px-3 py-2 text-slate-700" x-text="historyItems(row)"></td>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <a
+                      class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:border-slate-400"
+                      :href="reviewUrlForRun(row.run_id)"
+                    >
+                      <i class="fas fa-eye"></i>
+                      <span>{% trans "Review" %}</span>
+                    </a>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      @click="rerunRow(row)"
+                    >
+                      <i class="fas fa-rotate-right"></i>
+                      <span x-text="row.status === 'failed' ? i18n.retry : i18n.rerun"></span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {% csrf_token %}
 </div>
-{% endif %}
-{% endfor %}
-
-{% csrf_token %}
 {% endblock %}
 
 {% block extra_js %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script>
-(function() {
-    'use strict';
+(function () {
+  'use strict';
 
-    /* ── i18n labels for JS-rendered content ───────────────────── */
-    var I18N = {
-        found:      '{% trans "Found" %}',
-        created:    '{% trans "Created" %}',
-        skipped:    '{% trans "Skipped" %}',
-        passedLLM:  '{% trans "Passed LLM Validation" %}',
-        deadLettered:'{% trans "Dead-Lettered" %}',
-        reviewScrapedItems: '{% trans "Review Scraped Items" %}',
-        duration:   '{% trans "Duration" %}',
-        passedValidation: '{% trans "Passed Validation" %}',
-        rejectedDate: '{% trans "Rejected (Date)" %}',
-        rejectedFields: '{% trans "Rejected (Fields)" %}',
-        warnings:   '{% trans "warning(s)" %}',
-        noItems:    '{% trans "No new items found." %}',
-        scraped:    '{% trans "Scraped Items" %}',
-        networkErr: '{% trans "Network Error" %}',
-        error:      '{% trans "Error" %}',
-        acceptOne:  '{% trans "Approve & Sync to AI/Qdrant" %}',
-        acceptAll:  '{% trans "Approve All & Sync to AI/Qdrant" %}',
-        noActivePrompt: '{% trans "No active prompt configured" %}',
-        pendingReview: '{% trans "Pending Validation Queue" %}',
-        queuedFromRun: '{% trans "Items queued from this run" %}',
-        liveNarrationStart: '{% trans "Please wait... preparing the scraping job." %}',
-        liveNarrationWork: '{% trans "Please wait... scraping websites now." %}',
-        liveNarrationCollect: '{% trans "Collecting and validating scraped candidates..." %}',
-        liveNarrationDone: '{% trans "Scraping completed. Preparing validation actions..." %}',
-        title:      '{% trans "Title" %}',
-        location:   '{% trans "Location" %}',
-        dates:      '{% trans "Dates" %}',
-        link:       '{% trans "Link" %}',
-        type:       '{% trans "Type" %}',
-        author:     '{% trans "Author" %}',
-        downloads:  '{% trans "Downloads" %}',
-        published:  '{% trans "Published" %}',
-        institution:'{% trans "Institution" %}',
-        level:      '{% trans "Level" %}',
-        description:'{% trans "Description" %}',
-        source:     '{% trans "Source" %}',
-        name:       '{% trans "Name" %}',
-        country:    '{% trans "Country" %}',
-        city:       '{% trans "City" %}',
-    };
+  const CATEGORY_ORDER = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
+  const CATEGORIES = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
+  const REVIEW_SUPPORTED = JSON.parse('{{ review_supported_categories_json|escapejs }}' || '[]');
+  const SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
+  const RECENT_RUNS = JSON.parse('{{ recent_runs_rows_json|escapejs }}' || '{}');
+  const SCRAPING_BASE_PATH = '{% url "scraping:dashboard" %}';
 
-    /* ── CSRF helper ───────────────────────────────────────────── */
-    function getCookie(name) {
-        var v = null;
-        if (document.cookie) {
-            document.cookie.split(';').forEach(function(c) {
-                c = c.trim();
-                if (c.indexOf(name + '=') === 0)
-                    v = decodeURIComponent(c.substring(name.length + 1));
-            });
+  const CATEGORY_META = {
+    {% for cat in categories %}
+    '{{ cat.key }}': {
+      label: '{{ cat.meta.label|escapejs }}',
+      color: '{{ cat.meta.color|default:"#2563eb"|escapejs }}',
+      icon: '{{ cat.meta.icon|default:"fa-circle"|escapejs }}',
+      emoji: '{% if cat.key == "events" %}🔵{% elif cat.key == "tools" %}🟣{% elif cat.key == "courses" %}🟢{% elif cat.key == "news" %}🟡{% elif cat.key == "opportunities" %}🟠{% else %}🔴{% endif %}'
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  const I18N = {
+    reviewUnavailable: '{% trans "Review is not available for this category yet." %}',
+    active: '{% trans "Active" %}',
+    inactive: '{% trans "Inactive" %}',
+    showAll: '{% trans "Show all" %}',
+    showLess: '{% trans "Show less" %}',
+    promptPlaceholder: '{% trans "Add a new prompt" %}',
+    run: '{% trans "Run" %}',
+    running: '{% trans "Running" %}',
+    done: '{% trans "Done" %}',
+    rerun: '{% trans "Rerun" %}',
+    retry: '{% trans "Retry" %}',
+    scrapingVerb: '{% trans "scraping" %}',
+    stepDiscovery: '{% trans "Discovery" %}',
+    stepExtraction: '{% trans "LLM Extraction" %}',
+    stepValidation: '{% trans "Validation" %}',
+    stepSaving: '{% trans "Saving" %}',
+    neverRun: '{% trans "Never run" %}',
+    stopConfirm: '{% trans "Stop the current run?" %}',
+    runFailed: '{% trans "Run failed" %}',
+    runCompleted: '{% trans "Run completed" %}',
+    noItemsFound: '{% trans "No items found in last run" %}',
+    runAllCategories: '{% trans "Run All Categories" %}',
+    runningAll: '{% trans "Running all..." %}',
+    itemsFound: '{% trans "items found" %}',
+    step: '{% trans "Step" %}',
+    query: '{% trans "Query" %}'
+  };
+
+  function getCookie(name) {
+    let value = null;
+    if (!document.cookie) return value;
+    document.cookie.split(';').forEach((part) => {
+      const cookie = part.trim();
+      if (cookie.startsWith(name + '=')) {
+        value = decodeURIComponent(cookie.substring(name.length + 1));
+      }
+    });
+    return value;
+  }
+
+  function csrfToken() {
+    return getCookie('csrftoken') || ((document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '');
+  }
+
+  function scrapingUrl(path) {
+    const normalizedBase = String(SCRAPING_BASE_PATH || '/scraping/').replace(/\/+$/, '/');
+    const normalizedPath = String(path || '').replace(/^\/+/, '');
+    return normalizedBase + normalizedPath;
+  }
+
+  function categoryApiUrl(category) {
+    return scrapingUrl('api/stats/' + encodeURIComponent(category) + '/');
+  }
+
+  function quickStatsApiUrl() {
+    return scrapingUrl('api/quick-stats/');
+  }
+
+  function runApiUrl(category) {
+    return scrapingUrl('run/' + encodeURIComponent(category) + '/');
+  }
+
+  function runStatusApiUrl(runId) {
+    return scrapingUrl('status/' + encodeURIComponent(runId) + '/');
+  }
+
+  function stopRunApiUrl(runId) {
+    return scrapingUrl('stop/' + encodeURIComponent(runId) + '/');
+  }
+
+  function addPromptApiUrl() {
+    return scrapingUrl('api/prompts/add/');
+  }
+
+  function togglePromptApiUrl(promptId) {
+    return scrapingUrl('api/prompts/' + encodeURIComponent(promptId) + '/toggle/');
+  }
+
+  function recentRunsApiUrl() {
+    return scrapingUrl('runs/recent/');
+  }
+
+  function reviewUrl(runId) {
+    return scrapingUrl('results/?run_id=' + encodeURIComponent(runId));
+  }
+
+  function stepInfo(rawStep) {
+    const value = String(rawStep || '').toLowerCase();
+    if (value.includes('extract') || value.includes('llm')) {
+      return { index: 2, label: I18N.stepExtraction };
+    }
+    if (value.includes('valid')) {
+      return { index: 3, label: I18N.stepValidation };
+    }
+    if (value.includes('save') || value.includes('persist')) {
+      return { index: 4, label: I18N.stepSaving };
+    }
+    return { index: 1, label: I18N.stepDiscovery };
+  }
+
+  function relativeTime(isoDate) {
+    if (!isoDate) return '—';
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return '—';
+    const diffMs = date.getTime() - Date.now();
+    const absSec = Math.round(Math.abs(diffMs) / 1000);
+    const rtf = new Intl.RelativeTimeFormat(document.documentElement.lang || 'en', { numeric: 'auto' });
+    if (absSec < 60) return rtf.format(Math.round(diffMs / 1000), 'second');
+    if (absSec < 3600) return rtf.format(Math.round(diffMs / 60000), 'minute');
+    if (absSec < 86400) return rtf.format(Math.round(diffMs / 3600000), 'hour');
+    return rtf.format(Math.round(diffMs / 86400000), 'day');
+  }
+
+  function formatDuration(seconds) {
+    const value = Number(seconds || 0);
+    if (!value || value <= 0) return '—';
+    const mins = Math.floor(value / 60);
+    const secs = Math.floor(value % 60);
+    return mins + 'm ' + String(secs).padStart(2, '0') + 's';
+  }
+
+  function showToast(message, tone) {
+    const text = String(message || '').trim();
+    if (!text) return;
+
+    const containerId = 'scraping-dashboard-toast-container';
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = containerId;
+      container.style.position = 'fixed';
+      container.style.bottom = '1rem';
+      container.style.right = '1rem';
+      container.style.zIndex = '99999';
+      container.style.display = 'grid';
+      container.style.gap = '0.5rem';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.textContent = text;
+    toast.style.borderRadius = '0.5rem';
+    toast.style.padding = '0.55rem 0.8rem';
+    toast.style.fontSize = '0.85rem';
+    toast.style.fontWeight = '600';
+    toast.style.color = '#fff';
+    toast.style.boxShadow = '0 10px 25px rgba(2, 8, 23, 0.28)';
+    toast.style.background = tone === 'error' ? '#b91c1c' : (tone === 'warn' ? '#b45309' : '#0f766e');
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(8px)';
+    toast.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+
+    container.appendChild(toast);
+    window.requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    window.setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(6px)';
+      window.setTimeout(() => {
+        toast.remove();
+        if (!container.children.length) {
+          container.remove();
         }
-        return v;
-    }
-    var csrfToken = getCookie('csrftoken')
-        || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
-        || '';
+      }, 220);
+    }, 2600);
+  }
 
-    /* ── Active search queries state ───────────────────────────── */
-    var CATEGORY_KEYS = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
-    var SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
-    var activeSearchQueriesByCategory = CATEGORY_KEYS.reduce(function(acc, key) {
-      acc[key] = [];
-      return acc;
-    }, {});
-    var narrationTimers = {};
-    var pendingReviewByRun = {};
-    var MAX_DASHBOARD_REVIEW_ROWS = 20;
+  function dispatchCardState(category, payload) {
+    window.dispatchEvent(new CustomEvent('scraping:card-state', { detail: { category, payload } }));
+  }
 
-    function resetActiveSearchQueriesFromRows() {
-      CATEGORY_KEYS.forEach(function(catKey) {
-        activeSearchQueriesByCategory[catKey] = [];
-      });
+  function dispatchCategoryStats(category, payload) {
+    window.dispatchEvent(new CustomEvent('scraping:category-stats', { detail: { category, payload } }));
+  }
 
-      (SEARCH_QUERY_ROWS || []).forEach(function(row) {
-        if (!row || !row.is_active) return;
-        var cat = String(row.category || '').toLowerCase();
-        var text = String(row.query_text || '').trim();
-        if (!cat || !text) return;
-        if (!activeSearchQueriesByCategory[cat]) {
-          activeSearchQueriesByCategory[cat] = [];
-        }
-        activeSearchQueriesByCategory[cat].push(text);
-      });
-    }
+  window.categoryCard = function (categoryKey) {
+    return {
+      category: categoryKey,
+      pendingCount: null,
+      lastRun: null,
+      runState: 'idle',
+      canReview: REVIEW_SUPPORTED.includes(categoryKey),
+      flashComplete: false,
+      i18n: I18N,
+      init() {
+        this.fetchStats();
 
-    function renderSearchQueryChips(catKey) {
-      var container = document.getElementById('ws-queries-' + catKey);
-      if (!container) return;
-      var list = activeSearchQueriesByCategory[catKey] || [];
-      var h = '';
-      list.forEach(function(query) {
-        h += '<span class="ws-query-tag">';
-        h += '<i class="fas fa-search"></i> ' + escapeHtml(query);
-        h += '</span>';
-      });
-      if (!list.length) {
-        h = '<span class="ws-query-tag"><i class="fas fa-robot"></i> ' + I18N.noActivePrompt + '</span>';
-      }
-      container.innerHTML = h;
-    }
+        window.addEventListener('scraping:card-state', (event) => {
+          const detail = event.detail || {};
+          if (detail.category !== this.category) return;
+          const payload = detail.payload || {};
 
-    function renderAllSearchQueryChips() {
-      CATEGORY_KEYS.forEach(function(catKey) {
-        renderSearchQueryChips(catKey);
-      });
-    }
-    /* ── Tab switching ─────────────────────────────────────────── */
-    window.switchTab = function(cat) {
-        document.querySelectorAll('.n-tab').forEach(function(t){ t.classList.remove('on'); });
-        document.querySelectorAll('.ws-panel').forEach(function(p){ p.classList.remove('active'); });
-        var tab = document.querySelector('.n-tab[data-cat="'+cat+'"]');
-        var panel = document.getElementById('panel-' + cat);
-        if (tab) tab.classList.add('on');
-        if (panel) panel.classList.add('active');
-    };
-
-    function getLoadingRefs(cat) {
-      return {
-        loading: document.getElementById('loading-' + cat),
-        line: document.getElementById('loading-line-' + cat),
-        progress: document.getElementById('loading-progress-' + cat),
-        log: document.getElementById('log-' + cat)
-      };
-    }
-
-    function resetLiveNarration(cat) {
-      var refs = getLoadingRefs(cat);
-      if (!refs.loading) return;
-      if (refs.line) refs.line.textContent = I18N.liveNarrationStart;
-      if (refs.progress) refs.progress.textContent = '';
-      if (refs.log) refs.log.innerHTML = '';
-    }
-
-    function setLoadingLine(cat, text) {
-      var refs = getLoadingRefs(cat);
-      if (refs.line) refs.line.textContent = text || '';
-    }
-
-    function setLoadingProgress(cat, text) {
-      var refs = getLoadingRefs(cat);
-      if (refs.progress) refs.progress.textContent = text || '';
-    }
-
-    function appendLog(cat, message, kind) {
-      var refs = getLoadingRefs(cat);
-      var log = refs.log;
-      if (!log) return;
-      var clean = String(message || '').trim();
-      if (!clean) return;
-
-      var last = log.lastElementChild;
-      if (last && last.getAttribute('data-raw-message') === clean) {
-        return;
-      }
-
-      var row = document.createElement('div');
-      row.className = 'ws-log-item ' + (kind || 'info');
-      row.setAttribute('data-raw-message', clean);
-      row.innerHTML = '<span class="dot"></span><span>' + escapeHtml(clean) + '</span>';
-      log.appendChild(row);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function startNarrationHeartbeat(cat) {
-      stopNarrationHeartbeat(cat);
-      var lines = [
-        I18N.liveNarrationStart,
-        I18N.liveNarrationWork,
-        I18N.liveNarrationCollect
-      ];
-      var idx = 0;
-      setLoadingLine(cat, lines[0]);
-      appendLog(cat, lines[0], 'info');
-      narrationTimers[cat] = window.setInterval(function() {
-        idx = (idx + 1) % lines.length;
-        setLoadingLine(cat, lines[idx]);
-      }, 5000);
-    }
-
-    function stopNarrationHeartbeat(cat) {
-      if (!narrationTimers[cat]) return;
-      window.clearInterval(narrationTimers[cat]);
-      delete narrationTimers[cat];
-    }
-
-    function humanizeStatusUpdate(wsData) {
-      var message = String(wsData.message || '').trim();
-      var source = String(wsData.current_source || '').trim();
-      var lower = message.toLowerCase();
-
-      if (lower.indexOf('refused connection') !== -1 || lower.indexOf('connection') !== -1 || lower.indexOf('timeout') !== -1 || lower.indexOf('http ') !== -1) {
-        return { text: message || ('Website ' + source + ' refused connection, skipping...'), kind: 'error' };
-      }
-      if (lower.indexOf('completed') !== -1) {
-        return { text: I18N.liveNarrationDone, kind: 'success' };
-      }
-      if (source) {
-        return { text: 'Scraping website: ' + source, kind: 'info' };
-      }
-      if (message) {
-        return { text: message, kind: 'info' };
-      }
-      return { text: I18N.liveNarrationWork, kind: 'info' };
-    }
-
-    /* ── Run AI agent ──────────────────────────────────────────── */
-    window.runScraper = function(cat) {
-        var btn     = document.getElementById('btn-' + cat);
-        var loading = document.getElementById('loading-' + cat);
-        var results = document.getElementById('results-' + cat);
-      var payload = {
-        category: cat,
-        queries_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
-          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
-          return acc;
-        }, {}),
-        queries_for_category: (activeSearchQueriesByCategory[cat] || []).slice(),
-        sources_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
-          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
-          return acc;
-        }, {}),
-        sources_for_category: (activeSearchQueriesByCategory[cat] || []).slice()
-      };
-
-        btn.classList.add('loading');
-        btn.disabled = true;
-        loading.classList.add('active');
-        results.innerHTML = '';
-  resetLiveNarration(cat);
-  startNarrationHeartbeat(cat);
-
-        var dashboardUrl = '{% url "scraping:dashboard" %}';
-        var runUrl = dashboardUrl.replace(/\/?$/, '/run/') + cat + '/';
-
-        fetch(runUrl, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-            if (data.status === 'started') {
-            if (!window._scrapingSockets) window._scrapingSockets = {};
-            if (window._scrapingSockets[cat]) {
-              window._scrapingSockets[cat].disconnect();
-            }
-            window._scrapingSockets[cat] = new ScrapingStatusSocket(data.run_id, function(wsData) {
-              var progress = Number(wsData.progress || 0);
-              var total = Number(wsData.total || 0);
-              updateProgressBar(cat, progress, total);
-              updateStatusBadge(cat, wsData.status || 'running');
-              updateItemsCounter(cat, Number(wsData.items_scraped || 0), Number(wsData.items_failed || 0));
-              if (wsData.current_source) updateCurrentSource(cat, wsData.current_source);
-
-              var narrative = humanizeStatusUpdate(wsData);
-              setLoadingLine(cat, narrative.text);
-              appendLog(cat, narrative.text, narrative.kind);
-
-              if (wsData.status === 'completed' || wsData.status === 'failed') {
-                var dashboardUrl = '{% url "scraping:dashboard" %}';
-                var statusUrl = dashboardUrl.replace(/\/?$/, '/status/') + data.run_id + '/';
-                fetch(statusUrl)
-                  .then(function(resp){ return resp.json(); })
-                  .then(function(finalData){ finishScraper(cat, finalData); })
-                  .catch(function(){
-                    finishScraper(cat, {
-                      status: wsData.status,
-                      message: wsData.message || 'Unable to fetch final task status'
-                    });
-                  });
-              }
-            });
-            } else {
-                finishScraper(cat, data);
-            }
-        })
-        .catch(function(err) {
-            stopNarrationHeartbeat(cat);
-            loading.classList.remove('active');
-            btn.classList.remove('loading');
-            btn.disabled = false;
-            results.innerHTML = '<div class="ws-errors"><summary>'+I18N.networkErr+'</summary><ul><li>'+escapeHtml(String(err))+'</li></ul></div>';
-        });
-    };
-
-    /* ── WebSocket task status ─────────────────────────────────── */
-    class ScrapingStatusSocket {
-      constructor(taskUuid, onUpdate) {
-        this.taskUuid = taskUuid;
-        this.onUpdate = onUpdate;
-        this.reconnectDelay = 1000;
-        this.maxReconnectDelay = 30000;
-        this.shouldReconnect = true;
-        this.connect();
-      }
-
-      connect() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.ws = new WebSocket(
-          `${protocol}//${window.location.host}/ws/scraping/${this.taskUuid}/`
-        );
-
-        this.ws.onopen = () => {
-          console.log(`[ScrapingWS] Connected for task ${this.taskUuid}`);
-          this.reconnectDelay = 1000;
-        };
-
-        this.ws.onmessage = (event) => {
-          let data = {};
-          try { data = JSON.parse(event.data); } catch (_err) { data = {}; }
-          this.onUpdate(data);
-          // Auto-close when done
-          if (data.status === 'completed' || data.status === 'failed') {
-            setTimeout(() => this.ws.close(), 2000);
+          if (payload.runState) {
+            this.runState = payload.runState;
           }
-        };
-
-        this.ws.onerror = (error) => {
-          console.error('[ScrapingWS] Error:', error);
-        };
-
-        this.ws.onclose = () => {
-          // Reconnect only if task still running
-          if (this.shouldReconnect) {
-            setTimeout(() => this.connect(), this.reconnectDelay);
-            this.reconnectDelay = Math.min(
-              this.reconnectDelay * 2,
-              this.maxReconnectDelay
-            );
+          if (payload.lastRun) {
+            this.lastRun = payload.lastRun;
           }
-        };
-      }
-
-      disconnect() {
-        this.shouldReconnect = false;
-        if (this.ws) this.ws.close();
-      }
-    }
-
-    function updateProgressBar(cat, progress, total) {
-      var safeTotal = total > 0 ? total : 0;
-      if (safeTotal > 0) {
-        setLoadingProgress(cat, 'Queries processed: ' + progress + ' / ' + safeTotal);
-      } else {
-        setLoadingProgress(cat, 'Queries processed: running...');
-      }
-    }
-
-    function updateStatusBadge(cat, status) {
-      var btn = document.getElementById('btn-' + cat);
-      if (!btn) return;
-      btn.dataset.wsStatus = status || 'running';
-    }
-
-    function updateItemsCounter(cat, scraped, failed) {
-      var results = document.getElementById('results-' + cat);
-      if (!results) return;
-      results.dataset.itemsScraped = String(scraped || 0);
-      results.dataset.itemsFailed = String(failed || 0);
-    }
-
-    function updateCurrentSource(cat, sourceName) {
-      if (!sourceName) return;
-      setLoadingLine(cat, 'Scraping website: ' + sourceName);
-    }
-
-    /* ── Finish ────────────────────────────────────────────────── */
-    function finishScraper(cat, data) {
-        var btn     = document.getElementById('btn-' + cat);
-        var loading = document.getElementById('loading-' + cat);
-      stopNarrationHeartbeat(cat);
-        loading.classList.remove('active');
-        btn.classList.remove('loading');
-        btn.disabled = false;
-
-        if (data.status === 'error' || data.status === 'failed') {
-            var msg = data.message || (data.errors && data.errors.join(', ')) || 'Unknown error';
-        setLoadingLine(cat, msg);
-        appendLog(cat, msg, 'error');
-            document.getElementById('results-' + cat).innerHTML =
-                '<div class="ws-errors"><summary>'+I18N.error+'</summary><ul><li>'+escapeHtml(msg)+'</li></ul></div>';
-            return;
-        }
-      setLoadingLine(cat, I18N.liveNarrationDone);
-      appendLog(cat, I18N.liveNarrationDone, 'success');
-        renderResults(cat, data);
-    }
-
-    /* ── Render results ────────────────────────────────────────── */
-    function renderResults(cat, data) {
-        var container = document.getElementById('results-' + cat);
-        var h = '';
-      var validationStats = data.validation_stats || {};
-      var passedValidation = Number(validationStats.passed || data.items_created || 0);
-      var deadLettered = Number(data.dead_lettered || data.items_skipped || 0);
-      var runId = data.run_id || '';
-      var pendingReview = Array.isArray(data.pending_review) ? data.pending_review : [];
-      var pendingCount = Number(data.pending_review_count || pendingReview.length || 0);
-      var reviewUrl = '{% url "scraping:scraping_results" %}' + (runId ? ('?run_id=' + encodeURIComponent(runId)) : '');
-      var rejectedDate = Number(validationStats.failed_date || 0);
-      var rejectedFreshness = Number(validationStats.failed_freshness || 0);
-      var rejectedFields = Number(validationStats.failed_fields || 0);
-      var autoFilledArabic = Number(validationStats.auto_filled || 0);
-      container.dataset.failedFreshness = String(rejectedFreshness);
-      if (runId) {
-        pendingReviewByRun[runId] = pendingReview;
-      }
-
-        /* Summary */
-        h += '<div class="n-card" style="margin-top:1rem"><div class="ws-run-summary">';
-        h += '<div class="ws-run-summary-grid">';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-blue)">'+(data.items_found||0)+'</div><div class="lbl">'+I18N.found+'</div></div>';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-green)">'+passedValidation+'</div><div class="lbl">'+I18N.passedLLM+'</div></div>';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-red)">'+deadLettered+'</div><div class="lbl">'+I18N.deadLettered+'</div></div>';
-        h += '</div>';
-        h += '<div class="ws-review-actions">';
-        h += '<a class="ws-review-link" href="'+reviewUrl+'">'+I18N.reviewScrapedItems+' <i class="fas fa-arrow-right"></i></a>';
-        if (runId && pendingCount > 0) {
-          h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\''+escapeJs(runId)+'\')"><i class="fas fa-check-double"></i> '+I18N.acceptAll+' ('+pendingCount+')</button>';
-        }
-        h += '</div>';
-        h += '</div>';
-      h += '<div class="ws-validation-summary">';
-      h += '<span class="ws-val-ok">'+passedValidation+' items passed validation</span> • ';
-      h += '<span class="ws-val-date">'+rejectedDate+' rejected (past date)</span> • ';
-      h += '<span class="ws-val-fields">'+rejectedFields+' rejected (missing fields)</span> • ';
-      h += '<span class="ws-val-autofill">'+autoFilledArabic+' auto-filled Arabic fields</span>';
-      h += '</div>';
-
-      if (runId && pendingCount > 0) {
-        h += buildPendingReviewQueue(runId, pendingReview);
-      }
-
-        /* Errors */
-        if (data.errors && data.errors.length) {
-            h += '<details class="ws-errors" style="margin:0;border-radius:0"><summary><i class="fas fa-exclamation-triangle"></i> '+data.errors.length+' '+I18N.warnings+'</summary><ul>';
-            data.errors.forEach(function(e){ h += '<li>'+escapeHtml(e)+'</li>'; });
-            h += '</ul></details>';
-        }
-
-        /* Table */
-        var items = data.results || [];
-        if (!items.length) {
-            h += '<div class="n-empty"><i class="fas fa-inbox"></i><h3>'+I18N.noItems+'</h3></div>';
-        } else {
-            h += buildTable(cat, items);
-        }
-
-        h += '</div>';
-        container.innerHTML = h;
-    }
-
-    function buildPendingReviewQueue(runId, pendingReview) {
-      var rows = pendingReview.slice(0, MAX_DASHBOARD_REVIEW_ROWS);
-      var h = '<div class="ws-review-queue">';
-      h += '<div class="ws-review-queue-head">';
-      h += '<div>';
-      h += '<div class="ws-review-queue-title"><i class="fas fa-user-check"></i> ' + I18N.pendingReview + ' <span class="n-tab-badge">' + pendingReview.length + '</span></div>';
-      h += '<div class="ws-review-queue-note">' + I18N.queuedFromRun + '</div>';
-      h += '</div>';
-      h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\'' + escapeJs(runId) + '\')"><i class="fas fa-check-double"></i> ' + I18N.acceptAll + '</button>';
-      h += '</div>';
-      h += '<div class="table-responsive"><table class="n-tbl"><thead><tr>';
-      h += '<th>#</th><th>' + I18N.title + '</th><th>{% trans "Category" %}</th><th>{% trans "Source" %}</th><th>{% trans "Action" %}</th>';
-      h += '</tr></thead><tbody>';
-
-      rows.forEach(function(item, idx) {
-        var sourceLink = item.source_url
-          ? '<a href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a>'
-          : '—';
-        h += '<tr>';
-        h += '<td>' + (idx + 1) + '</td>';
-        h += '<td>' + escapeHtml(item.title || '') + '</td>';
-        h += '<td>' + escapeHtml(item.category_label || item.category || '') + '</td>';
-        h += '<td>' + sourceLink + '</td>';
-        h += '<td><button type="button" class="ws-row-accept" onclick="acceptPendingItem(\'' + escapeJs(item.id) + '\',\'' + escapeJs(item.category || '') + '\',\'' + escapeJs(runId) + '\')"><i class="fas fa-check"></i> ' + I18N.acceptOne + '</button></td>';
-        h += '</tr>';
-      });
-
-      h += '</tbody></table></div>';
-      if (pendingReview.length > rows.length) {
-        h += '<div class="ws-review-queue-note" style="margin-top:.5rem">'
-          + '{% trans "Showing first" %} ' + rows.length + ' {% trans "items. Use Review Scraped Items to manage the full queue." %}'
-          + '</div>';
-      }
-      h += '</div>';
-      return h;
-    }
-
-    /* ── Build results table ───────────────────────────────────── */
-    function buildTable(cat, items) {
-        var cols = {
-        events:        [I18N.title, I18N.location, I18N.type, I18N.link],
-        tools:         [I18N.title, I18N.type, I18N.description, I18N.link],
-        courses:       [I18N.title, I18N.type, I18N.description, I18N.link],
-        news:          [I18N.title, I18N.type, I18N.description, I18N.link],
-        opportunities: [I18N.title, I18N.type, I18N.description, I18N.link],
-        corpus:        [I18N.title, I18N.type, I18N.description, I18N.link],
-        };
-        var fields = {
-        events:        ['title','location','type','url'],
-        tools:         ['title','type','description','url'],
-        courses:       ['title','type','description','url'],
-        news:          ['title','type','description','url'],
-        opportunities: ['title','type','description','url'],
-        corpus:        ['title','type','description','url'],
-        };
-        var cArr = cols[cat] || [I18N.title];
-        var fArr = fields[cat] || ['title'];
-
-        var h = '<div class="n-card-head"><h3 class="n-card-title"><i class="fas fa-list"></i> '+I18N.scraped+' <span class="n-tab-badge" style="background:var(--n-green);color:#fff">'+items.length+'</span></h3></div>';
-        h += '<div class="table-responsive"><table class="n-tbl"><thead><tr><th>#</th>';
-        cArr.forEach(function(c){ h += '<th>'+c+'</th>'; });
-        h += '</tr></thead><tbody>';
-
-        items.forEach(function(item, idx) {
-            h += '<tr><td>'+(idx+1)+'</td>';
-            fArr.forEach(function(f) {
-                var val = item[f] || '—';
-                if (f === 'url' && val !== '—') {
-                    h += '<td><a href="'+escapeHtml(val)+'" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a></td>';
-                } else {
-                    h += '<td>'+escapeHtml(val)+'</td>';
-                }
-            });
-            h += '</tr>';
+          if (typeof payload.pendingCount === 'number') {
+            this.pendingCount = payload.pendingCount;
+          }
+          if (payload.runState === 'completed') {
+            this.flashComplete = true;
+            window.setTimeout(() => {
+              this.flashComplete = false;
+              this.runState = 'idle';
+            }, 1500);
+          }
         });
-
-        h += '</tbody></table></div>';
-        return h;
-    }
-
-    function escapeHtml(text) {
-        if (!text) return '';
-        var d = document.createElement('div');
-        d.textContent = String(text);
-        return d.innerHTML;
-    }
-
-    function escapeJs(text) {
-        return String(text || '')
-          .replace(/\\/g, '\\\\')
-          .replace(/'/g, "\\'");
-    }
-
-    function submitPostForm(url, fields) {
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = url;
-      form.style.display = 'none';
-
-      function appendInput(name, value) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = String(value == null ? '' : value);
-        form.appendChild(input);
-      }
-
-      appendInput('csrfmiddlewaretoken', csrfToken);
-      Object.keys(fields || {}).forEach(function(key) {
-        var value = fields[key];
-        if (Array.isArray(value)) {
-          value.forEach(function(item) {
-            appendInput(key, item);
-          });
+      },
+      get iconBadgeStyle() {
+        return 'background: color-mix(in srgb, ' + this.categoryColor + ' 15%, white); color:' + this.categoryColor + ';';
+      },
+      get categoryColor() {
+        return (CATEGORY_META[this.category] || {}).color || '#2563eb';
+      },
+      get metaColorEmoji() {
+        return ((CATEGORY_META[this.category] || {}).emoji || '🔵') + ' ' + (CATEGORY_META[this.category] || {}).label;
+      },
+      get pendingCountDisplay() {
+        return this.pendingCount == null ? '—' : String(this.pendingCount);
+      },
+      get reviewUrl() {
+        return scrapingUrl('results/?category=' + encodeURIComponent(this.category));
+      },
+      get runButtonLabel() {
+        if (this.runState === 'running') return I18N.running;
+        if (this.runState === 'completed') return I18N.done;
+        return I18N.run;
+      },
+      get lastRunIcon() {
+        if (!this.lastRun || !this.lastRun.status) return '—';
+        if (this.lastRun.status === 'failed') return '❌';
+        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) return '⚠️';
+        if (this.lastRun.status === 'completed') return '✅';
+        return '⚠️';
+      },
+      get lastRunLabel() {
+        if (!this.lastRun || !this.lastRun.started_at) return I18N.neverRun;
+        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) {
+          return I18N.noItemsFound + ' · ' + relativeTime(this.lastRun.started_at);
+        }
+        return relativeTime(this.lastRun.started_at);
+      },
+      handleReviewClick(event) {
+        if (!this.canReview) {
+          event.preventDefault();
           return;
         }
-        appendInput(key, value);
-      });
+      },
+      run() {
+        if (window.__scrapingDashboard) {
+          window.__scrapingDashboard.startRun(this.category).catch(() => {});
+        }
+      },
+      fetchStats() {
+        fetch(categoryApiUrl(this.category), {
+          headers: { Accept: 'application/json' },
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            this.pendingCount = Number(data.pending_count || 0);
+            this.lastRun = data.last_run || null;
+            this.canReview = !!data.can_review;
+            dispatchCategoryStats(this.category, {
+              pendingCount: this.pendingCount,
+              lastRun: this.lastRun,
+            });
+          })
+          .catch(() => {
+            this.pendingCount = this.pendingCount == null ? 0 : this.pendingCount;
+          });
+      },
+    };
+  };
 
-      document.body.appendChild(form);
-      form.submit();
+  window.scrapingDashboard = function () {
+    return {
+      categoryOrder: CATEGORY_ORDER,
+      categoryMeta: CATEGORY_META,
+      reviewSupported: new Set(REVIEW_SUPPORTED),
+      promptAccordionOpen: 'events',
+      promptsByCategory: {},
+      showAllPrompts: {},
+      newPromptText: {},
+      promptSubmitting: {},
+      historyOpen: false,
+      runAllLoading: false,
+      runAllButtonText: I18N.runAllCategories,
+      stopBusy: false,
+      quickStats: {
+        todayApproved: 0,
+        todayRejected: 0,
+        avgConfidence: 0,
+        translationOkPct: 0,
+      },
+      runHistoryRows: [],
+      categoryRuntime: {},
+      categoryState: {},
+      globalPendingReview: 0,
+      globalLastRunText: '—',
+      activeRun: {
+        visible: false,
+        runId: '',
+        category: '',
+        status: 'running',
+        current: 0,
+        total: 0,
+        progressPercent: 0,
+        currentStep: 'discovery',
+        currentStepLabel: I18N.stepDiscovery,
+        currentMessage: '',
+        stepSummary: '—',
+        currentItem: '',
+        reviewUrl: '#',
+        itemsCreated: 0,
+        itemsSkipped: 0,
+        itemsFailed: 0,
+      },
+      i18n: I18N,
+
+      init() {
+        window.__scrapingDashboard = this;
+        this.initializeCategoryState();
+        this.bootstrapPrompts();
+        this.bootstrapRunHistory(RECENT_RUNS);
+        this.fetchQuickStats();
+        this.refreshGlobalHeader();
+
+        window.addEventListener('scraping:category-stats', (event) => {
+          const detail = event.detail || {};
+          const category = detail.category;
+          const payload = detail.payload || {};
+          if (!category) return;
+          this.categoryRuntime[category] = {
+            pendingCount: Number(payload.pendingCount || 0),
+            lastRun: payload.lastRun || null,
+          };
+          this.refreshGlobalHeader();
+        });
+
+        window.addEventListener('beforeunload', () => {
+          CATEGORIES.forEach((category) => this.cleanupCategoryRealtime(category));
+        });
+      },
+
+      categoryLabel(category) {
+        return ((this.categoryMeta[category] || {}).label) || category;
+      },
+
+      categoryColor(category) {
+        return ((this.categoryMeta[category] || {}).color) || '#2563eb';
+      },
+
+      reviewUrlForRun(runId) {
+        return reviewUrl(runId);
+      },
+
+      initializeCategoryState() {
+        const baseline = {};
+        CATEGORIES.forEach((category) => {
+          baseline[category] = {
+            runId: null,
+            taskId: null,
+            wsClient: null,
+            pollingTimer: null,
+            status: 'idle',
+            progress: 0,
+            current: 0,
+            total: 0,
+            itemsCreated: 0,
+            itemsSkipped: 0,
+            itemsFailed: 0,
+            currentStep: 'discovery',
+            currentStepLabel: I18N.stepDiscovery,
+            currentMessage: '',
+            stepSummary: '—',
+            currentItem: '',
+            reviewUrl: '#',
+          };
+        });
+        this.categoryState = baseline;
+      },
+
+      ensureCategoryState(category) {
+        if (!this.categoryState[category]) {
+          this.categoryState[category] = {
+            runId: null,
+            taskId: null,
+            wsClient: null,
+            pollingTimer: null,
+            status: 'idle',
+            progress: 0,
+            current: 0,
+            total: 0,
+            itemsCreated: 0,
+            itemsSkipped: 0,
+            itemsFailed: 0,
+            currentStep: 'discovery',
+            currentStepLabel: I18N.stepDiscovery,
+            currentMessage: '',
+            stepSummary: '—',
+            currentItem: '',
+            reviewUrl: '#',
+          };
+        }
+        return this.categoryState[category];
+      },
+
+      stopCategoryPolling(category) {
+        const state = this.ensureCategoryState(category);
+        if (!state.pollingTimer) return;
+        window.clearInterval(state.pollingTimer);
+        state.pollingTimer = null;
+      },
+
+      cleanupCategoryRealtime(category) {
+        const state = this.ensureCategoryState(category);
+        this.stopCategoryPolling(category);
+        if (state.wsClient) {
+          state.wsClient.disconnect();
+          state.wsClient = null;
+        }
+      },
+
+      syncActiveRunFromState(category) {
+        if (this.activeRun.category !== category) return;
+        const state = this.ensureCategoryState(category);
+        this.activeRun.runId = state.runId || '';
+        this.activeRun.status = state.status || 'idle';
+        this.activeRun.current = Number(state.current || 0);
+        this.activeRun.total = Number(state.total || 0);
+        this.activeRun.progressPercent = Number(state.progress || 0);
+        this.activeRun.currentStep = state.currentStep || this.activeRun.currentStep;
+        this.activeRun.currentStepLabel = state.currentStepLabel || this.activeRun.currentStepLabel;
+        this.activeRun.currentMessage = state.currentMessage || this.activeRun.currentMessage;
+        this.activeRun.stepSummary = state.stepSummary || this.activeRun.stepSummary;
+        this.activeRun.currentItem = state.currentItem || this.activeRun.currentItem;
+        this.activeRun.reviewUrl = state.reviewUrl || this.activeRun.reviewUrl;
+        this.activeRun.itemsCreated = Number(state.itemsCreated || 0);
+        this.activeRun.itemsSkipped = Number(state.itemsSkipped || 0);
+        this.activeRun.itemsFailed = Number(state.itemsFailed || 0);
+      },
+
+      refreshGlobalHeader() {
+        let pending = 0;
+        let latestRunDate = null;
+
+        this.categoryOrder.forEach((category) => {
+          const runtime = this.categoryRuntime[category];
+          if (!runtime) return;
+          pending += Number(runtime.pendingCount || 0);
+          const iso = runtime.lastRun && runtime.lastRun.started_at;
+          if (!iso) return;
+          const candidateDate = new Date(iso);
+          if (Number.isNaN(candidateDate.getTime())) return;
+          if (!latestRunDate || candidateDate > latestRunDate) {
+            latestRunDate = candidateDate;
+          }
+        });
+
+        this.globalPendingReview = pending;
+        this.globalLastRunText = latestRunDate ? relativeTime(latestRunDate.toISOString()) : '—';
+      },
+
+      bootstrapPrompts() {
+        const grouped = {};
+        this.categoryOrder.forEach((category) => {
+          grouped[category] = [];
+          this.showAllPrompts[category] = false;
+          this.newPromptText[category] = '';
+          this.promptSubmitting[category] = false;
+        });
+
+        (SEARCH_QUERY_ROWS || []).forEach((row) => {
+          const category = String(row.category || '').toLowerCase();
+          if (!grouped[category]) grouped[category] = [];
+          grouped[category].push({
+            id: row.id,
+            category,
+            query_text: row.query_text,
+            is_active: !!row.is_active,
+          });
+        });
+
+        this.promptsByCategory = grouped;
+      },
+
+      visiblePrompts(category) {
+        const list = this.promptsByCategory[category] || [];
+        if (this.showAllPrompts[category]) return list;
+        return list.slice(0, 5);
+      },
+
+      togglePromptList(category) {
+        this.showAllPrompts[category] = !this.showAllPrompts[category];
+      },
+
+      togglePromptAccordion(category) {
+        this.promptAccordionOpen = this.promptAccordionOpen === category ? '' : category;
+      },
+
+      addPrompt(category) {
+        const text = String(this.newPromptText[category] || '').trim();
+        if (!text) return;
+        this.promptSubmitting[category] = true;
+
+        const tempId = 'tmp-' + Date.now();
+        const list = this.promptsByCategory[category] || [];
+        const optimisticPrompt = {
+          id: tempId,
+          category,
+          query_text: text,
+          is_active: true,
+        };
+        list.unshift(optimisticPrompt);
+        this.promptsByCategory[category] = list;
+        this.newPromptText[category] = '';
+
+        fetch(addPromptApiUrl(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            category,
+            query_text: text,
+            is_active: true,
+          }),
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((saved) => {
+            optimisticPrompt.id = saved.id;
+            optimisticPrompt.is_active = !!saved.is_active;
+          })
+          .catch(() => {
+            this.promptsByCategory[category] = (this.promptsByCategory[category] || []).filter((prompt) => prompt.id !== tempId);
+          })
+          .finally(() => {
+            this.promptSubmitting[category] = false;
+          });
+      },
+
+      togglePrompt(prompt) {
+        if (!prompt || String(prompt.id).startsWith('tmp-')) return;
+        const original = !!prompt.is_active;
+        prompt.is_active = !original;
+
+        fetch(togglePromptApiUrl(prompt.id), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ is_active: prompt.is_active }),
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((saved) => {
+            prompt.is_active = !!saved.is_active;
+          })
+          .catch(() => {
+            prompt.is_active = original;
+          });
+      },
+
+      fetchQuickStats() {
+        fetch(quickStatsApiUrl(), {
+          headers: { Accept: 'application/json' },
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            this.quickStats.todayApproved = Number(data.today_approved || 0);
+            this.quickStats.todayRejected = Number(data.today_rejected || 0);
+            this.quickStats.avgConfidence = Number(data.avg_confidence || 0).toFixed(1);
+            this.quickStats.translationOkPct = Number(data.translation_ok_pct || 0).toFixed(1);
+          })
+          .catch(() => {});
+      },
+
+      bootstrapRunHistory(runMap) {
+        const rows = [];
+        Object.keys(runMap || {}).forEach((category) => {
+          (runMap[category] || []).forEach((row) => {
+            rows.push({ ...row, category });
+          });
+        });
+
+        rows.sort((a, b) => {
+          const da = new Date(a.started_at || 0).getTime();
+          const db = new Date(b.started_at || 0).getTime();
+          return db - da;
+        });
+
+        this.runHistoryRows = rows.slice(0, 10);
+      },
+
+      refreshRunHistory() {
+        fetch(recentRunsApiUrl(), { headers: { Accept: 'application/json' } })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            this.bootstrapRunHistory(data.runs || {});
+          })
+          .catch(() => {});
+      },
+
+      historyDuration(row) {
+        if (row.status === 'failed') return 'Failed ❌';
+        return formatDuration(row.duration_seconds);
+      },
+
+      historyItems(row) {
+        return String(Number(row.items_saved || 0)) + ' new';
+      },
+
+      runStatusIcon(row) {
+        if (!row || !row.status) return '—';
+        const status = String(row.status).toLowerCase();
+        if (status === 'completed') return '✅';
+        if (status === 'failed') return '❌';
+        return '⚠️';
+      },
+
+      relativeTime,
+
+      get activeRunStatusIcon() {
+        if (this.activeRun.status === 'completed') return '✅';
+        if (this.activeRun.status === 'failed') return '❌';
+        return '🔵';
+      },
+
+      get activeRunStatusText() {
+        const label = this.categoryLabel(this.activeRun.category || '');
+        if (this.activeRun.status === 'completed') {
+          return I18N.runCompleted + ': ' + label;
+        }
+        if (this.activeRun.status === 'failed') {
+          return I18N.runFailed + ': ' + label;
+        }
+        return I18N.running + ': ' + label + ' ' + I18N.scrapingVerb;
+      },
+
+      setActiveRunFromPayload(category, runId, taskId) {
+        const state = this.ensureCategoryState(category);
+        state.runId = String(runId || '');
+        state.taskId = String(taskId || state.taskId || '');
+        state.status = 'running';
+        state.progress = 0;
+        state.current = 0;
+        state.total = 0;
+        state.currentStep = 'discovery';
+        state.currentStepLabel = I18N.stepDiscovery;
+        state.currentMessage = I18N.running;
+        state.stepSummary = I18N.step + ' 1/4: ' + I18N.stepDiscovery + ' · ' + I18N.query + ' 0/0 · 0 ' + I18N.itemsFound;
+        state.currentItem = '';
+        state.itemsCreated = 0;
+        state.itemsSkipped = 0;
+        state.itemsFailed = 0;
+        state.reviewUrl = reviewUrl(state.runId);
+
+        this.activeRun.visible = true;
+        this.activeRun.category = category;
+        this.syncActiveRunFromState(category);
+
+        const alertsContainer = document.getElementById('source-alerts');
+        if (alertsContainer) {
+          alertsContainer.innerHTML = '';
+        }
+
+        this.syncProgressIndicators();
+      },
+
+      async startRun(category) {
+        const state = this.ensureCategoryState(category);
+        this.cleanupCategoryRealtime(category);
+
+        state.status = 'running';
+        state.progress = 0;
+        state.current = 0;
+        state.total = 0;
+        state.itemsCreated = 0;
+        state.itemsSkipped = 0;
+        state.itemsFailed = 0;
+        state.currentStep = 'discovery';
+        state.currentStepLabel = I18N.stepDiscovery;
+        state.currentMessage = I18N.running;
+        state.stepSummary = I18N.step + ' 1/4: ' + I18N.stepDiscovery + ' · ' + I18N.query + ' 0/0 · 0 ' + I18N.itemsFound;
+        state.currentItem = '';
+
+        this.activeRun.visible = true;
+        this.activeRun.category = category;
+        this.syncActiveRunFromState(category);
+        this.syncProgressIndicators();
+        dispatchCardState(category, { runState: 'running' });
+
+        const payload = {
+          category,
+          queries_by_category: this.promptsByCategory,
+          queries_for_category: (this.promptsByCategory[category] || []).filter((prompt) => prompt.is_active).map((prompt) => prompt.query_text),
+        };
+
+        try {
+          const response = await fetch(runApiUrl(category), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken(),
+              Accept: 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(String(data.message || data.error || ('Request failed (' + response.status + ')')));
+          }
+
+          if (data.status === 'started') {
+            this.setActiveRunFromPayload(category, data.run_id, data.task_id);
+            const readyState = this.ensureCategoryState(category);
+            this.connectRunSocket(category, readyState.taskId || readyState.runId);
+            this.startRunStatusPolling(category, readyState.runId);
+          } else {
+            this.handleRunFinalData(category, data || {});
+          }
+
+          return data;
+        } catch (error) {
+          state.status = 'failed';
+          state.currentMessage = String((error && error.message) || I18N.runFailed);
+          state.stepSummary = state.currentMessage || I18N.runFailed;
+          this.syncActiveRunFromState(category);
+          this.syncProgressIndicators();
+          dispatchCardState(category, { runState: 'idle' });
+          throw (error instanceof Error) ? error : new Error(String(error || I18N.runFailed));
+        }
+      },
+
+      async runAllCategories() {
+        if (this.runAllLoading) return;
+        this.runAllLoading = true;
+        this.runAllButtonText = '⏳ ' + I18N.runningAll;
+
+        const runAllBtn = document.getElementById('run-all-btn');
+        if (runAllBtn) {
+          runAllBtn.disabled = true;
+        }
+
+        showToast('Starting all categories sequentially...');
+
+        try {
+          for (const category of this.categoryOrder) {
+            try {
+              showToast('▶ Starting ' + category + '...');
+              await this.startRun(category);
+              const status = await this.waitForRunCompletion(category, 600000);
+              if (status === 'completed') {
+                showToast('✅ ' + category + ' completed');
+              } else {
+                showToast('❌ ' + category + ' failed', 'error');
+              }
+            } catch (error) {
+              const message = (error && error.message) ? error.message : I18N.runFailed;
+              showToast('❌ ' + category + ' failed: ' + message, 'error');
+            }
+          }
+          showToast('✅ All categories processed');
+        } finally {
+          this.runAllLoading = false;
+          this.runAllButtonText = I18N.runAllCategories;
+          if (runAllBtn) {
+            runAllBtn.disabled = false;
+          }
+        }
+      },
+
+      waitForRunCompletion(category, timeoutMs) {
+        const timeout = Number(timeoutMs || 600000);
+        return new Promise((resolve, reject) => {
+          const start = Date.now();
+          const check = window.setInterval(() => {
+            const state = this.ensureCategoryState(category);
+            if (Date.now() - start > timeout) {
+              window.clearInterval(check);
+              reject(new Error('Timeout'));
+              return;
+            }
+
+            if (state.status === 'completed' || state.status === 'failed') {
+              window.clearInterval(check);
+              resolve(state.status);
+            }
+          }, 2000);
+        });
+      },
+
+      connectRunSocket(category, taskId) {
+        const state = this.ensureCategoryState(category);
+        if (state.wsClient) {
+          state.wsClient.disconnect();
+          state.wsClient = null;
+        }
+        if (!taskId) return;
+
+        state.wsClient = new ScrapingStatusSocket(taskId, {
+          onProgress: (payload) => this.updateProgressUI(payload || {}, category),
+          onSourceFailed: (payload) => this.addSourceFailureAlert(payload || {}, category),
+          onItemSkipped: (payload) => this.updateSkippedCounter(payload || {}, category),
+          onStatus: (payload) => this.updateRunStatus(payload || {}, category),
+          isActive: () => this.ensureCategoryState(category).status === 'running',
+        });
+      },
+
+      handleScrapingEvent(category, payload) {
+        const eventType = String((payload.event_type || payload.type || '')).toLowerCase();
+
+        switch (eventType) {
+          case 'progress':
+            this.updateProgressUI(payload, category);
+            break;
+          case 'source_failed':
+            this.addSourceFailureAlert(payload, category);
+            break;
+          case 'item_skipped':
+            this.updateSkippedCounter(payload, category);
+            break;
+          case 'initial_status':
+          case 'status_update':
+            this.updateRunStatus(payload, category);
+            break;
+          default:
+            this.updateRunStatus(payload, category);
+            break;
+        }
+      },
+
+      updateProgressUI(payload, category) {
+        this.updateRunStatus(payload, category);
+      },
+
+      updateRunStatus(payload, category) {
+        const state = this.ensureCategoryState(category);
+        const payloadRunId = String(payload.run_id || payload.task_uuid || '');
+        if (payloadRunId && state.runId && payloadRunId !== String(state.runId)) {
+          return;
+        }
+
+        const status = String(payload.status || '').toLowerCase();
+
+        const step = String(payload.step || payload.current_step || '').trim();
+        const message = String(payload.message || payload.current_message || payload.current_step || '').trim();
+        const progressCurrent = Number((payload.current != null ? payload.current : (payload.progress_current != null ? payload.progress_current : payload.progress)) || 0);
+        const progressTotal = Number((payload.total != null ? payload.total : payload.progress_total) || 0);
+        const providedPercent = Number(payload.percent);
+        const progressPercent = Number.isFinite(providedPercent)
+          ? Math.max(0, Math.min(100, providedPercent))
+          : (progressTotal > 0 ? Math.min(100, (progressCurrent / progressTotal) * 100) : 0);
+        const info = stepInfo(step || message);
+        const itemsCreated = Number((payload.items_created != null ? payload.items_created : payload.items_scraped) || payload.items_found || 0);
+
+        state.current = progressCurrent;
+        state.total = progressTotal;
+        state.progress = progressPercent;
+        state.currentStep = step || state.currentStep;
+        state.currentStepLabel = info.label;
+        state.currentMessage = message;
+        state.itemsCreated = itemsCreated;
+        state.itemsSkipped = Number((payload.items_skipped != null ? payload.items_skipped : payload.items_failed) || state.itemsSkipped || 0);
+        state.itemsFailed = Number((payload.items_failed != null ? payload.items_failed : state.itemsFailed) || 0);
+        state.stepSummary =
+          I18N.step + ' ' + info.index + '/4: ' + info.label
+          + ' · ' + I18N.query + ' ' + progressCurrent + '/' + progressTotal
+          + ' · ' + itemsCreated + ' ' + I18N.itemsFound;
+        state.currentItem = String(payload.current_item || payload.current_source || message || '').trim();
+
+        if (status === 'running') {
+          state.status = 'running';
+        }
+
+        this.syncActiveRunFromState(category);
+        this.syncProgressIndicators();
+
+        if (status === 'completed' || status === 'failed' || status === 'success') {
+          state.status = status === 'success' ? 'completed' : status;
+          this.showRunSummary(category, payload);
+        }
+      },
+
+      addSourceFailureAlert(data, category) {
+        const alertsContainer = document.getElementById('source-alerts');
+        if (!alertsContainer) return;
+
+        const categoryLabel = this.categoryLabel(category || this.activeRun.category || '');
+        const sourceUrl = String(data.source_url || data.source || data.url || 'unknown source');
+        const reason = String(data.error || data.reason || 'Unknown error');
+
+        const alert = document.createElement('div');
+        alert.className = 'source-alert warning';
+        alert.innerHTML =
+          '⚠️ [' + categoryLabel + '] Source failed: <strong>' + sourceUrl + '</strong>'
+          + '<span class="reason">' + reason + '</span>';
+        alertsContainer.prepend(alert);
+
+        while (alertsContainer.children.length > 5) {
+          alertsContainer.lastChild.remove();
+        }
+      },
+
+      updateSkippedCounter(_data, category) {
+        const state = this.ensureCategoryState(category);
+        state.itemsSkipped = Number(state.itemsSkipped || 0) + 1;
+        this.syncActiveRunFromState(category);
+        this.syncProgressIndicators();
+      },
+
+      showRunSummary(category, data) {
+        this.cleanupCategoryRealtime(category);
+
+        const status = String((data || {}).status || '').toLowerCase();
+        if (status === 'completed' || status === 'failed' || status === 'success') {
+          this.handleRunFinalData(category, data || {});
+          return;
+        }
+
+        const state = this.ensureCategoryState(category);
+        this.fetchRunFinalStatus(category, state.runId);
+      },
+
+      startRunStatusPolling(category, runId) {
+        this.stopCategoryPolling(category);
+        if (!runId) return;
+
+        const state = this.ensureCategoryState(category);
+
+        state.pollingTimer = window.setInterval(() => {
+          const freshState = this.ensureCategoryState(category);
+          if (freshState.status !== 'running' || String(freshState.runId || '') !== String(runId || '')) {
+            this.stopCategoryPolling(category);
+            return;
+          }
+
+          fetch(runStatusApiUrl(runId), {
+            headers: { Accept: 'application/json' },
+          })
+            .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+            .then((data) => {
+              const status = String((data || {}).status || '').toLowerCase();
+              if (status === 'running') {
+                this.updateRunStatus(data || {}, category);
+                return;
+              }
+              if (status) {
+                freshState.status = status === 'success' ? 'completed' : status;
+                this.handleRunFinalData(category, data || {});
+              }
+            })
+            .catch(() => {});
+        }, 3000);
+      },
+
+      syncProgressIndicators() {
+        const bar = document.getElementById('progress-bar');
+        if (bar) {
+          bar.style.width = String(this.activeRun.progressPercent || 0) + '%';
+        }
+
+        const percent = document.getElementById('progress-percent');
+        if (percent) {
+          percent.textContent = String(Math.round(this.activeRun.progressPercent || 0)) + '%';
+        }
+
+        const message = document.getElementById('progress-message');
+        if (message) {
+          message.textContent = String(this.activeRun.currentMessage || this.activeRun.stepSummary || '');
+        }
+
+        const counter = document.getElementById('progress-counter');
+        if (counter) {
+          counter.textContent = String(this.activeRun.current || 0) + '/' + String(this.activeRun.total || 0);
+        }
+
+        const created = document.getElementById('items-created-count');
+        if (created) {
+          created.textContent = String(this.activeRun.itemsCreated || 0);
+        }
+
+        const skipped = document.getElementById('items-skipped-count');
+        if (skipped) {
+          skipped.textContent = String(this.activeRun.itemsSkipped || 0);
+        }
+
+        const stepLabel = document.getElementById('current-step-label');
+        if (stepLabel) {
+          stepLabel.textContent = String(this.activeRun.currentStepLabel || '');
+        }
+      },
+
+      stopRunStatusPolling() {
+        if (!this.activeRun.category) return;
+        this.stopCategoryPolling(this.activeRun.category);
+      },
+
+      fetchRunFinalStatus(category, runId) {
+        fetch(runStatusApiUrl(runId), {
+          headers: { Accept: 'application/json' },
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            this.handleRunFinalData(category, data || {});
+          })
+          .catch(() => {
+            this.handleRunFinalData(category, { status: 'failed', message: 'Unable to fetch final status.' });
+          });
+      },
+
+      handleRunFinalData(category, data) {
+        const state = this.ensureCategoryState(category);
+        this.cleanupCategoryRealtime(category);
+
+        const status = String(data.status || '').toLowerCase();
+        if (status === 'completed' || status === 'success') {
+          state.status = 'completed';
+          state.current = Number((data.current != null ? data.current : data.progress_current) || state.current || 0);
+          state.total = Number((data.total != null ? data.total : data.progress_total) || state.total || 0);
+          state.progress = 100;
+          state.itemsCreated = Number((data.items_created != null ? data.items_created : state.itemsCreated) || 0);
+          state.itemsSkipped = Number((data.items_skipped != null ? data.items_skipped : data.items_failed) || state.itemsSkipped || 0);
+          state.itemsFailed = Number((data.items_failed != null ? data.items_failed : data.items_skipped) || state.itemsFailed || 0);
+          state.currentMessage = String(data.message || data.current_message || I18N.runCompleted);
+          state.stepSummary = I18N.runCompleted;
+          state.reviewUrl = reviewUrl(state.runId || data.run_id || '');
+          dispatchCardState(category, { runState: 'completed' });
+        } else {
+          state.status = 'failed';
+          state.currentMessage = String(data.message || data.current_message || I18N.runFailed);
+          state.stepSummary = data.message || I18N.runFailed;
+          dispatchCardState(category, { runState: 'idle' });
+        }
+
+        this.syncActiveRunFromState(category);
+        this.syncProgressIndicators();
+
+        this.refreshCategoryStats(category);
+        this.refreshRunHistory();
+        this.fetchQuickStats();
+      },
+
+      refreshCategoryStats(category) {
+        fetch(categoryApiUrl(category), { headers: { Accept: 'application/json' } })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            dispatchCardState(category, {
+              pendingCount: Number(data.pending_count || 0),
+              lastRun: data.last_run || null,
+            });
+            dispatchCategoryStats(category, {
+              pendingCount: Number(data.pending_count || 0),
+              lastRun: data.last_run || null,
+            });
+          })
+          .catch(() => {});
+      },
+
+      stopActiveRun() {
+        const category = this.activeRun.category;
+        const state = this.ensureCategoryState(category);
+        if (state.status !== 'running' || !state.runId) return;
+        if (!window.confirm(I18N.stopConfirm)) return;
+
+        this.stopBusy = true;
+        fetch(stopRunApiUrl(state.runId), {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken(),
+            Accept: 'application/json',
+          },
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            state.status = 'failed';
+            state.currentMessage = String(data.message || I18N.runFailed);
+            state.stepSummary = data.message || I18N.runFailed;
+            dispatchCardState(category, { runState: 'idle' });
+            this.cleanupCategoryRealtime(category);
+            this.syncActiveRunFromState(category);
+            this.syncProgressIndicators();
+            this.refreshCategoryStats(category);
+            this.refreshRunHistory();
+            this.fetchQuickStats();
+          })
+          .catch(() => {})
+          .finally(() => {
+            this.stopBusy = false;
+          });
+      },
+
+      rerunRow(row) {
+        if (!row || !row.rerun_url) return;
+
+        fetch(row.rerun_url, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken(),
+            Accept: 'application/json',
+          },
+        })
+          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+          .then((data) => {
+            if (data.status === 'started') {
+              dispatchCardState(row.category, { runState: 'running' });
+              this.setActiveRunFromPayload(row.category, data.run_id, data.task_id);
+              this.connectRunSocket(row.category, data.task_id || data.run_id);
+              this.startRunStatusPolling(row.category, data.run_id);
+            }
+          })
+          .catch(() => {});
+      },
+    };
+  };
+
+  class ScrapingStatusSocket {
+    constructor(runId, handlers) {
+      this.runId = runId;
+      this.handlers = handlers || {};
+      this.reconnectDelay = 1000;
+      this.maxReconnectDelay = 30000;
+      this.shouldReconnect = true;
+      this.connect();
     }
 
-    window.acceptPendingItem = function(itemId, category, runId) {
-      if (!itemId) return;
-      submitPostForm(dashboardBase + '/results/validate/' + encodeURIComponent(itemId) + '/', {
-        category: category || '',
-        run_id: runId || ''
-      });
-    };
+    connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      this.ws = new WebSocket(protocol + '//' + window.location.host + '/ws/scraping/' + this.runId + '/');
 
-    window.acceptAllPendingItems = function(runId) {
-      var pendingItems = pendingReviewByRun[runId] || [];
-      if (!pendingItems.length) {
-        showToast('No pending items for this run.', 'info');
-        return;
-      }
+      this.ws.onopen = () => {
+        this.reconnectDelay = 1000;
+      };
 
-      var categoryHint = (pendingItems[0] && pendingItems[0].category) || '';
-      var itemTokens = pendingItems.map(function(item) {
-        var cat = String(item.category || '').toLowerCase();
-        var id = String(item.id || '');
-        return cat ? (cat + ':' + id) : id;
-      });
+      this.ws.onmessage = (event) => {
+        let data;
+        try {
+          data = JSON.parse(event.data || '{}');
+        } catch (_err) {
+          return;
+        }
 
-      submitPostForm(dashboardBase + '/results/bulk-action/', {
-        action: 'validate',
-        category: categoryHint,
-        run_id: runId || '',
-        item_ids: itemTokens
-      });
-    };
+        const eventType = String(data.event_type || data.type || '').toLowerCase();
+        switch (eventType) {
+          case 'progress':
+            if (typeof this.handlers.onProgress === 'function') {
+              this.handlers.onProgress(data);
+            }
+            break;
+          case 'source_failed':
+            if (typeof this.handlers.onSourceFailed === 'function') {
+              this.handlers.onSourceFailed(data);
+            }
+            break;
+          case 'item_skipped':
+            if (typeof this.handlers.onItemSkipped === 'function') {
+              this.handlers.onItemSkipped(data);
+            }
+            break;
+          case 'initial_status':
+          case 'status_update':
+            if (typeof this.handlers.onStatus === 'function') {
+              this.handlers.onStatus(data);
+            }
+            break;
+          default:
+            if (typeof this.handlers.onStatus === 'function') {
+              this.handlers.onStatus(data);
+            }
+            break;
+        }
 
-     /* ================================================================
-       Utilities
-       ================================================================ */
+        const status = String((data || {}).status || '').toLowerCase();
+        if (status === 'completed' || status === 'failed' || status === 'success') {
+          this.shouldReconnect = false;
+        }
+      };
 
-    var dashboardBase = '{% url "scraping:dashboard" %}'.replace(/\/?$/, '');
+      this.ws.onclose = () => {
+        const active = typeof this.handlers.isActive === 'function' ? this.handlers.isActive() : true;
+        if (!this.shouldReconnect || !active) return;
+        window.setTimeout(() => this.connect(), this.reconnectDelay);
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+      };
+    }
 
-    /* ── Toast notification ────────────────────────────────────── */
-    window.showToast = function(message, type) {
-        type = type || 'info';
-        var t = document.createElement('div');
-        t.className = 'ws-toast ' + type;
-        var icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
-        t.innerHTML = '<i class="fas ' + icon + '"></i> ' + escapeHtml(message);
-        document.body.appendChild(t);
-        setTimeout(function(){ t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 3000);
-        setTimeout(function(){ t.remove(); }, 3500);
-    };
-
-    /* ── Initial load ──────────────────────────────────────────── */
-    resetActiveSearchQueriesFromRows();
-    renderAllSearchQueryChips();
-
+    disconnect() {
+      this.shouldReconnect = false;
+      if (this.ws) this.ws.close();
+    }
+  }
 })();
 </script>
 {% endblock %}

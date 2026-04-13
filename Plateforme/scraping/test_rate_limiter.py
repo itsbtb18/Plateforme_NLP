@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.urls import reverse
 
-from scraping.views import _enforce_rate_limit
+from scraping.views_root import _enforce_rate_limit
 
 
 @pytest.fixture(autouse=True)

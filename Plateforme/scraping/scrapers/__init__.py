@@ -2,6 +2,13 @@
 Scraper registry — maps category names to scraper classes.
 """
 
+from scraping.constants import (
+    CANONICAL_CATEGORIES,
+)
+from scraping.constants import (
+    CATEGORY_META as CANONICAL_CATEGORY_META,
+)
+
 from .corpus import CorpusScraper
 from .courses import CourseScraper
 from .events import EventScraper
@@ -18,66 +25,78 @@ SCRAPERS = {
     "corpus": CorpusScraper,
 }
 
+_ICON_TO_FA = {
+    "calendar": "fa-calendar-alt",
+    "wrench": "fa-tools",
+    "academic-cap": "fa-graduation-cap",
+    "newspaper": "fa-newspaper",
+    "briefcase": "fa-briefcase",
+    "database": "fa-database",
+}
+
+_COLOR_TO_HEX = {
+    "blue": "#6366f1",
+    "purple": "#10b981",
+    "green": "#3b82f6",
+    "yellow": "#f59e0b",
+    "orange": "#0ea5e9",
+    "red": "#14b8a6",
+}
+
+_CATEGORY_DESCRIPTIONS = {
+    "events": "NLP conferences, workshops, seminars, and calls for papers",
+    "tools": "Arabic NLP models, LLMs, speech models, and datasets",
+    "courses": "NLP courses from universities and curated learning providers",
+    "news": "Arabic NLP and AI news and research highlights",
+    "opportunities": "PhD, PostDoc, jobs, and grants in NLP/AI",
+    "corpus": "Arabic NLP datasets and corpora",
+}
+
+_CATEGORY_SOURCES = {
+    "events": [
+        "WikiCFP",
+        "ConferenceAlerts (Algeria, Morocco, Tunisia, Egypt)",
+        "AllConferenceAlert Algeria",
+        "Curated NLP Conference List",
+        "Curated Arabic/MENA NLP Events",
+    ],
+    "tools": [
+        "Curated Arabic LLMs & Speech Models",
+        "Curated HuggingFace Arabic Datasets",
+    ],
+    "courses": [
+        "Curated University Courses",
+    ],
+    "news": [
+        "Tavily Search + Groq",
+    ],
+    "opportunities": [
+        "Tavily Search + Groq",
+    ],
+    "corpus": [
+        "Tavily Search + Groq",
+    ],
+}
+
 CATEGORY_META = {
-    "events": {
-        "label": "Events",
-        "icon": "fa-calendar-alt",
-        "color": "#6366f1",
-        "description": "NLP conferences, workshops, seminars, and calls for papers",
-        "sources": [
-            "WikiCFP",
-            "ConferenceAlerts (Algeria, Morocco, Tunisia, Egypt)",
-            "AllConferenceAlert Algeria",
-            "Curated NLP Conference List",
-            "Curated Arabic/MENA NLP Events",
-        ],
-    },
-    "tools": {
-        "label": "Tools",
-        "icon": "fa-tools",
-        "color": "#10b981",
-        "description": "Arabic NLP models, LLMs, speech models, and datasets",
-        "sources": [
-            "Curated Arabic LLMs & Speech Models",
-            "Curated HuggingFace Arabic Datasets",
-        ],
-    },
-    "courses": {
-        "label": "Courses",
-        "icon": "fa-graduation-cap",
-        "color": "#3b82f6",
-        "description": "NLP courses from universities and curated learning providers",
-        "sources": [
-            "Curated University Courses",
-        ],
-    },
-    "news": {
-        "label": "News",
-        "icon": "fa-newspaper",
-        "color": "#f59e0b",
-        "description": "Arabic NLP and AI news and research highlights",
-        "sources": [
-            "Tavily Search + Groq",
-        ],
-    },
-    "opportunities": {
-        "label": "Opportunities",
-        "icon": "fa-briefcase",
-        "color": "#0ea5e9",
-        "description": "PhD, PostDoc, jobs, and grants in NLP/AI",
-        "sources": [
-            "Tavily Search + Groq",
-        ],
-    },
-    "corpus": {
-        "label": "Corpus",
-        "icon": "fa-database",
-        "color": "#14b8a6",
-        "description": "Arabic NLP datasets and corpora",
-        "sources": [
-            "Tavily Search + Groq",
-        ],
-    },
+    category: {
+        "label": CANONICAL_CATEGORY_META[category]["label"],
+        "label_ar": CANONICAL_CATEGORY_META[category]["label_ar"],
+        "icon": _ICON_TO_FA.get(
+            CANONICAL_CATEGORY_META[category]["icon"],
+            f"fa-{CANONICAL_CATEGORY_META[category]['icon']}",
+        ),
+        "color": _COLOR_TO_HEX.get(
+            CANONICAL_CATEGORY_META[category]["color"],
+            "#6366f1",
+        ),
+        "description": _CATEGORY_DESCRIPTIONS.get(category, ""),
+        "sources": _CATEGORY_SOURCES.get(category, []),
+        "model_app": CANONICAL_CATEGORY_META[category]["model_app"],
+        "model_name": CANONICAL_CATEGORY_META[category]["model_name"],
+    }
+    for category in CANONICAL_CATEGORIES
+    if category in SCRAPERS
 }
 
 
@@ -91,4 +110,4 @@ def get_scraper(category: str):
 
 def get_all_categories():
     """Return an ordered list of (key, meta) tuples."""
-    return [(k, CATEGORY_META[k]) for k in SCRAPERS]
+    return [(category, CATEGORY_META[category]) for category in CANONICAL_CATEGORIES]

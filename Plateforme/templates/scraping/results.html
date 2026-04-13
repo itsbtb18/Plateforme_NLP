@@ -1,157 +1,1404 @@
-{% extends 'base_admin.html' %}
+{% extends 'scraping/base_scraping.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Scraping Results" %} - {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Moderation Queue" %} - {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-.sr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
-.sr-head h1{margin:0;font-size:1.35rem;display:flex;align-items:center;gap:.5rem}
-.sr-sub{margin:.3rem 0 0;color:var(--n-text-3);font-size:.86rem}
-.sr-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-.sr-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .9rem;border:1px solid var(--n-border);border-radius:8px;background:#fff;color:var(--n-text-2);font-weight:600;font-size:.78rem;text-decoration:none;cursor:pointer}
-.sr-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
-.sr-btn.validate{background:var(--n-green);border-color:var(--n-green);color:#fff}
-.sr-btn.delete{background:var(--n-red);border-color:var(--n-red);color:#fff}
-.sr-toolbar{display:flex;gap:.7rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:.75rem 0}
-.sr-search{display:flex;align-items:center;gap:.5rem}
-.sr-search input{min-width:260px;padding:.52rem .72rem;border:1px solid var(--n-border);border-radius:8px;background:#fff}
-.sr-search input:focus{outline:none;border-color:var(--n-blue)}
-.sr-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.75rem}
-.sr-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;border-radius:999px;border:1px solid var(--n-border);text-decoration:none;color:var(--n-text-2);font-size:.75rem;font-weight:600;background:#fff}
-.sr-tab:hover{border-color:var(--n-blue);color:var(--n-blue)}
-.sr-tab.active{background:var(--n-blue);color:#fff;border-color:var(--n-blue)}
-.sr-badge{display:inline-flex;padding:3px 9px;border-radius:12px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
-.sr-badge.warning{background:#fff3cd;color:#7a5a00}
-.sr-badge.success{background:#d1fae5;color:#065f46}
-.sr-badge.danger{background:#fee2e2;color:#991b1b}
-.sr-table-wrap{overflow:auto}
-.sr-check{width:18px;height:18px;accent-color:var(--n-blue)}
-.sr-muted{color:var(--n-text-3);font-size:.75rem}
-.sr-meta{display:flex;gap:1rem;flex-wrap:wrap;color:var(--n-text-3);font-size:.76rem;margin-top:.45rem}
-@media(max-width:768px){
-  .sr-search input{min-width:180px;width:100%}
+.mq-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.mq-header {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(120deg, rgba(37, 99, 235, 0.09), rgba(16, 185, 129, 0.09));
+}
+
+.mq-header::after {
+  content: "";
+  position: absolute;
+  inset: auto -30px -40px auto;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.16), transparent 66%);
+  pointer-events: none;
+}
+
+.mq-header-body {
+  position: relative;
+  z-index: 1;
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mq-header-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.25rem;
+}
+
+.mq-header-sub {
+  margin: 0.45rem 0 0;
+  color: var(--n-text-3);
+  max-width: 70ch;
+  font-size: 0.88rem;
+}
+
+.mq-stats {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mq-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: #ffffff;
+  color: var(--n-text-2);
+  padding: 0.38rem 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.mq-stat strong {
+  font-size: 0.82rem;
+}
+
+.mq-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mq-btn {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.52rem 0.86rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.mq-btn:hover {
+  transform: translateY(-1px);
+}
+
+.mq-btn.primary {
+  color: #ffffff;
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 18px -14px rgba(29, 78, 216, 0.6);
+}
+
+.mq-btn.ghost {
+  color: var(--n-text-2);
+  background: #ffffff;
+  border-color: var(--n-border);
+}
+
+.mq-btn.ghost:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.mq-btn.success {
+  color: #ffffff;
+  background: linear-gradient(120deg, #059669, #047857);
+  border-color: #047857;
+  box-shadow: 0 10px 18px -14px rgba(4, 120, 87, 0.7);
+}
+
+.mq-btn.danger {
+  color: #ffffff;
+  background: linear-gradient(120deg, #dc2626, #b91c1c);
+  border-color: #b91c1c;
+  box-shadow: 0 10px 18px -14px rgba(185, 28, 28, 0.7);
+}
+
+.btn-danger-soft {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+  box-shadow: none;
+}
+
+.btn-reject {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  width: min(520px, 100%);
+  border-radius: 14px;
+  border: 1px solid var(--n-border);
+  background: #ffffff;
+  padding: 1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.modal-content h3 {
+  margin: 0;
+}
+
+.modal-subtitle {
+  margin: 0;
+  color: var(--n-text-3);
+  font-size: 0.9rem;
+}
+
+.modal-content label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--n-text-2);
+}
+
+.modal-content select,
+.modal-content textarea {
+  width: 100%;
+  border: 1px solid var(--n-border);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--n-text-2);
+  padding: 0.55rem 0.6rem;
+  font-size: 0.82rem;
+}
+
+.modal-content select:focus,
+.modal-content textarea:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-actions button {
+  border: 1px solid var(--n-border);
+  border-radius: 9px;
+  padding: 0.46rem 0.74rem;
+  background: #ffffff;
+  color: var(--n-text-2);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.modal-actions .btn-danger {
+  border-color: #b91c1c;
+  background: linear-gradient(120deg, #dc2626, #b91c1c);
+  color: #ffffff;
+}
+
+.rejected-fade {
+  animation: mqRejectFadeOut 0.5s ease forwards;
+}
+
+@keyframes mqRejectFadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.mq-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.mq-filter-wrap {
+  position: sticky;
+  top: 78px;
+  z-index: 12;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 30px -26px rgba(15, 23, 42, 0.35);
+}
+
+.mq-filter-form {
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mq-cat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mq-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--n-border);
+  background: #f8fafc;
+  padding: 0.24rem 0.58rem;
+  cursor: pointer;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--n-text-2);
+}
+
+.mq-cat-chip input {
+  display: none;
+}
+
+.mq-cat-chip em {
+  display: inline-flex;
+  min-width: 1.35rem;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  font-style: normal;
+  color: #0f172a;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.67rem;
+}
+
+.mq-cat-chip.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.mq-cat-chip.active em {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.mq-filter-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.mq-field {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.mq-field label {
+  margin: 0;
+  color: var(--n-text-3);
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mq-field input,
+.mq-field select {
+  width: 100%;
+  border: 1px solid var(--n-border);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--n-text-2);
+  padding: 0.48rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.mq-field input:focus,
+.mq-field select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.mq-col-span-3 { grid-column: span 3; }
+.mq-col-span-2 { grid-column: span 2; }
+.mq-col-span-4 { grid-column: span 4; }
+
+.mq-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mq-filter-left,
+.mq-filter-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mq-filter-info {
+  color: var(--n-text-3);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.mq-queue-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.mq-queue-head {
+  padding: 0.88rem 0.95rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: #f8fafc;
+}
+
+.mq-queue-title {
+  margin: 0;
+  font-size: 0.96rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mq-queue-help {
+  margin: 0.22rem 0 0;
+  color: var(--n-text-3);
+  font-size: 0.74rem;
+}
+
+.mq-bulk-toolbar {
+  padding: 0.8rem 0.95rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.mq-bulk-left,
+.mq-bulk-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mq-check-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--n-border);
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0.35rem 0.58rem;
+  font-size: 0.74rem;
+  color: var(--n-text-2);
+  font-weight: 700;
+}
+
+.mq-check-wrap input {
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+}
+
+.mq-selection-info {
+  font-size: 0.74rem;
+  color: var(--n-text-3);
+  font-weight: 700;
+}
+
+.mq-selection-info.active {
+  color: #1d4ed8;
+}
+
+.mq-table-wrap {
+  overflow: auto;
+}
+
+.mq-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1080px;
+}
+
+.mq-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  color: #334155;
+  text-align: left;
+  font-size: 0.69rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.62rem 0.6rem;
+}
+
+.mq-table tbody td {
+  padding: 0.58rem 0.6rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  vertical-align: top;
+  font-size: 0.79rem;
+  color: #0f172a;
+}
+
+.mq-row {
+  transition: background 0.14s ease;
+}
+
+.mq-row:hover {
+  background: #f8fafc;
+}
+
+.mq-row.active {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.mq-row-title {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.mq-row-title a {
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.mq-row-title a:hover {
+  color: #2563eb;
+}
+
+.mq-row-sub {
+  color: var(--n-text-3);
+  font-size: 0.7rem;
+  word-break: break-word;
+}
+
+.mq-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.mq-state {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.16rem 0.46rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.mq-state.good {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.mq-state.warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mq-state.bad {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.mq-state.neutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.mq-score {
+  font-weight: 800;
+  font-size: 0.81rem;
+}
+
+.mq-score.high { color: #047857; }
+.mq-score.medium { color: #ca8a04; }
+.mq-score.low { color: #b91c1c; }
+
+.mq-source-link {
+  color: #1d4ed8;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.mq-source-link:hover {
+  text-decoration: underline;
+}
+
+.mq-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mq-mini-btn {
+  border: 1px solid var(--n-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--n-text-2);
+  cursor: pointer;
+  font-size: 0.67rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.26rem 0.45rem;
+  text-decoration: none;
+}
+
+.mq-mini-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.mq-mini-btn.success {
+  border-color: #10b981;
+  color: #047857;
+}
+
+.mq-mini-btn.danger {
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.mq-empty {
+  text-align: center;
+  padding: 2.1rem 1rem;
+  color: var(--n-text-3);
+}
+
+.mq-empty h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.mq-empty p {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+}
+
+.mq-pagination {
+  padding: 0.8rem 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+}
+
+.mq-page-meta {
+  color: var(--n-text-3);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.mq-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.mq-page-label {
+  color: #0f172a;
+  font-size: 0.73rem;
+  font-weight: 700;
+  padding: 0.24rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--n-border);
+  background: #ffffff;
+}
+
+.mq-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: none;
+}
+
+.mq-modal.open {
+  display: block;
+}
+
+.mq-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.54);
+}
+
+.mq-modal-panel {
+  position: relative;
+  margin: min(10vh, 80px) auto 0;
+  width: min(560px, calc(100vw - 28px));
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 28px 45px -26px rgba(15, 23, 42, 0.65);
+  overflow: hidden;
+}
+
+.mq-modal-head,
+.mq-modal-foot {
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mq-modal-foot {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+
+.mq-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.mq-modal-body {
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.mq-modal-summary {
+  margin: 0;
+  color: var(--n-text-2);
+  font-size: 0.83rem;
+}
+
+.mq-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.mq-modal-metric {
+  border: 1px solid var(--n-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.mq-modal-metric strong {
+  color: #0f172a;
+  font-size: 1.06rem;
+  line-height: 1;
+}
+
+.mq-modal-metric span {
+  color: var(--n-text-3);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mq-breakdown-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.34rem;
+  max-height: 190px;
+  overflow: auto;
+}
+
+.mq-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--n-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.4rem 0.52rem;
+  font-size: 0.75rem;
+  color: #334155;
+}
+
+.mq-keyhint {
+  display: inline-flex;
+  min-width: 1.45rem;
+  justify-content: center;
+  align-items: center;
+  border-radius: 7px;
+  border: 1px solid var(--n-border);
+  background: #ffffff;
+  color: #334155;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.mq-shortcuts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mq-shortcuts li {
+  border: 1px solid var(--n-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.42rem 0.52rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: #334155;
+}
+
+.mq-hidden {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .mq-col-span-4,
+  .mq-col-span-3,
+  .mq-col-span-2 {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 840px) {
+  .mq-filter-wrap {
+    top: 64px;
+  }
+
+  .mq-col-span-4,
+  .mq-col-span-3,
+  .mq-col-span-2 {
+    grid-column: span 12;
+  }
+
+  .mq-modal-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="sr-head">
-  <div>
-    <h1><i class="fas fa-clipboard-check"></i> {% trans "Scraped Items Review" %}</h1>
-    <p class="sr-sub">
-      {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع السجلات المعلقة عبر الفعاليات والمنشورات والأدوات والدورات والمؤسسات.{% else %}Review pending scraped records across Events, Feed, Tools, Courses and Institutions.{% endif %}
-    </p>
-    <div class="sr-meta">
-      <span><strong>{{ pending_total }}</strong> {% trans "pending items" %}</span>
-      <span><strong>{{ rows|length }}</strong> {% trans "visible rows" %}</span>
-      {% if selected_run_id %}<span><strong>{% trans "Run" %}:</strong> {{ selected_run_id }}</span>{% endif %}
+{% block scraping_page_content %}
+<div
+  class="mq-shell"
+  data-filtered-total="{{ filtered_total }}"
+  data-low-confidence="{{ filtered_low_confidence_count }}"
+  data-category-breakdown="{{ filtered_category_counts_json|escapejs }}"
+>
+  <section class="mq-header">
+    <div class="mq-header-body">
+      <div>
+        <h1 class="mq-header-title">
+          <i class="fas fa-layer-group" aria-hidden="true"></i>
+          {% trans "High-Throughput Moderation Queue" %}
+        </h1>
+        <p class="mq-header-sub">
+          {% trans "Review pending scraped entries quickly with server-side filters, keyboard shortcuts, and bulk moderation actions." %}
+        </p>
+        <div class="mq-stats">
+          <span class="mq-stat"><strong>{{ pending_total }}</strong> {% trans "pending" %}</span>
+          <span class="mq-stat"><strong>{{ filtered_total }}</strong> {% trans "matching filters" %}</span>
+          <span class="mq-stat"><strong>{{ paginator.num_pages }}</strong> {% trans "pages" %}</span>
+          {% if selected_run_id %}
+          <span class="mq-stat"><strong>{{ selected_run_id|slice:":8" }}</strong> {% trans "run scope" %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="mq-header-actions">
+        <a class="mq-btn ghost" href="{% url 'scraping:dashboard' %}">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          {% trans "Back to Dashboard" %}
+        </a>
+        <a class="mq-btn primary" href="{{ export_url }}">
+          <i class="fas fa-file-csv" aria-hidden="true"></i>
+          {% trans "Export filtered CSV" %}
+        </a>
+      </div>
     </div>
-  </div>
-  <div class="sr-actions">
-    <a class="sr-btn" href="{% url 'scraping:dashboard' %}"><i class="fas fa-arrow-left"></i> {% trans "Back to Dashboard" %}</a>
-  </div>
-</div>
+  </section>
 
-<div class="n-card">
-  <div class="n-card-body" style="padding:1rem">
-    <div class="sr-tabs">
-      <a class="sr-tab {% if selected_category == 'all' %}active{% endif %}" href="{% url 'scraping:scraping_results' %}{% if search_query or selected_run_id %}?{% endif %}{% if search_query %}q={{ search_query|urlencode }}{% endif %}{% if search_query and selected_run_id %}&{% endif %}{% if selected_run_id %}run_id={{ selected_run_id }}{% endif %}">
-        {% trans "All" %}
-        <span class="n-tab-badge">{{ pending_total }}</span>
-      </a>
-      {% for tab in category_tabs %}
-      <a class="sr-tab {% if selected_category == tab.key %}active{% endif %}" href="{% url 'scraping:scraping_results' %}?category={{ tab.key }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_run_id %}&run_id={{ selected_run_id }}{% endif %}">
-        {{ tab.label }}
-        <span class="n-tab-badge">{{ tab.count }}</span>
-      </a>
-      {% endfor %}
-    </div>
+  <section class="mq-filter-wrap">
+    <form id="queue-filter-form" class="mq-filter-form" method="get" action="{% url 'scraping:scraping_results' %}">
+      <div class="mq-cat-strip">
+        <label class="mq-cat-chip {% if current_filters.category == 'all' %}active{% endif %}">
+          <input type="radio" name="category" value="all" {% if current_filters.category == 'all' %}checked{% endif %} data-autosubmit="1">
+          <span>{% trans "All" %}</span>
+          <em>{{ pending_total }}</em>
+        </label>
+        {% for tab in category_tabs %}
+        <label class="mq-cat-chip {% if current_filters.category == tab.key %}active{% endif %}">
+          <input type="radio" name="category" value="{{ tab.key }}" {% if current_filters.category == tab.key %}checked{% endif %} data-autosubmit="1">
+          <span><i class="fas {{ tab.icon }}" aria-hidden="true"></i> {{ tab.label }}</span>
+          <em>{{ tab.count }}</em>
+        </label>
+        {% endfor %}
+      </div>
 
-    <div class="sr-toolbar">
-      <form class="sr-search" method="get" action="{% url 'scraping:scraping_results' %}">
-        {% if selected_category != 'all' %}
-        <input type="hidden" name="category" value="{{ selected_category }}">
-        {% endif %}
-        {% if selected_run_id %}
-        <input type="hidden" name="run_id" value="{{ selected_run_id }}">
-        {% endif %}
-        <input type="text" name="q" value="{{ search_query }}" placeholder="{% trans 'Search by title...' %}">
-        <button class="sr-btn" type="submit"><i class="fas fa-search"></i> {% trans "Search" %}</button>
-      </form>
+      <div class="mq-filter-grid">
+        <div class="mq-field mq-col-span-4">
+          <label for="mq-filter-q">{% trans "Search" %}</label>
+          <input
+            id="mq-filter-q"
+            type="search"
+            name="q"
+            value="{{ current_filters.q }}"
+            placeholder="{% trans 'Title or source URL' %}"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="mq-field mq-col-span-3">
+          <label for="mq-filter-run">{% trans "Run" %}</label>
+          <select id="mq-filter-run" name="run_id">
+            <option value="">{% trans "Any run" %}</option>
+            {% for run in run_filter_options %}
+            <option value="{{ run.id }}" {% if current_filters.run_id == run.id %}selected{% endif %}>
+              {{ run.label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mq-field mq-col-span-3">
+          <label for="mq-filter-source">{% trans "Source" %}</label>
+          <select id="mq-filter-source" name="source">
+            <option value="any" {% if current_filters.source == 'any' %}selected{% endif %}>{% trans "Any source" %}</option>
+            {% for source in source_options %}
+            <option value="{{ source }}" {% if current_filters.source == source %}selected{% endif %}>{{ source }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mq-field mq-col-span-2">
+          <label for="mq-filter-confidence">{% trans "Confidence" %}</label>
+          <select id="mq-filter-confidence" name="confidence">
+            <option value="any" {% if current_filters.confidence == 'any' %}selected{% endif %}>{% trans "Any" %}</option>
+            <option value="high" {% if current_filters.confidence == 'high' %}selected{% endif %}>{% trans "High" %}</option>
+            <option value="medium" {% if current_filters.confidence == 'medium' %}selected{% endif %}>{% trans "Medium" %}</option>
+            <option value="low" {% if current_filters.confidence == 'low' %}selected{% endif %}>{% trans "Low" %}</option>
+            <option value="unknown" {% if current_filters.confidence == 'unknown' %}selected{% endif %}>{% trans "Unknown" %}</option>
+          </select>
+        </div>
+
+        <div class="mq-field mq-col-span-2">
+          <label for="mq-filter-translation">{% trans "Translation" %}</label>
+          <select id="mq-filter-translation" name="translation">
+            <option value="any" {% if current_filters.translation == 'any' %}selected{% endif %}>{% trans "Any" %}</option>
+            <option value="translated" {% if current_filters.translation == 'translated' %}selected{% endif %}>{% trans "Translated" %}</option>
+            <option value="copied" {% if current_filters.translation == 'copied' %}selected{% endif %}>{% trans "Copied EN to AR" %}</option>
+            <option value="missing" {% if current_filters.translation == 'missing' %}selected{% endif %}>{% trans "Missing AR" %}</option>
+          </select>
+        </div>
+
+        <div class="mq-field mq-col-span-2">
+          <label for="mq-filter-date-range">{% trans "Date range" %}</label>
+          <select id="mq-filter-date-range" name="date_range">
+            <option value="any" {% if current_filters.date_range == 'any' %}selected{% endif %}>{% trans "Any" %}</option>
+            <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>{% trans "Today" %}</option>
+            <option value="last7" {% if current_filters.date_range == 'last7' %}selected{% endif %}>{% trans "Last 7 days" %}</option>
+            <option value="month" {% if current_filters.date_range == 'month' %}selected{% endif %}>{% trans "This month" %}</option>
+            <option value="custom" {% if current_filters.date_range == 'custom' %}selected{% endif %}>{% trans "Custom" %}</option>
+          </select>
+        </div>
+
+        <div class="mq-field mq-col-span-2 js-custom-date {% if current_filters.date_range != 'custom' %}mq-hidden{% endif %}">
+          <label for="mq-filter-date-from">{% trans "From" %}</label>
+          <input id="mq-filter-date-from" type="date" name="date_from" value="{{ current_filters.date_from }}">
+        </div>
+
+        <div class="mq-field mq-col-span-2 js-custom-date {% if current_filters.date_range != 'custom' %}mq-hidden{% endif %}">
+          <label for="mq-filter-date-to">{% trans "To" %}</label>
+          <input id="mq-filter-date-to" type="date" name="date_to" value="{{ current_filters.date_to }}">
+        </div>
+
+        <div class="mq-field mq-col-span-2">
+          <label for="mq-filter-per-page">{% trans "Rows per page" %}</label>
+          <select id="mq-filter-per-page" name="per_page" data-autosubmit="1">
+            {% for size in page_size_options %}
+            <option value="{{ size }}" {% if current_filters.per_page == size|stringformat:"s" %}selected{% endif %}>{{ size }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <input type="hidden" name="page" value="1">
+
+      <div class="mq-filter-actions">
+        <div class="mq-filter-left">
+          <button type="submit" class="mq-btn primary">
+            <i class="fas fa-filter" aria-hidden="true"></i>
+            {% trans "Apply filters" %}
+          </button>
+          <a class="mq-btn ghost" href="{% url 'scraping:scraping_results' %}">
+            <i class="fas fa-undo" aria-hidden="true"></i>
+            {% trans "Reset" %}
+          </a>
+        </div>
+        <div class="mq-filter-right">
+          <span class="mq-filter-info">
+            {% blocktrans with total=filtered_total %}{{ total }} record(s) match current filters{% endblocktrans %}
+          </span>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="mq-queue-card n-card">
+    <div class="mq-queue-head">
+      <div>
+        <h2 class="mq-queue-title">
+          <i class="fas fa-list-check" aria-hidden="true"></i>
+          {% trans "Moderation Table" %}
+        </h2>
+        <p class="mq-queue-help">
+          {% trans "Use keyboard: / search, J/K move, X toggle row, A select page, Shift+A select filtered, P publish, R reject, ? shortcuts." %}
+        </p>
+      </div>
+      <button type="button" class="mq-btn ghost" id="open-shortcuts-btn">
+        <i class="fas fa-keyboard" aria-hidden="true"></i>
+        {% trans "Keyboard shortcuts" %}
+      </button>
     </div>
 
     <form method="post" id="bulk-review-form" action="{% url 'scraping:scraping_results_bulk_action' %}">
       {% csrf_token %}
       <input type="hidden" name="action" id="bulk-action-input" value="">
-      <input type="hidden" name="category" value="{{ selected_category }}">
-      <input type="hidden" name="q" value="{{ search_query }}">
-      <input type="hidden" name="run_id" value="{{ selected_run_id }}">
+      <input type="hidden" name="all_matching" id="all-matching-input" value="0">
+      <input type="hidden" name="reject_reason" id="bulk-reject-reason" value="">
+      <input type="hidden" name="reject_notes" id="bulk-reject-notes" value="">
 
-      <div class="sr-actions" style="margin-bottom:.75rem">
-        <button class="sr-btn validate" type="button" onclick="submitBulkAction('validate')">
-          <i class="fas fa-check"></i> {% trans "Validate Selected" %}
-        </button>
-        <button class="sr-btn delete" type="button" onclick="submitBulkAction('delete')">
-          <i class="fas fa-trash"></i> {% trans "Delete Selected" %}
-        </button>
+      <input type="hidden" name="category" value="{{ current_filters.category }}">
+      <input type="hidden" name="q" value="{{ current_filters.q }}">
+      <input type="hidden" name="run_id" value="{{ current_filters.run_id }}">
+      <input type="hidden" name="source" value="{{ current_filters.source }}">
+      <input type="hidden" name="confidence" value="{{ current_filters.confidence }}">
+      <input type="hidden" name="translation" value="{{ current_filters.translation }}">
+      <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+      <input type="hidden" name="date_from" value="{{ current_filters.date_from }}">
+      <input type="hidden" name="date_to" value="{{ current_filters.date_to }}">
+      <input type="hidden" name="per_page" value="{{ current_filters.per_page }}">
+      <input type="hidden" name="page" value="{{ current_filters.page }}">
+
+      <div class="mq-bulk-toolbar">
+        <div class="mq-bulk-left">
+          <label class="mq-check-wrap">
+            <input type="checkbox" id="select-all-visible">
+            <span>{% trans "Select page" %}</span>
+          </label>
+          <span class="mq-selection-info" id="selection-summary">{% trans "0 selected on this page" %}</span>
+          {% if filtered_total > rows|length %}
+          <button type="button" class="mq-btn ghost" id="select-all-filtered-btn">
+            <i class="fas fa-globe" aria-hidden="true"></i>
+            {% blocktrans with total=filtered_total %}Select all {{ total }} filtered{% endblocktrans %}
+          </button>
+          {% endif %}
+          <button type="button" class="mq-btn ghost" id="clear-selection-btn">
+            <i class="fas fa-broom" aria-hidden="true"></i>
+            {% trans "Clear" %}
+          </button>
+        </div>
+        <div class="mq-bulk-right">
+          <button type="button" class="mq-btn success js-open-bulk-modal" data-action="validate">
+            <i class="fas fa-check" aria-hidden="true"></i>
+            {% trans "Publish selected" %}
+          </button>
+          <button
+            type="button"
+            class="mq-btn danger btn-danger-soft js-open-bulk-modal"
+            data-action="reject"
+            data-confirm="Reject selected items? They will be marked as rejected and kept for audit."
+          >
+            <span aria-hidden="true">&#x274C;</span>
+            {% trans "Reject selected" %}
+          </button>
+        </div>
       </div>
 
-      <div class="sr-table-wrap">
-        <table class="n-tbl">
+      <div class="mq-table-wrap">
+        <table class="mq-table">
           <thead>
             <tr>
-              <th style="width:42px"><input type="checkbox" id="select-all-items" class="sr-check"></th>
-              <th>{% trans "Title" %}</th>
-              <th>{% trans "Category" %}</th>
-              <th>{% trans "Source URL" %}</th>
-              <th>{% trans "Scraped Date" %}</th>
-              <th>{% trans "LLM Confidence" %}</th>
-              <th>{% trans "Status" %}</th>
+              <th style="width: 40px;">#</th>
+              <th style="width: 34%;">{% trans "Title" %}</th>
+              <th style="width: 10%;">{% trans "Category" %}</th>
+              <th style="width: 10%;">{% trans "Translation" %}</th>
+              <th style="width: 12%;">{% trans "Confidence" %}</th>
+              <th style="width: 15%;">{% trans "Source" %}</th>
+              <th style="width: 11%;">{% trans "Scraped" %}</th>
+              <th style="width: 16%;">{% trans "Actions" %}</th>
             </tr>
           </thead>
           <tbody>
             {% for row in rows %}
-            <tr>
-              <td><input type="checkbox" class="sr-check row-check" name="selected_items" value="{{ row.selection_key }}"></td>
+            <tr
+              class="mq-row"
+              data-selection-key="{{ row.selection_key }}"
+              data-token="{{ row.item_id }}"
+              data-category="{{ row.category }}"
+              data-low-confidence="{% if row.confidence_band == 'low' %}1{% else %}0{% endif %}"
+            >
               <td>
-                <a href="{{ row.detail_url }}"><strong>{{ row.title|default:"-" }}</strong></a>
+                <input
+                  class="js-row-check"
+                  type="checkbox"
+                  name="item_ids"
+                  value="{{ row.selection_key }}"
+                  aria-label="{% trans 'Select row' %}"
+                >
               </td>
-              <td>{{ row.category_label }}</td>
+
               <td>
-                {% if row.source_url %}
-                <a href="{{ row.source_url }}" target="_blank" rel="noopener">{{ row.source_url|truncatechars:60 }}</a>
-                {% else %}
-                <span class="sr-muted">-</span>
-                {% endif %}
+                <div class="mq-row-title">
+                  <a href="{{ row.detail_url }}">{{ row.title_en|default:row.title|default:"-" }}</a>
+                  <span class="mq-row-sub">
+                    {% if row.title_ar %}
+                      {{ row.title_ar }}
+                    {% else %}
+                      {% trans "Arabic title missing" %}
+                    {% endif %}
+                  </span>
+                </div>
               </td>
+
               <td>
-                {% if row.scraped_date %}
-                  {{ row.scraped_date|date:"Y-m-d H:i" }}
-                {% else %}
-                  <span class="sr-muted">-</span>
-                {% endif %}
+                {% include "scraping/components/category_badge.html" with category=row.category %}
               </td>
+
+              <td>
+                {% include "scraping/components/translation_badge.html" with status=row.translation_state %}
+              </td>
+
               <td>
                 {% if row.confidence_score != None %}
-                  {{ row.confidence_score }}
+                  {% include "scraping/components/confidence_bar.html" with score=row.confidence_score %}
                 {% else %}
-                  <span class="sr-muted">-</span>
+                  <span class="mq-state neutral">{% trans "Unknown" %}</span>
                 {% endif %}
               </td>
-              <td><span class="sr-badge {{ row.status_badge }}">{{ row.status }}</span></td>
+
+              <td>
+                {% if row.source_url %}
+                  <div class="mq-row-title">
+                    <span class="mq-row-sub">{{ row.source_domain|default:"-" }}</span>
+                    <a class="mq-source-link" href="{{ row.source_url }}" target="_blank" rel="noopener">
+                      {% trans "Open source" %}
+                    </a>
+                  </div>
+                {% else %}
+                  <span class="mq-row-sub">-</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if row.scraped_date %}
+                  <div class="mq-row-title">
+                    <span>{{ row.scraped_date|date:"Y-m-d" }}</span>
+                    <span class="mq-row-sub">{{ row.scraped_date|date:"H:i" }}</span>
+                  </div>
+                {% else %}
+                  <span class="mq-row-sub">-</span>
+                {% endif %}
+              </td>
+
+              <td>
+                <div class="mq-actions">
+                  <a class="mq-mini-btn" href="{{ row.detail_url }}">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                    {% trans "Review" %}
+                  </a>
+                  <button
+                    class="mq-mini-btn success js-row-action"
+                    type="button"
+                    data-action="validate"
+                    data-url="{% url 'scraping:scraping_result_validate' row.item_id %}"
+                  >
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                    {% trans "Publish" %}
+                  </button>
+                  <button
+                    class="mq-mini-btn danger btn-reject"
+                    type="button"
+                    data-action="reject"
+                    data-item-id="{{ row.item_id }}"
+                    onclick="openRejectModal(this)"
+                  >
+                    <span aria-hidden="true">&#x274C;</span>
+                    {% trans "Reject" %}
+                  </button>
+                </div>
+              </td>
             </tr>
             {% empty %}
             <tr>
-              <td colspan="7" style="text-align:center;color:var(--n-text-3)">{% trans "No scraped items match this filter." %}</td>
+              <td colspan="8">
+                <div class="mq-empty">
+                  {% if pending_total == 0 %}
+                    <h3>{% trans "Queue is empty" %}</h3>
+                    <p>{% trans "No pending scraped records are waiting for moderation." %}</p>
+                  {% else %}
+                    <h3>{% trans "No records for this filter" %}</h3>
+                    <p>{% trans "Try broadening filters or reset to view pending records." %}</p>
+                    <p>
+                      <a class="mq-btn ghost" href="{% url 'scraping:scraping_results' %}">
+                        <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                        {% trans "Reset filters" %}
+                      </a>
+                    </p>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </form>
+
+    <form id="pagination-form" method="get" action="{% url 'scraping:scraping_results' %}">
+      <input type="hidden" name="category" value="{{ current_filters.category }}">
+      <input type="hidden" name="q" value="{{ current_filters.q }}">
+      <input type="hidden" name="run_id" value="{{ current_filters.run_id }}">
+      <input type="hidden" name="source" value="{{ current_filters.source }}">
+      <input type="hidden" name="confidence" value="{{ current_filters.confidence }}">
+      <input type="hidden" name="translation" value="{{ current_filters.translation }}">
+      <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+      <input type="hidden" name="date_from" value="{{ current_filters.date_from }}">
+      <input type="hidden" name="date_to" value="{{ current_filters.date_to }}">
+      <input type="hidden" name="per_page" value="{{ current_filters.per_page }}">
+      <input type="hidden" name="page" id="pagination-page" value="{{ page_obj.number }}">
+    </form>
+
+    <div class="mq-pagination">
+      <div class="mq-page-meta">
+        {% if paginator.count > 0 %}
+          {% blocktrans with start=page_obj.start_index end=page_obj.end_index total=paginator.count %}Showing {{ start }} to {{ end }} of {{ total }} records{% endblocktrans %}
+        {% else %}
+          {% trans "Showing 0 records" %}
+        {% endif %}
+      </div>
+      <div class="mq-page-controls">
+        <button class="mq-btn ghost" type="button" onclick="goToQueuePage(1)" {% if not page_obj.has_previous %}disabled{% endif %}>
+          {% trans "First" %}
+        </button>
+        <button class="mq-btn ghost" type="button" onclick="goToQueuePage({{ previous_page }})" {% if not page_obj.has_previous %}disabled{% endif %}>
+          {% trans "Previous" %}
+        </button>
+        <span class="mq-page-label">
+          {% blocktrans with number=page_obj.number pages=paginator.num_pages %}Page {{ number }} of {{ pages }}{% endblocktrans %}
+        </span>
+        <button class="mq-btn ghost" type="button" onclick="goToQueuePage({{ next_page }})" {% if not page_obj.has_next %}disabled{% endif %}>
+          {% trans "Next" %}
+        </button>
+        <button class="mq-btn ghost" type="button" onclick="goToQueuePage({{ paginator.num_pages }})" {% if not page_obj.has_next %}disabled{% endif %}>
+          {% trans "Last" %}
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="mq-modal" id="bulk-modal" aria-hidden="true">
+  <div class="mq-modal-backdrop" data-close-modal="bulk-modal"></div>
+  <div class="mq-modal-panel" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
+    <div class="mq-modal-head">
+      <h3 class="mq-modal-title" id="bulk-modal-title">{% trans "Confirm bulk action" %}</h3>
+      <button type="button" class="mq-btn ghost" data-close-modal="bulk-modal">
+        <i class="fas fa-times" aria-hidden="true"></i>
+        {% trans "Close" %}
+      </button>
+    </div>
+    <div class="mq-modal-body">
+      <p class="mq-modal-summary" id="bulk-modal-summary"></p>
+      <div class="mq-modal-grid">
+        <div class="mq-modal-metric">
+          <strong id="bulk-modal-target-count">0</strong>
+          <span>{% trans "Items in scope" %}</span>
+        </div>
+        <div class="mq-modal-metric">
+          <strong id="bulk-modal-low-confidence">0</strong>
+          <span>{% trans "Low confidence (<60)" %}</span>
+        </div>
+      </div>
+      <ul class="mq-breakdown-list" id="bulk-modal-breakdown"></ul>
+    </div>
+    <div class="mq-modal-foot">
+      <button type="button" class="mq-btn ghost" data-close-modal="bulk-modal">{% trans "Cancel" %}</button>
+      <button type="button" class="mq-btn primary" id="bulk-modal-confirm">{% trans "Confirm" %}</button>
+    </div>
   </div>
 </div>
+
+<div class="mq-modal" id="shortcuts-modal" aria-hidden="true">
+  <div class="mq-modal-backdrop" data-close-modal="shortcuts-modal"></div>
+  <div class="mq-modal-panel" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title">
+    <div class="mq-modal-head">
+      <h3 class="mq-modal-title" id="shortcuts-modal-title">{% trans "Keyboard shortcuts" %}</h3>
+      <button type="button" class="mq-btn ghost" data-close-modal="shortcuts-modal">
+        <i class="fas fa-times" aria-hidden="true"></i>
+        {% trans "Close" %}
+      </button>
+    </div>
+    <div class="mq-modal-body">
+      <ul class="mq-shortcuts">
+        <li><span class="mq-keyhint">/</span> <span>{% trans "Focus search" %}</span></li>
+        <li><span class="mq-keyhint">J</span> <span>{% trans "Move to next row" %}</span></li>
+        <li><span class="mq-keyhint">K</span> <span>{% trans "Move to previous row" %}</span></li>
+        <li><span class="mq-keyhint">X</span> <span>{% trans "Toggle active row selection" %}</span></li>
+        <li><span class="mq-keyhint">A</span> <span>{% trans "Select or clear current page" %}</span></li>
+        <li><span class="mq-keyhint">Shift+A</span> <span>{% trans "Select all filtered rows" %}</span></li>
+        <li><span class="mq-keyhint">P</span> <span>{% trans "Open publish confirmation" %}</span></li>
+        <li><span class="mq-keyhint">R</span> <span>{% trans "Open reject confirmation" %}</span></li>
+        <li><span class="mq-keyhint">?</span> <span>{% trans "Show this help" %}</span></li>
+        <li><span class="mq-keyhint">Esc</span> <span>{% trans "Close open dialogs" %}</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="rejectModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle">
+  <div class="modal-content">
+    <h3 id="rejectModalTitle">{% trans "Reject Item" %}</h3>
+    <p class="modal-subtitle">{% trans "Item will be soft-rejected and kept for audit." %}</p>
+
+    <label for="rejectReason">{% trans "Reason (required):" %}</label>
+    <select id="rejectReason" required>
+      <option value="">{% trans "-- Select reason --" %}</option>
+      <option value="irrelevant">{% trans "Not relevant to Arabic NLP" %}</option>
+      <option value="poor_arabic">{% trans "Poor Arabic translation" %}</option>
+      <option value="duplicate">{% trans "Duplicate content" %}</option>
+      <option value="unreliable_source">{% trans "Unreliable source" %}</option>
+      <option value="outdated">{% trans "Outdated information" %}</option>
+      <option value="low_quality">{% trans "Low quality extraction" %}</option>
+      <option value="other">{% trans "Other" %}</option>
+    </select>
+
+    <textarea
+      id="rejectNote"
+      placeholder="{% trans 'Additional notes (optional)' %}"
+      rows="3"
+    ></textarea>
+
+    <div class="modal-actions">
+      <button type="button" onclick="closeRejectModal()">{% trans "Cancel" %}</button>
+      <button type="button" onclick="submitReject()" class="btn-danger">{% trans "Confirm Rejection" %}</button>
+    </div>
+  </div>
+</div>
+
+<div id="reject-reason-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" aria-hidden="true" style="display:none;">
+  <div class="bg-white rounded-xl p-6 w-96 shadow-2xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+      {% trans "Rejection Reason" %}
+    </h3>
+    <select id="reject-reason-select" class="w-full border rounded-lg p-2 mb-3 text-sm">
+      <option value="irrelevant">{% trans "Irrelevant to Arabic NLP" %}</option>
+      <option value="poor_arabic">{% trans "Poor Arabic translation" %}</option>
+      <option value="duplicate">{% trans "Duplicate content" %}</option>
+      <option value="unreliable_source">{% trans "Unreliable source" %}</option>
+      <option value="outdated">{% trans "Outdated information" %}</option>
+      <option value="low_quality">{% trans "Low quality content" %}</option>
+      <option value="other">{% trans "Other" %}</option>
+    </select>
+    <textarea id="reject-reason-text" placeholder="{% trans 'Additional notes (optional)' %}" class="w-full border rounded-lg p-2 mb-4 text-sm h-20 resize-none"></textarea>
+    <div class="flex gap-3 justify-end">
+      <button type="button" id="reject-modal-cancel" class="px-4 py-2 text-gray-600 border rounded-lg">
+        {% trans "Cancel" %}
+      </button>
+      <button type="button" id="reject-modal-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg">
+        {% trans "Confirm Reject" %}
+      </button>
+    </div>
+  </div>
+</div>
+
+<form id="single-action-form" method="post" class="mq-hidden" action="">
+  {% csrf_token %}
+  <input type="hidden" name="action" id="single-action-input" value="">
+  <input type="hidden" name="selected_items" id="single-selected-item" value="">
+  <input type="hidden" name="reject_reason" id="single-reject-reason" value="">
+  <input type="hidden" name="reject_notes" id="single-reject-notes" value="">
+  <input type="hidden" name="category" value="{{ current_filters.category }}">
+  <input type="hidden" name="q" value="{{ current_filters.q }}">
+  <input type="hidden" name="run_id" value="{{ current_filters.run_id }}">
+  <input type="hidden" name="source" value="{{ current_filters.source }}">
+  <input type="hidden" name="confidence" value="{{ current_filters.confidence }}">
+  <input type="hidden" name="translation" value="{{ current_filters.translation }}">
+  <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+  <input type="hidden" name="date_from" value="{{ current_filters.date_from }}">
+  <input type="hidden" name="date_to" value="{{ current_filters.date_to }}">
+  <input type="hidden" name="per_page" value="{{ current_filters.per_page }}">
+  <input type="hidden" name="page" value="{{ current_filters.page }}">
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -159,34 +1406,815 @@
 (function() {
   'use strict';
 
-  var selectAll = document.getElementById('select-all-items');
-  var rowChecks = document.querySelectorAll('.row-check');
-
-  if (selectAll) {
-    selectAll.addEventListener('change', function() {
-      rowChecks.forEach(function(cb) { cb.checked = selectAll.checked; });
-    });
+  var shell = document.querySelector('.mq-shell');
+  if (!shell) {
+    return;
   }
 
-  window.submitBulkAction = function(action) {
-    var selected = document.querySelectorAll('.row-check:checked');
-    if (!selected.length) {
-      alert('{% trans "Select at least one item first." %}');
+  var filteredTotal = parseInt(shell.dataset.filteredTotal || '0', 10);
+  var lowConfidenceTotal = parseInt(shell.dataset.lowConfidence || '0', 10);
+  var categoryBreakdown = {};
+  try {
+    categoryBreakdown = JSON.parse(shell.dataset.categoryBreakdown || '{}');
+  } catch (err) {
+    categoryBreakdown = {};
+  }
+
+  var categoryLabels = {
+    all: "{% trans 'All' %}",
+    {% for tab in category_tabs %}
+    "{{ tab.key }}": "{{ tab.label|escapejs }}",
+    {% endfor %}
+  };
+
+  var i18n = {
+    selectOne: "{% trans 'Select at least one row, or use Select all filtered.' %}",
+    publishTitle: "{% trans 'Confirm publish' %}",
+    rejectTitle: "{% trans 'Confirm reject' %}",
+    publishSummary: "{% trans 'You are about to publish records from the moderation queue.' %}",
+    rejectSummary: "{% trans 'You are about to reject records from the moderation queue.' %}",
+    selectedScope: "{% trans 'Selected rows on this page.' %}",
+    allFilteredScope: "{% trans 'All matching rows across all pages.' %}",
+    publishConfirm: "{% trans 'Publish now' %}",
+    rejectConfirm: "{% trans 'Reject now' %}",
+    noBreakdown: "{% trans 'No category breakdown available.' %}",
+    selectedOnPage: "{% trans 'selected on this page' %}",
+    allFilteredSelected: "{% trans 'All filtered rows are selected across pages.' %}",
+    confirmSinglePublish: "{% trans 'Publish this item now?' %}",
+    confirmSingleReject: "{% trans 'Reject this item?' %}",
+  };
+
+  var filterForm = document.getElementById('queue-filter-form');
+  var searchInput = document.getElementById('mq-filter-q');
+  var dateRangeSelect = document.getElementById('mq-filter-date-range');
+  var customDateFields = Array.prototype.slice.call(document.querySelectorAll('.js-custom-date'));
+
+  var bulkForm = document.getElementById('bulk-review-form');
+  var bulkActionInput = document.getElementById('bulk-action-input');
+  var allMatchingInput = document.getElementById('all-matching-input');
+  var bulkRejectReasonInput = document.getElementById('bulk-reject-reason');
+  var bulkRejectNotesInput = document.getElementById('bulk-reject-notes');
+  var selectAllVisible = document.getElementById('select-all-visible');
+  var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-row-check'));
+  var selectionSummary = document.getElementById('selection-summary');
+  var selectAllFilteredBtn = document.getElementById('select-all-filtered-btn');
+  var clearSelectionBtn = document.getElementById('clear-selection-btn');
+
+  var bulkModal = document.getElementById('bulk-modal');
+  var bulkModalTitle = document.getElementById('bulk-modal-title');
+  var bulkModalSummary = document.getElementById('bulk-modal-summary');
+  var bulkModalTargetCount = document.getElementById('bulk-modal-target-count');
+  var bulkModalLowConfidence = document.getElementById('bulk-modal-low-confidence');
+  var bulkModalBreakdown = document.getElementById('bulk-modal-breakdown');
+  var bulkModalConfirm = document.getElementById('bulk-modal-confirm');
+
+  var shortcutsModal = document.getElementById('shortcuts-modal');
+  var openShortcutsBtn = document.getElementById('open-shortcuts-btn');
+  var rejectReasonModal = document.getElementById('reject-reason-modal');
+  var rejectReasonSelect = document.getElementById('reject-reason-select');
+  var rejectReasonText = document.getElementById('reject-reason-text');
+  var rejectModalCancelBtn = document.getElementById('reject-modal-cancel');
+  var rejectModalConfirmBtn = document.getElementById('reject-modal-confirm');
+
+  var rowElements = Array.prototype.slice.call(document.querySelectorAll('.mq-row[data-selection-key]'));
+  var currentRowIndex = rowElements.length > 0 ? 0 : -1;
+  var pendingBulkAction = '';
+  var pendingRejectData = null;
+  var currentRejectToken = null;
+  var currentRejectCategory = '';
+
+  function getCookie(name) {
+    var cookieMatch = document.cookie
+      .split(';')
+      .map(function(part) { return part.trim(); })
+      .find(function(part) { return part.indexOf(name + '=') === 0; });
+    if (!cookieMatch) {
+      return '';
+    }
+    return decodeURIComponent(cookieMatch.substring(name.length + 1));
+  }
+
+  function showToast(message) {
+    if (!message) {
       return;
     }
 
-    if (action === 'delete') {
-      var ok = confirm('{% trans "Delete selected items permanently?" %}');
-      if (!ok) return;
+    var toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.right = '1rem';
+    toast.style.bottom = '1rem';
+    toast.style.zIndex = '120';
+    toast.style.padding = '0.55rem 0.8rem';
+    toast.style.borderRadius = '10px';
+    toast.style.background = '#16a34a';
+    toast.style.color = '#ffffff';
+    toast.style.fontWeight = '700';
+    toast.style.boxShadow = '0 12px 22px -15px rgba(15, 23, 42, 0.8)';
+    document.body.appendChild(toast);
+
+    window.setTimeout(function() {
+      if (toast && toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 2200);
+  }
+
+  window.openRejectModal = function(btn) {
+    if (!btn) {
+      return;
+    }
+    currentRejectToken = btn.dataset.itemId || '';
+    var row = btn.closest('tr');
+    currentRejectCategory = row ? (row.dataset.category || '') : '';
+
+    var modal = document.getElementById('rejectModal');
+    if (!modal || !currentRejectToken) {
+      return;
+    }
+    modal.classList.remove('hidden');
+    var reasonSelect = document.getElementById('rejectReason');
+    if (reasonSelect) {
+      reasonSelect.focus();
+    }
+  };
+
+  window.closeRejectModal = function() {
+    currentRejectToken = null;
+    currentRejectCategory = '';
+    var reasonSelect = document.getElementById('rejectReason');
+    var noteInput = document.getElementById('rejectNote');
+    var modal = document.getElementById('rejectModal');
+
+    if (reasonSelect) {
+      reasonSelect.value = '';
+    }
+    if (noteInput) {
+      noteInput.value = '';
+    }
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  };
+
+  window.submitReject = function() {
+    var reasonInput = document.getElementById('rejectReason');
+    var noteInput = document.getElementById('rejectNote');
+    var reason = reasonInput ? reasonInput.value : '';
+    if (!reason) {
+      window.alert('Please select a rejection reason.');
+      return;
     }
 
-    var input = document.getElementById('bulk-action-input');
-    var form = document.getElementById('bulk-review-form');
-    if (!input || !form) return;
+    if (!currentRejectToken) {
+      window.alert('Missing item token.');
+      return;
+    }
 
-    input.value = action;
-    form.submit();
+    var note = noteInput ? noteInput.value : '';
+    var payload = {
+      reason: reason,
+      note: note,
+      notes: note,
+      category: currentRejectCategory,
+    };
+
+    fetch('/scraping/api/reject/' + encodeURIComponent(currentRejectToken) + '/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function(response) {
+        return response.json().then(function(data) {
+          if (!response.ok) {
+            throw new Error((data && (data.error || data.detail)) || 'Reject failed');
+          }
+          return data;
+        });
+      })
+      .then(function(data) {
+        if (data && data.rejected) {
+          var row = document.querySelector('tr[data-token="' + currentRejectToken + '"]');
+          if (row) {
+            row.classList.add('rejected-fade');
+            window.setTimeout(function() {
+              if (row.parentNode) {
+                row.parentNode.removeChild(row);
+              }
+              updateSelectAllVisibleState();
+              updateSelectionSummary();
+            }, 500);
+          }
+          showToast('Item rejected and logged \u2705');
+          closeRejectModal();
+        } else {
+          window.alert('Reject operation failed.');
+        }
+      })
+      .catch(function(error) {
+        window.alert(error && error.message ? error.message : 'Reject operation failed.');
+      });
   };
+
+  function isTypingTarget(target) {
+    if (!target) {
+      return false;
+    }
+    var tag = (target.tagName || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+  }
+
+  function toggleCustomDateFields() {
+    var showCustom = dateRangeSelect && dateRangeSelect.value === 'custom';
+    customDateFields.forEach(function(field) {
+      field.classList.toggle('mq-hidden', !showCustom);
+    });
+  }
+
+  function getSelectedCount() {
+    var count = 0;
+    rowChecks.forEach(function(check) {
+      if (check.checked) {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  function setAllMatching(enabled) {
+    if (!allMatchingInput) {
+      return;
+    }
+    allMatchingInput.value = enabled ? '1' : '0';
+  }
+
+  function updateSelectAllVisibleState() {
+    if (!selectAllVisible) {
+      return;
+    }
+
+    if (!rowChecks.length) {
+      selectAllVisible.checked = false;
+      selectAllVisible.indeterminate = false;
+      return;
+    }
+
+    var selected = getSelectedCount();
+    selectAllVisible.checked = selected > 0 && selected === rowChecks.length;
+    selectAllVisible.indeterminate = selected > 0 && selected < rowChecks.length;
+  }
+
+  function updateSelectionSummary() {
+    if (!selectionSummary) {
+      return;
+    }
+    var selectedCount = getSelectedCount();
+    var allMatching = allMatchingInput && allMatchingInput.value === '1';
+
+    if (allMatching) {
+      selectionSummary.textContent = i18n.allFilteredSelected;
+      selectionSummary.classList.add('active');
+      return;
+    }
+
+    selectionSummary.textContent = String(selectedCount) + ' ' + i18n.selectedOnPage;
+    selectionSummary.classList.toggle('active', selectedCount > 0);
+  }
+
+  function renderBreakdown(counts) {
+    if (!bulkModalBreakdown) {
+      return;
+    }
+
+    bulkModalBreakdown.innerHTML = '';
+
+    var keys = Object.keys(counts || {}).filter(function(key) {
+      return counts[key] > 0;
+    });
+
+    if (!keys.length) {
+      var emptyItem = document.createElement('li');
+      emptyItem.className = 'mq-breakdown-item';
+      emptyItem.textContent = i18n.noBreakdown;
+      bulkModalBreakdown.appendChild(emptyItem);
+      return;
+    }
+
+    keys.sort();
+    keys.forEach(function(key) {
+      var item = document.createElement('li');
+      item.className = 'mq-breakdown-item';
+
+      var label = document.createElement('span');
+      label.textContent = categoryLabels[key] || key;
+
+      var value = document.createElement('strong');
+      value.textContent = String(counts[key]);
+
+      item.appendChild(label);
+      item.appendChild(value);
+      bulkModalBreakdown.appendChild(item);
+    });
+  }
+
+  function getSelectedBreakdown() {
+    var breakdown = {};
+    rowChecks.forEach(function(check) {
+      if (!check.checked) {
+        return;
+      }
+      var row = check.closest('.mq-row');
+      if (!row) {
+        return;
+      }
+      var key = row.dataset.category || 'all';
+      breakdown[key] = (breakdown[key] || 0) + 1;
+    });
+    return breakdown;
+  }
+
+  function getSelectedLowConfidenceCount() {
+    var count = 0;
+    rowChecks.forEach(function(check) {
+      if (!check.checked) {
+        return;
+      }
+      var row = check.closest('.mq-row');
+      if (!row) {
+        return;
+      }
+      if ((row.dataset.lowConfidence || '0') === '1') {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  function openModal(modalId) {
+    var modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(modalId) {
+    var modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openRejectReasonModal(payload) {
+    if (!rejectReasonModal) {
+      return false;
+    }
+
+    pendingRejectData = payload || null;
+
+    if (rejectReasonSelect) {
+      rejectReasonSelect.value = 'irrelevant';
+    }
+    if (rejectReasonText) {
+      rejectReasonText.value = '';
+    }
+
+    rejectReasonModal.style.display = 'flex';
+    rejectReasonModal.setAttribute('aria-hidden', 'false');
+
+    window.setTimeout(function() {
+      if (rejectReasonSelect) {
+        rejectReasonSelect.focus();
+      }
+    }, 0);
+
+    return true;
+  }
+
+  function closeRejectReasonModal(clearPending) {
+    if (!rejectReasonModal) {
+      return;
+    }
+
+    rejectReasonModal.style.display = 'none';
+    rejectReasonModal.setAttribute('aria-hidden', 'true');
+
+    if (clearPending !== false) {
+      pendingRejectData = null;
+    }
+  }
+
+  function submitPendingReject() {
+    if (!pendingRejectData) {
+      return;
+    }
+
+    var reasonCode = rejectReasonSelect && rejectReasonSelect.value ? rejectReasonSelect.value : 'irrelevant';
+    var notes = rejectReasonText && rejectReasonText.value ? rejectReasonText.value.trim() : '';
+
+    if (pendingRejectData.type === 'bulk') {
+      if (!bulkForm || !bulkActionInput) {
+        closeRejectReasonModal();
+        return;
+      }
+
+      bulkActionInput.value = 'reject';
+      if (bulkRejectReasonInput) {
+        bulkRejectReasonInput.value = reasonCode;
+      }
+      if (bulkRejectNotesInput) {
+        bulkRejectNotesInput.value = notes;
+      }
+
+      closeRejectReasonModal();
+      bulkForm.submit();
+      return;
+    }
+
+    if (pendingRejectData.type === 'single') {
+      if (!singleActionForm) {
+        closeRejectReasonModal();
+        return;
+      }
+
+      if (singleActionInput) {
+        singleActionInput.value = 'reject';
+      }
+      if (singleSelectedItemInput) {
+        singleSelectedItemInput.value = pendingRejectData.selectionKey || '';
+      }
+      if (singleRejectReasonInput) {
+        singleRejectReasonInput.value = reasonCode;
+      }
+      if (singleRejectNotesInput) {
+        singleRejectNotesInput.value = notes;
+      }
+      if (pendingRejectData.targetUrl) {
+        singleActionForm.action = pendingRejectData.targetUrl;
+      }
+
+      closeRejectReasonModal();
+      singleActionForm.submit();
+    }
+  }
+
+  function closeAllModals() {
+    closeModal('bulk-modal');
+    closeModal('shortcuts-modal');
+    closeRejectReasonModal();
+  }
+
+  function openBulkModal(action) {
+    var allMatching = allMatchingInput && allMatchingInput.value === '1';
+    var selectedCount = getSelectedCount();
+
+    if (!allMatching && selectedCount === 0) {
+      window.alert(i18n.selectOne);
+      return;
+    }
+
+    pendingBulkAction = action;
+
+    if (action === 'validate') {
+      bulkModalTitle.textContent = i18n.publishTitle;
+      bulkModalSummary.textContent = i18n.publishSummary;
+      bulkModalConfirm.textContent = i18n.publishConfirm;
+      bulkModalConfirm.classList.remove('danger');
+      bulkModalConfirm.classList.add('primary');
+    } else {
+      bulkModalTitle.textContent = i18n.rejectTitle;
+      bulkModalSummary.textContent = i18n.rejectSummary;
+      bulkModalConfirm.textContent = i18n.rejectConfirm;
+      bulkModalConfirm.classList.remove('primary');
+      bulkModalConfirm.classList.add('danger');
+    }
+
+    var targetCount = allMatching ? filteredTotal : selectedCount;
+    var lowCount = allMatching ? lowConfidenceTotal : getSelectedLowConfidenceCount();
+
+    bulkModalTargetCount.textContent = String(targetCount);
+    bulkModalLowConfidence.textContent = String(lowCount);
+
+    var breakdown = allMatching ? categoryBreakdown : getSelectedBreakdown();
+    renderBreakdown(breakdown);
+
+    var scopeLine = allMatching ? i18n.allFilteredScope : i18n.selectedScope;
+    bulkModalSummary.textContent = bulkModalSummary.textContent + ' ' + scopeLine;
+
+    openModal('bulk-modal');
+  }
+
+  function setActiveRow(index) {
+    if (!rowElements.length) {
+      currentRowIndex = -1;
+      return;
+    }
+
+    if (index < 0) {
+      index = 0;
+    }
+    if (index >= rowElements.length) {
+      index = rowElements.length - 1;
+    }
+
+    currentRowIndex = index;
+
+    rowElements.forEach(function(row, rowIndex) {
+      row.classList.toggle('active', rowIndex === currentRowIndex);
+    });
+
+    var activeRow = rowElements[currentRowIndex];
+    if (activeRow) {
+      activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function toggleActiveRowSelection() {
+    if (currentRowIndex < 0 || currentRowIndex >= rowElements.length) {
+      return;
+    }
+    var row = rowElements[currentRowIndex];
+    var check = row ? row.querySelector('.js-row-check') : null;
+    if (!check) {
+      return;
+    }
+    check.checked = !check.checked;
+    setAllMatching(false);
+    updateSelectAllVisibleState();
+    updateSelectionSummary();
+  }
+
+  function setPageSelection(checked) {
+    rowChecks.forEach(function(check) {
+      check.checked = checked;
+    });
+    setAllMatching(false);
+    updateSelectAllVisibleState();
+    updateSelectionSummary();
+  }
+
+  if (dateRangeSelect) {
+    dateRangeSelect.addEventListener('change', toggleCustomDateFields);
+  }
+
+  if (filterForm) {
+    var autosubmitFields = Array.prototype.slice.call(filterForm.querySelectorAll('[data-autosubmit="1"]'));
+    autosubmitFields.forEach(function(field) {
+      field.addEventListener('change', function() {
+        filterForm.submit();
+      });
+    });
+  }
+
+  if (selectAllVisible) {
+    selectAllVisible.addEventListener('change', function() {
+      setPageSelection(selectAllVisible.checked);
+    });
+  }
+
+  rowChecks.forEach(function(check) {
+    check.addEventListener('change', function() {
+      setAllMatching(false);
+      updateSelectAllVisibleState();
+      updateSelectionSummary();
+    });
+  });
+
+  if (selectAllFilteredBtn) {
+    selectAllFilteredBtn.addEventListener('click', function() {
+      rowChecks.forEach(function(check) {
+        check.checked = true;
+      });
+      setAllMatching(true);
+      updateSelectAllVisibleState();
+      updateSelectionSummary();
+    });
+  }
+
+  if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener('click', function() {
+      rowChecks.forEach(function(check) {
+        check.checked = false;
+      });
+      setAllMatching(false);
+      updateSelectAllVisibleState();
+      updateSelectionSummary();
+    });
+  }
+
+  var bulkActionButtons = Array.prototype.slice.call(document.querySelectorAll('.js-open-bulk-modal'));
+  bulkActionButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      openBulkModal(button.dataset.action || 'validate');
+    });
+  });
+
+  if (bulkModalConfirm) {
+    bulkModalConfirm.addEventListener('click', function() {
+      if (!pendingBulkAction || !bulkForm || !bulkActionInput) {
+        return;
+      }
+
+      if (pendingBulkAction === 'reject') {
+        closeModal('bulk-modal');
+        openRejectReasonModal({ type: 'bulk' });
+        return;
+      }
+
+      bulkActionInput.value = pendingBulkAction;
+      bulkForm.submit();
+    });
+  }
+
+  if (openShortcutsBtn) {
+    openShortcutsBtn.addEventListener('click', function() {
+      openModal('shortcuts-modal');
+    });
+  }
+
+  var modalCloseButtons = Array.prototype.slice.call(document.querySelectorAll('[data-close-modal]'));
+  modalCloseButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      closeModal(button.dataset.closeModal);
+    });
+  });
+
+  if (rejectModalCancelBtn) {
+    rejectModalCancelBtn.addEventListener('click', function() {
+      closeRejectReasonModal();
+    });
+  }
+
+  if (rejectModalConfirmBtn) {
+    rejectModalConfirmBtn.addEventListener('click', function() {
+      submitPendingReject();
+    });
+  }
+
+  if (rejectReasonModal) {
+    rejectReasonModal.addEventListener('click', function(event) {
+      if (event.target === rejectReasonModal) {
+        closeRejectReasonModal();
+      }
+    });
+  }
+
+  var singleActionForm = document.getElementById('single-action-form');
+  var singleActionInput = document.getElementById('single-action-input');
+  var singleSelectedItemInput = document.getElementById('single-selected-item');
+  var singleRejectReasonInput = document.getElementById('single-reject-reason');
+  var singleRejectNotesInput = document.getElementById('single-reject-notes');
+  var rowActionButtons = Array.prototype.slice.call(document.querySelectorAll('.js-row-action'));
+  rowActionButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      if (!singleActionForm) {
+        return;
+      }
+
+      var action = button.dataset.action || '';
+      var targetUrl = button.dataset.url || '';
+
+      if (action === 'reject') {
+        var selectionKey = button.dataset.selectionKey || '';
+        if (!selectionKey || !targetUrl) {
+          return;
+        }
+
+        openRejectReasonModal({
+          type: 'single',
+          targetUrl: targetUrl,
+          selectionKey: selectionKey,
+        });
+        return;
+      }
+
+      if (!targetUrl) {
+        return;
+      }
+
+      if (action === 'validate') {
+        if (!window.confirm(i18n.confirmSinglePublish)) {
+          return;
+        }
+      }
+
+      if (singleActionInput) {
+        singleActionInput.value = '';
+      }
+      if (singleSelectedItemInput) {
+        singleSelectedItemInput.value = '';
+      }
+      if (singleRejectReasonInput) {
+        singleRejectReasonInput.value = '';
+      }
+      if (singleRejectNotesInput) {
+        singleRejectNotesInput.value = '';
+      }
+
+      singleActionForm.action = targetUrl;
+      singleActionForm.submit();
+    });
+  });
+
+  rowElements.forEach(function(row, index) {
+    row.addEventListener('mouseenter', function() {
+      setActiveRow(index);
+    });
+  });
+
+  document.addEventListener('keydown', function(event) {
+    var key = event.key;
+    var lower = key.toLowerCase();
+
+    if (key === 'Escape') {
+      closeAllModals();
+      return;
+    }
+
+    if (isTypingTarget(event.target)) {
+      return;
+    }
+
+    if (key === '/') {
+      if (searchInput) {
+        event.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      return;
+    }
+
+    if (lower === 'j') {
+      event.preventDefault();
+      setActiveRow(currentRowIndex + 1);
+      return;
+    }
+
+    if (lower === 'k') {
+      event.preventDefault();
+      setActiveRow(currentRowIndex - 1);
+      return;
+    }
+
+    if (lower === 'x') {
+      event.preventDefault();
+      toggleActiveRowSelection();
+      return;
+    }
+
+    if (lower === 'a' && event.shiftKey) {
+      if (selectAllFilteredBtn) {
+        event.preventDefault();
+        selectAllFilteredBtn.click();
+      }
+      return;
+    }
+
+    if (lower === 'a') {
+      event.preventDefault();
+      var allChecked = selectAllVisible && selectAllVisible.checked;
+      setPageSelection(!allChecked);
+      return;
+    }
+
+    if (lower === 'p') {
+      event.preventDefault();
+      openBulkModal('validate');
+      return;
+    }
+
+    if (lower === 'r') {
+      event.preventDefault();
+      openBulkModal('reject');
+      return;
+    }
+
+    if (key === '?' || (key === '/' && event.shiftKey)) {
+      event.preventDefault();
+      openModal('shortcuts-modal');
+    }
+  });
+
+  toggleCustomDateFields();
+  updateSelectAllVisibleState();
+  updateSelectionSummary();
+  setActiveRow(0);
 })();
+
+function goToQueuePage(pageNumber) {
+  var form = document.getElementById('pagination-form');
+  var pageInput = document.getElementById('pagination-page');
+  if (!form || !pageInput) {
+    return;
+  }
+  pageInput.value = String(pageNumber);
+  form.submit();
+}
 </script>
 {% endblock %}

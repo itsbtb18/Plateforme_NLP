@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 from django.conf import settings
@@ -6,13 +7,28 @@ from django.core.management.base import BaseCommand
 
 from scraping.models import ScrapingSource
 
+logger = logging.getLogger(__name__)
+
+CANONICAL_CATEGORIES = [
+    "events",
+    "tools",
+    "courses",
+    "news",
+    "opportunities",
+    "corpus",
+]
+
 SECTION_TO_CATEGORY = {
-    "news": "news",
     "events": "events",
-    "courses": "courses",
-    "institutions": "institutions",
     "tools": "tools",
-    # Keep backward compatibility if fixture carries generic RSS rows.
+    "courses": "courses",
+    "news": "news",
+    "opportunities": "opportunities",
+    "corpus": "corpus",
+    # Legacy mappings.
+    "institutions": "opportunities",
+    "datasets": "corpus",
+    "papers": "news",
     "rss": "news",
 }
 
@@ -87,7 +103,17 @@ class Command(BaseCommand):
                 continue
 
             section = str(data.get("section", "")).strip().lower()
-            category = SECTION_TO_CATEGORY.get(section, "news")
+            category = SECTION_TO_CATEGORY.get(section)
+            if category is None:
+                logger.error(
+                    "Unknown section '%s' in fixture. Valid sections: %s",
+                    section,
+                    sorted(SECTION_TO_CATEGORY.keys()),
+                )
+                self.stderr.write(f"Skipping unknown section: {section}")
+                skipped += 1
+                continue
+
             url = data.get("url", "").strip()
 
             if not url:

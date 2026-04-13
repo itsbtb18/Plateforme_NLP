@@ -28,10 +28,31 @@ load_dotenv()
 # Base Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _env_str(name: str, default: str | None = None, aliases: tuple[str, ...] = ()):
+    """Read an environment variable with optional aliases and empty-value guard."""
+    for key in (name, *aliases):
+        value = os.environ.get(key)
+        if value is not None and value != "":
+            return value
+    return default
+
+
+def _env_bool(name: str, default: bool = False, aliases: tuple[str, ...] = ()) -> bool:
+    value = _env_str(name, aliases=aliases)
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 # Security & Debug
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+SECRET_KEY = _env_str("DJANGO_SECRET_KEY", aliases=("SECRET_KEY",))
+DEBUG = _env_bool("DJANGO_DEBUG", default=False, aliases=("DEBUG",))
+ALLOWED_HOSTS = _env_str(
+    "DJANGO_ALLOWED_HOSTS",
+    default="localhost,127.0.0.1",
+    aliases=("ALLOWED_HOSTS",),
+).split(",")
 INTERNAL_IPS = [
     "127.0.0.1",
     "172.25.0.5",
@@ -48,6 +69,11 @@ PROMETHEUS_ALLOWED_NETWORKS = os.environ.get(
 if not DEBUG and SECRET_KEY == "django-insecure-your-default-key":
     raise ImproperlyConfigured(
         "Refusing to start with default SECRET_KEY while DEBUG is False."
+    )
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "Missing SECRET_KEY: set DJANGO_SECRET_KEY (or SECRET_KEY) in the environment."
     )
 
 if not DEBUG and "*" in ALLOWED_HOSTS:

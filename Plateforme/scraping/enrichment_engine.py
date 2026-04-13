@@ -9,7 +9,7 @@ from typing import Any
 
 from django.utils import timezone
 
-from scraping.llm_validation import GroqLLMClient
+from scraping.extractors.core.llm_validation import GroqLLMClient
 
 logger = logging.getLogger(__name__)
 

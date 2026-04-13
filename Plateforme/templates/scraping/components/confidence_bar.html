@@ -1,0 +1,17 @@
+{% load i18n %}
+{% with score_value=score|default:0 %}
+<div class="sc-confidence" style="display:grid;gap:.22rem;min-width:120px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:.35rem;">
+    <span style="font-size:.66rem;color:#475569;font-weight:800;">{% trans "Confidence" %}</span>
+    <span style="font-size:.68rem;font-weight:900;color:#0f172a;">
+      {% if score_value >= 80 %}✅{% elif score_value >= 60 %}⚠️{% else %}❌{% endif %}
+      {{ score_value|floatformat:1 }}%
+    </span>
+  </div>
+  <span style="height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden;display:block;">
+    <span
+      style="display:block;height:100%;width:{{ score_value|floatformat:0 }}%;{% if score_value >= 80 %}background:var(--conf-high);{% elif score_value >= 60 %}background:var(--conf-medium);{% else %}background:var(--conf-low);{% endif %}"
+    ></span>
+  </span>
+</div>
+{% endwith %}

@@ -4,7 +4,33 @@ import time
 
 from django.db.models import Max
 from django.utils import timezone
-from prometheus_client import Counter, Gauge, Histogram
+
+try:
+    from prometheus_client import Counter, Gauge, Histogram
+except ImportError:
+
+    class _NoopMetric:
+        def labels(self, *args, **kwargs):
+            return self
+
+        def inc(self, amount=1):
+            return None
+
+        def observe(self, value):
+            return None
+
+        def set(self, value):
+            return None
+
+    def Counter(*args, **kwargs):
+        return _NoopMetric()
+
+    def Gauge(*args, **kwargs):
+        return _NoopMetric()
+
+    def Histogram(*args, **kwargs):
+        return _NoopMetric()
+
 
 from .constants import DEDUP_RULE_UNKNOWN
 from .scraping_settings import scraping_settings as SS

@@ -1,5 +1,4 @@
-"""Metrics view exports."""
+"""Compatibility shim for deprecated scraping.views.metrics_views."""
 
-from scraping.views_root import metrics_view
-
-__all__ = ["metrics_view"]
+# DEPRECATED: import from scraping.views_root instead.
+from scraping.views_root import *  # noqa: F401,F403

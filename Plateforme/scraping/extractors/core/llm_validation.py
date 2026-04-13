@@ -360,6 +360,32 @@ class LLMValidator:
         )
         return None
 
+    def validate_with_fallback(
+        self,
+        item: dict[str, Any],
+        category: str = "general",
+    ) -> dict[str, Any]:
+        """
+        Backward-compatible validation mode.
+
+        Returns the original payload with ``llm_validation`` status when
+        enrichment cannot be produced.
+        """
+        payload = dict(item or {})
+
+        if not self.is_available:
+            payload.setdefault("llm_validation", "skipped")
+            return payload
+
+        enriched = self.validate(payload, category)
+        if enriched is None:
+            payload.setdefault("llm_validation", "no_response")
+            return payload
+
+        payload.update(enriched)
+        payload["llm_validation"] = "ok"
+        return payload
+
 
 # ─── Convenience helpers for scrapers ──────────────────────────────
 
@@ -382,6 +408,14 @@ def validate_item(item: dict, category: str = "general") -> dict | None:
     Returns the enriched dict or ``None`` on failure.
     """
     return get_validator().validate(item, category)
+
+
+def validate_item_with_fallback(
+    item: dict[str, Any],
+    category: str = "general",
+) -> dict[str, Any]:
+    """Backward-compatible convenience wrapper around validate_with_fallback()."""
+    return get_validator().validate_with_fallback(item, category)
 
 
 def apply_llm_enrichment(

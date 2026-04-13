@@ -4,47 +4,65 @@ Views for the Web Scraping module.
 Supports both synchronous (fallback) and asynchronous (Celery) execution.
 """
 
+import csv
 import functools
 import json
 import logging
 import os
+import re
 import threading
 import uuid
 from collections import defaultdict
-from datetime import timedelta
+from datetime import date, timedelta
 from ipaddress import ip_address, ip_network
-from urllib.parse import urlencode
+from pathlib import Path
+from urllib.parse import urlencode, urlparse
 
 from celery.result import AsyncResult
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.db import DatabaseError
-from django.db.models import Count, Max, Q, Sum
-from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.db.models import Avg, Count, Max, Q, Sum
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from events.models import Event
+from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
+from scraping.utils import (
+    apply_translation_confidence_cap,
+    normalize_translation_status,
+)
+from scraping.validators.content_validator import ContentValidator
+from scraping.validators.network_validator import NetworkValidator
 
 from .metrics import update_scrape_queue_lag_metrics, update_source_health_metrics
 from .models import (
+    RejectedItem,
     ScrapedItemMeta,
+    ScrapingNotification,
     ScrapingRun,
     ScrapingSource,
     ScrapingSourceHealth,
     SearchQuery,
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
-from .tasks import run_scraper_task
+from .tasks import push_scraping_progress, run_scraper_task, validate_source_async
+from .translation import ArabicTranslator
 
 try:
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -53,16 +71,42 @@ except ImportError:
     generate_latest = None
 
 
+_UUID_PATH_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
+_INT_SEGMENT_RE = re.compile(r"/\d+/")
+_HASH_SEGMENT_RE = re.compile(r"/[a-f0-9]{32,}/", re.IGNORECASE)
+
+
+def _get_path_template(path: str) -> str:
+    """Convert dynamic URL paths to a stable endpoint template."""
+    normalized = str(path or "/")
+    normalized = _UUID_PATH_RE.sub("<uuid>", normalized)
+    normalized = _INT_SEGMENT_RE.sub("/<id>/", normalized)
+    normalized = _HASH_SEGMENT_RE.sub("/<hash>/", normalized)
+    return normalized
+
+
+def _rate_key(request, scope: str = "default") -> str:
+    user_id = (
+        request.user.id
+        if request.user.is_authenticated and request.user.id is not None
+        else "anon"
+    )
+    path_template = _get_path_template(request.path)
+    return f"rl:{scope}:{user_id}:{path_template}"
+
+
+def _check_rate_limit(request, scope: str, max_calls: int, period: int) -> bool:
+    return _enforce_rate_limit(_rate_key(request, scope=scope), max_calls, period)
+
+
 def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
     def decorator(view_func):
         @functools.wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if request.user.is_authenticated and request.user.id is not None:
-                rate_key = f"{scope}:{request.user.id}:{request.path}"
-            else:
-                rate_key = f"{scope}:anon:{_client_ip(request)}"
-
-            if not _enforce_rate_limit(rate_key, max_calls, period_seconds):
+            if not _check_rate_limit(request, scope, max_calls, period_seconds):
                 return JsonResponse(
                     {
                         "error": "rate_limit_exceeded",
@@ -166,50 +210,62 @@ DEFAULT_SEARCH_QUERIES = {
 
 
 def _ensure_default_scraping_sources() -> None:
-    """Ensure predefined default sources exist and stay active for each category."""
-    for category, default_sources in DEFAULT_SCRAPING_SOURCES.items():
-        for default_source in default_sources:
-            name = (default_source.get("name") or "").strip()
-            base_url = (default_source.get("url") or "").strip()
-            if not name:
-                continue
+    """
+    Ensure default sources exist in DB.
+    Never reactivate manually disabled or auto-quarantined sources.
+    Only create missing sources and update non-critical metadata.
+    """
+    from scraping.fixtures.source_defaults import DEFAULT_SOURCES
 
-            source, created = ScrapingSource.objects.get_or_create(
-                category=category,
-                name=name,
-                defaults={
-                    "url": base_url,
-                    "base_url": base_url,
-                    "description": "Default source",
-                    "is_active": True,
-                    "scrape_config": {"is_default": True},
-                    "use_rss": False,
-                    "use_llm_extraction": True,
+    created_count = 0
+
+    for source_data in DEFAULT_SOURCES:
+        name = str(source_data.get("name") or "").strip()
+        url = str(source_data.get("url") or "").strip()
+        category = str(source_data.get("category") or "").strip().lower()
+
+        if not name or not url or category not in CATEGORY_META:
+            continue
+
+        trust_score = float(source_data.get("trust_score", 0.8) or 0.8)
+        source, created = ScrapingSource.objects.get_or_create(
+            url=url,
+            defaults={
+                "name": name,
+                "category": category,
+                "base_url": url,
+                "is_active": True,
+                "is_admin_disabled": False,
+                "scrape_config": {
+                    "is_default": True,
+                    "trust_score": round(max(0.0, min(1.0, trust_score)), 2),
                 },
-            )
+                "use_rss": False,
+                "use_llm_extraction": True,
+                "description": "Default source",
+            },
+        )
 
-            update_fields = []
-            if not getattr(source, "url", "") and base_url:
-                source.url = base_url
-                update_fields.append("url")
-            if not source.base_url and base_url:
-                source.base_url = base_url
-                update_fields.append("base_url")
-            if not source.is_active:
-                source.is_active = True
-                update_fields.append("is_active")
+        if created:
+            created_count += 1
+            continue
 
-            scrape_config = dict(source.scrape_config or {})
-            if scrape_config.get("is_default") is not True:
-                scrape_config["is_default"] = True
-                source.scrape_config = scrape_config
-                update_fields.append("scrape_config")
+        update_fields = []
+        if source.name != name:
+            source.name = name
+            update_fields.append("name")
+        if source.category != category:
+            source.category = category
+            update_fields.append("category")
+        if not source.base_url:
+            source.base_url = url
+            update_fields.append("base_url")
 
-            if created:
-                continue
+        if update_fields:
+            source.save(update_fields=update_fields)
 
-            if update_fields:
-                source.save(update_fields=update_fields)
+    if created_count:
+        logger.info("Created %s new default sources", created_count)
 
 
 def _ensure_default_search_queries() -> None:
@@ -292,9 +348,10 @@ def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
         return True
 
     except Exception as exc:
-        # Fail open - if cache is unavailable, allow request
+        # Keep fail-open behavior but emit prominent logs for monitoring.
+        logger.error("Rate limiter cache error: %s", exc)
         logger.warning(
-            "rate_limit_cache_error",
+            "RATE_LIMITER_CACHE_FAILURE: throttling may be degraded",
             extra={"error": str(exc), "key": key},
         )
         return True
@@ -382,15 +439,118 @@ def _infer_source_tier(
 @user_passes_test(is_admin)
 @require_POST
 @csrf_protect
-def validate_source(request):
-    """Temporary validation endpoint used by admin/source forms."""
+def validate_source(request, source_id=None):
+    """Trigger asynchronous source validation and return task metadata."""
+    _log_scraping_action(request)
+
+    if not _check_rate_limit(
+        request, scope="validate_source", max_calls=20, period=3600
+    ):
+        return JsonResponse(
+            {"error": "Too many validation requests."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    resolved_source_id = str(source_id or "").strip()
+
+    if not resolved_source_id:
+        if request.content_type and "application/json" in request.content_type.lower():
+            try:
+                payload = json.loads(request.body or b"{}")
+            except (TypeError, json.JSONDecodeError):
+                payload = {}
+            resolved_source_id = str(payload.get("source_id") or "").strip()
+        else:
+            resolved_source_id = str(request.POST.get("source_id") or "").strip()
+
+    if not resolved_source_id:
+        return JsonResponse({"error": "source_id is required"}, status=400)
+
+    try:
+        resolved_source_id = str(uuid.UUID(resolved_source_id))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid source_id format"}, status=400)
+
+    source = ScrapingSource.objects.filter(id=resolved_source_id).only("id").first()
+    if source is None:
+        return JsonResponse({"error": "Source not found"}, status=404)
+
+    try:
+        task = validate_source_async.delay(str(source.id))
+    except Exception as exc:
+        logger.exception(
+            "validate_source_dispatch_failed source_id=%s error=%s",
+            resolved_source_id,
+            exc,
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "source_id": resolved_source_id,
+                "message": "Failed to dispatch source validation task",
+            },
+            status=500,
+        )
+
     return JsonResponse(
         {
-            "status": "success",
-            "message": "Endpoint is working",
-            "valid": True,
+            "status": "validation_started",
+            "source_id": resolved_source_id,
+            "task_id": str(task.id),
         }
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_GET
+@rate_limit(max_calls=60, period_seconds=60, scope="polling")
+def validate_source_status(request, task_id):
+    """Return Celery task status/result for an async source validation run."""
+    _log_scraping_action(request)
+
+    normalized_task_id = str(task_id or "").strip()
+    if not normalized_task_id:
+        return JsonResponse({"error": "task_id is required"}, status=400)
+
+    result = AsyncResult(normalized_task_id)
+    state = str(result.state or "PENDING").upper()
+
+    payload = {
+        "task_id": normalized_task_id,
+        "state": state,
+    }
+
+    if result.successful():
+        payload.update(
+            {
+                "status": "completed",
+                "ready": True,
+                "result": result.result,
+            }
+        )
+        return JsonResponse(payload)
+
+    if result.failed():
+        payload.update(
+            {
+                "status": "failed",
+                "ready": True,
+                "error": str(result.result),
+            }
+        )
+        return JsonResponse(payload)
+
+    if state == "STARTED":
+        payload["status"] = "running"
+    elif state == "RETRY":
+        payload["status"] = "retrying"
+    else:
+        payload["status"] = "pending"
+
+    payload["ready"] = False
+    return JsonResponse(payload)
 
 
 def _model_for_category(category: str):
@@ -405,9 +565,9 @@ def _model_for_category(category: str):
     dynamic_candidates = {
         "news": [("feed", "Post"), ("events", "News"), ("resources", "News")],
         "opportunities": [
+            ("pages", "Opportunity"),
             ("events", "Opportunity"),
             ("resources", "Opportunity"),
-            ("opportunities", "Opportunity"),
         ],
         "corpus": [
             ("events", "Corpus"),
@@ -539,6 +699,311 @@ def _build_source_health_rows(category: str | None = None):
         )
 
     return rows
+
+
+def _source_color_token(category: str) -> str:
+    color_name = str((CATEGORY_META.get(category, {}) or {}).get("color") or "").lower()
+    color_map = {
+        "blue": "#2563eb",
+        "purple": "#7c3aed",
+        "green": "#059669",
+        "yellow": "#ca8a04",
+        "orange": "#ea580c",
+        "red": "#dc2626",
+    }
+    return color_map.get(color_name, "#475569")
+
+
+def _health_band_for_rate(success_rate: int) -> str:
+    if success_rate >= 80:
+        return "green"
+    if success_rate >= 40:
+        return "yellow"
+    return "red"
+
+
+def _priority_label_from_value(priority_value: int) -> str:
+    if priority_value <= 2:
+        return "high"
+    if priority_value <= 4:
+        return "medium"
+    return "low"
+
+
+def _extract_scrape_config_value(source: ScrapingSource, key: str, default=None):
+    config = source.scrape_config if isinstance(source.scrape_config, dict) else {}
+    if key not in config:
+        return default
+    return config.get(key)
+
+
+def _build_source_health_points(source: ScrapingSource) -> tuple[list[dict], int]:
+    last_runs = list(
+        ScrapingRun.objects.filter(source=source).order_by("-started_at")[:10]
+    )
+
+    points = []
+    success_count = 0
+
+    for run in reversed(last_runs):
+        state = "warn"
+        if run.status == "failed":
+            state = "fail"
+        elif run.status == "completed":
+            if int(run.items_created or 0) > 0:
+                state = "ok"
+            else:
+                state = "warn"
+
+        if state == "ok":
+            success_count += 1
+
+        points.append(
+            {
+                "state": state,
+                "label": run.started_at.strftime("%Y-%m-%d %H:%M")
+                if run.started_at
+                else "",
+                "items": int(run.items_created or 0),
+                "status": run.status,
+            }
+        )
+
+    if not points and source.last_run_status:
+        fallback_state_map = {
+            "success": "ok",
+            "completed": "ok",
+            "partial": "warn",
+            "pending": "warn",
+            "running": "warn",
+            "failed": "fail",
+        }
+        fallback_state = fallback_state_map.get(source.last_run_status, "warn")
+        if fallback_state == "ok":
+            success_count = 1
+        points.append(
+            {
+                "state": fallback_state,
+                "label": source.last_scraped.strftime("%Y-%m-%d %H:%M")
+                if source.last_scraped
+                else "",
+                "items": int(source.last_run_items_created or 0),
+                "status": source.last_run_status,
+            }
+        )
+
+    return points, success_count
+
+
+def _build_source_row_payload(source: ScrapingSource) -> dict:
+    health = ScrapingSourceHealth.objects.filter(
+        category=source.category,
+        source_name__iexact=source.name,
+    ).first()
+
+    points, success_count = _build_source_health_points(source)
+    attempts = len(points)
+
+    if attempts > 0:
+        success_rate = int(round((success_count / attempts) * 100))
+    elif health and int(health.total_attempts or 0) > 0:
+        success_rate = int(
+            round(
+                (int(health.total_successes or 0) / int(health.total_attempts or 1))
+                * 100
+            )
+        )
+    else:
+        success_rate = 0
+
+    now = timezone.now()
+    recent_runs_qs = ScrapingRun.objects.filter(
+        source=source,
+        started_at__gte=now - timedelta(days=30),
+        status="completed",
+    )
+    avg_yield = recent_runs_qs.aggregate(avg=Avg("items_created")).get("avg")
+    if avg_yield is None:
+        avg_yield = source.last_run_items_created or 0
+
+    trust_score = _extract_scrape_config_value(source, "trust_score", None)
+    if trust_score is None and health and health.health_score is not None:
+        trust_score = round(float(health.health_score) / 100.0, 2)
+    if trust_score is None:
+        trust_score = 0.8
+
+    raw_priority = _extract_scrape_config_value(source, "priority", 3)
+    try:
+        priority_value = max(1, min(5, int(raw_priority)))
+    except (TypeError, ValueError):
+        priority_value = 3
+    priority_label = _priority_label_from_value(priority_value)
+
+    queries = _extract_scrape_config_value(source, "search_queries", [])
+    if not isinstance(queries, list):
+        queries = []
+    cleaned_queries = [str(value).strip() for value in queries if str(value).strip()]
+
+    consecutive_failures = int(
+        (getattr(health, "consecutive_failures", 0) or 0)
+        or (source.consecutive_failures or 0)
+    )
+    failing = consecutive_failures >= 3 or (
+        success_rate < 40
+        and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
+    )
+
+    last_run_at = source.last_scraped
+    last_checked_at = source.last_validated_at or source.last_scraped
+
+    return {
+        "id": str(source.id),
+        "name": source.name,
+        "url": source.url or source.base_url,
+        "category": source.category,
+        "category_label": CATEGORY_META.get(source.category, {}).get(
+            "label", source.category.title()
+        ),
+        "category_color": _source_color_token(source.category),
+        "health_band": _health_band_for_rate(success_rate),
+        "success_rate": success_rate,
+        "consecutive_failures": consecutive_failures,
+        "failing": failing,
+        "health_points": points,
+        "avg_yield": round(float(avg_yield or 0), 1),
+        "last_run_at": last_run_at,
+        "last_run_iso": last_run_at.isoformat() if last_run_at else "",
+        "last_checked_at": last_checked_at,
+        "last_checked_iso": last_checked_at.isoformat() if last_checked_at else "",
+        "is_active": bool(source.is_active),
+        "trust_score": round(float(trust_score), 2),
+        "priority_value": priority_value,
+        "priority_label": priority_label,
+        "queries": cleaned_queries,
+    }
+
+
+def _load_arabic_nlp_fixture_payload() -> dict:
+    fixture_path = (
+        Path(settings.BASE_DIR) / "scraping" / "fixtures" / "arabic_nlp_sources.json"
+    )
+    if not fixture_path.exists():
+        return {"sources": [], "query_templates": {}}
+
+    try:
+        with fixture_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return {"sources": [], "query_templates": {}}
+
+    if not isinstance(payload, dict):
+        return {"sources": [], "query_templates": {}}
+
+    sources = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+    query_templates = (
+        payload.get("query_templates")
+        if isinstance(payload.get("query_templates"), dict)
+        else {}
+    )
+
+    return {
+        "sources": sources,
+        "query_templates": query_templates,
+    }
+
+
+def _clean_source_payload(data: dict) -> tuple[dict | None, str]:
+    name = str(data.get("name") or "").strip()
+    url = str(data.get("url") or "").strip()
+    category = str(data.get("category") or "").strip().lower()
+    source_id = str(data.get("source_id") or "").strip()
+
+    if not name:
+        return None, _("Source name is required.")
+    if not url:
+        return None, _("Source URL is required.")
+    if not url.startswith(("http://", "https://")):
+        return None, _("Source URL must start with http:// or https://")
+    if category not in CATEGORY_META:
+        return None, _("Invalid source category.")
+
+    raw_queries = data.get("search_queries")
+    query_list = raw_queries if isinstance(raw_queries, list) else []
+    cleaned_queries = [str(value).strip() for value in query_list if str(value).strip()]
+
+    raw_priority = data.get("priority", 3)
+    if isinstance(raw_priority, str):
+        lowered = raw_priority.strip().lower()
+        priority_lookup = {"high": 1, "medium": 3, "low": 5}
+        raw_priority = priority_lookup.get(lowered, raw_priority)
+    try:
+        priority_value = max(1, min(5, int(raw_priority)))
+    except (TypeError, ValueError):
+        priority_value = 3
+
+    try:
+        trust_score = float(data.get("trust_score", 0.8))
+    except (TypeError, ValueError):
+        trust_score = 0.8
+    trust_score = max(0.0, min(1.0, trust_score))
+
+    payload = {
+        "source_id": source_id,
+        "name": name,
+        "url": url,
+        "category": category,
+        "source_type": str(data.get("source_type") or "web").strip().lower() or "web",
+        "use_rss": _as_bool(data.get("use_rss"), default=True),
+        "use_llm_extraction": _as_bool(data.get("use_llm_extraction"), default=True),
+        "is_active": _as_bool(data.get("is_active"), default=True),
+        "priority": priority_value,
+        "trust_score": round(trust_score, 2),
+        "search_queries": cleaned_queries,
+    }
+    return payload, ""
+
+
+def _save_source_payload(data: dict) -> tuple[ScrapingSource | None, bool, str]:
+    payload, error = _clean_source_payload(data)
+    if payload is None:
+        return None, False, error
+
+    source = None
+    created = False
+    source_id = payload["source_id"]
+    if source_id:
+        source = ScrapingSource.objects.filter(id=source_id).first()
+        if source is None:
+            return None, False, _("Source not found.")
+    else:
+        source = ScrapingSource()
+        created = True
+
+    scrape_config = (
+        source.scrape_config if isinstance(source.scrape_config, dict) else {}
+    )
+    scrape_config.update(
+        {
+            "priority": payload["priority"],
+            "trust_score": payload["trust_score"],
+            "search_queries": payload["search_queries"],
+        }
+    )
+
+    source.name = payload["name"]
+    source.url = payload["url"]
+    source.base_url = payload["url"]
+    source.category = payload["category"]
+    source.source_type = payload["source_type"]
+    source.use_rss = payload["use_rss"]
+    source.use_llm_extraction = payload["use_llm_extraction"]
+    if "is_active" in data:
+        source.is_active = payload["is_active"]
+        source.is_admin_disabled = not bool(payload["is_active"])
+    source.scrape_config = scrape_config
+    source.save()
+
+    return source, created, ""
 
 
 def _build_recent_runs_rows(category: str, limit: int = 10):
@@ -931,6 +1396,8 @@ def dashboard(request):
             exc_info=False,
         )
 
+    review_supported_categories = list(_scraping_result_category_map().keys())
+
     return render(
         request,
         "scraping/dashboard.html",
@@ -952,8 +1419,47 @@ def dashboard(request):
             "recent_runs_rows_json": json.dumps(recent_runs_rows),
             "search_queries_by_category_json": json.dumps(search_queries_by_category),
             "search_query_rows_json": json.dumps(search_query_rows),
+            "review_supported_categories": review_supported_categories,
+            "review_supported_categories_json": json.dumps(review_supported_categories),
             "page": "scraping",
+            **_scraping_shell_context(request, active_page="dashboard"),
         },
+    )
+
+
+# Public alias used by URL configuration for consistency with other scraping pages.
+scraping_dashboard = dashboard
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_GET
+def scraping_settings_page(request):
+    """Scraping module settings landing page."""
+    _log_scraping_action(request)
+    context = {
+        "page": "scraping",
+        **_scraping_shell_context(request, active_page="settings"),
+    }
+    return render(request, "scraping/settings.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def mark_notifications_read(request):
+    """Mark all scraping notifications as read from the topbar dropdown."""
+    _log_scraping_action(request)
+    updated_count = ScrapingNotification.objects.filter(is_read=False).update(
+        is_read=True
+    )
+    return JsonResponse(
+        {
+            "success": True,
+            "updated": int(updated_count),
+            "unread_count": 0,
+        }
     )
 
 
@@ -973,8 +1479,86 @@ def _result_status_badge(raw_status: str) -> str:
     return "warning"
 
 
-def _scraping_result_category_map():
+def _collect_quick_stats_payload() -> dict:
+    today = timezone.localdate()
+    reviewed_today_approved = 0
+    reviewed_today_rejected = 0
+
+    for cfg in _scraping_result_category_map().values():
+        model_cls = cfg.get("model")
+        status_field = cfg.get("status_field")
+        if not model_cls or not status_field:
+            continue
+
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+
+        approved_qs = model_cls.objects.filter(**{status_field: "approved"})
+        rejected_qs = model_cls.objects.filter(**{status_field: "rejected"})
+
+        date_field = None
+        for candidate in ("approval_date", "updated_at", cfg.get("date_field")):
+            if candidate and candidate in field_names:
+                date_field = candidate
+                break
+
+        if date_field:
+            approved_qs = approved_qs.filter(**{f"{date_field}__date": today})
+            rejected_qs = rejected_qs.filter(**{f"{date_field}__date": today})
+
+        reviewed_today_approved += approved_qs.count()
+        reviewed_today_rejected += rejected_qs.count()
+
+    meta_agg = ScrapedItemMeta.objects.aggregate(
+        avg_confidence=Avg("relevance_score"),
+        total=Count("id"),
+        translated=Count("id", filter=Q(translation_status="translated")),
+    )
+    total_items = int(meta_agg.get("total") or 0)
+    translated_items = int(meta_agg.get("translated") or 0)
+    avg_confidence = float(meta_agg.get("avg_confidence") or 0.0)
+    translation_ok_pct = (
+        round((translated_items / total_items) * 100.0, 1) if total_items else 0.0
+    )
+
     return {
+        "today_approved": reviewed_today_approved,
+        "today_rejected": reviewed_today_rejected,
+        "avg_confidence": round(avg_confidence, 1),
+        "translation_ok_pct": translation_ok_pct,
+        "translation_total": total_items,
+        "translation_translated": translated_items,
+    }
+
+
+def _scraping_result_category_map():
+    def _resolve_dynamic_model(model_candidates: list[tuple[str, str]]):
+        for app_label, model_name in model_candidates:
+            try:
+                model_cls = apps.get_model(app_label, model_name)
+            except LookupError:
+                continue
+            if model_cls is not None:
+                return model_cls
+        return None
+
+    def _first_existing_field(model_cls, *candidates):
+        if model_cls is None:
+            return None
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+        for candidate in candidates:
+            if candidate in field_names:
+                return candidate
+        return None
+
+    category_map = {
         "events": {
             "label": "Events",
             "model": Event,
@@ -1005,6 +1589,255 @@ def _scraping_result_category_map():
             "status_field": "approval_status",
             "entity_field": "keywords",
         },
+        "news": {
+            "label": "News",
+            "model": Post,
+            "title_field": "title",
+            "description_field": "content",
+            "source_field": "source_url",
+            "date_field": "created_at",
+            "status_field": "approval_status",
+            "entity_field": "entities",
+            "confidence_field": "relevance_score",
+        },
+    }
+
+    opportunity_model = _resolve_dynamic_model(
+        [
+            ("pages", "Opportunity"),
+            ("events", "Opportunity"),
+            ("resources", "Opportunity"),
+        ]
+    )
+    if opportunity_model is not None:
+        title_field = _first_existing_field(
+            opportunity_model,
+            "title",
+            "title_en",
+            "job_title",
+            "name",
+        )
+        description_field = _first_existing_field(
+            opportunity_model,
+            "description",
+            "description_en",
+            "summary",
+            "content",
+        )
+        source_field = _first_existing_field(
+            opportunity_model,
+            "source_url",
+            "url",
+            "access_link",
+            "application_url",
+            "contact",
+        )
+        date_field = _first_existing_field(
+            opportunity_model,
+            "created_at",
+            "creation_date",
+            "updated_at",
+        )
+        status_field = _first_existing_field(
+            opportunity_model,
+            "approval_status",
+            "status",
+        )
+
+        if (
+            title_field
+            and description_field
+            and source_field
+            and date_field
+            and status_field
+        ):
+            category_map["opportunities"] = {
+                "label": "Opportunities",
+                "model": opportunity_model,
+                "title_field": title_field,
+                "description_field": description_field,
+                "source_field": source_field,
+                "date_field": date_field,
+                "status_field": status_field,
+                "entity_field": _first_existing_field(
+                    opportunity_model,
+                    "skills",
+                    "keywords",
+                    "entities",
+                ),
+                "location_field": _first_existing_field(
+                    opportunity_model,
+                    "location",
+                    "city",
+                ),
+                "confidence_field": _first_existing_field(
+                    opportunity_model,
+                    "relevance_score",
+                ),
+            }
+
+    corpus_model = _resolve_dynamic_model(
+        [
+            ("events", "Corpus"),
+            ("resources", "Corpus"),
+            ("corpus", "Corpus"),
+        ]
+    )
+    if corpus_model is not None:
+        title_field = _first_existing_field(
+            corpus_model,
+            "title",
+            "title_en",
+            "dataset_name",
+            "name",
+        )
+        description_field = _first_existing_field(
+            corpus_model,
+            "description",
+            "description_en",
+            "summary",
+            "content",
+        )
+        source_field = _first_existing_field(
+            corpus_model,
+            "source_url",
+            "access_link",
+            "url",
+            "download_url",
+            "paper_url",
+        )
+        date_field = _first_existing_field(
+            corpus_model,
+            "creation_date",
+            "created_at",
+            "updated_at",
+        )
+        status_field = _first_existing_field(
+            corpus_model,
+            "approval_status",
+            "status",
+        )
+
+        if (
+            title_field
+            and description_field
+            and source_field
+            and date_field
+            and status_field
+        ):
+            category_map["corpus"] = {
+                "label": "Corpus",
+                "model": corpus_model,
+                "title_field": title_field,
+                "description_field": description_field,
+                "source_field": source_field,
+                "date_field": date_field,
+                "status_field": status_field,
+                "entity_field": _first_existing_field(
+                    corpus_model,
+                    "keywords",
+                    "language_variants",
+                    "entities",
+                ),
+                "confidence_field": _first_existing_field(
+                    corpus_model,
+                    "relevance_score",
+                ),
+            }
+
+    return category_map
+
+
+def _scraping_pending_queue_count() -> int:
+    total_pending = 0
+    for cfg in _scraping_result_category_map().values():
+        model_cls = cfg.get("model")
+        status_field = cfg.get("status_field")
+        source_field = cfg.get("source_field")
+        if model_cls is None or not status_field or not source_field:
+            continue
+
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+        if status_field not in field_names or source_field not in field_names:
+            continue
+
+        category_qs = model_cls.objects.exclude(
+            **{f"{source_field}__isnull": True}
+        ).exclude(**{source_field: ""})
+        total_pending += category_qs.filter(**{status_field: "pending"}).count()
+
+    return int(total_pending)
+
+
+def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
+    breadcrumbs: list[dict[str, str]] = [
+        {
+            "label": str(_("Scraping")),
+            "url": reverse("scraping:dashboard"),
+        }
+    ]
+
+    url_name = ""
+    kwargs = {}
+    if request.resolver_match is not None:
+        url_name = str(request.resolver_match.url_name or "")
+        kwargs = request.resolver_match.kwargs or {}
+
+    if url_name in {"dashboard", "scraping_dashboard"}:
+        breadcrumbs.append({"label": str(_("Dashboard")), "url": ""})
+    elif url_name in {"results", "scraping_results"}:
+        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
+    elif url_name in {"result_detail", "scraping_result_detail"}:
+        breadcrumbs.append(
+            {
+                "label": str(_("Pending Queue")),
+                "url": reverse("scraping:results"),
+            }
+        )
+        raw_item_id = str(kwargs.get("item_id") or "").strip()
+        short_item_id = raw_item_id
+        if "-" in short_item_id:
+            short_item_id = short_item_id.split("-", 1)[0]
+        if len(short_item_id) > 8:
+            short_item_id = short_item_id[:8]
+        item_label = str(_("Item"))
+        if short_item_id:
+            item_label = f"{item_label} #{short_item_id}"
+        breadcrumbs.append({"label": item_label, "url": ""})
+    elif url_name in {"scraping_analytics", "analytics"}:
+        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+    elif url_name in {"scraping_sources", "sources"}:
+        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+    elif url_name in {"settings", "scraping_settings"}:
+        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
+
+    return breadcrumbs
+
+
+def _scraping_shell_context(request, *, active_page: str) -> dict:
+    notification_rows = list(
+        ScrapingNotification.objects.select_related("run").order_by("-created_at")[:8]
+    )
+    unread_count = int(ScrapingNotification.objects.filter(is_read=False).count())
+
+    admin_name = ""
+    if getattr(request, "user", None) is not None and request.user.is_authenticated:
+        admin_name = request.user.get_full_name() or request.user.get_username()
+
+    return {
+        "scraping_active_page": active_page,
+        "scraping_pending_count": _scraping_pending_queue_count(),
+        "scraping_notifications": notification_rows,
+        "scraping_unread_count": unread_count,
+        "scraping_admin_name": admin_name,
+        "scraping_breadcrumbs": _build_scraping_breadcrumbs(request),
+        "scraping_mark_notifications_read_url": reverse(
+            "scraping:mark_notifications_read"
+        ),
     }
 
 
@@ -1066,12 +1899,106 @@ def _extract_ner_entities(obj, cfg, meta: ScrapedItemMeta | None):
     return list(dict.fromkeys(entity_values))
 
 
-def _apply_scraping_item_action(obj, cfg, action: str, user=None) -> int:
-    if action == "delete":
-        deleted_count, _ = obj.delete()
-        return int(deleted_count)
+REJECT_REASON_LABELS = {
+    "irrelevant": "Irrelevant to Arabic NLP",
+    "poor_arabic": "Poor Arabic translation",
+    "duplicate": "Duplicate content",
+    "unreliable_source": "Unreliable source",
+    "outdated": "Outdated information",
+    "low_quality": "Low quality content",
+    "other": "Other",
+}
 
-    if action == "validate":
+
+def _normalize_reject_reason_code(raw_reason: str) -> str:
+    reason_code = str(raw_reason or "").strip().lower()
+    if reason_code == "poor_translation":
+        reason_code = "poor_arabic"
+    return reason_code if reason_code in REJECT_REASON_LABELS else "other"
+
+
+def _build_rejection_reason_text(reason_code: str, reject_notes: str) -> str:
+    label = REJECT_REASON_LABELS.get(reason_code, REJECT_REASON_LABELS["other"])
+    notes = str(reject_notes or "").strip()
+    if notes:
+        return f"{label}: {notes}"
+    return label
+
+
+def _record_rejected_item_audit(
+    obj,
+    cfg,
+    *,
+    category: str,
+    reason_code: str,
+    reason_text: str,
+    reject_notes: str,
+    rejected_by=None,
+) -> None:
+    title_candidates = [
+        f"{cfg.get('title_field', 'title')}_en",
+        cfg.get("title_field", "title"),
+        "title",
+        "name",
+        "job_title",
+        "dataset_name",
+    ]
+    model_field_names = {
+        field.name
+        for field in obj._meta.get_fields()
+        if getattr(field, "concrete", False)
+    }
+    title_value = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=title_candidates,
+        default=str(obj),
+    )
+
+    rejected_model_field_names = {
+        field.name
+        for field in RejectedItem._meta.get_fields()
+        if getattr(field, "concrete", False)
+    }
+    record_kwargs = {
+        "category": category,
+        "title": title_value[:300],
+        "reason_for_rejection": reason_text,
+    }
+    if "reason" in rejected_model_field_names:
+        record_kwargs["reason"] = reason_code
+    if "note" in rejected_model_field_names:
+        record_kwargs["note"] = str(reject_notes or "")
+    if "notes" in rejected_model_field_names:
+        record_kwargs["notes"] = str(reject_notes or "")
+    if "rejected_by" in rejected_model_field_names and rejected_by is not None:
+        record_kwargs["rejected_by"] = rejected_by
+    if "rejected_at" in rejected_model_field_names:
+        record_kwargs["rejected_at"] = timezone.now()
+    if "content_type" in rejected_model_field_names:
+        record_kwargs["content_type"] = ContentType.objects.get_for_model(
+            obj,
+            for_concrete_model=False,
+        )
+    if "object_id" in rejected_model_field_names:
+        record_kwargs["object_id"] = str(obj.pk)
+
+    RejectedItem.objects.create(**record_kwargs)
+
+
+def _apply_scraping_item_action(
+    obj,
+    cfg,
+    *,
+    action: str,
+    category: str,
+    reject_reason: str = "other",
+    reject_notes: str = "",
+    user=None,
+) -> int:
+    normalized_action = str(action or "").strip().lower()
+
+    if normalized_action in {"validate", "approve"}:
         model_field_names = {f.name for f in obj._meta.get_fields()}
         status_field = cfg["status_field"]
         setattr(obj, status_field, "approved")
@@ -1090,11 +2017,201 @@ def _apply_scraping_item_action(obj, cfg, action: str, user=None) -> int:
         obj.save(update_fields=update_fields)
         return 1
 
+    if normalized_action == "reject":
+        model_field_names = {f.name for f in obj._meta.get_fields()}
+        status_field = cfg["status_field"]
+        setattr(obj, status_field, "rejected")
+
+        reason_code = _normalize_reject_reason_code(reject_reason)
+        reason_text = _build_rejection_reason_text(reason_code, reject_notes)
+
+        update_fields = [status_field]
+        if "is_approved" in model_field_names:
+            obj.is_approved = False
+            update_fields.append("is_approved")
+        if "rejection_reason" in model_field_names:
+            obj.rejection_reason = reason_code
+            update_fields.append("rejection_reason")
+        if "rejection_note" in model_field_names:
+            obj.rejection_note = str(reject_notes or "")
+            update_fields.append("rejection_note")
+        if "rejection_notes" in model_field_names:
+            obj.rejection_notes = str(reject_notes or "")
+            update_fields.append("rejection_notes")
+        if "rejected_at" in model_field_names:
+            obj.rejected_at = timezone.now()
+            update_fields.append("rejected_at")
+        if "rejected_by" in model_field_names and user is not None:
+            obj.rejected_by = user
+            update_fields.append("rejected_by")
+        if "approval_date" in model_field_names:
+            obj.approval_date = timezone.now()
+            update_fields.append("approval_date")
+
+        obj.save(update_fields=update_fields)
+
+        try:
+            _record_rejected_item_audit(
+                obj,
+                cfg,
+                category=category,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                reject_notes=reject_notes,
+                rejected_by=user,
+            )
+        except Exception as exc:
+            logger.error("Failed to create RejectedItem record: %s", exc)
+
+        return 1
+
+    if normalized_action == "delete":
+        deleted_count, _ = obj.delete()
+        return int(deleted_count)
+
     return 0
 
 
+RESULTS_FILTER_PARAM_KEYS = (
+    "source",
+    "confidence",
+    "translation",
+    "date_range",
+    "date_from",
+    "date_to",
+    "per_page",
+    "page",
+)
+
+
+def _parse_date_param(raw_value) -> date | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _normalize_compare_text(value: str) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
+def _infer_translation_state(
+    title_en: str,
+    title_ar: str,
+    raw_translation_status: str,
+) -> str:
+    title_en_norm = _normalize_compare_text(title_en)
+    title_ar_norm = _normalize_compare_text(title_ar)
+
+    if not title_ar_norm:
+        return "missing"
+    if title_en_norm and title_ar_norm == title_en_norm:
+        return "copied"
+
+    status = str(raw_translation_status or "").strip().lower()
+    if status == "translated":
+        return "translated"
+    if status in {"copied", "partial", "failed"}:
+        return "copied"
+    if status in {"missing", "pending"}:
+        return "missing"
+    return "translated"
+
+
+def _confidence_band(score: float | None) -> str:
+    if score is None:
+        return "unknown"
+    if score > 80:
+        return "high"
+    if score >= 60:
+        return "medium"
+    return "low"
+
+
+def _confidence_filter_match(score: float | None, confidence_filter: str) -> bool:
+    if confidence_filter == "any":
+        return True
+
+    if confidence_filter == "unknown":
+        return score is None
+
+    if score is None:
+        return False
+
+    if confidence_filter == "high":
+        return score > 80
+    if confidence_filter == "medium":
+        return 60 <= score <= 80
+    if confidence_filter == "low":
+        return score < 60
+    return True
+
+
+def _translation_filter_match(translation_state: str, translation_filter: str) -> bool:
+    if translation_filter == "any":
+        return True
+    return translation_state == translation_filter
+
+
+def _confidence_cap_status(raw_translation_status: str, translation_state: str) -> str:
+    raw_status = normalize_translation_status(raw_translation_status, default="")
+    if raw_status:
+        return raw_status
+    if translation_state == "translated":
+        return "translated"
+    if translation_state == "copied":
+        return "copied"
+    return "missing"
+
+
+def _extract_results_filters(raw_params) -> dict:
+    category = (raw_params.get("category") or "all").strip().lower()
+    if not category:
+        category = "all"
+
+    confidence = (raw_params.get("confidence") or "any").strip().lower()
+    if confidence not in {"any", "high", "medium", "low", "unknown"}:
+        confidence = "any"
+
+    translation = (raw_params.get("translation") or "any").strip().lower()
+    if translation not in {"any", "translated", "copied", "missing"}:
+        translation = "any"
+
+    date_range = (raw_params.get("date_range") or "any").strip().lower()
+    if date_range not in {"any", "today", "last7", "month", "custom"}:
+        date_range = "any"
+
+    per_page = str(raw_params.get("per_page") or "25").strip()
+    if per_page not in {"25", "50", "100"}:
+        per_page = "25"
+
+    page = str(raw_params.get("page") or "1").strip() or "1"
+
+    return {
+        "category": category,
+        "q": (raw_params.get("q") or "").strip(),
+        "run_id": (raw_params.get("run_id") or "").strip(),
+        "source": (raw_params.get("source") or "any").strip(),
+        "confidence": confidence,
+        "translation": translation,
+        "date_range": date_range,
+        "date_from": _parse_date_param(raw_params.get("date_from")),
+        "date_to": _parse_date_param(raw_params.get("date_to")),
+        "date_from_raw": (raw_params.get("date_from") or "").strip(),
+        "date_to_raw": (raw_params.get("date_to") or "").strip(),
+        "per_page": per_page,
+        "page": page,
+    }
+
+
 def _results_redirect_url(
-    category: str = "", query: str = "", run_id: str | None = None
+    category: str = "",
+    query: str = "",
+    run_id: str | None = None,
+    extra_params: dict | None = None,
 ) -> str:
     params = {}
     if category and category != "all":
@@ -1103,10 +2220,179 @@ def _results_redirect_url(
         params["q"] = query
     if run_id:
         params["run_id"] = run_id
+
+    if extra_params:
+        for key in RESULTS_FILTER_PARAM_KEYS:
+            value = extra_params.get(key)
+            if value in {None, "", "any"}:
+                continue
+            params[key] = value
+
     url = reverse("scraping:scraping_results")
     if params:
         return f"{url}?{urlencode(params)}"
     return url
+
+
+def _safe_next_url(request, raw_next_url: str | None) -> str:
+    candidate = str(raw_next_url or "").strip()
+    if not candidate:
+        return ""
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return ""
+
+
+def _build_detail_query_params(filters: dict, *, item_category: str) -> dict:
+    params = {}
+
+    category = (filters.get("category") or "all").strip().lower()
+    if category:
+        params["category"] = category
+
+    query = (filters.get("q") or "").strip()
+    if query:
+        params["q"] = query
+
+    run_id = (filters.get("run_id") or "").strip()
+    if run_id:
+        params["run_id"] = run_id
+
+    source = (filters.get("source") or "any").strip()
+    if source and source != "any":
+        params["source"] = source
+
+    confidence = (filters.get("confidence") or "any").strip().lower()
+    if confidence and confidence != "any":
+        params["confidence"] = confidence
+
+    translation = (filters.get("translation") or "any").strip().lower()
+    if translation and translation != "any":
+        params["translation"] = translation
+
+    date_range = (filters.get("date_range") or "any").strip().lower()
+    if date_range and date_range != "any":
+        params["date_range"] = date_range
+
+    date_from = (filters.get("date_from_raw") or "").strip()
+    if date_from:
+        params["date_from"] = date_from
+
+    date_to = (filters.get("date_to_raw") or "").strip()
+    if date_to:
+        params["date_to"] = date_to
+
+    per_page = str(filters.get("per_page") or "25").strip()
+    if per_page:
+        params["per_page"] = per_page
+
+    page = str(filters.get("page") or "1").strip()
+    if page:
+        params["page"] = page
+
+    if item_category:
+        params["item_category"] = item_category
+
+    return params
+
+
+def _build_result_detail_url(item_id, *, item_category: str, filters: dict) -> str:
+    base_url = reverse("scraping:scraping_result_detail", args=[item_id])
+    params = _build_detail_query_params(filters, item_category=item_category)
+    if not params:
+        return base_url
+    return f"{base_url}?{urlencode(params)}"
+
+
+def _safe_text(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _first_available_text(
+    obj,
+    *,
+    model_field_names: set[str],
+    candidates: list[str],
+    default: str = "",
+) -> str:
+    for candidate in candidates:
+        if not candidate or candidate not in model_field_names:
+            continue
+        value = _safe_text(getattr(obj, candidate, ""))
+        if value:
+            return value
+    return _safe_text(default)
+
+
+def _translation_state_for_pair(
+    *,
+    source_text: str,
+    target_text: str,
+    raw_translation_status: str,
+) -> str:
+    source_norm = _normalize_compare_text(source_text)
+    target_norm = _normalize_compare_text(target_text)
+
+    if not target_norm:
+        return "missing"
+    if source_norm and source_norm == target_norm:
+        return "copied"
+
+    status = str(raw_translation_status or "").strip().lower()
+    if status in {"copied"}:
+        return "copied"
+    if status in {"missing"}:
+        return "missing"
+    if status in {"translated"}:
+        return "translated"
+
+    # If Arabic text is present and not identical to the source, treat it as translated
+    # even when upstream status tracking is stale (e.g. still "pending").
+    return "translated"
+
+
+def _text_quality_score(text_value: str, *, long_form: bool = False) -> int:
+    text = _safe_text(text_value)
+    if not text:
+        return 0
+    if not long_form:
+        return 100
+
+    text_length = len(text)
+    if text_length >= 180:
+        return 100
+    if text_length >= 80:
+        return 80
+    if text_length >= 30:
+        return 60
+    return 40
+
+
+def _breakdown_state_for_score(score: int, *, translation_state: str = "") -> str:
+    if translation_state == "copied":
+        return "copied"
+    if score <= 0:
+        return "missing"
+    if score >= 80:
+        return "good"
+    if score >= 60:
+        return "partial"
+    return "missing"
+
+
+def _to_arabic_digits(raw_value: str) -> str:
+    text = _safe_text(raw_value)
+    if not text:
+        return ""
+
+    digit_map = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+    return text.translate(digit_map)
 
 
 def _split_item_tokens(raw_values) -> list[str]:
@@ -1121,138 +2407,26 @@ def _split_item_tokens(raw_values) -> list[str]:
     return tokens
 
 
-@login_required
-@user_passes_test(is_admin)
-@require_POST
-@csrf_protect
-def scraping_result_validate(request, item_id):
-    """POST /scraping/results/validate/<item_id>/."""
-    _log_scraping_action(request)
-    category_hint = (
-        request.POST.get("category") or request.GET.get("category") or ""
-    ).strip().lower() or None
-    query = (request.POST.get("q") or request.GET.get("q") or "").strip()
-    run_id = (request.POST.get("run_id") or request.GET.get("run_id") or "").strip()
-    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_hint)
-
-    if not obj or not cfg or not cat_key:
-        messages.error(request, "Scraped item not found.")
-        return redirect(
-            _results_redirect_url(category_hint or "", query, run_id=run_id)
-        )
-
-    affected = _apply_scraping_item_action(
-        obj, cfg, action="validate", user=request.user
-    )
-    if affected:
-        messages.success(request, "Item published successfully.")
+def _build_scraping_results_dataset(
+    category_map: dict,
+    *,
+    selected_category: str,
+    selected_run,
+    query: str,
+    selected_source: str,
+    confidence_filter: str,
+    translation_filter: str,
+    date_range: str,
+    date_from: date | None,
+    date_to: date | None,
+    selected_run_id: str,
+) -> dict:
+    if selected_run:
+        active_categories = [selected_run.category]
+    elif selected_category == "all":
+        active_categories = list(category_map.keys())
     else:
-        messages.warning(request, "No item was published.")
-
-    return redirect(_results_redirect_url(cat_key, query, run_id=run_id))
-
-
-@login_required
-@user_passes_test(is_admin)
-@require_POST
-@csrf_protect
-def scraping_result_delete(request, item_id):
-    """POST /scraping/results/delete/<item_id>/."""
-    _log_scraping_action(request)
-    category_hint = (
-        request.POST.get("category") or request.GET.get("category") or ""
-    ).strip().lower() or None
-    query = (request.POST.get("q") or request.GET.get("q") or "").strip()
-    run_id = (request.POST.get("run_id") or request.GET.get("run_id") or "").strip()
-    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_hint)
-
-    if not obj or not cfg or not cat_key:
-        messages.error(request, "Scraped item not found.")
-        return redirect(
-            _results_redirect_url(category_hint or "", query, run_id=run_id)
-        )
-
-    affected = _apply_scraping_item_action(obj, cfg, action="delete", user=request.user)
-    if affected:
-        messages.success(request, "Item deleted successfully.")
-    else:
-        messages.warning(request, "No item was deleted.")
-
-    return redirect(_results_redirect_url(cat_key, query, run_id=run_id))
-
-
-@login_required
-@user_passes_test(is_admin)
-@require_POST
-@csrf_protect
-def scraping_results_bulk_action(request):
-    """POST /scraping/results/bulk-action/ for validate/delete on multiple items."""
-    _log_scraping_action(request)
-
-    action = (request.POST.get("action") or "").strip().lower()
-    category_hint = (request.POST.get("category") or "").strip().lower()
-    query = (request.POST.get("q") or "").strip()
-    run_id = (request.POST.get("run_id") or "").strip()
-
-    item_tokens = _split_item_tokens(request.POST.getlist("item_ids"))
-    if not item_tokens:
-        item_tokens = _split_item_tokens(request.POST.getlist("selected_items"))
-
-    if action not in {"validate", "delete"}:
-        messages.warning(request, "Invalid bulk action.")
-        return redirect(_results_redirect_url(category_hint, query, run_id=run_id))
-
-    affected_total = 0
-    for token in item_tokens:
-        token_category = category_hint
-        token_item_id = token
-        if ":" in token:
-            token_category, token_item_id = token.split(":", 1)
-            token_category = token_category.strip().lower()
-            token_item_id = token_item_id.strip()
-
-        cat_key, cfg, obj = _resolve_scraping_item(
-            token_item_id, token_category or None
-        )
-        if not obj or not cfg:
-            continue
-        affected_total += _apply_scraping_item_action(
-            obj, cfg, action=action, user=request.user
-        )
-
-    if action == "validate":
-        messages.success(request, f"Published {affected_total} selected item(s).")
-    else:
-        messages.success(request, f"Deleted {affected_total} selected item(s).")
-
-    return redirect(_results_redirect_url(category_hint, query, run_id=run_id))
-
-
-@login_required
-@user_passes_test(is_admin)
-def scraping_results(request):
-    """Staff review queue for scraped items across categories."""
-    _log_scraping_action(request)
-    category_map = _scraping_result_category_map()
-
-    selected_category = (request.GET.get("category") or "all").strip().lower()
-    if selected_category != "all" and selected_category not in category_map:
-        selected_category = "all"
-
-    query = (request.GET.get("q") or "").strip()
-    selected_run_id = (request.GET.get("run_id") or "").strip()
-    selected_run = None
-
-    if selected_run_id:
-        selected_run = ScrapingRun.objects.filter(pk=selected_run_id).first()
-        if selected_run is None:
-            messages.warning(
-                request,
-                "Requested run was not found; showing unfiltered results.",
-            )
-            selected_run_id = ""
-        else:
-            selected_category = selected_run.category
+        active_categories = [selected_category]
 
     run_window_start = selected_run.started_at if selected_run else None
     run_window_end = None
@@ -1260,66 +2434,6 @@ def scraping_results(request):
         run_window_end = (selected_run.completed_at or timezone.now()) + timedelta(
             minutes=5
         )
-
-    if request.method == "POST":
-        action = (request.POST.get("action") or "").strip().lower()
-        selected_items = request.POST.getlist("selected_items")
-        posted_run_id = (request.POST.get("run_id") or "").strip()
-
-        grouped_ids = defaultdict(list)
-        for token in selected_items:
-            if ":" not in token:
-                continue
-            cat_key, item_id = token.split(":", 1)
-            cat_key = cat_key.strip().lower()
-            item_id = item_id.strip()
-            if cat_key in category_map and item_id:
-                grouped_ids[cat_key].append(item_id)
-
-        affected_total = 0
-        for cat_key, ids in grouped_ids.items():
-            cfg = category_map[cat_key]
-            model = cfg["model"]
-            source_field = cfg["source_field"]
-
-            qs = model.objects.filter(pk__in=ids).exclude(
-                **{f"{source_field}__isnull": True}
-            )
-            qs = qs.exclude(**{source_field: ""})
-
-            for obj in qs:
-                affected_total += _apply_scraping_item_action(
-                    obj,
-                    cfg,
-                    action=action,
-                    user=request.user,
-                )
-
-        if action == "validate":
-            messages.success(request, f"Validated {affected_total} selected item(s).")
-        elif action == "delete":
-            messages.success(request, f"Deleted {affected_total} selected item(s).")
-        else:
-            messages.warning(request, "No valid bulk action was requested.")
-
-        params = {}
-        if selected_category and selected_category != "all":
-            params["category"] = selected_category
-        if query:
-            params["q"] = query
-        if posted_run_id:
-            params["run_id"] = posted_run_id
-        redirect_url = reverse("scraping:scraping_results")
-        if params:
-            redirect_url = f"{redirect_url}?{urlencode(params)}"
-        return redirect(redirect_url)
-
-    if selected_run:
-        active_categories = [selected_run.category]
-    elif selected_category == "all":
-        active_categories = list(category_map.keys())
-    else:
-        active_categories = [selected_category]
 
     pending_counts = {}
     for cat_key, cfg in category_map.items():
@@ -1345,17 +2459,31 @@ def scraping_results(request):
             pending_qs = pending_qs.none()
         pending_counts[cat_key] = pending_qs.count()
 
-    rows = []
+    base_rows = []
     by_category_item_ids = defaultdict(list)
     by_category_titles = defaultdict(list)
 
+    today_date = timezone.localdate()
+    month_start = today_date.replace(day=1)
+    last7_start = today_date - timedelta(days=6)
+
     for cat_key in active_categories:
+        if cat_key not in category_map:
+            continue
+
         cfg = category_map[cat_key]
         model = cfg["model"]
         title_field = cfg["title_field"]
+        description_field = cfg["description_field"]
         source_field = cfg["source_field"]
         date_field = cfg["date_field"]
         status_field = cfg["status_field"]
+
+        model_field_names = {
+            field.name
+            for field in model._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
 
         queryset = model.objects.filter(**{status_field: "pending"})
         queryset = queryset.exclude(**{f"{source_field}__isnull": True}).exclude(
@@ -1371,36 +2499,102 @@ def scraping_results(request):
             )
 
         if query:
-            queryset = queryset.filter(**{f"{title_field}__icontains": query})
+            queryset = queryset.filter(
+                Q(**{f"{title_field}__icontains": query})
+                | Q(**{f"{source_field}__icontains": query})
+            )
+
+        if date_range == "today":
+            queryset = queryset.filter(**{f"{date_field}__date": today_date})
+        elif date_range == "last7":
+            queryset = queryset.filter(**{f"{date_field}__date__gte": last7_start})
+        elif date_range == "month":
+            queryset = queryset.filter(**{f"{date_field}__date__gte": month_start})
+        elif date_range == "custom":
+            if date_from is not None:
+                queryset = queryset.filter(**{f"{date_field}__date__gte": date_from})
+            if date_to is not None:
+                queryset = queryset.filter(**{f"{date_field}__date__lte": date_to})
 
         queryset = queryset.order_by(f"-{date_field}")
 
         for obj in queryset:
-            title_value = getattr(obj, title_field, "") or ""
-            source_value = getattr(obj, source_field, "") or ""
+            title_en_candidates = [
+                f"{title_field}_en",
+                "title_en",
+                "name_en",
+                "job_title_en",
+                title_field,
+                "title",
+                "name",
+                "job_title",
+                "dataset_name",
+            ]
+            title_ar_candidates = [
+                f"{title_field}_ar",
+                "title_ar",
+                "name_ar",
+                "job_title_ar",
+                "dataset_name_ar",
+            ]
+
+            title_en = ""
+            for candidate in title_en_candidates:
+                if candidate not in model_field_names:
+                    continue
+                value = str(getattr(obj, candidate, "") or "").strip()
+                if value:
+                    title_en = value
+                    break
+            if not title_en:
+                title_en = str(getattr(obj, title_field, "") or "").strip() or str(obj)
+
+            title_ar = ""
+            for candidate in title_ar_candidates:
+                if candidate not in model_field_names:
+                    continue
+                value = str(getattr(obj, candidate, "") or "").strip()
+                if value:
+                    title_ar = value
+                    break
+
+            description_value = str(getattr(obj, description_field, "") or "").strip()
+            source_value = str(getattr(obj, source_field, "") or "").strip()
+            source_domain = (urlparse(source_value).netloc or "").lower()
             date_value = getattr(obj, date_field, None)
             status_value = getattr(obj, status_field, "pending") or "pending"
 
             raw_confidence = None
             confidence_field = cfg.get("confidence_field")
-            if confidence_field:
+            if confidence_field and confidence_field in model_field_names:
                 raw_confidence = getattr(obj, confidence_field, None)
+
+            raw_translation_status = ""
+            if "translation_status" in model_field_names:
+                raw_translation_status = str(
+                    getattr(obj, "translation_status", "") or ""
+                ).strip()
 
             item_id_str = str(obj.pk)
             by_category_item_ids[cat_key].append(item_id_str)
-            if title_value:
-                by_category_titles[cat_key].append(title_value)
+            if title_en:
+                by_category_titles[cat_key].append(title_en)
 
-            rows.append(
+            base_rows.append(
                 {
                     "selection_key": f"{cat_key}:{item_id_str}",
                     "item_id": item_id_str,
-                    "title": title_value,
+                    "title": title_en,
+                    "title_en": title_en,
+                    "title_ar": title_ar,
                     "category": cat_key,
                     "category_label": cfg["label"],
                     "source_url": source_value,
+                    "source_domain": source_domain,
                     "scraped_date": date_value,
+                    "description": description_value,
                     "confidence_score": raw_confidence,
+                    "raw_translation_status": raw_translation_status,
                     "status": _result_status_label(status_value),
                     "status_badge": _result_status_badge(status_value),
                     "detail_url": reverse(
@@ -1408,11 +2602,12 @@ def scraping_results(request):
                     )
                     + f"?category={cat_key}"
                     + (f"&run_id={selected_run_id}" if selected_run_id else ""),
+                    "run_id": selected_run_id,
                 }
             )
 
-    confidence_by_item = {}
-    confidence_by_title = {}
+    meta_by_item = defaultdict(dict)
+    meta_by_title = defaultdict(dict)
     for cat_key in active_categories:
         ids = by_category_item_ids[cat_key]
         titles = by_category_titles[cat_key]
@@ -1427,56 +2622,764 @@ def scraping_results(request):
             filters |= Q(item_title__in=titles)
 
         for meta in meta_q.filter(filters).order_by("-updated_at", "-created_at"):
-            if meta.relevance_score is None:
-                continue
-            score = round(float(meta.relevance_score), 2)
-            if meta.item_id and meta.item_id not in confidence_by_item:
-                confidence_by_item[meta.item_id] = score
-            if meta.item_title and meta.item_title not in confidence_by_title:
-                confidence_by_title[meta.item_title] = score
+            if meta.item_id and meta.item_id not in meta_by_item[cat_key]:
+                meta_by_item[cat_key][meta.item_id] = meta
+            if meta.item_title and meta.item_title not in meta_by_title[cat_key]:
+                meta_by_title[cat_key][meta.item_title] = meta
 
-    for row in rows:
-        if row["confidence_score"] is not None:
-            row["confidence_score"] = round(float(row["confidence_score"]), 2)
+    source_options_set = set()
+    rows = []
+    for row in base_rows:
+        cat_key = row["category"]
+        meta = meta_by_item[cat_key].get(row["item_id"]) or meta_by_title[cat_key].get(
+            row["title_en"]
+        )
+
+        score = row["confidence_score"]
+        if score is None and meta and meta.relevance_score is not None:
+            score = float(meta.relevance_score)
+        if score is not None:
+            score = round(float(score), 2)
+
+        raw_translation_status = row["raw_translation_status"]
+        if not raw_translation_status and meta:
+            raw_translation_status = str(meta.translation_status or "")
+
+        translation_state = _infer_translation_state(
+            row["title_en"],
+            row["title_ar"],
+            raw_translation_status,
+        )
+        score = apply_translation_confidence_cap(
+            score,
+            _confidence_cap_status(raw_translation_status, translation_state),
+        )
+
+        if row["source_domain"]:
+            source_options_set.add(row["source_domain"])
+
+        if selected_source and selected_source != "any":
+            if selected_source.lower() not in (row["source_domain"] or ""):
+                continue
+
+        if not _confidence_filter_match(score, confidence_filter):
             continue
-        score = confidence_by_item.get(row["item_id"])
-        if score is None:
-            score = confidence_by_title.get(row["title"])
+
+        if not _translation_filter_match(translation_state, translation_filter):
+            continue
+
+        title_en_ok = bool(str(row["title_en"]).strip())
+        title_ar_icon = (
+            "✅"
+            if translation_state == "translated"
+            else ("⚠️" if translation_state == "copied" else "❌")
+        )
+        description_icon = "✅" if bool(str(row["description"]).strip()) else "❌"
+        date_icon = "✅" if row["scraped_date"] else "❌"
+
         row["confidence_score"] = score
+        row["confidence_band"] = _confidence_band(score)
+        row["translation_state"] = translation_state
+        row["is_ar_copied"] = translation_state == "copied"
+        row["is_ar_missing"] = translation_state == "missing"
+        row["confidence_breakdown"] = (
+            f"Title EN {'✅' if title_en_ok else '❌'} "
+            f"Title AR {title_ar_icon} "
+            f"Description {description_icon} "
+            f"Date {date_icon}"
+        )
+        rows.append(row)
 
     rows.sort(
-        key=lambda r: (
-            1 if r["scraped_date"] is not None else 0,
-            str(r["scraped_date"] or ""),
+        key=lambda record: (
+            1 if record["scraped_date"] is not None else 0,
+            str(record["scraped_date"] or ""),
         ),
         reverse=True,
     )
 
-    latest_runs = {
-        key: ScrapingRun.objects.filter(category=key).order_by("-started_at").first()
-        for key in category_map
+    filtered_category_counts = defaultdict(int)
+    filtered_low_confidence_count = 0
+    for row in rows:
+        filtered_category_counts[row["category"]] += 1
+        if row["confidence_score"] is not None and row["confidence_score"] < 60:
+            filtered_low_confidence_count += 1
+
+    return {
+        "rows": rows,
+        "pending_counts": pending_counts,
+        "source_options": sorted(source_options_set),
+        "active_categories": active_categories,
+        "filtered_total": len(rows),
+        "filtered_category_counts": dict(filtered_category_counts),
+        "filtered_low_confidence_count": filtered_low_confidence_count,
     }
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_result_validate(request, item_id):
+    """POST /scraping/results/validate/<item_id>/."""
+    _log_scraping_action(request)
+    filters = _extract_results_filters(request.POST)
+    category_hint = filters["category"]
+    query = filters["q"]
+    run_id = filters["run_id"]
+
+    category_for_lookup = None if category_hint in {"", "all"} else category_hint
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_for_lookup)
+    next_item_url = _safe_next_url(request, request.POST.get("next_item_url"))
+
+    if not obj or not cfg or not cat_key:
+        messages.error(request, "Scraped item not found.")
+        return redirect(
+            _results_redirect_url(
+                category_hint,
+                query,
+                run_id=run_id,
+                extra_params=filters,
+            )
+        )
+
+    affected = _apply_scraping_item_action(
+        obj,
+        cfg,
+        action="validate",
+        category=cat_key,
+        user=request.user,
+    )
+    if affected:
+        messages.success(request, "Item published successfully.")
+        if next_item_url:
+            return redirect(next_item_url)
+    else:
+        messages.warning(request, "No item was published.")
+
+    return redirect(
+        _results_redirect_url(
+            category_hint,
+            query,
+            run_id=run_id,
+            extra_params=filters,
+        )
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_result_delete(request, item_id):
+    """POST /scraping/results/delete/<item_id>/."""
+    _log_scraping_action(request)
+    filters = _extract_results_filters(request.POST)
+    category_hint = filters["category"]
+    query = filters["q"]
+    run_id = filters["run_id"]
+
+    category_for_lookup = None if category_hint in {"", "all"} else category_hint
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_for_lookup)
+    next_item_url = _safe_next_url(request, request.POST.get("next_item_url"))
+
+    if not obj or not cfg or not cat_key:
+        messages.error(request, "Scraped item not found.")
+        return redirect(
+            _results_redirect_url(
+                category_hint,
+                query,
+                run_id=run_id,
+                extra_params=filters,
+            )
+        )
+
+    affected = _apply_scraping_item_action(
+        obj,
+        cfg,
+        action="delete",
+        category=cat_key,
+        user=request.user,
+    )
+    if affected:
+        messages.success(request, "Item deleted successfully.")
+        if next_item_url:
+            return redirect(next_item_url)
+    else:
+        messages.warning(request, "No item was deleted.")
+
+    return redirect(
+        _results_redirect_url(
+            category_hint,
+            query,
+            run_id=run_id,
+            extra_params=filters,
+        )
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=120, period_seconds=60, scope="action")
+def translate_field_api(request):
+    """POST /scraping/api/translate-field/ for on-demand Arabic translation."""
+    _log_scraping_action(request)
+
+    content_type_error = _require_json_content_type(request)
+    if content_type_error:
+        return content_type_error
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    item_id = _safe_text(payload.get("item_id"))
+    field_name = _safe_text(payload.get("field_name"))
+    source_text = _safe_text(payload.get("source_text"))
+    category_hint = _safe_text(payload.get("category")).lower()
+
+    if not item_id:
+        return JsonResponse({"error": "item_id is required"}, status=400)
+    if not field_name:
+        return JsonResponse({"error": "field_name is required"}, status=400)
+    if not source_text:
+        return JsonResponse({"error": "source_text is required"}, status=400)
+
+    resolved_category = None if category_hint in {"", "all"} else category_hint
+    cat_key, _cfg, obj = _resolve_scraping_item(item_id, resolved_category)
+    if obj is None or not cat_key:
+        return JsonResponse({"error": "Scraped item not found"}, status=404)
+
+    field_type_hint = _safe_text(payload.get("field_type")).lower()
+    if field_type_hint not in {"title", "description", "short_description", "tags"}:
+        if "title" in field_name:
+            field_type_hint = "title"
+        elif "description" in field_name or "content" in field_name:
+            field_type_hint = "description"
+        else:
+            field_type_hint = "title"
+
+    translator = ArabicTranslator()
+    translated_text = translator.translate_field(source_text, field_type_hint)
+    if not translated_text:
+        return JsonResponse(
+            {
+                "error": "translation_failed",
+                "message": "Unable to translate field right now.",
+            },
+            status=502,
+        )
+
+    model_used = ""
+    if translator.primary_client and translator.primary_client.is_configured:
+        model_used = _safe_text(translator.primary_client.model)
+    elif translator.fallback_client and translator.fallback_client.is_configured:
+        model_used = _safe_text(translator.fallback_client.model)
+    if not model_used:
+        model_used = "unknown"
+
+    estimated_confidence = 0.9 if len(translated_text) >= 20 else 0.75
+
+    return JsonResponse(
+        {
+            "translated_text": translated_text,
+            "model_used": model_used,
+            "confidence": estimated_confidence,
+            "category": cat_key,
+            "field_name": field_name,
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=120, period_seconds=60, scope="action")
+def save_draft_api(request, item_id):
+    """POST /scraping/api/save-draft/<item_id>/ for inline moderation edits."""
+    _log_scraping_action(request)
+
+    content_type_error = _require_json_content_type(request)
+    if content_type_error:
+        return content_type_error
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    category_hint = _safe_text(payload.get("category")).lower()
+    resolved_category = None if category_hint in {"", "all"} else category_hint
+
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, resolved_category)
+    if not obj or not cfg or not cat_key:
+        return JsonResponse({"error": "Scraped item not found"}, status=404)
+
+    raw_fields = payload.get("fields")
+    requested_fields = raw_fields if isinstance(raw_fields, dict) else {}
+
+    for field_key in ("title_ar", "description_ar", "location_ar"):
+        if field_key in payload:
+            requested_fields[field_key] = payload.get(field_key)
+
+    if not requested_fields:
+        return JsonResponse({"saved": True, "updated_fields": []})
+
+    model_field_names = {
+        field.name
+        for field in obj._meta.get_fields()
+        if getattr(field, "concrete", False)
+    }
+
+    title_field = cfg.get("title_field") or "title"
+    description_field = cfg.get("description_field") or "description"
+
+    field_targets = {
+        "title_ar": [f"{title_field}_ar", "title_ar", "name_ar", "job_title_ar"],
+        "description_ar": [
+            f"{description_field}_ar",
+            "description_ar",
+            "content_ar",
+            "summary_ar",
+        ],
+        "location_ar": ["location_ar", "city_ar"],
+    }
+
+    update_fields = []
+    updated_logical_fields = []
+
+    for logical_key, raw_value in requested_fields.items():
+        if logical_key not in field_targets:
+            continue
+
+        cleaned_value = _safe_text(raw_value)
+        target_field = ""
+        for candidate in field_targets[logical_key]:
+            if candidate in model_field_names:
+                target_field = candidate
+                break
+
+        if not target_field:
+            continue
+
+        current_value = _safe_text(getattr(obj, target_field, ""))
+        if current_value == cleaned_value:
+            continue
+
+        setattr(obj, target_field, cleaned_value)
+        update_fields.append(target_field)
+        updated_logical_fields.append(logical_key)
+
+    if update_fields:
+        if "translation_status" in model_field_names:
+            obj.translation_status = "partial"
+            update_fields.append("translation_status")
+
+        obj.save(update_fields=list(dict.fromkeys(update_fields)))
+
+    meta = (
+        ScrapedItemMeta.objects.filter(category=cat_key)
+        .filter(
+            Q(item_id=str(obj.pk))
+            | Q(item_title__icontains=_safe_text(getattr(obj, title_field, "")))
+        )
+        .order_by("-updated_at", "-created_at")
+        .first()
+    )
+    if meta is not None and updated_logical_fields:
+        has_missing_critical = False
+        if "title_ar" in requested_fields and not _safe_text(
+            requested_fields.get("title_ar")
+        ):
+            has_missing_critical = True
+        if "description_ar" in requested_fields and not _safe_text(
+            requested_fields.get("description_ar")
+        ):
+            has_missing_critical = True
+
+        meta.translation_status = "partial" if has_missing_critical else "translated"
+        meta.save(update_fields=["translation_status"])
+
+    return JsonResponse(
+        {
+            "saved": True,
+            "updated_fields": list(dict.fromkeys(updated_logical_fields)),
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=120, period_seconds=60, scope="action")
+def reject_scraping_item_api(request, item_id):
+    """POST /scraping/api/reject/<item_id>/ for soft-reject moderation decisions."""
+    _log_scraping_action(request)
+
+    payload = {}
+    if request.content_type and "application/json" in request.content_type.lower():
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    else:
+        payload = request.POST
+
+    category_hint = _safe_text(payload.get("category")).lower()
+    resolved_category = None if category_hint in {"", "all"} else category_hint
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, resolved_category)
+
+    if not obj or not cfg or not cat_key:
+        return JsonResponse({"error": "Scraped item not found"}, status=404)
+
+    reason_code = _safe_text(payload.get("reason")).lower() or "other"
+    reason_other = _safe_text(payload.get("reason_other"))
+    reject_notes = (
+        reason_other
+        if reason_other
+        else _safe_text(payload.get("notes") or payload.get("note"))
+    )
+
+    affected = _apply_scraping_item_action(
+        obj,
+        cfg,
+        action="reject",
+        category=cat_key,
+        reject_reason=reason_code,
+        reject_notes=reject_notes,
+        user=request.user,
+    )
+    if not affected:
+        return JsonResponse({"error": "Reject operation failed"}, status=500)
+
+    normalized_reason_code = _normalize_reject_reason_code(reason_code)
+    rejection_reason = _build_rejection_reason_text(
+        normalized_reason_code, reject_notes
+    )
+
+    next_item_url = _safe_next_url(request, payload.get("next_item_url"))
+
+    return JsonResponse(
+        {
+            "rejected": True,
+            "reason_code": normalized_reason_code,
+            "reason": rejection_reason,
+            "next_url": next_item_url,
+        }
+    )
+
+
+# API aliases for the normalized scraping URL namespace.
+api_translate_field = translate_field_api
+api_save_draft = save_draft_api
+api_reject_item = reject_scraping_item_api
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def scraping_results_bulk_action(request):
+    """POST /scraping/results/bulk-action/ for validate/reject/delete actions."""
+    _log_scraping_action(request)
+
+    category_map = _scraping_result_category_map()
+
+    filters = _extract_results_filters(request.POST)
+    category_hint = filters["category"]
+    query = filters["q"]
+    run_id = filters["run_id"]
+
+    if category_hint != "all" and category_hint not in category_map:
+        category_hint = "all"
+
+    selected_run = None
+    if run_id:
+        selected_run = ScrapingRun.objects.filter(pk=run_id).first()
+        if selected_run is None:
+            run_id = ""
+
+    action = (request.POST.get("action") or "").strip().lower()
+    if action not in {"validate", "reject", "delete"}:
+        messages.warning(request, "Invalid bulk action.")
+        return redirect(
+            _results_redirect_url(
+                category_hint,
+                query,
+                run_id=run_id,
+                extra_params=filters,
+            )
+        )
+
+    all_matching = _as_bool(request.POST.get("all_matching"), default=False)
+    reject_reason = request.POST.get("reject_reason", "other")
+    reject_notes = request.POST.get("reject_notes", "")
+
+    item_tokens = _split_item_tokens(request.POST.getlist("item_ids"))
+    if not item_tokens:
+        item_tokens = _split_item_tokens(request.POST.getlist("selected_items"))
+
+    if all_matching:
+        dataset = _build_scraping_results_dataset(
+            category_map,
+            selected_category=category_hint,
+            selected_run=selected_run,
+            query=query,
+            selected_source=filters["source"],
+            confidence_filter=filters["confidence"],
+            translation_filter=filters["translation"],
+            date_range=filters["date_range"],
+            date_from=filters["date_from"],
+            date_to=filters["date_to"],
+            selected_run_id=run_id,
+        )
+        item_tokens = [row["selection_key"] for row in dataset["rows"]]
+
+    if not item_tokens:
+        messages.warning(request, "No items selected.")
+        return redirect(
+            _results_redirect_url(
+                category_hint,
+                query,
+                run_id=run_id,
+                extra_params=filters,
+            )
+        )
+
+    affected_total = 0
+    for token in item_tokens:
+        token_category = category_hint
+        token_item_id = token
+        if ":" in token:
+            token_category, token_item_id = token.split(":", 1)
+            token_category = token_category.strip().lower()
+            token_item_id = token_item_id.strip()
+
+        cat_key, cfg, obj = _resolve_scraping_item(
+            token_item_id, token_category or None
+        )
+        if not obj or not cfg:
+            continue
+        affected_total += _apply_scraping_item_action(
+            obj,
+            cfg,
+            action=action,
+            category=cat_key,
+            reject_reason=reject_reason,
+            reject_notes=reject_notes,
+            user=request.user,
+        )
+
+    if action == "validate":
+        messages.success(request, f"Published {affected_total} selected item(s).")
+    elif action == "reject":
+        messages.success(request, f"Rejected {affected_total} selected item(s).")
+    else:
+        messages.success(request, f"Deleted {affected_total} selected item(s).")
+
+    return redirect(
+        _results_redirect_url(
+            category_hint,
+            query,
+            run_id=run_id,
+            extra_params=filters,
+        )
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def scraping_results(request):
+    """Staff review queue for scraped items across categories."""
+    _log_scraping_action(request)
+    category_map = _scraping_result_category_map()
+
+    filters = _extract_results_filters(request.GET)
+    selected_category = filters["category"]
+    if selected_category != "all" and selected_category not in category_map:
+        selected_category = "all"
+
+    query = filters["q"]
+    selected_run_id = filters["run_id"]
+    selected_run = None
+
+    if selected_run_id:
+        selected_run = ScrapingRun.objects.filter(pk=selected_run_id).first()
+        if selected_run is None:
+            messages.warning(
+                request,
+                "Requested run was not found; showing unfiltered results.",
+            )
+            selected_run_id = ""
+        else:
+            selected_category = selected_run.category
+            if selected_category not in category_map:
+                return JsonResponse(
+                    {
+                        "error": (
+                            "Review not yet available for category "
+                            f"'{selected_category}'."
+                        ),
+                        "action": "contact_admin",
+                    },
+                    status=400,
+                )
+
+    dataset = _build_scraping_results_dataset(
+        category_map,
+        selected_category=selected_category,
+        selected_run=selected_run,
+        query=query,
+        selected_source=filters["source"],
+        confidence_filter=filters["confidence"],
+        translation_filter=filters["translation"],
+        date_range=filters["date_range"],
+        date_from=filters["date_from"],
+        date_to=filters["date_to"],
+        selected_run_id=selected_run_id,
+    )
+
+    rows = dataset["rows"]
+    pending_counts = dataset["pending_counts"]
+    source_options = dataset["source_options"]
+    filtered_total = dataset["filtered_total"]
+    filtered_category_counts = dataset["filtered_category_counts"]
+    filtered_low_confidence_count = dataset["filtered_low_confidence_count"]
+
+    if request.GET.get("export") == "csv":
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            'attachment; filename="scraping_queue_export.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "id",
+                "title_en",
+                "title_ar",
+                "category",
+                "confidence",
+                "translation_status",
+                "source_url",
+                "scraped_at",
+                "run_id",
+            ]
+        )
+        for row in rows:
+            writer.writerow(
+                [
+                    row["item_id"],
+                    row.get("title_en", ""),
+                    row.get("title_ar", ""),
+                    row.get("category", ""),
+                    ""
+                    if row.get("confidence_score") is None
+                    else row["confidence_score"],
+                    row.get("translation_state", ""),
+                    row.get("source_url", ""),
+                    row.get("scraped_date").isoformat()
+                    if row.get("scraped_date")
+                    else "",
+                    row.get("run_id", selected_run_id),
+                ]
+            )
+        return response
+
+    per_page = int(filters["per_page"])
+    page_number = filters["page"]
+    paginator = Paginator(rows, per_page)
+    page_obj = paginator.get_page(page_number)
+    previous_page = page_obj.previous_page_number() if page_obj.has_previous() else 1
+    next_page = (
+        page_obj.next_page_number() if page_obj.has_next() else paginator.num_pages
+    )
+
+    current_filters = {
+        "category": selected_category,
+        "q": query,
+        "run_id": selected_run_id,
+        "source": filters["source"],
+        "confidence": filters["confidence"],
+        "translation": filters["translation"],
+        "date_range": filters["date_range"],
+        "date_from": filters["date_from_raw"],
+        "date_to": filters["date_to_raw"],
+        "per_page": filters["per_page"],
+        "page": str(page_obj.number),
+    }
+
+    export_params = {}
+    for key, value in current_filters.items():
+        if key == "page":
+            continue
+        if value in {None, "", "any"}:
+            continue
+        if key == "category" and value == "all":
+            continue
+        export_params[key] = value
+    export_params["export"] = "csv"
+    export_url = reverse("scraping:scraping_results") + "?" + urlencode(export_params)
+
+    recent_runs_qs = ScrapingRun.objects.filter(
+        category__in=category_map.keys()
+    ).order_by("-started_at")[:120]
+    run_filter_options = [
+        {
+            "id": str(run.id),
+            "category": run.category,
+            "status": run.status,
+            "started_at": run.started_at,
+            "label": (
+                f"{str(run.id)[:8]} · {run.category.title()} · "
+                f"{run.started_at:%Y-%m-%d %H:%M}"
+            ),
+        }
+        for run in recent_runs_qs
+    ]
+
+    category_tabs = []
+    for key, cfg in category_map.items():
+        meta = CATEGORY_META.get(key, {})
+        category_tabs.append(
+            {
+                "key": key,
+                "label": cfg["label"],
+                "count": pending_counts.get(key, 0),
+                "color": meta.get("color", "#2563eb"),
+                "icon": meta.get("icon", "fa-circle"),
+            }
+        )
 
     return render(
         request,
         "scraping/results.html",
         {
-            "rows": rows,
+            "page_obj": page_obj,
+            "paginator": paginator,
+            "rows": page_obj.object_list,
+            "filtered_total": filtered_total,
             "selected_category": selected_category,
             "selected_run_id": selected_run_id,
             "selected_run": selected_run,
             "search_query": query,
-            "category_tabs": [
-                {
-                    "key": key,
-                    "label": cfg["label"],
-                    "count": pending_counts[key],
-                }
-                for key, cfg in category_map.items()
-            ],
+            "current_filters": current_filters,
+            "run_filter_options": run_filter_options,
+            "source_options": source_options,
+            "page_size_options": [25, 50, 100],
+            "previous_page": previous_page,
+            "next_page": next_page,
+            "category_tabs": category_tabs,
             "pending_total": sum(pending_counts.values()),
-            "latest_runs": latest_runs,
+            "filtered_category_counts_json": json.dumps(filtered_category_counts),
+            "filtered_low_confidence_count": filtered_low_confidence_count,
+            "export_url": export_url,
             "page": "scraping",
+            **_scraping_shell_context(request, active_page="results"),
         },
     )
 
@@ -1484,15 +3387,100 @@ def scraping_results(request):
 @login_required
 @user_passes_test(is_admin)
 def scraping_result_detail(request, item_id):
-    """Detail page for one scraped item review with publish/delete actions."""
+    """Professional moderation detail page with inline Arabic editing."""
     _log_scraping_action(request)
 
-    requested_category = (request.GET.get("category") or "").strip().lower() or None
-    search_query = (request.GET.get("q") or "").strip()
-    selected_run_id = (request.GET.get("run_id") or "").strip()
-    cat_key, cfg, obj = _resolve_scraping_item(item_id, requested_category)
+    category_map = _scraping_result_category_map()
+    filters = _extract_results_filters(request.GET)
+    queue_category = filters["category"]
+    if queue_category != "all" and queue_category not in category_map:
+        queue_category = "all"
+
+    item_category_hint = _safe_text(
+        request.GET.get("item_category") or request.GET.get("category")
+    ).lower()
+    if item_category_hint == "all":
+        item_category_hint = ""
+
+    selected_run_id = _safe_text(filters.get("run_id"))
+    selected_run = None
+    if selected_run_id:
+        selected_run = ScrapingRun.objects.filter(pk=selected_run_id).first()
+        if selected_run is None:
+            selected_run_id = ""
+        elif selected_run.category in category_map:
+            queue_category = selected_run.category
+
+    category_for_lookup = item_category_hint or None
+    cat_key, cfg, obj = _resolve_scraping_item(item_id, category_for_lookup)
     if not obj or not cfg or not cat_key:
         raise Http404("Scraped review item not found")
+
+    detail_filters = dict(filters)
+    detail_filters["category"] = queue_category
+    detail_filters["run_id"] = selected_run_id
+
+    dataset = _build_scraping_results_dataset(
+        category_map,
+        selected_category=queue_category,
+        selected_run=selected_run,
+        query=detail_filters["q"],
+        selected_source=detail_filters["source"],
+        confidence_filter=detail_filters["confidence"],
+        translation_filter=detail_filters["translation"],
+        date_range=detail_filters["date_range"],
+        date_from=detail_filters["date_from"],
+        date_to=detail_filters["date_to"],
+        selected_run_id=selected_run_id,
+    )
+    queue_rows = dataset["rows"]
+
+    current_selection_key = f"{cat_key}:{obj.pk}"
+    current_index = -1
+    for index, row in enumerate(queue_rows):
+        if row["selection_key"] == current_selection_key:
+            current_index = index
+            break
+
+    if current_index < 0:
+        for index, row in enumerate(queue_rows):
+            if row["item_id"] == str(obj.pk) and row["category"] == cat_key:
+                current_index = index
+                break
+
+    filtered_total = len(queue_rows)
+    position_index = current_index + 1 if current_index >= 0 else 1
+
+    prev_row = queue_rows[current_index - 1] if current_index > 0 else None
+    next_row = (
+        queue_rows[current_index + 1]
+        if current_index >= 0 and current_index + 1 < filtered_total
+        else None
+    )
+    prev_url = (
+        _build_result_detail_url(
+            prev_row["item_id"],
+            item_category=prev_row["category"],
+            filters=detail_filters,
+        )
+        if prev_row
+        else ""
+    )
+    next_url = (
+        _build_result_detail_url(
+            next_row["item_id"],
+            item_category=next_row["category"],
+            filters=detail_filters,
+        )
+        if next_row
+        else ""
+    )
+
+    model_field_names = {
+        field.name
+        for field in obj._meta.get_fields()
+        if getattr(field, "concrete", False)
+    }
 
     title_field = cfg["title_field"]
     description_field = cfg["description_field"]
@@ -1500,59 +3488,364 @@ def scraping_result_detail(request, item_id):
     date_field = cfg["date_field"]
     status_field = cfg["status_field"]
 
-    title_value = getattr(obj, title_field, "") or ""
-    description_value = getattr(obj, description_field, "") or ""
-    source_url = getattr(obj, source_field, "") or ""
+    title_en = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            f"{title_field}_en",
+            "title_en",
+            "name_en",
+            "job_title_en",
+            title_field,
+            "title",
+            "name",
+            "job_title",
+            "dataset_name",
+        ],
+        default=str(obj),
+    )
+    title_ar = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            f"{title_field}_ar",
+            "title_ar",
+            "name_ar",
+            "job_title_ar",
+            "dataset_name_ar",
+        ],
+        default="",
+    )
+
+    description_en = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            f"{description_field}_en",
+            "description_en",
+            "content_en",
+            "summary_en",
+            description_field,
+            "description",
+            "content",
+            "summary",
+        ],
+        default="",
+    )
+    description_ar = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            f"{description_field}_ar",
+            "description_ar",
+            "content_ar",
+            "summary_ar",
+        ],
+        default="",
+    )
+
+    location_field = cfg.get("location_field") or ""
+    location_en = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            "location_en",
+            location_field,
+            "location",
+            "city",
+        ],
+        default="",
+    )
+    location_ar = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=["location_ar", "city_ar"],
+        default="",
+    )
+    has_location = bool(location_en or location_ar)
+
+    source_url = _first_available_text(
+        obj,
+        model_field_names=model_field_names,
+        candidates=[
+            source_field,
+            "source_url",
+            "website",
+            "access_link",
+            "enrollment_url",
+            "url",
+            "download_url",
+        ],
+        default="",
+    )
+    source_domain = (urlparse(source_url).netloc or "").lower()
+
     scraped_date = getattr(obj, date_field, None)
-    raw_status = getattr(obj, status_field, "pending") or "pending"
-    location_value = ""
-    if cfg.get("location_field"):
-        location_value = getattr(obj, cfg["location_field"], "") or ""
+    raw_status = _safe_text(getattr(obj, status_field, "pending")) or "pending"
 
     confidence_score = None
     confidence_field = cfg.get("confidence_field")
-    if confidence_field:
+    if confidence_field and confidence_field in model_field_names:
         confidence_score = getattr(obj, confidence_field, None)
 
     meta = (
         ScrapedItemMeta.objects.filter(category=cat_key)
-        .filter(Q(item_id=str(obj.pk)) | Q(item_title=title_value))
+        .filter(Q(item_id=str(obj.pk)) | Q(item_title=title_en))
         .order_by("-updated_at", "-created_at")
         .first()
     )
-
     if confidence_score is None and meta and meta.relevance_score is not None:
         confidence_score = meta.relevance_score
     if confidence_score is not None:
         confidence_score = round(float(confidence_score), 2)
 
-    ner_entities = _extract_ner_entities(obj, cfg, meta)
+    raw_translation_status = ""
+    if "translation_status" in model_field_names:
+        raw_translation_status = _safe_text(getattr(obj, "translation_status", ""))
+    if not raw_translation_status and meta is not None:
+        raw_translation_status = _safe_text(meta.translation_status)
 
-    if request.method == "POST":
-        action = (request.POST.get("action") or "").strip().lower()
-        affected = _apply_scraping_item_action(
-            obj, cfg, action=action, user=request.user
+    title_translation_state = _translation_state_for_pair(
+        source_text=title_en,
+        target_text=title_ar,
+        raw_translation_status=raw_translation_status,
+    )
+    description_translation_state = _translation_state_for_pair(
+        source_text=description_en,
+        target_text=description_ar,
+        raw_translation_status=raw_translation_status,
+    )
+    location_translation_state = _translation_state_for_pair(
+        source_text=location_en,
+        target_text=location_ar,
+        raw_translation_status=raw_translation_status,
+    )
+
+    title_en_score = 100 if title_en else 0
+    title_ar_score = (
+        0
+        if title_translation_state == "missing"
+        else (60 if title_translation_state == "copied" else 100)
+    )
+
+    description_en_score = _text_quality_score(description_en, long_form=True)
+    if description_translation_state == "missing":
+        description_ar_score = 0
+    elif description_translation_state == "copied":
+        description_ar_score = 60
+    else:
+        description_ar_score = _text_quality_score(description_ar, long_form=True)
+
+    date_score = 100 if scraped_date else 0
+    if has_location:
+        if location_translation_state == "missing":
+            location_score = 0
+        elif location_translation_state == "copied":
+            location_score = 60
+        else:
+            location_score = 100
+    else:
+        location_score = 0
+    url_score = 100 if source_url else 0
+
+    title_group_score = round((title_en_score + title_ar_score) / 2.0, 1)
+    description_group_score = round(
+        (description_en_score + description_ar_score) / 2.0, 1
+    )
+
+    overall_confidence = round(
+        (title_group_score * 0.30)
+        + (description_group_score * 0.30)
+        + (date_score * 0.15)
+        + (location_score * 0.10)
+        + (url_score * 0.15)
+    )
+
+    translation_state_for_cap = "translated"
+    translation_state_values = [
+        title_translation_state,
+        description_translation_state,
+        location_translation_state,
+    ]
+    if any(state == "copied" for state in translation_state_values):
+        translation_state_for_cap = "copied"
+    elif not all(state == "translated" for state in translation_state_values):
+        translation_state_for_cap = "missing"
+
+    cap_status = _confidence_cap_status(
+        raw_translation_status, translation_state_for_cap
+    )
+    confidence_score = apply_translation_confidence_cap(confidence_score, cap_status)
+    overall_confidence = apply_translation_confidence_cap(
+        overall_confidence, cap_status
+    )
+    if overall_confidence is None:
+        overall_confidence = 0.0
+
+    breakdown_rows = [
+        {
+            "key": "title_en",
+            "label": "Title EN",
+            "score": title_en_score,
+            "state": _breakdown_state_for_score(title_en_score),
+        },
+        {
+            "key": "title_ar",
+            "label": "Title AR",
+            "score": title_ar_score,
+            "state": _breakdown_state_for_score(
+                title_ar_score,
+                translation_state=title_translation_state,
+            ),
+        },
+        {
+            "key": "description_en",
+            "label": "Description EN",
+            "score": description_en_score,
+            "state": _breakdown_state_for_score(description_en_score),
+        },
+        {
+            "key": "description_ar",
+            "label": "Description AR",
+            "score": description_ar_score,
+            "state": _breakdown_state_for_score(
+                description_ar_score,
+                translation_state=description_translation_state,
+            ),
+        },
+        {
+            "key": "date",
+            "label": "Date",
+            "score": date_score,
+            "state": _breakdown_state_for_score(date_score),
+        },
+        {
+            "key": "location",
+            "label": "Location",
+            "score": location_score,
+            "state": _breakdown_state_for_score(
+                location_score,
+                translation_state=location_translation_state,
+            ),
+        },
+        {
+            "key": "url",
+            "label": "URL",
+            "score": url_score,
+            "state": _breakdown_state_for_score(url_score),
+        },
+    ]
+
+    title_ar_target_field = ""
+    for candidate in [f"{title_field}_ar", "title_ar", "name_ar", "job_title_ar"]:
+        if candidate in model_field_names:
+            title_ar_target_field = candidate
+            break
+
+    description_ar_target_field = ""
+    for candidate in [
+        f"{description_field}_ar",
+        "description_ar",
+        "content_ar",
+        "summary_ar",
+    ]:
+        if candidate in model_field_names:
+            description_ar_target_field = candidate
+            break
+
+    location_ar_target_field = ""
+    for candidate in ["location_ar", "city_ar"]:
+        if candidate in model_field_names:
+            location_ar_target_field = candidate
+            break
+
+    source_name = (
+        _safe_text(getattr(meta, "source_name", ""))
+        or _safe_text(getattr(obj, "source_name", ""))
+        or source_domain
+    )
+
+    source_health = None
+    if source_name:
+        source_health = ScrapingSourceHealth.objects.filter(
+            category=cat_key,
+            source_name__iexact=source_name,
+        ).first()
+    if source_health is None and source_domain:
+        source_health = (
+            ScrapingSourceHealth.objects.filter(
+                category=cat_key,
+                base_url__icontains=source_domain,
+            )
+            .order_by("-last_attempt_at")
+            .first()
         )
 
-        if action == "validate" and affected:
-            messages.success(request, "Item validated and published.")
-            try:
-                target_url = obj.get_absolute_url()
-            except Exception:
-                target_url = (
-                    reverse("scraping:scraping_results") + f"?category={cat_key}"
-                )
-            return redirect(target_url)
+    trust_score = None
+    response_seconds = None
+    if source_health is not None:
+        if source_health.health_score is not None:
+            trust_score = round(float(source_health.health_score) / 100.0, 2)
+        if source_health.avg_response_time is not None:
+            response_seconds = round(float(source_health.avg_response_time), 2)
 
-        if action == "delete" and affected:
-            messages.success(request, "Item deleted permanently.")
-            back_url = reverse("scraping:scraping_results") + f"?category={cat_key}"
-            return redirect(back_url)
+    translation_states = [title_translation_state, description_translation_state]
+    if has_location:
+        translation_states.append(location_translation_state)
+    translation_total_fields = len(translation_states)
+    translated_fields_count = len(
+        [state for state in translation_states if state == "translated"]
+    )
 
-        messages.warning(request, "No valid action was applied.")
+    translation_status = raw_translation_status
+    if not translation_status:
+        if (
+            translated_fields_count == translation_total_fields
+            and translation_total_fields > 0
+        ):
+            translation_status = "translated"
+        elif translated_fields_count > 0:
+            translation_status = "partial"
+        else:
+            copied_fields_count = len(
+                [state for state in translation_states if state == "copied"]
+            )
+            translation_status = "copied" if copied_fields_count > 0 else "missing"
 
-    back_url = _results_redirect_url(cat_key, search_query, run_id=selected_run_id)
-    validation_label = _result_status_label(raw_status)
+    provenance_warnings = []
+    if title_translation_state == "copied":
+        provenance_warnings.append({"key": "title_copied", "value": ""})
+    if description_translation_state == "missing":
+        provenance_warnings.append({"key": "description_missing", "value": ""})
+    if has_location and location_translation_state == "missing":
+        provenance_warnings.append({"key": "location_missing", "value": ""})
+    if meta is not None and _safe_text(meta.skip_reason):
+        provenance_warnings.append(
+            {"key": "skip_reason", "value": _safe_text(meta.skip_reason)}
+        )
+    if source_health is not None and _safe_text(source_health.last_error):
+        provenance_warnings.append(
+            {"key": "source_error", "value": _safe_text(source_health.last_error)}
+        )
+
+    date_display = ""
+    date_display_ar = ""
+    if scraped_date is not None:
+        if hasattr(scraped_date, "strftime"):
+            date_display = scraped_date.strftime("%Y-%m-%d")
+            date_display_ar = _to_arabic_digits(date_display)
+
+    ner_entities = _extract_ner_entities(obj, cfg, meta)
+
+    back_url = _results_redirect_url(
+        queue_category,
+        detail_filters["q"],
+        run_id=selected_run_id,
+        extra_params=detail_filters,
+    )
+    fallback_next_url = next_url or back_url
+
+    context_position_total = filtered_total if filtered_total > 0 else 1
 
     return render(
         request,
@@ -1562,21 +3855,68 @@ def scraping_result_detail(request, item_id):
             "item_id": str(obj.pk),
             "category": cat_key,
             "category_label": cfg["label"],
-            "title": title_value,
-            "description": description_value,
+            "queue_category": queue_category,
+            "queue_category_label": (
+                category_map.get(queue_category, {}).get("label", "All")
+                if queue_category != "all"
+                else "All"
+            ),
+            "status_label": _result_status_label(raw_status),
+            "status_badge": _result_status_badge(raw_status),
+            "overall_confidence": overall_confidence,
+            "extracted_confidence": confidence_score,
+            "breakdown_rows": breakdown_rows,
+            "title_en": title_en,
+            "title_ar": title_ar,
+            "description_en": description_en,
+            "description_ar": description_ar,
+            "location_en": location_en,
+            "location_ar": location_ar,
+            "has_location": has_location,
             "source_url": source_url,
+            "source_domain": source_domain,
             "scraped_date": scraped_date,
-            "location": location_value,
+            "date_display": date_display,
+            "date_display_ar": date_display_ar,
+            "position_index": position_index,
+            "position_total": context_position_total,
+            "filtered_total": filtered_total,
+            "prev_url": prev_url,
+            "next_url": next_url,
+            "has_prev": bool(prev_url),
+            "has_next": bool(next_url),
+            "title_translation_state": title_translation_state,
+            "description_translation_state": description_translation_state,
+            "location_translation_state": location_translation_state,
+            "title_ar_target_field": title_ar_target_field,
+            "description_ar_target_field": description_ar_target_field,
+            "location_ar_target_field": location_ar_target_field,
+            "source_name": source_name,
+            "trust_score": trust_score,
+            "query_used": detail_filters["q"],
+            "run_id": selected_run_id,
+            "run_started_at": getattr(selected_run, "started_at", None),
+            "llm_model": _safe_text(getattr(settings, "GROQ_SCRAPING_MODEL", ""))
+            or "llama-3.3-70b-versatile",
+            "llm_response_seconds": response_seconds,
+            "translation_status": translation_status,
+            "translation_total_fields": translation_total_fields,
+            "translated_fields_count": translated_fields_count,
+            "provenance_warnings": provenance_warnings,
             "ner_entities": ner_entities,
-            "validation_label": validation_label,
-            "validation_badge": _result_status_badge(raw_status),
-            "confidence_score": confidence_score,
-            "raw_url": source_url,
             "meta": meta,
             "back_url": back_url,
-            "search_query": search_query,
-            "selected_run_id": selected_run_id,
+            "fallback_next_url": fallback_next_url,
+            "current_filters": detail_filters,
+            "translate_field_api_url": reverse("scraping:translate_field_api"),
+            "save_draft_api_url": reverse("scraping:save_draft_api", args=[obj.pk]),
+            "reject_api_url": reverse(
+                "scraping:reject_scraping_item_api", args=[obj.pk]
+            ),
+            "validate_url": reverse("scraping:scraping_result_validate", args=[obj.pk]),
+            "delete_url": reverse("scraping:scraping_result_delete", args=[obj.pk]),
             "page": "scraping",
+            **_scraping_shell_context(request, active_page="results"),
         },
     )
 
@@ -1591,6 +3931,14 @@ def run_scraper(request, category):
     Falls back to synchronous execution if Celery is unavailable.
     """
     _log_scraping_action(request)
+
+    if not _check_rate_limit(request, scope="run_trigger", max_calls=10, period=3600):
+        return JsonResponse(
+            {"error": "Too many run requests. Max 10 per hour."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
     staff_error = _require_staff(request)
     if staff_error:
         return staff_error
@@ -1643,19 +3991,23 @@ def run_scraper(request, category):
         run.items_found = result.get("items_found", 0)
         run.items_created = result.get("items_created", 0)
         run.items_skipped = result.get("items_skipped", 0)
-        run.errors = "\n".join(result.get("errors", []))
-        run.status = "completed"
+        result_errors = result.get("errors", [])
+        if not isinstance(result_errors, list):
+            result_errors = [str(result_errors)] if result_errors else []
+        run.errors = "\n".join(str(err) for err in result_errors if err)
+        has_items = bool(int(run.items_found or 0) or int(run.items_created or 0))
+        run.status = "failed" if run.errors and not has_items else "completed"
         run.completed_at = timezone.now()
         run.save()
 
         return JsonResponse(
             {
-                "status": "success",
+                "status": "error" if run.status == "failed" else "success",
                 "run_id": str(run.pk),
                 "items_found": run.items_found,
                 "items_created": run.items_created,
                 "items_skipped": run.items_skipped,
-                "errors": result.get("errors", []),
+                "errors": result_errors,
                 "results": result.get("results", []),
                 "duration": run.duration,
             }
@@ -1680,6 +4032,249 @@ def run_scraper(request, category):
 @login_required
 @user_passes_test(is_admin)
 @require_GET
+@rate_limit(max_calls=120, period_seconds=60, scope="polling")
+def category_stats(request, category):
+    """Return card-level stats for one scraping category."""
+    _log_scraping_action(request)
+    normalized_category = (category or "").strip().lower()
+    if normalized_category not in CATEGORY_META:
+        return JsonResponse({"error": "Unknown category"}, status=400)
+
+    model_cls = _model_for_category(normalized_category)
+    total_items = 0
+    pending_items = 0
+    if model_cls is not None:
+        total_items = model_cls.objects.count()
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+        if "approval_status" in field_names:
+            pending_items = model_cls.objects.filter(approval_status="pending").count()
+        elif "is_approved" in field_names:
+            pending_items = model_cls.objects.filter(is_approved=False).count()
+
+    last_run = (
+        ScrapingRun.objects.filter(category=normalized_category)
+        .order_by("-started_at")
+        .first()
+    )
+    last_run_status = ""
+    if last_run is not None:
+        last_run_status = str(last_run.status or "").strip().lower() or "completed"
+        if (
+            last_run_status == "completed"
+            and str(last_run.errors or "").strip()
+            and int(last_run.items_found or 0) == 0
+        ):
+            last_run_status = "failed"
+    review_supported_categories = set(_scraping_result_category_map().keys())
+
+    return JsonResponse(
+        {
+            "category": normalized_category,
+            "pending_count": pending_items,
+            "total_count": total_items,
+            "can_review": normalized_category in review_supported_categories,
+            "last_run": (
+                {
+                    "run_id": str(last_run.id),
+                    "status": last_run_status,
+                    "started_at": (
+                        last_run.started_at.isoformat() if last_run.started_at else None
+                    ),
+                    "completed_at": (
+                        last_run.completed_at.isoformat()
+                        if last_run.completed_at
+                        else None
+                    ),
+                    "duration_seconds": last_run.duration,
+                    "items_found": int(last_run.items_found or 0),
+                    "items_created": int(last_run.items_created or 0),
+                    "items_skipped": int(last_run.items_skipped or 0),
+                    "error_message": str(last_run.errors or ""),
+                }
+                if last_run
+                else None
+            ),
+        }
+    )
+
+
+api_category_stats = category_stats
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_GET
+@rate_limit(max_calls=60, period_seconds=60, scope="analytics")
+def quick_stats(request):
+    """Return compact quick stats payload used by the dashboard sidebar."""
+    _log_scraping_action(request)
+    return JsonResponse(_collect_quick_stats_payload())
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=30, period_seconds=60, scope="action")
+def add_prompt_api(request):
+    """Create or update one search prompt row without reloading the page."""
+    _log_scraping_action(request)
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    category = str(payload.get("category") or "").strip().lower()
+    query_text = str(payload.get("query_text") or "").strip()
+    is_active = _as_bool(payload.get("is_active"), default=True)
+
+    if category not in CATEGORY_META:
+        return JsonResponse({"error": "Unknown category"}, status=400)
+    if not query_text:
+        return JsonResponse({"error": "query_text is required"}, status=400)
+
+    query_obj, created = SearchQuery.objects.get_or_create(
+        category=category,
+        query_text=query_text,
+        defaults={"is_active": is_active},
+    )
+    if not created and query_obj.is_active != is_active:
+        query_obj.is_active = is_active
+        query_obj.save(update_fields=["is_active"])
+
+    return JsonResponse(
+        {
+            "id": str(query_obj.id),
+            "category": query_obj.category,
+            "query_text": query_obj.query_text,
+            "is_active": bool(query_obj.is_active),
+            "created": created,
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=60, period_seconds=60, scope="action")
+def toggle_prompt_api(request, query_id):
+    """Toggle one prompt active state (or set explicitly) for inline prompt chips."""
+    _log_scraping_action(request)
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    query_obj = SearchQuery.objects.filter(id=query_id).first()
+    if query_obj is None:
+        return JsonResponse({"error": "Prompt not found"}, status=404)
+
+    explicit_value = payload.get("is_active", None)
+    if explicit_value is None:
+        query_obj.is_active = not query_obj.is_active
+    else:
+        query_obj.is_active = _as_bool(explicit_value, default=False)
+    query_obj.save(update_fields=["is_active"])
+
+    return JsonResponse(
+        {
+            "id": str(query_obj.id),
+            "category": query_obj.category,
+            "query_text": query_obj.query_text,
+            "is_active": bool(query_obj.is_active),
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=10, period_seconds=60, scope="action")
+def stop_scraping_run(request, run_id):
+    """Stop one active run and mark it as failed with a stop reason."""
+    _log_scraping_action(request)
+
+    run = ScrapingRun.objects.filter(pk=run_id).first()
+    if run is None:
+        return JsonResponse({"error": "Run not found"}, status=404)
+
+    if run.status != "running":
+        return JsonResponse(
+            {
+                "status": run.status,
+                "run_id": str(run.id),
+                "message": "Run is not active.",
+            }
+        )
+
+    stop_reason = "Stopped by admin"
+    if run.task_id:
+        try:
+            AsyncResult(run.task_id).revoke(terminate=True)
+        except Exception as exc:
+            logger.warning(
+                "stop_run_revoke_failed",
+                extra={"error": str(exc), "context": str(run.id)},
+                exc_info=False,
+            )
+
+    if run.errors:
+        if stop_reason not in run.errors:
+            run.errors = f"{run.errors}\n{stop_reason}"
+    else:
+        run.errors = stop_reason
+
+    run.status = "failed"
+    run.current_step = stop_reason
+    run.current_message = stop_reason
+    run.completed_at = timezone.now()
+    run.save(
+        update_fields=[
+            "status",
+            "errors",
+            "current_step",
+            "current_message",
+            "completed_at",
+        ]
+    )
+
+    try:
+        push_scraping_progress(
+            str(run.id),
+            status="failed",
+            step="stopped",
+            progress_current=int(run.progress_current or 0),
+            progress_total=int(run.progress_total or 0),
+            items_scraped=int(run.items_created or 0),
+            items_failed=int(getattr(run, "items_failed", run.items_skipped) or 0),
+            current_source=run.current_source or "",
+            current_step=run.current_step,
+            message=stop_reason,
+        )
+    except Exception as exc:
+        logger.debug("stop_run_progress_emit_failed: %s", exc)
+
+    review_url = f"{reverse('scraping:scraping_results')}?run_id={run.id}"
+    return JsonResponse(
+        {
+            "status": "stopped",
+            "run_id": str(run.id),
+            "message": stop_reason,
+            "review_url": review_url,
+        }
+    )
+
+
+@login_required
+@staff_member_required
+@user_passes_test(is_admin)
+@require_GET
 @rate_limit(max_calls=60, period_seconds=60, scope="polling")
 def run_scraper_status(request, run_id):
     """AJAX endpoint: poll the status of an asynchronous scraping run."""
@@ -1696,9 +4291,28 @@ def run_scraper_status(request, run_id):
     data = {
         "status": run.status,
         "run_id": str(run.pk),
+        "step": run.current_step or "",
+        "message": getattr(run, "current_message", "") or run.current_step or "",
+        "current": int(run.progress_current or 0),
+        "total": int(run.progress_total or 0),
+        "percent": (
+            int((int(run.progress_current or 0) / int(run.progress_total or 0)) * 100)
+            if int(run.progress_total or 0) > 0
+            else 0
+        ),
+        "progress": int(run.progress_current or 0),
+        "progress_current": int(run.progress_current or 0),
+        "progress_total": int(run.progress_total or 0),
+        "current_step": run.current_step or "",
+        "current_message": getattr(run, "current_message", "")
+        or run.current_step
+        or "",
+        "current_source": run.current_source or "",
+        "current_item": getattr(run, "current_item", run.current_source) or "",
         "items_found": run.items_found,
         "items_created": run.items_created,
         "items_skipped": run.items_skipped,
+        "items_failed": int(getattr(run, "items_failed", run.items_skipped) or 0),
         "duration": run.duration,
     }
 
@@ -1794,63 +4408,346 @@ def run_custom_source(request, source_id):
 
 
 @login_required
+@staff_member_required
 @user_passes_test(is_admin)
 @require_GET
 @rate_limit(max_calls=30, period_seconds=60, scope="analytics")
-def trends(request):
-    """AJAX endpoint: return trend analysis for the last N months."""
+def scraping_analytics_page(request):
+    """Render analytics page for browsers; return JSON data for API callers."""
     _log_scraping_action(request)
-    months = int(request.GET.get("months", 6))
-    months = max(1, min(months, 24))  # clamp to 1-24
 
-    try:
-        data = detect_trends(months=months)
-        return JsonResponse({"status": "ok", **data})
-    except Exception as exc:
-        logger.exception("Trend detection failed: %s", exc)
-        return JsonResponse(
-            {"status": "error", "message": str(exc)},
-            status=500,
-        )
+    window = _parse_analytics_date_window(request)
+
+    if (request.GET.get("export") or "").strip().lower() == "csv":
+        payload = _collect_analytics_payload(window)
+        return _export_analytics_csv(payload)
+
+    wants_json = (request.GET.get("format") or "").strip().lower() == "json"
+    if wants_json or not _request_prefers_html(request):
+        return _analytics_json_response(request, window=window)
+
+    completed_runs_count = ScrapingRun.objects.filter(status="completed").count()
+    category_meta = {
+        category: {
+            "label": str(
+                _(CATEGORY_META.get(category, {}).get("label", category.title()))
+            ),
+            "color": _source_color_token(category),
+        }
+        for category in CATEGORY_META
+    }
+
+    context = {
+        "page": "scraping",
+        "completed_runs_count": completed_runs_count,
+        "has_enough_data": completed_runs_count >= 3,
+        "default_range": window["range"],
+        "default_date_from": window["start_date"].isoformat(),
+        "default_date_to": window["end_date"].isoformat(),
+        "category_meta_json": json.dumps(category_meta),
+        **_scraping_shell_context(request, active_page="analytics"),
+    }
+    return render(request, "scraping/analytics.html", context)
 
 
-@login_required
-@user_passes_test(is_admin)
-@require_GET
-@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
-def analytics(request):
-    """Structured scraping analytics by category + media + enrichment."""
-    _log_scraping_action(request)
+def _request_prefers_html(request) -> bool:
+    if (request.GET.get("view") or "").strip().lower() == "page":
+        return True
+
+    accept_header = (request.headers.get("Accept") or "").lower()
+    return "text/html" in accept_header and "application/json" not in accept_header
+
+
+def _parse_analytics_date_window(request) -> dict:
+    range_key = (request.GET.get("range") or "30").strip().lower()
+    if range_key not in {"7", "30", "90", "custom"}:
+        range_key = "30"
+
+    today = timezone.localdate()
+    start_date = today - timedelta(days=29)
+    end_date = today
+
+    if range_key in {"7", "30", "90"}:
+        days = int(range_key)
+        start_date = today - timedelta(days=days - 1)
+        end_date = today
+    else:
+        custom_from = _parse_date_param(request.GET.get("date_from"))
+        custom_to = _parse_date_param(request.GET.get("date_to"))
+        if custom_from and custom_to and custom_from <= custom_to:
+            start_date = custom_from
+            end_date = custom_to
+        else:
+            range_key = "30"
+            start_date = today - timedelta(days=29)
+            end_date = today
+
+    days = max(1, (end_date - start_date).days + 1)
+    prev_end_date = start_date - timedelta(days=1)
+    prev_start_date = prev_end_date - timedelta(days=days - 1)
+
+    range_label_map = {
+        "7": _("Last 7 days"),
+        "30": _("Last 30 days"),
+        "90": _("Last 90 days"),
+        "custom": _("Custom"),
+    }
+
+    return {
+        "range": range_key,
+        "range_label": str(range_label_map.get(range_key, _("Last 30 days"))),
+        "start_date": start_date,
+        "end_date": end_date,
+        "days": days,
+        "prev_start_date": prev_start_date,
+        "prev_end_date": prev_end_date,
+    }
+
+
+def _apply_date_window(queryset, field_name: str, window: dict):
+    return queryset.filter(
+        **{
+            f"{field_name}__date__gte": window["start_date"],
+            f"{field_name}__date__lte": window["end_date"],
+        }
+    )
+
+
+def _run_items_scraped_count(run: ScrapingRun) -> int:
+    found = int(run.items_found or 0)
+    if found > 0:
+        return found
+    return int(run.items_created or 0) + int(run.items_skipped or 0)
+
+
+def _safe_percentage(numerator: float, denominator: float) -> float:
+    if denominator <= 0:
+        return 0.0
+    return float(numerator) / float(denominator) * 100.0
+
+
+def _metric_delta_payload(
+    current_value: float,
+    previous_value: float,
+    *,
+    higher_is_better: bool,
+) -> dict:
+    if previous_value <= 0:
+        raw_change = 0.0 if current_value == 0 else 100.0
+    else:
+        raw_change = ((current_value - previous_value) / previous_value) * 100.0
+
+    if current_value > previous_value:
+        direction = "up"
+    elif current_value < previous_value:
+        direction = "down"
+    else:
+        direction = "flat"
+
+    improving = (
+        current_value >= previous_value
+        if higher_is_better
+        else current_value <= previous_value
+    )
+
+    return {
+        "change_pct": round(abs(raw_change), 1),
+        "direction": direction,
+        "improving": improving,
+    }
+
+
+def _normalize_rejection_reason(reason_text: str) -> str:
+    value = str(reason_text or "").strip().lower()
+    if not value:
+        return "other"
+
+    if any(
+        term in value for term in ["irrelevant", "not relevant", "off-topic", "hors"]
+    ):
+        return "irrelevant"
+    if any(term in value for term in ["arabic", "translation", "لغة", "traduction"]):
+        return "poor_arabic"
+    if any(
+        term in value for term in ["duplicate", "dup", "already exists", "existing"]
+    ):
+        return "duplicate"
+    if any(term in value for term in ["source", "spam", "broken", "invalid url"]):
+        return "bad_source"
+    return "other"
+
+
+def _collect_basic_kpis(window: dict, category_cfg_map: dict) -> dict:
+    completed_runs = _apply_date_window(
+        ScrapingRun.objects.filter(status="completed"),
+        "started_at",
+        window,
+    )
+
+    total_scraped = sum(_run_items_scraped_count(run) for run in completed_runs)
+
+    durations = []
+    for run in completed_runs.only("started_at", "completed_at"):
+        if run.started_at and run.completed_at:
+            durations.append((run.completed_at - run.started_at).total_seconds())
+    avg_run_duration_seconds = (
+        round(sum(durations) / len(durations), 2) if durations else 0.0
+    )
+
+    period_meta_qs = ScrapedItemMeta.objects.filter(
+        created_at__date__gte=window["start_date"],
+        created_at__date__lte=window["end_date"],
+    )
+    avg_confidence = float(
+        period_meta_qs.aggregate(avg=Avg("relevance_score"))["avg"] or 0.0
+    )
+
+    dedup_meta = period_meta_qs.filter(
+        was_skipped=True, skip_reason__startswith="dedup_"
+    )
+    duplicate_rate = _safe_percentage(dedup_meta.count(), period_meta_qs.count())
+
+    approved_total = 0
+    reviewed_total = 0
+
+    for cfg in category_cfg_map.values():
+        model_cls = cfg.get("model")
+        status_field = cfg.get("status_field")
+        source_field = cfg.get("source_field")
+        date_field = cfg.get("date_field")
+        if not model_cls or not status_field or not date_field:
+            continue
+
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+
+        category_qs = model_cls.objects.all()
+        if source_field and source_field in field_names:
+            category_qs = category_qs.exclude(
+                **{f"{source_field}__isnull": True}
+            ).exclude(**{source_field: ""})
+
+        category_qs = _apply_date_window(category_qs, date_field, window)
+        reviewed_total += category_qs.count()
+        approved_total += category_qs.filter(**{status_field: "approved"}).count()
+
+    approval_rate = _safe_percentage(approved_total, reviewed_total)
+
+    return {
+        "total_scraped": int(total_scraped),
+        "approval_rate": round(approval_rate, 1),
+        "avg_confidence": round(avg_confidence, 1),
+        "duplicate_rate": round(duplicate_rate, 1),
+        "avg_run_duration_seconds": round(avg_run_duration_seconds, 2),
+    }
+
+
+def _collect_analytics_payload(window: dict) -> dict:
+    category_cfg_map = _scraping_result_category_map()
+    category_keys = list(CATEGORY_META.keys())
+
+    current_basic = _collect_basic_kpis(window, category_cfg_map)
+    previous_basic = _collect_basic_kpis(
+        {
+            "start_date": window["prev_start_date"],
+            "end_date": window["prev_end_date"],
+        },
+        category_cfg_map,
+    )
+
+    kpis = {
+        "total_scraped": {
+            "value": int(current_basic["total_scraped"]),
+            **_metric_delta_payload(
+                current_basic["total_scraped"],
+                previous_basic["total_scraped"],
+                higher_is_better=True,
+            ),
+        },
+        "approval_rate": {
+            "value": float(current_basic["approval_rate"]),
+            **_metric_delta_payload(
+                current_basic["approval_rate"],
+                previous_basic["approval_rate"],
+                higher_is_better=True,
+            ),
+        },
+        "avg_confidence": {
+            "value": float(current_basic["avg_confidence"]),
+            **_metric_delta_payload(
+                current_basic["avg_confidence"],
+                previous_basic["avg_confidence"],
+                higher_is_better=True,
+            ),
+        },
+        "duplicate_rate": {
+            "value": float(current_basic["duplicate_rate"]),
+            **_metric_delta_payload(
+                current_basic["duplicate_rate"],
+                previous_basic["duplicate_rate"],
+                higher_is_better=False,
+            ),
+        },
+        "avg_run_duration_seconds": {
+            "value": float(current_basic["avg_run_duration_seconds"]),
+            **_metric_delta_payload(
+                current_basic["avg_run_duration_seconds"],
+                previous_basic["avg_run_duration_seconds"],
+                higher_is_better=False,
+            ),
+        },
+    }
 
     by_category = {}
+    approval_by_category = []
     skip_values = [choice[0] for choice in ScrapedItemMeta.SKIP_REASON_CHOICES]
 
-    for category in CATEGORY_META:
-        runs = ScrapingRun.objects.filter(category=category)
-        completed = runs.filter(status="completed")
-        total_runs = runs.count()
-        total_saved = int(completed.aggregate(total=Sum("items_created"))["total"] or 0)
-        total_skipped = int(
-            completed.aggregate(total=Sum("items_skipped"))["total"] or 0
-        )
-        avg_duration = 0.0
-        duration_values = []
-        for run in completed.only("started_at", "completed_at"):
-            if run.started_at and run.completed_at:
-                duration_values.append(
-                    (run.completed_at - run.started_at).total_seconds()
-                )
-        if duration_values:
-            avg_duration = round(sum(duration_values) / len(duration_values), 2)
+    period_meta_qs = ScrapedItemMeta.objects.filter(
+        created_at__date__gte=window["start_date"],
+        created_at__date__lte=window["end_date"],
+    )
 
+    for category in category_keys:
+        runs = _apply_date_window(
+            ScrapingRun.objects.filter(category=category),
+            "started_at",
+            window,
+        )
+        completed_runs = runs.filter(status="completed")
+
+        total_runs = runs.count()
+        total_saved = int(
+            completed_runs.aggregate(total=Sum("items_created"))["total"] or 0
+        )
+        total_skipped = int(
+            completed_runs.aggregate(total=Sum("items_skipped"))["total"] or 0
+        )
+
+        durations = []
+        for run in completed_runs.only("started_at", "completed_at"):
+            if run.started_at and run.completed_at:
+                durations.append((run.completed_at - run.started_at).total_seconds())
+        avg_duration = round(sum(durations) / len(durations), 2) if durations else 0.0
+
+        cat_meta_qs = period_meta_qs.filter(category=category)
         skip_breakdown = {
-            reason: ScrapedItemMeta.objects.filter(
-                category=category,
-                was_skipped=True,
-                skip_reason=reason,
-            ).count()
+            reason: cat_meta_qs.filter(was_skipped=True, skip_reason=reason).count()
             for reason in skip_values
         }
+
+        by_source = (
+            cat_meta_qs.filter(was_skipped=True)
+            .values("source_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        skip_by_source = [
+            {"source": item["source_name"] or "Unknown", "count": int(item["count"])}
+            for item in by_source
+        ]
 
         source_health = []
         for source in ScrapingSourceHealth.objects.filter(category=category).order_by(
@@ -1860,35 +4757,215 @@ def analytics(request):
                 {
                     "source": source.source_name,
                     "state": source.circuit_state,
-                    "score": round(float(source.health_score) / 100.0, 4),
+                    "score": round(float(source.health_score or 0) / 100.0, 4),
                 }
             )
 
-        last_completed = completed.aggregate(last_run_at=Max("started_at"))[
+        last_completed = completed_runs.aggregate(last_run_at=Max("started_at"))[
             "last_run_at"
         ]
 
-        by_source = (
-            ScrapedItemMeta.objects.filter(category=category, was_skipped=True)
-            .values("source_name")
-            .annotate(count=Count("id"))
-            .order_by("-count")
+        category_label = str(
+            _(CATEGORY_META.get(category, {}).get("label", category.title()))
         )
-        skip_by_source = [
-            {"source": item["source_name"] or "Unknown", "count": item["count"]}
-            for item in by_source
-        ]
+        approval_rate = 0.0
+        approved_records = 0
+        total_records = 0
+
+        cfg = category_cfg_map.get(category)
+        if cfg is not None:
+            model_cls = cfg.get("model")
+            source_field = cfg.get("source_field")
+            status_field = cfg.get("status_field")
+            date_field = cfg.get("date_field")
+            if model_cls and source_field and status_field and date_field:
+                field_names = {
+                    field.name
+                    for field in model_cls._meta.get_fields()
+                    if getattr(field, "concrete", False)
+                }
+                cat_qs = model_cls.objects.all()
+                if source_field in field_names:
+                    cat_qs = cat_qs.exclude(
+                        **{f"{source_field}__isnull": True}
+                    ).exclude(**{source_field: ""})
+                cat_qs = _apply_date_window(cat_qs, date_field, window)
+
+                total_records = cat_qs.count()
+                approved_records = cat_qs.filter(**{status_field: "approved"}).count()
+                approval_rate = round(
+                    _safe_percentage(approved_records, total_records), 1
+                )
+
+        approval_by_category.append(
+            {
+                "category": category,
+                "label": category_label,
+                "approved": int(approved_records),
+                "total": int(total_records),
+                "approval_rate": float(approval_rate),
+                "color": _source_color_token(category),
+            }
+        )
 
         by_category[category] = {
-            "total_runs": total_runs,
-            "total_saved": total_saved,
-            "total_skipped": total_skipped,
+            "total_runs": int(total_runs),
+            "total_saved": int(total_saved),
+            "total_skipped": int(total_skipped),
             "skip_breakdown": skip_breakdown,
             "skip_by_source": skip_by_source,
-            "avg_run_duration_seconds": avg_duration,
+            "avg_run_duration_seconds": float(avg_duration),
             "last_run_at": last_completed.isoformat() if last_completed else None,
             "source_health": source_health,
+            "approval_rate": float(approval_rate),
+            "approved": int(approved_records),
+            "total_records": int(total_records),
         }
+
+    approval_by_category.sort(key=lambda item: item["approval_rate"], reverse=True)
+
+    date_points = [
+        window["start_date"] + timedelta(days=idx) for idx in range(window["days"])
+    ]
+    date_to_index = {date_value: idx for idx, date_value in enumerate(date_points)}
+    category_series = {category: [0] * len(date_points) for category in category_keys}
+
+    series_runs = _apply_date_window(
+        ScrapingRun.objects.filter(status="completed"),
+        "started_at",
+        window,
+    ).only("category", "started_at", "items_found", "items_created", "items_skipped")
+
+    for run in series_runs:
+        run_date = run.started_at.date() if run.started_at else None
+        if run_date is None or run_date not in date_to_index:
+            continue
+        if run.category not in category_series:
+            continue
+        category_series[run.category][date_to_index[run_date]] += (
+            _run_items_scraped_count(run)
+        )
+
+    translated_count = period_meta_qs.filter(translation_status="translated").count()
+    copied_count = period_meta_qs.filter(
+        translation_status__in=["copied", "partial"]
+    ).count()
+    missing_count = period_meta_qs.filter(
+        translation_status__in=["missing", "pending"]
+    ).count()
+    fully_translated_pct = round(
+        _safe_percentage(translated_count, period_meta_qs.count()),
+        1,
+    )
+
+    rejection_reasons_order = [
+        ("irrelevant", str(_("Irrelevant"))),
+        ("poor_arabic", str(_("Poor Arabic"))),
+        ("duplicate", str(_("Duplicate"))),
+        ("bad_source", str(_("Bad source"))),
+        ("other", str(_("Other"))),
+    ]
+    rejection_matrix = {
+        key: {category: 0 for category in category_keys}
+        for key, _label in rejection_reasons_order
+    }
+
+    rejected_qs = RejectedItem.objects.filter(
+        created_at__date__gte=window["start_date"],
+        created_at__date__lte=window["end_date"],
+    )
+    for rejected_item in rejected_qs.only("category", "reason_for_rejection"):
+        category = str(rejected_item.category or "").strip().lower()
+        if category not in rejection_matrix["other"]:
+            continue
+        reason_key = _normalize_rejection_reason(rejected_item.reason_for_rejection)
+        rejection_matrix[reason_key][category] += 1
+
+    rejection_reasons = {
+        "categories": category_keys,
+        "datasets": [
+            {
+                "key": key,
+                "label": label,
+                "values": [
+                    int(rejection_matrix[key][category]) for category in category_keys
+                ],
+            }
+            for key, label in rejection_reasons_order
+        ],
+    }
+
+    source_performance = []
+    source_health_map = {}
+    for source_health in ScrapingSourceHealth.objects.all():
+        source_health_map[
+            (source_health.category, source_health.source_name.lower())
+        ] = source_health
+
+    for source in ScrapingSource.objects.filter(is_active=True):
+        source_runs = _apply_date_window(
+            ScrapingRun.objects.filter(source=source),
+            "started_at",
+            window,
+        )
+        run_count = source_runs.count()
+        if run_count == 0:
+            continue
+
+        completed_source_runs = source_runs.filter(status="completed")
+        completed_count = completed_source_runs.count()
+        items_created_total = int(
+            completed_source_runs.aggregate(total=Sum("items_created"))["total"] or 0
+        )
+        avg_yield = (
+            round(items_created_total / completed_count, 1) if completed_count else 0.0
+        )
+
+        source_meta = period_meta_qs.filter(source_name__iexact=source.name)
+        accepted_count = source_meta.filter(was_skipped=False).count()
+        skipped_count = source_meta.filter(was_skipped=True).count()
+        approval_rate = round(
+            _safe_percentage(accepted_count, accepted_count + skipped_count),
+            1,
+        )
+
+        domain = urlparse(source.url or source.base_url or "").netloc
+        health = source_health_map.get((source.category, source.name.lower()))
+        health_score = int(round(float(getattr(health, "health_score", 0) or 0)))
+        if health_score >= 80:
+            health_state = "good"
+        elif health_score >= 50:
+            health_state = "warn"
+        else:
+            health_state = "bad"
+
+        source_performance.append(
+            {
+                "id": str(source.id),
+                "name": source.name,
+                "domain": domain,
+                "category": source.category,
+                "runs": int(run_count),
+                "avg_yield": float(avg_yield),
+                "approval_rate": float(approval_rate),
+                "health_score": int(health_score),
+                "health_state": health_state,
+            }
+        )
+
+    source_performance.sort(
+        key=lambda row: (-row["runs"], -row["approval_rate"], -row["avg_yield"])  # noqa: E501
+    )
+    source_performance = source_performance[:12]
+
+    duplicate_qs = period_meta_qs.filter(
+        was_skipped=True, skip_reason__startswith="dedup_"
+    )
+    duplicate_by_category = {category: 0 for category in category_keys}
+    for row in duplicate_qs.values("category").annotate(count=Count("id")):
+        category = str(row.get("category") or "").strip().lower()
+        if category in duplicate_by_category:
+            duplicate_by_category[category] = int(row.get("count") or 0)
 
     def _file_counts(queryset, image_field=None, pdf_field=None):
         images = 0
@@ -1947,17 +5024,192 @@ def analytics(request):
         ).count(),
     }
 
+    return {
+        "window": {
+            "range": window["range"],
+            "label": window["range_label"],
+            "start_date": window["start_date"].isoformat(),
+            "end_date": window["end_date"].isoformat(),
+            "days": int(window["days"]),
+        },
+        "kpis": kpis,
+        "by_category": by_category,
+        "media": {
+            "total_images": total_images,
+            "total_pdfs": total_pdfs,
+            "storage_bytes": storage_bytes,
+        },
+        "enrichment": enrichment,
+        "timeseries": {
+            "dates": [value.isoformat() for value in date_points],
+            "categories": category_series,
+        },
+        "approval_by_category": approval_by_category,
+        "translation_quality": {
+            "translated": int(translated_count),
+            "copied": int(copied_count),
+            "missing": int(missing_count),
+            "total": int(period_meta_qs.count()),
+            "fully_translated_pct": float(fully_translated_pct),
+        },
+        "rejection_reasons": rejection_reasons,
+        "source_performance": source_performance,
+        "duplicates_summary": {
+            "total": int(duplicate_qs.count()),
+            "by_category": duplicate_by_category,
+        },
+    }
+
+
+def _analytics_json_response(request, *, window=None):
+    date_window = window or _parse_analytics_date_window(request)
+    payload = _collect_analytics_payload(date_window)
+    return JsonResponse(payload)
+
+
+def _export_analytics_csv(payload: dict) -> HttpResponse:
+    window_payload = payload.get("window") or {}
+    filename = (
+        f"scraping_analytics_{window_payload.get('start_date', 'start')}_"
+        f"{window_payload.get('end_date', 'end')}.csv"
+    )
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(
+        ["Section", "Metric", "Value", "Change %", "Direction", "Improving"]
+    )
+
+    for metric_key, metric_payload in (payload.get("kpis") or {}).items():
+        writer.writerow(
+            [
+                "KPI",
+                metric_key,
+                metric_payload.get("value", 0),
+                metric_payload.get("change_pct", 0),
+                metric_payload.get("direction", "flat"),
+                "yes" if metric_payload.get("improving") else "no",
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["Time Series"])
+    dates = (payload.get("timeseries") or {}).get("dates") or []
+    series = (payload.get("timeseries") or {}).get("categories") or {}
+    category_headers = list(series.keys())
+    writer.writerow(["Date", *category_headers])
+    for index, date_value in enumerate(dates):
+        writer.writerow(
+            [
+                date_value,
+                *[
+                    series.get(category, [0] * len(dates))[index]
+                    for category in category_headers
+                ],
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["Approval By Category"])
+    writer.writerow(["Category", "Approved", "Total", "Approval Rate"])
+    for row in payload.get("approval_by_category") or []:
+        writer.writerow(
+            [
+                row.get("category"),
+                row.get("approved"),
+                row.get("total"),
+                row.get("approval_rate"),
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["Translation Quality"])
+    translation = payload.get("translation_quality") or {}
+    writer.writerow(["translated", translation.get("translated", 0)])
+    writer.writerow(["copied", translation.get("copied", 0)])
+    writer.writerow(["missing", translation.get("missing", 0)])
+    writer.writerow(
+        ["fully_translated_pct", translation.get("fully_translated_pct", 0)]
+    )
+
+    writer.writerow([])
+    writer.writerow(["Source Performance"])
+    writer.writerow(["Source", "Category", "Runs", "Avg Yield", "Approval", "Health"])
+    for row in payload.get("source_performance") or []:
+        writer.writerow(
+            [
+                row.get("name"),
+                row.get("category"),
+                row.get("runs"),
+                row.get("avg_yield"),
+                row.get("approval_rate"),
+                row.get("health_score"),
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["Duplicates"])
+    duplicates_summary = payload.get("duplicates_summary") or {}
+    writer.writerow(["total", duplicates_summary.get("total", 0)])
+    for category, count in (duplicates_summary.get("by_category") or {}).items():
+        writer.writerow([category, count])
+
+    return response
+
+
+@login_required
+@staff_member_required
+@user_passes_test(is_admin)
+@require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+def trends(request):
+    """Return trend datasets used by the analytics dashboard charts."""
+    _log_scraping_action(request)
+    window = _parse_analytics_date_window(request)
+
+    payload = _collect_analytics_payload(window)
+    months = max(1, min(24, int(round(window["days"] / 30.0)) or 1))
+
+    try:
+        legacy = detect_trends(months=months)
+    except Exception as exc:
+        logger.exception("Trend detection failed: %s", exc)
+        legacy = {"status": "error", "message": str(exc)}
+
+    if not isinstance(legacy, dict):
+        legacy = {"status": "ok", "legacy_data": legacy}
+
+    legacy_payload = {
+        key: value for key, value in legacy.items() if key not in {"status"}
+    }
+
     return JsonResponse(
         {
-            "by_category": by_category,
-            "media": {
-                "total_images": total_images,
-                "total_pdfs": total_pdfs,
-                "storage_bytes": storage_bytes,
-            },
-            "enrichment": enrichment,
+            "status": "ok",
+            "window": payload.get("window"),
+            "timeseries": payload.get("timeseries"),
+            "approval_by_category": payload.get("approval_by_category"),
+            "translation_quality": payload.get("translation_quality"),
+            "rejection_reasons": payload.get("rejection_reasons"),
+            "source_performance": payload.get("source_performance"),
+            "kpis": payload.get("kpis"),
+            "legacy_status": legacy.get("status", "ok"),
+            **legacy_payload,
         }
     )
+
+
+@login_required
+@staff_member_required
+@user_passes_test(is_admin)
+@require_GET
+@rate_limit(max_calls=30, period_seconds=60, scope="analytics")
+def analytics(request):
+    """Structured scraping analytics payload used by charts and exports."""
+    _log_scraping_action(request)
+    return _analytics_json_response(request)
 
 
 @login_required
@@ -2016,9 +5268,44 @@ def recent_runs(request):
 @require_GET
 @rate_limit(max_calls=30, period_seconds=60, scope="analytics")
 def duplicates_preview(request):
-    """List duplicate skips with matched admin item links and confidence."""
+    """Return duplicate preview for a category, or summary when no category is provided."""
     _log_scraping_action(request)
     category = (request.GET.get("category") or "").strip().lower()
+    window = _parse_analytics_date_window(request)
+
+    if not category:
+        duplicates_qs = ScrapedItemMeta.objects.filter(
+            was_skipped=True,
+            skip_reason__startswith="dedup_",
+            created_at__date__gte=window["start_date"],
+            created_at__date__lte=window["end_date"],
+        )
+        by_category = {key: 0 for key in CATEGORY_META}
+        for row in duplicates_qs.values("category").annotate(count=Count("id")):
+            key = str(row.get("category") or "").strip().lower()
+            if key in by_category:
+                by_category[key] = int(row.get("count") or 0)
+
+        top_sources = [
+            {"source": row["source_name"] or "Unknown", "count": int(row["count"])}
+            for row in duplicates_qs.values("source_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:12]
+        ]
+
+        return JsonResponse(
+            {
+                "window": {
+                    "range": window["range"],
+                    "start_date": window["start_date"].isoformat(),
+                    "end_date": window["end_date"].isoformat(),
+                },
+                "total_duplicates": int(duplicates_qs.count()),
+                "by_category": by_category,
+                "top_sources": top_sources,
+            }
+        )
+
     if category not in CATEGORY_META:
         return JsonResponse(
             {"error": "category query param is required and must be valid"},
@@ -2098,6 +5385,273 @@ def _map_item_for_duplicate_check(category: str, item: dict) -> dict:
     return {"title_en": title}
 
 
+@login_required
+@user_passes_test(is_admin)
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def scraping_sources_page(request):
+    """Render and manage trusted scraping sources used by the research pipeline."""
+    _log_scraping_action(request)
+
+    if request.method == "POST":
+        content_type_error = _require_json_content_type(request)
+        if content_type_error:
+            return content_type_error
+
+        try:
+            payload = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": _("Invalid JSON payload")}, status=400)
+
+        source, created, error = _save_source_payload(payload)
+        if source is None:
+            return JsonResponse(
+                {"error": error or _("Unable to save source")}, status=400
+            )
+
+        row = _build_source_row_payload(source)
+        return JsonResponse(
+            {
+                "success": True,
+                "created": created,
+                "source": {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "url": row["url"],
+                    "category": row["category"],
+                    "is_active": row["is_active"],
+                },
+            }
+        )
+
+    _ensure_default_scraping_sources()
+
+    sources = list(ScrapingSource.objects.all().order_by("category", "name"))
+    rows = [_build_source_row_payload(source) for source in sources]
+
+    active_sources = [row for row in rows if row["is_active"]]
+    failing_sources = [row for row in rows if row["failing"]]
+    disabled_sources = [row for row in rows if not row["is_active"]]
+
+    latest_check = None
+    for row in rows:
+        candidate = row.get("last_checked_at")
+        if candidate is None:
+            continue
+        if latest_check is None or candidate > latest_check:
+            latest_check = candidate
+
+    fixture_payload = _load_arabic_nlp_fixture_payload()
+    existing_url_set = {
+        (str(source.url or source.base_url or "").strip().lower()) for source in sources
+    }
+    existing_name_set = {str(source.name or "").strip().lower() for source in sources}
+
+    suggested_sources_by_category = defaultdict(list)
+    for raw in fixture_payload.get("sources", []):
+        if not isinstance(raw, dict):
+            continue
+        category = str(raw.get("category") or "").strip().lower()
+        if category not in CATEGORY_META:
+            continue
+
+        url = str(raw.get("url") or "").strip()
+        name = str(raw.get("name") or "").strip()
+        if not url or not name:
+            continue
+
+        if url.lower() in existing_url_set or name.lower() in existing_name_set:
+            continue
+
+        try:
+            trust_score = round(float(raw.get("trust_score", 0.8)), 2)
+        except (TypeError, ValueError):
+            trust_score = 0.8
+
+        try:
+            priority = int(raw.get("priority", 3) or 3)
+        except (TypeError, ValueError):
+            priority = 3
+
+        queries = (
+            raw.get("search_queries")
+            if isinstance(raw.get("search_queries"), list)
+            else []
+        )
+        cleaned_queries = [
+            str(value).strip() for value in queries if str(value).strip()
+        ]
+        suggested_sources_by_category[category].append(
+            {
+                "name": name,
+                "url": url,
+                "category": category,
+                "trust_score": trust_score,
+                "priority": priority,
+                "queries": cleaned_queries,
+            }
+        )
+
+    query_templates = fixture_payload.get("query_templates", {})
+    query_suggestions = {
+        key: [
+            str(value).strip()
+            for value in (query_templates.get(key) or [])
+            if str(value).strip()
+        ][:3]
+        for key in CATEGORY_META
+    }
+
+    category_options = [
+        {
+            "key": key,
+            "label": CATEGORY_META.get(key, {}).get("label", key.title()),
+            "color": _source_color_token(key),
+        }
+        for key in CATEGORY_META
+    ]
+
+    context = {
+        "sources_rows": rows,
+        "category_options": category_options,
+        "active_sources_count": len(active_sources),
+        "failing_sources_count": len(failing_sources),
+        "disabled_sources_count": len(disabled_sources),
+        "latest_check": latest_check,
+        "suggested_sources_by_category": dict(suggested_sources_by_category),
+        "query_suggestions": query_suggestions,
+        "page": "scraping",
+        **_scraping_shell_context(request, active_page="sources"),
+    }
+
+    return render(request, "scraping/sources.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=20, period_seconds=60, scope="action")
+def test_source_connection(request):
+    """Run URL-level network/content checks before saving a new source."""
+    _log_scraping_action(request)
+
+    content_type_error = _require_json_content_type(request)
+    if content_type_error:
+        return content_type_error
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": _("Invalid JSON payload")}, status=400)
+
+    url = str(payload.get("url") or "").strip()
+    category = str(payload.get("category") or "events").strip().lower()
+    if not url:
+        return JsonResponse({"error": _("Source URL is required.")}, status=400)
+    if category not in CATEGORY_META:
+        category = "events"
+
+    network = NetworkValidator(url).run()
+    content = None
+    if network.get("overall") != "RED":
+        content = ContentValidator(url, category).run()
+
+    robots = network.get("robots") if isinstance(network.get("robots"), dict) else {}
+    robots_status = str(robots.get("status") or "NO_ROBOTS_FILE")
+
+    if network.get("overall") == "RED":
+        status = "failed"
+    elif robots_status == "DISALLOWED":
+        status = "warning"
+    else:
+        status = "success"
+
+    estimated_yield = 0
+    if content:
+        verdict = str(content.get("verdict") or "").upper()
+        keyword_score = int(content.get("keyword_score") or 0)
+        if verdict == "RELEVANT":
+            estimated_yield = max(8, 8 + int(keyword_score / 8))
+        elif verdict == "UNCERTAIN":
+            estimated_yield = max(3, 3 + int(keyword_score / 20))
+
+    return JsonResponse(
+        {
+            "status": status,
+            "network": network,
+            "content": content,
+            "robots_status": robots_status,
+            "estimated_yield": estimated_yield,
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_GET
+@rate_limit(max_calls=60, period_seconds=60, scope="polling")
+def source_health_detail(request, source_id):
+    """Return per-source health summary and mini-series used by table hovers."""
+    _log_scraping_action(request)
+    source = ScrapingSource.objects.filter(pk=source_id).first()
+    if source is None:
+        return JsonResponse({"error": _("Source not found")}, status=404)
+
+    row = _build_source_row_payload(source)
+    return JsonResponse(
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "success_rate": row["success_rate"],
+            "consecutive_failures": row["consecutive_failures"],
+            "avg_yield": row["avg_yield"],
+            "health_points": row["health_points"],
+            "last_run_iso": row["last_run_iso"],
+            "last_checked_iso": row["last_checked_iso"],
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=30, period_seconds=60, scope="action")
+def toggle_custom_source(request, source_id):
+    """Toggle source active state for quarantine/disable workflows."""
+    _log_scraping_action(request)
+
+    source = ScrapingSource.objects.filter(pk=source_id).first()
+    if source is None:
+        return JsonResponse({"error": _("Source not found")}, status=404)
+
+    is_active = None
+    if request.content_type and "application/json" in request.content_type.lower():
+        try:
+            payload = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            payload = {}
+        if "is_active" in payload:
+            is_active = _as_bool(payload.get("is_active"), default=source.is_active)
+
+    if is_active is None:
+        is_active = not source.is_active
+
+    source.is_active = bool(is_active)
+    source.is_admin_disabled = not source.is_active
+    source.save(update_fields=["is_active", "is_admin_disabled"])
+
+    return JsonResponse(
+        {
+            "success": True,
+            "id": str(source.id),
+            "is_active": bool(source.is_active),
+            "message": "Source activated" if source.is_active else "Source disabled",
+        }
+    )
+
+
 def _run_source_test_job(job_id: str, source_id: str):
     try:
         source = ScrapingSource.objects.get(pk=source_id, is_active=True)
@@ -2173,6 +5727,14 @@ def _run_source_test_job(job_id: str, source_id: str):
 def test_source(request, source_id):
     """Start one-source dry-run test and return a polling job id."""
     _log_scraping_action(request)
+
+    if not _check_rate_limit(request, scope="test_source", max_calls=20, period=3600):
+        return JsonResponse(
+            {"error": "Too many source test requests."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
     source = ScrapingSource.objects.filter(pk=source_id, is_active=True).first()
     if source is None:
         return JsonResponse({"error": "Source not found"}, status=404)
@@ -2235,49 +5797,43 @@ def add_custom_source(request):
         return content_type_error
 
     try:
-        data = json.loads(request.body)
-        name = data.get("name", "").strip()
-        url = data.get("url", "").strip()
-        category = (data.get("category") or "").strip().lower()
-        use_rss = data.get("use_rss", True)
-        use_llm = data.get("use_llm_extraction", True)
+        data = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": _("Invalid JSON payload")}, status=400)
 
-        if not name or not url:
-            return JsonResponse({"error": "Name and URL are required"}, status=400)
-
-        if not url.startswith(("http://", "https://")):
-            return JsonResponse({"error": "Invalid URL format"}, status=400)
-
-        scrape_config = {}
-        if not category:
-            category = CustomDomainScraper.detect_category_from_signals(url, "")
-            scrape_config["auto_detect_category"] = True
-            scrape_config["detected_from_url"] = True
-
-        source = ScrapingSource.objects.create(
-            name=name,
-            url=url,
-            base_url=url,
-            category=category,
-            use_rss=use_rss,
-            use_llm_extraction=use_llm,
-            scrape_config=scrape_config,
-            is_active=True,
-            source_type=data.get("source_type", "web"),
+    if not data.get("category"):
+        url = str(data.get("url") or "").strip()
+        detected_category = CustomDomainScraper.detect_category_from_signals(url, "")
+        if detected_category not in CATEGORY_META:
+            detected_category = "events"
+        data["category"] = detected_category
+        scrape_config = (
+            data.get("scrape_config")
+            if isinstance(data.get("scrape_config"), dict)
+            else {}
         )
-        return JsonResponse(
-            {
-                "success": True,
-                "id": str(source.id),
-                "name": source.name,
-            }
-        )
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        scrape_config["auto_detect_category"] = True
+        scrape_config["detected_from_url"] = True
+        data["scrape_config"] = scrape_config
+
+    source, created, error = _save_source_payload(data)
+    if source is None:
+        return JsonResponse({"error": error or _("Unable to save source")}, status=400)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "created": created,
+            "id": str(source.id),
+            "name": source.name,
+            "category": source.category,
+            "is_active": source.is_active,
+        }
+    )
 
 
 @login_required
-@require_POST
+@require_http_methods(["POST", "DELETE"])
 @csrf_protect
 def delete_custom_source(request, source_id):
     """AJAX endpoint: delete a custom scraping source (staff only)."""
@@ -2304,13 +5860,17 @@ def list_custom_sources(request):
 
     _ensure_default_scraping_sources()
 
-    sources = ScrapingSource.objects.filter(is_active=True).order_by("-created_at")
+    sources = ScrapingSource.objects.all().order_by("-created_at")
     data = [
         {
             "id": str(s.id),
             "name": s.name,
             "url": s.url or s.base_url,
             "category": s.category,
+            "is_active": bool(s.is_active),
+            "trust_score": _extract_scrape_config_value(s, "trust_score", 0.8),
+            "priority": _extract_scrape_config_value(s, "priority", 3),
+            "search_queries": _extract_scrape_config_value(s, "search_queries", []),
             "last_scraped": s.last_scraped.isoformat() if s.last_scraped else None,
             "last_run_status": s.last_run_status,
             "last_run_items_created": s.last_run_items_created,
@@ -2354,6 +5914,12 @@ def is_prometheus_request(request) -> bool:
 
 
 def generate_latest_metrics_response():
+    if generate_latest is None:
+        return JsonResponse(
+            {"error": "Metrics endpoint disabled: prometheus_client not installed."},
+            status=503,
+        )
+
     try:
         # Keep source health gauges fresh when scraped.
         update_source_health_metrics()
@@ -2365,20 +5931,11 @@ def generate_latest_metrics_response():
 
 
 @csrf_exempt
+@staff_member_required
 @require_GET
 def scraping_metrics_view(request):
-    """Prometheus metrics endpoint with internal-network allowlist auth model.
-
-    - Allows unauthenticated access from configured internal Docker networks.
-    - Requires authenticated staff access for all other source IPs.
-    """
+    """Prometheus metrics endpoint restricted to authenticated staff users."""
     _log_scraping_action(request)
-
-    if is_prometheus_request(request):
-        return generate_latest_metrics_response()
-
-    if not request.user.is_authenticated or not request.user.is_staff:
-        return HttpResponseForbidden("Authentication required for metrics access")
 
     ip = _client_ip(request)
     metrics_key = f"scraping:metrics:ip:{ip}"

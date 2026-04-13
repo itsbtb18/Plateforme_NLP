@@ -197,12 +197,12 @@ class ChatLogic:
             logger.info("Mode override: platform → platform_query")
         elif _active_mode == "nlp_ai":
             classification = QueryClassification(
-                intent="conceptual_question",
+                intent="coding_question",
                 language=language,
                 confidence=0.98,
-                qdrant_collections=["nlp_knowledge"],
+                qdrant_collections=[],
             )
-            logger.info("Mode override: nlp_ai → conceptual_question")
+            logger.info("Mode override: nlp_ai → coding_question")
 
         # ── Phase 4.1: Document Session Persistence ──────────────────
         # Maintains a sticky "document mode" across turns so follow-up
@@ -434,7 +434,6 @@ class ChatLogic:
             user_country=request.user_country,
             user_city=request.user_city,
             user_email=getattr(request, "user_email", None),
-            mode=_active_mode,
         )
 
         # Step 4: Build context from routing result
@@ -695,12 +694,12 @@ class ChatLogic:
             logger.info("Stream mode override: platform → platform_query")
         elif _active_mode == "nlp_ai":
             classification = QueryClassification(
-                intent="conceptual_question",
+                intent="coding_question",
                 language=language,
                 confidence=0.98,
-                qdrant_collections=["nlp_knowledge"],
+                qdrant_collections=[],
             )
-            logger.info("Stream mode override: nlp_ai → conceptual_question")
+            logger.info("Stream mode override: nlp_ai → coding_question")
 
         _doc_session_handled = False
         if session_row and has_docs and request.user_id:
