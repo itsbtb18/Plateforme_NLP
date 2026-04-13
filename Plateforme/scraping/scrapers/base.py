@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
@@ -726,7 +726,23 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             existing = Event.objects.filter(website__iexact=website_url).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "event website exact match", 1.0
+                return True, "event website_url exact match", 1.0
+
+        organizer = item_data.get("organizer")
+        start_date = item_data.get("start_date")
+        end_date = item_data.get("end_date")
+        if organizer and start_date and end_date:
+            # Keep a 3-day tolerance around ranges for real-world date drift.
+            window_start = start_date - timedelta(days=3)
+            window_end = end_date + timedelta(days=3)
+            overlap = (
+                Event.objects.filter(organizer=organizer)
+                .filter(start_date__lte=window_end, end_date__gte=window_start)
+                .first()
+            )
+            if overlap:
+                self._set_duplicate_match(overlap)
+                return True, "event organizer overlapping date range", 0.9
 
         candidate_title = item_data.get("title_en") or item_data.get("title") or ""
         if candidate_title:
@@ -739,7 +755,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(candidate_title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(event)
-                    return True, "event title similarity", similarity
+                    return True, f"event title similarity >= {int(threshold * 100)}%", similarity
 
         return False, "", 0.0
 
@@ -751,7 +767,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             existing = NLPTool.objects.filter(github_url__iexact=github_url).first()
             if existing:
                 self._set_duplicate_match(existing)
-                return True, "tool github exact match", 1.0
+                return True, "tool github_url exact match", 1.0
 
         access_link = (item_data.get("access_link") or "").strip()
         if access_link:
@@ -765,18 +781,75 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             recent_tools = self._recent_dedup_queryset(
                 NLPTool.objects.only("id", "title", "title_en")
             )
+            normalized_title = self._normalize_text(title)
+            for tool in recent_tools:
+                existing_title = tool.title_en or tool.title
+                if self._normalize_text(existing_title) == normalized_title:
+                    self._set_duplicate_match(tool)
+                    return True, "tool name exact match", 1.0
+
             threshold = float(getattr(SS, "STRICT_JACCARD", 0.9))
             for tool in recent_tools:
                 existing_title = tool.title_en or tool.title
                 similarity = self._title_similarity(title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(tool)
-                    return True, "tool title similarity", similarity
+                    return True, f"tool title similarity >= {int(threshold * 100)}%", similarity
+
+            try:
+                from scraping.embeddings import find_semantic_duplicate
+
+                semantic_match = find_semantic_duplicate(title, "tools", threshold=0.88)
+                if semantic_match is not None:
+                    self._set_duplicate_match(semantic_match)
+                    return True, "tool semantic similarity", 0.88
+            except Exception:
+                logger.debug("tool_semantic_dedup_check_failed", exc_info=True)
 
         return False, "", 0.0
 
     def _dedup_news(self, item_data: dict) -> tuple[bool, str, float]:
-        del item_data
+        from feed.models import Post
+
+        arxiv_id = (item_data.get("arxiv_id") or "").strip()
+        if arxiv_id:
+            existing = Post.objects.filter(arxiv_id__iexact=arxiv_id).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "news arxiv_id exact match", 1.0
+
+        doi = (item_data.get("doi") or "").strip()
+        if doi:
+            existing = Post.objects.filter(doi__iexact=doi).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "news doi exact match", 1.0
+
+        source_url = (item_data.get("source_url") or "").strip()
+        if source_url:
+            normalized = self._normalize_url(source_url, strip_www=True)
+            for post in self._recent_dedup_queryset(
+                Post.objects.only("id", "source_url")
+            ):
+                existing_url = self._normalize_url(
+                    getattr(post, "source_url", ""), strip_www=True
+                )
+                if existing_url and existing_url == normalized:
+                    self._set_duplicate_match(post)
+                    return True, "news source_url exact match", 1.0
+
+        title = item_data.get("title_en") or item_data.get("title") or ""
+        if title:
+            threshold = float(getattr(SS, "JACCARD_THRESHOLD", 0.85))
+            for post in self._recent_dedup_queryset(
+                Post.objects.only("id", "title", "title_en")
+            ):
+                existing_title = post.title_en or post.title
+                similarity = self._title_similarity(title, existing_title)
+                if similarity >= threshold:
+                    self._set_duplicate_match(post)
+                    return True, f"news title similarity >= {int(threshold * 100)}%", similarity
+
         return False, "", 0.0
 
     def _dedup_course(self, item_data: dict) -> tuple[bool, str, float]:
@@ -793,21 +866,68 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
         title = item_data.get("title_en") or item_data.get("title") or ""
         if title:
+            instructor = self._normalize_text(item_data.get("instructor") or "")
             recent_courses = self._recent_dedup_queryset(
-                Course.objects.only("id", "title", "title_en")
+                Course.objects.only("id", "title", "title_en", "description", "description_en")
             )
+            normalized_title = self._normalize_text(title)
+            for course in recent_courses:
+                existing_title = course.title_en or course.title
+                if self._normalize_text(existing_title) != normalized_title:
+                    continue
+                if instructor:
+                    existing_instructor = self._extract_instructor(
+                        f"{getattr(course, 'description_en', '')}\n{getattr(course, 'description', '')}"
+                    )
+                    if existing_instructor and existing_instructor == instructor:
+                        self._set_duplicate_match(course)
+                        return True, "course title + instructor", 1.0
+
             threshold = float(getattr(SS, "STRICT_JACCARD", 0.9))
             for course in recent_courses:
                 existing_title = course.title_en or course.title
                 similarity = self._title_similarity(title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(course)
-                    return True, "course title similarity", similarity
+                    return True, f"course title similarity >= {int(threshold * 100)}%", similarity
 
         return False, "", 0.0
 
     def _dedup_institution(self, item_data: dict) -> tuple[bool, str, float]:
-        del item_data
+        from institutions.models import Institution
+
+        ror_id = (item_data.get("ror_id") or "").strip()
+        if ror_id:
+            existing = Institution.objects.filter(ror_id__iexact=ror_id).first()
+            if existing:
+                self._set_duplicate_match(existing)
+                return True, "institution ror_id exact match", 1.0
+
+        website_url = (item_data.get("website_url") or item_data.get("website") or "").strip()
+        if website_url:
+            normalized = self._normalize_url(website_url, strip_www=True)
+            for institution in self._recent_dedup_queryset(
+                Institution.objects.only("id", "website")
+            ):
+                existing_website = self._normalize_url(
+                    getattr(institution, "website", ""), strip_www=True
+                )
+                if existing_website and existing_website == normalized:
+                    self._set_duplicate_match(institution)
+                    return True, "institution website_url exact match", 1.0
+
+        name = item_data.get("name_en") or item_data.get("name") or ""
+        if name:
+            threshold = float(getattr(SS, "STRICT_JACCARD", 0.9))
+            for institution in self._recent_dedup_queryset(
+                Institution.objects.only("id", "name", "name_en")
+            ):
+                existing_name = institution.name_en or institution.name
+                similarity = self._title_similarity(name, existing_name)
+                if similarity >= threshold:
+                    self._set_duplicate_match(institution)
+                    return True, f"institution name similarity >= {int(threshold * 100)}%", similarity
+
         return False, "", 0.0
 
     def _check_duplicate_policy(self, category, item_data) -> tuple[bool, str, float]:

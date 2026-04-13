@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import timedelta
 
@@ -88,6 +89,36 @@ class CustomDomainScraper(BaseScraper):
 
     def _detect_category(self, source_url, page_text):
         return self.detect_category_from_signals(source_url, page_text)
+
+    def _extract_with_llm(self, page_text: str, category: str) -> list[dict]:
+        """Optional lightweight extraction path used by custom-source scraping tests."""
+        if not bool(getattr(self.source, "use_llm_extraction", False)):
+            return []
+
+        try:
+            from scraping.extractors.core.llm_validation import (
+                GroqLLMClient,
+                build_custom_extraction_prompt,
+            )
+
+            system_prompt, user_prompt = build_custom_extraction_prompt(
+                category or self.category,
+                page_text or "",
+            )
+            client = GroqLLMClient()
+            response = client._chat(system_prompt, user_prompt)
+            if not response:
+                return []
+            parsed = json.loads(response)
+            return parsed if isinstance(parsed, list) else []
+        except Exception as exc:
+            self._log_error(
+                "llm_extraction_failed",
+                str(exc),
+                source=getattr(self.source, "name", "Custom Source"),
+                url=getattr(self.source, "base_url", "") or "",
+            )
+            return []
 
     @classmethod
     def detect_category_from_signals(cls, source_url, page_text):

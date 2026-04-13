@@ -188,33 +188,36 @@ def push_scraping_progress(
     current_item = data.get("current_item", data.get("current_source", ""))
     percent_value = int((progress_value / total_value) * 100) if total_value > 0 else 0
 
-    async_to_sync(channel_layer.group_send)(
-        f"scraping_{task_uuid}",
-        {
-            "type": "scraping_event",
-            "event_type": str(data.get("event_type", "progress") or "progress"),
-            "run_id": str(task_uuid),
-            "task_uuid": str(task_uuid),
-            "status": data.get("status", "running"),
-            "step": current_step,
-            "current": progress_value,
-            "total": total_value,
-            "percent": percent_value,
-            "progress": progress_value,
-            "total": total_value,
-            "progress_current": progress_value,
-            "progress_total": total_value,
-            "items_created": items_created,
-            "items_scraped": items_created,
-            "items_failed": items_failed,
-            "current_source": data.get("current_source", ""),
-            "current_item": current_item,
-            "current_step": current_step,
-            "current_message": current_message,
-            "message": current_message,
-            "timestamp": timezone.now().isoformat(),
-        },
-    )
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f"scraping_{task_uuid}",
+            {
+                "type": "scraping_event",
+                "event_type": str(data.get("event_type", "progress") or "progress"),
+                "run_id": str(task_uuid),
+                "task_uuid": str(task_uuid),
+                "status": data.get("status", "running"),
+                "step": current_step,
+                "current": progress_value,
+                "total": total_value,
+                "percent": percent_value,
+                "progress": progress_value,
+                "total": total_value,
+                "progress_current": progress_value,
+                "progress_total": total_value,
+                "items_created": items_created,
+                "items_scraped": items_created,
+                "items_failed": items_failed,
+                "current_source": data.get("current_source", ""),
+                "current_item": current_item,
+                "current_step": current_step,
+                "current_message": current_message,
+                "message": current_message,
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+    except Exception as exc:
+        logger.debug("scraping_progress_ws_emit_failed error=%s", exc)
 
 
 def _push_source_event(run_id: str, event_type: str, data: dict[str, Any]):
