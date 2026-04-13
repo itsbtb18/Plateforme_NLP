@@ -35,8 +35,21 @@ class ArabicTranslator:
             getattr(settings, "GROQ_INTERNAL_MODEL", primary_model) or primary_model
         ).strip()
 
-        self.primary_client = GroqLLMClient(api_key=primary_key, model=primary_model)
-        self.fallback_client = GroqLLMClient(api_key=fallback_key, model=fallback_model)
+        # Routed client follows SCRAPING_LLM_MODE with Gemini/Groq policy.
+        self.primary_client = GroqLLMClient()
+
+        # Optional last-resort Groq internal fallback for backward compatibility.
+        self.fallback_client = None
+        if fallback_key:
+            self.fallback_client = GroqLLMClient(
+                api_key=fallback_key,
+                model=fallback_model,
+            )
+
+        self.llm_mode = str(
+            getattr(settings, "SCRAPING_LLM_MODE", "primary_with_fallback")
+            or "primary_with_fallback"
+        ).strip().lower()
 
         self.max_retries = max(
             1,
@@ -200,22 +213,33 @@ class ArabicTranslator:
         return translated_items
 
     def _chat_with_fallback(self, system_prompt: str, user_prompt: str) -> str | None:
-        clients = [
-            ("groq_scraping", self.primary_client),
-            ("groq_internal", self.fallback_client),
-        ]
-
-        for label, client in clients:
-            if client is None or not client.is_configured:
-                continue
-
-            response = client._chat(system_prompt, user_prompt)
-            status = int(client.last_status_code or 0)
+        if self.primary_client and self.primary_client.is_configured:
+            response = self.primary_client._chat(system_prompt, user_prompt)
+            status = int(self.primary_client.last_status_code or 0)
             if status == 429:
                 self._rate_limited = True
-                logger.warning("translation_api_rate_limited client=%s", label)
+                logger.warning(
+                    "translation_api_rate_limited client=%s",
+                    self.primary_client.last_provider_used or "primary",
+                )
             elif status in {413}:
-                logger.warning("translation_api_payload_too_large client=%s", label)
+                logger.warning("translation_api_payload_too_large client=primary")
+
+            if response:
+                return response
+
+        # Respect explicit primary_only mode.
+        if self.llm_mode == "primary_only":
+            return None
+
+        if self.fallback_client and self.fallback_client.is_configured:
+            response = self.fallback_client._chat(system_prompt, user_prompt)
+            status = int(self.fallback_client.last_status_code or 0)
+            if status == 429:
+                self._rate_limited = True
+                logger.warning("translation_api_rate_limited client=groq_internal")
+            elif status in {413}:
+                logger.warning("translation_api_payload_too_large client=groq_internal")
 
             if response:
                 return response

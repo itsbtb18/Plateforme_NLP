@@ -46,6 +46,8 @@ localized_patterns = [
     path("resources/", include("resources.urls", namespace="resources")),
     path("institutions/", include("institutions.urls", namespace="institutions")),
     path("feed/", include(("feed.urls", "feed"), namespace="feed")),
+    # Backward-compatible namespace alias for legacy templates/data.
+    path("feed/", include(("feed.urls", "QA"), namespace="QA")),
     path("notifications/", include("notifications.urls", namespace="notifications")),
     path("chatbot/", include("chatbot.urls")),
     path("messages/", include("direct_messages.urls", namespace="direct_messages")),

@@ -19,7 +19,9 @@ class TavilySearchClient:
         self._disabled_logged = False
         self.api_key = api_key or self._resolve_api_key()
         if not self.api_key:
-            self._disabled_reason = "TAVILY_API_KEY is not configured"
+            self._disabled_reason = (
+                "Neither SCRAPING_TAVILY_API_KEY nor TAVILY_API_KEY is configured"
+            )
             return
 
         try:
@@ -41,9 +43,18 @@ class TavilySearchClient:
 
     @staticmethod
     def _resolve_api_key() -> str:
+        scraping_configured = getattr(settings, "SCRAPING_TAVILY_API_KEY", "") or ""
+        if scraping_configured.strip():
+            return scraping_configured.strip()
+
         configured = getattr(settings, "TAVILY_API_KEY", "") or ""
         if configured.strip():
             return configured.strip()
+
+        scraping_env = os.environ.get("SCRAPING_TAVILY_API_KEY", "").strip()
+        if scraping_env:
+            return scraping_env
+
         return os.environ.get("TAVILY_API_KEY", "").strip()
 
     async def _search(
