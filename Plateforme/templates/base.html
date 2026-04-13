@@ -2014,6 +2014,88 @@
                     height: 16px;
                 }
             }
+
+            .search-autocomplete-results {
+                margin-top: 0.75rem;
+                border-top: 1px solid rgba(167, 139, 250, 0.2);
+                padding-top: 0.5rem;
+                max-height: 280px;
+                overflow-y: auto;
+            }
+
+            .search-input {
+                color: #000000 !important;
+                -webkit-text-fill-color: #000000;
+            }
+
+            .search-input::placeholder {
+                color: rgba(0, 0, 0, 0.35);
+                opacity: 1;
+            }
+
+            .search-autocomplete-item {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                width: 100%;
+                padding: 0.65rem 0.25rem;
+                border-radius: 0.85rem;
+                color: #f5f3ff;
+                text-decoration: none;
+                transition: background-color 0.18s ease;
+            }
+
+            .search-autocomplete-item:hover,
+            .search-autocomplete-item.is-selected {
+                background: rgba(167, 139, 250, 0.14);
+            }
+
+            .search-autocomplete-avatar,
+            .search-autocomplete-fallback {
+                width: 36px;
+                height: 36px;
+                border-radius: 9999px;
+                flex-shrink: 0;
+                object-fit: cover;
+            }
+
+            .search-autocomplete-fallback {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(167, 139, 250, 0.18);
+                color: #d8b4fe;
+                font-size: 0.9rem;
+            }
+
+            .search-autocomplete-body {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .search-autocomplete-title {
+                color: #ffffff;
+                font-size: 0.95rem;
+                line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .search-autocomplete-subtitle {
+                color: rgba(255, 255, 255, 0.68);
+                font-size: 0.78rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .search-autocomplete-empty {
+                padding: 0.65rem 0.25rem 0.15rem;
+                color: rgba(255, 255, 255, 0.64);
+                font-size: 0.82rem;
+            }
             </style>
             <div class="header-actions">
                 <div class="search-dropdown-container action-dropdown-container">
@@ -2039,6 +2121,7 @@
                                     <i class="fas fa-arrow-right"></i>
                                 </button>
                             </div>
+                            <div class="search-autocomplete-results" id="searchDropdownResults" hidden></div>
                         </form>
                     </div>
                 </div>
@@ -3553,6 +3636,143 @@
             // Initialize dropdown as hidden
             hideDropdown();
         })(); 
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const dropdown = document.getElementById('searchDropdown');
+            if (!dropdown) return;
+
+            const form = dropdown.querySelector('.search-form');
+            const input = dropdown.querySelector('.search-input');
+            const results = document.getElementById('searchDropdownResults');
+            const autocompleteUrl = '{% url "search:autocomplete" %}';
+
+            if (!form || !input || !results) return;
+
+            let timeoutId;
+            let currentIndex = -1;
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text || '';
+                return div.innerHTML;
+            }
+
+            function hideResults() {
+                results.hidden = true;
+                results.innerHTML = '';
+                currentIndex = -1;
+            }
+
+            function showEmpty() {
+                results.hidden = false;
+                results.innerHTML = `<div class="search-autocomplete-empty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على ملفات شخصية مطابقة.{% else %}{% trans "No matching profiles found." %}{% endif %}</div>`;
+            }
+
+            function renderSuggestions(items) {
+                if (!items.length) {
+                    showEmpty();
+                    return;
+                }
+
+                results.hidden = false;
+                results.innerHTML = items.map((item, index) => {
+                    const avatar = item.avatar
+                        ? `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" class="search-autocomplete-avatar">`
+                        : `<span class="search-autocomplete-fallback"><i class="fas fa-user"></i></span>`;
+                    const subtitle = item.subtitle
+                        ? `<span class="search-autocomplete-subtitle">${escapeHtml(item.subtitle)}</span>`
+                        : '';
+
+                    return `
+                        <a href="${escapeHtml(item.link || '#')}"
+                           class="search-autocomplete-item"
+                           data-index="${index}">
+                            ${avatar}
+                            <span class="search-autocomplete-body">
+                                <span class="search-autocomplete-title">${escapeHtml(item.title)}</span>
+                                ${subtitle}
+                            </span>
+                        </a>
+                    `;
+                }).join('');
+
+                const links = results.querySelectorAll('.search-autocomplete-item');
+                links.forEach((link) => {
+                    link.addEventListener('click', function() {
+                        hideResults();
+                        dropdown.classList.remove('show');
+                    });
+                });
+            }
+
+            async function fetchSuggestions(query) {
+                try {
+                    const response = await fetch(`${autocompleteUrl}?q=${encodeURIComponent(query)}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    const suggestions = (data.suggestions || [])
+                        .filter((item) => item.type === 'user')
+                        .slice(0, 6);
+                    renderSuggestions(suggestions);
+                } catch (_) {
+                    hideResults();
+                }
+            }
+
+            input.addEventListener('input', function(e) {
+                const query = e.target.value.trim();
+                clearTimeout(timeoutId);
+
+                if (query.length < 2) {
+                    hideResults();
+                    return;
+                }
+
+                timeoutId = setTimeout(() => fetchSuggestions(query), 220);
+            });
+
+            input.addEventListener('keydown', function(e) {
+                const items = results.querySelectorAll('.search-autocomplete-item');
+                if (!items.length) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentIndex = Math.min(currentIndex + 1, items.length - 1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentIndex = Math.max(currentIndex - 1, 0);
+                } else if (e.key === 'Enter' && currentIndex >= 0) {
+                    e.preventDefault();
+                    items[currentIndex].click();
+                    return;
+                } else if (e.key === 'Escape') {
+                    hideResults();
+                    return;
+                } else {
+                    return;
+                }
+
+                items.forEach((item, index) => {
+                    item.classList.toggle('is-selected', index === currentIndex);
+                });
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target)) {
+                    hideResults();
+                }
+            });
+
+            form.addEventListener('submit', function() {
+                hideResults();
+            });
+        })();
     </script>
 
     <script>
