@@ -185,7 +185,7 @@
 
       <div class="mb-3">
         <p class="text-3xl font-black leading-none text-slate-900" x-text="pendingCountDisplay"></p>
-        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{% trans "pending" %}</p>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{% trans "pending review" %}</p>
       </div>
 
       <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-600">
@@ -525,6 +525,7 @@
   const REVIEW_SUPPORTED = JSON.parse('{{ review_supported_categories_json|escapejs }}' || '[]');
   const SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
   const RECENT_RUNS = JSON.parse('{{ recent_runs_rows_json|escapejs }}' || '{}');
+  const SCRAPING_BASE_PATH = '{% url "scraping:dashboard" %}';
 
   const CATEGORY_META = {
     {% for cat in categories %}
@@ -558,6 +559,7 @@
     stopConfirm: '{% trans "Stop the current run?" %}',
     runFailed: '{% trans "Run failed" %}',
     runCompleted: '{% trans "Run completed" %}',
+    noItemsFound: '{% trans "No items found in last run" %}',
     runAllCategories: '{% trans "Run All Categories" %}',
     runningAll: '{% trans "Running all..." %}',
     itemsFound: '{% trans "items found" %}',
@@ -581,40 +583,46 @@
     return getCookie('csrftoken') || ((document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '');
   }
 
+  function scrapingUrl(path) {
+    const normalizedBase = String(SCRAPING_BASE_PATH || '/scraping/').replace(/\/+$/, '/');
+    const normalizedPath = String(path || '').replace(/^\/+/, '');
+    return normalizedBase + normalizedPath;
+  }
+
   function categoryApiUrl(category) {
-    return '/scraping/api/stats/' + encodeURIComponent(category) + '/';
+    return scrapingUrl('api/stats/' + encodeURIComponent(category) + '/');
   }
 
   function quickStatsApiUrl() {
-    return '/scraping/api/quick-stats/';
+    return scrapingUrl('api/quick-stats/');
   }
 
   function runApiUrl(category) {
-    return '/scraping/run/' + encodeURIComponent(category) + '/';
+    return scrapingUrl('run/' + encodeURIComponent(category) + '/');
   }
 
   function runStatusApiUrl(runId) {
-    return '/scraping/status/' + encodeURIComponent(runId) + '/';
+    return scrapingUrl('status/' + encodeURIComponent(runId) + '/');
   }
 
   function stopRunApiUrl(runId) {
-    return '/scraping/stop/' + encodeURIComponent(runId) + '/';
+    return scrapingUrl('stop/' + encodeURIComponent(runId) + '/');
   }
 
   function addPromptApiUrl() {
-    return '/scraping/api/prompts/add/';
+    return scrapingUrl('api/prompts/add/');
   }
 
   function togglePromptApiUrl(promptId) {
-    return '/scraping/api/prompts/' + encodeURIComponent(promptId) + '/toggle/';
+    return scrapingUrl('api/prompts/' + encodeURIComponent(promptId) + '/toggle/');
   }
 
   function recentRunsApiUrl() {
-    return '/scraping/runs/recent/';
+    return scrapingUrl('runs/recent/');
   }
 
   function reviewUrl(runId) {
-    return '/scraping/results/?run_id=' + encodeURIComponent(runId);
+    return scrapingUrl('results/?run_id=' + encodeURIComponent(runId));
   }
 
   function stepInfo(rawStep) {
@@ -757,7 +765,7 @@
         return this.pendingCount == null ? '—' : String(this.pendingCount);
       },
       get reviewUrl() {
-        return '/scraping/results/?category=' + encodeURIComponent(this.category);
+        return scrapingUrl('results/?category=' + encodeURIComponent(this.category));
       },
       get runButtonLabel() {
         if (this.runState === 'running') return I18N.running;
@@ -766,12 +774,16 @@
       },
       get lastRunIcon() {
         if (!this.lastRun || !this.lastRun.status) return '—';
-        if (this.lastRun.status === 'completed') return '✅';
         if (this.lastRun.status === 'failed') return '❌';
+        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) return '⚠️';
+        if (this.lastRun.status === 'completed') return '✅';
         return '⚠️';
       },
       get lastRunLabel() {
         if (!this.lastRun || !this.lastRun.started_at) return I18N.neverRun;
+        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) {
+          return I18N.noItemsFound + ' · ' + relativeTime(this.lastRun.started_at);
+        }
         return relativeTime(this.lastRun.started_at);
       },
       handleReviewClick(event) {

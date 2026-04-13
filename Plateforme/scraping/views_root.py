@@ -3991,19 +3991,23 @@ def run_scraper(request, category):
         run.items_found = result.get("items_found", 0)
         run.items_created = result.get("items_created", 0)
         run.items_skipped = result.get("items_skipped", 0)
-        run.errors = "\n".join(result.get("errors", []))
-        run.status = "completed"
+        result_errors = result.get("errors", [])
+        if not isinstance(result_errors, list):
+            result_errors = [str(result_errors)] if result_errors else []
+        run.errors = "\n".join(str(err) for err in result_errors if err)
+        has_items = bool(int(run.items_found or 0) or int(run.items_created or 0))
+        run.status = "failed" if run.errors and not has_items else "completed"
         run.completed_at = timezone.now()
         run.save()
 
         return JsonResponse(
             {
-                "status": "success",
+                "status": "error" if run.status == "failed" else "success",
                 "run_id": str(run.pk),
                 "items_found": run.items_found,
                 "items_created": run.items_created,
                 "items_skipped": run.items_skipped,
-                "errors": result.get("errors", []),
+                "errors": result_errors,
                 "results": result.get("results", []),
                 "duration": run.duration,
             }
@@ -4056,6 +4060,15 @@ def category_stats(request, category):
         .order_by("-started_at")
         .first()
     )
+    last_run_status = ""
+    if last_run is not None:
+        last_run_status = str(last_run.status or "").strip().lower() or "completed"
+        if (
+            last_run_status == "completed"
+            and str(last_run.errors or "").strip()
+            and int(last_run.items_found or 0) == 0
+        ):
+            last_run_status = "failed"
     review_supported_categories = set(_scraping_result_category_map().keys())
 
     return JsonResponse(
@@ -4067,7 +4080,7 @@ def category_stats(request, category):
             "last_run": (
                 {
                     "run_id": str(last_run.id),
-                    "status": last_run.status,
+                    "status": last_run_status,
                     "started_at": (
                         last_run.started_at.isoformat() if last_run.started_at else None
                     ),
@@ -4080,6 +4093,7 @@ def category_stats(request, category):
                     "items_found": int(last_run.items_found or 0),
                     "items_created": int(last_run.items_created or 0),
                     "items_skipped": int(last_run.items_skipped or 0),
+                    "error_message": str(last_run.errors or ""),
                 }
                 if last_run
                 else None

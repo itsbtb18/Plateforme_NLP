@@ -268,6 +268,14 @@ class EventScraper(BaseScraper):
             return
 
         search_client = self._search_client
+        if not search_client.is_enabled:
+            self._log_error(
+                "events_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
+            return
+
         extractor = self._extractor
 
         target_items = max(

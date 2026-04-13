@@ -55,6 +55,14 @@ class CourseScraper(BaseScraper):
             logger.warning("Course scraper initialization failed: %s", exc)
             return
 
+        if not search_client.is_enabled:
+            self._log_error(
+                "courses_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
+            return
+
         search_queries = self.get_active_search_queries(self.category)
         if not search_queries:
             logger.warning(

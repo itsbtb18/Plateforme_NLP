@@ -883,20 +883,37 @@ def run_scraper_task(
         run.items_updated = result.get("items_updated", 0)
         run.items_skipped = result.get("items_skipped", 0)
         run.items_failed = int(run.items_skipped or 0)
-        run.errors = "\n".join(result.get("errors", []))
+        result_errors = result.get("errors", [])
+        if not isinstance(result_errors, list):
+            result_errors = [str(result_errors)] if result_errors else []
+        run.errors = "\n".join(str(err) for err in result_errors if err)
+        has_run_errors = bool(run.errors.strip())
+        has_persisted_items = bool(
+            int(run.items_found or 0)
+            or int(run.items_created or 0)
+            or int(run.items_updated or 0)
+        )
+        run_failed = has_run_errors and not has_persisted_items
+        if run_failed and run.items_failed == 0:
+            run.items_failed = 1
         run.progress_total = int(run.progress_total or total_sources or 1)
         run.progress_current = int(run.progress_current or run.progress_total)
         if run.progress_current < run.progress_total:
             run.progress_current = run.progress_total
-        run.current_step = "Completed"
-        run.current_message = "Scraping task completed"
+        run.current_step = "Failed" if run_failed else "Completed"
+        run.current_message = (
+            "Scraping task failed" if run_failed else "Scraping task completed"
+        )
         run.current_source = ""
         run.current_item = ""
-        run.status = "completed"
+        run.status = "failed" if run_failed else "completed"
         run.completed_at = timezone.now()
         run.save()
 
-        scrape_runs_total.labels(category=category, status="success").inc()
+        scrape_runs_total.labels(
+            category=category,
+            status="failed" if run_failed else "success",
+        ).inc()
         scrape_duration_seconds.labels(category=category).observe(
             time.monotonic() - started_at
         )
@@ -930,61 +947,108 @@ def run_scraper_task(
                 source_name="all_sources",
                 outcome="skipped_dedup",
             ).inc(run.items_skipped)
+        if run_failed and not run.items_skipped:
+            scrape_source_items_total.labels(
+                category=category,
+                source_name="all_sources",
+                outcome="skipped_error",
+            ).inc(1)
         update_source_health_metrics(category=category)
         update_scrape_queue_lag_metrics(force=True)
 
-        logger.info(
-            "scrape_task_completed",
-            extra={
-                "category": category,
-                "run_id": str(run.id),
-                "items_saved": run.items_created,
-                "items_skipped": run.items_skipped,
-                "duration_seconds": (timezone.now() - run.started_at).total_seconds(),
-            },
-        )
-
-        push_scraping_progress(
-            str(run.id),
-            status="completed",
-            step="saving",
-            progress_current=int(run.progress_current or 0),
-            progress_total=int(run.progress_total or 0),
-            items_scraped=int(run.items_created or 0),
-            items_failed=int(run.items_failed or run.items_skipped or 0),
-            current_source=run.current_source,
-            current_item=run.current_item,
-            current_step=run.current_step,
-            message="Scraping task completed",
-        )
-
         category_label = _category_display_label(category)
-        _create_scraping_notification(
-            notification_type="run_complete",
-            category=category,
-            run=run,
-            message=(
-                f"[{category_label}] Run #{str(run.id)[:8]} completed "
-                f"({int(run.items_created or 0)} created, {int(run.items_skipped or 0)} skipped)."
-            ),
-            metadata={
-                "run_id": str(run.id),
-                "items_found": int(run.items_found or 0),
-                "items_created": int(run.items_created or 0),
-                "items_updated": int(run.items_updated or 0),
-                "items_skipped": int(run.items_skipped or 0),
-            },
-        )
+        if run_failed:
+            logger.error(
+                "scrape_task_failed",
+                extra={
+                    "category": category,
+                    "run_id": str(run.id),
+                    "error": run.errors,
+                    "error_type": "ScraperReportedError",
+                },
+            )
+            push_scraping_progress(
+                str(run.id),
+                status="failed",
+                step="saving",
+                progress_current=int(run.progress_current or 0),
+                progress_total=int(run.progress_total or 0),
+                items_scraped=int(run.items_created or 0),
+                items_failed=int(run.items_failed or run.items_skipped or 0),
+                current_source=run.current_source,
+                current_item=run.current_item,
+                current_step=run.current_step,
+                message=run.errors or "Scraping task failed",
+            )
+            _create_scraping_notification(
+                notification_type="run_failed",
+                category=category,
+                run=run,
+                message=(
+                    f"[{category_label}] Run #{str(run.id)[:8]} failed: "
+                    f"{(run.errors or 'scraper error')[:160]}."
+                ),
+                metadata={
+                    "run_id": str(run.id),
+                    "items_found": int(run.items_found or 0),
+                    "items_created": int(run.items_created or 0),
+                    "items_updated": int(run.items_updated or 0),
+                    "items_skipped": int(run.items_skipped or 0),
+                    "error": run.errors,
+                },
+            )
+        else:
+            logger.info(
+                "scrape_task_completed",
+                extra={
+                    "category": category,
+                    "run_id": str(run.id),
+                    "items_saved": run.items_created,
+                    "items_skipped": run.items_skipped,
+                    "duration_seconds": (timezone.now() - run.started_at).total_seconds(),
+                },
+            )
+
+            push_scraping_progress(
+                str(run.id),
+                status="completed",
+                step="saving",
+                progress_current=int(run.progress_current or 0),
+                progress_total=int(run.progress_total or 0),
+                items_scraped=int(run.items_created or 0),
+                items_failed=int(run.items_failed or run.items_skipped or 0),
+                current_source=run.current_source,
+                current_item=run.current_item,
+                current_step=run.current_step,
+                message="Scraping task completed",
+            )
+
+            _create_scraping_notification(
+                notification_type="run_complete",
+                category=category,
+                run=run,
+                message=(
+                    f"[{category_label}] Run #{str(run.id)[:8]} completed "
+                    f"({int(run.items_created or 0)} created, {int(run.items_skipped or 0)} skipped)."
+                ),
+                metadata={
+                    "run_id": str(run.id),
+                    "items_found": int(run.items_found or 0),
+                    "items_created": int(run.items_created or 0),
+                    "items_updated": int(run.items_updated or 0),
+                    "items_skipped": int(run.items_skipped or 0),
+                },
+            )
 
         return {
-            "status": "success",
+            "status": "error" if run_failed else "success",
             "run_id": str(run.pk),
             "items_found": run.items_found,
             "items_created": run.items_created,
             "items_updated": run.items_updated,
             "items_skipped": run.items_skipped,
             "items_failed": run.items_failed,
-            "errors": result.get("errors", []),
+            "errors": result_errors,
             "results": result.get("results", []),
             "duration": run.duration,
         }

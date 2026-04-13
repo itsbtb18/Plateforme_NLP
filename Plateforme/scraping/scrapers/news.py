@@ -29,6 +29,7 @@ class NewsScraper(BaseScraper):
     API_CALL_DELAY_SECONDS = 2
 
     MODEL_CANDIDATES = (
+        ("QA", "Post"),
         ("events", "News"),
         ("resources", "News"),
         ("feed", "Post"),
@@ -50,6 +51,14 @@ class NewsScraper(BaseScraper):
         except Exception as exc:
             self._log_error("news_init_failed", str(exc), source=self.name)
             logger.warning("News scraper initialization failed: %s", exc)
+            return
+
+        if not search_client.is_enabled:
+            self._log_error(
+                "news_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
             return
 
         search_queries = self.get_active_search_queries(self.category)

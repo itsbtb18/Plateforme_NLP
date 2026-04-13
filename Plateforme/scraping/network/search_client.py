@@ -14,9 +14,13 @@ class TavilySearchClient:
     """Async wrapper around the official Tavily search client."""
 
     def __init__(self, api_key: str | None = None, **client_kwargs: Any) -> None:
+        self.client = None
+        self._disabled_reason = ""
+        self._disabled_logged = False
         self.api_key = api_key or self._resolve_api_key()
         if not self.api_key:
-            raise ValueError("TAVILY_API_KEY is not configured")
+            self._disabled_reason = "TAVILY_API_KEY is not configured"
+            return
 
         try:
             from tavily import TavilyClient
@@ -26,6 +30,14 @@ class TavilySearchClient:
             ) from exc
 
         self.client = TavilyClient(api_key=self.api_key, **client_kwargs)
+
+    @property
+    def is_enabled(self) -> bool:
+        return self.client is not None
+
+    @property
+    def disabled_reason(self) -> str:
+        return self._disabled_reason
 
     @staticmethod
     def _resolve_api_key() -> str:
@@ -42,6 +54,15 @@ class TavilySearchClient:
         max_results: int | None = None,
     ) -> list[dict]:
         """Search Tavily with per-category configuration and return normalized items."""
+        if self.client is None:
+            if not self._disabled_logged:
+                logger.info(
+                    "Tavily search disabled: %s",
+                    self._disabled_reason or "client unavailable",
+                )
+                self._disabled_logged = True
+            return []
+
         query_text = (query or "").strip()
         if not query_text:
             return []
