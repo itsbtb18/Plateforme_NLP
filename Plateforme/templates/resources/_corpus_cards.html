@@ -77,10 +77,11 @@
             {% endif %}
         </div>
 
-        <div class="pub-card-actions" style="display:flex;justify-content:flex-end;padding:0 .85rem .75rem;">
-            <div class="card-top-actions" style="display:flex;gap:.5rem;align-items:center;">
+        <div class="pub-card-actions" style="display:flex !important;justify-content:flex-end !important;padding:0 .85rem .75rem !important;visibility:visible !important;opacity:1 !important;z-index:2 !important;position:relative;">
+            <div class="card-top-actions" style="display:flex !important;gap:.5rem !important;align-items:center !important;visibility:visible !important;opacity:1 !important;flex-wrap:wrap;">
                 <button type="button"
                         class="card-action-icon share-trigger-btn"
+                        style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;"
                         title="{% trans 'Share with friends' %}"
                         data-share-type="corpus"
                         data-share-id="{{ corpus.id }}"
@@ -91,6 +92,7 @@
                 </button>
                 <button type="button"
                         class="card-action-icon ask-chatbot-btn"
+                    style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;"
                         title="{% trans 'Ask chatbot about this' %}"
                         data-ct="corpus"
                         data-oid="{{ corpus.id }}"
@@ -111,6 +113,9 @@
                 <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% trans "View Details" %}{% endif %}</span>
                 <i class="bi bi-arrow-right"></i>
             </a>
+            <div style="display:none;">
+                {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 category=corpus.get_field_display author=corpus.author.get_full_name_display url=corpus.get_absolute_url|default:'' %}
+            </div>
         </div>
     </article>
     {% endfor %}

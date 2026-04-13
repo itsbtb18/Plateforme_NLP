@@ -696,7 +696,36 @@ html[dir="rtl"] .results-info { flex-direction: row-reverse; }
                                 <i class="bi bi-arrow-right"></i>
                             </a>
                         {% endif %}
-                        {% include "includes/card_top_actions.html" with content_type=resource.resource_type object_id=resource.id title=resource.get_localized_title description=resource.get_localized_description|truncatewords:40 category=resource.get_resource_type_display author=resource.author.get_full_name_display url=request.build_absolute_uri %}
+                        {% if resource.resource_type == 'corpus' %}
+                            <div class="card-top-actions" style="display:flex;gap:.5rem;align-items:center;">
+                                <button type="button"
+                                        class="card-action-icon share-trigger-btn"
+                                        title="{% trans 'Share with friends' %}"
+                                        data-share-type="corpus"
+                                        data-share-id="{{ resource.id }}"
+                                        data-share-title="{{ resource.get_localized_title|default:'' }}"
+                                        aria-label="{% trans 'Send' %}">
+                                    <i class="bi bi-send"></i>
+                                    <span>{% trans "Send" %}</span>
+                                </button>
+                                <button type="button"
+                                        class="card-action-icon ask-chatbot-btn"
+                                        title="{% trans 'Ask chatbot about this' %}"
+                                        data-ct="corpus"
+                                        data-oid="{{ resource.id }}"
+                                        data-title="{{ resource.get_localized_title|default:''|truncatechars:200 }}"
+                                        data-category="{{ resource.get_resource_type_display|default:'corpus' }}"
+                                        data-author="{{ resource.author.get_full_name_display|default:''|truncatechars:120 }}"
+                                        data-description="{{ resource.get_localized_description|default:''|truncatechars:400 }}"
+                                        data-url="{{ resource.get_absolute_url|default:'' }}"
+                                        aria-label="{% trans 'Ask chatbot' %}">
+                                    <i class="fas fa-robot"></i>
+                                    <span>{% trans "Ask AI" %}</span>
+                                </button>
+                            </div>
+                        {% else %}
+                            {% include "includes/card_top_actions.html" with content_type=resource.resource_type object_id=resource.id title=resource.get_localized_title description=resource.get_localized_description|truncatewords:40 category=resource.get_resource_type_display author=resource.author.get_full_name_display url=resource.get_absolute_url|default:'' %}
+                        {% endif %}
                     </div>
                 </article>
                 {% endfor %}
