@@ -7,6 +7,7 @@ from django.db import migrations, models
 
 def add_missing_post_fields(apps, schema_editor):
     Post = apps.get_model("QA", "Post")
+    CustomUser = apps.get_model("accounts", "CustomUser")
     table_name = Post._meta.db_table
 
     with schema_editor.connection.cursor() as cursor:
@@ -22,7 +23,7 @@ def add_missing_post_fields(apps, schema_editor):
             blank=True, null=True, verbose_name="Approval Date"
         ),
         "approved_by": models.ForeignKey(
-            settings.AUTH_USER_MODEL,
+            CustomUser,
             blank=True,
             null=True,
             on_delete=django.db.models.deletion.SET_NULL,

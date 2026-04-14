@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
+import re
+import time
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
@@ -32,6 +35,7 @@ class LLMNewsExtractor:
             default=str,
         )
 
+        await asyncio.to_thread(time.sleep, random.uniform(1, 3))
         try:
             raw_text = await asyncio.to_thread(
                 self.client._chat,
@@ -111,7 +115,13 @@ Return [] if no relevant news items are found.
         try:
             parsed = json.loads(cleaned)
         except json.JSONDecodeError:
-            return []
+            fallback_json = self._extract_json_array_block(cleaned)
+            if not fallback_json:
+                return []
+            try:
+                parsed = json.loads(fallback_json)
+            except json.JSONDecodeError:
+                return []
 
         if isinstance(parsed, list):
             return [item for item in parsed if isinstance(item, dict)]
@@ -129,6 +139,13 @@ Return [] if no relevant news items are found.
         if cleaned.startswith("```"):
             cleaned = cleaned.replace("```json", "", 1).replace("```", "")
         return cleaned.strip()
+
+    @staticmethod
+    def _extract_json_array_block(text: str) -> str:
+        match = re.search(r"\[[\s\S]*\]", text)
+        if not match:
+            return ""
+        return match.group(0).strip()
 
     def _normalize_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
         title_en = self._pick_text(item, "title_en", "title", "headline")

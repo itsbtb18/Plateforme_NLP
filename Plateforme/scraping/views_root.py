@@ -128,6 +128,15 @@ def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
 
 logger = logging.getLogger(__name__)
 
+SCRAPING_NAV_CATEGORY_KEYS = (
+    "events",
+    "tools",
+    "corpus",
+    "opportunities",
+    "courses",
+    "news",
+)
+
 
 DEFAULT_SCRAPING_SOURCES = {
     "events": [
@@ -1093,10 +1102,10 @@ def dashboard(request):
     dashboard_categories = (
         "events",
         "tools",
+        "corpus",
+        "opportunities",
         "courses",
         "news",
-        "opportunities",
-        "corpus",
     )
 
     category_meta_map = {key: meta for key, meta in get_all_categories()}
@@ -1429,6 +1438,31 @@ def dashboard(request):
 
 # Public alias used by URL configuration for consistency with other scraping pages.
 scraping_dashboard = dashboard
+
+
+def scraping_dashboard_by_category(request, category: str):
+    _set_category_request_context(request, category)
+    return scraping_dashboard(request)
+
+
+def scraping_results_by_category(request, category: str):
+    _set_category_request_context(request, category)
+    return scraping_results(request)
+
+
+def scraping_analytics_by_category(request, category: str):
+    _set_category_request_context(request, category)
+    return scraping_analytics_page(request)
+
+
+def scraping_sources_by_category(request, category: str):
+    _set_category_request_context(request, category)
+    return scraping_sources_page(request)
+
+
+def scraping_settings_by_category(request, category: str):
+    _set_category_request_context(request, category)
+    return scraping_settings_page(request)
 
 
 @login_required
@@ -1773,11 +1807,64 @@ def _scraping_pending_queue_count() -> int:
     return int(total_pending)
 
 
+def _scraping_nav_categories() -> list[dict[str, str]]:
+    categories: list[dict[str, str]] = []
+    for key in SCRAPING_NAV_CATEGORY_KEYS:
+        meta = (CATEGORY_META.get(key, {}) or {}).copy()
+        categories.append(
+            {
+                "key": key,
+                "label": str(_(meta.get("label", key.title()))),
+            }
+        )
+    return categories
+
+
+def _resolve_scraping_nav_category(request) -> str:
+    resolver_category = ""
+    if request.resolver_match is not None:
+        resolver_category = str(
+            (request.resolver_match.kwargs or {}).get("category") or ""
+        ).strip().lower()
+
+    current_category = str(
+        getattr(request, "_scraping_category", "")
+        or resolver_category
+        or request.GET.get("category")
+        or "events"
+    ).strip().lower()
+
+    if current_category not in SCRAPING_NAV_CATEGORY_KEYS:
+        current_category = "events"
+    return current_category
+
+
+def _set_category_request_context(request, category: str) -> str:
+    category_key = str(category or "").strip().lower()
+    if category_key not in SCRAPING_NAV_CATEGORY_KEYS:
+        raise Http404(_("Unknown scraping category."))
+
+    request._scraping_category = category_key
+    query_params = request.GET.copy()
+    query_params["category"] = category_key
+    request.GET = query_params
+    return category_key
+
+
 def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
+    current_category = _resolve_scraping_nav_category(request)
+    category_dashboard_url = reverse(
+        "scraping:category_dashboard",
+        kwargs={"category": current_category},
+    )
+    category_label = str(
+        _((CATEGORY_META.get(current_category, {}) or {}).get("label", ""))
+    ) or current_category.title()
+
     breadcrumbs: list[dict[str, str]] = [
         {
             "label": str(_("Scraping")),
-            "url": reverse("scraping:dashboard"),
+            "url": category_dashboard_url,
         }
     ]
 
@@ -1787,8 +1874,13 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         url_name = str(request.resolver_match.url_name or "")
         kwargs = request.resolver_match.kwargs or {}
 
-    if url_name in {"dashboard", "scraping_dashboard"}:
+    if url_name == "category_dashboard":
+        breadcrumbs.append({"label": category_label, "url": ""})
+    elif url_name in {"dashboard", "scraping_dashboard"}:
         breadcrumbs.append({"label": str(_("Dashboard")), "url": ""})
+    elif url_name == "category_results":
+        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
+        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
     elif url_name in {"results", "scraping_results"}:
         breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
     elif url_name in {"result_detail", "scraping_result_detail"}:
@@ -1808,10 +1900,19 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         if short_item_id:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
+    elif url_name == "category_analytics":
+        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
+        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
     elif url_name in {"scraping_analytics", "analytics"}:
         breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+    elif url_name == "category_sources":
+        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
+        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
     elif url_name in {"scraping_sources", "sources"}:
         breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+    elif url_name == "category_settings":
+        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
+        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
     elif url_name in {"settings", "scraping_settings"}:
         breadcrumbs.append({"label": str(_("Settings")), "url": ""})
 
@@ -1828,8 +1929,13 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
     if getattr(request, "user", None) is not None and request.user.is_authenticated:
         admin_name = request.user.get_full_name() or request.user.get_username()
 
+    nav_categories = _scraping_nav_categories()
+    current_category = _resolve_scraping_nav_category(request)
+
     return {
         "scraping_active_page": active_page,
+        "scraping_nav_categories": nav_categories,
+        "scraping_current_category": current_category,
         "scraping_pending_count": _scraping_pending_queue_count(),
         "scraping_notifications": notification_rows,
         "scraping_unread_count": unread_count,
@@ -3355,6 +3461,23 @@ def scraping_results(request):
             }
         )
 
+    resolved_category_key = (
+        selected_category if selected_category != "all" else _resolve_scraping_nav_category(request)
+    )
+    resolved_category_label = (
+        category_map.get(resolved_category_key, {}).get("label")
+        or CATEGORY_META.get(resolved_category_key, {}).get("label")
+        or resolved_category_key.title()
+    )
+    category_global_status = (
+        "warn" if filtered_low_confidence_count > 0 else "ok"
+    )
+    category_global_status_label = (
+        str(_("Statut global : Requiert attention"))
+        if category_global_status == "warn"
+        else str(_("Statut global : OK"))
+    )
+
     return render(
         request,
         "scraping/results.html",
@@ -3378,6 +3501,11 @@ def scraping_results(request):
             "filtered_category_counts_json": json.dumps(filtered_category_counts),
             "filtered_low_confidence_count": filtered_low_confidence_count,
             "export_url": export_url,
+            "category_key": resolved_category_key,
+            "category_name": resolved_category_label,
+            "category_active_tab": "pending",
+            "category_global_status": category_global_status,
+            "category_global_status_label": category_global_status_label,
             "page": "scraping",
             **_scraping_shell_context(request, active_page="results"),
         },
@@ -4427,6 +4555,10 @@ def scraping_analytics_page(request):
         return _analytics_json_response(request, window=window)
 
     completed_runs_count = ScrapingRun.objects.filter(status="completed").count()
+    category_key = _resolve_scraping_nav_category(request)
+    category_name = str(
+        _((CATEGORY_META.get(category_key, {}) or {}).get("label", category_key.title()))
+    )
     category_meta = {
         category: {
             "label": str(
@@ -4445,6 +4577,15 @@ def scraping_analytics_page(request):
         "default_date_from": window["start_date"].isoformat(),
         "default_date_to": window["end_date"].isoformat(),
         "category_meta_json": json.dumps(category_meta),
+        "category_key": category_key,
+        "category_name": category_name,
+        "category_active_tab": "analytics",
+        "category_global_status": "ok" if completed_runs_count >= 1 else "warn",
+        "category_global_status_label": (
+            str(_("Statut global : OK"))
+            if completed_runs_count >= 1
+            else str(_("Statut global : Données insuffisantes"))
+        ),
         **_scraping_shell_context(request, active_page="analytics"),
     }
     return render(request, "scraping/analytics.html", context)

@@ -1,1744 +1,216 @@
 {% extends 'scraping/base_scraping.html' %}
 {% load i18n %}
-{% get_current_language_bidi as LANGUAGE_BIDI %}
 
-{% block title %}{% trans "Scraping Control Center" %} — {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Scraping Hub" %} — {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-  .scrape-shell {
-    --scrape-surface: #ffffff;
-    --scrape-border: #dbe3ef;
-    --scrape-border-strong: #c9d6ea;
-    --scrape-bg: #f5f8fd;
-    --scrape-text: #0f172a;
-    --scrape-muted: #475569;
-  }
-
-  .scrape-card {
-    background: var(--scrape-surface);
-    border: 1px solid var(--scrape-border);
+  .hub-shell {
+    border: 1px solid #e2e8f0;
     border-radius: 1rem;
-    box-shadow: 0 10px 30px rgba(2, 8, 23, 0.06);
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1.15rem;
   }
 
-  .scrape-grid-card {
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  .hub-header {
+    border: 1px solid #dbe7f5;
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(8px);
+    padding: 1rem 1.1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   }
 
-  .scrape-grid-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  .hub-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
   }
 
-  .run-complete-flash {
-    animation: runCompleteFlash 1.1s ease;
-  }
-
-  @keyframes runCompleteFlash {
-    0% {
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45);
-      transform: translateY(0);
-    }
-    60% {
-      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-      transform: translateY(-1px);
-    }
-    100% {
-      box-shadow: none;
-      transform: translateY(0);
-    }
-  }
-
-  .active-run-progress {
-    transition: width 0.35s ease;
-  }
-
-  .source-alerts-container {
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  .source-alert {
-    border: 1px solid #fcd34d;
-    background: #fffbeb;
-    color: #92400e;
-    border-radius: 0.65rem;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.8rem;
-    line-height: 1.3;
-  }
-
-  .source-alert .reason {
-    display: block;
-    margin-top: 0.2rem;
-    color: #b45309;
+  .hub-subtitle {
+    margin: 0.3rem 0 0;
+    color: #475569;
+    font-size: 0.86rem;
     font-weight: 600;
   }
 
-  .status-dot {
-    width: 0.58rem;
-    height: 0.58rem;
-    border-radius: 999px;
+  .hub-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.95rem;
+  }
+
+  .hub-card {
+    border: 1px solid #dbe7f5;
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+
+  .hub-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 36px rgba(15, 23, 42, 0.12);
+  }
+
+  .hub-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.55rem;
+  }
+
+  .hub-icon {
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 0.8rem;
     display: inline-flex;
-    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    color: #1d4ed8;
+    background: color-mix(in srgb, var(--hub-color, #2563eb) 16%, white);
+    border: 1px solid color-mix(in srgb, var(--hub-color, #2563eb) 28%, white);
+    font-size: 0.92rem;
   }
 
-  .soft-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #bfd0e9 #eff4fb;
-  }
-
-  .soft-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .soft-scrollbar::-webkit-scrollbar-track {
-    background: #eff4fb;
+  .hub-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.26rem 0.5rem;
+    white-space: nowrap;
   }
 
-  .soft-scrollbar::-webkit-scrollbar-thumb {
-    background: #bfd0e9;
+  .hub-status-dot {
+    width: 0.45rem;
+    height: 0.45rem;
     border-radius: 999px;
+    display: inline-block;
   }
 
-  [dir="rtl"] .ltr-only {
-    direction: ltr;
-    unicode-bidi: plaintext;
+  .hub-status.ok {
+    color: #065f46;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+  }
+
+  .hub-status.ok .hub-status-dot {
+    background: #10b981;
+  }
+
+  .hub-status.ko {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+
+  .hub-status.ko .hub-status-dot {
+    background: #ef4444;
+  }
+
+  .hub-category {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .hub-meta {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    min-height: 1rem;
+  }
+
+  .hub-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    border-radius: 0.75rem;
+    border: 1px solid #bfdbfe;
+    background: #ffffff;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.62rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .hub-btn:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1e40af;
   }
 </style>
 {% endblock %}
 
 {% block scraping_page_content %}
-<div
-  class="scrape-shell mx-auto max-w-[1600px] space-y-6"
-  x-data="scrapingDashboard()"
-  x-init="init()"
-  dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}"
->
-  <section class="scrape-card px-5 py-4 md:px-7 md:py-5">
-    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div>
-        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
-          {% trans "Scraping Control Center" %}
-        </h1>
-        <p class="mt-2 text-sm font-medium text-slate-600 md:text-base" x-show="globalLastRunText || globalPendingReview >= 0">
-          <span class="text-slate-500">{% trans "Last global run" %}:</span>
-          <span class="font-semibold text-slate-900" x-text="globalLastRunText || '—'"></span>
-          <span class="mx-2 text-slate-300">•</span>
-          <span class="font-semibold text-slate-900" x-text="globalPendingReview"></span>
-          <span class="text-slate-500">{% trans "items pending review" %}</span>
-        </p>
-      </div>
+<section class="hub-shell" aria-label="{% trans 'Scraping Hub' %}">
+  <header class="hub-header">
+    <h1 class="hub-title">{% trans "Scraping Hub" %}</h1>
+    <p class="hub-subtitle">
+      {% trans "Choisissez une catégorie pour accéder à son dashboard dédié." %}
+    </p>
+  </header>
 
-      <div class="flex items-center gap-2">
-        <a
-          href="{% url 'scraping:scraping_results' %}"
-          class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
-        >
-          <i class="fas fa-clipboard-check"></i>
-          <span>{% trans "Review Queue" %}</span>
-        </a>
-        <button
-          id="run-all-btn"
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          @click="runAllCategories"
-          :disabled="runAllLoading"
-          aria-label="{% trans 'Run all categories' %}"
-        >
-          <i class="fas fa-circle-notch fa-spin" x-show="runAllLoading"></i>
-          <i class="fas fa-play" x-show="!runAllLoading"></i>
-          <span x-text="runAllButtonText"></span>
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="{% trans 'Category cards' %}">
+  <div class="hub-grid" aria-label="{% trans 'Category cards' %}">
     {% for cat in categories %}
-    <article
-      class="scrape-card scrape-grid-card p-4"
-      x-data="categoryCard('{{ cat.key }}')"
-      x-init="init()"
-      :class="{ 'run-complete-flash': flashComplete }"
-      style="border-inline-start: 4px solid {{ cat.meta.color|default:'#2563eb' }}"
-      aria-live="polite"
-    >
-      <header class="mb-4 flex items-start justify-between gap-2">
-        <div>
-          <h2 class="text-sm font-extrabold uppercase tracking-[0.13em] text-slate-800">{{ cat.meta.label }}</h2>
-          <p class="mt-1 text-xs text-slate-500" x-text="metaColorEmoji"></p>
-        </div>
-        <span
-          class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700"
-          :style="iconBadgeStyle"
-          aria-hidden="true"
-        >
-          <i class="fas {{ cat.meta.icon|default:'fa-circle' }}"></i>
+    <article class="hub-card" style="--hub-color: {{ cat.meta.color|default:'#2563eb' }};">
+      <div class="hub-card-head">
+        <span class="hub-icon" aria-hidden="true">
+          <i class="fas {{ cat.meta.icon|default:'fa-layer-group' }}"></i>
         </span>
-      </header>
 
-      <div class="mb-3">
-        <p class="text-3xl font-black leading-none text-slate-900" x-text="pendingCountDisplay"></p>
-        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{% trans "pending review" %}</p>
+        {% if cat.last_run and cat.last_run.status == 'completed' %}
+        <span class="hub-status ok">
+          <span class="hub-status-dot"></span>
+          {% trans "Run OK" %}
+        </span>
+        {% else %}
+        <span class="hub-status ko">
+          <span class="hub-status-dot"></span>
+          {% trans "Run KO" %}
+        </span>
+        {% endif %}
       </div>
 
-      <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-600">
-        <p class="font-semibold text-slate-700">{% trans "Last run" %}</p>
-        <p class="mt-1 flex items-center gap-2">
-          <span x-text="lastRunIcon"></span>
-          <span x-text="lastRunLabel"></span>
-        </p>
-      </div>
+      <h2 class="hub-category">{{ cat.meta.label|default:cat.key|title }}</h2>
 
-      <div class="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-600 px-2 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          @click="run"
-          :disabled="runState === 'running'"
-          aria-label="{% trans 'Run category' %}"
-        >
-          <i class="fas fa-circle-notch fa-spin" x-show="runState === 'running'"></i>
-          <i class="fas fa-play" x-show="runState !== 'running'"></i>
-          <span x-text="runButtonLabel"></span>
-        </button>
-
-        <a
-          class="inline-flex items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-bold transition"
-          :class="canReview ? 'border-slate-300 bg-white text-slate-700 hover:border-slate-400' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'"
-          :href="canReview ? reviewUrl : '#'"
-          :title="canReview ? '' : i18n.reviewUnavailable"
-          @click.prevent="handleReviewClick"
-          :aria-disabled="!canReview"
-        >
-          <i class="fas fa-check-double"></i>
-          <span>{% trans "Review" %}</span>
-        </a>
-      </div>
-    </article>
-    {% endfor %}
-  </section>
-
-  <section
-    class="scrape-card overflow-hidden"
-    x-show="activeRun.visible"
-    x-transition:enter="transition ease-out duration-250"
-    x-transition:enter-start="opacity-0 -translate-y-2"
-    x-transition:enter-end="opacity-100 translate-y-0"
-    aria-live="polite"
-  >
-    <div class="bg-slate-900 px-5 py-3 text-white md:px-7" :class="activeRun.status === 'completed' ? 'bg-emerald-700' : (activeRun.status === 'failed' ? 'bg-rose-700' : 'bg-slate-900')">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <p class="text-sm font-semibold md:text-base">
-          <span x-text="activeRunStatusIcon"></span>
-          <span x-text="activeRunStatusText"></span>
-        </p>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-md border border-white/40 bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-          @click="stopActiveRun"
-          :disabled="activeRun.status !== 'running' || stopBusy"
-          x-show="activeRun.status === 'running'"
-        >
-          <i class="fas fa-stop"></i>
-          <span>{% trans "Stop Run" %}</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="space-y-4 px-5 py-4 md:px-7 md:py-5">
-      <div class="h-3 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(activeRun.progressPercent)">
-        <div id="progress-bar" class="active-run-progress h-full rounded-full bg-blue-600" :class="activeRun.status === 'completed' ? 'bg-emerald-600' : (activeRun.status === 'failed' ? 'bg-rose-600' : 'bg-blue-600')" :style="`width: ${activeRun.progressPercent}%`"></div>
-      </div>
-
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-sm font-semibold text-slate-800">
-          <span id="current-step-label" x-text="activeRun.currentStepLabel"></span>
-          <span class="mx-2 text-slate-300">•</span>
-          <span id="progress-counter" x-text="activeRun.current + '/' + activeRun.total"></span>
-          <span class="mx-2 text-slate-300">•</span>
-          <span id="progress-percent" x-text="Math.round(activeRun.progressPercent) + '%' "></span>
-        </p>
-        <p class="text-sm text-slate-600">
-          <span class="font-semibold">🧾</span>
-          <span>{% trans "Created" %}:</span>
-          <span id="items-created-count" x-text="activeRun.itemsCreated"></span>
-          <span class="mx-2 text-slate-300">•</span>
-          <span>{% trans "Skipped" %}:</span>
-          <span id="items-skipped-count" x-text="activeRun.itemsSkipped"></span>
-        </p>
-      </div>
-
-      <p id="progress-message" class="text-sm font-semibold text-slate-800" x-text="activeRun.currentMessage || activeRun.stepSummary"></p>
-      <p class="text-sm text-slate-600">
-        <span class="font-semibold">🔍</span>
-        <span x-text="activeRun.currentItem || '—'"></span>
+      <p class="hub-meta">
+        {% if cat.last_run and cat.last_run.started_at %}
+          {% trans "Dernier lancement" %}: {{ cat.last_run.started_at|timesince }} {% trans "ago" %}
+        {% else %}
+          {% trans "Aucun run enregistré pour cette catégorie." %}
+        {% endif %}
       </p>
 
-      <div id="source-alerts" class="source-alerts-container"></div>
-
-      <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" x-show="activeRun.status === 'completed'">
-        <p class="font-semibold text-emerald-700">
-          <i class="fas fa-check-circle"></i>
-          {% trans "Run completed successfully" %}
-        </p>
-        <p class="mt-1">
-          <span x-text="activeRun.itemsCreated"></span>
-          {% trans "items created" %}
-          <span class="mx-2 text-slate-300">•</span>
-          <span x-text="activeRun.itemsSkipped"></span>
-          {% trans "items skipped" %}
-        </p>
-        <a
-          class="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
-          :href="activeRun.reviewUrl"
-        >
-          <i class="fas fa-arrow-right"></i>
-          <span>{% trans "Review Queue" %}</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-    <div class="scrape-card p-4 xl:col-span-2" aria-label="{% trans 'AI prompts' %}">
-      <div class="mb-3 flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900 md:text-lg">
-          <i class="fas fa-brain text-blue-600"></i>
-          {% trans "AI Prompts" %}
-        </h3>
-      </div>
-
-      <div class="space-y-3">
-        <template x-for="category in categoryOrder" :key="`prompt-${category}`">
-          <section class="rounded-xl border border-slate-200 bg-slate-50/70">
-            <button
-              type="button"
-              class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-start"
-              @click="togglePromptAccordion(category)"
-              :aria-expanded="promptAccordionOpen === category"
-            >
-              <span class="text-sm font-bold text-slate-800" x-text="categoryLabel(category)"></span>
-              <i class="fas fa-chevron-down text-xs text-slate-500 transition" :class="promptAccordionOpen === category ? 'rotate-180' : ''"></i>
-            </button>
-
-            <div x-show="promptAccordionOpen === category" x-transition class="border-t border-slate-200 px-3 py-3">
-              <div class="flex flex-wrap gap-2">
-                <template x-for="prompt in visiblePrompts(category)" :key="`prompt-item-${category}-${prompt.id}`">
-                  <div class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs">
-                    <span class="max-w-[320px] truncate font-medium text-slate-700" :title="prompt.query_text" x-text="prompt.query_text"></span>
-                    <button
-                      type="button"
-                      class="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                      :class="prompt.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'"
-                      @click="togglePrompt(prompt)"
-                    >
-                      <span x-text="prompt.is_active ? i18n.active : i18n.inactive"></span>
-                    </button>
-                  </div>
-                </template>
-
-                <template x-if="!promptsByCategory[category] || promptsByCategory[category].length === 0">
-                  <p class="text-xs text-slate-500">{% trans "No prompts configured yet." %}</p>
-                </template>
-              </div>
-
-              <button
-                type="button"
-                class="mt-2 text-xs font-semibold text-blue-700 hover:text-blue-800"
-                x-show="(promptsByCategory[category] || []).length > 5"
-                @click="togglePromptList(category)"
-                x-text="showAllPrompts[category] ? i18n.showLess : i18n.showAll"
-              ></button>
-
-              <form class="mt-3 flex flex-col gap-2 md:flex-row" @submit.prevent="addPrompt(category)">
-                <input
-                  type="text"
-                  class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  :placeholder="i18n.promptPlaceholder"
-                  x-model="newPromptText[category]"
-                  maxlength="500"
-                />
-                <button
-                  type="submit"
-                  class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
-                  :disabled="promptSubmitting[category]"
-                >
-                  <i class="fas fa-circle-notch fa-spin" x-show="promptSubmitting[category]"></i>
-                  <i class="fas fa-plus" x-show="!promptSubmitting[category]"></i>
-                  <span>{% trans "Add prompt" %}</span>
-                </button>
-              </form>
-            </div>
-          </section>
-        </template>
-      </div>
-    </div>
-
-    <aside class="scrape-card p-4" aria-label="{% trans 'Quick stats' %}">
-      <h3 class="text-base font-bold text-slate-900 md:text-lg">
-        <i class="fas fa-chart-line text-indigo-600"></i>
-        {% trans "Quick Stats" %}
-      </h3>
-
-      <dl class="mt-4 space-y-3 text-sm">
-        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <dt class="font-medium text-slate-600">{% trans "Today approved" %}</dt>
-          <dd class="font-black text-emerald-700" x-text="quickStats.todayApproved"></dd>
-        </div>
-        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <dt class="font-medium text-slate-600">{% trans "Today rejected" %}</dt>
-          <dd class="font-black text-rose-700" x-text="quickStats.todayRejected"></dd>
-        </div>
-        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <dt class="font-medium text-slate-600">{% trans "Avg confidence" %}</dt>
-          <dd class="font-black text-slate-900"><span x-text="quickStats.avgConfidence"></span>%</dd>
-        </div>
-        <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <dt class="font-medium text-slate-600">{% trans "Translation OK" %}</dt>
-          <dd class="font-black text-blue-700"><span x-text="quickStats.translationOkPct"></span>%</dd>
-        </div>
-      </dl>
-
-      <a
-        href="{% url 'scraping:analytics' %}"
-        class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
-      >
-        <span>→</span>
-        <span>{% trans "Analytics" %}</span>
+      <a class="hub-btn" href="{% url 'scraping:category_dashboard' cat.key %}">
+        <i class="fas fa-arrow-right"></i>
+        <span>{% trans "Gérer cette catégorie" %}</span>
       </a>
-    </aside>
-  </section>
-
-  <section class="scrape-card p-4" aria-label="{% trans 'Recent run snapshots' %}">
-    <div class="mb-3 flex items-center justify-between">
-      <h3 class="text-base font-bold text-slate-900 md:text-lg">
-        <i class="fas fa-bolt text-indigo-600"></i>
-        {% trans "Recent Run Snapshots" %}
-      </h3>
-    </div>
-
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {% for cat in categories %}
-        {% if cat.recent_runs %}
-        <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-          <h4 class="text-xs font-extrabold uppercase tracking-[0.09em] text-slate-700">
-            {{ cat.meta.label }}
-          </h4>
-          <div class="mt-2 grid gap-2">
-            {% for run in cat.recent_runs|slice:":2" %}
-              {% include "scraping/components/run_status_card.html" with run=run %}
-            {% endfor %}
-          </div>
-        </article>
-        {% endif %}
-      {% empty %}
-      <p class="text-sm font-semibold text-slate-500">{% trans "No run snapshots yet." %}</p>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="scrape-card p-4" aria-label="{% trans 'Run history' %}">
-    <button
-      type="button"
-      class="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-start"
-      @click="historyOpen = !historyOpen"
-      :aria-expanded="historyOpen"
-    >
-      <span class="text-base font-bold text-slate-900 md:text-lg">
-        <i class="fas fa-history text-slate-700"></i>
-        {% trans "Run History" %}
-      </span>
-      <i class="fas fa-chevron-down text-sm text-slate-500 transition" :class="historyOpen ? 'rotate-180' : ''"></i>
-    </button>
-
-    <div x-show="historyOpen" x-transition class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div class="soft-scrollbar overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-[0.08em] text-slate-500">
-            <tr>
-              <th class="px-3 py-2 text-start">{% trans "Category" %}</th>
-              <th class="px-3 py-2 text-start">{% trans "Started" %}</th>
-              <th class="px-3 py-2 text-start">{% trans "Duration" %}</th>
-              <th class="px-3 py-2 text-start">{% trans "Items" %}</th>
-              <th class="px-3 py-2 text-start">{% trans "Actions" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="row in runHistoryRows" :key="row.run_id">
-              <tr class="border-t border-slate-100">
-                <td class="px-3 py-2">
-                  <span class="inline-flex items-center gap-2">
-                    <span x-text="runStatusIcon(row)" :title="row.status"></span>
-                    <span class="status-dot" :style="`background:${categoryColor(row.category)}`"></span>
-                    <span class="font-semibold text-slate-800" x-text="categoryLabel(row.category)"></span>
-                  </span>
-                </td>
-                <td class="px-3 py-2 text-slate-600" x-text="relativeTime(row.started_at)"></td>
-                <td class="px-3 py-2 text-slate-700" x-text="historyDuration(row)"></td>
-                <td class="px-3 py-2 text-slate-700" x-text="historyItems(row)"></td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-2">
-                    <a
-                      class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:border-slate-400"
-                      :href="reviewUrlForRun(row.run_id)"
-                    >
-                      <i class="fas fa-eye"></i>
-                      <span>{% trans "Review" %}</span>
-                    </a>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                      @click="rerunRow(row)"
-                    >
-                      <i class="fas fa-rotate-right"></i>
-                      <span x-text="row.status === 'failed' ? i18n.retry : i18n.rerun"></span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  {% csrf_token %}
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script>
-(function () {
-  'use strict';
-
-  const CATEGORY_ORDER = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
-  const CATEGORIES = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
-  const REVIEW_SUPPORTED = JSON.parse('{{ review_supported_categories_json|escapejs }}' || '[]');
-  const SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
-  const RECENT_RUNS = JSON.parse('{{ recent_runs_rows_json|escapejs }}' || '{}');
-  const SCRAPING_BASE_PATH = '{% url "scraping:dashboard" %}';
-
-  const CATEGORY_META = {
-    {% for cat in categories %}
-    '{{ cat.key }}': {
-      label: '{{ cat.meta.label|escapejs }}',
-      color: '{{ cat.meta.color|default:"#2563eb"|escapejs }}',
-      icon: '{{ cat.meta.icon|default:"fa-circle"|escapejs }}',
-      emoji: '{% if cat.key == "events" %}🔵{% elif cat.key == "tools" %}🟣{% elif cat.key == "courses" %}🟢{% elif cat.key == "news" %}🟡{% elif cat.key == "opportunities" %}🟠{% else %}🔴{% endif %}'
-    }{% if not forloop.last %},{% endif %}
+    </article>
+    {% empty %}
+    <article class="hub-card">
+      <h2 class="hub-category">{% trans "Aucune catégorie disponible" %}</h2>
+      <p class="hub-meta">{% trans "Vérifiez la configuration des catégories de scraping." %}</p>
+    </article>
     {% endfor %}
-  };
-
-  const I18N = {
-    reviewUnavailable: '{% trans "Review is not available for this category yet." %}',
-    active: '{% trans "Active" %}',
-    inactive: '{% trans "Inactive" %}',
-    showAll: '{% trans "Show all" %}',
-    showLess: '{% trans "Show less" %}',
-    promptPlaceholder: '{% trans "Add a new prompt" %}',
-    run: '{% trans "Run" %}',
-    running: '{% trans "Running" %}',
-    done: '{% trans "Done" %}',
-    rerun: '{% trans "Rerun" %}',
-    retry: '{% trans "Retry" %}',
-    scrapingVerb: '{% trans "scraping" %}',
-    stepDiscovery: '{% trans "Discovery" %}',
-    stepExtraction: '{% trans "LLM Extraction" %}',
-    stepValidation: '{% trans "Validation" %}',
-    stepSaving: '{% trans "Saving" %}',
-    neverRun: '{% trans "Never run" %}',
-    stopConfirm: '{% trans "Stop the current run?" %}',
-    runFailed: '{% trans "Run failed" %}',
-    runCompleted: '{% trans "Run completed" %}',
-    noItemsFound: '{% trans "No items found in last run" %}',
-    runAllCategories: '{% trans "Run All Categories" %}',
-    runningAll: '{% trans "Running all..." %}',
-    itemsFound: '{% trans "items found" %}',
-    step: '{% trans "Step" %}',
-    query: '{% trans "Query" %}'
-  };
-
-  function getCookie(name) {
-    let value = null;
-    if (!document.cookie) return value;
-    document.cookie.split(';').forEach((part) => {
-      const cookie = part.trim();
-      if (cookie.startsWith(name + '=')) {
-        value = decodeURIComponent(cookie.substring(name.length + 1));
-      }
-    });
-    return value;
-  }
-
-  function csrfToken() {
-    return getCookie('csrftoken') || ((document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '');
-  }
-
-  function scrapingUrl(path) {
-    const normalizedBase = String(SCRAPING_BASE_PATH || '/scraping/').replace(/\/+$/, '/');
-    const normalizedPath = String(path || '').replace(/^\/+/, '');
-    return normalizedBase + normalizedPath;
-  }
-
-  function categoryApiUrl(category) {
-    return scrapingUrl('api/stats/' + encodeURIComponent(category) + '/');
-  }
-
-  function quickStatsApiUrl() {
-    return scrapingUrl('api/quick-stats/');
-  }
-
-  function runApiUrl(category) {
-    return scrapingUrl('run/' + encodeURIComponent(category) + '/');
-  }
-
-  function runStatusApiUrl(runId) {
-    return scrapingUrl('status/' + encodeURIComponent(runId) + '/');
-  }
-
-  function stopRunApiUrl(runId) {
-    return scrapingUrl('stop/' + encodeURIComponent(runId) + '/');
-  }
-
-  function addPromptApiUrl() {
-    return scrapingUrl('api/prompts/add/');
-  }
-
-  function togglePromptApiUrl(promptId) {
-    return scrapingUrl('api/prompts/' + encodeURIComponent(promptId) + '/toggle/');
-  }
-
-  function recentRunsApiUrl() {
-    return scrapingUrl('runs/recent/');
-  }
-
-  function reviewUrl(runId) {
-    return scrapingUrl('results/?run_id=' + encodeURIComponent(runId));
-  }
-
-  function stepInfo(rawStep) {
-    const value = String(rawStep || '').toLowerCase();
-    if (value.includes('extract') || value.includes('llm')) {
-      return { index: 2, label: I18N.stepExtraction };
-    }
-    if (value.includes('valid')) {
-      return { index: 3, label: I18N.stepValidation };
-    }
-    if (value.includes('save') || value.includes('persist')) {
-      return { index: 4, label: I18N.stepSaving };
-    }
-    return { index: 1, label: I18N.stepDiscovery };
-  }
-
-  function relativeTime(isoDate) {
-    if (!isoDate) return '—';
-    const date = new Date(isoDate);
-    if (Number.isNaN(date.getTime())) return '—';
-    const diffMs = date.getTime() - Date.now();
-    const absSec = Math.round(Math.abs(diffMs) / 1000);
-    const rtf = new Intl.RelativeTimeFormat(document.documentElement.lang || 'en', { numeric: 'auto' });
-    if (absSec < 60) return rtf.format(Math.round(diffMs / 1000), 'second');
-    if (absSec < 3600) return rtf.format(Math.round(diffMs / 60000), 'minute');
-    if (absSec < 86400) return rtf.format(Math.round(diffMs / 3600000), 'hour');
-    return rtf.format(Math.round(diffMs / 86400000), 'day');
-  }
-
-  function formatDuration(seconds) {
-    const value = Number(seconds || 0);
-    if (!value || value <= 0) return '—';
-    const mins = Math.floor(value / 60);
-    const secs = Math.floor(value % 60);
-    return mins + 'm ' + String(secs).padStart(2, '0') + 's';
-  }
-
-  function showToast(message, tone) {
-    const text = String(message || '').trim();
-    if (!text) return;
-
-    const containerId = 'scraping-dashboard-toast-container';
-    let container = document.getElementById(containerId);
-    if (!container) {
-      container = document.createElement('div');
-      container.id = containerId;
-      container.style.position = 'fixed';
-      container.style.bottom = '1rem';
-      container.style.right = '1rem';
-      container.style.zIndex = '99999';
-      container.style.display = 'grid';
-      container.style.gap = '0.5rem';
-      document.body.appendChild(container);
-    }
-
-    const toast = document.createElement('div');
-    toast.textContent = text;
-    toast.style.borderRadius = '0.5rem';
-    toast.style.padding = '0.55rem 0.8rem';
-    toast.style.fontSize = '0.85rem';
-    toast.style.fontWeight = '600';
-    toast.style.color = '#fff';
-    toast.style.boxShadow = '0 10px 25px rgba(2, 8, 23, 0.28)';
-    toast.style.background = tone === 'error' ? '#b91c1c' : (tone === 'warn' ? '#b45309' : '#0f766e');
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(8px)';
-    toast.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-
-    container.appendChild(toast);
-    window.requestAnimationFrame(() => {
-      toast.style.opacity = '1';
-      toast.style.transform = 'translateY(0)';
-    });
-
-    window.setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(6px)';
-      window.setTimeout(() => {
-        toast.remove();
-        if (!container.children.length) {
-          container.remove();
-        }
-      }, 220);
-    }, 2600);
-  }
-
-  function dispatchCardState(category, payload) {
-    window.dispatchEvent(new CustomEvent('scraping:card-state', { detail: { category, payload } }));
-  }
-
-  function dispatchCategoryStats(category, payload) {
-    window.dispatchEvent(new CustomEvent('scraping:category-stats', { detail: { category, payload } }));
-  }
-
-  window.categoryCard = function (categoryKey) {
-    return {
-      category: categoryKey,
-      pendingCount: null,
-      lastRun: null,
-      runState: 'idle',
-      canReview: REVIEW_SUPPORTED.includes(categoryKey),
-      flashComplete: false,
-      i18n: I18N,
-      init() {
-        this.fetchStats();
-
-        window.addEventListener('scraping:card-state', (event) => {
-          const detail = event.detail || {};
-          if (detail.category !== this.category) return;
-          const payload = detail.payload || {};
-
-          if (payload.runState) {
-            this.runState = payload.runState;
-          }
-          if (payload.lastRun) {
-            this.lastRun = payload.lastRun;
-          }
-          if (typeof payload.pendingCount === 'number') {
-            this.pendingCount = payload.pendingCount;
-          }
-          if (payload.runState === 'completed') {
-            this.flashComplete = true;
-            window.setTimeout(() => {
-              this.flashComplete = false;
-              this.runState = 'idle';
-            }, 1500);
-          }
-        });
-      },
-      get iconBadgeStyle() {
-        return 'background: color-mix(in srgb, ' + this.categoryColor + ' 15%, white); color:' + this.categoryColor + ';';
-      },
-      get categoryColor() {
-        return (CATEGORY_META[this.category] || {}).color || '#2563eb';
-      },
-      get metaColorEmoji() {
-        return ((CATEGORY_META[this.category] || {}).emoji || '🔵') + ' ' + (CATEGORY_META[this.category] || {}).label;
-      },
-      get pendingCountDisplay() {
-        return this.pendingCount == null ? '—' : String(this.pendingCount);
-      },
-      get reviewUrl() {
-        return scrapingUrl('results/?category=' + encodeURIComponent(this.category));
-      },
-      get runButtonLabel() {
-        if (this.runState === 'running') return I18N.running;
-        if (this.runState === 'completed') return I18N.done;
-        return I18N.run;
-      },
-      get lastRunIcon() {
-        if (!this.lastRun || !this.lastRun.status) return '—';
-        if (this.lastRun.status === 'failed') return '❌';
-        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) return '⚠️';
-        if (this.lastRun.status === 'completed') return '✅';
-        return '⚠️';
-      },
-      get lastRunLabel() {
-        if (!this.lastRun || !this.lastRun.started_at) return I18N.neverRun;
-        if (this.lastRun.status === 'completed' && Number(this.lastRun.items_found || 0) === 0) {
-          return I18N.noItemsFound + ' · ' + relativeTime(this.lastRun.started_at);
-        }
-        return relativeTime(this.lastRun.started_at);
-      },
-      handleReviewClick(event) {
-        if (!this.canReview) {
-          event.preventDefault();
-          return;
-        }
-      },
-      run() {
-        if (window.__scrapingDashboard) {
-          window.__scrapingDashboard.startRun(this.category).catch(() => {});
-        }
-      },
-      fetchStats() {
-        fetch(categoryApiUrl(this.category), {
-          headers: { Accept: 'application/json' },
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            this.pendingCount = Number(data.pending_count || 0);
-            this.lastRun = data.last_run || null;
-            this.canReview = !!data.can_review;
-            dispatchCategoryStats(this.category, {
-              pendingCount: this.pendingCount,
-              lastRun: this.lastRun,
-            });
-          })
-          .catch(() => {
-            this.pendingCount = this.pendingCount == null ? 0 : this.pendingCount;
-          });
-      },
-    };
-  };
-
-  window.scrapingDashboard = function () {
-    return {
-      categoryOrder: CATEGORY_ORDER,
-      categoryMeta: CATEGORY_META,
-      reviewSupported: new Set(REVIEW_SUPPORTED),
-      promptAccordionOpen: 'events',
-      promptsByCategory: {},
-      showAllPrompts: {},
-      newPromptText: {},
-      promptSubmitting: {},
-      historyOpen: false,
-      runAllLoading: false,
-      runAllButtonText: I18N.runAllCategories,
-      stopBusy: false,
-      quickStats: {
-        todayApproved: 0,
-        todayRejected: 0,
-        avgConfidence: 0,
-        translationOkPct: 0,
-      },
-      runHistoryRows: [],
-      categoryRuntime: {},
-      categoryState: {},
-      globalPendingReview: 0,
-      globalLastRunText: '—',
-      activeRun: {
-        visible: false,
-        runId: '',
-        category: '',
-        status: 'running',
-        current: 0,
-        total: 0,
-        progressPercent: 0,
-        currentStep: 'discovery',
-        currentStepLabel: I18N.stepDiscovery,
-        currentMessage: '',
-        stepSummary: '—',
-        currentItem: '',
-        reviewUrl: '#',
-        itemsCreated: 0,
-        itemsSkipped: 0,
-        itemsFailed: 0,
-      },
-      i18n: I18N,
-
-      init() {
-        window.__scrapingDashboard = this;
-        this.initializeCategoryState();
-        this.bootstrapPrompts();
-        this.bootstrapRunHistory(RECENT_RUNS);
-        this.fetchQuickStats();
-        this.refreshGlobalHeader();
-
-        window.addEventListener('scraping:category-stats', (event) => {
-          const detail = event.detail || {};
-          const category = detail.category;
-          const payload = detail.payload || {};
-          if (!category) return;
-          this.categoryRuntime[category] = {
-            pendingCount: Number(payload.pendingCount || 0),
-            lastRun: payload.lastRun || null,
-          };
-          this.refreshGlobalHeader();
-        });
-
-        window.addEventListener('beforeunload', () => {
-          CATEGORIES.forEach((category) => this.cleanupCategoryRealtime(category));
-        });
-      },
-
-      categoryLabel(category) {
-        return ((this.categoryMeta[category] || {}).label) || category;
-      },
-
-      categoryColor(category) {
-        return ((this.categoryMeta[category] || {}).color) || '#2563eb';
-      },
-
-      reviewUrlForRun(runId) {
-        return reviewUrl(runId);
-      },
-
-      initializeCategoryState() {
-        const baseline = {};
-        CATEGORIES.forEach((category) => {
-          baseline[category] = {
-            runId: null,
-            taskId: null,
-            wsClient: null,
-            pollingTimer: null,
-            status: 'idle',
-            progress: 0,
-            current: 0,
-            total: 0,
-            itemsCreated: 0,
-            itemsSkipped: 0,
-            itemsFailed: 0,
-            currentStep: 'discovery',
-            currentStepLabel: I18N.stepDiscovery,
-            currentMessage: '',
-            stepSummary: '—',
-            currentItem: '',
-            reviewUrl: '#',
-          };
-        });
-        this.categoryState = baseline;
-      },
-
-      ensureCategoryState(category) {
-        if (!this.categoryState[category]) {
-          this.categoryState[category] = {
-            runId: null,
-            taskId: null,
-            wsClient: null,
-            pollingTimer: null,
-            status: 'idle',
-            progress: 0,
-            current: 0,
-            total: 0,
-            itemsCreated: 0,
-            itemsSkipped: 0,
-            itemsFailed: 0,
-            currentStep: 'discovery',
-            currentStepLabel: I18N.stepDiscovery,
-            currentMessage: '',
-            stepSummary: '—',
-            currentItem: '',
-            reviewUrl: '#',
-          };
-        }
-        return this.categoryState[category];
-      },
-
-      stopCategoryPolling(category) {
-        const state = this.ensureCategoryState(category);
-        if (!state.pollingTimer) return;
-        window.clearInterval(state.pollingTimer);
-        state.pollingTimer = null;
-      },
-
-      cleanupCategoryRealtime(category) {
-        const state = this.ensureCategoryState(category);
-        this.stopCategoryPolling(category);
-        if (state.wsClient) {
-          state.wsClient.disconnect();
-          state.wsClient = null;
-        }
-      },
-
-      syncActiveRunFromState(category) {
-        if (this.activeRun.category !== category) return;
-        const state = this.ensureCategoryState(category);
-        this.activeRun.runId = state.runId || '';
-        this.activeRun.status = state.status || 'idle';
-        this.activeRun.current = Number(state.current || 0);
-        this.activeRun.total = Number(state.total || 0);
-        this.activeRun.progressPercent = Number(state.progress || 0);
-        this.activeRun.currentStep = state.currentStep || this.activeRun.currentStep;
-        this.activeRun.currentStepLabel = state.currentStepLabel || this.activeRun.currentStepLabel;
-        this.activeRun.currentMessage = state.currentMessage || this.activeRun.currentMessage;
-        this.activeRun.stepSummary = state.stepSummary || this.activeRun.stepSummary;
-        this.activeRun.currentItem = state.currentItem || this.activeRun.currentItem;
-        this.activeRun.reviewUrl = state.reviewUrl || this.activeRun.reviewUrl;
-        this.activeRun.itemsCreated = Number(state.itemsCreated || 0);
-        this.activeRun.itemsSkipped = Number(state.itemsSkipped || 0);
-        this.activeRun.itemsFailed = Number(state.itemsFailed || 0);
-      },
-
-      refreshGlobalHeader() {
-        let pending = 0;
-        let latestRunDate = null;
-
-        this.categoryOrder.forEach((category) => {
-          const runtime = this.categoryRuntime[category];
-          if (!runtime) return;
-          pending += Number(runtime.pendingCount || 0);
-          const iso = runtime.lastRun && runtime.lastRun.started_at;
-          if (!iso) return;
-          const candidateDate = new Date(iso);
-          if (Number.isNaN(candidateDate.getTime())) return;
-          if (!latestRunDate || candidateDate > latestRunDate) {
-            latestRunDate = candidateDate;
-          }
-        });
-
-        this.globalPendingReview = pending;
-        this.globalLastRunText = latestRunDate ? relativeTime(latestRunDate.toISOString()) : '—';
-      },
-
-      bootstrapPrompts() {
-        const grouped = {};
-        this.categoryOrder.forEach((category) => {
-          grouped[category] = [];
-          this.showAllPrompts[category] = false;
-          this.newPromptText[category] = '';
-          this.promptSubmitting[category] = false;
-        });
-
-        (SEARCH_QUERY_ROWS || []).forEach((row) => {
-          const category = String(row.category || '').toLowerCase();
-          if (!grouped[category]) grouped[category] = [];
-          grouped[category].push({
-            id: row.id,
-            category,
-            query_text: row.query_text,
-            is_active: !!row.is_active,
-          });
-        });
-
-        this.promptsByCategory = grouped;
-      },
-
-      visiblePrompts(category) {
-        const list = this.promptsByCategory[category] || [];
-        if (this.showAllPrompts[category]) return list;
-        return list.slice(0, 5);
-      },
-
-      togglePromptList(category) {
-        this.showAllPrompts[category] = !this.showAllPrompts[category];
-      },
-
-      togglePromptAccordion(category) {
-        this.promptAccordionOpen = this.promptAccordionOpen === category ? '' : category;
-      },
-
-      addPrompt(category) {
-        const text = String(this.newPromptText[category] || '').trim();
-        if (!text) return;
-        this.promptSubmitting[category] = true;
-
-        const tempId = 'tmp-' + Date.now();
-        const list = this.promptsByCategory[category] || [];
-        const optimisticPrompt = {
-          id: tempId,
-          category,
-          query_text: text,
-          is_active: true,
-        };
-        list.unshift(optimisticPrompt);
-        this.promptsByCategory[category] = list;
-        this.newPromptText[category] = '';
-
-        fetch(addPromptApiUrl(), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken(),
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({
-            category,
-            query_text: text,
-            is_active: true,
-          }),
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((saved) => {
-            optimisticPrompt.id = saved.id;
-            optimisticPrompt.is_active = !!saved.is_active;
-          })
-          .catch(() => {
-            this.promptsByCategory[category] = (this.promptsByCategory[category] || []).filter((prompt) => prompt.id !== tempId);
-          })
-          .finally(() => {
-            this.promptSubmitting[category] = false;
-          });
-      },
-
-      togglePrompt(prompt) {
-        if (!prompt || String(prompt.id).startsWith('tmp-')) return;
-        const original = !!prompt.is_active;
-        prompt.is_active = !original;
-
-        fetch(togglePromptApiUrl(prompt.id), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken(),
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({ is_active: prompt.is_active }),
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((saved) => {
-            prompt.is_active = !!saved.is_active;
-          })
-          .catch(() => {
-            prompt.is_active = original;
-          });
-      },
-
-      fetchQuickStats() {
-        fetch(quickStatsApiUrl(), {
-          headers: { Accept: 'application/json' },
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            this.quickStats.todayApproved = Number(data.today_approved || 0);
-            this.quickStats.todayRejected = Number(data.today_rejected || 0);
-            this.quickStats.avgConfidence = Number(data.avg_confidence || 0).toFixed(1);
-            this.quickStats.translationOkPct = Number(data.translation_ok_pct || 0).toFixed(1);
-          })
-          .catch(() => {});
-      },
-
-      bootstrapRunHistory(runMap) {
-        const rows = [];
-        Object.keys(runMap || {}).forEach((category) => {
-          (runMap[category] || []).forEach((row) => {
-            rows.push({ ...row, category });
-          });
-        });
-
-        rows.sort((a, b) => {
-          const da = new Date(a.started_at || 0).getTime();
-          const db = new Date(b.started_at || 0).getTime();
-          return db - da;
-        });
-
-        this.runHistoryRows = rows.slice(0, 10);
-      },
-
-      refreshRunHistory() {
-        fetch(recentRunsApiUrl(), { headers: { Accept: 'application/json' } })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            this.bootstrapRunHistory(data.runs || {});
-          })
-          .catch(() => {});
-      },
-
-      historyDuration(row) {
-        if (row.status === 'failed') return 'Failed ❌';
-        return formatDuration(row.duration_seconds);
-      },
-
-      historyItems(row) {
-        return String(Number(row.items_saved || 0)) + ' new';
-      },
-
-      runStatusIcon(row) {
-        if (!row || !row.status) return '—';
-        const status = String(row.status).toLowerCase();
-        if (status === 'completed') return '✅';
-        if (status === 'failed') return '❌';
-        return '⚠️';
-      },
-
-      relativeTime,
-
-      get activeRunStatusIcon() {
-        if (this.activeRun.status === 'completed') return '✅';
-        if (this.activeRun.status === 'failed') return '❌';
-        return '🔵';
-      },
-
-      get activeRunStatusText() {
-        const label = this.categoryLabel(this.activeRun.category || '');
-        if (this.activeRun.status === 'completed') {
-          return I18N.runCompleted + ': ' + label;
-        }
-        if (this.activeRun.status === 'failed') {
-          return I18N.runFailed + ': ' + label;
-        }
-        return I18N.running + ': ' + label + ' ' + I18N.scrapingVerb;
-      },
-
-      setActiveRunFromPayload(category, runId, taskId) {
-        const state = this.ensureCategoryState(category);
-        state.runId = String(runId || '');
-        state.taskId = String(taskId || state.taskId || '');
-        state.status = 'running';
-        state.progress = 0;
-        state.current = 0;
-        state.total = 0;
-        state.currentStep = 'discovery';
-        state.currentStepLabel = I18N.stepDiscovery;
-        state.currentMessage = I18N.running;
-        state.stepSummary = I18N.step + ' 1/4: ' + I18N.stepDiscovery + ' · ' + I18N.query + ' 0/0 · 0 ' + I18N.itemsFound;
-        state.currentItem = '';
-        state.itemsCreated = 0;
-        state.itemsSkipped = 0;
-        state.itemsFailed = 0;
-        state.reviewUrl = reviewUrl(state.runId);
-
-        this.activeRun.visible = true;
-        this.activeRun.category = category;
-        this.syncActiveRunFromState(category);
-
-        const alertsContainer = document.getElementById('source-alerts');
-        if (alertsContainer) {
-          alertsContainer.innerHTML = '';
-        }
-
-        this.syncProgressIndicators();
-      },
-
-      async startRun(category) {
-        const state = this.ensureCategoryState(category);
-        this.cleanupCategoryRealtime(category);
-
-        state.status = 'running';
-        state.progress = 0;
-        state.current = 0;
-        state.total = 0;
-        state.itemsCreated = 0;
-        state.itemsSkipped = 0;
-        state.itemsFailed = 0;
-        state.currentStep = 'discovery';
-        state.currentStepLabel = I18N.stepDiscovery;
-        state.currentMessage = I18N.running;
-        state.stepSummary = I18N.step + ' 1/4: ' + I18N.stepDiscovery + ' · ' + I18N.query + ' 0/0 · 0 ' + I18N.itemsFound;
-        state.currentItem = '';
-
-        this.activeRun.visible = true;
-        this.activeRun.category = category;
-        this.syncActiveRunFromState(category);
-        this.syncProgressIndicators();
-        dispatchCardState(category, { runState: 'running' });
-
-        const payload = {
-          category,
-          queries_by_category: this.promptsByCategory,
-          queries_for_category: (this.promptsByCategory[category] || []).filter((prompt) => prompt.is_active).map((prompt) => prompt.query_text),
-        };
-
-        try {
-          const response = await fetch(runApiUrl(category), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken(),
-              Accept: 'application/json',
-            },
-            body: JSON.stringify(payload),
-          });
-
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(String(data.message || data.error || ('Request failed (' + response.status + ')')));
-          }
-
-          if (data.status === 'started') {
-            this.setActiveRunFromPayload(category, data.run_id, data.task_id);
-            const readyState = this.ensureCategoryState(category);
-            this.connectRunSocket(category, readyState.taskId || readyState.runId);
-            this.startRunStatusPolling(category, readyState.runId);
-          } else {
-            this.handleRunFinalData(category, data || {});
-          }
-
-          return data;
-        } catch (error) {
-          state.status = 'failed';
-          state.currentMessage = String((error && error.message) || I18N.runFailed);
-          state.stepSummary = state.currentMessage || I18N.runFailed;
-          this.syncActiveRunFromState(category);
-          this.syncProgressIndicators();
-          dispatchCardState(category, { runState: 'idle' });
-          throw (error instanceof Error) ? error : new Error(String(error || I18N.runFailed));
-        }
-      },
-
-      async runAllCategories() {
-        if (this.runAllLoading) return;
-        this.runAllLoading = true;
-        this.runAllButtonText = '⏳ ' + I18N.runningAll;
-
-        const runAllBtn = document.getElementById('run-all-btn');
-        if (runAllBtn) {
-          runAllBtn.disabled = true;
-        }
-
-        showToast('Starting all categories sequentially...');
-
-        try {
-          for (const category of this.categoryOrder) {
-            try {
-              showToast('▶ Starting ' + category + '...');
-              await this.startRun(category);
-              const status = await this.waitForRunCompletion(category, 600000);
-              if (status === 'completed') {
-                showToast('✅ ' + category + ' completed');
-              } else {
-                showToast('❌ ' + category + ' failed', 'error');
-              }
-            } catch (error) {
-              const message = (error && error.message) ? error.message : I18N.runFailed;
-              showToast('❌ ' + category + ' failed: ' + message, 'error');
-            }
-          }
-          showToast('✅ All categories processed');
-        } finally {
-          this.runAllLoading = false;
-          this.runAllButtonText = I18N.runAllCategories;
-          if (runAllBtn) {
-            runAllBtn.disabled = false;
-          }
-        }
-      },
-
-      waitForRunCompletion(category, timeoutMs) {
-        const timeout = Number(timeoutMs || 600000);
-        return new Promise((resolve, reject) => {
-          const start = Date.now();
-          const check = window.setInterval(() => {
-            const state = this.ensureCategoryState(category);
-            if (Date.now() - start > timeout) {
-              window.clearInterval(check);
-              reject(new Error('Timeout'));
-              return;
-            }
-
-            if (state.status === 'completed' || state.status === 'failed') {
-              window.clearInterval(check);
-              resolve(state.status);
-            }
-          }, 2000);
-        });
-      },
-
-      connectRunSocket(category, taskId) {
-        const state = this.ensureCategoryState(category);
-        if (state.wsClient) {
-          state.wsClient.disconnect();
-          state.wsClient = null;
-        }
-        if (!taskId) return;
-
-        state.wsClient = new ScrapingStatusSocket(taskId, {
-          onProgress: (payload) => this.updateProgressUI(payload || {}, category),
-          onSourceFailed: (payload) => this.addSourceFailureAlert(payload || {}, category),
-          onItemSkipped: (payload) => this.updateSkippedCounter(payload || {}, category),
-          onStatus: (payload) => this.updateRunStatus(payload || {}, category),
-          isActive: () => this.ensureCategoryState(category).status === 'running',
-        });
-      },
-
-      handleScrapingEvent(category, payload) {
-        const eventType = String((payload.event_type || payload.type || '')).toLowerCase();
-
-        switch (eventType) {
-          case 'progress':
-            this.updateProgressUI(payload, category);
-            break;
-          case 'source_failed':
-            this.addSourceFailureAlert(payload, category);
-            break;
-          case 'item_skipped':
-            this.updateSkippedCounter(payload, category);
-            break;
-          case 'initial_status':
-          case 'status_update':
-            this.updateRunStatus(payload, category);
-            break;
-          default:
-            this.updateRunStatus(payload, category);
-            break;
-        }
-      },
-
-      updateProgressUI(payload, category) {
-        this.updateRunStatus(payload, category);
-      },
-
-      updateRunStatus(payload, category) {
-        const state = this.ensureCategoryState(category);
-        const payloadRunId = String(payload.run_id || payload.task_uuid || '');
-        if (payloadRunId && state.runId && payloadRunId !== String(state.runId)) {
-          return;
-        }
-
-        const status = String(payload.status || '').toLowerCase();
-
-        const step = String(payload.step || payload.current_step || '').trim();
-        const message = String(payload.message || payload.current_message || payload.current_step || '').trim();
-        const progressCurrent = Number((payload.current != null ? payload.current : (payload.progress_current != null ? payload.progress_current : payload.progress)) || 0);
-        const progressTotal = Number((payload.total != null ? payload.total : payload.progress_total) || 0);
-        const providedPercent = Number(payload.percent);
-        const progressPercent = Number.isFinite(providedPercent)
-          ? Math.max(0, Math.min(100, providedPercent))
-          : (progressTotal > 0 ? Math.min(100, (progressCurrent / progressTotal) * 100) : 0);
-        const info = stepInfo(step || message);
-        const itemsCreated = Number((payload.items_created != null ? payload.items_created : payload.items_scraped) || payload.items_found || 0);
-
-        state.current = progressCurrent;
-        state.total = progressTotal;
-        state.progress = progressPercent;
-        state.currentStep = step || state.currentStep;
-        state.currentStepLabel = info.label;
-        state.currentMessage = message;
-        state.itemsCreated = itemsCreated;
-        state.itemsSkipped = Number((payload.items_skipped != null ? payload.items_skipped : payload.items_failed) || state.itemsSkipped || 0);
-        state.itemsFailed = Number((payload.items_failed != null ? payload.items_failed : state.itemsFailed) || 0);
-        state.stepSummary =
-          I18N.step + ' ' + info.index + '/4: ' + info.label
-          + ' · ' + I18N.query + ' ' + progressCurrent + '/' + progressTotal
-          + ' · ' + itemsCreated + ' ' + I18N.itemsFound;
-        state.currentItem = String(payload.current_item || payload.current_source || message || '').trim();
-
-        if (status === 'running') {
-          state.status = 'running';
-        }
-
-        this.syncActiveRunFromState(category);
-        this.syncProgressIndicators();
-
-        if (status === 'completed' || status === 'failed' || status === 'success') {
-          state.status = status === 'success' ? 'completed' : status;
-          this.showRunSummary(category, payload);
-        }
-      },
-
-      addSourceFailureAlert(data, category) {
-        const alertsContainer = document.getElementById('source-alerts');
-        if (!alertsContainer) return;
-
-        const categoryLabel = this.categoryLabel(category || this.activeRun.category || '');
-        const sourceUrl = String(data.source_url || data.source || data.url || 'unknown source');
-        const reason = String(data.error || data.reason || 'Unknown error');
-
-        const alert = document.createElement('div');
-        alert.className = 'source-alert warning';
-        alert.innerHTML =
-          '⚠️ [' + categoryLabel + '] Source failed: <strong>' + sourceUrl + '</strong>'
-          + '<span class="reason">' + reason + '</span>';
-        alertsContainer.prepend(alert);
-
-        while (alertsContainer.children.length > 5) {
-          alertsContainer.lastChild.remove();
-        }
-      },
-
-      updateSkippedCounter(_data, category) {
-        const state = this.ensureCategoryState(category);
-        state.itemsSkipped = Number(state.itemsSkipped || 0) + 1;
-        this.syncActiveRunFromState(category);
-        this.syncProgressIndicators();
-      },
-
-      showRunSummary(category, data) {
-        this.cleanupCategoryRealtime(category);
-
-        const status = String((data || {}).status || '').toLowerCase();
-        if (status === 'completed' || status === 'failed' || status === 'success') {
-          this.handleRunFinalData(category, data || {});
-          return;
-        }
-
-        const state = this.ensureCategoryState(category);
-        this.fetchRunFinalStatus(category, state.runId);
-      },
-
-      startRunStatusPolling(category, runId) {
-        this.stopCategoryPolling(category);
-        if (!runId) return;
-
-        const state = this.ensureCategoryState(category);
-
-        state.pollingTimer = window.setInterval(() => {
-          const freshState = this.ensureCategoryState(category);
-          if (freshState.status !== 'running' || String(freshState.runId || '') !== String(runId || '')) {
-            this.stopCategoryPolling(category);
-            return;
-          }
-
-          fetch(runStatusApiUrl(runId), {
-            headers: { Accept: 'application/json' },
-          })
-            .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-            .then((data) => {
-              const status = String((data || {}).status || '').toLowerCase();
-              if (status === 'running') {
-                this.updateRunStatus(data || {}, category);
-                return;
-              }
-              if (status) {
-                freshState.status = status === 'success' ? 'completed' : status;
-                this.handleRunFinalData(category, data || {});
-              }
-            })
-            .catch(() => {});
-        }, 3000);
-      },
-
-      syncProgressIndicators() {
-        const bar = document.getElementById('progress-bar');
-        if (bar) {
-          bar.style.width = String(this.activeRun.progressPercent || 0) + '%';
-        }
-
-        const percent = document.getElementById('progress-percent');
-        if (percent) {
-          percent.textContent = String(Math.round(this.activeRun.progressPercent || 0)) + '%';
-        }
-
-        const message = document.getElementById('progress-message');
-        if (message) {
-          message.textContent = String(this.activeRun.currentMessage || this.activeRun.stepSummary || '');
-        }
-
-        const counter = document.getElementById('progress-counter');
-        if (counter) {
-          counter.textContent = String(this.activeRun.current || 0) + '/' + String(this.activeRun.total || 0);
-        }
-
-        const created = document.getElementById('items-created-count');
-        if (created) {
-          created.textContent = String(this.activeRun.itemsCreated || 0);
-        }
-
-        const skipped = document.getElementById('items-skipped-count');
-        if (skipped) {
-          skipped.textContent = String(this.activeRun.itemsSkipped || 0);
-        }
-
-        const stepLabel = document.getElementById('current-step-label');
-        if (stepLabel) {
-          stepLabel.textContent = String(this.activeRun.currentStepLabel || '');
-        }
-      },
-
-      stopRunStatusPolling() {
-        if (!this.activeRun.category) return;
-        this.stopCategoryPolling(this.activeRun.category);
-      },
-
-      fetchRunFinalStatus(category, runId) {
-        fetch(runStatusApiUrl(runId), {
-          headers: { Accept: 'application/json' },
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            this.handleRunFinalData(category, data || {});
-          })
-          .catch(() => {
-            this.handleRunFinalData(category, { status: 'failed', message: 'Unable to fetch final status.' });
-          });
-      },
-
-      handleRunFinalData(category, data) {
-        const state = this.ensureCategoryState(category);
-        this.cleanupCategoryRealtime(category);
-
-        const status = String(data.status || '').toLowerCase();
-        if (status === 'completed' || status === 'success') {
-          state.status = 'completed';
-          state.current = Number((data.current != null ? data.current : data.progress_current) || state.current || 0);
-          state.total = Number((data.total != null ? data.total : data.progress_total) || state.total || 0);
-          state.progress = 100;
-          state.itemsCreated = Number((data.items_created != null ? data.items_created : state.itemsCreated) || 0);
-          state.itemsSkipped = Number((data.items_skipped != null ? data.items_skipped : data.items_failed) || state.itemsSkipped || 0);
-          state.itemsFailed = Number((data.items_failed != null ? data.items_failed : data.items_skipped) || state.itemsFailed || 0);
-          state.currentMessage = String(data.message || data.current_message || I18N.runCompleted);
-          state.stepSummary = I18N.runCompleted;
-          state.reviewUrl = reviewUrl(state.runId || data.run_id || '');
-          dispatchCardState(category, { runState: 'completed' });
-        } else {
-          state.status = 'failed';
-          state.currentMessage = String(data.message || data.current_message || I18N.runFailed);
-          state.stepSummary = data.message || I18N.runFailed;
-          dispatchCardState(category, { runState: 'idle' });
-        }
-
-        this.syncActiveRunFromState(category);
-        this.syncProgressIndicators();
-
-        this.refreshCategoryStats(category);
-        this.refreshRunHistory();
-        this.fetchQuickStats();
-      },
-
-      refreshCategoryStats(category) {
-        fetch(categoryApiUrl(category), { headers: { Accept: 'application/json' } })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            dispatchCardState(category, {
-              pendingCount: Number(data.pending_count || 0),
-              lastRun: data.last_run || null,
-            });
-            dispatchCategoryStats(category, {
-              pendingCount: Number(data.pending_count || 0),
-              lastRun: data.last_run || null,
-            });
-          })
-          .catch(() => {});
-      },
-
-      stopActiveRun() {
-        const category = this.activeRun.category;
-        const state = this.ensureCategoryState(category);
-        if (state.status !== 'running' || !state.runId) return;
-        if (!window.confirm(I18N.stopConfirm)) return;
-
-        this.stopBusy = true;
-        fetch(stopRunApiUrl(state.runId), {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken(),
-            Accept: 'application/json',
-          },
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            state.status = 'failed';
-            state.currentMessage = String(data.message || I18N.runFailed);
-            state.stepSummary = data.message || I18N.runFailed;
-            dispatchCardState(category, { runState: 'idle' });
-            this.cleanupCategoryRealtime(category);
-            this.syncActiveRunFromState(category);
-            this.syncProgressIndicators();
-            this.refreshCategoryStats(category);
-            this.refreshRunHistory();
-            this.fetchQuickStats();
-          })
-          .catch(() => {})
-          .finally(() => {
-            this.stopBusy = false;
-          });
-      },
-
-      rerunRow(row) {
-        if (!row || !row.rerun_url) return;
-
-        fetch(row.rerun_url, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken(),
-            Accept: 'application/json',
-          },
-        })
-          .then((response) => response.ok ? response.json() : Promise.reject(response.status))
-          .then((data) => {
-            if (data.status === 'started') {
-              dispatchCardState(row.category, { runState: 'running' });
-              this.setActiveRunFromPayload(row.category, data.run_id, data.task_id);
-              this.connectRunSocket(row.category, data.task_id || data.run_id);
-              this.startRunStatusPolling(row.category, data.run_id);
-            }
-          })
-          .catch(() => {});
-      },
-    };
-  };
-
-  class ScrapingStatusSocket {
-    constructor(runId, handlers) {
-      this.runId = runId;
-      this.handlers = handlers || {};
-      this.reconnectDelay = 1000;
-      this.maxReconnectDelay = 30000;
-      this.shouldReconnect = true;
-      this.connect();
-    }
-
-    connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.ws = new WebSocket(protocol + '//' + window.location.host + '/ws/scraping/' + this.runId + '/');
-
-      this.ws.onopen = () => {
-        this.reconnectDelay = 1000;
-      };
-
-      this.ws.onmessage = (event) => {
-        let data;
-        try {
-          data = JSON.parse(event.data || '{}');
-        } catch (_err) {
-          return;
-        }
-
-        const eventType = String(data.event_type || data.type || '').toLowerCase();
-        switch (eventType) {
-          case 'progress':
-            if (typeof this.handlers.onProgress === 'function') {
-              this.handlers.onProgress(data);
-            }
-            break;
-          case 'source_failed':
-            if (typeof this.handlers.onSourceFailed === 'function') {
-              this.handlers.onSourceFailed(data);
-            }
-            break;
-          case 'item_skipped':
-            if (typeof this.handlers.onItemSkipped === 'function') {
-              this.handlers.onItemSkipped(data);
-            }
-            break;
-          case 'initial_status':
-          case 'status_update':
-            if (typeof this.handlers.onStatus === 'function') {
-              this.handlers.onStatus(data);
-            }
-            break;
-          default:
-            if (typeof this.handlers.onStatus === 'function') {
-              this.handlers.onStatus(data);
-            }
-            break;
-        }
-
-        const status = String((data || {}).status || '').toLowerCase();
-        if (status === 'completed' || status === 'failed' || status === 'success') {
-          this.shouldReconnect = false;
-        }
-      };
-
-      this.ws.onclose = () => {
-        const active = typeof this.handlers.isActive === 'function' ? this.handlers.isActive() : true;
-        if (!this.shouldReconnect || !active) return;
-        window.setTimeout(() => this.connect(), this.reconnectDelay);
-        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
-      };
-    }
-
-    disconnect() {
-      this.shouldReconnect = false;
-      if (this.ws) this.ws.close();
-    }
-  }
-})();
-</script>
+  </div>
+</section>
 {% endblock %}

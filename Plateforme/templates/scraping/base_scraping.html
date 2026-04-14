@@ -108,6 +108,19 @@
     gap: 0.24rem;
   }
 
+  .sp-nav-title {
+    margin: 0.06rem 0.36rem 0.16rem;
+    color: #64748b;
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sp-link-category {
+    margin-inline-start: 0.16rem;
+  }
+
   .sp-nav-separator {
     margin: 0.06rem 0;
     border-top: 1px solid var(--sp-border);
@@ -403,6 +416,7 @@
   }
 
   .sidebar-collapsed .sp-brand-copy,
+  .sidebar-collapsed .sp-nav-title,
   .sidebar-collapsed .sp-link-label,
   .sidebar-collapsed .sp-pill,
   .sidebar-collapsed .sp-collapse-text {
@@ -492,14 +506,31 @@
 
     <nav class="sp-nav">
       <div class="sp-nav-group">
-        <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:dashboard' %}">
+        <p class="sp-nav-title">{% trans "Web Scraping" %}</p>
+        {% for nav_category in scraping_nav_categories %}
+        <a
+          class="sp-link sp-link-category {% if scraping_current_category == nav_category.key %}active{% endif %}"
+          href="{% url 'scraping:category_dashboard' nav_category.key %}"
+        >
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-layer-group"></i>
+            <span class="sp-link-label">{{ nav_category.label }}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="sp-nav-separator"></div>
+
+      <div class="sp-nav-group">
+        <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:category_dashboard' scraping_current_category %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-house"></i>
             <span class="sp-link-label">{% trans "Dashboard" %}</span>
           </span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:results' %}">
+        <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:category_results' scraping_current_category %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-clipboard-list"></i>
             <span class="sp-link-label">{% trans "Pending Queue" %}</span>
@@ -507,35 +538,24 @@
           <span class="sp-pill">{{ scraping_pending_count|default:0 }}</span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:scraping_analytics' %}">
+        <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:category_analytics' scraping_current_category %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-chart-column"></i>
             <span class="sp-link-label">{% trans "Analytics" %}</span>
           </span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:scraping_sources' %}">
+        <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:category_sources' scraping_current_category %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-link"></i>
             <span class="sp-link-label">{% trans "Sources" %}</span>
           </span>
         </a>
-      </div>
 
-      <div class="sp-nav-separator"></div>
-
-      <div class="sp-nav-group">
-        <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:settings' %}">
+        <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:category_settings' scraping_current_category %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-gear"></i>
             <span class="sp-link-label">{% trans "Settings" %}</span>
-          </span>
-        </a>
-
-        <a class="sp-link" href="{% url 'pages:home' %}">
-          <span class="sp-link-main">
-            <i class="sp-link-icon fas fa-arrow-left"></i>
-            <span class="sp-link-label">{% trans "Back to Platform" %}</span>
           </span>
         </a>
       </div>

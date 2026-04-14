@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
+import re
+import time
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
@@ -75,6 +78,7 @@ class LLMEventExtractor:
             default=str,
         )
 
+        await asyncio.to_thread(time.sleep, random.uniform(1, 3))
         try:
             response_text = await asyncio.to_thread(
                 self.client._chat,
@@ -109,6 +113,7 @@ class LLMEventExtractor:
                     "Retrying LLM event extraction with compact payload entries=%s",
                     len(compact_results),
                 )
+                await asyncio.to_thread(time.sleep, random.uniform(1, 3))
                 try:
                     response_text = await asyncio.to_thread(
                         self.client._chat,
@@ -131,10 +136,20 @@ class LLMEventExtractor:
         try:
             parsed = json.loads(self._strip_code_fences(response_text))
         except json.JSONDecodeError:
-            logger.info(
-                "LLM event extraction returned invalid JSON; using fallback extraction path"
-            )
-            return []
+            cleaned = self._strip_code_fences(response_text)
+            fallback_json = self._extract_json_array_block(cleaned)
+            if not fallback_json:
+                logger.info(
+                    "LLM event extraction returned invalid JSON; using fallback extraction path"
+                )
+                return []
+            try:
+                parsed = json.loads(fallback_json)
+            except json.JSONDecodeError:
+                logger.info(
+                    "LLM event extraction fallback JSON parsing failed"
+                )
+                return []
 
         event_items = parsed if isinstance(parsed, list) else []
         if not event_items and isinstance(parsed, dict):
@@ -510,6 +525,13 @@ If no relevant events are found, return an empty JSON array: [].
                 lines = lines[:-1]
             text = "\n".join(lines).strip()
         return text
+
+    @staticmethod
+    def _extract_json_array_block(text: str) -> str:
+        match = re.search(r"\[[\s\S]*\]", text)
+        if not match:
+            return ""
+        return match.group(0).strip()
 
     def _is_rate_limited_response(self) -> bool:
         status_code = getattr(self.client, "last_status_code", None)

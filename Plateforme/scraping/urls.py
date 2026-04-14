@@ -8,8 +8,18 @@ urlpatterns = [
     # Main pages
     path("", views.scraping_dashboard, name="dashboard"),
     path("dashboard/", views.scraping_dashboard, name="scraping_dashboard"),
+    path(
+        "<str:category>/dashboard/",
+        views.scraping_dashboard_by_category,
+        name="category_dashboard",
+    ),
     path("results/", views.scraping_results, name="results"),
     path("results/", views.scraping_results, name="scraping_results"),
+    path(
+        "<str:category>/results/",
+        views.scraping_results_by_category,
+        name="category_results",
+    ),
     path(
         "results/<int:item_id>/",
         views.scraping_result_detail,
@@ -27,10 +37,25 @@ urlpatterns = [
     ),
     path("sources/", views.scraping_sources_page, name="sources"),
     path("sources/", views.scraping_sources_page, name="scraping_sources"),
+    path(
+        "<str:category>/sources/",
+        views.scraping_sources_by_category,
+        name="category_sources",
+    ),
     path("analytics/", views.scraping_analytics_page, name="scraping_analytics"),
     path("analytics/", views.scraping_analytics_page, name="analytics"),
+    path(
+        "<str:category>/analytics/",
+        views.scraping_analytics_by_category,
+        name="category_analytics",
+    ),
     path("settings/", views.scraping_settings_page, name="settings"),
     path("settings/", views.scraping_settings_page, name="scraping_settings"),
+    path(
+        "<str:category>/settings/",
+        views.scraping_settings_by_category,
+        name="category_settings",
+    ),
     # Notifications
     path(
         "notifications/mark-read/",
