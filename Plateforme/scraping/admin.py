@@ -161,7 +161,7 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
             "events": "#6366f1",
             "tools": "#10b981",
             "news": "#f59e0b",
-            "courses": "#3b82f6",
+            "courses": "#a78bfa",
             "institutions": "#8b5cf6",
         }
         colour = colours.get(obj.category, "#64748b")
@@ -195,7 +195,7 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
             "GREEN": "#10b981",
             "YELLOW": "#f59e0b",
             "RED": "#ef4444",
-            "PENDING": "#3b82f6",
+            "PENDING": "#a78bfa",
             "UNKNOWN": "#64748b",
         }
         labels = {
@@ -573,7 +573,7 @@ class ScrapingSourceHealthAdmin(admin.ModelAdmin):
             "events": "#6366f1",
             "tools": "#10b981",
             "news": "#f59e0b",
-            "courses": "#3b82f6",
+            "courses": "#a78bfa",
             "institutions": "#8b5cf6",
         }
         colour = colours.get(obj.category, "#64748b")
@@ -677,7 +677,7 @@ class ScrapedItemMetaAdmin(admin.ModelAdmin):
             "events": "#6366f1",
             "tools": "#10b981",
             "news": "#f59e0b",
-            "courses": "#3b82f6",
+            "courses": "#a78bfa",
             "institutions": "#8b5cf6",
         }
         colour = colours.get(obj.category, "#64748b")
